@@ -666,7 +666,9 @@ a last quote counts and the quote's own trailing `>` doesn't; that walk is one p
 child holds a block's last line is a fact about its kind, so the kind's descriptor says it
 (`lastLineChild`; left out, a strip's last child, a grid's last row), and every walk asks
 `schema/container-raw.ts :: childHoldingLastLine`. A table holding only its header row answers
-"nobody", since its own delimiter line comes last. The commit owns the rule in two steps:
+"nobody", since its own delimiter line comes last. An answer past the children is a bug in the
+kind, so that reader warns (`last-line-child-range`) and counts it as "nobody". The commit owns
+the rule in two steps:
 `tree-operations/open-tail.ts :: endWindowLines`
 before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
 rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
@@ -676,8 +678,9 @@ call goes once the commit settles the move's joins.
 The check runs after every structural commit publishes and fails three shapes: an open file that
 gained a break on a line with text, a closed file that lost its break, and a line with no ending
 sitting right above the last line, at any level of the containers holding it. When a container's
-own bytes hold its last line (a quote's closing `>`, a header-only table's delimiter), the check
-reads the children right above that line too. That last shape is what
+own bytes hold its last line (a quote's closing `>`, a header-only table's delimiter, a directive's
+closing `:::`), the check reads the children right above that line too
+(`schema/container-raw.ts :: lineChildren`). That last shape is what
 an edit leaves when it puts a block after an open last line where the commit can't see it, and the
 two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` · run by
 both commit branches in `editor-actions/commit/undo-controller.ts` ·

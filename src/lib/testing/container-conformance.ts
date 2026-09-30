@@ -6,7 +6,8 @@
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import { keepOpenTail } from '../tree-operations/open-tail';
 import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { ancestorsOf } from '../core/paths';
@@ -548,6 +549,7 @@ export function checkDeclarationSanity(
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertLastLineChildHoldsIt(kind, node);
+	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
 	assertRebuildIsParseCanonical(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
@@ -564,6 +566,27 @@ function assertLastLineChildHoldsIt(kind: AnyBlockKind, node: CstNode): void {
 		lastLine(node.raw).endsWith(childLine),
 		`${kind} names child ${holder} as holding its last line, but that child's last line ` +
 			`"${childLine}" is not the end of the container's "${lastLine(node.raw)}"`
+	);
+}
+
+/** A -1 answer says the container's own bytes hold its last line, so giving that line's ending up
+ *  there alone must survive a rebuild; a child that really holds it writes the ending back. */
+function assertOwnLastLineHoldsIt(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor,
+	source: string
+): void {
+	const node = subjectNode(parse(source), kind, 'first', 'deepNesting');
+	if (childHoldingLastLine(node) >= 0) return;
+	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
+	keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
+	const released = doc.children[0].raw;
+	descriptor.rebuildRaw!(doc.children[0]);
+	assertIs(
+		doc.children[0].raw,
+		released,
+		`${kind} answers that its own bytes hold its last line, but a rebuild after that line ` +
+			`gives its ending up writes the ending back`
 	);
 }
 

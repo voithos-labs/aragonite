@@ -10,6 +10,7 @@ import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import { assertInvariant } from '../assert';
 import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
 import {
 	isGridDescriptor,
@@ -214,10 +215,30 @@ export function childHoldingLastLine(node: NodeView): number {
 	const last = (node.children?.length ?? 0) - 1;
 	if (last < 0) return -1;
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (descriptor?.lastLineChild) return descriptor.lastLineChild(node);
+	if (descriptor?.lastLineChild) {
+		const holder = descriptor.lastLineChild(node);
+		if (Number.isInteger(holder) && holder >= -1 && holder <= last) return holder;
+		assertInvariant('last-line-child-range', () => ({
+			code: 'last-line-child-range',
+			message: `${node.kind}: lastLineChild answered ${holder} for ${last + 1} children`
+		}));
+		return -1;
+	}
 	if (descriptor?.containerContract === 'strip') return node.innerSuffix ? -1 : last;
 	// A row's cells sit inside its one line.
 	return isGridDescriptor(descriptor) && isGridKind(node.children![last].kind) ? last : -1;
+}
+
+/** The children that are lines of a container's body: a strip's children, a grid's rows, and
+ *  the blocks above a closing line of the container's own, below any title row. */
+export function lineChildren(node: NodeView): readonly NodeView[] {
+	const children = node.children ?? [];
+	if (children.length === 0) return children;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.containerContract === 'strip') return children;
+	if (isGridDescriptor(descriptor)) return isGridKind(children.at(-1)!.kind) ? children : [];
+	if (!descriptor?.bodyWrap?.beforeCloserLine) return [];
+	return descriptor.reservedChrome ? children.slice(1) : children;
 }
 
 export function firstLine(raw: string): string {

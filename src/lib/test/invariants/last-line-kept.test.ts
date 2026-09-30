@@ -1,9 +1,12 @@
 // G1.41: the check fails each shape the commit's open-tail steps exist to prevent, and passes the
 // documents they leave.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { checkLastLineKept } from '$lib/invariants/open-tail';
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { rebuildContainerRaw } from '$lib/schema/container-raw';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** `bytes` parsed, then the block at `path` stripped of its line ending, as a glue bug leaves it. */
 function glued(bytes: string, path: number[]): Document {
@@ -55,5 +58,27 @@ describe('G1.41 checkLastLineKept', () => {
 		['an emptied document', '', true]
 	])('passes %s', (_name, bytes, wasOpen) => {
 		expect(checkLastLineKept(parse(bytes), wasOpen)).toBeNull();
+	});
+});
+
+// Miss-analysis: the walk read line children only in strips and grids, so the body line above an
+// opaque container's own closing line went unchecked, and the rebuild glued the closer onto it.
+describe('G1.41 over a container with its own closing line', () => {
+	beforeEach(() => activateDirectiveGrammar());
+
+	it('fails a body line glued onto a directive’s closing `:::`', () => {
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);
+	});
+
+	it('fails the directive the rebuild then writes, whose closer lost its line', () => {
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		rebuildContainerRaw(doc.children[1], defaultGrammarView);
+		expect(doc.children[1].raw).toBe(':::note\nbody:::\n');
+		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);
+	});
+
+	it('passes an open document ending in a directive’s closing line', () => {
+		expect(checkLastLineKept(parse('intro\n\n:::note\nbody\n:::'), true)).toBeNull();
 	});
 });
