@@ -34,6 +34,7 @@
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
+	import { createCurrentSource } from '../reactivity/current-source';
 	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { createListTree } from '../reactivity/list-tree';
 	import { createLayoutState } from '../reactivity/layout-state.svelte';
@@ -53,7 +54,6 @@
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
-	import { serialize } from '../core/serializer';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
@@ -232,6 +232,7 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
+	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
@@ -362,6 +363,7 @@
 
 	const documentSwap = createDocumentSwap({
 		grammar: registryView.grammar,
+		currentSource,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		noteTreeSwap: () => caretLanding.noteTreeSwap(),
@@ -392,13 +394,16 @@
 		events
 	});
 
-	// The equality check is required: `docs/design/editor.md` § Reactive state plumbing.
+	// The mount parsed `source` already, so the first run swaps only for a write made since.
 	// svelte-ignore state_referenced_locally
-	let lastSource = source;
+	let parsedAtMount: string | undefined = source;
 	$effect(() => {
-		if (source === lastSource) return;
-		lastSource = source;
-		documentSwap.swapTo(source);
+		const next = source;
+		const unchangedSinceMount = next === parsedAtMount;
+		parsedAtMount = undefined;
+		if (unchangedSinceMount) return;
+		// Untracked so typing never re-runs it: `docs/design/editor.md` § Reactive state plumbing.
+		untrack(() => documentSwap.swapTo(next));
 	});
 
 	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
@@ -1117,7 +1122,7 @@
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
-		return serialize(doc);
+		return currentSource();
 	}
 
 	// The kind alone, never the node, so a host holds no handle into the tree.

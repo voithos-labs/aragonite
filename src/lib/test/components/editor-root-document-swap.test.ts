@@ -30,6 +30,7 @@ describe('initDocument', () => {
 });
 
 describe('the swap commit sequence', () => {
+	/** An editor holding `held\n` until the first swap adopts a document. */
 	function harness() {
 		const order: string[] = [];
 		const step = (name: string) => () => void order.push(name);
@@ -39,6 +40,7 @@ describe('the swap commit sequence', () => {
 		const swaps: { generation: number; source: string }[] = [];
 		const swap = createDocumentSwap({
 			grammar: defaultGrammarView,
+			currentSource: () => (adopted ? serialize(adopted) : 'held\n'),
 			flushDebouncedCheckpoint: step('flush'),
 			noteTreeSwap: step('landings'),
 			adoptDocument: (doc) => {
@@ -98,6 +100,15 @@ describe('the swap commit sequence', () => {
 		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.links()!.resolver('x')?.url).toBe('https://x.example');
+	});
+
+	it('runs no step for the text the editor already holds', () => {
+		const h = harness();
+		h.swap.swapTo('held\n');
+		h.swap.swapTo('a\n');
+		h.swap.swapTo('a\n');
+		expect(h.swap.generation()).toBe(1);
+		expect(h.order.filter((name) => name === 'flush')).toHaveLength(1);
 	});
 
 	it('counts whole-document replacements and announces each with the new document in place', () => {

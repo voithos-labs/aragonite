@@ -42,6 +42,8 @@ export function initDocument(source: string, grammar: GrammarView): ParsedDocume
 
 export interface DocumentSwapDeps {
 	grammar: GrammarView;
+	/** The text the editor holds now, the same string `getSource()` returns. */
+	currentSource(): string;
 	/** A pending typing batch belongs to the outgoing document, so it flushes while its path
 	 *  still resolves; left running, the timer would apply note A's path to note B. */
 	flushDebouncedCheckpoint(): void;
@@ -65,6 +67,8 @@ export interface DocumentSwapDeps {
 }
 
 export interface DocumentSwap {
+	/** Replaces the document, unless `source` is the text it already holds: a host echoing
+	 *  `getSource()` back keeps its undo history. */
 	swapTo(source: string): void;
 	/** Counts whole-document replacements, which `editEpoch` cannot tell from a keystroke. */
 	generation(): number;
@@ -77,6 +81,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 
 	return {
 		swapTo(source) {
+			if (source === deps.currentSource()) return;
 			deps.flushDebouncedCheckpoint();
 			deps.noteTreeSwap();
 			const reset = initDocument(source, deps.grammar);
