@@ -361,7 +361,7 @@ children/childIds arrays and reinstating them on throw.
 One residual is open by design. The frame's byte registers reach each container scope's spine and
 its direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so what
 stays uncovered is narrow: a write deeper than an owned node's direct children, node metadata, and
-any byte write to a top-level block the commit already owns (the document scope saves its array,
+any byte write to a top-level block the undo step already owns (the document scope saves its array,
 not its blocks' bytes). For a scope already unshared earlier in
 the same undo unit, copy-path-on-write is a no-op, so such a write leaves those bytes changed after
 a throw rolls the structure back, and structure and bytes then disagree. It's out of scope for

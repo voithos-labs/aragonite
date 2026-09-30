@@ -788,7 +788,7 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 8. give an emptied document its one empty paragraph (`src/lib/tree-operations/keep-one-block.ts` :: `keepOneBlock`),
 9. publish each scope's new children and ids, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (§ 9),
 10. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/open-tail.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
-11. in a dev build, check every block the commit wrote: each container scope with its direct children, and at the top level each block the change placed or the commit copied to write in place (a format toggle's marks move no block, so the copy is the only trace it leaves),
+11. in a dev build, check every block the commit could have written: each container scope with its direct children, and at the top level each block the change placed, each block new to the array, and each block the undo step already owns (a format toggle's marks move no block, and a second commit in one undo step writes the blocks the first one copied without copying them again, so neither leaves a position to go on),
 12. bump the content version, clear a gap caret, and emit an `edit` event when the commit names an `op`,
 13. `await tick()`, run the caller's `afterTick`, then read the caller's `landing` and put the caret there, awaited,
 14. speak the caller's `announce` line in the edit live region, when the commit wrote.

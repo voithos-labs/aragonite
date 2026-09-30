@@ -28,6 +28,7 @@ import { settleSeparator } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
 import { keepOneBlock } from '../../tree-operations/keep-one-block';
 import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
+import type { SharingState } from '../../tree-operations/sharing';
 import {
 	attachedChainPrefix,
 	rebuildUnsharedChain,
@@ -88,14 +89,13 @@ function withDirectChildren(containers: readonly CstNode[]): CstNode[] {
 	return out;
 }
 
-/**
- * The top-level blocks a commit wrote: the ones its change placed, and the ones it copied to write
- * in place, which a `noop` change (a format toggle's marks) names no position for.
- */
+/** Every top-level block a commit could have written: placed by its change, new to the array, or
+ *  owned by the undo step, which a write in place reaches with no copy and no position. */
 function writtenTopLevel(
 	children: readonly CstNode[],
 	before: readonly CstNode[],
-	change: StructuralChange
+	change: StructuralChange,
+	sharing: SharingState
 ): CstNode[] {
 	const written = new Set<CstNode>();
 	if (change.op === 'insert' || change.op === 'replace') {
@@ -103,7 +103,9 @@ function writtenTopLevel(
 		for (const node of children.slice(change.at, change.at + placed)) written.add(node);
 	}
 	const kept = new Set(before);
-	for (const node of children) if (!kept.has(node)) written.add(node);
+	for (const node of children) {
+		if (!kept.has(node) || !sharing.isShared(node)) written.add(node);
+	}
 	return [...written];
 }
 
@@ -775,7 +777,9 @@ export function createUndoController(
 				const add = (nodes: readonly CstNode[]) => nodes.forEach((node) => touched.push(node));
 				prepared.forEach((p, i) => {
 					if (p.isDoc) {
-						add(writtenTopLevel(p.owned.children!, p.savedChildren ?? [], settled[i]));
+						add(
+							writtenTopLevel(p.owned.children!, p.savedChildren ?? [], settled[i], deps.sharing)
+						);
 						// The caller's list names positions from before any merge, so it holds only for `noop`.
 						if (settled[i].op === 'noop') add(args.touchedNodes ?? []);
 						return;
