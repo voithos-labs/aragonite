@@ -363,7 +363,7 @@
 
 	const documentSwap = createDocumentSwap({
 		grammar: registryView.grammar,
-		currentSource,
+		currentSource: currentSource.readUnchecked,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		noteTreeSwap: () => caretLanding.noteTreeSwap(),
@@ -1122,7 +1122,7 @@
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
-		return currentSource();
+		return currentSource.read();
 	}
 
 	// The kind alone, never the node, so a host holds no handle into the tree.

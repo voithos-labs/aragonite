@@ -9,6 +9,7 @@ import { installLayoutStubs, placeCaret } from '$lib/test/harness/mount-editor.s
 import { pressKey, settleEditor } from '$lib/test/harness/settle';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import type { DocumentSwap } from '$lib/components/editor-root-document-swap';
+import { serialize } from '$lib/core/serializer';
 import SourceHost from './fixtures/SourceHost.svelte';
 
 // Every `swapTo` call, and whether it replaced the document: the swap check itself has no
@@ -30,6 +31,12 @@ vi.mock('$lib/components/editor-root-document-swap', async (importOriginal) => {
 			};
 		}
 	};
+});
+
+// Counted: an echoing host reads the text on every flushed keystroke, and each read may cost one.
+vi.mock('$lib/core/serializer', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/core/serializer')>();
+	return { ...actual, serialize: vi.fn(actual.serialize) };
 });
 
 beforeAll(installLayoutStubs);
@@ -90,6 +97,16 @@ describe('a host that echoes getSource() back through source', () => {
 		await pressKey(host.surface(), { key: 'z', ctrlKey: true });
 		await settleEditor();
 		expect(host.editor.getSource()).toBe('abc\n');
+	});
+
+	it('serializes the document once per flushed keystroke, dev check included', async () => {
+		const host = mountHost('a\n', true);
+		await host.type('ab');
+		vi.mocked(serialize).mockClear();
+
+		await host.type('abc');
+
+		expect(vi.mocked(serialize).mock.calls).toHaveLength(1);
 	});
 
 	it('mounted empty, an echo of the placeholder line is no change, and a later empty write is', async () => {
