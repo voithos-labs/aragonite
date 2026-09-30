@@ -2,7 +2,8 @@
 
 GFM renders a table's body rows at the header's column count and ignores the cells past it (spec
 example 204). Those cells are still bytes the file holds, so the table shows the header's count
-and no edit in the row or the table drops them, or even moves their padding.
+and no edit in the row or the table drops them. Their padding stays put too, unless the edit
+gives a row with no leading pipe its pipes.
 
 Miss-analysis: the table scenarios wrote rows as wide as their header, and the shape property's
 retype gesture skipped table rows because of this very loss, so no test drove a write into one.

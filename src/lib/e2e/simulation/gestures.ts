@@ -411,7 +411,7 @@ export class Gestures {
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
-	// Each resyncs, since a built row takes the padded spelling. A cell is named by its rendered
+	// Each resyncs, since a row the editor adds takes the padded spelling. A cell is named by its
 	// index across rows, which shifts after an insert or delete, so the caller works from the grid.
 
 	editCell(cellIndex: number, text: string): Promise<void> {

@@ -109,7 +109,6 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// One reorder cannot reach `moveRow`'s copy-before-write, so undo must restore the exact bytes.
 	test('reorder keeps a tight table tight, and undo restores it byte-exactly', async ({ page }) => {
 		const TIGHT = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
 		await editor.loadContent(TIGHT);

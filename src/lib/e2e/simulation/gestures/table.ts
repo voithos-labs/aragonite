@@ -1,7 +1,7 @@
 import { type SimContext, actThenResync } from '../invariants';
 
-// Table gestures resync rather than predict: a built table's rows take the padded spelling, and a
-// cell edit lands mid-source, neither being the append the expected answer predicts. Typed pipe
+// Table gestures resync rather than predict: a row the editor adds takes the padded spelling, and
+// a cell edit lands mid-source, neither being the append the expected answer predicts. Typed pipe
 // syntax stays a paragraph, so a session must start from a loaded document with a table.
 
 const CELL = '.table-cell';
