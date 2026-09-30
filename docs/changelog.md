@@ -2,7 +2,7 @@
 
 Everything this editor has actually shipped, newest first. The README sends people here to experience my suffering, and it is not entirely joking: read a few families back and you can watch the same three problems get solved properly on the fourth attempt.
 
-A word on the numbers. Everything before 0.10.1 was a working number: the label a batch of work got filed under, bumped whenever it felt like a version, never a git tag and never an npm release. Those entries stay as they are, since they're the record of what got built and in what order. From 0.10.1 on, every number is a release you can install: a `v0.10.x` tag on this repo and the same version on npm.
+A word on the numbers. Everything before 0.10.1 was a working number: the label a batch of work got filed under, bumped whenever it felt like a version, never a git tag and never an npm release. Those entries stay as they are, since they're the record of what got built and in what order. From 0.10.1 on, every number is a release you can install (a `v0.10.x` tag on this repo and the same version on npm), except 0.10.5 and 0.10.6, which went out inside 0.10.7.
 
 **Style:** one tight entry per version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
