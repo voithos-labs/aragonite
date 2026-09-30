@@ -35,3 +35,5 @@ The textarea's focus scrolls nothing either way; where the card opens is the kep
   no test ever opened a source under a scroll container with somewhere to fall. The general gap
   is that a render-primary block's view swap was only ever driven with the scroll position out
   of play, so the layout in between the mount and the final height was invisible to the suite.
+- 2026-09: the forty paragraphs above sit under the size where windowing turns on, so this file
+  never saw the long-document case; `view-swap-end-scroll.md` covers it
