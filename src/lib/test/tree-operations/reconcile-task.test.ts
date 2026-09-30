@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reconcileTaskMetadata } from '../../tree-operations/list/reconcile-task';
 import type { CstNode, ListItemMetadata } from '../../core/nodes';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 function makeListItem(firstParagraphRaw: string, meta: ListItemMetadata): CstNode {
 	return {
@@ -31,7 +32,7 @@ function taskMeta(marker = '[ ] ', checked = false): ListItemMetadata {
 describe('reconcileTaskMetadata', () => {
 	it('promotes plain listItem whose paragraph gained `[ ] ` prefix', () => {
 		const item = makeListItem('[ ] hello\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[ ] ');
@@ -41,7 +42,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes with `[x] ` prefix, marking taskChecked true', () => {
 		const item = makeListItem('[x] done\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[x] ');
@@ -51,7 +52,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes preserving uppercase `[X]`', () => {
 		const item = makeListItem('[X] upper\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskMarker).toBe('[X] ');
 		expect(meta.taskChecked).toBe(true);
@@ -60,7 +61,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes preserving multi-space variant `[x]  `', () => {
 		const item = makeListItem('[x]  padded\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskMarker).toBe('[x]  ');
 		expect(item.children![0].raw).toBe('padded\n');
@@ -70,7 +71,7 @@ describe('reconcileTaskMetadata', () => {
 		// The user deleted the `]` from `[x]`.
 		const item = makeListItem('x something\n', taskMeta('[', false));
 		// A stripped state that, recombined with the broken marker, doesn't parse as a task.
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
@@ -81,7 +82,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('is a no-op when canonical task item stays a task item', () => {
 		const item = makeListItem('done\n', taskMeta('[x] ', true));
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[x] ');
@@ -91,7 +92,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('is a no-op when plain listItem stays plain (content has no bracket)', () => {
 		const item = makeListItem('hello\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
@@ -104,7 +105,7 @@ describe('reconcileTaskMetadata', () => {
 			leadingTrivia: '',
 			raw: '[ ] text\n'
 		};
-		reconcileTaskMetadata(node, 0, false);
+		reconcileTaskMetadata(node, 0, false, createSharingState());
 		expect(node.kind).toBe('paragraph');
 		expect(node.raw).toBe('[ ] text\n');
 	});
@@ -119,7 +120,7 @@ describe('reconcileTaskMetadata', () => {
 				{ kind: 'list', leadingTrivia: '', raw: '', metadata: { ordered: false }, children: [] }
 			]
 		};
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 	});
@@ -129,7 +130,7 @@ describe('reconcileTaskMetadata', () => {
 		const item = makeListItem('# beta\n', taskMeta());
 		item.children![0].kind = 'heading';
 		item.children![0].metadata = { level: 1 };
-		reconcileTaskMetadata(item, 0, true);
+		reconcileTaskMetadata(item, 0, true, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
@@ -143,7 +144,7 @@ describe('reconcileTaskMetadata', () => {
 		item.children![0].kind = 'heading';
 		item.children![0].metadata = { level: 1 };
 
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
@@ -156,7 +157,7 @@ describe('reconcileTaskMetadata', () => {
 		const item = makeListItem('| a | b |\n| --- | --- |\n', taskMeta());
 		item.children![0].kind = 'table';
 
-		reconcileTaskMetadata(item, 0, true);
+		reconcileTaskMetadata(item, 0, true, createSharingState());
 
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
@@ -165,7 +166,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('skips when first paragraph is empty', () => {
 		const item = makeListItem('\n', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(item.children![0].raw).toBe('\n');
@@ -173,7 +174,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('handles paragraph raw without trailing newline (live typing state)', () => {
 		const item = makeListItem('[ ] mid-typing', plainMeta());
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[ ] ');
@@ -183,7 +184,7 @@ describe('reconcileTaskMetadata', () => {
 	it('updates taskChecked when existing task item has raw that flips check state', () => {
 		// Marker drift: the check state changes by rewriting the effective line, not the metadata.
 		const item = makeListItem('  task\n', taskMeta('[x]', true));
-		reconcileTaskMetadata(item, 0, false);
+		reconcileTaskMetadata(item, 0, false, createSharingState());
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskChecked).toBe(true);

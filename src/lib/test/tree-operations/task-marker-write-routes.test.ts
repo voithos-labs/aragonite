@@ -14,6 +14,7 @@ import {
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 const TABLE = '| a | b |\n| --- | --- |\n';
 
@@ -32,7 +33,8 @@ describe('every write that can replace a to-do’s first block drops the marker 
 			{ children: item.children!, owner: item, lineEnding: '\n' },
 			0,
 			TABLE,
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 
 		expect(item.children![0].kind).toBe('table');
@@ -47,7 +49,8 @@ describe('every write that can replace a to-do’s first block drops the marker 
 			{ children: item.children!, owner: item, lineEnding: '\n' },
 			0,
 			'# alphaX\n',
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 
 		expect(metaOf(item).taskItem).toBe(true);

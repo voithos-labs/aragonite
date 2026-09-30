@@ -4,6 +4,7 @@ import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A join into a setext heading lands the text on the title line, above the underline: joined past
 // it, `======next` reparses as paragraph text and the heading's structure comes into view.
@@ -12,12 +13,17 @@ import { fixtureReading } from '../harness/fixture-grammar';
 const joins = {
 	'Delete (the forward join)': (source: string) => {
 		const doc = parse(source);
-		const { joinOffset } = mergeWithNext(doc, 0, fixtureReading(), undefined);
+		const { joinOffset } = mergeWithNext(doc, 0, fixtureReading(), createSharingState());
 		return { doc, joinOffset };
 	},
 	'Backspace (the backward join)': (source: string) => {
 		const doc = parse(source);
-		const joinOffset = mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading())?.joinOffset;
+		const joinOffset = mergeIntoPrevDeepLeaf(
+			doc,
+			1,
+			createSharingState(),
+			fixtureReading()
+		)?.joinOffset;
 		return { doc, joinOffset };
 	}
 };

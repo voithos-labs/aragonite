@@ -8,6 +8,7 @@ import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
 import { renumberOrderedListFrom } from './ordered-markers';
+import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
 import { readBlocks } from '../../core/parser';
 import { emptyParagraph } from '../node-primitives';
@@ -39,7 +40,8 @@ export function assembleListHalf(
 	};
 	if (items[0]) items[0].leadingTrivia = '';
 	for (const item of items) rebuildListItemRaw(item);
-	renumberOrderedListFrom(half, startNumber);
+	// The caller owns the items, so a fresh sharing state copies none of them.
+	renumberOrderedListFrom(half, startNumber, createSharingState());
 	rebuildListRaw(half);
 	return half;
 }

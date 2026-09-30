@@ -594,8 +594,8 @@ and no window past the end, and every publish seam must leave one id per child.
 desyncs ids from children in silence the moment a splice moves slots the window never named. A
 settle folding a separator above a range delete is exactly that shape, and it shipped unobserved
 because nothing compared the published id array against the children. The producer half fires at the
-applicator, which every record crosses; the consumer half fires at the two commit publish seams,
-because a record can fit its own array while describing the wrong window. `childSpans` is the same
+applicator, which every record crosses; the consumer half fires where the commit publishes each
+scope's ids, because a record can fit its own array while describing the wrong window. `childSpans` is the same
 shape of parallel array and gets the same reading, one span PAIR per child, over the nodes a commit
 touched: a rebuild seeding the wrong length, or a shape change that outlived its drop, is a
 stale-region splice waiting for the next keystroke. Below those same nodes, every container that
@@ -1430,7 +1430,12 @@ under the path-addressed entries. The exemptions are head normalizations inside 
 positional rotation in `reorder.ts`, and the three sites whose rule a splice window can't infer (the
 gap-caret insert (a gap caret: the caret parked between two blocks where neither surface can host
 one), the same-block range-delete write, the empty-marker sublist separator), each named with its
-reason. `lint/separator-write-doors.test.ts`.
+reason. Inside `settle.ts` itself, every write to an existing node's blank line goes through one of
+two writers, `writeSeparator` for a separator and `writeWrapSlot` for the line a fence line strips.
+Both drop the owner's child spans first, and the first copies the node out of the undo snapshot, so
+a new fix-up can't skip either. The fix-ups take a `BodyParent` (the children plus the container
+owning them), which a bare children array doesn't satisfy, so none of them can lose track of whose
+fence lines and title it's reading. `lint/separator-write-doors.test.ts`.
 
 **G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
 once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too.

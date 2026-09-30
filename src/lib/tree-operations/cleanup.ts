@@ -1,4 +1,5 @@
 import type { CstNode, Document } from '../core/nodes';
+import type { LineEnding } from '../core/lines';
 import type { GrammarView } from '../schema/block-openers';
 import { mustHoldChild } from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
@@ -14,7 +15,8 @@ export function cascadeCleanupEmptyAncestors(
 	root: CstNode | Document,
 	deletedPath: number[],
 	sharing: SharingState,
-	grammar: GrammarView
+	grammar: GrammarView,
+	lineEnding: LineEnding
 ): void {
 	if (!root.children) return;
 	// The same array as the root's, so the walk's copies land in the root.
@@ -28,7 +30,7 @@ export function cascadeCleanupEmptyAncestors(
 		const idx = currentPath[currentPath.length - 1];
 		const node = parent.children[idx];
 		if (!node || !mustHoldChild(node.kind) || (node.children?.length ?? 0) > 0) break;
-		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing);
+		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing, lineEnding);
 		currentPath = parentPath;
 	}
 }

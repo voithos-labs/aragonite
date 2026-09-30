@@ -18,7 +18,7 @@ export function writeKeepingTaskMarker<T>(
 	owner: CstNode | undefined,
 	children: readonly CstNode[],
 	slot: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	write: () => T
 ): T {
 	// Read before the write, which can put a block there no task marker may stand before.
@@ -41,7 +41,7 @@ export function reconcileTaskMetadata(
 	listItem: CstNode,
 	writtenIndex: number,
 	markerStoodBefore: boolean,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
 	if (listItem.kind !== 'listItem' || writtenIndex !== 0) return;
 	const firstChild = listItem.children?.[0];
@@ -121,6 +121,6 @@ function firstLineTextOf(raw: string): string {
 
 /** The marker's bytes move between the item's metadata and its first child, so that child is
  *  copied out of the undo snapshot before it is written (`unshare.ts` header). */
-function ownedFirstChild(listItem: CstNode, sharing: SharingState | undefined): CstNode {
-	return sharing ? ensureUnsharedChild(listItem, 0, sharing) : listItem.children![0];
+function ownedFirstChild(listItem: CstNode, sharing: SharingState): CstNode {
+	return ensureUnsharedChild(listItem, 0, sharing);
 }

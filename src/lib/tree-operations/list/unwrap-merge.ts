@@ -9,7 +9,7 @@ import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
 import { joinIntoLeaf } from '../node-ops';
-import type { SharingState } from '../sharing';
+import { createSharingState, type SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
@@ -68,8 +68,9 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		innerSuffix: list.innerSuffix ?? ''
 	};
 
-	// Preserve the original list's starting number.
-	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem));
+	// Preserve the original list's starting number. The items are clones no undo entry holds, so a
+	// fresh sharing state copies none of them.
+	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem), createSharingState());
 
 	rebuildListRaw(remainingList);
 
@@ -94,16 +95,14 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 function depthOneListFor(
 	list: CstNode,
 	targetPath: number[],
-	sharing?: SharingState
+	sharing: SharingState
 ): CstNode | null {
 	if (targetPath.length < 4) return null;
 	const depthOneParent = list.children![targetPath[0]];
 	if (!depthOneParent.children) return null;
 	const idx = depthOneParent.children.findLastIndex((c) => c.kind === 'list');
 	if (idx === -1) return null;
-	const depthOneList = sharing
-		? ensureUnsharedChild(depthOneParent, idx, sharing)
-		: depthOneParent.children[idx];
+	const depthOneList = ensureUnsharedChild(depthOneParent, idx, sharing);
 	return depthOneList.children ? depthOneList : null;
 }
 
@@ -116,18 +115,18 @@ function relocateRemainingChildren(
 	targetPath: number[],
 	targetItem: CstNode,
 	currentItem: CstNode,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
 	const remainingChildren = currentItem
 		.children!.slice(1)
-		.map((c) => (sharing ? ensureUnsharedNode(c, sharing) : c));
+		.map((c) => ensureUnsharedNode(c, sharing));
 
 	for (const child of remainingChildren) {
 		if (child.kind === 'list' && child.children) {
 			const depthOneList = depthOneListFor(list, targetPath, sharing);
 			if (depthOneList) {
 				for (let i = 0; i < child.children.length; i++) {
-					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
+					const item = ensureUnsharedChild(child, i, sharing);
 					item.leadingTrivia = '';
 					// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
 					pushChild(depthOneList, item);
@@ -151,7 +150,7 @@ export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Targeting may read `list.children`, but the final splice must land in `children`

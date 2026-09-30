@@ -1,26 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { documentBody, type BodyParent } from '$lib/tree-operations/node-primitives';
-import { ownerKindNameOf } from '$lib/tree-operations/settle';
+import { settleSeparatorOnBlank } from '$lib/tree-operations/settle';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
-// A body names its container once, as `owner`; the separator fix-ups read the container's kind
-// off it, and the document root names none.
+// A body names its container once, as `owner`, and the document root names none. The separator
+// fix-ups read the owner's fence lines and title off it, so a body is the only thing they take.
 
-describe('ownerKindNameOf', () => {
-	const quote = () => parse('> a\n>\n> b\n').children[0];
-
-	it('reads a container node passed as its own parent', () => {
-		expect(ownerKindNameOf(quote())).toBe('blockquote');
-	});
-
-	it("reads a body's owner", () => {
-		const owner = quote();
-		const body: BodyParent = { children: owner.children!, owner, lineEnding: '\n' };
-		expect(ownerKindNameOf(body)).toBe('blockquote');
-	});
-
-	it('names no kind for the document body', () => {
-		expect(ownerKindNameOf(documentBody(parse('a\n\nb\n')))).toBeUndefined();
+describe('the separator fix-ups take a body', () => {
+	it('refuses a bare children array, which names no owner', () => {
+		const { children } = parse('> a\n>\n>\n> b\n').children[0];
+		// @ts-expect-error a bare array can't say whose body it is, so the fix-up can't read the wrap
+		settleSeparatorOnBlank({ children: children! }, 1, createSharingState());
 	});
 });
 

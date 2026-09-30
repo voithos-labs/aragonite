@@ -8,6 +8,7 @@ import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
+import { createSharingState } from '../tree-operations/sharing';
 import { followsTaskMarker } from '../tree-operations/list/task-paragraph';
 import { readBlockPath } from '../selection/path-lookup';
 import type { CaretPosition } from '../selection/primitives';
@@ -46,11 +47,13 @@ export function previewContentReparse(
 			metadata: taskItem ? { ...metadataOf(taskItem, 'listItem') } : undefined,
 			children: [probe]
 		});
+	// The copies are the trial's own, so a fresh sharing state copies none of them.
 	return updateNodeContent(
 		{ children: [probe], owner: ownerCopy, suffix: tailSuffix, lineEnding },
 		0,
 		write,
-		grammar
+		grammar,
+		createSharingState()
 	).change;
 }
 

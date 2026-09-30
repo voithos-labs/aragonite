@@ -11,6 +11,7 @@ import { describeConvergence, layoutOf } from '$lib/test/harness/parse-converged
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A table takes any line straight below its rows that opens no other block, so a block an edit
 // turns into text right under a table gets a blank line between, and stays the block it is.
@@ -24,7 +25,9 @@ function unwrapQuote(parent: CstNode | Document, at: number): void {
 		at,
 		1,
 		liftFirstChild(parent.children![at], plainQuote(defaultGrammarView)),
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState(),
+		'\n'
 	);
 }
 
@@ -45,7 +48,10 @@ describe('a block turned into text right under a table keeps a blank line', () =
 	it('a heading turned into text', () => {
 		const doc = parse(`${T}# Head\n`);
 
-		settled(doc, () => updateNodeContent(doc, 1, 'Head\n', defaultGrammarView).change);
+		settled(
+			doc,
+			() => updateNodeContent(doc, 1, 'Head\n', defaultGrammarView, createSharingState()).change
+		);
 
 		expect(serialize(doc)).toBe(`${T}\nHead\n`);
 		expect(describeConvergence(doc)).toBeNull();
@@ -57,7 +63,7 @@ describe('a block turned into text right under a table keeps a blank line', () =
 	])('a delete of the block between (%s)', (_, table, eol) => {
 		const doc = parse(`${table}---${eol}next${eol}`);
 
-		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView));
+		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView, createSharingState()));
 
 		expect(serialize(doc)).toBe(`${table}${eol}next${eol}`);
 		expect(describeConvergence(doc)).toBeNull();
@@ -78,7 +84,7 @@ describe('a block turned into text right under a table keeps a blank line', () =
 	it('a block that ends the table on its own takes no blank line', () => {
 		const doc = parse(`${T}---\n# h\n`);
 
-		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView));
+		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView, createSharingState()));
 
 		expect(serialize(doc)).toBe(`${T}# h\n`);
 		expect(describeConvergence(doc)).toBeNull();
@@ -95,7 +101,7 @@ describe('the blank line a follower takes depends on the editor’s grammar', ()
 	it('a `$$` block that closes below ends the table, so it takes none', () => {
 		const doc = parse(`${T}---\n$$\nx\n$$\n`);
 
-		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView));
+		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView, createSharingState()));
 
 		expect(serialize(doc)).toBe(`${T}$$\nx\n$$\n`);
 		expect(doc.children.map((c) => c.kind)).toEqual(['table', 'mathBlock']);
@@ -106,7 +112,7 @@ describe('the blank line a follower takes depends on the editor’s grammar', ()
 		const off = createRegistryView({ syntax: { indentedCode: false } }).grammar;
 		const doc = parse(`${T}---\n    code\n`, { grammar: off });
 
-		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView), off);
+		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView, createSharingState()), off);
 
 		expect(serialize(doc)).toBe(`${T}\n    code\n`);
 		expect(describeConvergence(doc, off)).toBeNull();

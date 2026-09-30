@@ -19,6 +19,7 @@ import {
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
@@ -49,7 +50,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(asBody(row), 0, result.newRaw, defaultGrammarView);
+	updateNodeContent(asBody(row), 0, result.newRaw, defaultGrammarView, createSharingState());
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -97,7 +98,7 @@ describe('escapedCellOffset: the caret follows the sink’s inserted backslashes
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(asBody(row), 0, 'a|b|c', defaultGrammarView);
+		updateNodeContent(asBody(row), 0, 'a|b|c', defaultGrammarView, createSharingState());
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });

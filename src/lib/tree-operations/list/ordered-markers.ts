@@ -34,13 +34,13 @@ export function bumpOrderedMarker(marker: string): string {
 
 /**
  * Renumber an ordered list's items from `fromIndex`, keeping marker suffixes. Each item's metadata
- * and raw is written, so a caller on the live tree must pass `sharing`.
+ * and raw is written, so each is copied out of the undo snapshot first.
  */
-export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: SharingState): void {
+export function renumberOrderedList(list: CstNode, fromIndex: number, sharing: SharingState): void {
 	if (!list.children) return;
 	if (!metadataOf(list, 'list')?.ordered) return;
 	for (let j = fromIndex; j < list.children.length; j++) {
-		const item = sharing ? ensureUnsharedChild(list, j, sharing) : list.children[j];
+		const item = ensureUnsharedChild(list, j, sharing);
 		const prevNum =
 			j > 0 ? parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0 : 0;
 		const meta = metadataOf(item, 'listItem');
@@ -51,10 +51,10 @@ export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: Shar
 }
 
 /** Renumber an ordered list starting at `base`, keeping marker suffixes. */
-export function renumberOrderedListFrom(list: CstNode, base: number, sharing?: SharingState): void {
+export function renumberOrderedListFrom(list: CstNode, base: number, sharing: SharingState): void {
 	if (!metadataOf(list, 'list')?.ordered) return;
 	if (!list.children || list.children.length === 0) return;
-	const first = sharing ? ensureUnsharedChild(list, 0, sharing) : list.children[0];
+	const first = ensureUnsharedChild(list, 0, sharing);
 	const meta = metadataOf(first, 'listItem');
 	meta.marker = String(base) + (meta.marker.replace(/^\d+/, '') || '. ');
 	rebuildListItemRaw(first);

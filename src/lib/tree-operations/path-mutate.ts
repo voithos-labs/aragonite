@@ -5,6 +5,7 @@
  * parent chain themselves; `sharing` copies the children the fix-up touches.
  */
 import type { CstNode, Document } from '../core/nodes';
+import { documentLineEnding } from '../core/lines';
 import type { GrammarView } from '../schema/block-openers';
 import type { SharingState } from './sharing';
 import { nodeAt } from './node-primitives';
@@ -21,7 +22,7 @@ export function deleteAtPath(
 	if (!parent || !parent.children) return;
 	const idx = path[path.length - 1];
 	if (idx < parent.children.length) {
-		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing);
+		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing, documentLineEnding(doc));
 	}
 }
 
@@ -35,5 +36,6 @@ export function replaceAtPath(
 	if (path.length === 0) return;
 	const parent = nodeAt(doc, path.slice(0, -1));
 	if (!parent || !parent.children) return;
-	spliceChildrenSettled(parent, path[path.length - 1], 1, replacement, grammar, sharing);
+	const at = path[path.length - 1];
+	spliceChildrenSettled(parent, at, 1, replacement, grammar, sharing, documentLineEnding(doc));
 }

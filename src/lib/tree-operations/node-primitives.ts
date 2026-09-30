@@ -65,16 +65,15 @@ export function documentBody(
 	};
 }
 
-/**
- * What the separator fix-ups accept: anything that can say where the body starts. Wider than
- * the content writes, since a fix-up writes a line ending, not body text.
- */
-export type SeparatorParent = {
-	kind?: string;
-	suffix?: string;
-	children?: CstNode[];
-	owner?: CstNode;
-};
+/** A content write's parent as a body: a whole document reads as its own body. */
+export function asBody(parent: BodyParentArg): BodyParent {
+	return 'owner' in parent ? parent : documentBody(parent);
+}
+
+/** The body under `node`, a container found by walking the live tree, or the document itself. */
+export function bodyUnder(node: CstNode | Document, lineEnding: LineEnding): BodyParent {
+	return isBlockNode(node) ? { children: node.children!, owner: node, lineEnding } : asBody(node);
+}
 
 /** The line ending an op writing into `parent`'s children gives a new line. */
 export const parentLineEnding = (parent: BodyParentArg): LineEnding =>

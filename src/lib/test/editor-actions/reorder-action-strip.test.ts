@@ -38,6 +38,29 @@ describe('reorder action: githubAlert body children reorder within', () => {
 	});
 });
 
+// Miss-analysis: every alert move above carried a content block, so no test put a blank block
+// at the body head, where only a fix-up told which container owns the body keeps the opener's line.
+describe('reorder action: a blank block moved to the head of an alert body', () => {
+	it('keeps the tree and its reload in step', async () => {
+		const h = makeReorderContainer('> [!NOTE]\n> a\n>\n>\n> b\n');
+		await h.reorder.moveReorderUnit([0, 1], 0);
+		h.assertStable();
+	});
+});
+
+// The body's trailing blank line becomes a block under a blank tail, so the move grows the list.
+describe('reorder action: a blank block moved to the tail of a body ending in a blank line', () => {
+	it.each([
+		['a quote', '> a\n>\n>\n> b\n>\n'],
+		['an alert', '> [!NOTE]\n> a\n>\n>\n> b\n>\n']
+	])('%s keeps one id per block, and the tree and its reload in step', async (_, source) => {
+		const h = makeReorderContainer(source);
+		await h.reorder.moveReorderUnit([0, 1], 2);
+		expect(h.ids()).toHaveLength(h.node().children!.length);
+		h.assertStable();
+	});
+});
+
 describe('reorder action: footnote-def body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [^label]: marker', async () => {
 		const h = makeReorderContainer('[^a]: first\n\n    second\n');

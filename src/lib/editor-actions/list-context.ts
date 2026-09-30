@@ -329,7 +329,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						outerScope.node,
 						[parentItemIdx, nestedIdxInParent, nestedItemIdx],
 						sharing,
-						deps.reading.grammar
+						deps.reading.grammar,
+						outerScope.lineEnding
 					);
 					promotedAt -= outerCount - outerScope.children.length;
 

@@ -5,6 +5,7 @@ import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merg
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The bytes an item merge writes, also checked against a reparse, since a round-trip of the
 // bytes alone passes on a stale list raw.
@@ -19,7 +20,7 @@ function mergeAndConverge(src: string, currentIndex: number): { doc: Document; s
 		list,
 		list.children!.slice(),
 		currentIndex,
-		undefined,
+		createSharingState(),
 		fixtureReading()
 	);
 	return { doc, source: serialize(doc) };

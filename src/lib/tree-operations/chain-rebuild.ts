@@ -4,11 +4,16 @@
  * (`docs/design/editor.md` § The container `raw` contract).
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { firstLineEnding } from '../core/lines';
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import type { SharingState } from './sharing';
-import { ensureEditableContainers, type NodeParent } from './node-primitives';
+import {
+	documentBody,
+	ensureEditableContainers,
+	type BodyParent,
+	type NodeParent
+} from './node-primitives';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { spliceMany } from './splice-many';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
@@ -157,7 +162,7 @@ export function rebuildUnsharedChain(
 		if (folds) {
 			const before = folds.length;
 			settleSlotSeams(
-				{ siblings, owner, depth: i, index, openerMoved, closerMoved },
+				{ body: slotBody(root, owner), owner, depth: i, index, openerMoved, closerMoved },
 				sharing,
 				folds,
 				grammar
@@ -240,9 +245,19 @@ function childIndexOf(siblings: CstNode[], child: CstNode, guess: number | undef
 	return siblings.indexOf(child);
 }
 
+/**
+ * The body a rebuilt chain level sits in, for its join check: the chain node above owns it, and at
+ * the root the document does, since only a rebuild from the document reports what a join folded.
+ */
+function slotBody(root: NodeParent | CstNode, owner: CstNode | null): BodyParent {
+	const doc = documentBody(root as Document);
+	return owner ? { children: owner.children!, owner, lineEnding: doc.lineEnding } : doc;
+}
+
 /** Where a rebuilt container sits, and which of its joins its new bytes can have moved. */
 interface ChainSlot {
-	siblings: CstNode[];
+	body: BodyParent;
+	/** The chain node owning `body`, or null at the rebuild root, which an ancestry fold names. */
 	owner: CstNode | null;
 	depth: number;
 	index: number;
@@ -262,13 +277,14 @@ function settleSlotSeams(
 	folds: AncestrySeamFold[],
 	grammar: GrammarView
 ): void {
-	const { siblings, index, openerMoved, closerMoved } = slot;
+	const { body, index, openerMoved, closerMoved } = slot;
+	const siblings = body.children;
 	// The rollback snapshot is captured only once a merge is certain, since a copy costs
 	// O(children) reactive reads on every keystroke inside a large container.
 	let before: CstNode[] | null = null;
 	const landing: TrackedPosition = { index, offset: 0 };
 	const settled = absorbWindowSeams(
-		{ children: siblings },
+		body,
 		openerMoved ? index : index + 1,
 		openerMoved && closerMoved ? 1 : 0,
 		index,

@@ -39,7 +39,8 @@ function typeInCell(doc: Document, row: number, col: number, text: string): void
 		},
 		col,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	rebuildUnsharedChain(doc, [table, holder], createSharingState(), null, defaultGrammarView);
 }

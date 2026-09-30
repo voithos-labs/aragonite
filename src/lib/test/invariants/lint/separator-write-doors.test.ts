@@ -159,18 +159,9 @@ describe('every separator entry point retires the child spans it invalidates', (
 		.flatMap((file) => functionBodies(readEditorFile(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/** The separator writers in the shared file, each of which drops the spans first, since a drop
-	 *  below an early return is skipped on the paths that take it. */
-	const DOORS = [
-		'clearRedundantSeparator',
-		'dropDoubledSeparator',
-		'restoreSeparatorOnFill',
-		'restoreSeparatorAfterBlank',
-		'settleSeparatorOnBlank',
-		'releaseWrapPeel',
-		'materializeTailSuffix',
-		'handDownVacatedSeparator'
-	];
+	/** The two writers in the shared file, each of which drops the spans first, since a drop below
+	 *  an early return is skipped on the paths that take it. */
+	const DOORS = ['writeSeparator', 'writeWrapSlot'];
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
@@ -187,31 +178,29 @@ describe('every separator entry point retires the child spans it invalidates', (
 	});
 
 	it('found the entry points (not vacuous)', () => {
-		expect(doors.map((fn) => fn.name).sort()).toEqual(
-			expect.arrayContaining([
-				'clearRedundantSeparator',
-				'dropDoubledSeparator',
-				'mintSeparator',
-				'settleSeparatorOnBlank'
-			])
-		);
+		expect(doors.map((fn) => fn.name).sort()).toEqual(expect.arrayContaining(DOORS));
 	});
 
-	/** Writers that account for the spans some other way, each with its reason: a caller drops them
-	 *  first, the node is new, or a splice changes the child count, refusing a region rewrite. */
+	/** Writers that account for the spans some other way, each with its reason: the node is new,
+	 *  or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
-		mintSeparator:
-			'reached only from the three entry points and separateTableFollower, which all retire first',
-		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',
-		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
-		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
 		installReplacement: 'carries the line onto the replacement, byte for byte',
 		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
+
+	// A second writer in the shared file could write a shared node or skip the span drop, which the
+	// one writer does for every fix-up.
+	it('the shared file writes an existing node’s separator through its two writers alone', () => {
+		const writers = functionBodies(readEditorFile(DOORS_FILE).code)
+			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
+			.map((fn) => fn.name)
+			.filter((name) => !(name in ANSWERED_ELSEWHERE));
+		expect(writers.sort()).toEqual([...DOORS].sort());
+	});
 
 	it('each one calls the retire, or is answered for elsewhere', () => {
 		const missing = doors

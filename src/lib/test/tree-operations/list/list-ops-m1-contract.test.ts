@@ -6,6 +6,7 @@ import { checkStaleRaw } from '$lib/invariants/node-shape';
 import { metadataOf } from '$lib/core/nodes';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { fixtureGrammar, fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 describe('mergeListItemIntoPrevious: children-array contract', () => {
 	it('mutates the caller-owned children copy, not a hidden internal array', () => {
@@ -16,7 +17,13 @@ describe('mergeListItemIntoPrevious: children-array contract', () => {
 		const childrenCopy = list.children!.slice();
 		const originalLength = childrenCopy.length;
 
-		const result = mergeListItemIntoPrevious(list, childrenCopy, 2, undefined, fixtureReading());
+		const result = mergeListItemIntoPrevious(
+			list,
+			childrenCopy,
+			2,
+			createSharingState(),
+			fixtureReading()
+		);
 		if (!result) throw new Error('expected a merge target');
 
 		expect(childrenCopy.length).toBe(originalLength - 1);
@@ -33,7 +40,7 @@ function mergeSecondItem(source: string) {
 		list,
 		list.children!.slice(),
 		1,
-		undefined,
+		createSharingState(),
 		fixtureReading()
 	);
 	return { doc, list, result, source: serialize(doc) };

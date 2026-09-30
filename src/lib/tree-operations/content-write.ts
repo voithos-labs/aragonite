@@ -39,9 +39,9 @@ import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-t
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
+	asBody,
 	ensureEditableContainers,
 	installOwnRaw,
-	parentLineEnding,
 	type BodyParent,
 	type BodyParentArg,
 	type NodeParent
@@ -145,23 +145,23 @@ export function updateNodeContent(
 	blockIndex: number,
 	text: string | LegalWrite,
 	grammar: GrammarView,
-	sharing?: SharingState
+	sharing: SharingState
 ): SettledContent {
+	const body = asBody(parent);
 	const legal =
-		typeof text === 'string' ? legalizeWrite(parent, blockIndex, text, 'literal').text : text.text;
+		typeof text === 'string' ? legalizeWrite(body, blockIndex, text, 'literal').text : text.text;
 	// Reconciled before the container's raw rebuild writes the list item's marker.
-	const owner = 'owner' in parent ? parent.owner : undefined;
-	return writeKeepingTaskMarker(owner, parent.children, blockIndex, sharing, () =>
-		writeAndSettleContent(parent, blockIndex, legal, grammar, sharing)
+	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () =>
+		writeAndSettleContent(body, blockIndex, legal, grammar, sharing)
 	);
 }
 
 function writeAndSettleContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	grammar: GrammarView,
-	sharing?: SharingState
+	sharing: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const indentMoved = leadingIndent(parent.children[blockIndex].raw) !== leadingIndent(text);
@@ -198,7 +198,7 @@ const readsFollowingLines = (node: NodeView | undefined): boolean =>
 
 /** Whether the written block or the one right above it reads the lines below it with no blank
  *  line between, where a write that kept its kind can still move the join. */
-function readerBeside(parent: BodyParentArg, blockIndex: number): boolean {
+function readerBeside(parent: BodyParent, blockIndex: number): boolean {
 	const { children } = parent;
 	const below = children[blockIndex + 1];
 	return (
@@ -212,11 +212,11 @@ function readerBeside(parent: BodyParentArg, blockIndex: number): boolean {
  * a merge into the block above puts that block's bytes in front of it.
  */
 function settleWriteSeams(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	lastWritten: number,
 	change: StructuralChange,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	grammar: GrammarView
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
@@ -270,7 +270,7 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
  * the neighbour merge would read every block below it as its body.
  */
 function closeWrittenConstruct(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	oldKind: AnyBlockKind,
@@ -309,7 +309,7 @@ function openConstructTerminator(
 }
 
 function writeParsedContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	grammar: GrammarView
@@ -317,7 +317,7 @@ function writeParsedContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	const lineEnding = parentLineEnding(parent);
+	const { lineEnding } = parent;
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it.
 	if (oldDescriptor.contextDependentKind) {
@@ -330,7 +330,7 @@ function writeParsedContent(
 		blockIndex,
 		text,
 		oldKind,
-		fragmentReaderAt('owner' in parent ? parent.owner : undefined, blockIndex, grammar)
+		fragmentReaderAt(parent.owner, blockIndex, grammar)
 	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];

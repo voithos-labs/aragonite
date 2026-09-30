@@ -11,6 +11,7 @@ import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-
 import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /**
  * The merge deletes the item from its children copy only, so the helper applies the same
@@ -18,7 +19,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();
-	mergeListItemIntoPrevious(list, children, currentIndex, undefined, fixtureReading());
+	mergeListItemIntoPrevious(list, children, currentIndex, createSharingState(), fixtureReading());
 	const refs: undefined[] = new Array(list.children!.length).fill(undefined);
 	applyStructuralChangeToIdsRefs(
 		{ op: 'delete', at: currentIndex, count: 1 },

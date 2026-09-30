@@ -50,10 +50,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'build one internally, an author outside the repo cannot'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-empty-body.test.ts': {
-		specifiers: ['$lib/tree-operations', '$lib/invariants/node-shape'],
+		specifiers: [
+			'$lib/tree-operations',
+			'$lib/tree-operations/sharing',
+			'$lib/invariants/node-shape'
+		],
 		reason:
-			'nothing published mutates a parsed document off an instance, and the stale-raw predicate is ' +
-			'off the testing barrel'
+			'nothing published mutates a parsed document off an instance (nor makes the sharing state ' +
+			'that write takes), and the stale-raw predicate is off the testing barrel'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-formation-siblings.test.ts': {
 		specifiers: [
@@ -132,8 +136,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'and the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
-		specifiers: ['$lib/tree-operations', '$lib/testing/parse-convergence'],
-		reason: 'nothing published splits a parsed document, and no published parse convergence'
+		specifiers: [
+			'$lib/tree-operations',
+			'$lib/tree-operations/sharing',
+			'$lib/testing/parse-convergence'
+		],
+		reason:
+			'nothing published splits a parsed document (nor makes the sharing state the split takes), ' +
+			'and no published parse convergence'
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [

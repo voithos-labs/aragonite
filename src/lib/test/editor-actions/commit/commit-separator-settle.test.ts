@@ -14,6 +14,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The commit's blank-line fix-up must change nothing over a range its mutate already fixed up.
 // Miss-analysis: the fix-up lived at each splice site, so no case ran a second one over one range.
@@ -85,7 +86,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 	// The split shape: the blank block holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, undefined, fixtureReading());
+		splitNode(split, 0, 5, createSharingState(), fixtureReading());
 		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
 
 		expectParseConverged(h.deps.doc);

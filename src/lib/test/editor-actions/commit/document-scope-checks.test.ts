@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the wiring suite checked container scopes and the old document branch, never a
+// Miss-analysis: the wiring suite checked container scopes and top-level metadata writes, never a
 // multi-scope commit over the document itself, the one scope whose owner is not a block.
 
 import { describe, it, expect } from 'vitest';
@@ -15,8 +15,8 @@ import { makeKeydownEnv, press } from '../../selection/cross-block/keydown-env';
 const firesStaleRaw = (): boolean =>
 	takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
 
-/** A quote whose nested quote's bytes no longer match its children, which no rebuild of the
- *  outer quote repairs. */
+/** A quote whose nested quote's bytes don't match its children, which no rebuild of the outer
+ *  quote repairs. */
 function withStaleNestedQuote(quote: CstNode): CstNode {
 	const nested = quote.children?.find((child) => child.kind === 'blockquote');
 	if (!nested) throw new Error('fixture has no nested blockquote');

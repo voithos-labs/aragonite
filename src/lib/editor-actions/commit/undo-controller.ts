@@ -676,8 +676,8 @@ export function createUndoController(
 			snapshot,
 			mutate: (wasOpen) => {
 				for (const s of scopes) assertScopeIdentity(s);
-				// Every scope's copies land in the top-level array, so the commit writes a fresh one and an
-				// unwind puts the old one back.
+				// Every scope's copies land in the top-level array, so the commit writes a fresh one, and an
+				// unwind puts back the one it replaced.
 				const topLevel = deps.doc.children;
 				topLevelBefore = topLevel;
 				deps.doc.children = [...topLevel];

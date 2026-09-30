@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: the rollback's saved bytes were never counted, so a document-scope commit that
-// saved every top-level block for an unwind it restores from the old array went unnoticed.
+// Miss-analysis: nothing counted what a rollback saves, so a document-scope commit saving every
+// top-level block, for an unwind that only needs the array it replaced, went unnoticed.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';

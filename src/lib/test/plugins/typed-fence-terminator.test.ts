@@ -6,6 +6,7 @@ import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A fence a plugin opener takes needs the same terminator the built-in one does. Both bundled
 // fence kinds are here because they read an unterminated fence oppositely (mermaid takes it,
@@ -21,7 +22,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```mermaid leaves one diagram and the neighbours standing', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');
 
-		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView);
+		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MERMAID, '```mermaid\n```\n'],
@@ -35,7 +36,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```mermaid holds against a tight follower', () => {
 		const doc = parse('# h\ntail\n');
 
-		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView);
+		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MERMAID, '```mermaid\n```\n'],
@@ -49,7 +50,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```math becomes a math fence rather than swallowing the rest', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');
 
-		updateNodeContent(doc, 0, '```math\n', defaultGrammarView);
+		updateNodeContent(doc, 0, '```math\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MATH_FENCE, '```math\n```\n'],
@@ -62,7 +63,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```math holds against a tight follower', () => {
 		const doc = parse('# h\ntail\n');
 
-		updateNodeContent(doc, 0, '```math\n', defaultGrammarView);
+		updateNodeContent(doc, 0, '```math\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MATH_FENCE, '```math\n```\n'],

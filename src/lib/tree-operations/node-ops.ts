@@ -35,6 +35,7 @@ import { assertInvariant } from '../assert';
 import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import {
 	NEXT_PROSE_LINE,
+	asBody,
 	ensureEditableContainers,
 	forBody,
 	parentLineEnding,
@@ -75,7 +76,7 @@ export function splitNode(
 	parent: BodyParentArg,
 	blockIndex: number,
 	offset: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading,
 	readSecondHalf: FragmentReader = fragmentReaderAt(
 		ownerAt(parent, [blockIndex]),
@@ -150,7 +151,7 @@ export function splitNode(
 	const seamLeft = blockIndex + nodes.length - 1;
 	const eaten = splitTail
 		? 0
-		: absorbSeamReading(parent, seamLeft, seamLeft, grammar, sharing).eaten;
+		: absorbSeamReading(asBody(parent), seamLeft, seamLeft, grammar, sharing).eaten;
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
 		secondHalfIndex: blockIndex + first.nodes.length
@@ -278,7 +279,7 @@ export function joinIntoLeaf(
 	path: readonly number[],
 	absorbed: NodeView,
 	reading: Reading,
-	sharing: SharingState | undefined
+	sharing: SharingState
 ): { joinOffset: number } | null {
 	const slot = path[path.length - 1];
 	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
@@ -306,7 +307,7 @@ export function joinIntoLeaf(
 
 	// The join writes the leaf's raw plus every ancestor's rebuilt raw, so copy the whole
 	// ancestor chain first and resolve through the owned copies (`unshare.ts` header).
-	if (sharing) ensureUnsharedPath(parent, [...path], sharing);
+	ensureUnsharedPath(parent, [...path], sharing);
 	const children = holderChildrenAt(parent.children, path);
 	// The task state is reconciled before the ancestors' rebuild writes the list item's marker.
 	writeKeepingTaskMarker(ownerAt(parent, path), children, slot, sharing, () =>
@@ -323,7 +324,7 @@ export function joinIntoLeaf(
 export function mergeIntoPrevDeepLeaf(
 	parent: BodyParentArg,
 	blockIndex: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
@@ -400,7 +401,7 @@ function installMergedLeaf(
 	holderChildren: CstNode[],
 	slot: number,
 	merged: MergedLeaf,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	ending: LineEnding
 ): void {
 	const target = holderChildren[slot];
@@ -413,7 +414,7 @@ function installMergedLeaf(
 		parsed.raw = written;
 		parsed.leadingTrivia = target.leadingTrivia;
 		ensureEditableContainers(parsed, ending);
-		if (sharing) sharing.stamp(parsed);
+		sharing.stamp(parsed);
 		assignChildIdsDeep(parsed);
 		holderChildren[slot] = parsed;
 		return;
@@ -431,7 +432,7 @@ export function mergeWithNext(
 	parent: BodyParentArg,
 	blockIndex: number,
 	reading: Reading,
-	sharing: SharingState | undefined
+	sharing: SharingState
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };

@@ -34,9 +34,9 @@ function emptyBlock(doc: Document, index: number): void {
 /** [Hello, x('\n'), blank(''), Second('\n')] — the split shape, whose run line sits two below. */
 function splitShape(): Document {
 	const doc = parse('Hello\n\nSecond\n');
-	splitNode(doc, 0, 5, undefined, fixtureReading());
-	splitNode(doc, 1, 0, undefined, fixtureReading());
-	updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
+	splitNode(doc, 0, 5, createSharingState(), fixtureReading());
+	splitNode(doc, 1, 0, createSharingState(), fixtureReading());
+	updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 	return doc;
 }
 

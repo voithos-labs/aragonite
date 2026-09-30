@@ -27,7 +27,7 @@ describe('a write beside a switched-off syntax', () => {
 		const doc = parse('# Plan\n---\n', { grammar: off });
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'thematicBreak']);
 
-		updateNodeContent(doc, 0, 'Plan\n', off);
+		updateNodeContent(doc, 0, 'Plan\n', off, createSharingState());
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'thematicBreak']);
 		expect(serialize(doc)).toBe('Plan\n---\n');
@@ -36,7 +36,7 @@ describe('a write beside a switched-off syntax', () => {
 
 	it('the same write in the shipped grammar folds the two into a heading', () => {
 		const doc = parse('# Plan\n---\n');
-		updateNodeContent(doc, 0, 'Plan\n', defaultGrammarView);
+		updateNodeContent(doc, 0, 'Plan\n', defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['setextHeading']);
 		expect(describeConvergence(doc)).toBeNull();
 	});
@@ -82,7 +82,7 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 			source: 'a\n- x\n---\n',
 			run: (doc) => {
 				doc.children[1].children![0].children = [];
-				cascadeCleanupEmptyAncestors(doc, [1, 0, 0], createSharingState(), off);
+				cascadeCleanupEmptyAncestors(doc, [1, 0, 0], createSharingState(), off, '\n');
 			},
 			kinds: ['paragraph', 'thematicBreak']
 		}

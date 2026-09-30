@@ -15,6 +15,7 @@ import { caretPointFor, type RemovalGesture } from './caret-target';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import {
 	blockNodeAt,
+	bodyUnder,
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw
@@ -148,7 +149,10 @@ function joinedRangeDelete(
 		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
-		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
+		if (parent) {
+			const body = bodyUnder(parent, documentLineEnding(doc));
+			settleSeparatorOnBlank(body, start.path[start.path.length - 1], sharing);
+		}
 		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 		const joinAt = { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
 		return { newDoc: doc, caret: () => joinAt };

@@ -20,6 +20,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // In live mode a list-item merge drops the `**` pair a split left behind, as a top-level join does.
 // Miss-analysis: the list-item merge was tested only in mode-free cases, never in live mode.
@@ -33,7 +34,13 @@ const SPLIT_BOLD = '- Some **bo**\n- **ld** text\n';
 const rejoined = (mode: 'live' | undefined) => {
 	const doc = parse(SPLIT_BOLD);
 	const list = doc.children[0];
-	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading({}, mode));
+	mergeListItemIntoPrevious(
+		list,
+		list.children!.slice(),
+		1,
+		createSharingState(),
+		fixtureReading({}, mode)
+	);
 	return serialize(doc);
 };
 

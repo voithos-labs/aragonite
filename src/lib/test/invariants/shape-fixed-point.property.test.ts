@@ -81,17 +81,21 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 				const offset = Math.min(gesture.offset, displayLength(node.raw));
 				settled(
 					doc,
-					(body) => splitNode(body, at, offset, undefined, fixtureReading({}, mode)).change
+					(body) =>
+						splitNode(body, at, offset, createSharingState(), fixtureReading({}, mode)).change
 				);
 			}
 			return;
 		case 'delete':
-			settled(doc, (body) => deleteNode(body, at, defaultGrammarView));
+			settled(doc, (body) => deleteNode(body, at, defaultGrammarView, createSharingState()));
 			return;
 		case 'update':
 			// Typing into the block, keeping its kind: the shape still has to reload as it stands.
 			// The content-write path does carry the suffix (`block-edit.updateBlockContent`).
-			settled(doc, () => updateNodeContent(doc, at, node.raw, defaultGrammarView).change);
+			settled(
+				doc,
+				() => updateNodeContent(doc, at, node.raw, defaultGrammarView, createSharingState()).change
+			);
 			return;
 	}
 }
@@ -103,7 +107,10 @@ function applyFill(doc: Document, at: number): void {
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
 	const text = 'x' + trailingLineEnding(doc.children[target].raw, documentLineEnding(doc));
-	settled(doc, () => updateNodeContent(doc, target, text, defaultGrammarView).change);
+	settled(
+		doc,
+		() => updateNodeContent(doc, target, text, defaultGrammarView, createSharingState()).change
+	);
 }
 
 /** Backspace and Delete across a block boundary, drawn over the merge-eligible adjacent pairs;
@@ -116,10 +123,10 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 	const i = pairs[at % pairs.length];
 	settled(doc, (body) =>
 		op === 'mergePrev'
-			? (mergeIntoPrevDeepLeaf(body, i, undefined, fixtureReading())?.change ?? {
+			? (mergeIntoPrevDeepLeaf(body, i, createSharingState(), fixtureReading())?.change ?? {
 					op: 'noop'
 				})
-			: mergeWithNext(body, i - 1, fixtureReading(), undefined).change
+			: mergeWithNext(body, i - 1, fixtureReading(), createSharingState()).change
 	);
 }
 
@@ -163,14 +170,18 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 	const children = holder.children!;
 	// A container body is fixed up inside its own commit scope, which has no document tail.
 	if (holder === doc)
-		settled(doc, () => updateNodeContent(doc, index, text, defaultGrammarView).change);
+		settled(
+			doc,
+			() => updateNodeContent(doc, index, text, defaultGrammarView, createSharingState()).change
+		);
 	else {
 		const owner = holder as CstNode;
 		updateNodeContent(
 			{ children, owner, lineEnding: documentLineEnding(doc) },
 			index,
 			text,
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 	}
 	// The rebuild typing runs, which recomputes the blank line a changed opener line needs above it.

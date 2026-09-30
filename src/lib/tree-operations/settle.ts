@@ -1,18 +1,19 @@
 /**
  * Recomputes the blank-line separators an edit left stale, merges neighbours that would re-read
  * as one block on reload, and deletes a block on top of both (`docs/design/syntax-tree.md` § Blank
- * lines). Every in-place write goes through `sharing`, so no undo snapshot sees it (G1.9), and
- * `lint/separator-write-doors.test.ts` must list every function here that writes a separator.
+ * lines). Each takes the body with its owner, since the owner's fence lines and title decide where
+ * a separator may sit, and writes only through `writeSeparator` and `writeWrapSlot`.
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks, type ContainerBodyWrap } from '../core/parser';
 import {
 	firstLineEnding,
 	ownTrailingLineEnding,
 	splitLines,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../core/lines';
 import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
@@ -24,16 +25,42 @@ import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
-import { lacksSublistSeparator, settleSublistSeparator } from './list/sublist-separator';
+import { lacksSublistSeparator } from './list/sublist-separator';
 import { spliceChildren } from './children';
 import { spliceMany } from './splice-many';
 import { applyStructuralChangeToIdsRefs, type StructuralChange } from './structural-change';
 import {
+	asBody,
+	bodyUnder,
 	ensureEditableContainers,
-	type BodyParentArg,
-	type NodeParent,
-	type SeparatorParent
+	type BodyParent,
+	type BodyParentArg
 } from './node-primitives';
+
+// ── Writes ──
+
+/**
+ * The one separator write: the child copied out of the undo snapshot, then its line written. The
+ * owner's child spans go first, since they describe the bytes being rewritten.
+ */
+function writeSeparator(
+	body: BodyParent,
+	index: number,
+	trivia: string,
+	sharing: SharingState
+): void {
+	retireChildSpans(body);
+	ensureUnsharedChild(body, index, sharing).leadingTrivia = trivia;
+}
+
+/** A write to the blank line a fence line strips, kept on the owner beside its body. */
+function writeWrapSlot(body: BodyParent, slot: 'innerPrefix' | 'innerSuffix', line: string): void {
+	retireChildSpans(body);
+	const slots = body.owner;
+	if (!slots) return;
+	if (slot === 'innerPrefix') slots.innerPrefix = line;
+	else slots.innerSuffix = line;
+}
 
 // ── Separators ──
 
@@ -42,38 +69,30 @@ import {
  * block, where the parser would read the extra line as one more empty paragraph.
  */
 export function clearRedundantSeparator(
-	parent: SeparatorParent,
+	body: BodyParent,
 	index: number,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	retireChildSpans(parent);
-	const node = parent.children?.[index];
+	const node = body.children[index];
 	if (!node || node.leadingTrivia === '') return;
-	const bodyStart = bodyStartIndex(parent);
+	const bodyStart = bodyStartIndex(body);
 	if (index < bodyStart) return;
-	const predecessor = index > bodyStart ? parent.children![index - 1] : undefined;
+	const predecessor = index > bodyStart ? body.children[index - 1] : undefined;
 	if (predecessor !== undefined && !isBlankParagraph(predecessor)) return;
-	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, index, sharing) : node;
-	const freed = owned.leadingTrivia;
-	owned.leadingTrivia = '';
-	absorbWrapPrefix(parent, bodyStart, index, freed);
+	const freed = node.leadingTrivia;
+	writeSeparator(body, index, '', sharing);
+	absorbWrapPrefix(body, bodyStart, index, freed);
 }
 
 /**
  * A blank block is itself a blank line, so it and its follower share one separator (G2.13). The
  * follower's is kept, so filling the blank block later still finds the follower separated.
  */
-export function dropDoubledSeparator(
-	parent: SeparatorParent,
-	index: number,
-	sharing?: SharingState
-): void {
-	retireChildSpans(parent);
-	const node = parent.children?.[index];
+export function dropDoubledSeparator(body: BodyParent, index: number, sharing: SharingState): void {
+	const node = body.children[index];
 	if (!node || node.leadingTrivia === '' || !isBlankParagraph(node)) return;
-	if ((parent.children?.[index + 1]?.leadingTrivia ?? '') === '') return;
-	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, index, sharing) : node;
-	owned.leadingTrivia = '';
+	if ((body.children[index + 1]?.leadingTrivia ?? '') === '') return;
+	writeSeparator(body, index, '', sharing);
 }
 
 /**
@@ -81,14 +100,13 @@ export function dropDoubledSeparator(
  * between it and a non-blank predecessor. Call when the block is filled.
  */
 export function restoreSeparatorOnFill(
-	parent: SeparatorParent,
+	body: BodyParent,
 	index: number,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	retireChildSpans(parent);
-	const node = parent.children?.[index];
+	const node = body.children[index];
 	if (!node || node.leadingTrivia !== '' || isBlankParagraph(node)) return;
-	mintSeparator(parent, index, sharing);
+	mintSeparator(body, index, sharing);
 }
 
 /**
@@ -96,16 +114,15 @@ export function restoreSeparatorOnFill(
  * follower already holds one, since the two share it (G2.13).
  */
 export function restoreSeparatorAfterBlank(
-	parent: SeparatorParent,
+	body: BodyParent,
 	index: number,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	retireChildSpans(parent);
-	const children = parent.children;
-	const node = children?.[index];
-	if (!children || !node || node.leadingTrivia !== '') return;
+	const { children } = body;
+	const node = children[index];
+	if (!node || node.leadingTrivia !== '') return;
 	if (isBlankParagraph(node) && (children[index + 1]?.leadingTrivia ?? '') !== '') return;
-	mintSeparator(parent, index, sharing);
+	mintSeparator(body, index, sharing);
 }
 
 /**
@@ -113,15 +130,14 @@ export function restoreSeparatorAfterBlank(
  * a standing line is kept, and a new one goes at the run's head, the only place one may sit.
  */
 export function settleSeparatorOnBlank(
-	parent: SeparatorParent,
+	body: BodyParent,
 	index: number,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	retireChildSpans(parent);
-	const children = parent.children;
-	const node = children?.[index];
-	if (!children || !node || !isBlankParagraph(node)) return;
-	const bodyStart = bodyStartIndex(parent);
+	const { children } = body;
+	const node = children[index];
+	if (!node || !isBlankParagraph(node)) return;
+	const bodyStart = bodyStartIndex(body);
 	let start = index;
 	while (start > bodyStart && isBlankParagraph(children[start - 1])) start--;
 	let end = index;
@@ -132,8 +148,8 @@ export function settleSeparatorOnBlank(
 	}
 	// A fence line at either end of the run strips one blank line into `innerPrefix`/`innerSuffix`
 	// on top of the run's own count when prose sits on the other side; an all-blank body needs none.
-	const wrap = bodyWrapOf(parent);
-	const slots = wrapSlotsOf(parent);
+	const wrap = bodyWrapOf(body);
+	const slots = body.owner;
 	const bodyEnd = children.length - 1;
 	// A run of two or more that is the whole body sits against both fence lines, and the reload
 	// strips a line into each of `innerPrefix` and `innerSuffix`, so the run supplies both.
@@ -147,13 +163,13 @@ export function settleSeparatorOnBlank(
 	const tailBelowProse = start > bodyStart && end === bodyEnd;
 	if (slots && wrap?.beforeCloserLine && (tailBelowProse || twoPeelBody) && !slots.innerSuffix) {
 		// A blank block's bytes are its line ending.
-		slots.innerSuffix = ownTrailingLineEnding(children[end].raw);
+		writeWrapSlot(body, 'innerSuffix', ownTrailingLineEnding(children[end].raw));
 	}
 	// The reverse: beside a lone blank block that is the whole body, the closer strips no line of
 	// its own apart from the opener's, so the run gives the extra line back.
 	const loneBlankBody = start === bodyStart && end === bodyEnd && start === end;
 	if (slots && loneBlankBody && slots.innerSuffix && (slots.innerPrefix || standing.length > 0)) {
-		slots.innerSuffix = '';
+		writeWrapSlot(body, 'innerSuffix', '');
 	}
 	const headUnderWrap =
 		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < bodyEnd;
@@ -161,7 +177,7 @@ export function settleSeparatorOnBlank(
 	// into `innerPrefix` would add a line; a `twoPeelBody` keeps its lines in the wrap fields.
 	const takesOpenerPeel = twoPeelBody || (headUnderWrap && standing.length === 0);
 	if (slots && takesOpenerPeel && !slots.innerPrefix) {
-		slots.innerPrefix = ownTrailingLineEnding(children[start].raw);
+		writeWrapSlot(body, 'innerPrefix', ownTrailingLineEnding(children[start].raw));
 	}
 	// Under the opener the run keeps exactly one stripped line, in `innerPrefix` or standing;
 	// elsewhere a run with nothing above it separates nothing, so every line is a block.
@@ -170,59 +186,54 @@ export function settleSeparatorOnBlank(
 	else if (headUnderWrap) wanted = slots?.innerPrefix ? 0 : 1;
 	else wanted = start > 0 || wrap?.afterOpenerLine ? 1 : 0;
 	if (standing.length < wanted) {
-		mintSeparator(parent, start, sharing);
+		mintSeparator(body, start, sharing);
 	} else {
-		for (const at of standing.slice(wanted)) {
-			const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
-			owned.leadingTrivia = '';
-		}
+		for (const at of standing.slice(wanted)) writeSeparator(body, at, '', sharing);
 	}
-	materializeTailSuffix(parent, sharing);
+	materializeTailSuffix(body, sharing);
 }
 
 /**
  * The parser keeps a blank line beside a fence line in `innerPrefix`/`innerSuffix` only when body
  * content sits past it, so an emptied body keeps neither, or it reloads with an extra blank block.
  */
-function dropWrapOfEmptiedBody(parent: SeparatorParent): void {
-	const slots = wrapSlotsOf(parent);
-	if (!slots || !bodyWrapOf(parent)) return;
-	if ((parent.children?.length ?? 0) > bodyStartIndex(parent)) return;
-	retireChildSpans(parent);
-	if (slots.innerPrefix) slots.innerPrefix = '';
-	if (slots.innerSuffix) slots.innerSuffix = '';
+function dropWrapOfEmptiedBody(body: BodyParent): void {
+	const slots = body.owner;
+	if (!slots || !bodyWrapOf(body)) return;
+	if (body.children.length > bodyStartIndex(body)) return;
+	if (slots.innerPrefix) writeWrapSlot(body, 'innerPrefix', '');
+	if (slots.innerSuffix) writeWrapSlot(body, 'innerSuffix', '');
 }
 
 /**
  * A tail block that stops being blank gives back the `innerSuffix` line {@link
  * settleSeparatorOnBlank} lent it, or the container emits a line nobody typed.
  */
-export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
-	retireChildSpans(parent);
-	const children = parent.children;
-	const slots = wrapSlotsOf(parent);
-	if (!children || children.length === 0 || !slots?.innerSuffix) return;
-	if (!bodyWrapOf(parent)?.beforeCloserLine) return;
+export function releaseWrapPeel(body: BodyParent, index: number): void {
+	const { children } = body;
+	if (children.length === 0 || !body.owner?.innerSuffix) return;
+	if (!bodyWrapOf(body)?.beforeCloserLine) return;
 	if (index < children.length - 1) return;
 	if (isBlankParagraph(children[children.length - 1])) return;
-	slots.innerSuffix = '';
+	writeWrapSlot(body, 'innerSuffix', '');
 }
 
 /**
  * A body's trailing blank line stays in `suffix`/`innerSuffix` only while the tail block is
  * non-blank; under a blank tail the reload reads it as a paragraph, so it becomes a block here.
  */
-function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
-	retireChildSpans(parent);
-	const children = parent.children;
-	const slot = tailSuffixSlotOf(parent);
+function materializeTailSuffix(body: BodyParent, sharing: SharingState): number {
+	const { children } = body;
+	const slot = tailSuffixSlotOf(body);
 	const suffix = slot?.read();
-	if (!children || !slot || !suffix) return 0;
-	// An emptied parent has no tail block for the line to attach to, so the line is the body's
+	if (!slot || !suffix) return 0;
+	// An emptied body has no tail block for the line to attach to, so the line is the body's
 	// whole content and the reload reads it as the one block there is.
 	if (children.length > 0 && !isBlankParagraph(children[children.length - 1])) return 0;
 	const minted: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: suffix };
-	if (sharing) sharing.stamp(minted);
+	sharing.stamp(minted);
+	// A new child moves the count, which the owner's child spans are laid out against.
+	retireChildSpans(body);
 	children.push(minted);
 	slot.clear();
 	return 1;
@@ -232,25 +243,26 @@ function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState):
  * Where a body keeps its trailing blank line. A closer line strips a line of its own, which
  * {@link settleSeparatorOnBlank} reconciles, so a body under one has no such slot here.
  */
-function tailSuffixSlotOf(
-	parent: SeparatorParent
-): { read: () => string; clear: () => void } | undefined {
-	if (parent.suffix !== undefined) {
-		return { read: () => parent.suffix ?? '', clear: () => (parent.suffix = '') };
+function tailSuffixSlotOf(body: BodyParent): { read: () => string; clear: () => void } | undefined {
+	if (body.suffix !== undefined) {
+		return { read: () => body.suffix ?? '', clear: () => (body.suffix = '') };
 	}
-	const owner = ownerNodeOf(parent);
-	const wrap = bodyWrapOf(parent);
+	const { owner } = body;
+	const wrap = bodyWrapOf(body);
 	if (!owner || wrap?.beforeCloserLine) return undefined;
 	// An all-blank body under an opener line gives its first line to the opener on reload, which
 	// is the one the trailing line would have added.
-	const children = parent.children ?? [];
+	const { children } = body;
 	const openerTakesLine =
 		wrap?.afterOpenerLine === true &&
 		!owner.innerPrefix &&
 		children.length > 0 &&
 		children.every(isBlankParagraph);
 	if (openerTakesLine) return undefined;
-	return { read: () => owner.innerSuffix ?? '', clear: () => (owner.innerSuffix = '') };
+	return {
+		read: () => owner.innerSuffix ?? '',
+		clear: () => writeWrapSlot(body, 'innerSuffix', '')
+	};
 }
 
 // ── Settling a spliced window ──
@@ -258,41 +270,40 @@ function tailSuffixSlotOf(
 /** Recompute the separators around a splice, then merge neighbours that now read as one block.
  *  `removed` is the only record of which blocks were blank; `tracked` follows the merges. */
 function settleSplicedWindow(
-	parent: SeparatorParent,
+	body: BodyParent,
 	at: number,
 	removed: readonly CstNode[],
 	vacated: string,
 	added: number,
 	change: StructuralChange,
 	grammar: GrammarView,
-	sharing?: SharingState,
+	sharing: SharingState,
 	tracked?: TrackedPosition
 ): StructuralChange {
-	if (!parent.children) return change;
 	// Read before the branches below: `settleSeparatorOnBlank` can append the tail line as a
 	// block, and a count read after it would leave that growth outside the reported window.
-	const beforeMint = parent.children.length;
-	handDownVacatedSeparator(parent, at, vacated, sharing);
-	clearRedundantSeparator(parent, at, sharing);
+	const beforeMint = body.children.length;
+	handDownVacatedSeparator(body, at, vacated, sharing);
+	clearRedundantSeparator(body, at, sharing);
 	if (removed.some(isBlankParagraph)) {
 		// Both ends: the removed blank line was this position's own separator and the one the
 		// block below stood on.
-		restoreSeparatorAfterBlank(parent, at, sharing);
-		if (added > 0) restoreSeparatorAfterBlank(parent, at + added, sharing);
-		releaseWrapPeel(parent, at + Math.max(added - 1, 0));
+		restoreSeparatorAfterBlank(body, at, sharing);
+		if (added > 0) restoreSeparatorAfterBlank(body, at + added, sharing);
+		releaseWrapPeel(body, at + Math.max(added - 1, 0));
 	} else {
-		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
+		settleSeparatorOnBlank(body, at + Math.max(added - 1, 0), sharing);
 	}
-	settleEmptyMarkerLists(parent, at, added, sharing);
-	dropWrapOfEmptiedBody(parent);
+	settleEmptyMarkerLists(body, at, added, sharing);
+	dropWrapOfEmptiedBody(body);
 	// Unconditional, and only here: a delete window at the tail names no surviving block, and
-	// the question is about the parent's last block whatever the window.
-	materializeTailSuffix(parent, sharing);
-	const widened = widenForTailMint(change, beforeMint, parent.children.length);
+	// the question is about the body's last block whatever the window.
+	materializeTailSuffix(body, sharing);
+	const widened = widenForTailMint(change, beforeMint, body.children.length);
 	// Merging neighbours is part of settling, not a rule each caller repeats, so a new caller
 	// inherits it. A write that reports `noop` splices no window and is asked nothing.
 	const absorbed = absorbWindowSeams(
-		parent as NodeParent,
+		body,
 		at,
 		added,
 		at,
@@ -304,11 +315,11 @@ function settleSplicedWindow(
 		// refused on that block's first line alone; a wider window names no single block.
 		added === 1 ? at : undefined
 	).change;
-	// The parent's trailing line is asked again: a merge can turn the last block blank, and a
+	// The body's trailing line is asked again: a merge can turn the last block blank, and a
 	// blank last block is what makes that line a block of its own.
-	const beforeTailMint = parent.children.length;
-	materializeTailSuffix(parent, sharing);
-	return widenForTailMint(absorbed, beforeTailMint, parent.children.length);
+	const beforeTailMint = body.children.length;
+	materializeTailSuffix(body, sharing);
+	return widenForTailMint(absorbed, beforeTailMint, body.children.length);
 }
 
 /**
@@ -316,31 +327,27 @@ function settleSplicedWindow(
  * the blank line that keeps it a list; typing writes the same line when it rebuilds the list.
  */
 function settleEmptyMarkerLists(
-	parent: SeparatorParent,
+	body: BodyParent,
 	at: number,
 	added: number,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	for (let i = at; i <= at + added && i < (parent.children?.length ?? 0); i++) {
-		if (!lacksSublistSeparator(parent.children!, i)) continue;
-		if (sharing) ensureUnsharedChild(parent as NodeParent, i, sharing);
-		settleSublistSeparator(parent.children!, i);
+	for (let i = at; i <= at + added && i < body.children.length; i++) {
+		if (lacksSublistSeparator(body.children, i)) mintSeparator(body, i, sharing);
 	}
 }
 
 /** The block that takes the vacated position inherits its separator when it has none of its own
  *  ({@link deleteNode}'s rule). */
 function handDownVacatedSeparator(
-	parent: SeparatorParent,
+	body: BodyParent,
 	at: number,
 	vacated: string,
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	retireChildSpans(parent);
-	const heir = parent.children?.[at];
+	const heir = body.children[at];
 	if (vacated === '' || !heir || heir.leadingTrivia !== '') return;
-	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : heir;
-	owned.leadingTrivia = vacated;
+	writeSeparator(body, at, vacated, sharing);
 }
 
 /**
@@ -348,16 +355,16 @@ function handDownVacatedSeparator(
  * the children before the mutation. A node that survives inside the window counts as kept.
  */
 export function settleSeparator(
-	parent: SeparatorParent,
+	body: BodyParent,
 	before: readonly CstNode[],
 	change: StructuralChange,
 	grammar: GrammarView,
-	sharing?: SharingState,
+	sharing: SharingState,
 	tracked?: TrackedPosition
 ): StructuralChange {
 	const window = splicedWindow(change);
-	const children = parent.children;
-	if (!window || !children) return change;
+	const { children } = body;
+	if (!window) return change;
 	// Checked here, before any branch: a window the mutation mis-derived reads `before` out of
 	// bounds and hands the branches a negative span, which each would silently clamp.
 	assertInvariant('structural-descriptor', () => checkStructuralDescriptor(change, before.length));
@@ -370,7 +377,7 @@ export function settleSeparator(
 	const first = before[window.at];
 	const vacated = first && !survivors.has(first) ? first.leadingTrivia : '';
 	return settleSplicedWindow(
-		parent,
+		body,
 		window.at,
 		removed,
 		vacated,
@@ -399,7 +406,7 @@ function splicedWindow(
 
 /**
  * {@link settleSeparator} for a splice outside a commit scope, into a container found by walking
- * the live tree; `spliceChildren` keeps its `childIds` in step.
+ * the live tree; the owner's `childIds` stay in step.
  */
 export function spliceChildrenSettled(
 	parent: CstNode | Document,
@@ -407,16 +414,19 @@ export function spliceChildrenSettled(
 	removeCount: number,
 	replacement: CstNode[],
 	grammar: GrammarView,
-	sharing?: SharingState
+	sharing: SharingState,
+	lineEnding: LineEnding
 ): void {
 	const children = parent.children;
 	if (!children || at < 0 || at > children.length) return;
 	const removed = children.slice(at, at + removeCount);
+	// The parent, not a body built over it: the document carries an id array only while a caller
+	// borrows one to track this splice.
 	spliceChildren(parent as CstNode, at, removeCount, replacement);
 	// `noop` goes in so the result describes the fix-up alone: `spliceChildren` already applied
 	// this function's own splice to `childIds`, and outside a commit scope nothing else writes them.
 	const settled = settleSplicedWindow(
-		parent as SeparatorParent,
+		bodyUnder(parent, lineEnding),
 		at,
 		removed,
 		removed[0]?.leadingTrivia ?? '',
@@ -450,17 +460,17 @@ export interface TrackedPosition {
  * blank lines don't end a container, so the window starts at the nearest non-blank block above.
  */
 export function absorbSeamReading(
-	parent: NodeParent,
+	body: BodyParent,
 	seamLeft: number,
 	floor: number,
 	grammar: GrammarView,
-	sharing?: SharingState,
+	sharing: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
 	onBeforeSplice?: () => void
 ): SeamAbsorption {
 	const read = (bytes: string) => readBlocks(bytes, { grammar, scope: 'fragment' });
-	const children = parent.children;
+	const { children } = body;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
 	let left = seamLeft;
 	while (left > floor && isBlankParagraph(children[left])) left--;
@@ -477,7 +487,7 @@ export function absorbSeamReading(
 		while (right < children.length && isBlankParagraph(children[right])) right++;
 		const window = children.slice(at, Math.min(right + 1, children.length));
 		if (window.length <= span || window.length < 2) break;
-		if (separateTableFollower(parent, right, sharing, grammar)) break;
+		if (separateTableFollower(body, right, sharing, grammar)) break;
 		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
@@ -494,16 +504,18 @@ export function absorbSeamReading(
 		// setext underline below it), so what must survive is the head's own reading, not its kind.
 		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0], read)) break;
 		onBeforeSplice?.();
-		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
+		absorbFragmentPeel(body, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
 		// The window joins two blocks at least, so its bytes hold the document's line ending.
 		const lineEnding = firstLineEnding(bytes) ?? '\n';
 		for (const block of blocks) {
 			ensureEditableContainers(block, lineEnding);
-			if (sharing) sharing.stamp(block);
+			sharing.stamp(block);
 			assignChildIdsDeep(block);
 		}
 		if (tracked) retrackThroughFold(tracked, at, window, blocks);
+		// The merge re-divides the owner's children, which its child spans are laid out against.
+		retireChildSpans(body);
 		spliceMany(children, at, window.length, blocks);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
@@ -517,19 +529,18 @@ export function absorbSeamReading(
  * as one more row; the edit made the block, so it stays that block.
  */
 function separateTableFollower(
-	parent: NodeParent,
+	body: BodyParent,
 	index: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	grammar: GrammarView
 ): boolean {
-	const follower = parent.children[index];
-	if (parent.children[index - 1]?.kind !== 'table' || follower.leadingTrivia !== '') return false;
+	const follower = body.children[index];
+	if (body.children[index - 1]?.kind !== 'table' || follower.leadingTrivia !== '') return false;
 	// All of the follower's lines, not its first alone: an opener can need a later one to open.
 	const lines = splitLines(follower.raw);
 	if (lines.length === 0) return false;
 	if (!tableTakesLine(lines, 0, lines.length, grammar)) return false;
-	retireChildSpans(parent);
-	mintSeparator(parent, index, sharing);
+	mintSeparator(body, index, sharing);
 	return true;
 }
 
@@ -631,13 +642,13 @@ export interface SettledSplice {
 /** Merge across every join the splice at `at` disturbed, the joins inside the window included,
  *  since a move can break a join that was correct. `headProbe` names the one changed block. */
 export function absorbWindowSeams(
-	parent: NodeParent,
+	body: BodyParent,
 	at: number,
 	added: number,
 	landing: number,
 	change: StructuralChange,
 	grammar: GrammarView,
-	sharing?: SharingState,
+	sharing: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
 	onBeforeSplice?: () => void
@@ -648,7 +659,7 @@ export function absorbWindowSeams(
 	let last = at + added - 1;
 	while (seamLeft <= last) {
 		const seam = absorbSeamReading(
-			parent,
+			body,
 			seamLeft,
 			0,
 			grammar,
@@ -762,16 +773,16 @@ function preChangeIndex(
 	return inherited === undefined ? null : change.at + inherited;
 }
 
-/** The fragment parse's trailing blank run stays in the last block's raw at the parent's tail and
+/** The fragment parse's trailing blank run stays in the last block's raw at the body's tail and
  *  joins the follower's run elsewhere (`docs/design/syntax-tree.md` § Blank lines). */
 function absorbFragmentPeel(
-	parent: NodeParent,
+	body: BodyParent,
 	followerIndex: number,
 	peel: string,
 	blocks: CstNode[],
-	sharing?: SharingState
+	sharing: SharingState
 ): void {
-	const follower = parent.children[followerIndex];
+	const follower = body.children[followerIndex];
 	if (!follower) {
 		blocks[blocks.length - 1].raw += peel;
 		return;
@@ -781,8 +792,7 @@ function absorbFragmentPeel(
 	const runSeparated = isBlankParagraph(blocks[blocks.length - 1]);
 	if (peel === '' && !(runSeparated && follower.leadingTrivia !== '')) return;
 	const lines = blankLinesOf(peel + follower.leadingTrivia);
-	const owned = sharing ? ensureUnsharedChild(parent, followerIndex, sharing) : follower;
-	owned.leadingTrivia = lines.length > 1 || runSeparated ? '' : lines[0];
+	writeSeparator(body, followerIndex, lines.length > 1 || runSeparated ? '' : lines[0], sharing);
 	const first = runSeparated ? 0 : 1;
 	for (let i = first; i < lines.length; i++) {
 		const trivia = !runSeparated && i === 1 ? lines[0] : '';
@@ -821,106 +831,73 @@ export function widenForTailMint(
 
 /** Give the block at `index` a blank line where one separates anything; the line reuses the
  *  ending of the block above, which is the document's. */
-function mintSeparator(parent: SeparatorParent, index: number, sharing?: SharingState): void {
-	const children = parent.children;
-	if (!children || index <= bodyStartIndex(parent)) return;
+function mintSeparator(body: BodyParent, index: number, sharing: SharingState): void {
+	const { children } = body;
+	if (index <= bodyStartIndex(body)) return;
 	if (isBlankParagraph(children[index - 1])) return;
-	const owned = sharing
-		? ensureUnsharedChild(parent as NodeParent, index, sharing)
-		: children[index];
-	owned.leadingTrivia = ownTrailingLineEnding(children[index - 1].raw);
+	writeSeparator(body, index, ownTrailingLineEnding(children[index - 1].raw), sharing);
 }
 
 /** A container's reserved title child is not a body block, so the body starts past it. */
-function bodyStartIndex(parent: SeparatorParent): number {
-	return bodyStartFor(ownerKindNameOf(parent));
+function bodyStartIndex(body: BodyParent): number {
+	const { owner } = body;
+	return owner && tryGetBlockKindDescriptor(owner.kind)?.reservedChrome ? 1 : 0;
 }
 
-/** The owning container's declared body wrap, whichever parent shape names it. */
-function bodyWrapOf(parent: SeparatorParent): ContainerBodyWrap | undefined {
-	const kind = ownerKindNameOf(parent);
-	if (kind === undefined) return undefined;
-	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.bodyWrap;
+/** The owning container's declared body wrap; the document has none. */
+function bodyWrapOf(body: BodyParent): ContainerBodyWrap | undefined {
+	return body.owner && tryGetBlockKindDescriptor(body.owner.kind)?.bodyWrap;
 }
 
-/** The node holding `innerPrefix`/`innerSuffix`: the owner the caller named, or the parent itself
- *  when it is a node. */
-function wrapSlotsOf(parent: SeparatorParent): CstNode | undefined {
-	return ownerNodeOf(parent);
-}
-
-/** The container node these children belong to, where the caller named one. */
-function ownerNodeOf(parent: SeparatorParent): CstNode | undefined {
-	return parent.owner ?? ('raw' in parent ? (parent as CstNode) : undefined);
-}
-
-/**
- * Every separator write here changes bytes the owner's child spans describe without changing the
- * children's shape, so the spans are dropped here and the next rebuild re-derives them.
- */
-function retireChildSpans(parent: SeparatorParent): void {
-	const owner = ownerNodeOf(parent);
-	if (owner) dropChildSpans(owner);
-}
-
-/** The kind whose body these children are: the named owner's, or the parent node's own. */
-export function ownerKindNameOf(parent: SeparatorParent): string | undefined {
-	return 'owner' in parent ? parent.owner?.kind : parent.kind;
-}
-
-function bodyStartFor(kind: string | undefined): number {
-	if (kind === undefined) return 0;
-	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.reservedChrome ? 1 : 0;
+/** Every write to a body changes bytes the owner's child spans describe, so the spans are dropped
+ *  and the next rebuild re-derives them. */
+function retireChildSpans(body: BodyParent): void {
+	if (body.owner) dropChildSpans(body.owner);
 }
 
 /** The parser keeps the blank line after a fenced container's opener in `innerPrefix`, so a
  *  separator freed at the body head moves there, or the reload takes the head's own line. */
-function absorbWrapPrefix(
-	parent: SeparatorParent,
-	bodyStart: number,
-	index: number,
-	freed: string
-): void {
-	const slots = wrapSlotsOf(parent);
+function absorbWrapPrefix(body: BodyParent, bodyStart: number, index: number, freed: string): void {
+	const slots = body.owner;
 	if (!slots || (slots.innerPrefix ?? '') !== '') return;
-	if (!bodyWrapOf(parent)?.afterOpenerLine) return;
-	const head = parent.children?.[bodyStart];
+	if (!bodyWrapOf(body)?.afterOpenerLine) return;
+	const head = body.children[bodyStart];
 	if (!head || head.leadingTrivia !== '') return;
 	if (index !== bodyStart && !isBlankParagraph(head)) return;
-	slots.innerPrefix = ownTrailingLineEnding(freed);
+	writeWrapSlot(body, 'innerPrefix', ownTrailingLineEnding(freed));
 }
 
 // ── Delete ──
 
-/** Remove the node at `blockIndex`, leaving its successor separated once and no more. Takes
- *  {@link BodyParentArg} since the fix-up can move a freed line into the owner's `innerPrefix`. */
+/** Remove the node at `blockIndex`, leaving its successor separated once and no more. A whole
+ *  document reads as its own body. */
 export function deleteNode(
 	parent: BodyParentArg,
 	blockIndex: number,
 	grammar: GrammarView,
-	sharing?: SharingState,
+	sharing: SharingState,
 	tracked?: TrackedPosition
 ): StructuralChange {
-	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
+	const body = asBody(parent);
+	const { children } = body;
+	if (blockIndex < 0 || blockIndex >= children.length) return { op: 'noop' };
 
-	const deleted = parent.children[blockIndex];
-
-	if (blockIndex + 1 < parent.children.length) {
-		const successor = sharing
-			? ensureUnsharedChild(parent, blockIndex + 1, sharing)
-			: parent.children[blockIndex + 1];
-		// The successor inherits the deleted separator only when it has none of its own:
-		// concatenating both leaves behind a blank line the delete should have taken.
-		successor.leadingTrivia = successor.leadingTrivia || deleted.leadingTrivia;
+	const deleted = children[blockIndex];
+	const successor = children[blockIndex + 1];
+	// The successor inherits the deleted separator only when it has none of its own:
+	// concatenating both leaves behind a blank line the delete should have taken.
+	if (successor && successor.leadingTrivia === '' && deleted.leadingTrivia !== '') {
+		writeSeparator(body, blockIndex + 1, deleted.leadingTrivia, sharing);
 	}
 
-	parent.children.splice(blockIndex, 1);
-	clearRedundantSeparator(parent, blockIndex, sharing);
+	retireChildSpans(body);
+	children.splice(blockIndex, 1);
+	clearRedundantSeparator(body, blockIndex, sharing);
 	// Both of the survivor's edges: the delete puts it beside a new follower, and a merge that
 	// rewrote its bytes can equally have stopped it interrupting the block above.
 	const survivor = Math.max(blockIndex - 1, 0);
 	return absorbWindowSeams(
-		parent,
+		body,
 		survivor,
 		blockIndex - survivor,
 		blockIndex,

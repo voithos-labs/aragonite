@@ -4,6 +4,7 @@ import { updateNodeContent } from '$lib/tree-operations';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Typing `> [!TIP]` reparses into a marker-only alert whose raw cannot account for the empty
 // paragraph the editor adds for the caret; a blockquote's `>` line doubles as that blank body,
@@ -21,7 +22,7 @@ describe('github alert: empty-body backfill stays consistent', () => {
 		['> [!TIP]', '> [!TIP]']
 	])('reparsing %j into a marker-only alert rebuilds raw for the backfilled body', (text, raw) => {
 		const doc = parse('para\n');
-		updateNodeContent(doc, 0, text, fixtureGrammar);
+		updateNodeContent(doc, 0, text, fixtureGrammar, createSharingState());
 
 		const alert = doc.children[0];
 		expect(alert.kind).toBe('githubAlert');

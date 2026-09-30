@@ -4,6 +4,7 @@ import { mergeListItemIntoPrevious } from '../../tree-operations';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
 // in e2e/requirements/blocks/list/backspace/m1-merge.md.
@@ -24,7 +25,7 @@ describe('mergeListItemIntoPrevious', () => {
 			list,
 			children,
 			currentIndex,
-			undefined,
+			createSharingState(),
 			fixtureReading()
 		);
 		if (!result) throw new Error('expected a merge target');
@@ -136,7 +137,13 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base is preserved across the merge', () => {
 		const list = parseList('3. First\n4. Second\n5. Third\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading());
+		mergeListItemIntoPrevious(
+			list,
+			list.children!.slice(),
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(list.children?.length).toBe(2);
 		const markers = list.children!.map((i) => (i.metadata as { marker: string }).marker);
@@ -147,7 +154,13 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base survives a 2-into-1 collapse', () => {
 		const list = parseList('3. First\n4. Second\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading());
+		mergeListItemIntoPrevious(
+			list,
+			list.children!.slice(),
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(list.children?.length).toBe(1);
 		const soleMarker = (list.children?.[0].metadata as { marker: string }).marker;
@@ -158,7 +171,13 @@ describe('mergeListItemIntoPrevious', () => {
 		const list = parseList('- A\n- B\n');
 
 		expect(() =>
-			mergeListItemIntoPrevious(list, list.children!.slice(), 0, undefined, fixtureReading())
+			mergeListItemIntoPrevious(
+				list,
+				list.children!.slice(),
+				0,
+				createSharingState(),
+				fixtureReading()
+			)
 		).toThrow();
 	});
 
@@ -169,7 +188,13 @@ describe('mergeListItemIntoPrevious', () => {
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, fixtureReading());
+		const result = mergeListItemIntoPrevious(
+			list,
+			children,
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);
@@ -194,7 +219,13 @@ describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () =
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, fixtureReading());
+		const result = mergeListItemIntoPrevious(
+			list,
+			children,
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);

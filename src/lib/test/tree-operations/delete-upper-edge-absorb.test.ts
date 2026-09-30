@@ -6,6 +6,7 @@ import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A merge whose survivor gains indentation can stop interrupting the indentation-delimited block
 // above it, so the neighbour merge checks the survivor's upper edge as well as the lower one.
@@ -17,7 +18,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
-		const merged = mergeIntoPrevDeepLeaf(doc, 2, undefined, fixtureReading());
+		const merged = mergeIntoPrevDeepLeaf(doc, 2, createSharingState(), fixtureReading());
 
 		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
 		expect(doc.children[0].raw).toBe('    code\n\n    x\n');
@@ -34,7 +35,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('a\n# h\nb\n');
 		expect(doc.children).toHaveLength(3);
 
-		const change = deleteNode(doc, 1, defaultGrammarView);
+		const change = deleteNode(doc, 1, defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('a\nb\n');
 		expect(describeConvergence(doc)).toBeNull();

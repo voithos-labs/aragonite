@@ -3,6 +3,7 @@ import { parse } from '$lib/core/parser';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A same-kind write beside a block that can take the lines below it as its own (a link definition's
 // title, an HTML block left open) asks whether the two now read as one.
@@ -16,14 +17,14 @@ describe('a same-kind write next to a block that reads the lines below it', () =
 		['a paragraph quoted whole', '[a]: /u\nx\n', '"x"\n']
 	])('the definition takes the paragraph below as its title: %s', (_label, source, text) => {
 		const doc = parse(source);
-		updateNodeContent(doc, 1, text, defaultGrammarView);
+		updateNodeContent(doc, 1, text, defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['linkReferenceDefinition']);
 		expectParseConverged(doc);
 	});
 
 	it('a definition that drops its own title takes the paragraph below as one', () => {
 		const doc = parse('[a]: /u \'t\'\n"y"\n');
-		updateNodeContent(doc, 0, '[a]: /u\n', defaultGrammarView);
+		updateNodeContent(doc, 0, '[a]: /u\n', defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['linkReferenceDefinition']);
 		expectParseConverged(doc);
 	});
@@ -34,7 +35,7 @@ describe('a same-kind write next to a block that reads the lines below it', () =
 		['a pre block losing its closer', '<pre>\na\n</pre>\nmore\n', '<pre>\na\n</pr>\n']
 	])('an HTML block left open takes the paragraph below: %s', (_label, source, text) => {
 		const doc = parse(source);
-		updateNodeContent(doc, 0, text, defaultGrammarView);
+		updateNodeContent(doc, 0, text, defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['htmlBlock']);
 		expectParseConverged(doc);
 	});
