@@ -2,8 +2,6 @@
 // Miss-analysis: no test rebuilt a height table after the mode switch emptied the cache.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { createHeightOracle } from '../../cursor/height-oracle';
-import { HEIGHT_ESTIMATES } from '../../cursor/typography-estimates';
 import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
@@ -12,19 +10,10 @@ const BLOCKS = 10;
 const MEASURED = 100;
 const ANCHOR = 5;
 
-function proseOracle() {
-	return createHeightOracle({
-		lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
-		codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
-		avgCharWidth: HEIGHT_ESTIMATES.avgCharWidth,
-		blockChrome: HEIGHT_ESTIMATES.blockChrome,
-		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
-	});
-}
-
 describe('a structural rebuild after the check dropped its cache', () => {
 	it('keeps every surviving block at the height the model measured', async () => {
-		const oracle = proseOracle();
+		const layout = createLayoutState();
+		const oracle = layout.heightOracle;
 		const children = $state(Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)));
 		const ids = $state(Array.from({ length: BLOCKS }, (_, i) => `b${i}`));
 		const { windowing, port, cleanup } = mountListWindowing({
@@ -48,7 +37,7 @@ describe('a structural rebuild after the check dropped its cache', () => {
 
 		// The mode switch: the cache goes, every height table keeps the heights it took from it,
 		// and a block whose box did not move reports no resize to put them back.
-		createLayoutState({ heightOracle: oracle }).forgetMeasuredHeights();
+		layout.forgetMeasuredHeights();
 
 		// Any structural edit rebuilds the height table off the now-empty cache.
 		children.push(makePara(`p${BLOCKS}\n`));

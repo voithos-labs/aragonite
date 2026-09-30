@@ -31,8 +31,6 @@
 	import { docPathFrom } from '../cursor/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../cursor/scroll-owner';
-	import { createHeightOracle } from '../cursor/height-oracle';
-	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
@@ -1020,21 +1018,8 @@
 
 	// ── Height estimates ────────────────────────────────────────────────
 
-	// Only font-relative terms scale; getters, so a scale change needs no new height estimator.
-	const heightOracle = createHeightOracle({
-		get lineHeight() {
-			return HEIGHT_ESTIMATES.proseLineHeight * layout.typeScale();
-		},
-		get codeLineHeight() {
-			return HEIGHT_ESTIMATES.codeLineHeight * layout.typeScale();
-		},
-		get avgCharWidth() {
-			return HEIGHT_ESTIMATES.avgCharWidth * layout.typeScale();
-		},
-		blockChrome: HEIGHT_ESTIMATES.blockChrome,
-		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
-	});
-	const layout = createLayoutState({ heightOracle });
+	const layout = createLayoutState();
+	const heightOracle = layout.heightOracle;
 
 	// ── Resize invalidation ─────────────────────────────────────────────
 

@@ -1601,26 +1601,26 @@ const LAYOUT_HOME = 'src/lib/reactivity/layout-state.svelte.ts';
 
 const HEIGHT_LIFETIME: ManifestRule[] = [
 	{
-		id: 'G4.98 only layout state drops the measured heights',
-		// A member read, called or passed on, or a destructure; the definition and its type aren't one.
-		matches: /\.dropMeasured\b|\{[^}]*\bdropMeasured\b[^}]*\}\s*=/,
+		// Layout state hands out the estimator without its drop, so the type holds the rest; this
+		// catches a second estimator, or a cast back to the one with the drop.
+		id: 'G4.98 only layout state builds the height estimator that can drop',
+		matches: /(?<!\bfunction\s+)(?<![\w$])createHeightOracle\s*\(|\bas\s+MeasuredHeightOracle\b/,
 		declared: {
-			[LAYOUT_HOME]: 'the one drop, for a document or mode change and for a geometry change'
+			[LAYOUT_HOME]: 'the one estimator, whose drop only layout state can reach'
 		},
 		reason:
-			'a route that drops measured heights itself can skip the width version its change needs: call `forgetMeasuredHeights` or `rebuildForNewGeometry` on layout state',
+			'a height estimator built or cast outside layout state can drop measured heights without the width version the change needs: read `LayoutState.heightOracle`, and call `forgetMeasuredHeights` or `rebuildForNewGeometry`',
 		reaches: [LAYOUT_HOME],
 		hits: [
-			'deps.heightOracle.dropMeasured();',
-			'heightOracle.dropMeasured ()',
-			'installWidthWatcher(el, oracle.dropMeasured);',
-			'const { dropMeasured } = heightOracle;'
+			'const oracle = createHeightOracle({ lineHeight: 24 });',
+			'createHeightOracle (opts)',
+			'const full = heightOracle as MeasuredHeightOracle;'
 		],
 		misses: [
-			'dropMeasured: () => measuredById.clear(),',
-			'dropMeasured(): void;',
-			'layout.forgetMeasuredHeights();',
-			'// heightOracle.dropMeasured() clears it.\nconst a = 1;'
+			'export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {',
+			"import { createHeightOracle } from '../cursor/height-oracle';",
+			'const layout = createLayoutState();',
+			'// createHeightOracle(opts) builds one.\nconst a = 1;'
 		]
 	},
 	{

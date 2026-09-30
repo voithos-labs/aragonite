@@ -4,7 +4,6 @@
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
-import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import {
@@ -57,15 +56,15 @@ interface Fixture {
 function mount(): Fixture {
 	const children = $state(Array.from({ length: COUNT }, (_, i) => makePara(`p${i}\n`)));
 	const ids = $state(Array.from({ length: COUNT }, (_, i) => idOf(i)));
+	let widthVersion = $state(0);
 	const oracle = liveOracle();
-	const layout = createLayoutState({ heightOracle: oracle });
 	const focus = focusFollowing(ids, FOCUSED);
 	const scope = mountListWindowing({
 		children,
 		ids,
 		oracle,
 		listHeight: COUNT * HEIGHT,
-		getWidthVersion: layout.widthVersion,
+		getWidthVersion: () => widthVersion,
 		getFocusPath: focus.getFocusPath
 	});
 	const cleanup = scope.cleanup;
@@ -80,7 +79,8 @@ function mount(): Fixture {
 		ids,
 		oracle,
 		bumpWidth: () => {
-			layout.rebuildForNewGeometry();
+			oracle.dropMeasured();
+			widthVersion++;
 			flushSync();
 		},
 		async mountChanged() {

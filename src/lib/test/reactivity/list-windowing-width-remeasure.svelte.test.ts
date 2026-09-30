@@ -3,7 +3,6 @@
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
-import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -35,13 +34,13 @@ function seededOracle(): MeasuredHeightOracle {
 describe('list-windowing width re-measure', () => {
 	it('holds the anchor block on screen across a width change (#188)', async () => {
 		const oracle = seededOracle();
-		const layout = createLayoutState({ heightOracle: oracle });
+		let widthVersion = $state(0);
 		const { windowing, cleanup, port } = mountListWindowing({
 			children: Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)),
 			ids: Array.from({ length: BLOCKS }, (_, i) => idOf(i)),
 			oracle,
 			listHeight: BLOCKS * REAL,
-			getWidthVersion: layout.widthVersion
+			getWidthVersion: () => widthVersion
 		});
 
 		// The mounted band reads its real height, which the estimates the width rebuild starts from
@@ -58,7 +57,8 @@ describe('list-windowing width re-measure', () => {
 		port.setScrollTop(SCROLLED_THROUGH * REAL - REAL + 100);
 		const heldOffset = await screenOffsetOf(windowing, port, anchor);
 
-		layout.rebuildForNewGeometry();
+		oracle.dropMeasured();
+		widthVersion++;
 		flushSync();
 		await tick();
 
