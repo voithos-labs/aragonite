@@ -90,7 +90,7 @@ async function mountHost() {
 			reading: fixtureReading(),
 			grammar: defaultGrammarView,
 			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore,
-			menuPresence: createMenuPresence(),
+			menuPresence: createMenuPresence({ isReading: () => false }),
 			commands: commandContext()
 		}
 	});

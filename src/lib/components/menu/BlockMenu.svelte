@@ -165,7 +165,7 @@
 	class="md-menu block-menu"
 	role="menu"
 	aria-label={label}
-	{@attach menuPresence.track}
+	{@attach menuPresence.track(() => onClose(), { edits: true })}
 	style:left="{left}px"
 	style:top="{top}px"
 >
@@ -203,7 +203,7 @@
 						class="md-menu block-menu block-menu-flyout"
 						role="menu"
 						{@attach keepFlyoutOnScreen}
-						{@attach menuPresence.track}
+						{@attach menuPresence.track(() => (flyout = null), { edits: true })}
 					>
 						{#each item.children as child, j (child.id)}
 							<button

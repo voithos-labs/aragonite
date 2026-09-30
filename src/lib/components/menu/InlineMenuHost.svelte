@@ -127,7 +127,7 @@
 		id={menu.listboxId}
 		class="md-menu inline-menu"
 		role="listbox"
-		{@attach menuPresence.track}
+		{@attach menuPresence.track(() => menu.close(), { edits: true })}
 		tabindex="-1"
 		aria-label={INLINE_MENU_LABEL}
 		data-inline-menu={view.source.name}

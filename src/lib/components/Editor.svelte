@@ -348,6 +348,18 @@
 		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 	});
 
+	// ── Open menus ──────────────────────────────────────────────────────
+
+	const menuPresence = createMenuPresence({ isReading: () => effectiveMode === 'reading' });
+	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
+	let menuWasOpen = false;
+	$effect(() => {
+		const open = menuPresence.isOpen;
+		if (open === menuWasOpen) return;
+		menuWasOpen = open;
+		events.emit('menuChange', open);
+	});
+
 	const documentSwap = createDocumentSwap({
 		grammar: registryView.grammar,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
@@ -366,7 +378,7 @@
 		},
 		undoManager,
 		caretMemory,
-		closeMenus,
+		menus: menuPresence,
 		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
@@ -401,16 +413,6 @@
 	// formatting popover stays in charge, and tables run their own cell menu.
 	let blockMenu = $state<BlockMenuModel | null>(null);
 
-	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
-	const menuPresence = createMenuPresence();
-	let menuWasOpen = false;
-	$effect(() => {
-		const open = menuPresence.isOpen;
-		if (open === menuWasOpen) return;
-		menuWasOpen = open;
-		events.emit('menuChange', open);
-	});
-
 	// ── Link card ───────────────────────────────────────────────────────
 
 	// The caret snapshot and entry checks live on the link card state so no entry path skips
@@ -421,18 +423,6 @@
 		canEnter: () => !selectionState.isCrossBlock,
 		canOpenCreate: () =>
 			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
-	});
-
-	function closeMenus(): void {
-		blockMenu = null;
-		inlineMenu.close();
-		linkCard.close();
-	}
-
-	// A menu opened in one mode offers that mode's edits, so a mode change closes every menu.
-	$effect(() => {
-		void effectiveMode;
-		untrack(closeMenus);
 	});
 
 	// ── Hidden-run class check ──────────────────────────────────────────
@@ -802,6 +792,7 @@
 		get layout() {
 			return layout;
 		},
+		menus: menuPresence,
 		events,
 		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {

@@ -85,8 +85,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		}),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
-		// Real: a table or code block opening its menu counts itself in.
-		menuPresence: createMenuPresence(),
+		// Filled in by `editorMountContext`, which reads the mode off the document group.
+		menuPresence: {} as EditorServices['menuPresence'],
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},
@@ -182,6 +182,10 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 			getClipBounds: () => []
 		});
 	if (!overrides.doc?.scrollport) doc.scrollport = services.scrollOwner.port;
+	// Real: a table or code block opening its menu counts itself in.
+	services.menuPresence =
+		overrides.services?.menuPresence ??
+		createMenuPresence({ isReading: () => doc.reading.mode() === 'reading' });
 	// Read off the selection the test handed in, the way the editor derives it.
 	services.rangeCoverage =
 		overrides.services?.rangeCoverage ??

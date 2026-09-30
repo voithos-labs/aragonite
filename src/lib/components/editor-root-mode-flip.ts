@@ -8,6 +8,7 @@ import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { LayoutState } from '../reactivity/layout-state.svelte';
+import type { MenuPresence } from './menu/menu-presence.svelte';
 import { rawOffsetAt } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
@@ -29,6 +30,7 @@ export interface ModeFlipDeps {
 	isHostChrome(node: Node | null): boolean;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
+	menus: Pick<MenuPresence, 'closeAll'>;
 	events: EditorEvents;
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
 	 *  scroll position. */
@@ -111,6 +113,8 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
+			// A menu opened in one mode offers that mode's edits.
+			deps.menus.closeAll();
 			// The caret memory and measured heights belong to the outgoing mode's markers.
 			deps.caretMemory.forget();
 			deps.layout.forgetMeasuredHeights();

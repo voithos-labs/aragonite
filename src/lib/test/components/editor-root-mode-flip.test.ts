@@ -31,6 +31,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	const calls = {
 		caretForgets: 0,
 		measuredDrops: 0,
+		menuCloses: 0,
 		gapClears: 0,
 		selectionEmits: 0,
 		modeEmits: [] as PresentationMode[],
@@ -53,6 +54,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		isHostChrome: (node) => !!node && header.contains(node),
 		caretMemory: { forget: () => calls.caretForgets++ },
 		layout: { forgetMeasuredHeights: () => calls.measuredDrops++ },
+		menus: { closeAll: () => calls.menuCloses++ },
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
@@ -102,7 +104,12 @@ describe('editor-root mode flip: the two halves', () => {
 		const h = harness();
 		h.flip.beforeFlip('source');
 		h.flip.afterFlip('source');
-		expect(h.calls).toMatchObject({ caretForgets: 0, measuredDrops: 0, modeEmits: [] });
+		expect(h.calls).toMatchObject({
+			caretForgets: 0,
+			measuredDrops: 0,
+			menuCloses: 0,
+			modeEmits: []
+		});
 	});
 
 	it('the pre half blurs a focused leaf and announces the dropped selection', () => {
@@ -121,10 +128,15 @@ describe('editor-root mode flip: the two halves', () => {
 		expect(h.calls.selectionEmits).toBe(0);
 	});
 
-	it('the post half forgets the caret memory, drops measured heights and announces the mode', () => {
+	it('the post half closes the menus, forgets the mode’s geometry and announces the mode', () => {
 		const h = harness();
 		h.flipTo('live');
-		expect(h.calls).toMatchObject({ caretForgets: 1, measuredDrops: 1, modeEmits: ['live'] });
+		expect(h.calls).toMatchObject({
+			caretForgets: 1,
+			measuredDrops: 1,
+			menuCloses: 1,
+			modeEmits: ['live']
+		});
 	});
 });
 

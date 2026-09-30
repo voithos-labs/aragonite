@@ -423,7 +423,11 @@
 		</button>
 	{/if}
 	{#if fieldOpen}
-		<label class="md-image-field" {@attach keepFieldOnScreen} {@attach menuPresence.track}>
+		<label
+			class="md-image-field"
+			{@attach keepFieldOnScreen}
+			{@attach menuPresence.track(() => closeField(false), { edits: true })}
+		>
 			<span class="md-image-field-label">Alt</span>
 			<input
 				type="text"

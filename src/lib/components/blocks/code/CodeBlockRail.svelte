@@ -416,7 +416,7 @@
 		bind:this={pickerEl}
 		class="md-menu code-rail-popout code-lang-picker"
 		style={popoutStyle(listAt)}
-		{@attach menuPresence.track}
+		{@attach menuPresence.track(close, { edits: true })}
 	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
@@ -477,6 +477,7 @@
 	</div>
 {/if}
 
+<!-- Not marked as editing: a host's items may only read, so the menu opens in reading mode too. -->
 {#if menuOpen}
 	<ul
 		bind:this={menuEl}
@@ -484,7 +485,7 @@
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
-		{@attach menuPresence.track}
+		{@attach menuPresence.track(() => (menuOpen = false))}
 	>
 		{#each openMenuItems as item (item.id)}
 			<li role="none">

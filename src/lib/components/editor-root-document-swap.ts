@@ -18,6 +18,7 @@ import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
 import type { EditorEvents } from '../editor-events';
 import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
+import type { MenuPresence } from './menu/menu-presence.svelte';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -53,9 +54,9 @@ export interface DocumentSwapDeps {
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
 	caretMemory: Pick<CaretMemory, 'forget'>;
-	/** Every menu Editor owns acts on a block or bytes of the outgoing document; a block's own
-	 *  menus unmount with it. Closed before the blocks unmount, which a menu may react to. */
-	closeMenus(): void;
+	/** Every open menu acts on a block or bytes of the outgoing document. Closed before the
+	 *  blocks unmount, which a menu may react to. */
+	menus: Pick<MenuPresence, 'closeAll'>;
 	widgetSelection: Pick<WidgetSelectionState, 'clear'>;
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
@@ -86,7 +87,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.layout.forgetMeasuredHeights();
 			deps.undoManager.clear();
 			deps.caretMemory.forget();
-			deps.closeMenus();
+			deps.menus.closeAll();
 			deps.widgetSelection.clear();
 			// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
 			// would keep the outgoing document's selection. Batched, so a real range emits once.

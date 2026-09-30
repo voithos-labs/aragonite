@@ -50,7 +50,7 @@ describe('the swap commit sequence', () => {
 			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },
 			caretMemory: { forget: step('caret') },
-			closeMenus: step('menus'),
+			menus: { closeAll: step('menus') },
 			widgetSelection: { clear: step('widget') },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
