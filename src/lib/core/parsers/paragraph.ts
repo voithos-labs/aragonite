@@ -10,7 +10,8 @@ import {
 	type BlockOpenerResult,
 	type GrammarView
 } from '../../schema/block-openers';
-import { matchTableDelimiterRow, parseTable, tableHeaderCells } from './table';
+import { parseTable, tableHeaderCells } from './table';
+import { matchTableDelimiterRow } from './table-line';
 import { matchThematicBreak } from './thematic-break';
 
 export function parseParagraph(

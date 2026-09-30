@@ -1,68 +1,20 @@
 import type { CstNode, TableAlignment } from '../nodes';
-import { trimWhitespace, type ParsedLine } from '../lines';
+import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import {
 	lineStartsOuterBlock,
 	type BlockOpenerResult,
 	type GrammarView
 } from '../../schema/block-openers';
+import { splitRowCells } from './table-line';
 
-// ── Cell splitter ──────────────────────────────────────────────────────────
-
-// Cell padding is cosmetic: a rebuilt row writes single spaces. GFM §4.10 trims spaces, so a
-// non-breaking space at a cell's edge is content and survives the rebuild.
-export function splitRowCells(rowText: string): string[] {
-	const trimmed = trimWhitespace(rowText);
-	const head = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
-	const inner = head.endsWith('|') ? head.slice(0, -1) : head;
-	const cells: string[] = [];
-	let current = '';
-	let escaped = false;
-	for (let i = 0; i < inner.length; i++) {
-		const ch = inner[i];
-		if (ch === '|' && !escaped) {
-			cells.push(trimWhitespace(current));
-			current = '';
-			continue;
-		}
-		current += ch;
-		escaped = ch === '\\' && !escaped;
-	}
-	cells.push(trimWhitespace(current));
-	return cells;
-}
+// ── Header row ─────────────────────────────────────────────────────────────
 
 /** The cells a line offers as a header row, or null: the one definition, so the continuation scan
  *  and the Enter completer cannot disagree. Arity against the delimiter is the caller's check. */
 export function tableHeaderCells(text: string): string[] | null {
 	if (!text.includes('|')) return null;
 	return splitRowCells(text);
-}
-
-// ── Delimiter row ──────────────────────────────────────────────────────────
-
-export function matchTableDelimiterRow(
-	text: string
-): { columnCount: number; alignments: TableAlignment[] } | null {
-	const trimmed = trimWhitespace(text);
-	if (!trimmed.includes('|')) return null;
-
-	const inner = trimmed.replace(/^\||\|$/g, '');
-	const cells = inner.split('|');
-	const alignments: TableAlignment[] = [];
-
-	for (const cell of cells) {
-		const c = trimWhitespace(cell);
-		if (!/^:?-+:?$/.test(c)) return null;
-		const left = c.startsWith(':');
-		const right = c.endsWith(':');
-		if (left && right) alignments.push('center');
-		else if (left) alignments.push('left');
-		else if (right) alignments.push('right');
-		else alignments.push('none');
-	}
-
-	return { columnCount: cells.length, alignments };
 }
 
 // ── Block parser ───────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { isGridDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
+import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { showValue as show } from '../core/metadata-parity';
 
 export { show };
@@ -128,10 +128,8 @@ export function assertExemptionDocumented(cell: ConformanceCoverage, label: stri
 	assertReasonDocumented(cell.reason, `${label} ${cell.mode} reason`);
 }
 
-/**
- * A byte-faithful rebuild must reproduce the parsed bytes (a grid one canonicalizes widths, so it
- * only has to run). Writes `node.raw` in place: pass a fresh parse, never a node a cell shares.
- */
+/** A rebuild of a freshly parsed node must reproduce the parsed bytes. Writes `node.raw` in place:
+ *  pass a fresh parse, never a node a cell shares. */
 export function assertRebuildIsParseCanonical(
 	descriptor: BlockKindDescriptor,
 	node: CstNode,
@@ -143,9 +141,7 @@ export function assertRebuildIsParseCanonical(
 	} catch (error) {
 		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
 	}
-	if (!isGridDescriptor(descriptor)) {
-		assertIs(node.raw, before, `${label} rebuildRaw reproduces the parse-canonical raw`);
-	}
+	assertIs(node.raw, before, `${label} rebuildRaw reproduces the parse-canonical raw`);
 }
 
 // ── Cell subjects ────────────────────────────────────────────────────────────

@@ -184,6 +184,15 @@ describe('keepOpenTail', () => {
 		expect(doc.children[1].children!.at(-1)!.raw).toBe('r');
 	});
 
+	// Miss-analysis: every table case had a body row, so no walk met a header row above the
+	// table's own delimiter line, and the table rebuild rewrote the trimmed header on the next edit.
+	it('releases a header-only table’s delimiter line and leaves its header row ended', () => {
+		const doc = ended('| h1 | h2 |\n| --- | :---: |');
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
+		expect(serialize(doc)).toBe('| h1 | h2 |\n| --- | :---: |');
+		expect(doc.children[0].children![0].raw).toBe('| h1 | h2 |\n');
+	});
+
 	it('keeps a blank last line, which is nothing but its break', () => {
 		const doc = parse('a\n\n\n');
 		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);

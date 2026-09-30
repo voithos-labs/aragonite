@@ -1,5 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { splitRowCells, matchTableDelimiterRow } from '../../../core/parsers/table';
+import {
+	rowCellSpans,
+	splitRowCells,
+	matchTableDelimiterRow
+} from '../../../core/parsers/table-line';
+
+describe('rowCellSpans', () => {
+	const spans = (text: string) => rowCellSpans(text).map((c) => [c.from, c.start, c.end, c.to]);
+
+	it('puts each cell’s text inside the region between its pipes', () => {
+		expect(spans('| a |bc|')).toEqual([
+			[1, 2, 3, 4],
+			[5, 5, 7, 7]
+		]);
+	});
+
+	it('leaves the indent, the edge pipes and trailing whitespace outside every region', () => {
+		expect(spans('  |a| \t')).toEqual([[3, 3, 4, 4]]);
+		expect(spans('a | b')).toEqual([
+			[0, 0, 1, 2],
+			[3, 4, 5, 5]
+		]);
+	});
+
+	it('marks an empty cell where its region ends', () => {
+		expect(spans('|  |')).toEqual([[1, 3, 3, 3]]);
+	});
+});
 
 describe('splitRowCells', () => {
 	it('splits a simple row', () => {

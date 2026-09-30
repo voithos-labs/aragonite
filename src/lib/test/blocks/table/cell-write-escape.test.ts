@@ -4,7 +4,7 @@
 // is read after the kind's escaping has run, not at the component's own call.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
-import { splitRowCells } from '$lib/core/parsers/table';
+import { splitRowCells } from '$lib/core/parsers/table-line';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';

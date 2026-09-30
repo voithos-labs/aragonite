@@ -97,6 +97,66 @@ const table = fc
 		return header + delim + rows + pipelessRow;
 	});
 
+// ── Respelled tables ────────────────────────────────────────────────────────
+
+const cellPad = fc.constantFrom('', ' ', '  ', '   ', '\t');
+const cellText = fc.constantFrom('a', '1', '', 'x \\| y', '汉字', 'é', '**b**', '`c`');
+const delimiterCell = fc.constantFrom('-', '---', ':-', ':--', '-:', ':-:', ':---:', '---:');
+
+/** One table line in any spelling GFM reads the same: pipes at either end or not, cells padded
+ *  with nothing, spaces or a tab, and an indent or trailing whitespace around the line. */
+function spelledLine(cell: fc.Arbitrary<string>, count: number): fc.Arbitrary<string> {
+	return fc
+		.tuple(
+			fc.array(fc.tuple(cellPad, cell, cellPad), { minLength: count, maxLength: count }),
+			fc.boolean(),
+			fc.boolean(),
+			fc.constantFrom('', ' ', '   '),
+			fc.constantFrom('', ' ', '\t')
+		)
+		.map(
+			([cells, lead, trail, indent, tail]) =>
+				indent +
+				(lead ? '|' : '') +
+				cells.map(([before, text, after]) => before + text + after).join('|') +
+				(trail ? '|' : '') +
+				tail +
+				'\n'
+		);
+}
+
+/** A table whose rows are spelled every way GFM allows, some of them short or with surplus. */
+const respelledTable = fc.integer({ min: 1, max: 3 }).chain((cols) =>
+	fc
+		.tuple(
+			spelledLine(cellText, cols),
+			spelledLine(delimiterCell, cols),
+			fc.array(
+				fc
+					.integer({ min: Math.max(1, cols - 1), max: cols + 1 })
+					.chain((n) => spelledLine(cellText, n)),
+				{ maxLength: 3 }
+			)
+		)
+		.map(([header, delimiter, rows]) => header + delimiter + rows.join(''))
+);
+
+/** Respelled tables at the top level and inside a quote, a blank line apart. */
+export const arbRespelledTableDoc = withDrawnLineEnding(
+	fc
+		.array(
+			fc.oneof(
+				{ arbitrary: respelledTable, weight: 3 },
+				{
+					arbitrary: respelledTable.map((t) => t.replace(/^(?=.)/gm, '> ')),
+					weight: 1
+				}
+			),
+			{ minLength: 1, maxLength: 3 }
+		)
+		.map((tables) => tables.join('\n'))
+);
+
 /** Blank runs, since one blank line separates and each later one is a block of its own; the
  *  whitespace-only lines are blank under GFM §2.1 and must survive verbatim. */
 const blankLine = fc.constantFrom('\n', ' \n', '  \n', '\t\n', ' \t \n');
