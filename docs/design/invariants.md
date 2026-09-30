@@ -342,12 +342,14 @@ nothing, so it has none to capture) and, on throw, restores them via `UndoManage
 wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), emits
 `error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production.
 
-Every commit keeps the tree intact the same way. Its mutation writes the live tree in place (a scope
-view is a window onto live nodes), so the commit swaps a fresh top-level children array in before
-the mutation runs and puts the old one back on throw. Copy-path-on-write means the old array still
-reaches an intact tree at every depth, so every copy the mutation dirtied goes out with the fresh
-one. That old array is also the whole rollback of a commit over the document, which is why one
-costs no per-block copy however long the document is.
+Every commit keeps the tree intact the same way. It holds on to the top-level array it started from,
+and a throw puts that one back. A commit with a container scope swaps a fresh array in before its
+mutation runs, since the container's copies land in the live tree (a scope view is a window onto
+live nodes). A commit over the document alone hands its mutation a plain copy instead, which goes
+live when the scope publishes. Copy-path-on-write means the old array still reaches an intact tree
+at every depth, so every copy the mutation dirtied goes out with the new one. That old array is
+the whole rollback of a commit over the document, so one saves no block's bytes, however long the
+document is.
 
 The array swap alone can't reach a container commit that joins an open undo step when its scope
 node was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the

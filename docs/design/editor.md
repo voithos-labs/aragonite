@@ -781,7 +781,7 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 1. ask whether reading mode admits the write (below), and stop if not,
 2. forget the caret memory and end the typing batch's current burst,
 3. capture the snapshot (skipped when an open undo step or the typing batch already holds this gesture's entry, as above),
-4. hand the mutation owned copies: a fresh top-level children array, which goes live right away (the old one is what a throw puts back), and the path down to each container scope,
+4. hand the mutation owned copies: the path down to each container scope, and a fresh top-level children array (the old one is what a throw puts back). With a container scope in the commit, the fresh array goes live right away, since the container's copies land in it. A commit over the document alone (`commitStructural`) gets a plain array instead, off the `$state` proxy, which goes live at step 9; splicing the live one would pay a tracked write for every block it shifts,
 5. run the mutation,
 6. end the line of every block the mutation placed, and of the block right above them (`src/lib/tree-operations/open-tail.ts` :: `endWindowLines`), since the next step reads them side by side,
 7. settle the separators and joins the mutation disturbed (§ 8),

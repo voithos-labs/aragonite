@@ -469,6 +469,7 @@ export function createUndoController(
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
 		return commitScopes({
 			entry: 'commitStructural',
+			topLevelOffTree: true,
 			scopes: [getDocScope()],
 			snapshot: args.snapshot,
 			mutate: ([doc]) => [args.mutate(doc.children)],
@@ -504,6 +505,8 @@ export function createUndoController(
 	interface PreparedScope {
 		target: MultiScopeTarget;
 		isDoc: boolean;
+		/** The document's working array is a plain one the publish installs, not the tree's own. */
+		offTree: boolean;
 		chain: CstNode[];
 		owned: CstNode;
 		view: ContainerScope;
@@ -552,9 +555,13 @@ export function createUndoController(
 
 	/**
 	 * Copies the scope's ancestors and attaches a working children array (`tree-operations/unshare.ts`).
-	 * `topLevelBefore` is the document's array before `commitScopes` swapped in its working copy.
+	 * `topLevelBefore` is the document's array before the commit wrote any.
 	 */
-	function prepareScopeView(s: MultiScopeTarget, topLevelBefore: CstNode[]): PreparedScope {
+	function prepareScopeView(
+		s: MultiScopeTarget,
+		topLevelBefore: CstNode[],
+		topLevelOffTree: boolean
+	): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
@@ -584,20 +591,22 @@ export function createUndoController(
 		const savedChildIds = owned.childIds;
 		const savedRaws = isDoc ? [] : captureScopeRaws(chain, owned);
 		if (!isDoc) owned.children = [...(owned.children ?? [])];
+		const offTree = isDoc && topLevelOffTree;
+		// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
+		const children = offTree ? [...topLevelBefore] : owned.children!;
 		const lineEnding = documentLineEnding(deps.doc);
 		return {
 			target: s,
 			isDoc,
+			offTree,
 			chain,
 			owned,
 			view: {
 				node: owned,
-				children: owned.children!,
+				children,
 				sharing: deps.sharing,
 				lineEnding,
-				body: isDoc
-					? documentBody(deps.doc, owned.children!)
-					: { children: owned.children!, owner: owned, lineEnding },
+				body: isDoc ? documentBody(deps.doc, children) : { children, owner: owned, lineEnding },
 				rebuild: (node) => {
 					// The commit rebuilds the scope's own chain, and a shared node is an undo entry's.
 					assertInvariant('scope-rebuild-off-chain', () =>
@@ -626,6 +635,11 @@ export function createUndoController(
 	 * because the state's setter would write the stale shared node's property.
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange, entry: string): void {
+		if (p.offTree) {
+			deps.doc.children = p.view.children;
+			// Re-read through the tree, whose proxy is the array from here on (unshare.ts header).
+			p.view.children = p.view.body.children = deps.doc.children;
+		}
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
 		assertIdsInLockstep(
 			`${entry} [${p.target.path.join(',')}]`,
@@ -652,6 +666,9 @@ export function createUndoController(
 		entry: CommitArgs['entry'];
 		/** In-place writes a `noop` change names no position for, read once `mutate` returns. */
 		touchedNodes?: readonly CstNode[];
+		/** True when the mutation writes the top level only through the array it's handed, so that
+		 *  array can stay off the tree until the document scope publishes. */
+		topLevelOffTree?: boolean;
 	}
 
 	/** One structural commit across one or more block lists: one undo snapshot, one edit event.
@@ -660,6 +677,7 @@ export function createUndoController(
 		args: ScopedCommitArgs<S>
 	): Promise<boolean> {
 		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret } = args;
+		const offTree = args.topLevelOffTree ?? false;
 		const prepared: PreparedScope[] = [];
 		let settled: StructuralChange[] = [];
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
@@ -676,14 +694,14 @@ export function createUndoController(
 			snapshot,
 			mutate: (wasOpen) => {
 				for (const s of scopes) assertScopeIdentity(s);
-				// Every scope's copies land in the top-level array, so the commit writes a fresh one, and an
-				// unwind puts back the one it replaced.
 				const topLevel = deps.doc.children;
 				topLevelBefore = topLevel;
-				deps.doc.children = [...topLevel];
+				// A container scope's copies land in the live top-level array, so the commit writes a
+				// fresh one, and an unwind puts back the one it replaced.
+				if (!offTree) deps.doc.children = [...topLevel];
 				// Pushed as each resolves, so a scope that fails to prepare still leaves the
 				// rollback holding the state of the scopes prepared before it.
-				for (const s of scopes) prepared.push(prepareScopeView(s, topLevel));
+				for (const s of scopes) prepared.push(prepareScopeView(s, topLevel, offTree));
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				// A scope array built at runtime loses the tuple type, so this runtime check
 				// backs up the types.
@@ -697,8 +715,8 @@ export function createUndoController(
 					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing, deps.reading.grammar);
 				}
 				for (let i = 0; i < prepared.length; i++) {
-					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
-					// the blank-line fix-up reads which blocks were blank off it.
+					// `savedChildren` is the scope's array from before the mutation, so the blank-line
+					// fix-up reads which blocks were blank off it.
 					changeList[i] = settleSeparator(
 						prepared[i].view.body,
 						prepared[i].savedChildren ?? [],
@@ -707,6 +725,8 @@ export function createUndoController(
 						deps.sharing,
 						trackCaret?.[i]
 					);
+					// Before the tail step, which reads the block now last; the empty paragraph is blank, so
+					// that step leaves its line ending as it is.
 					if (prepared[i].isDoc) {
 						changeList[i] = keepOneBlock(prepared[i].view.body, changeList[i], deps.sharing);
 					}
