@@ -86,15 +86,16 @@ export function tableLineEnding(table: NodeView): LineEnding {
 	return firstLineEnding(table.raw) ?? '\n';
 }
 
-/** The row's cells, surplus included, written into its bytes. A body row narrower than
- *  `previousColumns`, the table's width before the edit, stays narrow: a reader pads it. */
+/** The row's cells, surplus included, written into its bytes; a row `followed` by a line takes
+ *  `lineEnding` if it has none. A body row narrower than `previousColumns` stays narrow. */
 export function writeTableRow(
 	node: CstNode,
 	lineEnding: string,
-	previousColumns = node.children?.length ?? 0
+	previousColumns = node.children?.length ?? 0,
+	followed = false
 ): void {
 	if (!node.children) return;
-	const raw = tableRowBytes(node, lineEnding, previousColumns);
+	const raw = tableRowBytes(node, lineEnding, previousColumns, followed);
 	if (raw !== node.raw) node.raw = raw;
 }
 
@@ -104,9 +105,11 @@ export function rebuildTableRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children) return;
 	const children = node.children;
 	const lineEnding = tableLineEnding(node);
+	// The delimiter line follows the header row, so only a last body row may end the table.
+	const followed = (i: number) => i === 0 || i < children.length - 1;
 	if (changed) {
 		const row = children[changed.index];
-		if (row?.children) writeTableRow(row, lineEnding);
+		if (row?.children) writeTableRow(row, lineEnding, undefined, followed(changed.index));
 		if (spliceVerbatimChild(node, changed, rebuildTableRaw)) return;
 	}
 	const meta = metadataOf(node, 'table');
@@ -127,7 +130,7 @@ export function rebuildTableRaw(node: CstNode, changed?: ChildRawChange): void {
 		// One indexed read per row: the array is a `$state` proxy, so every read is a proxy trap.
 		const row = children[i];
 		if (i === 1) raw += delimiter;
-		writeTableRow(row, lineEnding, columnsBefore);
+		writeTableRow(row, lineEnding, columnsBefore, followed(i));
 		spans[i * 2] = raw.length;
 		raw += row.raw;
 		spans[i * 2 + 1] = raw.length;
@@ -137,15 +140,21 @@ export function rebuildTableRaw(node: CstNode, changed?: ChildRawChange): void {
 	node.childSpans = spans;
 }
 
-function tableRowBytes(row: CstNode, lineEnding: string, columnsBefore: number): string {
+function tableRowBytes(
+	row: CstNode,
+	lineEnding: string,
+	columnsBefore: number,
+	followed: boolean
+): string {
 	const meta = row.metadata ? metadataOf(row, 'tableRow') : undefined;
 	const children = row.children!;
 	const cells = [...children.map((c) => c.raw), ...(meta?.surplusCells ?? [])];
 	const text = trimTrailingLineEnding(row.raw);
-	const ending = ownTrailingLineEnding(row.raw);
+	const own = ownTrailingLineEnding(row.raw);
+	const ending = own || (followed ? lineEnding : '');
 	const plain = '| ' + cells.join(' | ') + ' |';
 	// A blank line, or more than one, is no row's bytes.
-	if (isBlankLine(text) || text.includes('\n')) return plain + (ending || lineEnding);
+	if (isBlankLine(text) || text.includes('\n')) return plain + (own || lineEnding);
 	const spans = rowCellSpans(text);
 	const isHeader = meta?.isHeader === true;
 	const written = spliceCells(text, spans, {
@@ -154,7 +163,7 @@ function tableRowBytes(row: CstNode, lineEnding: string, columnsBefore: number):
 		spell: (cell) => cell,
 		mayStayMissing: !isHeader && spans.length < columnsBefore
 	});
-	if (written === text) return row.raw;
+	if (written === text) return text + ending;
 	const reads = readsAsRow(written, cells, children.length, isHeader);
 	return (reads && opensAsBefore(written, text, spans) ? written : plain) + ending;
 }

@@ -12,10 +12,12 @@ Miss-analysis: every table scenario loaded a table in the editor's own spelling,
 ## Edge cases
 
 - An over-padded cell (`|  2  |`) keeps its padding on both sides of the typed text
+- Pasting a paragraph and a heading into a body cell of a tight table with two body rows splits the table around them, and both halves keep the file's `|-|:-|`, since each half is still the same table. Miss-analysis: the paste tests all loaded tables already spelled the editor's way, so a half rebuilt from no bytes of its own wrote a plain delimiter row nobody could tell apart from the original.
 
 ## User interactions
 
 - a real click into the cell, End, then typed keys
+- a real click into the cell, then a paste from a seeded clipboard
 
 ## Error cases
 

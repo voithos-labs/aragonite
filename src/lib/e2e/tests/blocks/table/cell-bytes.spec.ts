@@ -38,6 +38,21 @@ test.describe('a cell edit in a table not spelled the editor’s way', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
+	test('blocks pasted into a cell leave both halves of the table in its spelling', async ({
+		page
+	}) => {
+		await editor.loadContent('|a|b|\n|-|:-|\n|1|2|\n|3|4|\n');
+		await page.locator('.table-cell').nth(2).click();
+		await editor.seedClipboard('Para one.\n\n## Two\n');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('## Two');
+		expect(await editor.bridge.getSource()).toBe(
+			'|a|b|\n|-|:-|\n|1|2|\n\nPara one.\n\n## Two\n\n|3|4|\n|-|:-|\n'
+		);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('an over-padded cell keeps its padding around the typed text', async ({ page }) => {
 		await typeAtEnd(page, 3);
 
