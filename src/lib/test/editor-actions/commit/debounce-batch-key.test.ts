@@ -5,20 +5,9 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
+/** A quote holding one paragraph per raw, a blank line apart so a reload reads them as written. */
 function makeContainer(childRaws: string[]): CstNode {
-	return {
-		kind: 'blockquote',
-		leadingTrivia: '',
-		raw: childRaws.map((r) => `> ${r}`).join(''),
-		metadata: { quoteDepth: 1 },
-		children: childRaws.map((r) => ({
-			kind: 'paragraph',
-			leadingTrivia: '',
-			raw: r
-		})) as CstNode[],
-		innerPrefix: '',
-		innerSuffix: ''
-	} as CstNode;
+	return parse(childRaws.map((r) => `> ${r}`).join('>\n')).children[0];
 }
 
 function makeSetup(childRaws: string[]) {

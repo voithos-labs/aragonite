@@ -19,7 +19,7 @@ import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { GrammarView } from '../schema/block-openers';
+import { lineInterruptsParagraph, type GrammarView } from '../schema/block-openers';
 import { dropChildSpans } from '../schema/child-spans';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -562,21 +562,23 @@ function readsAsItselfAlone(node: CstNode, read: (bytes: string) => Document): b
 }
 
 /**
- * A cheap refusal for a window ending in the changed block, parsing only that block's first line:
- * block parsing scans lines left to right, so a block that opens here opens in the full join too.
+ * A cheap refusal for a window the changed block heads or ends, parsing the last block's first
+ * line only: parsing reads lines in order, so a block that opens there opens in the full join too.
  */
 function declinesOnHeadLine(
 	window: readonly CstNode[],
 	member: number,
 	read: (bytes: string) => Document
 ): boolean {
-	if (member <= 0 || member !== window.length - 1) return false;
-	const raw = window[member].raw;
+	const last = window.length - 1;
+	if (member !== 0 && member !== last) return false;
+	const raw = window[last].raw;
 	const nl = raw.indexOf('\n');
-	const joined =
-		joinedWindowBytes(window, member) +
-		window[member].leadingTrivia +
-		(nl < 0 ? raw : raw.slice(0, nl + 1));
+	const headLine = nl < 0 ? raw : raw.slice(0, nl + 1);
+	// A block reads ahead only over lines a paragraph continues onto (a definition's title), so
+	// only a line that interrupts one is a line past which the reading above can't change.
+	if (!lineInterruptsParagraph(trimTrailingLineEnding(headLine))) return false;
+	const joined = joinedWindowBytes(window, last) + window[last].leadingTrivia + headLine;
 	return read(joined).children.length >= window.length;
 }
 

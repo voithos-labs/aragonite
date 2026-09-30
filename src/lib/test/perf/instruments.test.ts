@@ -37,6 +37,7 @@ const EMPTY: PerfSnapshot = {
 	parseCount: 0,
 	parseMsTotal: 0,
 	parseBlockCount: 0,
+	parseBytes: 0,
 	inlineComputeCount: 0,
 	formatCoverageReads: 0,
 	undoLiveBytes: 0,
@@ -56,7 +57,7 @@ const EMPTY: PerfSnapshot = {
 function recordOneOfEach(): void {
 	recordSnapshotClone(100);
 	recordRebuildDepth(3);
-	recordParse(1.5, 10);
+	recordParse(1.5, 10, 40);
 	recordInlineCompute();
 	recordFormatCoverageRead();
 	setUndoGauge(1000, 2);
@@ -104,7 +105,7 @@ describe('perf instruments', () => {
 		recordRebuildDepth(2);
 		recordRebuildDepth(2);
 		recordRebuildDepth(4);
-		recordParse(1.5, 10);
+		recordParse(1.5, 10, 40);
 		recordInlineCompute();
 		recordInlineCompute();
 		setUndoGauge(1234, 3);
@@ -114,6 +115,7 @@ describe('perf instruments', () => {
 		expect(s.rebuildDepths).toEqual({ 2: 2, 4: 1 });
 		expect(s.parseCount).toBe(1);
 		expect(s.parseBlockCount).toBe(10);
+		expect(s.parseBytes).toBe(40);
 		expect(s.inlineComputeCount).toBe(2);
 		expect(s.undoLiveBytes).toBe(1234);
 		expect(s.undoEntryCount).toBe(3);
@@ -207,10 +209,12 @@ describe('perf instruments', () => {
 describe('perf boundaries', () => {
 	it('parse() records duration and block count when enabled', () => {
 		enablePerfInstruments();
-		parse('# a\n\nb\n\nc\n');
+		const source = '# a\n\nb\n\nc\n';
+		parse(source);
 		const snap = perfSnapshot();
 		expect(snap.parseCount).toBe(1);
 		expect(snap.parseBlockCount).toBe(3);
+		expect(snap.parseBytes).toBe(source.length);
 		expect(snap.parseMsTotal).toBeGreaterThanOrEqual(0);
 	});
 

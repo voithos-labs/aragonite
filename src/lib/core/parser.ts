@@ -54,7 +54,7 @@ export function readBlocks(
 	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length, read);
-	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
+	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length, source.length);
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
 

@@ -57,11 +57,16 @@ How the cost got this small, for the curious:
 - The version is announced at each byte-writing entry rather than derived from a touch walk over every node, which removed the axis's dominant term (#185) for an O(1) counter. The trade: a commit moving no byte still invalidates, where the walk compared fields.
 - The reader's own walk memoizes each top-level subtree's references against the bytes they came from, and the serializer never recursing (`editor.md` § 12) is what makes a subtree's `raw` a sound witness for everything under it. So a keystroke re-parses the edited subtree and re-reads two fields per sibling (`raw`, `kind`): O(top-level count + edited subtree) instead of an inline parse per prose leaf.
 
-### 4. The lower join at a large container's tail
+### 4. A join under a large block
 
-After a write in a container's last child, with a block following the container, the editor asks whether the container and that follower are still the blocks a reload reads there (a list standing above indented code absorbs it, say), because that's what a reload would do with the bytes. The ask parses the window, the container's own bytes included: **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Not gated, tracked as #182.
+When an edit may have moved a join (two blocks with no blank line between them), the editor asks whether they're still the blocks a reload reads there. That ask parses the block above the join whole. The block below gets its first line read and no more when that line interrupts a paragraph (a list marker, a `>`, a fence, a heading): a block that opens there opens in the full parse too, so the pair stands. Any other first line means parsing the lower block whole as well, since a line a paragraph would continue onto can still end up as a link definition's title a few lines down.
 
-It's the interior-typing axis's twin at the other end, and a different cost: the ask parses bytes where the rebuild read children, so the child spans do nothing for it. The gated fixtures are single top-level blocks, so no ceiling sees it.
+So a keystroke pays for the size of whatever sits right above the join it touches. Two routes do that today:
+
+- a write in a container's last child, with a block right below the container (a list standing above indented code absorbs it, say): **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Tracked as #182.
+- a write in a block flush under a big one, like a heading right under a giant list: every keystroke in the heading parses the list. `src/lib/test/perf/flush-join-read-cost.test.ts` pins the bytes (the list whole plus the heading's line), so a change here shows up as a changed row rather than a surprise.
+
+It's the interior-typing axis's twin at the other end, and a different cost: the ask parses bytes where the rebuild read children, so the child spans do nothing for it. The gated fixtures are single top-level blocks, so no ceiling sees it. Reading only the part of the upper block that could still take the next line would bound it, but that's a correctness question of its own (a list item's bytes read as a list, a quote's tail doesn't read alone), so the whole block it is.
 
 ## Costs beside the keystroke rows
 

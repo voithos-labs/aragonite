@@ -20,6 +20,8 @@ export interface PerfSnapshot {
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
+	/** The bytes every block parse read, what a keystroke's neighbour reads cost. */
+	parseBytes: number;
 	inlineComputeCount: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
@@ -55,6 +57,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
+		parseBytes: 0,
 		inlineComputeCount: 0,
 		formatCoverageReads: 0,
 		undoLiveBytes: 0,
@@ -125,11 +128,12 @@ export function recordOpenerLineRead(): void {
 	counters.openerLineReads++;
 }
 
-export function recordParse(ms: number, blockCount: number): void {
+export function recordParse(ms: number, blockCount: number, bytes: number): void {
 	if (!enabled) return;
 	counters.parseCount++;
 	counters.parseMsTotal += ms;
 	counters.parseBlockCount += blockCount;
+	counters.parseBytes += bytes;
 }
 
 export function recordInlineCompute(): void {

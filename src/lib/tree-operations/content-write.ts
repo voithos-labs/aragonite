@@ -184,8 +184,13 @@ function writeAndSettleContent(
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
 	// Same-kind typing skips the neighbour reparse unless the first line's indent moved, a blank line
-	// stays blank, or this block or the one above reads the lines below it (editor.md § 8).
-	if (change.op === 'noop' && !wasBlank && !indentMoved && !readerBeside(parent, blockIndex)) {
+	// stays blank, or the block sits flush against a neighbour (editor.md § 8).
+	if (
+		change.op === 'noop' &&
+		!wasBlank &&
+		!indentMoved &&
+		!sitsFlush(parent.children, blockIndex)
+	) {
 		return { change, textStart: 0 };
 	}
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
@@ -193,17 +198,11 @@ function writeAndSettleContent(
 
 const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 
-const readsFollowingLines = (node: NodeView | undefined): boolean =>
-	node !== undefined && tryGetBlockKindDescriptor(node.kind)?.readsFollowingLines === true;
-
-/** Whether the written block or the one right above it reads the lines below it with no blank
- *  line between, where a write that kept its kind can still move the join. */
-function readerBeside(parent: BodyParent, blockIndex: number): boolean {
-	const { children } = parent;
-	const below = children[blockIndex + 1];
+/** Whether no blank line parts the block from the one above or below it. A first child has no
+ *  block above it in its body, and a last child none below. */
+function sitsFlush(children: readonly CstNode[], index: number): boolean {
 	return (
-		(children[blockIndex].leadingTrivia === '' && readsFollowingLines(children[blockIndex - 1])) ||
-		(below?.leadingTrivia === '' && readsFollowingLines(children[blockIndex]))
+		(index > 0 && children[index].leadingTrivia === '') || children[index + 1]?.leadingTrivia === ''
 	);
 }
 
@@ -228,7 +227,9 @@ function settleWriteSeams(
 		change,
 		grammar,
 		sharing,
-		tracked
+		tracked,
+		// One written block lets a join beside it be refused on a single line of the neighbour.
+		lastWritten === blockIndex ? blockIndex : undefined
 	);
 	return {
 		change: settled.change,

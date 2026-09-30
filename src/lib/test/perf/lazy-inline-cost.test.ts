@@ -23,8 +23,9 @@ afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 // Only `computeInlineContent` bumps `inlineComputeCount`, so an eager inline parse reintroduced
 // anywhere shows up where these checks expect zero.
 
+/** A paragraph a blank line below the one before it, so the write asks no join. */
 function para(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
+	return { kind: 'paragraph', leadingTrivia: '\n', raw };
 }
 
 beforeEach(() => {
