@@ -9,26 +9,29 @@ import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
 import { contentLengthOf, parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function build(raw: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	frag.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	frag.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
 	return frag;
 }
 
-// The heading path: a block-own `.md-marker` span over raw.slice(0, markerLen)
-// (editable raw bytes — unlike the contenteditable=false ambient span).
+// The heading case: the block's own `.md-marker` span over `raw.slice(0, markerLen)`, which
+// is editable raw text, unlike the contenteditable=false marker prefix.
 function buildWithMarkerPrefix(raw: string, markerLen: number): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const marker = document.createElement('span');
 	marker.className = 'md-marker';
 	marker.textContent = raw.slice(0, markerLen);
 	frag.appendChild(marker);
-	frag.appendChild(renderInlineNodes(parseInline(raw, markerLen, raw.length), raw));
+	frag.appendChild(
+		renderInlineNodes(parseInline(raw, markerLen, raw.length), raw, renderOptions())
+	);
 	return frag;
 }
 
-/** The shared walk's read-back: text nodes verbatim plus data-source spans. */
+/** What the shared traversal reads back: text nodes verbatim plus `data-source` spans. */
 const walkRawText = (root: Node, raw: string): string => rawTextOfNode(root, raw);
 
 function walkRawTextSkippingAmbient(frag: DocumentFragment, raw: string): string {
@@ -56,14 +59,15 @@ const idx = <D extends WidgetDecoration | ReplaceDecoration>(
 	index = 0
 ): IndexedDecoration<D> => ({ dec, index });
 
-/** Every fixture here renders its whole raw, so a paragraph over it is the CST the gate reads. */
+/** Every fixture here renders its whole raw, so a paragraph over it is the CST the check
+ *  reads. */
 const optsFor = (raw: string): ApplyIslandsOpts => ({
 	mountWidget: (spec, dec) => mountDecorationWidget(spec, dec),
 	contentLength: contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw })
 });
 
 describe('applyIslandDecorations', () => {
-	it('widget island contributes zero raw bytes at its offset', () => {
+	it('widget decoration contributes zero raw bytes at its offset', () => {
 		const raw = 'hello world';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(widgetAt(5))], optsFor(raw));
@@ -75,7 +79,7 @@ describe('applyIslandDecorations', () => {
 		expect(walkRawText(frag, raw)).toBe(raw);
 	});
 
-	it('replace island carries the covered bytes and removes covered DOM', () => {
+	it('replace decoration carries the covered bytes and removes covered DOM', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));
@@ -93,7 +97,7 @@ describe('applyIslandDecorations', () => {
 		);
 	});
 
-	it('two islands apply without offset drift (descending application)', () => {
+	it('two widgets apply without offset drift (descending application)', () => {
 		const raw = 'one two three';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(widgetAt(3)), idx(replaceRange(8, 13))], optsFor(raw));
@@ -105,7 +109,7 @@ describe('applyIslandDecorations', () => {
 		const raw = 'task text';
 		const frag = build(raw);
 		frag.prepend(buildAmbientSpan('- ')); // ambient bytes are NOT in raw
-		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], { ...optsFor(raw), ambientLength: 2 });
+		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], optsFor(raw));
 		const island = frag.querySelector('[data-decoration-island]')!;
 		expect(island.previousSibling).toBe(frag.firstChild); // lands after the ambient span
 		expect(walkRawTextSkippingAmbient(frag, raw)).toBe(raw);
@@ -119,10 +123,8 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe('## ');
 	});
 
-	// Miss-analysis: this pass never saw the document its decorations were derived from, and
-	// no test drove it with a mismatched pair — so the one shape it cannot judge, a decoration
-	// the document has since outgrown, was the shape it reported as an authoring error.
-	it('an island the content no longer holds is dropped silently — staleness is not the author’s', () => {
+	// Miss-analysis: no test gave the pass a decoration its document had outgrown.
+	it('a widget the content no longer holds is dropped silently: staleness is not the author’s', () => {
 		const raw = 'short';
 		const frag = build(raw);
 		const onSkipped = vi.fn();
@@ -135,9 +137,9 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe(raw);
 	});
 
-	// A replace island holds bytes the DOM text no longer carries, so a bound measured off
-	// this pass's own output would shrink under it. The gate reads the CST's answer instead.
-	it('re-applies over a range a mounted island already covers', () => {
+	// A `replace` widget holds bytes missing from the DOM text, so a bound measured from this
+	// pass's own output would shrink underneath it. The check reads the CST's answer instead.
+	it('re-applies over a range a mounted widget already covers', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
 		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));
@@ -154,8 +156,8 @@ describe('applyIslandDecorations', () => {
 	});
 });
 
-// A nonzero-span atomic widget (image / `<br>`): a [data-inline-widget] span
-// carrying its raw bytes via data-source-* while contributing 0 textContent.
+// A widget spanning real bytes (an image, a `<br>`): a `[data-inline-widget]` span holding its
+// raw bytes in `data-source-*` while adding nothing to `textContent`.
 function buildWithAtomicWidget(
 	raw: string,
 	widgetStart: number,
@@ -173,9 +175,8 @@ function buildWithAtomicWidget(
 	return frag;
 }
 
-// A text-position range can't split an atomic widget, so a boundary strictly inside
-// one snaps outward. Sole guard for that branch — the island property's corpus emits
-// no widgets, so its descending pass never reaches it.
+// A range of text positions cannot split a widget, so a boundary inside one snaps outward. The
+// property suite's corpus emits no widgets, so only this test reaches that branch.
 describe('replace boundary inside an atomic widget snaps outward', () => {
 	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
 	const cases = [

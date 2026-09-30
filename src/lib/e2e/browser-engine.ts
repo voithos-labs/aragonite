@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
 
-/** One home for the engine read: the clipboard arm and the IME driver both branch on it. */
+/** The one place that asks which browser is running: the clipboard helper and the IME driver
+ *  both branch on it. */
 export function isWebKit(page: Page): boolean {
 	return page.context().browser()?.browserType().name() === 'webkit';
 }

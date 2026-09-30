@@ -1,48 +1,42 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-	handleEditorGlobalChord,
-	type EditorGlobalChordDeps
-} from '$lib/editor-actions/container-block-component';
+import { runGlobalChordOnKind } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyBlockKind } from '$lib/core/nodes';
+import type { CommandDispatchContext } from '$lib/schema/block-commands';
+import { commandContextWith } from '../support/command-context';
 
-// The arm a block that IS its own focus target carries: no inner leaf runs the global tier
-// for it, and the editor root declines while focus sits on the block itself.
-//
-// Miss-analysis for the rebind cases below: every override case here re-pointed a chord the
-// BUILT-IN table already owned, so the arm's pre-gate answered true for reasons that had
-// nothing to do with the override, and its override-blindness was invisible.
+// The handler a block focused as a whole carries: no inner leaf runs the global chords for
+// it, and the editor root declines while focus sits on the block itself.
+// Miss-analysis: each override case rebound a chord the built-ins own, so override blindness hid.
 
 function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]) {
 	const requestUndo = vi.fn();
 	const requestRedo = vi.fn();
-	const compiled = normalizeKeybindingOverrides(overrides);
-	const deps: EditorGlobalChordDeps = {
-		getKind: () => 'thematicBreak' as AnyBlockKind,
-		history: { requestUndo, requestRedo },
-		getKeybindingOverrides: () => compiled,
-		isReading: () => false,
-		// No plugins stood up here, so every installed one is active.
-		activation: undefined
-	};
+	// No plugins are activated here, so every installed one is active.
+	const deps = commandContextWith(normalizeKeybindingOverrides(overrides), {
+		history: { requestUndo, requestRedo }
+	});
 	return { deps, requestUndo, requestRedo };
 }
 
-describe('handleEditorGlobalChord', () => {
+const atWholeBlock = (chord: string, ctx: CommandDispatchContext) =>
+	runGlobalChordOnKind(chord, 'thematicBreak' as AnyBlockKind, ctx);
+
+describe('the global chords at a block focused as a whole', () => {
 	it.each([
 		['Mod+Z', 'undo'],
 		['Mod+Shift+Z', 'redo'],
 		['Mod+Y', 'redo']
 	] as const)('%s runs %s and reports the chord consumed', (chord, which) => {
 		const { deps, requestUndo, requestRedo } = makeDeps();
-		expect(handleEditorGlobalChord(chord, deps)).toBe(true);
+		expect(atWholeBlock(chord, deps)).toBe(true);
 		expect(which === 'undo' ? requestUndo : requestRedo).toHaveBeenCalledTimes(1);
 	});
 
-	// Declining is what lets the caller fall through to its kind keymap and key tail.
+	// Declining is what lets the caller fall through to its kind keymap and key handling.
 	it.each(['Mod+M', 'Alt+ArrowUp', 'Backspace', 'Mod+Alt+Z'])('declines %s', (chord) => {
 		const { deps, requestUndo, requestRedo } = makeDeps();
-		expect(handleEditorGlobalChord(chord, deps)).toBe(false);
+		expect(atWholeBlock(chord, deps)).toBe(false);
 		expect(requestUndo).not.toHaveBeenCalled();
 		expect(requestRedo).not.toHaveBeenCalled();
 	});
@@ -50,13 +44,13 @@ describe('handleEditorGlobalChord', () => {
 	// Consumed, not declined: without it a read-only document gets the browser's native undo.
 	it('consumes the chord in reading mode but runs nothing', () => {
 		const { deps, requestUndo } = makeDeps();
-		expect(handleEditorGlobalChord('Mod+Z', { ...deps, isReading: () => true })).toBe(true);
+		expect(atWholeBlock('Mod+Z', { ...deps, getPresentationMode: () => 'reading' })).toBe(true);
 		expect(requestUndo).not.toHaveBeenCalled();
 	});
 
 	it('honors a consumer override that disables the chord', () => {
 		const { deps, requestUndo } = makeDeps([{ chord: 'Mod+Z', command: null }]);
-		expect(handleEditorGlobalChord('Mod+Z', deps)).toBe(true);
+		expect(atWholeBlock('Mod+Z', deps)).toBe(true);
 		expect(requestUndo).not.toHaveBeenCalled();
 	});
 
@@ -64,14 +58,14 @@ describe('handleEditorGlobalChord', () => {
 		const { deps, requestUndo, requestRedo } = makeDeps([
 			{ chord: 'Mod+Z', command: 'history.redo' }
 		]);
-		expect(handleEditorGlobalChord('Mod+Z', deps)).toBe(true);
+		expect(atWholeBlock('Mod+Z', deps)).toBe(true);
 		expect(requestRedo).toHaveBeenCalledTimes(1);
 		expect(requestUndo).not.toHaveBeenCalled();
 	});
 
 	it('runs a global rebind onto a chord the built-in table does not own', () => {
 		const { deps, requestUndo } = makeDeps([{ chord: 'Mod+J', command: 'history.undo' }]);
-		expect(handleEditorGlobalChord('Mod+J', deps)).toBe(true);
+		expect(atWholeBlock('Mod+J', deps)).toBe(true);
 		expect(requestUndo).toHaveBeenCalledTimes(1);
 	});
 
@@ -79,15 +73,15 @@ describe('handleEditorGlobalChord', () => {
 		const { deps, requestUndo } = makeDeps([
 			{ chord: 'Mod+J', command: 'history.undo', kind: 'thematicBreak' as AnyBlockKind }
 		]);
-		expect(handleEditorGlobalChord('Mod+J', deps)).toBe(true);
+		expect(atWholeBlock('Mod+J', deps)).toBe(true);
 		expect(requestUndo).toHaveBeenCalledTimes(1);
 	});
 
-	// A kind keymap binding is not this arm's business: it declines so the caller's own
+	// A kind keymap binding is not this handler's business: it declines so the caller's own
 	// dispatch runs it.
 	it('declines a chord the kind keymap binds, leaving it to the kind dispatch', () => {
 		const { deps, requestUndo, requestRedo } = makeDeps();
-		expect(handleEditorGlobalChord('Alt+ArrowUp', deps)).toBe(false);
+		expect(atWholeBlock('Alt+ArrowUp', deps)).toBe(false);
 		expect(requestUndo).not.toHaveBeenCalled();
 		expect(requestRedo).not.toHaveBeenCalled();
 	});

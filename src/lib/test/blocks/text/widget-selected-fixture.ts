@@ -1,30 +1,31 @@
 import { parse } from '$lib/core/parser';
+import { recordingWrite, type RecordedWrite } from '$lib/test/harness/editor-actions';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
 } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
 
-export interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+/** A recorded write less its mode. */
+export type Commit = Omit<RecordedWrite, 'mode'>;
 
 /** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
- *  selected. Deps this path must not reach are proxy traps, so a widening handler fails loudly. */
+ *  selected. Dependencies this path must not reach are proxy traps, so widening it fails loudly. */
 export function harness(
 	source: string,
 	sourceStart: number,
-	linkRef?: LinkReferenceResolverRef,
+	reading: Reading = fixtureReading(),
 	extra: Partial<WidgetInteractionDeps> = {}
 ) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const carets: (number | null)[] = [];
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
 
 	const trap = () => {
@@ -41,23 +42,24 @@ export function harness(
 			return [0];
 		},
 		getEl: () => null,
-		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,
 		cursor: new Proxy({}, { get: trap }),
 		widgetSelection,
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-				commits.push({ index, raw, before, after });
-			}
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+				commits.push({ index, raw, before, after })
+			)
 		},
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,
-		setPendingCursor: trap,
-		get linkRef() {
-			return linkRef;
+		setPendingCursor: (offset: number | null) => void carets.push(offset),
+		grammar: defaultGrammarView,
+		get reading() {
+			return reading;
 		},
+		storedAs: () => topLevelStore(node, reading),
 		...extra
 	} as unknown as WidgetInteractionDeps;
 
-	return { interaction: createWidgetInteraction(deps), commits, widgetSelection };
+	return { interaction: createWidgetInteraction(deps), commits, carets, widgetSelection };
 }

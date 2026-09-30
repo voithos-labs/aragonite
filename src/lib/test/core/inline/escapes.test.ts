@@ -3,7 +3,7 @@ import { parseInline } from '../../../core/inline';
 
 const ESCAPABLE = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~';
 
-describe('parseInline — backslash escapes', () => {
+describe('parseInline: backslash escapes', () => {
 	it('recognizes every escapable ASCII punctuation char', () => {
 		for (const ch of ESCAPABLE) {
 			const raw = `\\${ch}`;

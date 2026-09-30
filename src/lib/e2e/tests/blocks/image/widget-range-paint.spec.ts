@@ -38,7 +38,7 @@ test.describe('inline image range-selection highlight', () => {
 			'before paragraph.\n\nlead ![pic](/test-fixtures/sample.png) trail\n\nafter paragraph.\n'
 		);
 		await editor.focusBlockEnd(0);
-		// Extend down two paragraphs — crosses the image paragraph entirely.
+		// Extend down two paragraphs: crosses the image paragraph entirely.
 		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -56,9 +56,8 @@ test.describe('inline image range-selection highlight', () => {
 	test('selected widget renders a visible tint overlay (paints over the image)', async ({
 		page
 	}) => {
-		// The original CSS set background-color on the widget span, but the <img> child fully
-		// covers it; the tint paints via an ::after with position:absolute;inset:0 so it sits ON
-		// TOP of the image.
+		// The `<img>` covers the widget span, so the tint paints through an absolutely positioned
+		// `::after` on top of the image; a span `background-color` never shows.
 		await editor.loadContent(INLINE_IMAGE_DOC);
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight');
@@ -77,11 +76,11 @@ test.describe('inline image range-selection highlight', () => {
 			};
 		});
 		expect(overlay).not.toBeNull();
-		// A widget tinted via `background-color` on the span itself would fail here — the image
+		// A widget tinted with `background-color` on the span itself would fail here: the image
 		// covers the span's background.
 		expect(overlay!.content).not.toBe('none');
 		expect(overlay!.position).toBe('absolute');
-		// Compared against the token painted on a probe, not a hex: the wash derives from
+		// Compared against the token painted on a sample element, not a hex: the wash derives from
 		// --color-selection, so a palette edit must not turn this red.
 		const wash = await page.evaluate(() => {
 			const probe = document.createElement('div');

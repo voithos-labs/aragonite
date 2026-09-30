@@ -1,22 +1,21 @@
 /**
- * Pure occurrence scan: indexing by word is what turns the caret-driven lookup into
- * one map read rather than a fresh document walk. Offsets are per-leaf raw offsets,
- * dimmed markers included, the space mark decorations consume. `isProseKind` gates the
- * scope, so a code/HTML/raw leaf is neither scanned nor a valid anchor.
+ * Pure occurrence scan: indexing by word turns the caret-driven lookup into one map read
+ * instead of a fresh document walk. Offsets are raw offsets within a block, dimmed markers
+ * included, which is what mark decorations are measured in. Only prose blocks are scanned
+ * (`isProseKind`), so a code, HTML or raw block is neither scanned nor a word to search for.
  */
 
 import {
+	blockNodeAt,
 	isProseKind,
+	walkBlocks,
 	type DocumentView,
 	type EditorSelection,
-	type MarkDecoration,
-	type NodeView
+	type MarkDecoration
 } from '$lib/plugin';
+import { WORD_CHAR } from './word-char';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
-
-// Astral-plane text falls outside "word" here, which is honest enough for a reference plugin.
-const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 export interface WordSpan {
 	word: string;
@@ -26,15 +25,15 @@ export interface WordSpan {
 
 export type OccurrenceIndex = Map<string, MarkDecoration[]>;
 
-/** Token lists keyed by the leaf `raw` they were scanned from, so a leaf whose bytes did
+/** Token lists keyed by the block `raw` they were scanned from, so a block whose bytes did
  *  not move costs one string compare instead of a re-tokenize. */
 export type TokenCache = Map<string, WordSpan[]>;
 
 export interface OccurrenceScan {
 	index: OccurrenceIndex;
-	/** Carry into the next scan; a leaf gone from the document drops out of it. */
+	/** Pass into the next scan; a block gone from the document drops out of it. */
 	tokens: TokenCache;
-	/** Leaves whose text had to be tokenized, the seam a memoization test asserts on. */
+	/** Blocks whose text had to be tokenized: what a caching test asserts on. */
 	tokenizedLeaves: number;
 }
 
@@ -53,24 +52,24 @@ export function wordAt(text: string, offset: number): WordSpan | null {
 	return { word: text.slice(start, end), start, end };
 }
 
-/** Null when the focus is not a leaf (a container/cell-coordinate endpoint) or the
- *  caret sits on a non-word char. */
+/** Null when the selection's focus is not a block of text (a container or a table-cell
+ *  endpoint), or the caret sits on a character that cannot start a word. */
 export function anchorWord(doc: DocumentView, selection: EditorSelection | null): string | null {
 	if (!selection) return null;
-	const leaf = leafAt(doc, selection.focus.path);
-	if (!leaf || !isProseKind(leaf.kind)) return null;
+	const leaf = blockNodeAt(doc, selection.focus.path);
+	if (!leaf || leaf.children || !isProseKind(leaf.kind)) return null;
 	const span = wordAt(leaf.raw, selection.focus.offset);
 	return span ? span.word : null;
 }
 
-/** Built once per document change by a memoizing source, not once per caret move. The
- *  marks are rebuilt every time (they carry paths), the tokens only for changed leaves. */
+/** Built once per document change by a caching source, not once per caret move. The marks
+ *  are rebuilt every time (they hold paths), the tokens only for blocks that changed. */
 export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): OccurrenceScan {
 	const index: OccurrenceIndex = new Map();
 	const tokens: TokenCache = new Map();
 	let tokenizedLeaves = 0;
-	forEachLeaf(doc.children, [], (node, path) => {
-		if (!isProseKind(node.kind)) return;
+	walkBlocks(doc, (node, path) => {
+		if (node.children || !isProseKind(node.kind)) return;
 		let spans = tokens.get(node.raw) ?? cached?.get(node.raw);
 		if (!spans) {
 			spans = [...tokenizeWords(node.raw)];
@@ -94,30 +93,6 @@ export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): Oc
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
-
-function leafAt(doc: DocumentView, path: number[]): NodeView | null {
-	let children: readonly NodeView[] | undefined = doc.children;
-	let node: NodeView | null = null;
-	for (const index of path) {
-		node = children?.[index] ?? null;
-		if (!node) return null;
-		children = node.children;
-	}
-	return node && !node.children ? node : null;
-}
-
-function forEachLeaf(
-	children: readonly NodeView[],
-	path: number[],
-	visit: (node: NodeView, path: number[]) => void
-): void {
-	for (let i = 0; i < children.length; i++) {
-		const node = children[i];
-		const childPath = [...path, i];
-		if (node.children) forEachLeaf(node.children, childPath, visit);
-		else visit(node, childPath);
-	}
-}
 
 function* tokenizeWords(text: string): Generator<WordSpan> {
 	let i = 0;

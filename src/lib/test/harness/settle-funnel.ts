@@ -1,42 +1,24 @@
 /**
  * The two steps every top-level structural commit runs, for suites driving the primitives
- * directly: the sink over the slotless body parent production hands it, then the ceremony's
- * settle over the document's folded tail line. A test calling the sink alone hands it a parent
- * production never passes, and passes vacuously for everything the settle owns.
+ * directly: the write against the document body, then the commit's recompute of the separators
+ * and the document's trailing line. A test calling the write alone proves nothing about the
+ * recompute.
  */
 
 import type { CstNode, Document } from '$lib/core/nodes';
-import type { BodyParent } from '$lib/tree-operations/node-primitives';
-import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
+import { documentBody, type BodyParent } from '$lib/tree-operations/node-primitives';
 import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
+import type { GrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-/** `editor-actions/block-edit-core.bodyParentOf` — no `suffix` slot, by contract. */
-const bodyParentOf = (doc: Document): BodyParent => ({
-	children: doc.children,
-	ownerKind: undefined,
-	owner: undefined
-});
-
-/** `editor-actions/commit/undo-controller.docSettleParent`. */
-function settleParentOf(doc: Document): SeparatorParent {
-	return {
-		kind: 'document',
-		children: doc.children,
-		get suffix() {
-			return doc.suffix;
-		},
-		set suffix(value: string) {
-			doc.suffix = value;
-		}
-	};
-}
-
-/** Runs `mutate` over the body parent, settles its window, and returns the settled change. */
+/** Runs `mutate` over the body parent, recomputes the separators around it, returns the change.
+ *  `grammar` is the editor's, which the recompute reads blocks with. */
 export function settled(
 	doc: Document,
-	mutate: (parent: BodyParent) => StructuralChange
+	mutate: (parent: BodyParent) => StructuralChange,
+	grammar: GrammarView = defaultGrammarView
 ): StructuralChange {
 	const before: CstNode[] = [...doc.children];
-	return settleSeparator(settleParentOf(doc), before, mutate(bodyParentOf(doc)));
+	return settleSeparator(documentBody(doc), before, mutate(documentBody(doc)), grammar);
 }

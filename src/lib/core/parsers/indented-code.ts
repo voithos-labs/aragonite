@@ -1,18 +1,12 @@
 // The paragraph-interruption guard is dispatch context, not a line-level match, so it lives
 // with the opener registration rather than the matcher.
 
-import type { ParsedLine } from '../lines';
+import { indentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 
 export function matchIndentedCode(text: string): boolean {
-	// GFM §2.2: a tab advances to the next 4-column stop, so `  \t` is four columns of indent.
-	let col = 0;
-	for (let i = 0; i < text.length && (text[i] === ' ' || text[i] === '\t'); i++) {
-		col += text[i] === '\t' ? 4 - (col % 4) : 1;
-		if (col >= 4) return true;
-	}
-	return false;
+	return indentColumns(text) >= 4;
 }
 
 export function parseIndentedCode(

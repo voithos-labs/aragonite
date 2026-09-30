@@ -1,13 +1,11 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
+import { warnTagOfLine } from '../dev-warn';
 
-// Shared e2e `test`, carrying two teardown guards. 1) The console watch: every dev warning
-// reaches the console under the `[aragonite:…]` sentinel, and every Svelte runtime warning under
-// `[svelte] <code>`, rather than the structured error event, so a spec watching only
-// `getCapturedErrors()` lets a fire pass. A spec that trips one declares its tags below,
-// bidirectionally: each named tag must fire and no other may. 2) The container-parity walk, which
-// the console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary with no
-// console line; gated on an editor having registered a document, so editor-less routes skip.
+// The shared e2e `test`, with two checks at teardown. Every tagged console warning or uncaught
+// page error must be one the spec declares below, and each declared one must fire. The
+// container-parity check covers what the console cannot: BlockHost's error boundary swallows
+// `each_key_duplicate` silently.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
@@ -16,40 +14,57 @@ interface WarnFixtures {
 	expectWarns: string[];
 	/** Svelte runtime warning codes this spec deliberately triggers, e.g. `['derived_inert']`. */
 	expectSvelteWarns: string[];
+	/** `window.onerror` messages this spec deliberately triggers, matched whole. */
+	expectPageErrors: string[];
 }
 
-const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
-const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
+/** Chromium's message when a ResizeObserver callback resizes what it observes, for `expectPageErrors`. */
+export const RESIZE_OBSERVER_LOOP = 'ResizeObserver loop completed with undelivered notifications.';
 
-/** A prefix `expectWarns` may not carry: each namespace has a door of its own. */
-const NAMESPACED = /^(invariant|svelte):/;
+const ONERROR_LINE = /^\[onerror\] (.*)$/s;
 
-/** The two console heads share one tag namespace, so one watch and one claim door cover both. */
+/** Relays an error event that carries no thrown value to the console, since Chromium reports
+ *  one (a ResizeObserver loop, say) to `window.onerror` alone; a thrown one is `pageerror`'s. */
+function relayWindowErrors(): void {
+	window.addEventListener('error', (e) => {
+		if (e.error == null) console.error(`[onerror] ${e.message}`);
+	});
+}
+
+/** A prefix `expectWarns` may not carry: each of these has its own list. */
+const NAMESPACED = /^(invariant|svelte|onerror):/;
+
+/** Every watched console line carries a tag, so one watch and one declared list cover them all. */
 function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	const text = `${m.type()}: ${m.text()}`;
-	const sentinel = SENTINEL_TAG.exec(m.text())?.[1];
-	if (sentinel) return { tag: sentinel, text };
-	const code = SVELTE_CODE.exec(m.text())?.[1];
-	if (!code) return null;
-	// Under the dev server every Svelte warn reports Vite's console proxy as its origin, which
-	// names nothing; the code inside the text is the whole signal there.
+	const relayed = ONERROR_LINE.exec(m.text())?.[1];
+	if (relayed !== undefined) return { tag: `onerror:${relayed}`, text };
+	const tag = warnTagOfLine(m.text());
+	if (tag === null) return null;
+	if (!tag.startsWith('svelte:')) return { tag, text };
+	// Under the dev server every Svelte warning reports Vite's console proxy as its origin, which
+	// names nothing, so the code inside the text is all there is to go on.
 	const at = m.location();
 	const origin = at.url.includes('@vite/client')
 		? ''
 		: `\n  at ${at.url}:${at.lineNumber}:${at.columnNumber}`;
-	return { tag: `svelte:${code}`, text: `${text}${origin}` };
+	return { tag, text: `${text}${origin}` };
 }
 
 export const test = base.extend<WarnFixtures>({
 	expectInvariants: [[], { option: true }],
 	expectWarns: [[], { option: true }],
 	expectSvelteWarns: [[], { option: true }],
-	page: async ({ page, expectInvariants, expectWarns, expectSvelteWarns }, use) => {
+	expectPageErrors: [[], { option: true }],
+	page: async (
+		{ page, expectInvariants, expectWarns, expectSvelteWarns, expectPageErrors },
+		use
+	) => {
 		const namespaced = expectWarns.filter((tag) => NAMESPACED.test(tag));
 		expect(
 			namespaced,
 			`expectWarns names plain devWarn tags: [${namespaced.join(', ')}] belongs in ` +
-				'expectInvariants or expectSvelteWarns, spelled without its prefix'
+				'expectInvariants, expectSvelteWarns or expectPageErrors, spelled without its prefix'
 		).toEqual([]);
 
 		const fires: { tag: string; text: string }[] = [];
@@ -59,30 +74,36 @@ export const test = base.extend<WarnFixtures>({
 			const fire = fireOf(m);
 			if (fire) fires.push(fire);
 		};
+		// An uncaught exception or rejection reaches Playwright here and never as a console line.
+		const onPageError = (e: Error) =>
+			fires.push({ tag: 'pageerror', text: `pageerror: ${e.stack || e.message || String(e)}` });
 		page.on('console', onConsole);
+		page.on('pageerror', onPageError);
+		await page.addInitScript(relayWindowErrors);
 		await use(page);
 
-		// `assertInvariant` relays under the `invariant:` tag prefix, so the three option lists
-		// meet in one namespace and one watch covers all three classes.
+		// Each declared list carries its own prefix, so all four share one tag space and one watch.
 		const expected = new Set([
 			...expectInvariants.map((tag) => `invariant:${tag}`),
 			...expectWarns,
-			...expectSvelteWarns.map((code) => `svelte:${code}`)
+			...expectSvelteWarns.map((code) => `svelte:${code}`),
+			...expectPageErrors.map((message) => `onerror:${message}`)
 		]);
 		const unexpected = fires.filter((f) => !expected.has(f.tag)).map((f) => f.text);
 		expect(
 			unexpected,
-			`unexpected [aragonite:…] / [svelte] console fires:\n${unexpected.join('\n')}`
+			`unexpected [aragonite:…] / [svelte] console fires or uncaught errors:\n${unexpected.join('\n')}`
 		).toEqual([]);
 
-		// Console delivery to the Node listener is async, so a required fire may still
-		// be in flight when the test body ends; poll rather than read once, listener still on.
+		// Console messages reach the Node listener asynchronously, so a required warning may
+		// still be on its way when the test body ends: poll, with the listener still attached.
 		if (expected.size > 0) {
 			await expect
 				.poll(() => [...expected].filter((tag) => !fires.some((f) => f.tag === tag)))
 				.toEqual([]);
 		}
 		page.off('console', onConsole);
+		page.off('pageerror', onPageError);
 
 		const hasEditor = await page
 			.evaluate(

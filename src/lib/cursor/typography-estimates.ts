@@ -2,8 +2,8 @@
  * Empirical pixel estimates of the editor font's line box, measured at
  * {@link ESTIMATE_BASE_FONT_SIZE} and shared by `height-oracle.ts` and `visual-lines.ts`.
  * Character width has no CSS number to derive from, so the set is mirrored by hand at one scale.
- * The editor's type scale is font-relative, so consumers scale these by the root's live computed
- * font size — an estimate calibrated for one scale can miss the windowing watermark entirely.
+ * The editor's type scale is font-relative, so callers scale these by the root's live computed
+ * font size; an estimate calibrated for one scale can miss the windowing threshold entirely.
  */
 
 /** The computed root font size the estimates below were measured at. */
@@ -17,7 +17,7 @@ export const HEIGHT_ESTIMATES = {
 	imageBlockMinHeight: 200 // px floor for an image-bearing paragraph
 } as const;
 
-/** Fallback for a `normal` computed `lineHeight` (parses to NaN) — a generic line box,
+/** Fallback for a `normal` computed `lineHeight` (parses to NaN): a generic line box,
  *  independent of the per-kind estimates above. */
 export const FALLBACK_LINE_HEIGHT = 20;
 

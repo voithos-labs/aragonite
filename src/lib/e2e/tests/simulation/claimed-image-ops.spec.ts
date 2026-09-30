@@ -3,15 +3,13 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// The image gestures under a rung that CLAIMED the image's bytes: `?seed=wiki-embed`
-// installs a `![[` rung minting built-in `image` nodes, so every existing image gesture runs
-// against bytes the editor is forbidden to re-serialize — the borrow-a-built-in-kind class,
-// which ran outside the oracle stack entirely (`docs/contributing/rules.md` § Testing
-// shape). What this adds over the wiki-embed e2e battery is convergence after every move, so
-// a resize writing plausible bytes that no longer reparse fails here, not at the next edit.
+// The image gestures run against bytes an inline handler has taken over: `?seed=wiki-embed`
+// installs a `![[` handler that creates built-in `image` nodes, whose bytes the editor must not
+// re-serialize. Beyond the wiki-embed specs, a reparse check after every move fails a resize that
+// writes plausible bytes which do not parse.
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 const EMBED_DOC = `Alpha lead paragraph.\n\n${EMBED}\n\nBeta tail paragraph.\n`;
@@ -24,7 +22,7 @@ test.describe('claimed-image-ops simulation', () => {
 		await editor.gotoPlugins('wiki-embed');
 	});
 
-	test('resizing a rung-claimed image keeps its syntax and stays corruption-free', async ({
+	test('resizing an inline syntax handler-claimed image keeps its syntax and stays corruption-free', async ({
 		page
 	}) => {
 		const errors = attachErrorCollector(page);
@@ -38,34 +36,27 @@ test.describe('claimed-image-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'claimed-image-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		// The embed's bytes are literal in the raw and round-trip cleanly, so
-		// convergence holds unconditionally — no gesture here leaves the tree
-		// mid-divergence.
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
-		// ── Grow twice: the rung's hook writes both commits ────────────────────────
+		// ── Grow twice: the plugin's hook writes both commits ──────────────────────
 		await g.resizeImage('right', 2);
 		const grown = await editor.bridge.getSource();
 		expect(grown).toContain('![[/test-fixtures/sample.png|440]]');
-		// The corruption this session exists for: GFM bytes carry a parenthesized
-		// destination, and the embed grammar has none anywhere in the document.
+		// The corruption this session exists for: GFM bytes carry a destination in
+		// parentheses, and the embed syntax has none anywhere in the document.
 		expect(grown).not.toContain('](');
-		await checkOracles('embed-grown');
+		await assertCheckpoint(ctx, 'embed-grown');
 
 		// ── Shrink back: the same path in the other direction ──────────────────────
 		await g.pause();
 		await g.resizeImage('left', 2);
 		expect(await editor.bridge.getSource()).toBe(loaded);
-		await checkOracles('embed-shrunk');
+		await assertCheckpoint(ctx, 'embed-shrunk');
 
-		// ── Editing a neighbouring block must not disturb the claimed bytes ────────
+		// ── Editing a neighbouring block must not disturb the handler's bytes ──────
 		await g.pause();
 		await g.lateCorrection([0]);
 		expect(await editor.bridge.getSource()).toBe(loaded);
-		await checkOracles('edited-neighbour');
+		await assertCheckpoint(ctx, 'edited-neighbour');
 	});
 });

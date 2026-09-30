@@ -4,7 +4,7 @@ import type { EditorPage } from '../../editor-page';
 import { clickWordSettled, enterPresentationMode } from './helpers';
 import { CARD, URL_FIELD, openCardOn } from './link-card-helpers';
 
-// Mod+K is a chord this editor claims, so every seat it can be pressed from consumes it.
+// Mod+K is a chord this editor takes, so it is consumed wherever it can be pressed from.
 // Requirements: e2e/requirements/presentation/live-link-card-chord.md.
 
 const DOC = [
@@ -18,10 +18,8 @@ const DOC = [
 ].join('\n');
 
 /**
- * `defaultPrevented` read at a document BUBBLE listener, where every editor handler has already
- * run: `false` means the press reached the browser's own Mod+K defaults — Chrome's omnibox, and
- * on macOS the contenteditable kill-to-end-of-line the `Mod` fold routes here — on a chord
- * `reservedChords()` reports as consumed.
+ * `defaultPrevented` read on a document listener after every editor handler has run: `false`
+ * means the browser's own Mod+K ran on a chord `reservedChords()` reports as consumed.
  */
 async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null> {
 	await page.evaluate(() => {
@@ -35,8 +33,8 @@ async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null>
 		}
 		probe.__modK.consumed = null;
 	});
-	// One of the four seats this probe is pressed from is the card's own URL field, outside
-	// every editable surface, so the press has no keydown verdict to settle on.
+	// One of the four starting points is the card's own URL field, outside every editable element,
+	// so there is no keydown result to wait on.
 	await page.keyboard.press('ControlOrMeta+k');
 	await ep.waitForRenderFlush();
 	return page.evaluate(
@@ -44,7 +42,7 @@ async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null>
 	);
 }
 
-test.describe('live-mode link card — Mod+K is consumed wherever it is bound', () => {
+test.describe('live-mode link card: Mod+K is consumed wherever it is bound', () => {
 	test('a caret outside every link consumes the press and opens no card', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 		await ep.clickBlock(1);
@@ -57,8 +55,8 @@ test.describe('live-mode link card — Mod+K is consumed wherever it is bound', 
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	// The same caret that ENTERS the card in live mode: source paints the destination already, so
-	// the chord has nothing to do here — which is not the same as handing the key back.
+	// The same caret that opens the card in live mode: source mode already paints the destination,
+	// so the chord has nothing to do here, which is not the same as handing the key back.
 	test('source mode consumes the press with the caret inside a link', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		await clickWordSettled(ep, page, 'example');

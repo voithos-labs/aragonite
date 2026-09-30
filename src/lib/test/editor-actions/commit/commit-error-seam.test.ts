@@ -1,6 +1,6 @@
-// `docs/design/editor.md` §12: the `error` channel is one seam for every contained
-// failure, and `origin: 'commit'` is the ceremony's arm of it. Both throw sites here
-// run plugin-authored code — the snapshot push's ref walk and the post-tick callback.
+// The `error` event reports every contained failure, and `origin: 'commit'` is the commit's
+// share of it. Both throw sites here run plugin code: the snapshot push's ref walk and the
+// post-tick callback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -11,12 +11,12 @@ import type { EditorError } from '$lib/editor-events';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	mockRef
+	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
-// them as stale.
+// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
+// reads them as stale.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 function harness() {
@@ -31,7 +31,7 @@ function harness() {
 	};
 }
 
-describe('the commit ceremony contains and attributes every throw site', () => {
+describe('the commit sequence contains and attributes every throw site', () => {
 	it('reports a throwing afterTick without unwinding the committed tree', async () => {
 		const { deps, errors, controller, state } = harness();
 
@@ -58,7 +58,7 @@ describe('the commit ceremony contains and attributes every throw site', () => {
 	it('reports a throwing cursor read from the snapshot push and rejects the commit', async () => {
 		const { deps, errors, controller, state } = harness();
 		deps.setBlockRefs([
-			mockRef({
+			stubBlockComponent({
 				getCursorPosition: (): never => {
 					throw new Error('plugin getCursorPosition blew up');
 				}

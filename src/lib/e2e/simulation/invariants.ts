@@ -11,17 +11,16 @@ export interface SimContext {
 	tracker: ExpectationTracker;
 	errors: ErrorCollector;
 	label: string;
-	/** Present only for sessions that drive IME composition — a CDP-backed
-	 *  composition surface created once per session and threaded through, never a
-	 *  global. The composition gestures throw loudly when it is absent. */
+	/** Present only for sessions that drive IME composition: one driver per session, passed along,
+	 *  never a global. */
 	ime?: ImeDriver;
 }
 
-// ── Content oracles ─────────────────────────────────────────────────────────
+// ── Content checks ──────────────────────────────────────────────────────────
 
 /**
- * The primary per-keystroke content oracle. Fails with an expected-vs-actual diff plus debug
- * dumps, never an opaque timeout — a dropped or reversed char must show immediately.
+ * Fails with expected against actual plus the debug dumps, never a bare timeout, so a dropped or
+ * reordered character shows at once.
  */
 export async function settleTypedSource(ctx: SimContext, expected: string): Promise<void> {
 	try {
@@ -71,17 +70,15 @@ export async function assertEndState(ctx: SimContext, canonicalTarget: string): 
 	);
 }
 
-// ── Structural / consistency oracles ────────────────────────────────────────
+// ── Structural and consistency checks ───────────────────────────────────────
 
 export async function assertNoErrors(ctx: SimContext): Promise<void> {
 	await ctx.errors.assertNone();
 }
 
 /**
- * Detects: a mutation extending `children` without `childIds`, which gives trailing keyed-each
- * entries `undefined` keys — the desync class's earliest signal, caught at checkpoint cadence
- * rather than at the mid-render throw. The walker THROWS when no editor registered a
- * document, so an empty walk is loud rather than vacuously green.
+ * Catches `children` growing without `childIds`, which leaves keyed `{#each}` entries with
+ * undefined keys, before a render throws; it throws when no editor registered a document.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);
@@ -114,9 +111,8 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Detects: a gesture that left the live CST diverging from its own raw. The byte round-trip
- * above is a source-string fixed point (a tautology for valid GFM); this compares the LIVE
- * tree against a reparse of its serialization. Checkpoint cadence, not per keystroke.
+ * Compares the live tree with a reparse of what it serializes to, which the source round-trip
+ * check cannot see. Run at checkpoints, not per keystroke.
  */
 export async function assertParseConvergence(ctx: SimContext): Promise<void> {
 	const converges = await ctx.editor.parseConverged();
@@ -148,10 +144,8 @@ export async function assertFocusBlock(
 }
 
 /**
- * Detects: a dangling selection endpoint — a node that no longer exists, or an offset past a
- * now-shorter block — which the next keystroke dereferences into corruption. Walks the LIVE
- * tree, not a reparse, so it sees what the source-string oracles are blind to. Tolerates a
- * null selection; only leaves carry the offset bound, since container offsets index children.
+ * Catches a selection endpoint on a node that is gone, or past a block that got shorter, by
+ * walking the live tree. Only leaves bound the offset, since a container's offset counts children.
  */
 export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 	const invalid = await ctx.page.evaluate(() => {
@@ -195,20 +189,8 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The note-agnostic checkpoint sweep. Convergence is NOT bundled: its waiver lives on the
- * note, so sessions that run it call `assertParseConvergence` alongside this.
- */
-export async function assertCoreOracles(ctx: SimContext, label: string): Promise<void> {
-	ctx.label = label;
-	await assertNoErrors(ctx);
-	await assertRoundTripStable(ctx);
-	await assertNestedStateConsistent(ctx);
-}
-
-/**
- * Run right after a range collapse or merge — the moment the tree is most likely corrupted,
- * before the next gesture builds on it. Parse-convergence stays with the caller, whose note
- * owns its waiver.
+ * Run right after a range collapse or merge, when the tree is likeliest to be corrupt. Parse
+ * convergence stays with the caller, since its waiver belongs to the note.
  */
 export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
 	await assertNoErrors(ctx);
@@ -218,11 +200,25 @@ export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> 
 	await assertSelectionValidity(ctx);
 }
 
-// ── History oracle ──────────────────────────────────────────────────────────
+/**
+ * The one set of checks a checkpoint runs: the structural ones plus parse convergence. A note
+ * whose gestures leave the tree legitimately unconverged waives that part, and says why.
+ */
+export async function assertCheckpoint(
+	ctx: SimContext,
+	label: string,
+	{ parseConvergence = true }: { parseConvergence?: boolean } = {}
+): Promise<void> {
+	ctx.label = label;
+	await assertStructuralIntegrity(ctx);
+	if (parseConvergence) await assertParseConvergence(ctx);
+}
+
+// ── Undo and redo check ─────────────────────────────────────────────────────
 
 /**
- * The input batcher coalesces keystrokes within ~250ms, so the gesture must be FENCED by
- * batch flushes on both sides or Ctrl+Z overshoots into the prior batch and false-positives.
+ * Waits out the typing pause on both sides of the gesture, or one Ctrl+Z reaches into the
+ * previous batch and the check reports a false failure.
  */
 export async function undoRedoDifferential(
 	ctx: SimContext,
@@ -255,15 +251,37 @@ export async function undoRedoDifferential(
 	ctx.tracker.resync(after);
 }
 
-/** Entries currently on the undo stack. A gesture whose press count depends on how its
- *  keystrokes batched unwinds by the DELTA rather than by a guessed number. */
-export async function undoStackDepth(ctx: SimContext): Promise<number> {
-	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
-	const match = /undo-depth=(\d+)/.exec(dump);
-	if (!match) {
-		throw new Error(`[${ctx.label}] could not read the undo depth from the bridge dump.`);
-	}
-	return Number(match[1]);
+/**
+ * Runs `gesture` as its own undo entry and undoes it, so the tracker resumes where it was. A
+ * detour that draws from the seed draws before calling this, keeping each seed's draws stable.
+ */
+export async function revertingDetour(
+	ctx: SimContext,
+	gesture: () => Promise<void>
+): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await ctx.editor.waitForUndoBatchFlush();
+	await gesture();
+	await ctx.editor.waitForUndoBatchFlush();
+	await ctx.editor.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
+	ctx.tracker.resync(before);
+}
+
+// ── Gestures whose result is read back, not predicted ───────────────────────
+
+/**
+ * Run `act`, wait for the source to change, and take the new source as the expected one. For a
+ * gesture whose bytes the tracker cannot work out; one that changes nothing times out and throws.
+ */
+export async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<string> {
+	const before = await ctx.editor.bridge.getSource();
+	await act();
+	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await ctx.editor.waitForRenderFlush();
+	const after = await ctx.editor.bridge.getSource();
+	ctx.tracker.resync(after);
+	return after;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

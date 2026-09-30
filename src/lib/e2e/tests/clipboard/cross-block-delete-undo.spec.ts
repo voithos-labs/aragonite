@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('cross-block delete — Ctrl+Z restores content + selection', () => {
+test.describe('cross-block delete: Ctrl+Z restores content + selection', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

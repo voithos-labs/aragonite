@@ -5,11 +5,11 @@ import { disablePerfInstruments, enablePerfInstruments } from '../../perf/instru
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The point of the child spans: a keystroke rewrites one region instead of re-joining the
-// container. Wall-clock cannot say which happened on a given host; counting the sibling
-// elements the rebuild reads can, and it fails the day the hint stops reaching a level.
-// Instrumented, because that is the one dev shape without G1.38's rebuild behind the splice.
+// Child spans let a keystroke rewrite one region instead of re-joining the container, which
+// wall-clock time can't show on every host, so these tests count the sibling elements read.
+// Perf instruments are on because they skip the dev check that re-derives each splice (G1.38).
 afterEach(disablePerfInstruments);
 
 it('a keystroke inside a large container reads O(1) sibling elements, not O(children)', () => {
@@ -20,8 +20,8 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	const doc = parse(source);
 	const path = [0, 900, 0];
 	const chain = ensureUnsharedPath(doc, path, sharing);
-	// The seeding pass is the O(children) one, and it is what the hinted pass then rides.
-	rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+	// The first pass is the O(children) one, and the hinted pass then builds on it.
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 
 	const list = doc.children[0];
 	const items = list.children!;
@@ -36,15 +36,14 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	const leaf = chain[2];
 	const leafPreviousRaw = leaf.raw;
 	leaf.raw = 'item 900 edited\n';
-	rebuildUnsharedChain(doc, chain, sharing, null, undefined, { path, leafPreviousRaw });
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView, { path, leafPreviousRaw });
 
 	expect(list.raw).toBe(source.replace('- item 900\n', '- item 900 edited\n'));
 	expect(reads).toBeLessThan(10);
 });
 
-// The other half of the same rule: a hint rides up from the door that named the leaf's bytes and
-// from nowhere else, so a structural caller re-derives at every level (`editor.md` § 9). A fresh
-// spans array is what a full rebuild leaves behind; the splice writes the one it was handed.
+// Only a caller that named the leaf's bytes passes a hint, so a structural rebuild re-derives each
+// level; a fresh spans array marks a full rebuild, and a splice writes the one it was handed.
 it('a hintless rebuild re-derives at every level, and a hinted one splices at every level', () => {
 	const source = '- one\n\n  body\n\n  tail\n';
 	const path = [0, 0, 1];
@@ -58,7 +57,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 		sharing: ReturnType<typeof createSharingState>
 	) => {
 		const chain = ensureUnsharedPath(doc, path, sharing);
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		return chain;
 	};
 
@@ -67,7 +66,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 	const hintlessChain = seeded(hintless, hintlessSharing);
 	const beforeHintless = spansOf(hintless);
 	hintlessChain[2].raw = 'body edited\n';
-	rebuildUnsharedChain(hintless, hintlessChain, hintlessSharing, null, undefined);
+	rebuildUnsharedChain(hintless, hintlessChain, hintlessSharing, null, defaultGrammarView);
 	expect(spansOf(hintless)[0]).not.toBe(beforeHintless[0]);
 	expect(spansOf(hintless)[1]).not.toBe(beforeHintless[1]);
 
@@ -77,7 +76,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 	const beforeHinted = spansOf(hinted);
 	const leafPreviousRaw = hintedChain[2].raw;
 	hintedChain[2].raw = 'body edited\n';
-	rebuildUnsharedChain(hinted, hintedChain, hintedSharing, null, undefined, {
+	rebuildUnsharedChain(hinted, hintedChain, hintedSharing, null, defaultGrammarView, {
 		path,
 		leafPreviousRaw
 	});

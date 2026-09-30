@@ -1,26 +1,28 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { trailingLineEnding } from '$lib/core/lines';
+import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
-// Miss-analysis (wrapped-container settle): the splice families were pinned at the document
-// top, where `prefix` is always empty. Inside a container whose parse peels the blank line
-// against its opener into `innerPrefix`, the same settle dropped the line the peel eats, so
-// the body head vanished on reload — and with reserved chrome at index 0, the settle read the
-// chrome leaf as a body predecessor and declined instead.
+// Inside a container whose parse strips the blank line after its opener into `innerPrefix`, the
+// fix-up keeps the line the reload strips, and reads a reserved title child as above the body.
+// Miss-analysis: every splice case ran at the document top, where `prefix` is always empty.
 
-/** The sinks' answer bundle for a container's own children — the shape every caller hands. */
+/** The parent argument for a container's own children, the shape every caller hands in. */
 function bodyParentOf(container: CstNode) {
-	return { children: container.children!, ownerKind: container.kind, owner: container };
+	return {
+		children: container.children!,
+		owner: container,
+		lineEnding: firstLineEnding(container.raw) ?? '\n'
+	};
 }
 
 /** Delete a body child the way a caller does: splice, then re-derive the ancestry's raw. */
@@ -29,20 +31,15 @@ function deleteBodyChild(
 	at: number
 ): { doc: ReturnType<typeof parse>; raw: string } {
 	const doc = parse(source);
-	deleteNode(bodyParentOf(doc.children[0]), at);
-	rebuildAncestryRaw(doc.children[0], []);
+	deleteNode(bodyParentOf(doc.children[0]), at, defaultGrammarView);
+	rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 	return { doc, raw: serialize(doc) };
 }
 
 describe('separator settle inside a chrome-wrapped container', () => {
 	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
-		// it orphaned and a re-register would collide.
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('hands the freed separator to the wrap when the body head has none', () => {
 		const { doc, raw } = deleteBodyChild(':::callout\nA\n\nB\n:::\n', 1);
@@ -60,14 +57,14 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expectParseConverged(doc);
 	});
 
-	// The chrome leaf sits at child 0 and is not a body block, so the body head is child 1:
-	// reading the leaf as a predecessor left the head separated from nothing.
+	// The title child sits at child 0 and is not a body block, so the body head is child 1:
+	// reading the title as a predecessor left the head separated from nothing.
 	it('treats the reserved chrome leaf as above the body, not as a predecessor', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
-		deleteNode(bodyParentOf(doc.children[0]), 1);
-		rebuildAncestryRaw(doc.children[0], []);
+		deleteNode(bodyParentOf(doc.children[0]), 1, defaultGrammarView);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.[1].leadingTrivia).toBe('');
 		expectParseConverged(doc);
@@ -78,37 +75,37 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
-		deleteNode(bodyParentOf(doc.children[0]), 2);
-		rebuildAncestryRaw(doc.children[0], []);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
 		expectParseConverged(doc);
 	});
 });
 
-// GH #101: a body block emptied against a chrome line owes TWO lines — one the wrap's parse
-// peels into `innerPrefix`/`innerSuffix`, one to materialize as a block — and the settle
-// counted at most one. Miss-analysis: every emptied-block case ran at the document top or in a
-// strip container, where no chrome line bounds the run and one line is always enough.
+// A body block emptied against a fence line needs two lines, one stripped and one to be a block.
+// Miss-analysis: GH #101, every emptied-block case ran where no fence line bounds the run.
 describe('emptying a body block against the wrap’s chrome lines', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
-	/** The emptied-block gesture through the container sink: commitInput sends the ending alone. */
+	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {
 		updateNodeContent(
-			{ children: container.children!, ownerKind: container.kind, owner: container },
+			{
+				children: container.children!,
+				owner: container,
+				lineEnding: firstLineEnding(container.raw) ?? '\n'
+			},
 			at,
-			trailingLineEnding(container.children![at].raw)
+			trailingLineEnding(container.children![at].raw, '\n'),
+			defaultGrammarView
 		);
-		rebuildAncestryRaw(container, []);
+		rebuildAncestryRaw(container, [], fixtureGrammar);
 	}
 
-	it('keeps an emptied LAST body block by handing the closer line to innerSuffix', () => {
+	it('keeps an emptied last body block by handing the closer line to innerSuffix', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.innerSuffix ?? '').toBe('');
@@ -119,7 +116,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	it('keeps an emptied FIRST body block by handing the opener line to innerPrefix', () => {
+	it('keeps an emptied first body block by handing the opener line to innerPrefix', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.children!.map((c) => c.kind)).toEqual([
@@ -134,9 +131,9 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	// The standing line already IS the peel line on reload — the settle keeps the first line
-	// that stands rather than rewriting byte-equivalent shapes (§ Blank lines).
-	it('leaves a standing follower separator as the peel line, minting nothing', () => {
+	// The standing line is the one the reload strips, so the fix-up keeps it rather than rewriting
+	// a byte-equivalent shape.
+	it('leaves a standing follower separator as the strip line, creating nothing', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\n\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.children![2].leadingTrivia).toBe('\n');
@@ -148,9 +145,9 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	// An all-blank single-line body sits under both peel guards (each needs two lines to
+	// An all-blank single-line body sits under both fence-line checks (each needs two lines to
 	// engage), so the lean one-line form already reloads as the block.
-	it('an emptied ONLY body block needs no wrap line at all', () => {
+	it('an emptied only body block needs no wrap line at all', () => {
 		const doc = parse(':::callout Title\nBody\n:::\n');
 		const callout = doc.children[0];
 
@@ -162,7 +159,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		expectParseConverged(doc);
 	});
 
-	it('the CRLF twin hands over CRLF lines', () => {
+	it('the CRLF variant hands over CRLF lines', () => {
 		const doc = parse(':::callout Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n');
 		const callout = doc.children[0];
 
@@ -176,13 +173,13 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 describe('separator settle inside a strip container', () => {
 	beforeEach(activateDirectiveGrammar);
 
-	// Non-vacuity for the wrap gate: a blockquote body opens at the container's own first line,
-	// so nothing peels and the settle must DROP the separator it frees.
-	it('drops the freed separator — a blockquote peels nothing', () => {
+	// A blockquote body opens at the container's own first line, so nothing is stripped and the
+	// fix-up drops the separator it frees.
+	it('drops the freed separator: a blockquote strips nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
-		deleteNode(bodyParentOf(doc.children[0]), 2);
-		rebuildAncestryRaw(doc.children[0], []);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].innerPrefix).toBe('');
 		expect(serialize(doc)).toBe('> a\n>\n>\n');

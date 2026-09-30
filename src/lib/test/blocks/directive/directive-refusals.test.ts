@@ -1,25 +1,20 @@
 // @vitest-environment jsdom
-//
-// What the container seam's optional deps mean when a plugin supplies NONE of them. Each
-// helper has its own unit test proving it declines; none says what the decline looks like at
-// a mounted caller, and the generic directive container is the only shipped component that
-// takes every one of those branches at once. The failure they guard is uniform and quiet: a
-// container that starts CLAIMING keys or COMMITTING where it should have stood down.
-import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+// What `createContainerBlock` does when a plugin passes none of its optional dependencies, in a
+// mounted component: each helper's refusal is unit-tested alone, and the generic directive
+// container is the only shipped one that takes every such branch. A failure here is a container
+// handling keys or writing bytes where it should do nothing.
+import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
 import type { EditorServices } from '$lib/editor-keys';
 import { makeStubFocus } from '../../harness/editor-actions';
-import {
-	installDirectiveStubs,
-	mountDirective,
-	pressOn,
-	type MountedDirective
-} from './mount-directive';
+import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { dispatchKey } from '$lib/test/harness/settle';
+import { descendTo } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
 
-beforeAll(installDirectiveStubs);
+beforeEach(installDirectiveStubs);
 
 const BODY = ':::foo\nalpha\n\nbeta\n:::\n';
 
@@ -40,25 +35,25 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('an unconfigured container stands down where the seam declines', () => {
-	// A kind declaring no `reservedChrome` is never collapsed, so `expandCollapsed` declines. A
-	// door that opened anyway would mint an undo entry on a container with no collapsed state.
+describe('an unconfigured container does nothing where the dispatch declines', () => {
+	// A kind that declares no `reservedChrome` is never collapsed, so the open refuses.
+	// Opening anyway would add an undo entry to a container that has no collapsed state.
 	it('reveals a body child without committing a byte to open it', async () => {
 		mounted = mountDirective(BODY);
 
-		const child = await mounted.containerApi.revealByPath([1]);
+		const child = await descendTo(mounted.containerApi.childList(), [1], { openCollapsed: true });
 
 		expect(child?.editable).toBe(true);
 		expect(mounted.blockEdit.updateBlockMetadata).not.toHaveBeenCalled();
 	});
 
-	// The kind target's `runCommand` is inert by construction — a plugin container owns no
-	// built-in kind commands — so the key must keep travelling to the tier that does own it.
-	it('leaves a chord it has no command for to the tier above', () => {
+	// A plugin container has no built-in kind commands, so its `runCommand` does nothing and the
+	// key has to keep travelling up to whatever does own it.
+	it('leaves a chord it has no command for to the level above', () => {
 		mounted = mountDirective(BODY);
 
-		expect(pressOn(mounted.box, { key: 'k', ctrlKey: true })).toBe(false);
-		expect(pressOn(mounted.box, { key: 'z', ctrlKey: true })).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'k', ctrlKey: true }).defaultPrevented).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(false);
 	});
 
 	// A modifier being held is part of a chord, not a keystroke; `eventToChord` returns
@@ -66,33 +61,35 @@ describe('an unconfigured container stands down where the seam declines', () => 
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountDirective(BODY);
 
-		expect(pressOn(mounted.box, { key: 'Control', ctrlKey: true })).toBe(false);
-		expect(pressOn(mounted.box, { key: 'Shift', shiftKey: true })).toBe(false);
+		expect(dispatchKey(mounted.box, { key: 'Control', ctrlKey: true }).defaultPrevented).toBe(
+			false
+		);
+		expect(dispatchKey(mounted.box, { key: 'Shift', shiftKey: true }).defaultPrevented).toBe(false);
 	});
 
-	// The whole-block affordances belong to opaque containers that opt in with `getFocusEl`.
-	// Were the gate to drop, a key reaching the box would split the WHOLE container under a caret.
+	// Whole-block Enter and Backspace belong to opaque containers that opt in with `getFocusEl`.
+	// Without that check, a key reaching the box would split the entire container under a caret.
 	it('grows no whole-block Enter or Backspace without a focus surface', () => {
 		const m = mountWithSpies();
 		mounted = m;
 
-		expect(pressOn(m.box, { key: 'Enter' })).toBe(false);
-		expect(pressOn(m.box, { key: 'Backspace' })).toBe(false);
-		expect(pressOn(m.box, { key: 'Delete' })).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Enter' }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Backspace' }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'Delete' }).defaultPrevented).toBe(false);
 
 		expect(m.blockEdit.splitBlock).not.toHaveBeenCalled();
 		expect(m.blockEdit.deleteBlock).not.toHaveBeenCalled();
 		expect(m.focus.moveFocus).not.toHaveBeenCalled();
 	});
 
-	// Alt-arrow reorder is handled inline in the same gated block, so it shares the refusal:
-	// without a focus surface a container is reordered through its parent's BlockList.
+	// Alt-arrow reorder sits inside the same check, so it refuses for the same reason: without a
+	// focus element a container is reordered through its parent's BlockList.
 	it('grows no Alt-arrow reorder without a focus surface', () => {
 		const m = mountWithSpies();
 		mounted = m;
 
-		expect(pressOn(m.box, { key: 'ArrowUp', altKey: true })).toBe(false);
-		expect(pressOn(m.box, { key: 'ArrowDown', altKey: true })).toBe(false);
+		expect(dispatchKey(m.box, { key: 'ArrowUp', altKey: true }).defaultPrevented).toBe(false);
+		expect(dispatchKey(m.box, { key: 'ArrowDown', altKey: true }).defaultPrevented).toBe(false);
 
 		expect(m.reorder.nudgeReorderUnit).not.toHaveBeenCalled();
 	});

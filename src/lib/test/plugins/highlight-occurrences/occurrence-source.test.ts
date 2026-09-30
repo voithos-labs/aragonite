@@ -1,6 +1,6 @@
-// The memoizing occurrence source: the expensive word index builds once per edit
-// epoch; selection changes within one epoch re-filter the cached index without
-// rebuilding it. `onScan` is the spy seam — it fires only on a real rebuild.
+// The caching occurrence source: the expensive word index builds once per `editEpoch`;
+// selection changes within one re-filter the cached index without rebuilding it. `onScan` is
+// what a test watches, and it fires only on a real rebuild.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib';
 import type { EditorSelection, MarkDecoration } from '$lib/plugin';
@@ -36,8 +36,8 @@ describe('createOccurrenceSource', () => {
 		let scans = 0;
 		const { source, setSelection } = createOccurrenceSource({ onScan: () => scans++ });
 
-		// One edit epoch, five caret moves (each a setSelection + invalidate the engine
-		// turns into a provide call with the same editEpoch).
+		// One `editEpoch`, five caret moves (each a setSelection plus invalidate, which the
+		// decoration system turns into a provide call with the same `editEpoch`).
 		for (let i = 0; i < 5; i++) {
 			setSelection(caret([0], 0));
 			provideMarks(source, doc, 7);
@@ -66,7 +66,7 @@ describe('createOccurrenceSource', () => {
 		expect(provideMarks(source, doc, 1).every((m) => m.end - m.start === 3)).toBe(true);
 		expect(scans).toBe(1);
 
-		// A structural edit rewrote the block, so its epoch paints rather than stepping
+		// A structural edit rewrote the block, so its `editEpoch` paints rather than stepping
 		// aside: the caret resolves 'bird' (4 chars) against the fresh index, not the stale one.
 		noteEdit('replaceBlock');
 		const edited = parse('bird sat on bird\n\ndog ran\n');
@@ -76,7 +76,7 @@ describe('createOccurrenceSource', () => {
 		expect(marks.every((m) => m.end - m.start === 4)).toBe(true);
 	});
 
-	// The cache is per-source closure state, so the second epoch's scan must inherit the
+	// The cache lives in the source's own closure, so the second scan must inherit the
 	// first's token lists rather than starting from an empty one.
 	it('carries its token cache across epochs, re-tokenizing only the changed leaf', () => {
 		const tokenized: number[] = [];
@@ -101,10 +101,8 @@ describe('createOccurrenceSource', () => {
 	});
 });
 
-// The marks step aside while you type. A keystroke lands under a caret and bumps the epoch
-// with no `edit` event ahead of it; every other document change fails one of those two, so
-// the marks stay on. Miss-analysis: no unit reached the source through an `edit` op at all,
-// so nothing distinguished a keystroke's epoch from an undo's or a document swap's.
+// Marks step aside for a keystroke, the one change that bumps `editEpoch` unannounced.
+// Miss-analysis: no unit test reached the source through an `edit` op.
 describe('createOccurrenceSource typing gate', () => {
 	const doc = parse('cat sat on cat\n\ndog ran\n');
 
@@ -127,8 +125,8 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(noteEdit('input')).toBe(false); // already painted, nothing to reveal
 	});
 
-	// Undo bumps the content version before it emits, so its op can arrive on the far side
-	// of the epoch it moved. The hold has to end on the op, not only on the next epoch.
+	// Undo bumps the content version before it emits, so its op can arrive after the
+	// `editEpoch` it caused. The marks must come back on the op, not only on the next one.
 	it('paints them again when a structural op lands after its own epoch', () => {
 		const { source, setSelection, noteEdit } = createOccurrenceSource();
 		setSelection(caret([0], 0));
@@ -148,17 +146,25 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 
-	// A whole-document swap announces no op at all; it drops the caret before its epoch
-	// lands, and that is what separates it from a keystroke.
-	it('never hides an epoch that arrived with no caret', () => {
-		const { source, setSelection } = createOccurrenceSource();
+	// The `sourceSwap` event fires before the swap's `editEpoch` arrives, and a host may place a
+	// caret in the new document before that epoch lands.
+	it('never hides the epoch a source swap announced ahead of, caret or none', () => {
+		const { source, setSelection, noteSourceSwap } = createOccurrenceSource();
 		setSelection(caret([0], 0));
 		provideMarks(source, doc, 1);
 
-		setSelection(null);
-		expect(provideMarks(source, doc, 2)).toEqual([]); // no anchor word, not a hold
+		expect(noteSourceSwap()).toBe(false); // nothing held back to reveal
+		const swapped = parse('dog sat on dog\n');
+		expect(provideMarks(source, swapped, 2)).toHaveLength(2);
+	});
 
-		setSelection(caret([0], 0)); // the click into the swapped-in document
+	it('paints held marks again when a source swap lands after a keystroke epoch', () => {
+		const { source, setSelection, noteSourceSwap } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+		expect(provideMarks(source, doc, 2)).toEqual([]);
+
+		expect(noteSourceSwap()).toBe(true);
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 

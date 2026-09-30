@@ -3,10 +3,7 @@ import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
 import { scanDocument } from '$lib/search/document-scan';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const matcherFor = (q: string) => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
@@ -28,7 +25,7 @@ describe('scanDocument', () => {
 		const m = scan('> quoted cat\n', 'cat');
 		expect(m.map((x) => x.path)).toEqual([[0, 0]]); // blockquote → paragraph
 	});
-	it('does NOT double-count container raw', () => {
+	it('does not double-count container raw', () => {
 		const m = scan('> cat\n', 'cat');
 		expect(m.length).toBe(1); // only the inner paragraph, not the blockquote's raw
 	});
@@ -42,7 +39,7 @@ describe('scanDocument', () => {
 	});
 });
 
-describe('scanDocument — childless opaque containers', () => {
+describe('scanDocument: childless opaque containers', () => {
 	const docWith = (...children: CstNode[]): Document => ({
 		kind: 'document',
 		prefix: '',
@@ -60,26 +57,9 @@ describe('scanDocument — childless opaque containers', () => {
 	let diagram: CstNode['kind'];
 	let artifact: CstNode['kind'];
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		diagram = declarePluginKind('scan-diagram');
-		artifact = declarePluginKind('scan-artifact');
 		const container = { contract: 'opaque' as const, rebuildRaw: () => {} };
-		registerBlockKind(diagram, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container
-		});
-		registerBlockKind(artifact, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure,
-			container
-		});
+		diagram = testLeaf('scan-diagram', { container });
+		artifact = testLeaf('scan-artifact', { editable: false, container });
 	});
 
 	it('scans a childless editable opaque container raw as a leaf', () => {
@@ -87,7 +67,7 @@ describe('scanDocument — childless opaque containers', () => {
 		expect(scanDocument(doc, matcherFor('cat'))).toEqual([{ path: [0], start: 17, end: 20 }]);
 	});
 
-	it('an opaque container WITH children still walks children only (raw not double-counted)', () => {
+	it('an opaque container with children still walks children only (raw not double-counted)', () => {
 		const doc = docWith(
 			node(diagram, ':::cat\ncat body\n:::\n', [node('paragraph', 'cat body\n')])
 		);
@@ -99,9 +79,9 @@ describe('scanDocument — childless opaque containers', () => {
 		expect(scanDocument(doc, matcherFor('cat'))).toEqual([]);
 	});
 
-	it('an EMPTY strip container stays unscanned (its raw is marker bytes, not content)', () => {
-		// These childless containers are editable, but their raw is ambient marker
-		// syntax — scanning it resurrects the marker-match class the ambient rule kills.
+	it('an empty strip container stays unscanned (its raw is marker bytes, not content)', () => {
+		// These childless containers are editable, but their raw is marker syntax, and scanning it
+		// brings back the matches on markers that the rule for markers exists to prevent.
 		expect(scanDocument(parse('- \n'), matcherFor('- '))).toEqual([]);
 		expect(scanDocument(parse('> \n'), matcherFor('>'))).toEqual([]);
 	});

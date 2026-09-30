@@ -1,62 +1,56 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
-import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
+import type { CaretMemory } from '../cursor/caret-memory';
+import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
-import type { GrammarView } from '../schema/block-openers';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { CaretLanding } from '../selection/caret-landing';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
 	get blockIds(): string[];
 	get blockRefs(): (BlockComponent | undefined)[];
-	/** The top-level scope's slot identity, so the doc-scope adapter reports the same
-	 *  scope the editor's own BlockList publishes into. */
+	/** The root block list's ref slots, so the document-scope adapter reports the same
+	 *  list the editor's own BlockList writes into. */
 	blockRefSlots: RefSlots<BlockComponent>;
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	/** Announce that this door moved the document's bytes
-	 *  (`reactivity/content-version.svelte.ts`). The ceremony owes one call per commit; the
-	 *  writers outside it owe their own, which is the census G4.52 keeps honest. */
+	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
+	 *  commit must call it itself (G4.52). */
 	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/** Scroll an off-window top-level block into the render window and await its
-	 *  mount, then return its component (null if unreachable). Already-mounted
-	 *  targets return synchronously without scrolling. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/** Where every commit's caret and every restored selection is put down, and the counter an
+	 *  undo, redo or swap bumps. */
+	caretLanding: CaretLanding;
 	events: EditorEvents;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when
-	 *  the editor re-parses an edited block. Absent = the global grammar. */
-	grammar?: GrammarView;
-	/** Live EFFECTIVE mode, for the seams that must not act in reading mode. Absent in
-	 *  harnesses, which `isReadingMode` reads as not-reading. */
-	getPresentationMode?: PresentationModeGetter;
-	/** The instance's link-reference resolver, for the byte rewrites that must parse the reference
-	 *  forms the render path drew. Absent in harnesses, which have no definitions to resolve. */
-	linkRef?: InlineResolverRef;
+	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
+	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
+	reading: Reading;
 }
 
 /**
- * The history-typed members added to the contracts-leaf `CommitController`. They stay here so
- * that leaf keeps no edge to `undo/`.
+ * `CommitController` plus the members typed against `undo/`. They live here so
+ * `action-contracts` keeps no import from `undo/`.
  */
 export interface UndoController extends CommitController {
+	/** Call a keystroke's commit into the undo entry its typing batch already holds, so a key that
+	 *  reparses into several blocks undoes with the typing around it. Covers the call only. */
+	joinTypingBatch<T>(write: () => T): T;
 	captureCurrentState(): UndoEntry;
-	/** Monotonic stamp of the last history swap. A caret landing captures it before its
-	 *  reveal and declines when it moved: the tree it was aimed at is no longer on screen. */
-	historyGeneration(): number;
-	/** Announce a swap. The restore road's own call — nothing else may bump it. */
-	noteHistorySwap(): void;
+}
+
+/** The editor root's deps and controller, which a write addressed by document path starts from. */
+export interface EditorRoot {
+	deps: EditorActionsDeps;
+	controller: UndoController;
 }

@@ -1,11 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// A widget's keydown handler declines modifier chords, so Mod+A reaches the ordinary
-// select-all and the second press goes document-wide while the widget is still selected
-// (requirements/selection/widget-selection-exclusivity.md). The document ends with the
-// widget's paragraph, so the range's focus endpoint hosts no caret and the chord dispatches
-// at <body>, where the editor root's widget arm and cross-block arm see the same event.
+// A widget's keydown handler declines modifier chords, so Mod+A reaches the ordinary select-all
+// and the second keypress goes document-wide while the widget is still selected. The document ends
+// with the widget's paragraph, so the chord dispatches at `<body>`, where both of the editor
+// root's handlers see the same event.
 
 const IMG_MD = '![cat](/test-fixtures/sample.png)';
 const DOC = `lead\n\n${IMG_MD}\n`;
@@ -55,4 +54,21 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 
 		expect((await editor.bridge.getSource()).trim()).toBe('');
 	});
+});
+
+test('a first Mod+A over a selected image selects its paragraph and ends the image', async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent(`one ${IMG_MD} two\n\nafter\n`);
+	const overlay = page.locator('[data-image-overlay]');
+	await page.locator('[data-image-widget]').first().click();
+	await expect(overlay).toBeVisible();
+
+	await page.keyboard.press('ControlOrMeta+a');
+
+	await expect(overlay).toHaveCount(0);
+	await editor.typeText('x');
+	await editor.bridge.waitForSourceEquals('x\n\nafter\n');
 });

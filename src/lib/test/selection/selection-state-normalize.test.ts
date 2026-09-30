@@ -1,18 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The raw deep-cell points fed in are pre-normalization by construction; normalizing them is the
-// subject.
-afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
+import { fixtureReading } from '../harness/fixture-grammar';
 
 const TABLE_FIRST = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\npara\n';
 const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
@@ -49,7 +46,13 @@ function assertDeleteConverged(doc: Document): void {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
-	return rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined, undefined, undefined);
+	return rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, s.start!, s.end!)),
+		createSharingState(),
+		fixtureReading(),
+		'keyless'
+	);
 }
 
 describe('table endpoints normalize at the selection-state choke point', () => {
@@ -96,8 +99,8 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 	it('extendFocus normalizes a raw deep-cell point', () => {
 		const doc = parse(TABLE_LAST);
 		const s = makeState(doc);
-		// Genuine cross-block seed (para → table): a same-path prose pair would
-		// collapse in the seam and leave extendFocus without an anchor.
+		// A genuine cross-block starting pair (paragraph to table): a same-path text pair would
+		// collapse in `enterCrossBlock` and leave `extendFocus` without an anchor.
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 2 });
 		s.extendFocus({ path: [1, 0, 1], offset: 1 });
 		expect(s.focus).toEqual({ path: [1], offset: 1, cellCoordinate: true });

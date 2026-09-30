@@ -1,12 +1,12 @@
 /**
- * The tier × subsystem closure matrix as a type: every block-kind registration carries a
- * `ClosureBlock`, so a blank cell is a compile error (`docs/design/plugin-contract.md` § "Editable
- * content and the closure matrix"). Dependency-free leaf — `core/directive/kinds.ts` imports
- * it, so it must not import back toward core. Honesty rule (coherence-checked by G1.24):
- * `implemented` names a real mechanism; never claim a capability to fill a cell.
+ * The closure matrix as a type: what each block kind does about each cross-cutting system, so a
+ * blank cell is a compile error
+ * (`docs/design/plugin-contract.md` § Editable content and the closure matrix). An `implemented`
+ * cell must name a real mechanism (G1.24). This file imports nothing: `core/directive/kinds.ts`
+ * imports it.
  */
 
-/** The cross-cutting systems a caret-bearing kind meets — one per matrix column. */
+/** The cross-cutting systems a kind with a caret has to answer for, one per matrix column. */
 export type ClosureColumn =
 	| 'roundTrip'
 	| 'focus'
@@ -18,21 +18,33 @@ export type ClosureColumn =
 	| 'clipboard'
 	| 'simOracle';
 
+/** Every column once, so a loop over the matrix misses none: a new column fails to compile here
+ *  until it's listed. */
+export const CLOSURE_COLUMNS: Record<ClosureColumn, true> = {
+	roundTrip: true,
+	focus: true,
+	mergeBackspace: true,
+	selectionPaint: true,
+	searchPaint: true,
+	reorder: true,
+	undo: true,
+	clipboard: true,
+	simOracle: true
+};
+
 export type ClosureCell =
 	| { mode: 'implemented'; via: string }
 	| { mode: 'inherit-default' }
 	| { mode: 'not-supported'; reason: string };
 
-/** `Record<ClosureColumn, …>` — a missing column is a compile error. */
+/** `Record<ClosureColumn, …>`: a missing column is a compile error. */
 export type ClosureBlock = Record<ClosureColumn, ClosureCell>;
 
 // ── Simple-leaf preset ──────────────────────────────────────────────────────
 
 /**
- * The five columns every not-mergeable, childless, source-editable `createEditableLeaf` leaf
- * answers identically — structurally fixed, so re-typing them teaches an author nothing.
- * NOT for containers (G1.24 forces `roundTrip: implemented` on them) nor whole-block-focus
- * opaque leaves (they paint a cover rect, not partial rects); those hand-write every column.
+ * The five columns every not-mergeable, childless, source-editable leaf answers alike. A container
+ * (its `roundTrip` must be `implemented`, G1.24) or a whole-block leaf writes every column itself.
  */
 const SIMPLE_LEAF_BAKED: Pick<
 	ClosureBlock,
@@ -49,9 +61,9 @@ const SIMPLE_LEAF_BAKED: Pick<
 };
 
 /**
- * `focus`, `searchPaint`, `undo`, and `simOracle` genuinely vary with the leaf's own component,
- * so `simpleLeafClosure` requires them — the matrix's force-an-answer discipline kept exactly
- * where the answer is the author's. The five baked columns stay optionally overridable.
+ * `focus`, `searchPaint`, `undo` and `simOracle` really do vary with the leaf's own component, so
+ * `simpleLeafClosure` requires them: the matrix forces an answer exactly where the answer is the
+ * author's. The five fixed columns can still be overridden.
  */
 export type SimpleLeafClosureCells = Pick<
 	ClosureBlock,
@@ -61,7 +73,7 @@ export type SimpleLeafClosureCells = Pick<
 		Pick<ClosureBlock, 'roundTrip' | 'mergeBackspace' | 'selectionPaint' | 'reorder' | 'clipboard'>
 	>;
 
-/** Sugar over the same required `closure` field: bakes the five structurally-fixed leaf columns, demands the four the author's component determines. */
+/** Fills in the five fixed leaf columns and requires the four the author's component decides. */
 export function simpleLeafClosure(cells: SimpleLeafClosureCells): ClosureBlock {
 	return { ...SIMPLE_LEAF_BAKED, ...cells };
 }
@@ -69,9 +81,8 @@ export function simpleLeafClosure(cells: SimpleLeafClosureCells): ClosureBlock {
 // ── Strip-container preset ────────────────────────────────────────────────────
 
 /**
- * The four columns every strip container answers the same structural way: its children are the
- * paint and search surfaces, it reorders whole-block through the parent BlockList, and it holds
- * no clipboard anchor of its own. `reorder`/`clipboard` stay overridable below.
+ * The four columns every strip container answers alike: its children paint selection and search,
+ * it reorders whole through the parent BlockList, and it holds no clipboard position of its own.
  */
 const STRIP_CONTAINER_BAKED: Pick<
 	ClosureBlock,
@@ -90,10 +101,9 @@ const STRIP_CONTAINER_BAKED: Pick<
 };
 
 /**
- * `roundTrip` is `implemented` for any container (its `rebuildRaw` IS the mechanism, G1.24), so
- * the preset bakes the mode and demands only its `via`, making the inherit-default violation
- * unrepresentable here. `focus`/`mergeBackspace`/`undo`/`simOracle` vary with the container, so
- * they are required; the four structural columns stay overridable.
+ * A container's `rebuildRaw` is its round-trip mechanism, so the preset fixes `roundTrip` to
+ * `implemented` and asks only for its `via` (G1.24). The cells that vary with the container are
+ * required; the four structural columns stay overridable.
  */
 export type ContainerClosureCells = { roundTripVia: string } & Pick<
 	ClosureBlock,
@@ -101,7 +111,7 @@ export type ContainerClosureCells = { roundTripVia: string } & Pick<
 > &
 	Partial<Pick<ClosureBlock, 'selectionPaint' | 'searchPaint' | 'reorder' | 'clipboard'>>;
 
-/** Sugar over the same required `closure` field: bakes the four structural strip-container columns and `roundTrip: implemented`, demands the container-specific cells. */
+/** Fills in the structural columns and `roundTrip: implemented`; requires the container's cells. */
 export function containerClosure(cells: ContainerClosureCells): ClosureBlock {
 	const { roundTripVia, ...rest } = cells;
 	return {

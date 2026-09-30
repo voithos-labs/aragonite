@@ -1,27 +1,29 @@
 // A range delete that consumes both endpoints whole leaves nothing to reparse, so every branch
-// falls back to a minted empty paragraph. That paragraph's raw IS a line ending, and in a CRLF
-// document it must be CRLF (G4.20). One case per branch: generic, table, and reserved chrome.
+// falls back to a new empty paragraph. That paragraph's raw is a line ending, and in a CRLF
+// document it must be CRLF (G4.20). One case per branch: plain, table, and title line.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
+	const parsed = parse(source);
+	const range = coverRange(parsed, start, end);
 	const doc = rangeDelete(
-		parse(source),
-		start,
-		end,
+		parsed,
+		rangeCoverage(parsed, range),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	).newDoc;
-	// The minted paragraph is a blank line, so its own separator settles with the rest of the run —
-	// bytes alone would pass on a shape that reloads one empty paragraph wider (GH #96).
+	// The new paragraph is a blank line, so its own separator is fixed up with the rest of the
+	// run; bytes alone would pass on a shape that reloads one empty paragraph wider.
 	expectParseConverged(doc);
 	return serialize(doc);
 }
@@ -63,8 +65,8 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 });
 
 // Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below. Both endpoints
-// are prose and both surviving slices are empty, so both take the minted-paragraph fallback.
-describe('chromeAwareRangeDelete keeps CRLF on both truncated endpoints', () => {
+// are text and both surviving slices are empty, so both take the empty-paragraph fallback.
+describe('a delete across a title-line container keeps CRLF on both truncated endpoints', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('start inside the callout body, end at the last prose block', () => {

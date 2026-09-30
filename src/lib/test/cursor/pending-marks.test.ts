@@ -1,22 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import {
-	createEdgeAffinityState,
-	type EdgeAffinityState,
-	type EdgeAffinityAction
-} from '../../cursor/edge-affinity';
-import {
-	createPendingMarksState,
-	flipMark,
-	type PendingMarksState
-} from '../../cursor/pending-marks';
+import { createCaretMemory, type CaretMemory } from '../../cursor/caret-memory';
+import type { EdgeAffinityAction } from '../../cursor/edge-affinity';
+import { flipMark } from '../../cursor/pending-marks';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 
-// The set a collapsed-caret toggle promises the next insertion. Two properties carry the
-// contract: exactly one insertion spends it, and every caret-invalidating seam drops it —
-// the second by composition with the edge affinity rather than by a clear at each seam, so
-// the seam list can never drift out of parity. Miss-analysis (lifecycle, not a bug fix): the
-// column and the affinity are pinned only at their own doors, so a third rider needs its own
-// matrix or its clearing is asserted nowhere.
+// The marks a toggle with no selection promises the next insertion: exactly one insertion uses
+// them up, and anything that moves the caret drops them along with the column and the side.
+// Miss-analysis: the column and side were tested only where set, so nothing asserted a clear.
 
 const kinds = (marks: ReadonlySet<InlineMarkKind> | null): InlineMarkKind[] =>
 	marks === null ? [] : [...marks].sort();
@@ -29,8 +19,8 @@ describe('flipMark', () => {
 		expect(kinds(flipMark(one, 'strong'))).toEqual([]);
 	});
 
-	// Null, not an empty set: a read is then the whole question, and no consumer has to
-	// distinguish "nothing pending" from "pending nothing".
+	// Null, not an empty set, so one read answers the whole question and no caller has to tell
+	// "nothing pending" from "pending nothing".
 	it('empties to null rather than to an empty set', () => {
 		expect(flipMark(flipMark(null, 'strong'), 'strong')).toBeNull();
 	});
@@ -42,63 +32,29 @@ describe('flipMark', () => {
 	});
 });
 
-describe('pending marks lifecycle', () => {
-	it('starts empty and reports the kinds a toggle pends', () => {
-		const marks = createPendingMarksState();
-		expect(marks.get()).toBeNull();
-
-		marks.toggle('strong');
-		marks.toggle('emphasis');
-		expect(kinds(marks.get())).toEqual(['emphasis', 'strong']);
-	});
-
-	it('exactly one insertion spends the set', () => {
-		const marks = createPendingMarksState();
-		marks.toggle('strong');
-
-		expect(kinds(marks.consume())).toEqual(['strong']);
-		expect(marks.consume()).toBeNull();
-		expect(marks.get()).toBeNull();
-	});
-
-	it('reset drops the set without spending it anywhere', () => {
-		const marks = createPendingMarksState();
-		marks.toggle('strong');
-		marks.reset();
-		expect(marks.get()).toBeNull();
-	});
-});
-
-// The clearing matrix is the affinity's invalidation matrix, by construction: the marks are
-// composed onto the affinity at the editor root, so every seam that invalidates the arrival
-// side drops the marks too. Driving it through the affinity is what pins that.
+// Everything that decides which side the caret arrived on drops the marks too, so the arrival
+// table is the table of what clears them; driving it through the memory tests that.
 describe('pending marks clear with the caret side', () => {
-	function composed(): { affinity: EdgeAffinityState; marks: PendingMarksState } {
-		const marks = createPendingMarksState();
-		const affinity = createEdgeAffinityState({ onInvalidate: marks.reset });
-		return { affinity, marks };
+	function pended(): CaretMemory {
+		const memory = createCaretMemory();
+		memory.pendingMarks.toggle('strong');
+		return memory;
 	}
 
-	function pended(): { affinity: EdgeAffinityState; marks: PendingMarksState } {
-		const state = composed();
-		state.marks.toggle('strong');
-		return state;
-	}
-
-	it('a structural or lifecycle seam clears them through reset()', () => {
-		const { affinity, marks } = pended();
-		affinity.reset();
-		expect(marks.get()).toBeNull();
+	it('a caret move that is not a key clears them through forget()', () => {
+		const memory = pended();
+		memory.forget();
+		expect(memory.pendingMarks.get()).toBeNull();
 	});
 
 	it('a committed keystroke clears them through noteTyping()', () => {
-		const { affinity, marks } = pended();
-		affinity.noteTyping();
-		expect(marks.get()).toBeNull();
+		const memory = pended();
+		memory.noteTyping();
+		expect(memory.pendingMarks.get()).toBeNull();
 	});
 
-	// The whole point of riding `note`: the affinity only records a side there, but a caret
-	// that MOVED is a caret the promise no longer applies to.
+	// The memory only records a side for these, but a caret that moved is a caret the promise no
+	// longer applies to.
 	const MOVED: Record<string, EdgeAffinityAction> = {
 		ArrowLeft: 'far',
 		ArrowRight: 'near',
@@ -115,34 +71,26 @@ describe('pending marks clear with the caret side', () => {
 	};
 	for (const [key, action] of Object.entries(MOVED)) {
 		it(`${key} (${action}) clears them`, () => {
-			const { affinity, marks } = pended();
-			affinity.note({ key, altKey: false });
-			expect(marks.get()).toBeNull();
+			const memory = pended();
+			memory.noteKey({ key }, null);
+			expect(memory.pendingMarks.get()).toBeNull();
 		});
 	}
 
-	// The chord that SETS them is a bare modifier followed by a letter, and the byte that
-	// SPENDS them is a printable key — both must reach the seat with the promise intact.
+	// The chord that sets them is a modifier plus a letter, and the byte that uses them up is a
+	// printable key; both have to reach the write with the promise intact.
 	for (const key of ['Control', 'Meta', 'Shift', 'Alt', 'AltGraph', 'CapsLock', 'b', 'X', 'é']) {
 		it(`${key} preserves them`, () => {
-			const { affinity, marks } = pended();
-			affinity.note({ key, altKey: false });
-			expect(kinds(marks.get())).toEqual(['strong']);
+			const memory = pended();
+			memory.noteKey({ key }, null);
+			expect(kinds(memory.pendingMarks.get())).toEqual(['strong']);
 		});
 	}
 
-	// Alt+Arrow is the block-reorder chord, so the affinity declines to classify it; the
-	// reorder's own commit is what clears, exactly as it does for the side.
-	it('Alt+ArrowUp preserves them, like the side it declines to classify', () => {
-		const { affinity, marks } = pended();
-		affinity.note({ key: 'ArrowUp', altKey: true });
-		expect(kinds(marks.get())).toEqual(['strong']);
-	});
-
-	it('an affinity built without the composition leaves the marks alone', () => {
-		const marks = createPendingMarksState();
-		marks.toggle('strong');
-		createEdgeAffinityState().reset();
-		expect(kinds(marks.get())).toEqual(['strong']);
+	// A reorder moves the block, not the caret; the reorder's own commit is what clears.
+	it('a block move preserves them, like the side it leaves alone', () => {
+		const memory = pended();
+		memory.noteKey({ key: 'ArrowUp' }, 'block.moveUp');
+		expect(kinds(memory.pendingMarks.get())).toEqual(['strong']);
 	});
 });

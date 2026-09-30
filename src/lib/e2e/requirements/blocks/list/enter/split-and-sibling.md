@@ -1,4 +1,4 @@
-# Block: List — Enter (sibling creation and mid-item split)
+# Block: List, Enter (sibling creation and mid-item split)
 
 ## Enter (new item / split)
 
@@ -7,4 +7,4 @@
 
 ### Undo after Enter mid-item
 
-- Enter in the middle of an item followed by Ctrl+Z restores the original item in ONE undo press (mid-item Enter is one user action, one undo snapshot)
+- Enter in the middle of an item followed by Ctrl+Z restores the original item in one undo press (a mid-item Enter is one user action, so it takes one undo snapshot)

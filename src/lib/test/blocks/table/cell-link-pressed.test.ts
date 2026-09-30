@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The cell is the prose surface's sibling on the pressed read: `link.openCard` paints from the
-// construct the card would edit, and the LIVE selection decides containment — the null the cell's
-// chord arm passes is a create policy, not a claim that no range exists.
-// Miss-analysis: the pressed read was a mark-row lookup that returned before any read, and no test
-// at either surface ever asked a NON-mark command what it painted, so the whole id class with no
-// mark row was unasserted.
+// The cell answers the pressed read as a prose block does: `link.openCard` reads the construct the
+// card would edit, and the live selection decides whether it is contained. The null the cell's
+// chord passes is about creating a link, not a claim that no range exists.
+// Miss-analysis: no test asked a command with no mark entry what its pressed read showed.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mountCell } from './mount-cell';
 

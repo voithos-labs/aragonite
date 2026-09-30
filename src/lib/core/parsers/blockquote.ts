@@ -9,7 +9,8 @@ import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
-	type BlockOpenerResult
+	type BlockOpenerResult,
+	type GrammarView
 } from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
@@ -28,15 +29,13 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 	return true;
 }
 
-/**
- * Byte-exact `raw` of a blockquote's extent (CommonMark §5.1 lazy continuation) plus the
- * index past it, no child decomposition: what a blockquote-shaped opener needs when it
- * decomposes its own body (`> [!NOTE]` alerts strip the marker line before parsing children).
- */
+/** Byte-exact `raw` of a blockquote's extent plus the index past it, with no child decomposition,
+ *  for an opener that decomposes its own body (`> [!NOTE]`). The grammar defaults to every plugin. */
 export function blockquoteExtent(
 	lines: ParsedLine[],
 	startIndex: number,
-	endIndex: number
+	endIndex: number,
+	grammar: GrammarView = defaultGrammarView
 ): { raw: string; nextIndex: number } {
 	let i = startIndex;
 	let paragraphOpen = false;
@@ -51,7 +50,7 @@ export function blockquoteExtent(
 		if (
 			paragraphOpen &&
 			wouldKeepParagraphOpen(lineText) &&
-			!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+			!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 		) {
 			i++;
 			continue;
@@ -66,24 +65,22 @@ export function parseBlockquote(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
+	grammar: GrammarView,
 	depth: number = 0,
 	isDocumentParse: boolean = false
 ): BlockOpenerResult {
-	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
+	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex, grammar);
 
 	// Lazy lines have no `> ` to strip; verbatim keeps the recursive parse seeing one paragraph.
 	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
 		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
 	);
 
-	const inner = parseBlocks(
-		strippedLines,
-		0,
-		strippedLines.length,
-		defaultGrammarView,
-		depth + 1,
-		isDocumentParse
-	);
+	const inner = parseBlocks(strippedLines, 0, strippedLines.length, {
+		grammar,
+		scope: isDocumentParse ? 'document' : 'fragment',
+		depth: depth + 1
+	});
 
 	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)![0];
 	const quoteDepth = quotePrefix.match(/>/g)!.length;

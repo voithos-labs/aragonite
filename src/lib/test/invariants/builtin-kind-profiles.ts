@@ -1,5 +1,5 @@
 /**
- * What the generic battery (`$lib/testing/kind-conformance`) needs BEYOND each built-in
+ * What the generic battery (`$lib/testing/kind-conformance`) needs beyond each built-in
  * descriptor. A profile exists only where a kind's mechanism is unobservable generically:
  * `table.clipboard` synthesizes a fresh GFM sub-table, which no byte-slice check reaches.
  */
@@ -16,7 +16,7 @@ import type { KindCellContext, KindConformanceProfile } from '$lib/testing';
 function parsesToTable(payload: string, columns: number, rows: number, label: string): void {
 	const doc = parse(payload);
 	if (doc.children.length !== 1 || doc.children[0].kind !== 'table') {
-		throw new Error(`${label}: payload does not parse to a single table — got ${payload}`);
+		throw new Error(`${label}: payload does not parse to a single table; got ${payload}`);
 	}
 	const table = doc.children[0];
 	const colCount = metadataOf(table, 'table').columnCount;
@@ -29,11 +29,8 @@ function parsesToTable(payload: string, columns: number, rows: number, label: st
 		throw new Error(`${label}: payload is not lossless GFM`);
 }
 
-/**
- * Drives `copyRectangleAsSubTable`, the function the closure `via` names. The
- * single-column sub-rectangle is the discriminating case: reparsing to a NARROWER table
- * is something no raw byte slice could produce, so the copy genuinely synthesizes.
- */
+/** Drives `copyRectangleAsSubTable`, the closure's `via`; only a synthesized copy, never a byte
+ *  slice, reparses a single-column sub-rectangle as a narrower table. */
 function checkTableRectCopy(ctx: KindCellContext): void {
 	const table = ctx.node;
 	const cols = metadataOf(table, 'table').columnCount;
@@ -56,7 +53,7 @@ function checkTableRectCopy(ctx: KindCellContext): void {
 	);
 	parsesToTable(oneColumn, 1, rows, 'single-column sub-rectangle copy');
 	if (oneColumn === table.raw)
-		throw new Error('single-column copy equals the source raw — no synthesis');
+		throw new Error('single-column copy equals the source raw: no synthesis');
 }
 
 export const BUILTIN_KIND_PROFILES: Partial<Record<BlockKind, KindConformanceProfile>> = {

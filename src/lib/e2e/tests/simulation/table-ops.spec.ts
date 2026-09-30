@@ -4,26 +4,22 @@ import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Ungated table proxy-class oracle. Tables are the most proxy-prone kind: keyed-children
-// containers whose rows are themselves keyed sub-containers, and no other gate exercises a
-// live one through real row/column moves.
-//
-// Drives a LOADED table (typed pipe syntax never renders an interactive one — see
-// gestures/table.ts), leading with a column op (the per-row commitMultiScope path) and
-// including an undo of one (the identity-survivor / childIds-clone path) — the two richest
-// proxy-class stressors.
+// Tables, run in the default gate: keyed children whose rows are themselves containers of keyed
+// children, the hardest kind for reactive state. Drives a loaded table, since typed pipe syntax
+// never renders an interactive one, starting with a column operation that writes every row and
+// including its undo, which clones each row's children.
 
-// The leading paragraph is the live extend-park gesture's launch pad; every cell locator
-// below is grid-relative, so the extra block shifts nothing.
+// The first paragraph is where the gesture that extends a selection into the table starts.
+// Every cell below is addressed within the grid, so the extra block shifts nothing.
 const START_TABLE = 'Intro line above.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 async function columnCount(page: Page): Promise<number> {
 	return page.evaluate(() => {
 		const row = document.querySelector('[data-table-row-idx]');
-		return row ? row.querySelectorAll('[role="cell"]').length : 0;
+		return row ? row.querySelectorAll('.table-cell').length : 0;
 	});
 }
 
@@ -48,42 +44,40 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
-
-		// 2 cols × 3 rows (header + 2 body). Cells are row-major: header 0,1;
-		// row1 2,3; row2 4,5.
+		// 2 columns by 3 rows (a header and two body rows). Cells are counted across rows:
+		// header 0 and 1, first body row 2 and 3, second 4 and 5.
 		await g.insertColumnRight(0);
-		await checkOracles('after-insert-column');
+		await assertCheckpoint(ctx, 'after-insert-column');
 		expect(await columnCount(page)).toBe(3);
 
-		// Edit the new empty header cell (index 1 in a 3-col header row).
+		// Edit the new empty header cell (index 1 in a header row of three).
 		await g.editCell(1, 'C');
-		await checkOracles('after-edit-cell');
+		await assertCheckpoint(ctx, 'after-edit-cell');
 
-		// Insert a body row below the first body row. With 3 cols the first body
-		// row's first cell is index 3 (header occupies 0..2).
+		// Insert a body row below the first one. With three columns, the first body row's
+		// first cell is index 3, since the header takes 0 to 2.
 		await g.insertRowBelow(3);
-		await checkOracles('after-insert-row');
+		await assertCheckpoint(ctx, 'after-insert-row');
 
 		// Delete the row just inserted (its first cell is index 6).
 		await g.deleteRow(6);
-		await checkOracles('after-delete-row');
+		await assertCheckpoint(ctx, 'after-delete-row');
 		expect(await columnCount(page)).toBe(3);
 
-		// Delete the middle column (click any body cell in column 1 — index 4).
+		// Delete the middle column, clicking any body cell in column 1, which is index 4.
 		await g.deleteColumn(4);
-		await checkOracles('after-delete-column');
+		await assertCheckpoint(ctx, 'after-delete-column');
 		expect(await columnCount(page)).toBe(2);
 
-		// Undo the delete-column: cloneNode swaps every container identity, so the
-		// state-registry and per-row childIds must follow or nested state desyncs.
+		// Undo the deleted column: cloning replaces every container, so the state registry and
+		// each row's child ids have to follow, or the nested state goes out of step.
 		await g.undo();
-		await checkOracles('after-undo');
+		await assertCheckpoint(ctx, 'after-undo');
 		expect(await columnCount(page)).toBe(3);
 
-		// The re-routed cell-forward door (G2.12): an extend into the table parks the START
-		// sentinel in the revealed cell, and the whole detour moves no bytes.
+		// Extending a selection into the table opens the cell it reaches and puts the caret there
+		// (G2.12), and the whole detour moves no bytes.
 		await g.liveExtendIntoTablePark();
-		await checkOracles('after-live-extend-park');
+		await assertCheckpoint(ctx, 'after-live-extend-park');
 	});
 });

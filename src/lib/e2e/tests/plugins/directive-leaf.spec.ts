@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, roundTripStable } from './helpers';
 
 // The generic `::name` leaf: a two-colon fence with no registered plugin falls back to
-// `directiveLeaf`, a single editable line rendered through the built-in text surface with the
-// `::name` fence dimmed as a `.md-marker` prefix. Unlike the container's read-only block marker,
-// the whole line is one editable coordinate space (an edit that breaks the fence reparses to a
-// paragraph). Mirrors directive-container.spec.ts.
+// `directiveLeaf`, a single editable line drawn by the built-in text block with the `::name` fence
+// dimmed as a `.md-marker` prefix. Unlike the container's read-only block marker, the whole line is
+// one editable run of offsets, and an edit that breaks the fence reparses to a paragraph. Mirrors
+// directive-container.spec.ts.
 
 test.describe('plugin leaf: generic ::name directive', () => {
 	let editor: PluginsPage;
@@ -24,8 +24,8 @@ test.describe('plugin leaf: generic ::name directive', () => {
 		expect(state.kinds[0]).toBe('directiveLeaf');
 		expect(state.rootCount).toBe(1);
 
-		// The fence is a dimmed `.md-marker`, the whole line editable — not a raw
-		// fallback and not a read-only container marker.
+		// The fence is a dimmed `.md-marker` and the whole line is editable: not an unrendered raw
+		// line, and not a read-only container marker.
 		const marker = page.locator('.directive-leaf .md-marker');
 		await expect(marker).toHaveText('::toc');
 		const opacity = await marker.evaluate((el) => parseFloat(getComputedStyle(el).opacity));
@@ -50,7 +50,7 @@ test.describe('plugin leaf: generic ::name directive', () => {
 		expect(state.kinds).toEqual(['directiveLeaf']);
 		expect(await editor.bridge.getSource()).toBe('::toc info more\n');
 		expect(await roundTripStable(page)).toBe(true);
-		// The fence stays dimmed after the edit — only the info grew.
+		// The fence stays dimmed after the edit: only its info string grew.
 		await expect(page.locator('.directive-leaf .md-marker')).toHaveText('::toc');
 	});
 
@@ -63,8 +63,8 @@ test.describe('plugin leaf: generic ::name directive', () => {
 		await page.keyboard.press('End');
 		await page.keyboard.press('Enter');
 
-		// A new paragraph joins the ROOT (rootCount 2), and the leaf keeps its single
-		// line — a broken Enter would either grow the leaf's own raw or stay at one block.
+		// A new paragraph joins the document root (rootCount 2) and the leaf keeps its single
+		// line; a broken Enter would either grow the leaf's own raw or stay at one block.
 		let state = await waitForDoc(page, (s) => s.rootCount === 2);
 		expect(state.kinds).toEqual(['directiveLeaf', 'paragraph']);
 		expect(state.texts[0]).toBe('::toc info');
@@ -89,7 +89,7 @@ test.describe('plugin leaf: generic ::name directive', () => {
 		await page.locator('.directive-leaf[contenteditable="true"]').click();
 		await page.keyboard.press('Home');
 
-		// Not-mergeable: Backspace moves focus but never concatenates — a merge would
+		// Not mergeable: Backspace moves focus but never joins the text, since a merge would
 		// collapse the two blocks into one and rewrite the source.
 		await editor.pressDeclined('Backspace');
 		state = await readDoc(page);

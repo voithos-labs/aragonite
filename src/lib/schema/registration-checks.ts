@@ -1,12 +1,12 @@
 /**
- * Registration-seam coherence: the registries enqueue every post-bootstrap registration and this
- * seam validates them at the next flush — Editor mount, or the parser's next grammar read
- * (`getOrderedOpeners`) — never mid-batch, so intra-batch forward references stay warn-free.
- * This module and block-openers reference each other, but only inside function bodies, and
- * neither calls the other during evaluation, so no cycle observes uninitialized state.
+ * Checks that the registrations agree with each other. Registrations made after startup queue up
+ * and are checked at the next Editor mount or parser read of the grammar, never part-way through a
+ * batch, so a forward reference within one batch warns about nothing. This module and
+ * `block-openers` import each other for use inside function bodies only, so the cycle is safe.
  */
 import {
 	ALL_BLOCK_KINDS,
+	isBuiltinBlockKind,
 	isBuiltinInlineKind,
 	type AnyBlockKind,
 	type AnyInlineKind
@@ -21,13 +21,13 @@ import {
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
-	checkContentStartBackspace,
 	checkDescriptorFieldCoherence,
 	checkInlineConstructPolicy,
+	checkBuiltinPresentationFacts,
 	type ClosureCoherenceEntry,
-	type ContentStartBackspaceEntry,
 	type DescriptorFieldEntry,
-	type MergeRoleEntry
+	type MergeRoleEntry,
+	type PresentationFactEntry
 } from '../invariants/registry';
 import { listInlineConstructPolicies } from './inline-construct-policy';
 import { isInlineKindDeclared } from './plugin-kind';
@@ -35,48 +35,39 @@ import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
 	isKnownMergeRole,
-	liftsFirstChild,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
-import { getBlockComponent } from './block-component-registry';
+import { isBlockComponentRegistered } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
-import { normalizeChord, isChordWellFormed } from './keybindings';
 import { takeRegistrationFlushWork } from './registration-pending';
 
-export {
-	hasPendingRegistrationChecks,
-	__resetRegistrationChecksForTests
-} from './registration-pending';
+export { hasPendingRegistrationChecks } from './registration-pending';
 
-/** Matches `assertInvariant` — the default sink; tests inject a collector. */
+/** The same shape as `assertInvariant`, which is the default; tests pass a collector instead. */
 export type RegistrationCheckReport = (tag: string, check: () => InvariantViolation | null) => void;
 
 const hasDescriptor = (kind: AnyBlockKind): boolean =>
 	tryGetBlockKindDescriptor(kind) !== undefined;
 
-const hasComponent = (kind: AnyBlockKind): boolean => getBlockComponent(kind) !== undefined;
+const hasComponent = (kind: AnyBlockKind): boolean => isBlockComponentRegistered(kind);
 
 const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({ kind, keymap: tryGetBlockKindDescriptor(kind)?.keymap }));
 
 const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
-	kinds.map((kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return {
-			kind,
-			isContainer: d?.isContainer ?? false,
-			reservedChromeKind: d?.reservedChrome?.kind
-		};
-	});
+	kinds.map((kind) => ({
+		kind,
+		reservedChromeKind: tryGetBlockKindDescriptor(kind)?.reservedChrome?.kind
+	}));
 
 const viaOf = (cell: ClosureCell): string | undefined =>
 	cell.mode === 'implemented' ? cell.via : undefined;
 
 /**
- * Descriptor → G1.24 entry. Exported so the suites project the same fields: a test-local copy
- * that missed a column would pass while the rule it claims to exercise went unread.
+ * The entry the closure coherence check reads (G1.24), exported so the suites build it the same
+ * way: a test-local copy missing a field would pass while the rule it tests went unchecked.
  */
 export const closureCoherenceEntry = (
 	kind: AnyBlockKind,
@@ -100,24 +91,12 @@ const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
 		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
-// Widened to `string` on the way out: the vocabulary check exists for the callers the
-// `MergeRole` union cannot bind (a plugin registering through a cast).
+// Widened to `string` on the way out: the check exists for the callers the `MergeRole` union
+// cannot constrain, such as a plugin registering through a cast.
 const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 	kinds.flatMap((kind) => {
 		const mergeRole: string | undefined = tryGetBlockKindDescriptor(kind)?.mergeRole;
 		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
-	});
-
-const contentStartBackspaceEntries = (
-	kinds: readonly AnyBlockKind[]
-): ContentStartBackspaceEntry[] =>
-	kinds.map((kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return {
-			kind,
-			demotesFirst: d?.contentStartBackspace === 'demote-first',
-			declaresContentRange: d?.getContentRange !== undefined
-		};
 	});
 
 const descriptorFieldEntries = (
@@ -127,28 +106,30 @@ const descriptorFieldEntries = (
 	kinds.flatMap((kind) => {
 		const d = tryGetBlockKindDescriptor(kind);
 		if (!d) return [];
-		const firstChildBackspace = d.unwrapRole?.firstChildBackspace;
 		return [
 			{
 				kind,
-				declaresWholeBlockFocus: d.blockFocus === 'whole-block',
-				supportsInline: d.supportsInline,
-				declaresReservedChrome: d.reservedChrome !== undefined,
 				contextDependentKind: d.contextDependentKind === true,
-				hasOpener: openerKinds.has(kind),
-				unwrapLiftsFirstChild:
-					firstChildBackspace !== undefined && liftsFirstChild(firstChildBackspace),
-				unwrapKeepsReservedChrome: firstChildBackspace === 'keep-reserved-chrome'
+				hasOpener: openerKinds.has(kind)
 			}
 		];
+	});
+
+const presentationFactEntries = (kinds: readonly AnyBlockKind[]): PresentationFactEntry[] =>
+	kinds.filter(isBuiltinBlockKind).map((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		return {
+			kind,
+			declaresPageRole: d?.pageRole !== undefined,
+			declaresEstimateHeight: d?.estimateHeight !== undefined
+		};
 	});
 
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24/30/32/37). The first call sweeps the whole
- * world; later calls validate only the kinds registered since, plus opener coherence over the
- * full registry (a new opener's priority collision is inherently cross-entry).
+ * Run the registry checks. Later calls check only the kinds registered since the last, plus the
+ * openers as a whole, since a new opener's priority clash always involves another entry.
  */
 export function flushPendingRegistrationChecks(
 	report: RegistrationCheckReport = assertInvariant
@@ -160,14 +141,11 @@ export function flushPendingRegistrationChecks(
 			checkRegistryCompleteness(ALL_BLOCK_KINDS, hasDescriptor, hasComponent)
 		);
 	}
-	// The first flush sweeps the live registry, not just ALL_BLOCK_KINDS. Completeness stays
-	// built-in-scoped: a plugin kind's component may register on its own schedule, so
-	// reservedChrome coherence is the plugin-kind bootstrap check instead.
+	// The first run covers every registered kind, plugin kinds included; the completeness check
+	// alone stays on built-ins, since a plugin kind's component may register later.
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
-	report('keymap-coherence', () =>
-		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord, isChordWellFormed)
-	);
+	report('keymap-coherence', () => checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId));
 	report('reserved-chrome-coherence', () =>
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
@@ -180,8 +158,8 @@ export function flushPendingRegistrationChecks(
 	report('merge-role-vocabulary', () =>
 		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
 	);
-	report('content-start-backspace', () =>
-		checkContentStartBackspace(contentStartBackspaceEntries(kinds))
+	report('builtin-presentation-facts', () =>
+		checkBuiltinPresentationFacts(presentationFactEntries(kinds))
 	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
@@ -192,10 +170,8 @@ const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
 	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind);
 
 /**
- * G1.31, at the EDITOR-MOUNT flush alone. The rows register with the descriptors, but the
- * policy's function hooks patch in from the component layer, which a parse-only unit test
- * never loads — running this at the parser's flush would fire on an absence legal there.
- * Table-wide rather than per-registration, so it does not ride the pending-kinds queue.
+ * Mount-only, since the policy's functions come from the component layer, which a parse-only test
+ * never loads (G1.31). It reads the whole table, so it stays off the queue of pending kinds.
  */
 export function checkInlineConstructPoliciesAtMount(
 	report: RegistrationCheckReport = assertInvariant

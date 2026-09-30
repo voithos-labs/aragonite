@@ -6,11 +6,15 @@
  */
 
 import type { NodeView } from '../core/node-views';
+import { isBlankText, trimWhitespace } from '../core/lines';
+import { matchTableDelimiterRow, splitRowCells } from '../core/parsers/table';
+import { unescapeCellPipes } from '../schema/table-cell-raw';
+import { rectangleCellRaws, type CellPos } from './sub-table-copy';
 
 /** Rows of cell texts, rectangular: every row padded to the widest. Null for a non-grid payload. */
 export function parseClipboardGrid(text: string): string[][] | null {
 	const lines = text.replace(/\r\n?/g, '\n').split('\n');
-	while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+	while (lines.length && isBlankText(lines[lines.length - 1])) lines.pop();
 	if (lines.length === 0) return null;
 	const rows = parseGfmRows(lines) ?? parseTsvRows(lines);
 	if (!rows || rows.length === 0) return null;
@@ -20,30 +24,13 @@ export function parseClipboardGrid(text: string): string[][] | null {
 	return rows.map((row) => [...row, ...Array<string>(width - row.length).fill('')]);
 }
 
-// Every line a pipe row; the delimiter line (second, all dashes and colons) is dropped.
+// Accepts only pipe rows, read by the table parser's own row and delimiter matchers; a cell's
+// pipes are unescaped, as a copied rectangle's are.
 function parseGfmRows(lines: string[]): string[][] | null {
-	if (!lines.every((line) => /^\s*\|.*\|\s*$/.test(line))) return null;
-	const rows = lines.map(splitPipeRow);
-	if (rows.length >= 2 && rows[1].every((cell) => /^:?-+:?$/.test(cell))) rows.splice(1, 1);
+	if (!lines.every((line) => /^\|.*\|$/.test(trimWhitespace(line)))) return null;
+	const rows = lines.map((line) => splitRowCells(line).map(unescapeCellPipes));
+	if (rows.length >= 2 && matchTableDelimiterRow(lines[1])) rows.splice(1, 1);
 	return rows;
-}
-
-function splitPipeRow(line: string): string[] {
-	const inner = line.trim().slice(1, -1);
-	const cells: string[] = [];
-	let cell = '';
-	for (let i = 0; i < inner.length; i++) {
-		const ch = inner[i];
-		if (ch === '\\' && inner[i + 1] === '|') {
-			cell += '|';
-			i++;
-		} else if (ch === '|') {
-			cells.push(cell.trim());
-			cell = '';
-		} else cell += ch;
-	}
-	cells.push(cell.trim());
-	return cells;
 }
 
 function parseTsvRows(lines: string[]): string[][] | null {
@@ -52,22 +39,8 @@ function parseTsvRows(lines: string[]): string[][] | null {
 }
 
 /** A rectangle's cell texts, pipes unescaped, as the clipboard's grid. */
-export function rectangleGrid(
-	table: NodeView,
-	a: { rowIdx: number; colIdx: number },
-	b: { rowIdx: number; colIdx: number }
-): string[][] {
-	const rows = table.children ?? [];
-	const grid: string[][] = [];
-	for (let r = Math.min(a.rowIdx, b.rowIdx); r <= Math.max(a.rowIdx, b.rowIdx); r++) {
-		const cells = rows[r]?.children ?? [];
-		const line: string[] = [];
-		for (let c = Math.min(a.colIdx, b.colIdx); c <= Math.max(a.colIdx, b.colIdx); c++) {
-			line.push((cells[c]?.raw ?? '').replace(/\\\|/g, '|'));
-		}
-		grid.push(line);
-	}
-	return grid;
+export function rectangleGrid(table: NodeView, a: CellPos, b: CellPos): string[][] {
+	return rectangleCellRaws(table, a, b).map((row) => row.map(unescapeCellPipes));
 }
 
 /** The grid repeated to fill a selection whose sides are multiples of it (a spreadsheet's

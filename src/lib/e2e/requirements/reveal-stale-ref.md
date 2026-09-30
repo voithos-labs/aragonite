@@ -1,11 +1,12 @@
 # Feature: Reveal into a stale top-level ref slot
 
 A top-level block that scrolls out of the render window can leave a detached
-component ref in its slot (the windowed each-block's cleanup is conditional by
-design). A reveal targeting that block must detect the stale slot, drop it, and
-scroll the block back into the window — never descend into the detached ref.
-The stale slot is forged deterministically through the test-probe capture /
-re-plant pair, because the natural cleanup race is not reproducible on demand.
+component reference behind at its position (the cleanup in the windowed each
+block is conditional by design). Scrolling to that block must detect the stale
+reference, drop it, and bring the block back into the window rather than descend
+into the detached one. The stale reference is created deterministically through
+the test probes' capture and re-plant pair, because the natural cleanup race
+cannot be reproduced on demand.
 
 ## Happy paths
 
@@ -13,4 +14,4 @@ re-plant pair, because the natural cleanup race is not reproducible on demand.
 
 ## Edge cases
 
-- The scrolled-out block's slot clears on unmount (precondition the probes assert before forging the stale ref).
+- The scrolled-out block's position clears on unmount (a precondition the probes assert before creating the stale reference).

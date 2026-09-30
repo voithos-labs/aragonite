@@ -30,4 +30,24 @@ test.describe('source prop change', () => {
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('appended');
 	});
+
+	test('a source swap fires sourceSwap once with a rising generation, and no edit', async ({
+		page
+	}) => {
+		await editor.loadContent('First document.\n');
+		await page.evaluate(() => {
+			(window as any).__test.startSourceSwapCapture();
+			(window as any).__test.startEditOpCapture();
+		});
+
+		await editor.loadContent('Second document.\n');
+		await editor.loadContent('Third document.\n');
+
+		const generations: number[] = await page.evaluate(() =>
+			(window as any).__test.stopSourceSwapCapture()
+		);
+		expect(generations).toHaveLength(2);
+		expect(generations[1]).toBe(generations[0] + 1);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
 });

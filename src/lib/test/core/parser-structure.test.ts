@@ -22,7 +22,7 @@ describe('structural: headings', () => {
 // The blank-line layout itself is pinned in core/blank-line-blocks.test.ts; these hold the
 // two document fields against it.
 describe('structural: document prefix/suffix', () => {
-	it('leaves prefix empty — a leading blank line is a block, not document whitespace', () => {
+	it('leaves prefix empty: a leading blank line is a block, not document whitespace', () => {
 		const doc = parse('\n\n# Title\n');
 		expect(doc.prefix).toBe('');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph', 'heading']);

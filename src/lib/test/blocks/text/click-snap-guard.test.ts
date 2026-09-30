@@ -79,7 +79,7 @@ describe('isPlainTypingKey', () => {
 		}
 	});
 
-	it('accepts a shifted character — Shift is not a command modifier', () => {
+	it('accepts a shifted character: Shift is not a command modifier', () => {
 		expect(isPlainTypingKey(key({ key: 'A', shiftKey: true }))).toBe(true);
 	});
 
@@ -95,7 +95,7 @@ describe('isPlainTypingKey', () => {
 		}
 	});
 
-	// An astral glyph is one typed character in two UTF-16 units (GH #122).
+	// An astral glyph is one typed character in two UTF-16 units.
 	it('accepts an astral-plane character', () => {
 		expect(isPlainTypingKey(key({ key: '😀' }))).toBe(true);
 		expect(isPlainTypingKey(key({ key: '𝓐' }))).toBe(true);

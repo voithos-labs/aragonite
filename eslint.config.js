@@ -84,6 +84,23 @@ export default tseslint.config(
 		}
 	},
 
+	// A covered range comes from `coverRange`: a cast would hand a reader a pair that never asked
+	// what the range covers, and the class's private field already refuses a spread.
+	{
+		files: ['src/**/*.ts', 'src/**/*.svelte'],
+		ignores: ['src/lib/selection/range-coverage.ts'],
+		rules: {
+			'no-restricted-syntax': [
+				'error',
+				{
+					selector:
+						"TSAsExpression[typeAnnotation.typeName.name='CoveredRange'], TSTypeAssertion[typeAnnotation.typeName.name='CoveredRange']",
+					message: 'Build a CoveredRange with coverRange; a cast skips what the range covers.'
+				}
+			]
+		}
+	},
+
 	// ── Rules turned off, with cause ─────────────────────────────────────────────
 	{
 		// Every explicit `any` in the tree is in a fixture, an e2e/simulation harness, the

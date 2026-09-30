@@ -1,31 +1,26 @@
-// GH #95: a cut landing ON a line ending — the caret at the end of a soft-broken line —
-// terminated nothing, so the first half minted an ending of its own while the second opened
-// with the original one. The blank line it made turned the second half into two blocks and
-// the reparse kept only the first, destroying every line past the cut.
-//
-// Miss-analysis: the split suite asserted each half's raw and never the document's bytes, so a
-// drop that left two plausible halves — `'aaa\n'` beside an empty second — read as an ordinary
-// end-of-block split. Every row below states the bytes.
+// A cut on a line ending terminates the first half with that ending, so the second half doesn't
+// open with a blank line and lose every line past the cut on reparse.
+// Miss-analysis: GH #95, the split suite asserted each half's raw, never the document's bytes.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 /**
- * The document's bytes, which is the oracle a per-half raw assertion cannot be: a first half of
- * `'aaa\n'` beside an empty second reads as an ordinary end-of-block split however much the
- * dropped block took with it. The shape must also reload as itself, or the loss returns on remount.
+ * The document's bytes, since per-half raws can't show a dropped block; the shape must also reload
+ * as itself, or the loss returns on remount.
  */
 function splitBytes(source: string, offset: number): string {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, undefined, undefined, undefined);
+	splitNode(doc, 0, offset, undefined, fixtureReading());
 	expect(describeConvergence(doc), `${JSON.stringify(source)} @${offset}`).toBeNull();
 	return serialize(doc);
 }
 
-/** The CRLF twin's cut: each ending crossed is two bytes there rather than one (G4.20). */
+/** The CRLF counterpart's cut: each ending crossed is two bytes there rather than one (G4.20). */
 const crlf = (source: string) => source.replace(/\n/g, '\r\n');
 const crlfOffset = (source: string, offset: number) =>
 	offset + (source.slice(0, offset).match(/\n/g)?.length ?? 0);
@@ -109,11 +104,10 @@ describe('a split cutting on a line ending', () => {
 		expect(splitBytes('aaa\r\nbbb\r\n', 4)).toBe('aaa\r\n\r\nbbb\r\n');
 	});
 
-	// The plural splice's own pin: a second half parsing to two blocks lands BOTH, so the
-	// document holds three. Reds the moment the splice goes singular, and names why.
+	// A second half parsing to two blocks lands both, so the document holds three.
 	it('a second half of two blocks splices both in', () => {
 		const doc = parse('<div>\nabc\n</div>\n');
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, fixtureReading());
 		expect(doc.children.length).toBe(3);
 		expect(doc.children.map((c) => c.kind)).toEqual(['htmlBlock', 'paragraph', 'htmlBlock']);
 		expect(serialize(doc)).toBe('<div>\n\nabc\n</div>\n');

@@ -1,19 +1,15 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import {
 		LINK_CARD_LABEL,
 		LINK_CARD_OPEN,
 		LINK_CARD_REMOVE,
 		LINK_CARD_URL
 	} from '../../a11y-strings';
+	import MenuIcon from '../menu/MenuIcon.svelte';
 
-	// Anchored chrome over one link construct. Enter commits; Escape is the host's, since it must
-	// also close a card the document still has the caret for.
-	//
-	// `role="dialog"` WITHOUT `aria-modal`: a click leaves the card beside a live caret and the
-	// document behind stays the user's to type in, which is what aria-modal would tell a screen
-	// reader is false. The trap engages on ENTRY (Mod+K, or focus reaching the field), where the
-	// claim is true, and Escape returns the caret it borrowed.
+	// The URL panel over one link. Enter commits; Escape is the host's. Not `aria-modal`: a
+	// clicked card sits beside a live caret, and its focus trap starts only once focus enters.
 	let {
 		url,
 		canWrite,
@@ -21,46 +17,50 @@
 		onCommit,
 		onOpenLink,
 		onRemove,
+		opensCard,
 		resolveHref
 	}: {
 		url: string;
 		/** Bumped by each keyboard entry; the field takes focus when it changes. */
 		focusEpoch: number;
-		/** False when the write seam declines this construct outright — a rung-claimed link, which
-		 *  no url makes writable. Enter then does nothing rather than silently dropping the edit. */
+		/** False when the write path refuses this construct outright: a link owned by an inline
+		 *  syntax handler. Enter then does nothing rather than silently dropping the edit. */
 		canWrite: boolean;
 		onCommit: (url: string) => void;
 		onOpenLink: (url: string, event: MouseEvent) => void;
-		/** Absent in create mode: there is no construct to remove until Enter mints one. */
+		/** Absent in create mode: there is no construct to remove until Enter writes one. */
 		onRemove?: () => void;
-		/** The render path's own href funnel — a consumer rewrite, then the scheme allowlist.
-		 *  Undefined is a blocked scheme, and Open is the sink that must not receive one. */
+		/** Whether a keypress is a chord the keymap binds to opening this card. */
+		opensCard: (e: KeyboardEvent) => boolean;
+		/** The href as the render path resolves it: a consumer rewrite, then the scheme
+		 *  allowlist. Undefined means a blocked scheme, which Open must never be handed. */
 		resolveHref: (url: string) => string | undefined;
 	} = $props();
 
 	let draft = $state(untrack(() => url));
-	// The card OPENS on a blocked link so the URL can be repaired, but may not hand that URL
-	// onward: `onLinkActivate` reaches a shell's own opener, and this is the only door into it
-	// carrying a URL the user typed rather than the document's. An empty draft resolves as a
-	// relative URL, so it declines too.
+	// Open hands a typed URL to the host's opener, so it gets the render path's scheme check;
+	// an empty draft would resolve as a relative URL, so it is refused too.
 	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
 	let urlInput: HTMLInputElement | undefined = $state();
-	// Starts at the click's zero rather than at the prop: a card MOUNTED by the chord has a
-	// non-zero epoch already, and seeding from the prop would read that as "nothing to do".
+	// Starts at the click's zero rather than at the prop: a card mounted by the chord already
+	// has a non-zero counter, and starting from the prop would read that as "nothing to do".
 	let focusedEpoch = 0;
 
 	$effect(() => {
 		if (focusEpoch === focusedEpoch) return;
 		focusedEpoch = focusEpoch;
-		urlInput?.focus();
-		urlInput?.select();
+		// After the tick, not now: focusing the field before the host has placed the card, while it
+		// still sits at the editor's origin, scrolls the viewport to the top of the document.
+		void tick().then(() => {
+			urlInput?.focus();
+			urlInput?.select();
+		});
 	});
 
-	// The card follows the document while it is open: an undo — or any write landing from outside
-	// this gesture — moves the destination past the draft, and Enter would put the old bytes back.
-	// The in-flight draft is discarded rather than a committed change reverted.
+	// A write from outside the card (an undo) discards the draft, or Enter would put the earlier
+	// bytes back.
 	$effect(() => {
 		if (url === seed) return;
 		seed = url;
@@ -91,12 +91,9 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
-		// The entry chord re-asserts the card the focus is already inside, so it is a no-op here —
-		// but a consumed one: no surface the editor owns hands `Mod+K` back to the browser.
-		// CapsLock uppercases the key without a Shift modifier, which is still the plain chord.
-		if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
-			e.preventDefault();
-		}
+		// The chord that opens the card does nothing inside it, but is still consumed so the
+		// browser never runs its own action for that chord.
+		if (opensCard(e)) e.preventDefault();
 	}
 
 	function handleUrlKeyDown(e: KeyboardEvent): void {
@@ -117,74 +114,128 @@
 	tabindex="-1"
 	onkeydown={handleKeyDown}
 >
-	<label>
-		<span>URL</span>
+	<label class="md-link-card-field">
+		<span class="md-link-card-caption">URL</span>
 		<input
 			bind:this={urlInput}
 			bind:value={draft}
 			type="text"
 			aria-label={LINK_CARD_URL}
+			placeholder="https://"
 			onkeydown={handleUrlKeyDown}
 		/>
 	</label>
 	<div class="md-link-card-actions">
 		<button
 			type="button"
+			class="md-link-card-btn"
+			aria-label={LINK_CARD_OPEN}
+			title={LINK_CARD_OPEN}
 			disabled={openable === undefined}
-			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}>{LINK_CARD_OPEN}</button
+			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}
 		>
+			<MenuIcon name="external-link" />
+		</button>
 		{#if onRemove}
-			<button type="button" onclick={onRemove}>{LINK_CARD_REMOVE}</button>
+			<button
+				type="button"
+				class="md-link-card-btn"
+				aria-label={LINK_CARD_REMOVE}
+				title={LINK_CARD_REMOVE}
+				onclick={onRemove}
+			>
+				<MenuIcon name="unlink" />
+			</button>
 		{/if}
 	</div>
 </div>
 
 <style>
+	/* Styled like the editor's menus (`.md-menu`, editor.css) and the image alt field, so the card
+	   reads as one of the editor's popovers rather than a form. */
 	.md-link-card {
 		position: absolute;
 		top: 0;
 		left: 0;
 		z-index: 100;
-		display: grid;
+		display: flex;
+		align-items: flex-end;
 		gap: 6px;
-		min-width: 280px;
-		padding: 8px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
-		background: var(--color-bg-elevated, #2a2a2a);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		width: 300px;
+		padding: 8px 8px 8px 10px;
+		box-sizing: border-box;
+		background: var(--color-bg, #2c2c2a);
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
+		box-shadow: var(--menu-shadow, 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35));
+		font-family: var(--font-ui, system-ui, sans-serif);
+		font-size: 13px;
+		line-height: 1.4;
+		color: var(--color-text-primary, #e8e8e5);
 	}
-	label {
-		display: grid;
-		grid-template-columns: 40px 1fr;
-		align-items: center;
-		gap: 8px;
+	.md-link-card-field {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
 	}
-	input {
-		padding: 4px 6px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: var(--radius-ui, 3px);
-		background: var(--color-surface, #2d3033);
-		color: var(--color-text-secondary, #eee);
+	.md-link-card-caption {
+		font-size: 10.5px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-text-muted, #aaaaaa);
+	}
+	/* Underlined, not boxed: a box inside the rounded card would read as a frame in a frame. */
+	.md-link-card-field input {
+		width: 100%;
+		box-sizing: border-box;
+		background: transparent;
+		color: var(--color-text-primary, #e8e8e5);
+		border: none;
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 0;
+		padding: 3px 1px 5px;
 		font-family: inherit;
-		font-size: 12px;
+		font-size: 13px;
+		line-height: 1.4;
+		outline: none;
+		transition: border-color 120ms ease-out;
+	}
+	.md-link-card-field input:focus {
+		border-bottom-color: var(--color-accent, #567b67);
+	}
+	.md-link-card-field input::placeholder {
+		color: var(--color-text-muted, #aaaaaa);
 	}
 	.md-link-card-actions {
 		display: flex;
-		gap: 6px;
-		justify-content: flex-end;
+		gap: 2px;
+		/* The buttons sit level with the input's rule, not with the caption. */
+		padding-bottom: 1px;
 	}
-	button {
-		padding: 3px 8px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: var(--radius-ui, 3px);
+	.md-link-card-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		padding: 0;
+		border: none;
+		border-radius: 6px;
 		background: transparent;
-		color: var(--color-text-secondary, #eee);
-		font: inherit;
-		font-size: 12px;
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 	}
-	button:hover {
-		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
+	.md-link-card-btn:hover:not(:disabled),
+	.md-link-card-btn:focus-visible {
+		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
+		color: var(--color-text-primary, #e8e8e5);
+		outline: none;
+	}
+	.md-link-card-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 </style>

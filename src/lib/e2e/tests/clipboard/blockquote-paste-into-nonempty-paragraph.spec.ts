@@ -20,8 +20,8 @@ test.describe('clipboard: blockquote paste into a non-empty blockquote paragraph
 		await editor.bridge.waitForSourceContains('world');
 
 		const src = await editor.bridge.getSource();
-		// The destructive bug produced "> world\n" — "hello" gone. The fix keeps
-		// the original text; default structural paste adds the pasted content.
+		// The paste keeps the original text and adds the pasted content; dropping "hello"
+		// and leaving only "> world" is the failure.
 		expect(src).toContain('hello');
 		expect(src).toContain('world');
 	});

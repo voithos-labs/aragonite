@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-//
 // `editor.getBlockKindAt` through a real mount, reached from the barrel the way a host reaches it:
-// the read that replaces probing the rendered DOM for a block's class.
+// the read a host uses instead of checking the rendered DOM for a block's class.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { AnyBlockKind, EditorInstance } from '$lib';
-import { installLayoutStubs, mountEditor, type MountedEditor } from './editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(() => installLayoutStubs());
 
@@ -48,7 +51,7 @@ describe('the kind-at-path read', () => {
 	});
 
 	// The reason the read exists: a host excluding tables from a selection-anchored affordance
-	// asks the path it already holds, instead of a document-global DOM class probe.
+	// asks the path it already holds, instead of checking a document-global DOM class.
 	it('discriminates a table endpoint from a prose one by path alone', () => {
 		const kindAt = kindReader();
 		const insideTable = (path: number[]) =>

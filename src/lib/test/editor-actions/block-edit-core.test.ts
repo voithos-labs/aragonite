@@ -1,16 +1,12 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CstNode } from '$lib/core/nodes';
 import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 function focusSpy() {
 	const calls: number[] = [];
@@ -18,7 +14,7 @@ function focusSpy() {
 	return { calls, ref };
 }
 
-describe('block-edit core — shared structural decisions', () => {
+describe('block-edit core: shared structural decisions', () => {
 	it('split at a mid offset produces two blocks and a split op', async () => {
 		const { scope, commits, children } = makeCommitScopeStub([leaf('hello world\n')]);
 		await createBlockEditCore(scope).split(0, 5);
@@ -43,9 +39,8 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(content.calls).toEqual([CURSOR_EXACT_START]);
 	});
 
-	// Miss-analysis (GH #98): the split pins asserted block layout, never where the caret
-	// landed; the one focus assertion used a single-block first half, where i + 1 is right.
-	it('a split whose first half reparses plural seats the caret on the second half', async () => {
+	// Miss-analysis (GH #98): the one split caret test had a first half that parsed to one block.
+	it('a split whose first half reparses plural puts the caret on the second half', async () => {
 		// Enter at the end of a blank line inside indented code: the first half parses to
 		// [code, blank], so the second half sits at i + 2.
 		const secondHalf = focusSpy();
@@ -100,7 +95,7 @@ describe('block-edit core — shared structural decisions', () => {
 
 	it('deleteInterior removes the block and emits a delete op targeting it', async () => {
 		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
-		await createBlockEditCore(scope).deleteInterior(1);
+		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
 		expect(children).toHaveLength(1);
 		expect(children[0].raw).toContain('a');
 		expect(commits[0].op.kind).toBe('delete');
@@ -109,7 +104,9 @@ describe('block-edit core — shared structural decisions', () => {
 
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {
 		const rep = makeCommitScopeStub([leaf('x\n')]);
-		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')]);
+		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')], undefined, {
+			snapshotOffset: 0
+		});
 		expect(rep.commits[0].op.kind).toBe('replaceBlock');
 		expect(rep.commits[0].op.detail).toEqual({ count: 2 });
 		expect(rep.children).toHaveLength(2);
@@ -117,12 +114,14 @@ describe('block-edit core — shared structural decisions', () => {
 
 	it('empty replaceBlock removes the block but emits a per-scope op-kind', async () => {
 		const collapsed = makeCommitScopeStub([leaf('x\n'), leaf('y\n')]);
-		await createBlockEditCore(collapsed.scope).replaceBlock(0, []);
+		await createBlockEditCore(collapsed.scope).replaceBlock(0, [], undefined, {
+			snapshotOffset: 0
+		});
 		expect(collapsed.children).toHaveLength(1);
 		expect(collapsed.commits[0].op.kind).toBe('delete');
 
 		const labelled = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse: false });
-		await createBlockEditCore(labelled.scope).replaceBlock(0, []);
+		await createBlockEditCore(labelled.scope).replaceBlock(0, [], undefined, { snapshotOffset: 0 });
 		expect(labelled.children).toHaveLength(1);
 		expect(labelled.commits[0].op.kind).toBe('replaceBlock');
 		expect(labelled.commits[0].op.detail).toEqual({ count: 0 });
@@ -143,20 +142,12 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 });
 
-// The whole-block-focus branch sits before the `!isBlockEditable` check, so the policy
-// overrides the delete-non-editable fallback regardless of editability. Both merge
-// directions are pinned because the bug class here is sibling-path parity.
-describe('block-edit core — whole-block-focus fallback', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
+// The whole-block-focus branch runs before the `!isBlockEditable` check, so it wins over the
+// delete fallback at any editability; both merge directions run so neither can drift alone.
+describe('block-edit core: whole-block-focus fallback', () => {
 	function wholeBlockNode(editable: boolean): CstNode {
-		const kind = declarePluginKind('spec-whole-block');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
+		const kind = testLeaf('spec-whole-block', {
 			editable,
-			supportsInline: false,
-			closure: testClosure,
 			blockFocus: 'whole-block'
 		});
 		return { kind, leadingTrivia: '', raw: 'diagram\n', children: [] };
@@ -201,17 +192,10 @@ describe('block-edit core — whole-block-focus fallback', () => {
 
 // The delete-the-neighbour fallback needs a synthetic kind: every non-editable
 // built-in is a whole-block-focus target, so only a plugin kind still reaches it.
-describe('block-edit core — non-editable neighbour fallback', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
+describe('block-edit core: non-editable neighbour fallback', () => {
 	function inertNode(): CstNode {
-		const kind = declarePluginKind('spec-inert-leaf');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+		const kind = testLeaf('spec-inert-leaf', {
+			editable: false
 		});
 		return { kind, leadingTrivia: '', raw: 'inert\n' };
 	}
@@ -221,8 +205,8 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — both scope factories mint the emitted event
-		// path from this target (top-level parity in top-level-event-paths.test.ts).
+		// The deleted neighbour (i-1), not i: both scope factories build the emitted event
+		// path from this target (the top-level side is in top-level-event-paths.test.ts).
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
@@ -235,9 +219,9 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 	});
 });
 
-// The shipped built-in on the same model, deliberately not a synthetic kind: the point
-// is that thematicBreak's own descriptor carries the declaration its closure cells claim.
-describe('block-edit core — thematicBreak focus-then-delete', () => {
+// The shipped built-in rather than a synthetic kind, so the declaration under test is the one
+// thematicBreak's own descriptor carries.
+describe('block-edit core: thematicBreak focus-then-delete', () => {
 	const rule = () => leaf('---\n');
 
 	it('merge-prev focuses the rule above instead of deleting it', async () => {
@@ -263,32 +247,26 @@ describe('block-edit core — thematicBreak focus-then-delete', () => {
 	});
 });
 
-// Miss-analysis: the wrap-settle pins called the tree op with the container node directly;
-// the core's sinks hand the commit view's shape, whose owner no pin ever asserted.
-describe('block-edit core — wrap-owner threading', () => {
+// Miss-analysis: the wrap fix-up tests passed the container node, never the commit view's shape.
+describe('block-edit core: wrap-owner threading', () => {
 	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
-		// it orphaned and a re-register would collide.
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
 		const doc = parse(':::callout\nA\n\nB\n:::\n');
 		const callout = doc.children[0];
 		const { scope, children } = makeCommitScopeStub(callout.children!, { owner: callout });
 
-		await createBlockEditCore(scope).deleteInterior(1);
+		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
 
 		expect(children.map((c) => c.leadingTrivia + c.raw).join('')).not.toContain('A');
 		expect(callout.innerPrefix).toBe('\n');
 	});
 });
 
-describe('block-edit core — chrome.descendToBody', () => {
-	it('focuses the existing body sibling without minting or committing', async () => {
+describe('block-edit core: chrome.descendToBody', () => {
+	it('focuses the existing body sibling without creating or committing', async () => {
 		const body = focusSpy();
 		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')], {
 			refs: [undefined, body.ref]
@@ -296,11 +274,11 @@ describe('block-edit core — chrome.descendToBody', () => {
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);
-		// An arrival on a block it did not create, so the door — not this caller — picks the byte.
+		// The body already exists, so its own focus, not the descend, picks the byte.
 		expect(body.calls).toEqual([CURSOR_START]);
 	});
 
-	it('mints and focuses an empty body paragraph when the chrome has no body child', async () => {
+	it('creates and focuses an empty body paragraph when the chrome has no body child', async () => {
 		const body = focusSpy();
 		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n')], {
 			refs: [undefined, body.ref]
@@ -314,15 +292,15 @@ describe('block-edit core — chrome.descendToBody', () => {
 		expect(body.calls).toEqual([0]);
 	});
 
-	// The minted body IS a line ending, so a defaulted `\n` strands a lone LF
+	// The new body is nothing but a line ending, so a default `\n` would leave a lone LF
 	// inside a CRLF container (G4.20).
-	it('the minted body paragraph takes the chrome sibling’s line ending', async () => {
+	it('the created body paragraph takes the chrome sibling’s line ending', async () => {
 		const { scope, children } = makeCommitScopeStub([leaf('Title\r\n')]);
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(children[1].raw).toBe('\r\n');
 	});
 
-	it('consumes the key without minting when the body ref is windowed out', async () => {
+	it('consumes the key without creating when the body ref is windowed out', async () => {
 		// Empty refs: the body child exists in the array but is windowed out.
 		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')]);
 		await createBlockEditCore(scope).descendToBody(0);

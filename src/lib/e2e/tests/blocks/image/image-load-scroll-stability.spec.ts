@@ -7,10 +7,8 @@ import { capturePageErrors } from '../../../page-probes';
 // sets none.
 test.use({ viewport: { width: 1000, height: 600 } });
 
-// A remote image with no width/height reserves no box until it decodes, then grows asynchronously.
-// The editor disables native overflow-anchor, so growth above the viewport slides the visible
-// content unless the editor re-measures and anchor-corrects on load
-// (requirements/blocks/image/image-load-scroll-stability.md).
+// An image with no width or height reserves no box until it decodes, and the editor disables native
+// overflow-anchor, so it must correct the scroll on load itself.
 
 // Held until releaseImage() so load timing is deterministic. No |WxH hint in the alt,
 // so the <img> gets no dimension attributes and reserves no height before it loads.
@@ -27,7 +25,7 @@ function paragraphs(prefix: string, n: number): string[] {
 }
 
 // ~65 blocks @ ~40px estimate + a 200px image floor ≈ 2800px < the 4000px watermark, so
-// windowing stays INACTIVE (every block mounts) while the doc still scrolls.
+// windowing stays off (every block mounts) while the document still scrolls.
 const INACTIVE_DOC = [
 	'# Inactive windowing',
 	...paragraphs('Above', 5),
@@ -36,8 +34,8 @@ const INACTIVE_DOC = [
 	'PROBE ANCHOR TAIL'
 ].join('\n\n');
 
-// ~160 blocks clears the 4000px watermark, so windowing ACTIVATES; the image sits a few blocks down
-// so it can scroll into the overscan band above the viewport while staying mounted.
+// ~160 blocks clears the 4000px watermark, so windowing turns on; the image sits a few blocks down
+// so it can scroll into the band above the viewport while staying mounted.
 const ACTIVE_DOC = [
 	'# Active windowing',
 	...paragraphs('Above', 4),
@@ -82,8 +80,8 @@ async function expectNoShiftOnImageLoad(
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Hold the image response so it stays in its pre-decode (zero-height) state until we
-	// release it. Installed after goto so the harness-ready wait isn't affected.
+	// Holds the image response so it stays zero-height until released; installed after goto so the
+	// harness-ready wait is unaffected.
 	let releaseImage!: () => void;
 	const imageGate = new Promise<void>((resolve) => {
 		releaseImage = resolve;
@@ -99,8 +97,8 @@ async function expectNoShiftOnImageLoad(
 
 	await editor.scrollEditorTo(await scrollTo(page));
 
-	// Preconditions: the windowing mode is the one under test, the image is mounted and
-	// fully above the viewport, and it has NOT loaded — else the test can't observe a shift.
+	// Preconditions: windowing is in the state under test, the image is mounted and fully above
+	// the viewport, and it has not loaded, or there is no shift to observe.
 	const pre = await page.evaluate(() => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
 		const host = document
@@ -153,7 +151,7 @@ async function expectNoShiftOnImageLoad(
 	await editor.waitForResizeObserverFlush();
 	await editor.waitForRenderFlush();
 
-	// Sanity: the image actually grew — otherwise the stability assertion is vacuous.
+	// Sanity: the image really grew, or the stability assertion is vacuous.
 	const imageHeightAfter = (await imageHostHeight(page))!;
 	expect(imageHeightAfter - imageHeightBefore).toBeGreaterThan(100);
 
@@ -173,8 +171,10 @@ test('unsized image loading above the viewport does not shift the reading positi
 	await expectNoShiftOnImageLoad(page, INACTIVE_DOC, SCROLL_TO_BOTTOM, false);
 });
 
-test('unsized image loading above the viewport does not shift the reading position (windowing active)', async ({
-	page
-}) => {
-	await expectNoShiftOnImageLoad(page, ACTIVE_DOC, SCROLL_JUST_PAST_IMAGE, true);
+test.describe('windowing active', () => {
+	test('unsized image loading above the viewport does not shift the reading position (windowing active)', async ({
+		page
+	}) => {
+		await expectNoShiftOnImageLoad(page, ACTIVE_DOC, SCROLL_JUST_PAST_IMAGE, true);
+	});
 });

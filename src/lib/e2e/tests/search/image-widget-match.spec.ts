@@ -5,7 +5,7 @@ import { activeOverlays, count, openFind, overlays } from './helpers';
 // An atomic image widget contributes 0 chars to textContent, so a match landing entirely
 // inside its source range collapses to a zero-width range unless the highlight is measured
 // over the widget's own box.
-test.describe('search — image-widget matches', () => {
+test.describe('search: image-widget matches', () => {
 	test('a match inside an image alt text paints a visible overlay over the widget', async ({
 		page
 	}) => {
@@ -18,9 +18,8 @@ test.describe('search — image-widget matches', () => {
 		await page.keyboard.type('needle');
 
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-		// The explicit width gives the widget a deterministic layout width whether or not the
-		// image loads, so WIDTH — not height, which an unloaded image leaves 0 — is the
-		// network-independent signal that the highlight covers it.
+		// The explicit width holds whether or not the image loads, while an unloaded image's height
+		// stays 0, so width is the network-independent sign the highlight covers it.
 		await expect(overlays(page)).toHaveCount(1);
 		const width = await overlays(page)
 			.first()
@@ -38,8 +37,8 @@ test.describe('search — image-widget matches', () => {
 	test('matches in the image URL seed also paint over the widget', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
-		// The needle lives only in the URL (inside the widget source range), nowhere
-		// in textContent — exercises the same fully-inside-a-widget collapse.
+		// The needle lives only in the URL (inside the widget's source range) and nowhere in
+		// textContent, which is the same fully-inside-a-widget collapse.
 		await editor.loadContent('- ![alt|120](https://picsum.photos/seed/needleseed/120/80)\n');
 		await editor.waitForRenderFlush();
 

@@ -2,102 +2,108 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import type { BlockComponent } from '$lib/block-component';
-import { makeShimDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { descendTo, type ChildList } from '$lib/reactivity/child-list';
+import {
+	makeShimChildList,
+	makeShimDeps,
+	stubBlockComponent
+} from '$lib/test/harness/editor-actions';
 
-// A reveal aimed into a COLLAPSED container opens its expand door first, so the descent
-// runs against the post-expansion window instead of dead-ending on the clamp. The door
-// itself is composed a layer up and pinned in `test/plugins/expand-door.test.ts`.
+// A navigation aimed into a collapsed container opens it first, so the descent runs against the
+// opened tree; `test/plugins/expand-door.test.ts` covers the open itself.
 
-function shim(over: {
-	refs: (BlockComponent | undefined)[];
-	isCollapsed?: () => boolean;
-	expandCollapsed?: () => Promise<boolean>;
-}): BlockComponent {
+function container(
+	refs: (BlockComponent | undefined)[],
+	over: Partial<ChildList> = {}
+): BlockComponent {
 	return createContainerBlockComponent(
-		makeShimDeps(over.refs, {
-			isCollapsed: over.isCollapsed,
-			expandCollapsed: over.expandCollapsed
-		})
+		makeShimDeps(refs, { childList: makeShimChildList(refs, over) })
 	);
 }
 
-describe('revealByPath — expanding a collapsed container', () => {
-	it('opens the door for a body target and resolves the child the expansion mounted', async () => {
-		const body = mockRef();
-		const refs: (BlockComponent | undefined)[] = [mockRef(), undefined];
-		// Awaiting the door before reading the slot is the whole ordering contract.
-		const expandCollapsed = vi.fn(async () => {
+/** A root list holding one block, the container under test. */
+const rootHolding = (block: BlockComponent): ChildList => makeShimChildList([block]);
+
+describe('descendTo, opening a collapsed container', () => {
+	it('opens the body for a body target and resolves the child the open mounted', async () => {
+		const body = stubBlockComponent();
+		const refs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
+		// Awaiting the open before reading the ref is the whole ordering contract.
+		const openCollapsed = vi.fn(async () => {
 			refs[1] = body;
 			return true;
 		});
+		const root = rootHolding(container(refs, { isCollapsed: () => true, openCollapsed }));
 
-		const resolved = await shim({ refs, isCollapsed: () => true, expandCollapsed }).revealByPath!([
-			1
-		]);
+		const resolved = await descendTo(root, [0, 1], { openCollapsed: true });
 
-		expect(expandCollapsed).toHaveBeenCalledTimes(1);
+		expect(openCollapsed).toHaveBeenCalledTimes(1);
 		expect(resolved).toBe(body);
 	});
 
-	it('leaves the chrome row alone — child 0 stays mounted while collapsed', async () => {
-		const chrome = mockRef();
-		const expandCollapsed = vi.fn(async () => true);
+	it('never opens it for a descent that did not ask, and stops at the hidden body', async () => {
+		const openCollapsed = vi.fn(async () => true);
+		const root = rootHolding(
+			container([stubBlockComponent(), undefined], { isCollapsed: () => true, openCollapsed })
+		);
 
-		const resolved = await shim({
-			refs: [chrome],
-			isCollapsed: () => true,
-			expandCollapsed
-		}).revealByPath!([0]);
-
-		expect(expandCollapsed).not.toHaveBeenCalled();
-		expect(resolved).toBe(chrome);
+		expect(await descendTo(root, [0, 1])).toBeNull();
+		expect(openCollapsed).not.toHaveBeenCalled();
 	});
 
-	it('does not open the door for an already-open container', async () => {
-		const expandCollapsed = vi.fn(async () => true);
-		const refs = [mockRef(), mockRef()];
+	it('leaves the title row alone: child 0 stays mounted while collapsed', async () => {
+		const title = stubBlockComponent();
+		const openCollapsed = vi.fn(async () => true);
+		const root = rootHolding(container([title], { isCollapsed: () => true, openCollapsed }));
 
-		await shim({ refs, isCollapsed: () => false, expandCollapsed }).revealByPath!([1]);
+		const resolved = await descendTo(root, [0, 0], { openCollapsed: true });
 
-		expect(expandCollapsed).not.toHaveBeenCalled();
+		expect(openCollapsed).not.toHaveBeenCalled();
+		expect(resolved).toBe(title);
 	});
 
-	// The honest-boolean floor: a kind declaring no expand door reveals as it did before
-	// the door existed.
-	it('degrades when the kind declares no door', async () => {
-		const resolved = await shim({
-			refs: [mockRef(), undefined],
-			isCollapsed: () => true
-		}).revealByPath!([1]);
+	it('does not open an already-open container', async () => {
+		const openCollapsed = vi.fn(async () => true);
+		const refs = [stubBlockComponent(), stubBlockComponent()];
+		const root = rootHolding(container(refs, { isCollapsed: () => false, openCollapsed }));
 
-		expect(resolved).toBeNull();
+		await descendTo(root, [0, 1], { openCollapsed: true });
+
+		expect(openCollapsed).not.toHaveBeenCalled();
 	});
 
-	it('expands every collapsed ancestor on the path, outermost first', async () => {
+	// A kind that declares no open gives up with null rather than waiting on the body.
+	it('degrades when the kind declares no way to open', async () => {
+		const root = rootHolding(
+			container([stubBlockComponent(), undefined], { isCollapsed: () => true })
+		);
+
+		expect(await descendTo(root, [0, 1], { openCollapsed: true })).toBeNull();
+	});
+
+	it('opens every collapsed ancestor on the path, outermost first', async () => {
 		const order: string[] = [];
-		const target = mockRef();
-		const innerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
-		const inner = shim({
-			refs: innerRefs,
+		const target = stubBlockComponent();
+		const innerRefs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
+		const inner = container(innerRefs, {
 			isCollapsed: () => true,
-			expandCollapsed: async () => {
+			openCollapsed: async () => {
 				order.push('inner');
 				innerRefs[1] = target;
 				return true;
 			}
 		});
-		const outerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
-		const outer = shim({
-			refs: outerRefs,
+		const outerRefs: (BlockComponent | undefined)[] = [stubBlockComponent(), undefined];
+		const outer = container(outerRefs, {
 			isCollapsed: () => true,
-			expandCollapsed: async () => {
+			openCollapsed: async () => {
 				order.push('outer');
 				outerRefs[1] = inner;
 				return true;
 			}
 		});
 
-		const resolved = await outer.revealByPath!([1, 1]);
+		const resolved = await descendTo(rootHolding(outer), [0, 1, 1], { openCollapsed: true });
 
 		expect(order).toEqual(['outer', 'inner']);
 		expect(resolved).toBe(target);

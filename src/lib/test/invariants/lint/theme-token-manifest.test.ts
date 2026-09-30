@@ -1,15 +1,13 @@
 /**
- * Drift guard for the published theme-token manifest, pinning the consumer guide's "Theme
- * tokens" role table to `editor-theme.css`. The contract is both-themes: a themed token
- * carries a light AND a dark value, and since it can satisfy that with the SAME value
- * twice, values are compared too and a deliberate one-value token joins
- * MODE_BLIND_BY_DESIGN. The manifest derives from the guide's own table rather than being
- * a hand-kept mirror.
+ * The consumer guide's "Theme tokens" role table, read as the published manifest, matches
+ * `editor-theme.css`. A themed token carries a light and a dark value; the same value twice
+ * would satisfy that, so values are compared too and a deliberate one-value token joins
+ * MODE_BLIND_BY_DESIGN.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { readEditorFile, stripComments } from './scan-source';
+import { readEditorFile } from './scan-source';
 import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
@@ -59,7 +57,7 @@ function themeTokenSection(): string {
 }
 
 /**
- * Tokens named by the section's role table. Table ROWS only: the surrounding prose names
+ * Tokens named by the section's role table. Table rows only: the surrounding prose names
  * tokens too, and a manifest that absorbed prose would drift on a wording edit.
  */
 function tokensInTable(section: string): string[] {
@@ -84,14 +82,14 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 		const repeatsDarkValue = declaredValue(base, token) === declaredValue(light, token);
 		expect(
 			repeatsDarkValue ? token in MODE_BLIND_BY_DESIGN : true,
-			`${token} repeats its dark value in the light block — give it a light value or record it in MODE_BLIND_BY_DESIGN`
+			`${token} repeats its dark value in the light block: give it a light value or record it in MODE_BLIND_BY_DESIGN`
 		).toBe(true);
 	});
 
 	it('every MODE_BLIND_BY_DESIGN entry is a live one (no stale exemption)', () => {
 		for (const token of Object.keys(MODE_BLIND_BY_DESIGN)) {
 			expect(THEMED_TOKENS, `${token} is not a themed token`).toContain(token);
-			expect(declaredValue(base, token), `${token} now differs per mode — drop its exemption`).toBe(
+			expect(declaredValue(base, token), `${token} now differs per mode: drop its exemption`).toBe(
 				declaredValue(light, token)
 			);
 		}
@@ -99,7 +97,7 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 
 	// Non-vacuity: a broken split (empty light block) passes every "both" assertion.
 	it('the block split and matcher are non-vacuous', () => {
-		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+		const css = readEditorFile('styles/editor-theme.css').code;
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
 		expect(declares(base, '--color-error')).toBe(true);
 		expect(declares(light, '--color-error')).toBe(true);
@@ -124,7 +122,7 @@ describe('theme-token manifest ↔ consumer-guide § Theme tokens', () => {
 	it('the section slice and row filter are non-vacuous', () => {
 		const section = themeTokenSection();
 		expect(section).not.toBe('');
-		// Named by the theming prose ABOVE the section, so reaching it means the slice has
+		// Named by the theming prose above the section, so reaching it means the slice has
 		// no upper bound.
 		expect(tokensInTable(section)).not.toContain('--syntax-heading');
 		expect(tokensInTable('| Role | `--in-table` |\nProse names `--in-prose`.')).toEqual([

@@ -1,12 +1,12 @@
-# Feature: Table block — keyboard navigation
+# Feature: Table block, keyboard navigation
 
 ## Happy paths
 
 - Tab from a non-last cell moves to the next cell (right; wraps to next row's first cell).
 - Tab from the last cell of the last row creates a new empty row and focuses its first cell.
-- ArrowRight from the end of the block above enters the FIRST cell at its start — typed text lands before the cell's existing content.
-- ArrowLeft from the start of the block below enters the LAST cell at its end — typed text lands after the cell's existing content.
-- ArrowUp / ArrowDown move to the cell directly above / below in the same column. Both directions land the caret at the start of the target cell — symmetric so a press-and-press-back round-trip restores the original cursor position.
+- ArrowRight from the end of the block above enters the first cell at its start, so typed text lands before the cell's existing content.
+- ArrowLeft from the start of the block below enters the last cell at its end, so typed text lands after the cell's existing content.
+- ArrowUp / ArrowDown move to the cell directly above / below in the same column. Both directions land the caret at the start of the target cell, so pressing one and pressing back restores the original cursor position.
 - ArrowDown from the bottom row exits the table downward into the next block; the caret lands at the sticky-X column on the next block's first visual line, matching how vertical navigation works between paragraphs.
 - ArrowUp from the top row exits the table upward into the previous block; the caret lands at the sticky-X column on the previous block's last visual line.
 - Enter in a non-last row moves to the cell directly below in the same column.
@@ -14,12 +14,12 @@
 
 ## Miss-analysis
 
-- Horizontal table ENTRY: when the arrival branch moved `start` arrivals from a literal 0 to CURSOR_START, no spec pinned entry into a table from a horizontal arrow, so TableBlock's unconverted doors stayed green. The class is a shared arrival contract whose per-kind doors are converted one at a time — every kind's entry needs its own pin, not just the kind the change was written against.
+- Entering a table horizontally: when the arrival branch moved `start` arrivals from a literal 0 to CURSOR_START, no spec pinned entry into a table from a horizontal arrow, so TableBlock's unconverted entry points stayed green. The general case is a shared arrival contract whose per-kind entry points are converted one at a time, so every kind's entry needs its own pin, not just the kind the change was written against.
 
 ## Behavior pinned outside this spec
 
-These ship and are guarded, but by other sinks: the cell keydown plan is unit-owned by
-`cell-keydown-plan.test.ts` with the cell-to-cell math in `table-navigation.test.ts`, and the
+These ship and are guarded, but elsewhere: the cell keydown plan is owned by the unit test
+`cell-keydown-plan.test.ts` with the cell-to-cell arithmetic in `table-navigation.test.ts`, and the
 sticky-X hand-off is pinned e2e by `sticky-column-windowed.md` and `wide-table-scroll.md` with the
 column-from-X mapping in `cell-x-mapping.test.ts`.
 

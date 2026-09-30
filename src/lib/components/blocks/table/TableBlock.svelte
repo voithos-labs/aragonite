@@ -1,50 +1,35 @@
 <script lang="ts">
 	import { setContext, getContext, untrack, tick } from 'svelte';
-	import type {
-		BlockEditActions,
-		CellPosition,
-		ContainerEditActions,
-		FocusActions,
-		TableAxisAction,
-		TableContext
-	} from '../../../action-contracts';
+	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
 		CURSOR_END,
 		CURSOR_START,
+		entryEdge,
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
-		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
 		TABLE_CONTEXT_KEY,
 		type EditorDoc,
-		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX } from '../../../cursor/coordinate-spaces';
+	import { asEditorX, docPathFrom } from '../../../cursor/coordinate-spaces';
+	import { observeResize } from '../../../cursor/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
-	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
+	import { componentAt, type ChildList } from '../../../reactivity/child-list';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
@@ -62,36 +47,41 @@
 		myPath: number[];
 	} = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const {
+		state: rowsState,
+		parent: { focus: focusActions, containerEdit: parentContainerEdit }
+	} = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		childList: () => rowList
+	});
 	const {
 		controller,
-		stickyColumn: editorStickyColumn,
+		// The table holds only the column write its exits need; every other caret memory call is
+		// the cell's, through the shared editable surface.
+		caretMemory: { captureColumn: captureExitColumn },
 		selection,
-		reorderAnnounce: announceReorder,
-		registryView
+		menuPresence,
+		caretLanding,
+		rangeCoverage
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
-		linkRef
+		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	// Every menu item mutates the table, so reading mode declines to open it and the
-	// native context menu (with Copy) shows instead.
-	const readOnly = $derived(getPresentationMode() === 'reading');
+	// Every menu item changes the table, so reading mode refuses to open it and the
+	// browser's own context menu, with Copy, shows instead.
+	const readOnly = $derived(reading.mode() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	// A column reorder permutes cells while leaving columnCount and widthVersion untouched, so it
-	// alone can't invalidate the monotonic width floors below; the header row's cell bytes permute
-	// with it, so the measure epoch folds them in. The bytes, not the row's `childIds`: those are
-	// minted at the row's first mount, so a windowed-out header row would hold the epoch still
-	// across the very reorder it exists to catch.
+	// A column move changes neither the count nor the width, so the width floors below also key
+	// on the header row's cell bytes (not its ids, which an unmounted header row lacks).
 	const columnStructureToken = $derived(
 		// The grammar keeps a cell to one line, so a newline joiner cannot be confused for content.
 		(node.children?.[0]?.children ?? []).map((cell) => cell.raw).join('\n')
@@ -111,56 +101,31 @@
 	}
 	let tableEl: HTMLDivElement | undefined = $state();
 
-	const rowsState = createBlockListState(() => node);
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(rowsState, {
-		scope,
-		stickyColumn: editorStickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: focusActions,
-			containerEdit: parentContainerEdit
-		}
-	});
-
-	setNestedActionsContexts(bundle);
-
 	// ── Virtual rendering (row windowing) ───────────────────────────────
 
 	const windowing = useContainerWindowing({
-		getIndex: () => index,
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => rowsState.innerBlockIds,
-		// The .table-block grid IS the content origin (holds spacers + rows).
-		getListEl: () => tableEl ?? null,
-		// The table is itself a BlockHost block; match the leaf channel the parent measured
-		// for it, so the subtotal reported up doesn't fight that slot.
-		getOwnEl: () => tableEl?.closest('.block-host') ?? null,
-		provideLeafChannel: false
+		// The .table-block grid is the content origin: it holds the spacers and the rows.
+		getListEl: () => tableEl ?? null
 	});
 
 	let win = $derived(windowing.window);
+	useWindowFloor(
+		() => tableEl,
+		() => win
+	);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
-	// Pin each column track to the widest cell SEEN across all windowed-in rows: a bare
-	// `minmax(80px, max-content)` sizes to the mounted cells, so a column jumps width as a
-	// wide cell scrolls out of the mounted set (F6). The floor only ever grows.
+	const rowList: ChildList = {
+		count: () => rowCount,
+		refs: rowsState.refSlots,
+		windowing
+	};
+
+	// Each column holds the widest cell any mounted row has shown, so a column does not narrow
+	// as row windowing unmounts its widest cell. The floor only grows.
 	let columnMaxWidths = $state<number[]>([]);
 
 	const trackTemplate = $derived(
@@ -172,9 +137,8 @@
 
 	let measuredColumnEpoch = '';
 
-	// An epoch change resets the cache first: the old maxes are stale, and monotonic-grow
-	// would otherwise pin a track too wide. Within a stable epoch the floor only grows and
-	// only bumps state on an increase, so the effect settles rather than spinning.
+	// A new measure token clears the stale maxima; otherwise the floors only grow and write state
+	// only on an increase, so the effect stops re-running.
 	$effect(() => {
 		void win;
 		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}:${columnStructureToken}`;
@@ -232,7 +196,7 @@
 	}
 
 	const mutations = createTableMutationsContext({
-		grammar: registryView.grammar,
+		reading,
 		get node() {
 			return node;
 		},
@@ -246,13 +210,15 @@
 			return focusedCell;
 		},
 		parentContainerEdit,
-		controller,
-		focusCell,
-		announceReorder
+		controller
 	});
 
 	const ctx: TableContext = {
-		focusCell,
+		focusCell(rowIdx, colIdx, position) {
+			focusCell(rowIdx, colIdx, position);
+			focusActions.followArrival([...myPath, rowIdx, colIdx]);
+		},
+		revealColumn,
 		getStickyColumn() {
 			return internalStickyColumn;
 		},
@@ -263,14 +229,14 @@
 			internalStickyColumn = null;
 		},
 		exitUpward(stickyX) {
-			editorStickyColumn.capture(asEditorX(stickyX));
+			captureExitColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
 				stickyColumnFrom: 'below'
 			});
 		},
 		exitDownward(stickyX) {
-			editorStickyColumn.capture(asEditorX(stickyX));
+			captureExitColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
 				stickyColumnFrom: 'above'
@@ -306,9 +272,8 @@
 	// A live rectangle suppresses the cell-local selection, so the menu reads it
 	// separately to keep Cut/Copy enabled.
 	const rectActive = $derived.by(() => {
-		if (!selection) return false;
-		const rect = intraTableRect(selection);
-		return rect !== null && pathsEqual(rect.tablePath, myPath);
+		const grid = rangeCoverage()?.grid;
+		return !!grid && pathsEqual(grid.path, myPath);
 	});
 
 	const menuItems = $derived(
@@ -320,10 +285,8 @@
 			: []
 	);
 
-	// Notion's edge affordances: a strip past the table's right edge adds a column, one below
-	// it adds a row. Each shows on hover of its strip, and stays shown while the caret is in
-	// the last column / row. Geometry is the table's own box, measured after layout settles and
-	// again whenever the table resizes.
+	// The add-column and add-row strips show on hover, and stay shown while the caret is in the
+	// last column or row.
 	const addAffordance = $derived({
 		column: !readOnly && caretCell?.colIdx === columnCount - 1,
 		row: !readOnly && caretCell?.rowIdx === rowCount - 1
@@ -346,9 +309,7 @@
 			};
 		};
 		void tick().then(measure);
-		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-		observer?.observe(el);
-		return () => observer?.disconnect();
+		return observeResize(el, measure);
 	});
 
 	// The open point as an offset into an element's box, so a scroll re-reads it where the
@@ -364,7 +325,7 @@
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
-		return getBlockComponentByPath([rowIdx, colIdx]);
+		return componentAt(rowList, [rowIdx, colIdx]);
 	}
 
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
@@ -376,8 +337,8 @@
 		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, anchor };
 	}
 
-	// preventDefault only over a cell, so a right-click in the table's padding gaps keeps
-	// the native menu.
+	// `preventDefault` only over a cell, so a right-click in the table's padding gaps keeps
+	// the browser's menu.
 	function openCellMenu(e: MouseEvent): void {
 		if (readOnly || !tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
@@ -387,7 +348,7 @@
 	}
 
 	// Keyboard equivalent of the cell right-click, bubbling up from the cell;
-	// preventDefault suppresses the native context menu the key would trigger.
+	// `preventDefault` suppresses the browser's context menu the key would trigger.
 	function onTableKeyDown(e: KeyboardEvent): void {
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
 		if (readOnly || !opensMenu || !focusedCell) return;
@@ -397,19 +358,20 @@
 		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
-	// The restore goes through `focusCell`: a bare `el.focus()` on a contenteditable seats no
-	// typeable caret.
+	// Through the caret landing, which mounts the row: it can scroll out of the row window while
+	// the menu is open.
 	async function closeMenuRestoringFocus(): Promise<void> {
 		const target = menu?.target;
-		const offset = menu?.clipboardSel?.start ?? 'start';
+		const offset = menu?.clipboardSel?.start ?? CURSOR_START;
 		menu = null;
 		if (!target) return;
 		await tick();
-		focusCell(target.rowIdx, target.colIdx, offset);
+		const path = docPathFrom([...myPath, target.rowIdx, target.colIdx]);
+		await caretLanding.land({ path, offset }, { reveal: 'mount' });
 	}
 
-	// A right-click seats no caret, so without this an action's focus-follow reads no focused
-	// cell and lands in column 0 (or row 0) of what it moved.
+	// A right-click places no caret, so without this an action's follow-the-focus reads no
+	// focused cell and lands in column 0, or row 0, of what it moved.
 	function seatMenuCaret(): void {
 		if (!menu) return;
 		const { rowIdx, colIdx } = menu.target;
@@ -439,7 +401,7 @@
 		menu = null;
 	}
 
-	// ── focusout: reset internal sticky when focus leaves the table ────────
+	// ── Sticky column resets when focus leaves the table ───────────────────
 
 	$effect(() => {
 		if (!tableEl) return;
@@ -459,29 +421,25 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// 2D surface — one integer can't address a cell, so both caret doors mirror
-	// `createContainerBlockComponent`'s 0-or-last collapse and cell callers use
-	// `focusByPath`.
-	function tableLanding(offset: number): {
-		rowIdx: number;
-		colIdx: number;
-		position: CellPosition;
-	} {
-		return offset === 0 || offset === CURSOR_START
-			? { rowIdx: 0, colIdx: 0, position: 'start' }
-			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, position: 'end' };
+	// One integer cannot address a cell, so an entry offset lands in the first or the last cell; a
+	// caller that names a cell uses `focusByPath`.
+	function entryCell(offset: number): { rowIdx: number; colIdx: number; at: number } {
+		const edge = entryEdge(offset);
+		return edge.child === 'first'
+			? { rowIdx: 0, colIdx: 0, at: edge.offset }
+			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, at: edge.offset };
 	}
 
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
-		const { rowIdx, colIdx, position } = tableLanding(offset);
-		focusCell(rowIdx, colIdx, position);
+		const { rowIdx, colIdx, at } = entryCell(offset);
+		focusCell(rowIdx, colIdx, at);
 	});
 
 	export function parkCaret(offset: number): void {
 		if (rowCount === 0) return;
-		const { rowIdx, colIdx, position } = tableLanding(offset);
-		cellRefAt(rowIdx, colIdx)?.parkCaret?.(position === 'start' ? CURSOR_START : CURSOR_END);
+		const { rowIdx, colIdx, at } = entryCell(offset);
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(at);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -497,33 +455,11 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.getBlockComponentByPath?.(rest) ?? null;
+	export function childList(): ChildList {
+		return rowList;
 	}
 
-	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		await revealChildOrWait(rowIdx, {
-			slots: rowsState.refSlots,
-			childCount: rowCount,
-			revealChild: windowing.revealChild,
-			isInWindow: windowing.isInWindow
-		});
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.revealByPath
-			? await rowRef.revealByPath(rest)
-			: (rowRef.getBlockComponentByPath?.(rest) ?? null);
-	}
-
-	// See `focus()` — 2D surface, no shallow offset; `getCursorPosition` carries it.
+	// See `focus()`: two-dimensional, so there is no single offset; `getCursorPosition` has it.
 	export function getCursorOffset(): number | null {
 		return null;
 	}
@@ -540,7 +476,7 @@
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
 		const cells = selectedCells({
-			rect: selection ? intraTableRect(selection) : null,
+			grid: rangeCoverage()?.grid ?? null,
 			myPath,
 			start,
 			end,
@@ -565,9 +501,8 @@
 		return { start: win.start, end: win.end };
 	}
 
-	// A press beside the table runs the same cell drag a press IN a cell runs, anchored at the
-	// nearest cell — so a sweep that starts in the margin grows the same rectangle it would from
-	// that cell, and leaves the table as a cross-block range the same way.
+	// A press beside the table starts the cell drag from the nearest cell, so a drag from the
+	// margin grows the same rectangle a drag from that cell would.
 	export function startDragAtPoint(clientX: number, clientY: number, e: PointerEvent): boolean {
 		if (!tableEl || readOnly) return false;
 		const host = tableEl.parentElement;
@@ -598,8 +533,7 @@
 		parkCaret,
 		focusAtColumn,
 		focusByPath,
-		getBlockComponentByPath,
-		revealByPath,
+		childList,
 		getCursorOffset,
 		getCursorPosition,
 		measurePartialRects,
@@ -621,8 +555,7 @@
 	}
 </script>
 
-<!-- Delegated listeners for the cell grid (cells are the interactive surfaces); the
-     table-vs-grid role question is the 1.1 shell a11y decision. -->
+<!-- Delegated listeners for the cell grid, since the cells are what the user interacts with. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={tableEl}
@@ -632,12 +565,12 @@
 	oncontextmenu={openCellMenu}
 	onkeydown={onTableKeyDown}
 >
-	<!-- The block boundaries stay whitespace-adjacent: a stray text node joins the raw-offset
-	     walk and shifts a parked caret (cursor/widget-offset.ts). -->
+	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
+	     and shifts a remembered caret (cursor/widget-offset.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key carry the absolute row index
+		<!-- `index`, `myPath` and the key all carry the absolute row index
 		     (bounds.start + localIndex), never the local loop index. -->
 		{@const rowIdx = bounds.start + localIndex}
 		<TableRowBlock
@@ -663,6 +596,7 @@
 			anchor={menu.anchor}
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}
+			{menuPresence}
 		/>
 	{/if}
 </div>
@@ -702,19 +636,20 @@
 <style>
 	.table-block {
 		display: grid;
+		/* Rows keep their own heights while the box is held at its table height (`useWindowFloor`);
+		   a row stretched into that hold would measure it back as its own height. */
+		align-content: start;
 		width: max-content;
 		max-width: 100%;
 		overflow-x: auto;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-border, #3e3e3b) transparent;
-		/* The two sides the cells do not draw — see `.table-cell`. */
+		/* The two sides the cells do not draw; see `.table-cell`. */
 		border-top: 1px solid var(--color-border, #3e3e3b);
 		border-left: 1px solid var(--color-border, #3e3e3b);
 	}
-	/* The edge strips sit in the host's box beside and below the grid, out of the grid's own
-	   scroller, and start exactly at the table's edge so they never cover a cell. Pure-CSS
-	   reveal on hover; `.table-add-pinned` is the caret's claim. The mousedown is swallowed so
-	   the cell keeps the caret that pinned them. */
+	/* The edge strips sit outside the grid's scroller, starting at the table's edge so they never
+	   cover a cell; `.table-add-pinned` means the caret holds them open. */
 	.table-add-zone {
 		position: absolute;
 		z-index: 3;
@@ -739,7 +674,7 @@
 		border: 1px solid var(--color-border, #3e3e3b);
 		border-radius: 3px;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 120ms ease-out;

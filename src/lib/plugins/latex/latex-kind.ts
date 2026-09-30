@@ -1,8 +1,8 @@
 /**
- * Inline `$…$` math and the two display-math block forms, as source-holding leaf
- * kinds. Engine-free: the render engine is injected through the `math-renderer` seam,
- * never imported here. Recognition is gated on registration, so with no extension
- * loaded parsing stays byte-identical to bare GFM.
+ * Inline `$…$` math and the two display-math block forms, as block kinds that hold their own
+ * source. No renderer here: `math-renderer.ts` is handed one, and this file never imports one.
+ * Recognition starts only once the plugin registers, so without it parsing stays byte-identical
+ * to plain GFM.
  */
 
 import {
@@ -14,18 +14,28 @@ import {
 	registerInlineWidgetKind,
 	registerBlockKind,
 	registerBlockOpener,
-	isInlineKindDeclared,
 	simpleLeafClosure,
-	matchFenceOpen,
-	matchFenceClose,
+	fenceAnatomy,
+	fenceRawWrite,
+	fenceShapeOfRaw,
+	matchFenceInfo,
+	scanFence,
 	OPENER_PRIORITIES,
+	trimTrailingLineEnding,
+	displayLines,
+	joinDisplayLines,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	trimWhitespace,
 	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
-	type FenceOpen
+	type WriteContext,
+	type WriteRule
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
@@ -34,7 +44,6 @@ export const MATH_FENCE = 'mathFence';
 
 // ── Recognition ──────────────────────────────────────────────────────────────
 
-const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 function indexDollars(raw: string): Int32Array {
@@ -52,11 +61,8 @@ const nextDollarFrom = createScanIndex(indexDollars);
 /** Money, written the way prose writes it: a whole number between the delimiters. */
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
-/**
- * Pandoc's rule, with one divergence of ours. An attempt ENDS at the next `$`, whichever it is,
- * and a bad closer leaves the opener literal; a closer needs a non-space before it and no digit
- * after it. Ours: a span that is only a number is a price (`$5$`), so a typed price stays prose.
- */
+/** Pandoc's rule: a match ends at the next `$`, and a closer with a space before it or a digit
+ *  after leaves the opener literal. Added: a span that is only a number (`$5$`) stays prose. */
 function recognizeMath(
 	raw: string,
 	pos: number,
@@ -66,16 +72,16 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespace(opener)) return null;
+	if (isFlankingSpace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
-	// opener, or the attempt would end on its own twin.
+	// opener, or the match would end on the second `$` of its own opener.
 	if (opener === '$') return null;
 
-	// The index spans the whole block, so `end` decides the claim: a closer past the
-	// scan range leaves the `$` literal.
+	// The index spans the whole block, so `end` is what decides: a closer past the scan
+	// range leaves the `$` literal.
 	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
-	if (isWhitespace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
+	if (isFlankingSpace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
 	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
@@ -83,9 +89,6 @@ function recognizeMath(
 // ── Registration ─────────────────────────────────────────────────────────────
 
 export function registerMathInline(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
 		autoPair: true
@@ -101,9 +104,9 @@ export function registerMathInline(): void {
 	});
 }
 
-// ── Caret from a press ───────────────────────────────────────────────────────
-// KaTeX paints glyphs, not source bytes, so both forms read a press the same way: how far along
-// the painted run it fell, walked proportionally into the span the run renders.
+// ── Caret from a click ───────────────────────────────────────────────────────
+// KaTeX paints glyphs, not source bytes, so both forms read a click the same way: how far along
+// the painted run it landed, scaled into the span that run renders.
 
 /** `$…$`: one delimiter each side, so an edit stays inside the formula. */
 const mathContentSpan = (source: string) =>
@@ -115,8 +118,8 @@ function glyphOffsetInSpan(
 	clientX: number,
 	clientY: number
 ): number | null {
-	// `.katex-html` is the painted half: its MathML twin is clipped to a pixel, and the pair
-	// measured together answers for a point no reader aimed at.
+	// `.katex-html` is the half that is painted: the MathML copy beside it is clipped to a
+	// pixel, and measuring both together answers for a point nobody clicked.
 	const glyphs = rendered.querySelector<HTMLElement>('.katex-html');
 	const along = glyphs ? caretOffsetAtPoint(glyphs, clientX, clientY) : null;
 	const total = glyphs?.textContent?.length ?? 0;
@@ -134,8 +137,8 @@ function mathInlineOffsetAtPoint(
 	return span ? glyphOffsetInSpan(widgetEl, span, clientX, clientY) : null;
 }
 
-/** Where a press on the folded equation puts the caret; the fence lines carry no glyph of
- *  their own, so a point the glyphs cannot answer for keeps the body's end. */
+/** Where a click on the rendered equation puts the caret; the fence lines paint no glyphs of
+ *  their own, so a point the glyphs cannot answer for goes to the body's end. */
 function mathCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
@@ -156,19 +159,47 @@ function mathCaretAtPoint(
  * Round-trip stays byte-level on `raw`, so this never feeds serialization.
  */
 export function mathDisplaySource(source: string): string {
-	if (/^[ \t]*(?:`{3,}|~{3,})/.test(source)) {
-		const firstBreak = source.indexOf('\n');
-		if (firstBreak === -1) return '';
-		const body = source
-			.slice(firstBreak + 1)
-			.replace(/(?:\r?\n)?[ \t]*(?:`{3,}|~{3,})[ \t]*\r?\n?$/, '');
-		return body.trim();
-	}
+	const fence = fenceAnatomy(source);
+	if (fence) return trimWhitespace(source.slice(fence.bodyStart, fence.closerStart));
 	let inner = source;
 	if (inner.startsWith('$$')) inner = inner.slice(2);
 	if (inner.endsWith('$$')) inner = inner.slice(0, -2);
-	return inner.trim();
+	return trimWhitespace(inner);
 }
+
+// ── Writing a block's own bytes ────────────────────────────────────────────────
+
+/** The ending a restored closer line takes: the block's own, else the document's. */
+const closerEnding = (ctx: WriteContext) => trailingLineEnding(ctx.node.raw, ctx.lineEnding);
+
+/** The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
+ *  block does; a first line that does not open the block is left alone. */
+function normalizeMathBlockRaw(raw: string, ctx: WriteContext): string {
+	const display = trimTrailingLineEnding(raw);
+	const lines = displayLines(display);
+	const { text } = lines[0];
+	if (!text.startsWith(BLOCK_FENCE)) return raw;
+	if (text === BLOCK_FENCE) {
+		if (lines.slice(1).some((line) => line.text === BLOCK_FENCE)) return raw;
+		return display + closerEnding(ctx) + BLOCK_FENCE + ownTrailingLineEnding(raw);
+	}
+	if (isBlockMathOpener(text)) return raw;
+	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
+	lines[0] = { ...lines[0], text: text + BLOCK_FENCE };
+	return joinDisplayLines(lines) + ownTrailingLineEnding(raw);
+}
+
+const mathBlockWrite: WriteRule = {
+	normalize: normalizeMathBlockRaw,
+	// A restored closer line goes after every written byte; only the one-line form's closer lands
+	// mid-write, at the end of line 0.
+	mapOffset: (raw, offset) => {
+		const { text } = displayLines(raw)[0];
+		const closesLineZero =
+			text.startsWith(BLOCK_FENCE) && text !== BLOCK_FENCE && !isBlockMathOpener(text);
+		return closesLineZero && offset > text.length ? offset + BLOCK_FENCE.length : offset;
+	}
+};
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
 
@@ -185,17 +216,21 @@ function isBlockMathOpener(text: string): boolean {
 export function registerMathBlock(): void {
 	const mathBlock = declarePluginKind(MATH_BLOCK);
 
-	// A source-holding leaf like `fencedCode`: `serialize` re-emits `leadingTrivia + raw`,
-	// so a raw built from the exact fence bytes round-trips byte-for-byte.
+	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
+	// `leadingTrivia + raw`, so a raw built from the exact fence bytes round-trips byte for byte.
 	registerBlockKind(mathBlock, {
+		label: 'Math block',
+		// A formula's source makes a poor label on the drag ghost.
+		dragLabel: 'Equation',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// The revealed source takes Enter as a literal newline and never splits, so neither
-		// edge can grow a sibling.
+		// The open source takes Enter as a literal newline and never splits, so neither edge
+		// can grow a neighbouring block.
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		caretTargetAtPoint: mathCaretAtPoint,
+		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -218,7 +253,7 @@ export function registerMathBlock(): void {
 	});
 
 	registerBlockOpener(mathBlock, {
-		// `$$` collides with no built-in matcher, so this slot is only tie avoidance.
+		// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
 		tryOpen(ctx) {
@@ -249,31 +284,28 @@ export function registerMathBlock(): void {
 	// The open/close pair needs its lines adjacent, which Enter alone can never type.
 	registerMathBlockCompleter(mathBlock);
 
-	// Co-registered so one install teaches both forms (the admonition/githubAlert precedent).
+	// Registered together so one install adds both forms, as admonitions and alerts do.
 	registerMathFence();
 }
 
 // ── Fenced ```math display math ─────────────────────────────────────────────────
-// GitHub's third math form: a source-holding leaf like the `$$` block, rendered by
+// GitHub's third math form: a block holding its own source, like the `$$` block, rendered by
 // the same component.
 
-const FENCE_INFO_TOKEN = 'math';
-
-function matchMathFence(text: string): FenceOpen | null {
-	const fence = matchFenceOpen(text);
-	return fence && fence.info.split(/\s+/)[0] === FENCE_INFO_TOKEN ? fence : null;
-}
+const matchMathFence = matchFenceInfo('math');
 
 export function registerMathFence(): void {
 	const mathFence = declarePluginKind(MATH_FENCE);
 
 	registerBlockKind(mathFence, {
+		label: 'Math block',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
+		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -298,31 +330,20 @@ export function registerMathFence(): void {
 	});
 
 	registerBlockOpener(mathFence, {
-		// `fencedCode` accepts every fence, ```math included, so this must price ahead of
-		// that superset matcher, in its own slot below the sibling mermaid.
+		// `fencedCode` accepts every fence, ```math included, so this has to be tried before
+		// it, at a priority of its own just below mermaid's.
 		priority: OPENER_PRIORITIES.fencedCode - 4,
 		interruptsParagraph: (line) => matchMathFence(line) !== null,
 		tryOpen(ctx) {
 			const fence = matchMathFence(ctx.line.text);
 			if (!fence) return null;
 
-			let closeIdx = -1;
-			for (let i = ctx.index + 1; i < ctx.end; i++) {
-				if (matchFenceClose(ctx.lines[i].text, fence.marker, fence.length)) {
-					closeIdx = i;
-					break;
-				}
-			}
-			// Unterminated declines so the built-in fencedCode claims it as a plain
-			// `math` code block, matching the sibling `$$` block.
-			if (closeIdx === -1) return null;
-
-			const raw = ctx.lines
-				.slice(ctx.index, closeIdx + 1)
-				.map((l) => l.raw)
-				.join('');
-			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, consumed: closeIdx + 1 - ctx.index };
+			const scan = scanFence(ctx, fence);
+			// An unterminated fence backs out, so the built-in fencedCode takes it as a plain
+			// `math` code block, matching the `$$` block.
+			if (scan.closer === -1) return null;
+			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw: scan.raw };
+			return { node, consumed: scan.consumed };
 		}
 	});
 }

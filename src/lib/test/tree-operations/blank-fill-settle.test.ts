@@ -3,26 +3,24 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// B-F1: the blank→content fill arm returned before the seam funnel, so filling a blank line whose
-// bytes an indentation-delimited neighbour above absorbs left the live tree one block richer than
-// its own reload — silently, on ordinary typing. The content→blank sibling has always settled.
-// Miss-analysis: the fill suites fill with prose that folds into nothing, and the seam suites all
-// start from a non-blank block, so the blank-fill × foldable-neighbour cell had no draw.
+// Filling a blank line runs the neighbour merge, so a fill that an indentation-delimited block
+// above absorbs leaves the same tree its reload reads.
+// Miss-analysis: no fill case had a block above that could absorb the filled text.
 
-/** A list, a blank line of its own, and a follower: the fill lands in the blank slot. */
+/** A list, a blank line of its own, and a follower: the fill lands in the blank position. */
 const SOURCE = '- a\n\n\nzz\n';
 
 function filled(text: string) {
 	const doc = parse(SOURCE);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph', 'paragraph']);
-	updateNodeContent(doc, 1, text);
+	updateNodeContent(doc, 1, text, defaultGrammarView);
 	return doc;
 }
 
-describe('filling a blank block settles the seams the fill disturbed', () => {
-	// Both fill arms, because the noop guard swallowed the same-kind one even after the early
-	// return went: a transition is settle-worthy whatever its change op says.
+describe('filling a blank block settles the joins the fill disturbed', () => {
+	// Both fill branches, since a blank-to-content fill needs the fix-up whatever its change op says.
 	it.each([
 		['a kind change the list absorbs', '    code\n', '- a\n\n    code\n\nzz\n'],
 		['a same-kind fill the list absorbs', '  b\n', '- a\n\n  b\n\nzz\n']
@@ -33,8 +31,6 @@ describe('filling a blank block settles the seams the fill disturbed', () => {
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 	});
 
-	// The perf rationale the arm's early return protected: a fill with nothing to absorb above
-	// still separates on both sides and stays three blocks.
 	it('leaves a fill whose neighbours cannot absorb it alone', () => {
 		const doc = filled('b\n');
 		expect(serialize(doc)).toBe('- a\n\nb\n\nzz\n');

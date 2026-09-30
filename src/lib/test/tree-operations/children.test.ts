@@ -50,9 +50,7 @@ describe('spliceChildren', () => {
 		expect(c.childIds).toHaveLength(c.children!.length);
 	});
 
-	// Miss-analysis: this case asserted the replaced slot took a FRESH id, which read as a
-	// deliberate contract; nothing compared the door against its in-commit-scope twin, where
-	// `replacePreservingFirst` has always let a replacement's head continue the slot.
+	// Miss-analysis: no test compared this splice with `replacePreservingFirst`'s id rule.
 	it('a replacement’s head continues its slot; survivors and later slots keep their own', () => {
 		const c = bq([para('a\n'), para('b\n'), para('c\n')], ['id-a', 'id-b', 'id-c']);
 		spliceChildren(c, 1, 1, [para('x\n'), para('y\n')]);
@@ -62,7 +60,7 @@ describe('spliceChildren', () => {
 		expect(c.childIds![3]).toBe('id-c');
 	});
 
-	it('a pure insert mints fresh ids and shifts the slots below', () => {
+	it('a pure insert creates fresh ids and shifts the slots below', () => {
 		const c = bq([para('a\n'), para('b\n')], ['id-a', 'id-b']);
 		spliceChildren(c, 1, 0, [para('x\n')]);
 		expect(c.childIds![0]).toBe('id-a');

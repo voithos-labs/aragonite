@@ -28,9 +28,8 @@ test.describe('image resize', () => {
 		expect(Number(match![1])).toBeLessThan(400);
 	});
 
-	// `widgetEl` reached the handles as a captured prop, so once the first commit rebuilt the
-	// inline DOM it pointed at a detached node: startWidth measured 0 and the second drag silently
-	// no-op'd.
+	// The handles look the widget up when needed: a captured `widgetEl` goes stale once a commit
+	// rebuilds the inline DOM, so the second drag would measure 0 and do nothing.
 	test('back-to-back drags both commit (handle resolves widget on demand)', async ({ page }) => {
 		await editor.loadContent('![cat|300](/test-fixtures/sample.png)\n');
 		await page.locator('[data-image-widget]').first().click();
@@ -67,15 +66,15 @@ test.describe('image resize', () => {
 		await editor.bridge.waitForSourceContains('|380');
 	});
 
-	// Parity with the drag path's upper clamp: a pure-math unit test can't catch a wiring gap
-	// between the keyboard and drag entry points.
+	// The same upper clamp as the drag path: a unit test over the arithmetic cannot catch the
+	// keyboard and the drag being wired differently.
 	test('Shift+ArrowRight caps at editor content width', async ({ page }) => {
 		const contentWidth = await editor.editorContainer.evaluate((el) => el.clientWidth);
 		const startWidth = contentWidth - 30;
 		await editor.loadContent(`![cat|${startWidth}](/test-fixtures/sample.png)\n`);
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		// Each press steps +20px; three presses overshoot the 30px headroom.
+		// Each keypress steps +20px; three overshoot the 30px headroom.
 		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
 		await editor.bridge.waitForSourceContains(`|${contentWidth}`);
 		const src = await editor.bridge.getSource();

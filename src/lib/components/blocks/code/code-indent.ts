@@ -1,6 +1,6 @@
 /**
- * Pure tab-indent / tab-dedent for code-block text. Dedent removes one tab OR up to
- * four leading spaces per line, preferring tab.
+ * Tab indent and Shift+Tab dedent for code-block text. Dedent removes one tab, or up to
+ * four leading spaces per line, preferring a tab.
  */
 
 export interface Selection {
@@ -74,11 +74,8 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/**
- * Line-start offsets for every line the selection touches. A selection ending
- * at or before a line's terminating newline stays on that line; one ending at
- * the next line's start pulls that line in.
- */
+/** Line starts for every line the selection touches; a selection ending at the next line's
+ *  start pulls that line in. */
 function collectLineStarts(text: string, selection: Selection): number[] {
 	const first = text.lastIndexOf('\n', selection.start - 1) + 1;
 	const starts: number[] = [first];

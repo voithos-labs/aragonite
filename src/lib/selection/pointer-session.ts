@@ -1,8 +1,8 @@
 /**
- * Shared pointer-drag session: the document-listener + rAF-coalescing scaffold every drag
- * lifecycle builds on. Owns the pointer-ownership filter, autoscroll wiring, and idempotent
- * teardown; callers supply the per-surface move/end behavior and the options that genuinely
- * differ. rAF here is frame-paced pointermove coalescing, not async sequencing (G4.4).
+ * The shared pointer-drag session every drag builds on: document-level listeners, one move per
+ * animation frame, the pointer-id filter, autoscroll, and a teardown that is safe to run twice.
+ * Callers supply the move and end behaviour. The rAF here coalesces pointermove events to one
+ * per frame; it is not used to sequence anything (G4.4).
  */
 
 import { createAutoScroll, type AutoScrollDeps } from './autoscroll';
@@ -16,29 +16,23 @@ export interface PointerDragSessionOptions {
 	/** Coalesced to one call per animation frame with the latest pointer: intermediate positions
 	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
-	/**
-	 * pointerup / pointercancel finalize, after the pending move flushes and the session tears
-	 * down. NOT run on Escape or lifetime abort: those are pure teardowns.
-	 */
+	/** Runs on pointerup or pointercancel, after the pending move flushes and the session tears
+	 *  down; Escape and a lifetime abort only tear down. */
 	onEnd?(reason: 'up' | 'cancel'): void;
 	/** Caller cleanup, run once on every teardown path (up, cancel, Escape, abort). */
 	onTeardown?(): void;
 	/** Scroll targets + axis; the session supplies the live pointer and rescroll. */
 	autoScroll: Pick<AutoScrollDeps, 'getTargets' | 'axis'>;
-	/**
-	 * Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
-	 * Omit where the pointerdown already committed to a drag.
-	 */
+	/** Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
+	 *  Omitted where the pointerdown already committed to a drag. */
 	threshold?: number;
 	onDragRecognized?(): void;
 	/** Install a document keydown so Escape tears the session down. */
 	escape?: boolean;
 	/** Suppress native text selection for the drag's duration. */
 	disableUserSelect?: boolean;
-	/**
-	 * Aborted on editor unmount. Without it an unmount mid-drag leaks the document listeners:
-	 * pointerup never fires once the originating element is gone.
-	 */
+	/** Aborted on editor unmount; without it an unmount mid-drag leaks the document listeners,
+	 *  since pointerup never fires once the originating element is gone. */
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -81,9 +75,8 @@ export function createPointerDragSession(
 		});
 	}
 
-	// A release before the coalescing rAF runs would otherwise drop the final move (a stale drop
-	// index, or isCrossBlock false on a fast flick / pointercancel). Guard on a LIVE rAF so an
-	// already-processed move is never replayed.
+	// A release before the frame callback runs would otherwise drop the final move; the guard on
+	// a pending frame keeps an already processed move from replaying.
 	function flushPendingMove(): void {
 		if (rafId !== null && pending) opts.onMove(pending);
 	}

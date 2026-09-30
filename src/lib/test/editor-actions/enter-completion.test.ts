@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
@@ -15,67 +15,72 @@ import {
 	makeTopHarness,
 	parseLeaf as leaf
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The split command's one completion arm: which presses reach a completer at all, and what the
+// The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
 // completer's line predicate in test/blocks/table.
-
-function pathFocusSpy() {
-	const calls: { path: number[]; offset: number }[] = [];
-	const ref = {
-		focus: (offset: number) => calls.push({ path: [], offset }),
-		focusByPath: (path: number[], offset: number) => calls.push({ path, offset })
-	} as unknown as BlockComponent;
-	return { calls, ref };
-}
 
 const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
 	makeCommitScopeStub(children, { refs, collapse: false });
 
-/** The composed shape both wiring sites build: the consult wrapped around the core's split, with
- *  the core reachable underneath as the no-claim fallthrough. */
+/** The composed shape both wiring sites build: the completer check wrapped around the core's
+ *  split, with the core reachable underneath when no completer answers. */
 function seamOver(scope: CommitScope): BlockEditActions {
 	const core = createBlockEditCore(scope);
 	const consulted: Pick<BlockEditActions, 'splitBlock' | 'replaceBlock'> = {
 		splitBlock: (i, offset) => core.split(i, offset),
-		replaceBlock: (i, replacement, focus, options) =>
-			core.replaceBlock(i, replacement, focus, options)
+		replaceBlock: async (i, replacement, focus, options) =>
+			(await core.replaceBlock(i, replacement, focus, options)) !== null
 	};
-	return withEnterCompletion(consulted as BlockEditActions, (index) => scope.children()[index]);
+	return withEnterCompletion(
+		consulted as BlockEditActions,
+		(index) => scope.children()[index],
+		defaultGrammarView,
+		() => '\n'
+	);
 }
 
-// A second registrant whose caret sits on a line the seam mints, which the table's cell-addressed
-// caret cannot exercise. Kind-name order puts it ahead of `table`; its trigger is ordinary prose,
-// so no other case in this file reaches it.
-registerBlockCompleter(declarePluginKind('spec-fence'), {
-	tryComplete: (line) =>
-		line === 'fence me'
-			? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
-			: null
-});
-
-// A registrant whose every claim mints bytes the reader would see nothing of: no lines at all, and
-// blank lines, which are bytes and parse back as empty paragraphs.
 const PAINTS_NOTHING: Record<string, string[]> = {
 	'empty me': [],
 	'blank me': [''],
 	'blank me twice': ['', '']
 };
-registerBlockCompleter(declarePluginKind('spec-empty'), {
-	tryComplete: (line) =>
-		line in PAINTS_NOTHING
-			? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
-			: null
+
+beforeEach(() => {
+	// A completer whose caret lands on a line the completion creates, which a table cell cannot
+	// test; it runs before `table` by kind name, so its trigger is prose no other case types.
+	registerBlockCompleter(declarePluginKind('spec-fence'), {
+		tryComplete: (line) =>
+			line === 'fence me'
+				? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
+				: null
+	});
+
+	// A completer whose every answer produces bytes the user would see nothing of: no lines at
+	// all, and blank lines, which are bytes and parse back as empty paragraphs.
+	registerBlockCompleter(declarePluginKind('spec-empty'), {
+		tryComplete: (line) =>
+			line in PAINTS_NOTHING
+				? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
+				: null
+	});
+
+	// A non-breaking space draws a character, so its completion is kept.
+	registerBlockCompleter(declarePluginKind('spec-nbsp'), {
+		tryComplete: (line) =>
+			line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
+	});
 });
 
-describe('Enter completion — which presses reach a completer', () => {
+describe('Enter completion: which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
-		expect(planEnterCompletion(leaf('| a | b |\n'), 9)).not.toBeNull();
+		expect(planEnterCompletion(leaf('| a | b |\n'), 9, defaultGrammarView, '\n')).not.toBeNull();
 	});
 
 	it('declines when the caret is anywhere but the end of the line', () => {
 		for (const offset of [0, 4, 8]) {
-			expect(planEnterCompletion(leaf('| a | b |\n'), offset)).toBeNull();
+			expect(planEnterCompletion(leaf('| a | b |\n'), offset, defaultGrammarView, '\n')).toBeNull();
 		}
 	});
 
@@ -84,11 +89,13 @@ describe('Enter completion — which presses reach a completer', () => {
 	it('declines a multi-line paragraph even when its last line would claim', () => {
 		const paragraph = leaf('intro\n| a | b |\n');
 		expect(paragraph.raw).toBe('intro\n| a | b |\n');
-		expect(planEnterCompletion(paragraph, paragraph.raw.length - 1)).toBeNull();
+		expect(
+			planEnterCompletion(paragraph, paragraph.raw.length - 1, defaultGrammarView, '\n')
+		).toBeNull();
 	});
 
-	// The firing gates are the prose merge role and the whole-raw content range; together they
-	// keep a kind's own markers (an indent, a `# `) from ever reaching a completer as typed text.
+	// A completer fires only for the prose merge role over the whole-raw content range, which keeps
+	// a kind's own markers (an indent, a `# `) from ever reaching it as typed text.
 	it.each([
 		['    | a | b |\n', 'indentedCode'],
 		['# | a | b |\n', 'heading'],
@@ -97,50 +104,52 @@ describe('Enter completion — which presses reach a completer', () => {
 	])('declines %j, which parses as a non-prose kind', (raw, kind) => {
 		const node = leaf(raw);
 		expect(node.kind).toBe(kind);
-		expect(planEnterCompletion(node, node.raw.length - 1)).toBeNull();
+		expect(planEnterCompletion(node, node.raw.length - 1, defaultGrammarView, '\n')).toBeNull();
 	});
 
 	it('declines a line no completer claims, and a missing block', () => {
-		expect(planEnterCompletion(leaf('just prose\n'), 10)).toBeNull();
-		expect(planEnterCompletion(undefined, 0)).toBeNull();
+		expect(planEnterCompletion(leaf('just prose\n'), 10, defaultGrammarView, '\n')).toBeNull();
+		expect(planEnterCompletion(undefined, 0, defaultGrammarView, '\n')).toBeNull();
 	});
 
-	it('takes the block’s own line ending into the minted bytes (G4.20)', () => {
-		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
+	it('takes the block’s own line ending into the created bytes (G4.20)', () => {
+		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9, defaultGrammarView, '\n')!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\r\n| --- | --- |\r\n|  |  |\r\n');
 	});
 
-	// An unterminated tail line has no authored ending, so the mint takes the LF default and the
-	// document ends terminated — the completion adds lines either way.
-	it('terminates an unterminated tail line rather than leaving the mint open', () => {
-		const plan = planEnterCompletion(leaf('| a | b |'), 9)!;
-		expect(plan.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
+	// An unterminated last line has no ending of its own, so the new blocks take the document's
+	// and the document ends terminated; the completion adds lines either way.
+	it('terminates an unterminated tail line in the document ending', () => {
+		const lf = planEnterCompletion(leaf('| a | b |'), 9, defaultGrammarView, '\n')!;
+		expect(lf.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
+		const crlf = planEnterCompletion(leaf('| a | b |'), 9, defaultGrammarView, '\r\n')!;
+		expect(crlf.replacement[0].raw).toBe('| a | b |\r\n| --- | --- |\r\n|  |  |\r\n');
 	});
 });
 
-// A completer answers where the caret sits as a line and a column, because the seam picks the line
-// ending AFTER the claim: a byte offset minted by the completer is one short on every CRLF block.
-describe('Enter completion — the caret the seam resolves', () => {
+// A completer answers where the caret sits as a line and a column, because the line ending is
+// picked after it answers: a byte offset from the completer is one short on every CRLF block.
+describe('Enter completion: the caret the join resolves', () => {
 	it.each([
 		['fence me\n', 4],
 		['fence me\r\n', 5]
 	])('resolves line 1 column 0 against %j to offset %i', (raw, offset) => {
-		const plan = planEnterCompletion(leaf(raw), 8)!;
+		const plan = planEnterCompletion(leaf(raw), 8, defaultGrammarView, '\n')!;
 		expect(plan.caret).toEqual({ path: [], offset });
 	});
 
-	// The table's caret addresses an empty cell, whose raw holds no lines at all — the resolution
+	// The table's caret addresses an empty cell, whose raw holds no lines at all: the resolution
 	// must read that as column 0 in the cell rather than falling off the line list.
 	it('resolves a path-addressed caret inside a childless empty cell', () => {
-		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
+		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9, defaultGrammarView, '\n')!;
 		expect(plan.caret).toEqual({ path: [1, 0], offset: 0 });
 	});
 });
 
-describe('Enter completion — what the composed split commits', () => {
-	it('replaces the paragraph with one table and seats the caret in the first body cell', async () => {
-		const cell = pathFocusSpy();
-		const { scope, commits, children } = stubScope([leaf('| a | b |\n')], [cell.ref]);
+describe('Enter completion: what the composed split commits', () => {
+	it('replaces the paragraph with one table and puts the caret in the first body cell', async () => {
+		const { scope, commits, children } = stubScope([leaf('| a | b |\n')]);
+		const land = vi.spyOn(scope, 'land');
 		await seamOver(scope).splitBlock(0, 9);
 
 		expect(children).toHaveLength(1);
@@ -148,11 +157,11 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(children[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 		expect(commits).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('replaceBlock');
-		expect(cell.calls).toEqual([{ path: [1, 0], offset: 0 }]);
+		expect(land).toHaveBeenCalledWith({ path: [0, 1, 0], offset: 0 });
 	});
 
-	// The undo snapshot anchors where the caret WAS, not where the mint sends it: restoring the
-	// paragraph with the caret at 0 would put the next typed byte in front of the row.
+	// The undo snapshot records where the caret was, not where the completion sends it: restoring
+	// the paragraph with the caret at 0 would put the next typed byte in front of the row.
 	it('snapshots the caret at the end of the typed line, not at the cell it lands in', async () => {
 		const { scope, commits } = stubScope([leaf('| a | b |\n')]);
 		await seamOver(scope).splitBlock(0, 9);
@@ -166,16 +175,20 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
-	// A mint that paints nothing replaces the typed line with a delete, or with blank trivia a
-	// reload reads as neither: the seam declines, so the press stays the ordinary split. The blank
-	// shapes parse to paragraphs, which is why arity alone cannot see them.
+	// A completion that shows nothing, a delete or blank lines that reload as empty paragraphs, is
+	// declined so Enter stays the ordinary split; a block count alone cannot see the blank shapes.
 	it.each(Object.keys(PAINTS_NOTHING))('falls through on the %j claim', async (line) => {
 		const raw = `${line}\n`;
-		expect(planEnterCompletion(leaf(raw), line.length)).toBeNull();
+		expect(planEnterCompletion(leaf(raw), line.length, defaultGrammarView, '\n')).toBeNull();
 		const { scope, commits, children } = stubScope([leaf(raw)]);
 		await seamOver(scope).splitBlock(0, line.length);
 		expect(commits[0].op.kind).toBe('split');
 		expect(children.map((c) => c.raw)).toEqual([raw, '\n']);
+	});
+
+	it('takes a completion whose only line is a non-breaking space, which is content', () => {
+		const raw = 'nbsp me\n';
+		expect(planEnterCompletion(leaf(raw), 7, defaultGrammarView, '\n')).not.toBeNull();
 	});
 
 	it('falls through on a single-cell row the table scan would reject', async () => {
@@ -186,8 +199,8 @@ describe('Enter completion — what the composed split commits', () => {
 	});
 });
 
-describe('Enter completion — the document it leaves behind', () => {
-	it('keeps a table above from absorbing the mint', async () => {
+describe('Enter completion: the document it leaves behind', () => {
+	it('keeps a table above from absorbing the new block', async () => {
 		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['table', 'paragraph']);
 
@@ -198,11 +211,11 @@ describe('Enter completion — the document it leaves behind', () => {
 		expect(serialize(h.deps.doc)).toBe(
 			'| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n| --- | --- |\n|  |  |\n'
 		);
-		// The separating blank line survived on the mint, so a reload sees two tables.
+		// The separating blank line survived on the new block, so a reload sees two tables.
 		expect(parse(serialize(h.deps.doc)).children).toHaveLength(2);
 	});
 
-	// In-container policy: complete in place; the blockquote rebuild reparses the mint as a
+	// In a container: complete in place; the blockquote rebuild reparses the new table as a
 	// quoted table.
 	it('completes inside a blockquote and reparses as a quoted table', async () => {
 		const h = makeNestedHarness('> | a | b |\n');

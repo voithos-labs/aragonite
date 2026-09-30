@@ -10,7 +10,7 @@ import {
 	typeQuery
 } from './helpers';
 
-test.describe('search — replace', () => {
+test.describe('search: replace', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -52,9 +52,8 @@ test.describe('search — replace', () => {
 		expect(replaced).toContain('bar two');
 		expect(replaced).toContain('bar three');
 
-		// A SINGLE undo restores the entire original document. Clicking "All" left
-		// focus on the button; Ctrl+Z only routes through a focused block (or the
-		// editor root), so focus a block first.
+		// One undo restores the whole document. "All" left focus on the button, and Ctrl+Z routes only
+		// through a focused block or the editor root, so a block is focused first.
 		await editor.clickBlock(0);
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('foo three');
@@ -82,7 +81,7 @@ test.describe('search — replace', () => {
 	});
 });
 
-test.describe('search — structural replace', () => {
+test.describe('search: structural replace', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -128,7 +127,7 @@ test.describe('search — structural replace', () => {
 	});
 });
 
-test.describe('search — tables', () => {
+test.describe('search: tables', () => {
 	let editor: EditorPage;
 	// A normal small table: header + delimiter + three body rows, all mounted.
 	const TABLE =
@@ -161,14 +160,13 @@ test.describe('search — tables', () => {
 		await replaceInput(page).fill('engineer');
 
 		await page.getByRole('button', { name: 'All', exact: true }).click();
-		// Both cells, not one: settling on a single 'engineer' would race the second
-		// replacement, which is the regression this test exists to catch.
+		// Both cells, not one: waiting on a single 'engineer' would race the second replacement.
 		await editor.bridge.waitForSourceMatches(/engineer[\s\S]*engineer/);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('| dev |');
 		expect(source).toContain('engineer');
 		expect(source.match(/engineer/g)?.length).toBe(2);
-		// The table structure survives — still one table block.
+		// The table structure survives: still one table block.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 

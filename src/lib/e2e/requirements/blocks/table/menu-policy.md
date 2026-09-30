@@ -1,14 +1,14 @@
-# Feature: Table block — cell menu dismissal and the switches it ignores
+# Feature: Table block, cell menu dismissal and the switches it ignores
 
 The right-click cell menu closes without committing on an outside click and on Escape, and it
-hangs off neither of the editor's two affordance switches: `blockDragHandles` governs the
-pointer grips only, and reading mode, which has no mutation to offer, opens no menu at all.
+hangs off neither of the editor's two switches: `blockDragHandles` governs the pointer handles
+only, and reading mode, which has no change to offer, opens no menu at all.
 
 ## Happy paths
 
 - Clicking outside the open menu closes it, and the source is untouched.
 - Pressing Escape closes the open menu, and the source is untouched.
-- With `blockDragHandles=false` the cell menu still opens and its Row flyout still moves the row: nothing the grips once reached is lost behind the handle switch.
+- With `blockDragHandles=false` the cell menu still opens and its Row flyout still moves the row: nothing the handles once reached is lost behind the handle switch.
 
 ## Edge cases
 
@@ -16,4 +16,4 @@ pointer grips only, and reading mode, which has no mutation to offer, opens no m
 
 ## Notes
 
-- Retired with the grips: `blockDragHandles=false` removing the grips, reading mode hiding them, the touch reveal, and the cell grid keeping its tracks with the grips off. There is no grip to remove and no gutter track to drop.
+- Retired with the handles: `blockDragHandles=false` removing them, reading mode hiding them, the touch gesture that showed them, and the cell grid keeping its tracks with them off. There is no handle to remove and no gutter track to drop.

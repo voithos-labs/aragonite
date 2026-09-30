@@ -43,8 +43,8 @@ test('Shift+Ctrl+End extends to an off-window endpoint and scrolls it into view,
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForRenderFlush();
 
-	// Poll the mount+scroll the reveal performs rather than a fixed wait; the
-	// endpoint must land mounted AND in view.
+	// Poll the mount and scroll rather than waiting a fixed time; the endpoint must end up
+	// both mounted and in view.
 	await expect.poll(() => markerInView(page)).toEqual({ mounted: true, inView: true });
 	expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 

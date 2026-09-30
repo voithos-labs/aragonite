@@ -2,8 +2,8 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { openFlyout } from './helpers';
 
-// The cell menu's dismissal, and the two switches it does NOT hang off: the drag-handle prop
-// and reading mode. Requirements: requirements/blocks/table/menu-policy.md.
+// How the cell menu is dismissed, and the two settings it does not depend on: the drag-handle
+// prop and reading mode. Requirements: `requirements/blocks/table/menu-policy.md`.
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 test.describe('table block: cell menu dismissal', () => {
@@ -16,7 +16,7 @@ test.describe('table block: cell menu dismissal', () => {
 	});
 
 	test('clicking outside the menu closes it without committing', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		const before = await editor.bridge.getSource();
 
@@ -31,14 +31,14 @@ test.describe('table block: cell menu dismissal', () => {
 	});
 
 	test('Escape closes the menu without committing', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		const before = await editor.bridge.getSource();
 
 		await page.keyboard.press('Escape');
 
 		await expect(page.getByRole('menu')).toHaveCount(0);
-		// The open menu owns Escape through its own document listener, not a cell surface.
+		// The open menu takes Escape through its own document listener, not through a cell.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
@@ -51,7 +51,7 @@ test.describe('table block: the cell menu and the editor’s switches', () => {
 		editor = new EditorPage(page);
 	});
 
-	// The handle prop governs the pointer grips alone; the menu is a right-click, not a grip.
+	// The handle prop governs the drag handles alone; the menu opens on a right-click.
 	test('blockDragHandles=false keeps the menu and its moves', async ({ page }) => {
 		await editor.goto('?dragHandles=false');
 		await editor.loadContent(TABLE);
@@ -69,7 +69,7 @@ test.describe('table block: the cell menu and the editor’s switches', () => {
 		await editor.loadContent(TABLE);
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await editor.waitForRenderFlush();
 
 		await expect(page.getByRole('menu')).toHaveCount(0);

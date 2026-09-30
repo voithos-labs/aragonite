@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test';
 import { clickWordSettled, enterPresentationMode, extendTo, stepTo } from './helpers';
 
 // What a destructive join writes in live mode: the runs the cut stranded go, the pair it brought
-// back to back goes, and the joined text carries no delimiter the reader never typed. The source
-// is the oracle — a hidden delimiter and an absent one look identical on screen.
+// back to back goes, and the joined text holds no delimiter the user never typed. The source is
+// the reference, because a hidden delimiter and an absent one look identical on screen.
 // Requirements: e2e/requirements/presentation/presentation-live-join.md.
 
 const DOC = [
@@ -25,14 +25,14 @@ const PLAIN = 3;
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
 /** Caret after `bo` inside the bold run, then a real Shift-extend to just after `it` inside the
- *  italic — both endpoints strictly inside a construct, which is what strands the two runs. */
+ *  italic: both endpoints strictly inside a construct, which is what strands the two runs. */
 async function selectBoldIntoItalic(ep: EditorPage, page: Page): Promise<void> {
 	await clickWordSettled(ep, page, 'Some');
 	await stepTo(ep, page, 'ArrowRight', 9);
 	await extendTo(ep, page, 'ArrowRight', [MIXED], 21);
 }
 
-test.describe('live mode — a selection out of one construct and into another', () => {
+test.describe('live mode: a selection out of one construct and into another', () => {
 	test('Backspace joins the text and takes both stranded runs with it', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectBoldIntoItalic(ep, page);
@@ -52,11 +52,11 @@ test.describe('live mode — a selection out of one construct and into another',
 		await page.keyboard.press('ControlOrMeta+x');
 		await ep.bridge.waitForSourceContains('Some boalic words');
 		expect(await ep.bridge.getSource()).not.toContain('**bo');
-		// Live copy writes SOURCE bytes (raw 9-21), not the visible text — the consumer guide's contract.
+		// A live copy writes source bytes (raw 9-21), not the visible text, as the guide states.
 		expect(await ep.readClipboard()).toBe('ld** and *it');
 	});
 
-	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {
+	test('typing over the selection lands the character at the cleaned join', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectBoldIntoItalic(ep, page);
 
@@ -76,11 +76,10 @@ test.describe('live mode — a selection out of one construct and into another',
 	});
 });
 
-test.describe('live mode — the join across a block boundary', () => {
+test.describe('live mode: the join across a block boundary', () => {
 	/**
-	 * From inside the bold of one paragraph to the head of the next. Once the selection crosses a
-	 * block boundary the extend walks whole blocks (measured), so the far endpoint is a block head
-	 * rather than a second construct interior — the two-sided case is unit-pinned instead.
+	 * Once the selection crosses a block boundary it extends whole blocks, so the far endpoint is a
+	 * block start; the two-sided case is in the unit tests.
 	 */
 	async function selectAcrossBlocks(ep: EditorPage, page: Page): Promise<void> {
 		await clickWordSettled(ep, page, 'Alpha');
@@ -97,9 +96,9 @@ test.describe('live mode — the join across a block boundary', () => {
 		expect(await ep.bridge.getSource()).not.toContain('Alpha **be');
 	});
 
-	// A paste landing exactly where a cleanup dropped runs: the cleanup runs in the delete half
-	// and the post-insert re-parse settles the rest.
-	test('a paste at the cleaned seam lands its text there', async ({ page }) => {
+	// A paste landing exactly where the cleanup dropped runs: the cleanup happens in the delete
+	// half, and the re-parse after the insert fixes up the rest.
+	test('a paste at the cleaned join lands its text there', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossBlocks(ep, page);
 
@@ -110,7 +109,7 @@ test.describe('live mode — the join across a block boundary', () => {
 	});
 });
 
-test.describe('live mode — seams with nothing to clean', () => {
+test.describe('live mode: joins with nothing to clean', () => {
 	test('a selection over plain text deletes exactly what it covered', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'plain');
@@ -122,8 +121,8 @@ test.describe('live mode — seams with nothing to clean', () => {
 		await expect(ep.getBlock(PLAIN)).toHaveText('plain here', { useInnerText: true });
 	});
 
-	// Both endpoints inside ONE construct: its opener and closer meet across the seam, which is
-	// what the reader had, so the join keeps the pair rather than dropping it.
+	// Both endpoints inside one construct: its opener and closer meet across the join, which is
+	// what the user had, so the join keeps the pair rather than dropping it.
 	test('a selection inside one construct keeps the construct', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'Alpha');
@@ -137,7 +136,7 @@ test.describe('live mode — seams with nothing to clean', () => {
 });
 
 // Source paints every delimiter, so the byte the selection covered is the byte the user aimed at.
-test.describe('source mode — the same gesture stays byte-literal', () => {
+test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('the stranded runs survive the delete', async ({ page }) => {
 		const ep = await enterMode(page, 'source');
 		await clickWordSettled(ep, page, 'Some');

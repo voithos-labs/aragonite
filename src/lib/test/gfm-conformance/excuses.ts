@@ -1,7 +1,7 @@
 /**
- * Decides a deliberate divergence on the DIVERGENCE, not on the input: each class neutralizes
+ * Decides a deliberate divergence on the divergence itself, not the input: each class neutralizes
  * its construct on both sides and demands the rest still match, so a real bug standing next to
- * an excused construct is no longer excused along with it.
+ * an excused construct is not excused along with it.
  */
 import type { Divergence } from './differ';
 import { mergeAdjacentText, normalEqual, type NormalNode } from './normalize';
@@ -57,11 +57,8 @@ export function hasAstralBesideDelimiter(input: string): boolean {
 
 // ── The extension's reach ────────────────────────────────────────────────────
 
-/**
- * Folding cannot give back what the extension took: a bare autolink's bytes are no delimiter
- * run's content and its URL scanner swallows `*`/`_`, so the reference pairs delimiters we never
- * offered. Excused only over a reaching autolink's own bytes, and only if they still conserve.
- */
+/** A bare autolink's URL scanner swallows `*`/`_`, so the reference pairs delimiters ours never
+ *  offered; excused only over that autolink's own bytes, and only if they still conserve. */
 function isAutolinkReach(
 	divergence: Divergence,
 	ours: NormalNode[],

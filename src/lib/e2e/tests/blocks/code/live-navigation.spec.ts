@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The caret's every door into and out of a fence whose lines the mode hides: the landable
-// bounds are the body's, and no edge press may reach a hidden fence line.
-// Requirements: e2e/requirements/blocks/code/live-navigation.md.
+// Every way the caret enters and leaves a fence whose lines the mode hides: the offsets it can sit
+// at are the body's, and no key at an edge may reach a hidden fence line.
+// Requirements: `e2e/requirements/blocks/code/live-navigation.md`.
 
 const DOC = 'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n';
 // Raw offsets inside block [1]: the opener line is 6 bytes, the body runs 6..25.
@@ -15,7 +15,7 @@ async function landedIn(editor: EditorPage): Promise<number | undefined> {
 	return (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 }
 
-test.describe('code block in live mode — arrows at every edge', () => {
+test.describe('code block in live mode: arrows at every edge', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('code block in live mode — arrows at every edge', () => {
 	test('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async ({
 		page
 	}) => {
-		// A real click seats the caret and settles the sticky column the vertical walk reads;
+		// A real click places the caret and sets the sticky column the vertical moves read;
 		// each read then polls for a landing the handler awaits.
 		await editor.clickBlockAtPath([0], 6);
 		await page.keyboard.press('ArrowDown');
@@ -75,7 +75,7 @@ test.describe('code block in live mode — arrows at every edge', () => {
 	});
 });
 
-test.describe('code block in live mode — line extremes and the fence lines', () => {
+test.describe('code block in live mode: line extremes and the fence lines', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -85,7 +85,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
 	});
 
-	test('Home on the first body line seats at its column 0, not in the hidden opener', async ({
+	test('Home on the first body line puts the caret at its column 0, not in the hidden opener', async ({
 		page
 	}) => {
 		await editor.focusBlockAtPath([1], BODY_START + 4);
@@ -94,7 +94,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
 	});
 
-	test('End on the last body line seats after its last byte, not past the hidden closer', async ({
+	test('End on the last body line puts the caret after its last byte, not past the hidden closer', async ({
 		page
 	}) => {
 		await editor.focusBlockAtPath([1], LINE_TWO + 2);
@@ -120,8 +120,8 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 		);
 	});
 
-	// The closer is hidden here, so typing one is the reader asking to leave rather than to
-	// author bytes: the run never lands, and the caret arrives in the block that was already below.
+	// The closer is hidden here, so typing one is the user asking to leave rather than to write
+	// bytes: the run never lands, and the caret arrives in the block already below.
 	test('a closer typed on the empty last line leaves below, writing none of its bytes', async ({
 		page
 	}) => {
@@ -164,7 +164,7 @@ test.describe('code block in live mode — line extremes and the fence lines', (
 	});
 });
 
-test.describe('code block in live mode — an empty fence', () => {
+test.describe('code block in live mode: an empty fence', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -194,5 +194,30 @@ test.describe('code block in live mode — an empty fence', () => {
 		await page.keyboard.press('ArrowLeft');
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('BeforeX\n');
+	});
+
+	test('Backspace on the empty body line deletes the fence and lands at the end of the block above', async ({
+		page
+	}) => {
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('ArrowRight');
+		await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
+		// Which blocks took focus after the key: a delete that places its caret twice shows here even
+		// when the second placement happens to win.
+		await page.evaluate(() => {
+			const w = window as unknown as { focused: string[] };
+			w.focused = [];
+			document.addEventListener('focusin', (e) =>
+				w.focused.push((e.target as Element).textContent ?? '')
+			);
+		});
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('Before\n\nAfter\n');
+		await editor.waitForRenderFlush();
+		expect(await page.evaluate(() => (window as unknown as { focused: string[] }).focused)).toEqual(
+			['Before']
+		);
+		await page.keyboard.type('X');
+		await editor.bridge.waitForSourceEquals('BeforeX\n\nAfter\n');
 	});
 });

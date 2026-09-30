@@ -16,10 +16,13 @@ describe('normalizeTableEndpoint', () => {
 		});
 	});
 
-	// Load-bearing: a shallow [tableIdx] path is UNFLAGGED because intra-table cell-ness is
-	// context-established, and flagging it makes every cell op reading `.offset` cry wolf in DEV.
-	it('leaves a shallow table-wrapper path unflagged', () => {
-		expect(normalizeTableEndpoint(doc, [2], 3)).toEqual({ path: [2], offset: 3 });
+	// A point on the table's own path already names a cell index; only the flag is missing.
+	it('flags a point on the table path, keeping its cell index', () => {
+		expect(normalizeTableEndpoint(doc, [2], 3)).toEqual({
+			path: [2],
+			offset: 3,
+			cellCoordinate: true
+		});
 	});
 
 	it('passes a deep path with no table ancestor through unchanged', () => {
@@ -34,10 +37,8 @@ describe('cellEndpointDeepPath', () => {
 		]);
 	});
 
-	// The intra-table rectangle's focus is unflagged by the same-path convention but its offset is
-	// still a cell index; gating on the flag resolves no cell for a forward-extended rectangle.
-	it('expands an unflagged point on a table path — the intra-table convention', () => {
-		expect(cellEndpointDeepPath(doc, { path: [2], offset: 5 })).toEqual([2, 2, 1]);
+	it('returns null for an unflagged point, whose offset counts characters', () => {
+		expect(cellEndpointDeepPath(doc, { path: [2], offset: 5 })).toBeNull();
 	});
 
 	it('returns null when the path is not a table', () => {

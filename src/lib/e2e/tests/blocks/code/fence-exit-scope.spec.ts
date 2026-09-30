@@ -1,20 +1,20 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The closed-fence Enter-exit lands the new paragraph in the fence's OWN container scope, never
-// delegated outside it: a fence last in a blockquote mints its paragraph INSIDE the quote, and a
-// second Enter on that empty paragraph breaks out (the shared empty-trailing-line exit).
+// Enter out of a closed fence lands the new paragraph in the fence's own container, never handed
+// outside it: a fence last in a blockquote creates its paragraph inside the quote, and a second
+// Enter on that empty paragraph breaks out (the shared empty-trailing-line exit).
 
 const quoteChildCount = (editor: EditorPage) =>
 	editor.page.evaluate(() => (window as any).__test.getDocument().children[0].children.length);
 
 // Display end of "```\ncode\n```" inside the quote (the offset === length exit).
 const CLOSED_DISPLAY_END = 12;
-// Body end of "```\ncode\n```" — just before the closer's leading newline; also the
+// Body end of "```\ncode\n```": just before the closer's leading newline, and also the
 // display end of the unclosed "```\ncode".
 const BODY_END = 8;
 
-test.describe('code block — closed-fence Enter-exit lands in-container', () => {
+test.describe('code block: closed-fence Enter-exit lands in-container', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -22,21 +22,21 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.goto();
 	});
 
-	test('closed fence as the blockquote last child: Enter mints the paragraph inside the quote', async () => {
+	test('closed fence as the blockquote last child: Enter creates the paragraph inside the quote', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 
 		await editor.focusBlockAtPath([0, 0], CLOSED_DISPLAY_END);
 		await editor.page.keyboard.press('Enter');
-		await editor.waitForBlockHostCount(3); // quote + fence + minted paragraph
+		await editor.waitForBlockHostCount(3); // quote + fence + the new paragraph
 
-		// The paragraph landed INSIDE the quote: one top-level block holding [fence, paragraph].
-		// Delegating upward would append at root — top-level count 2, quote still one child.
+		// The paragraph landed inside the quote: one top-level block holding [fence, paragraph].
+		// Handing it upward would append at the root: two top-level blocks, quote still one child.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 	});
 
-	test('closed-fence escape ladder: Enter lands inside the quote, Enter exits, typed text sits after it', async () => {
+	test('closed-fence escape steps: Enter lands inside the quote, Enter exits, typed text sits after it', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n');
 
 		await editor.focusBlockAtPath([0, 0], CLOSED_DISPLAY_END);
@@ -62,15 +62,15 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.page.keyboard.press('Enter'); // exitWithEdit: strip the blank, exit downward
 		await editor.waitForBlockHostCount(3);
 
-		// The stripped-blank exit minted its paragraph INSIDE the quote, and the fence kept its
-		// closer.
+		// The exit that stripped the blank created its paragraph inside the quote, and the fence
+		// kept its closer.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		expect(await editor.bridge.getSource()).toContain('> ```\n> code\n> ```');
 	});
 
-	test('closed fence with a following sibling inside the quote: Enter moves to the sibling, mints nothing', async () => {
+	test('closed fence with a following sibling inside the quote: Enter moves to the sibling, creates nothing', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n>\n> after\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		const childrenBefore = await quoteChildCount(editor);
@@ -80,7 +80,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('Zafter');
 
-		// Focus moved to the existing sibling; no block minted, quote child count held.
+		// Focus moved to the existing sibling: no block created, quote child count held.
 		expect(await editor.bridge.getSource()).toBe('> ```\n> code\n> ```\n>\n> Zafter\n');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(childrenBefore);
@@ -100,7 +100,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('unclosed-fence escape ladder in a quote: auto-close mints inside, next Enter exits', async () => {
+	test('unclosed-fence escape steps in a quote: auto-close creates inside, next Enter exits', async () => {
 		await editor.loadContent('> ```\n> code\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 
@@ -108,7 +108,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.page.keyboard.press('Enter'); // trailing blank line inside the body
 		await editor.page.keyboard.press('Enter'); // auto-close: closer + paragraph inside the quote
 		await editor.waitForBlockHostCount(3);
-		// The auto-closed paragraph is inside the quote, not delegated to root.
+		// The auto-closed paragraph is inside the quote, not handed to the root.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 
@@ -118,7 +118,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.bridge.waitForSourceContains('W');
 
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('> ```\n> code\n> ```'); // closer minted, still quoted
+		expect(source).toContain('> ```\n> code\n> ```'); // closer written, still quoted
 		expect(source.indexOf('W')).toBeGreaterThan(source.lastIndexOf('```'));
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		expect(await editor.parseConverged()).toBe(true);

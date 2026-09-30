@@ -2,12 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The structurally-deep note: container nesting and variety the inline-rich note skips. All
- * HOLD, so end-state equality stays a primary oracle. Nesting uses the indent-around-content
- * cadence, which reaches two levels and no further — three needs the empty-item cadence and
- * lives in the outline note. Indenting under an ordered item INHERITS ordered, and a typed
- * `- ` marker stays literal text; Enter inside a quote separates paragraphs, so a multi-line
- * single paragraph is a `hardBreakAt` shape.
+ * The structurally deep note: nested containers and the variety the inline-rich note skips, typed
+ * so it matches the loaded document. Indenting around content reaches two levels; three live in the
+ * outline note. An item indented under an ordered one stays ordered, a typed `- ` stays plain
+ * text, and a multi-line quote paragraph needs `hardBreakAt`.
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
@@ -77,9 +75,10 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		await g.resizeImage('left', 2);
 		await g.checkpoint('image', 'image');
 
-		// The checkbox renders on the item's paragraph; only the list and the
-		// item-paragraphs carry data-block-path, so the path stops at the paragraph.
+		// The checkbox renders on the item's paragraph, and only the list and the item
+		// paragraphs carry a data-block-path, so the path stops at the paragraph.
 		await g.toggleTask([7, 0, 0]);
+		await g.toggleTaskByKeyboard([7, 1, 0]);
 	},
 	landmarks: [
 		'Q3 Editor Project Plan',
@@ -119,7 +118,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		'## Release checklist\n' +
 		'\n' +
 		'- [x] Audit round-trip fixtures\n' +
-		'- [ ] Run the simulation suite\n' +
+		'- [x] Run the simulation suite\n' +
 		'- [ ] Tag the release branch\n' +
 		'\n' +
 		'> Risk: the nested-list rewrite touches selection,\n' +

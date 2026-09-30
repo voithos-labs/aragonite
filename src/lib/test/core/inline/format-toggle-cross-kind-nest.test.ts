@@ -4,22 +4,24 @@ import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
+import { renderOptions } from '../../harness/fixture-grammar';
 
-// A selection taking another CONSTRUCT whole, so no span of the pressed mark starts at its own
-// edge: the markers a wrap mints merge with a same-family run (`*ab*` in `**` re-reads as emphasis
-// around strong), and a link's own delimiters sit at both edges of the text they enclose. Either
-// way the press is about the content those delimiters hold. Miss-analysis: the read was only ever
-// asked about selections whose flanks were content or its own delimiters, so every shape where a
-// foreign construct's bytes sat at both edges answered false and the press disowned what it wrote.
+// A selection taking another construct whole: the toggle acts on the content its delimiters hold.
+// Miss-analysis: no case put a foreign construct's bytes at both edges of the selection.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 
 const screenOf = (display: string) =>
-	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
+	renderedText(
+		parseInline(display, 0, display.length),
+		display,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 
 describe.each(MODES)('a selection taking another construct whole (%s)', (mode) => {
 	// The `_ab_` row is the contrast: the same shape spelled so the runs cannot merge, which the
-	// seam always answered, against the `*ab*` row where they do.
+	// read always answered, against the `*ab*` row where they do.
 	it.each([
 		['merging delimiter runs', '*ab*', '***ab***'],
 		['delimiter runs that cannot merge', '_ab_', '**_ab_**']
@@ -54,7 +56,7 @@ describe.each(MODES)('a selection taking another construct whole (%s)', (mode) =
 	});
 
 	// A construct carrying no mark of its own: the link's delimiters flank its text and the run
-	// inside covers all of it, so the press sheds that run rather than adding a layer around one.
+	// inside covers all of it, so the toggle removes that run rather than adding a layer around it.
 	it('sheds the mark held by a link the selection takes whole', () => {
 		const display = '[**a**](u)';
 		const { active, wrote, selected, activeAfter } = press({

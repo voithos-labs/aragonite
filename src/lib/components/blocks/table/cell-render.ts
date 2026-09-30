@@ -1,22 +1,22 @@
 /**
- * DOM-build for TableCellBlock's render $effect. Mirrors text-render.ts without the
- * ambient prefix or block marker — a cell's entire raw is content, so every island
- * offset is a raw offset. The component owns the effect and the pending-cursor
- * restore; this factory owns the imperative build.
+ * DOM-building for TableCellBlock's render effect. The same as text-render.ts without a
+ * marker prefix or block marker, since a cell's whole raw is content, so every decoration
+ * offset is a raw offset. The component owns the effect and the pending-cursor restore;
+ * this factory builds the DOM.
  */
 
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
-import type { PresentationMode } from '../../../presentation-mode';
+import type { ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import { captureFocusedCaret } from '../../../cursor/focused-caret';
 import {
-	captureFocusedCaretWalkOffset,
-	restoreCaretAtWalkOffset
-} from '../../../cursor/focused-caret';
-import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+	CONTENT_EMPTY_ATTR,
+	holdsOnlyMarkerChrome,
+	placeCaretAtRaw
+} from '../../../cursor/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -24,42 +24,38 @@ import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 import { createSvelteWidgetPool } from '../widget-portal';
+import type { Reading } from '../../../schema/reading';
 
 export interface CellRenderDeps {
 	get el(): HTMLElement | null;
 	get node(): NodeView;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** How the editor reads its bytes. Its mode is read inside the render pass on purpose: that read
+	 *  is the reactive dependency that re-renders every mounted cell when the mode changes. */
+	get reading(): Reading;
 	resolveLinkUrl: ResolveLinkUrl;
-	/** Effective mode. Read inside the render pass on purpose: the read is the
-	 *  reactive dependency that re-renders every mounted cell on a mode flip. */
-	get presentationMode(): PresentationMode;
-	/** The editor's theme name, forwarded to widgets. NOT a render-key term: this DOM is
-	 *  themed by CSS, so only a widget whose engine paints its own colors reads it. */
-	getTheme?: () => string;
+	/** The editor's theme name, passed on to widgets. Not part of the render key: this DOM
+	 *  is themed by CSS, so only a widget that draws its own colors reads it. */
+	getTheme: () => string;
 	/** Live root document for widgets that derive from it. A getter, so a pooled widget
 	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
-	/** The editor's content version, so a widget can memoize a document-wide derivation
-	 *  on it. Absent in a bare harness. */
-	getContentVersion?: () => number;
-	/** The editor's navigation door, forwarded to widgets whose gesture jumps elsewhere. */
-	navigateTo?: (path: number[]) => Promise<boolean>;
-	/** Position-sorted islands. A getter read inside the render pass on purpose: that
-	 *  read is the reactive dependency that re-renders the cell on an island change. */
+	/** The editor's content version, so a widget can memoize a document-wide derivation on it. */
+	getContentVersion: () => number;
+	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
+	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Decoration widgets, sorted by position. A getter read inside the render pass on
+	 *  purpose: that read is the dependency that re-renders the cell when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
-	/** A widget's synchronous mount throw goes to the editor's `error` channel. Absent →
-	 *  unsurfaced; the widget still falls back to its raw source. */
-	reportRenderError?: (error: unknown) => void;
+	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
+	 *  back to its raw source. */
+	reportRenderError: (error: unknown) => void;
 }
 
 export interface CellRender {
-	/**
-	 * Rebuild the cell's children from current node state. Skips work on an unchanged
-	 * memo key unless `forceRebuild` — pass it when a pending cursor restore needs the
-	 * DOM re-anchored even though the key held.
-	 */
+	/** Rebuilds the cell's children, skipping an unchanged key unless `forceRebuild`, which a
+	 *  pending cursor restore passes. */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
-	/** Destroy every pooled widget instance and mounted island — called on unmount. */
+	/** Destroy every pooled widget and mounted decoration, called when the cell unmounts. */
 	dispose(): void;
 }
 
@@ -67,11 +63,11 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
-		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
-		navigateTo: deps.navigateTo
+		navigateTo: deps.navigateTo,
+		reading: deps.reading
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -89,48 +85,50 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		if (!el) return;
 		const node = deps.node;
 
-		// Gating both the signature dependency and the resolver read on the bracket keeps
-		// an LRD change from re-rendering every cell. A false positive re-parses identically.
+		// Checking for a bracket before reading the signature or the resolver keeps one edit to
+		// a link-reference definition from re-rendering every cell. A false hit reparses the same.
 		const hasRef = node.raw.includes('[');
-		// Key on the compact signature epoch, never the ~MB-scale string (text-render's twin).
-		const sig = hasRef ? String(deps.linkRef?.epoch ?? deps.linkRef?.signature ?? '') : '';
-		// Unconditional, unlike the ref gating: a mode flip re-renders every mounted cell.
-		// '' in source keeps the default key byte-identical but for one NUL (text-render's twin).
-		const mode = deps.presentationMode;
+		// Key on the short signature token, never the string, which can reach megabytes.
+		const sig = hasRef ? String(deps.reading.resolverEpoch) : '';
+		// Always included, unlike the reference part: a mode change re-renders every mounted
+		// cell. '' in source mode keeps the default key byte-identical, as text-render does.
+		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const renderKey = `${node.raw}\0${sig}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
-		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
-		// An island-signature change rebuilds a focused cell with no edit-path pending
-		// offset, so carry the caret in walk space; the edit path opts out because its
-		// own restore runs after and wins (text-render's twin).
-		const caretWalkOffset = (opts?.carryCaret ?? true) ? captureFocusedCaretWalkOffset(el) : null;
+		const content = computeInlineContent(
+			node,
+			hasRef ? deps.reading.resolver : undefined,
+			deps.reading.grammar
+		);
+		// A decoration change rebuilds a focused cell with no restore pending, so the caret is
+		// carried across; an edit opts out because its own restore runs after.
+		const caret = (opts?.carryCaret ?? true) ? captureFocusedCaret(el) : null;
 		// Bracketing the rebuild pools portal widgets, so an unchanged `$…$` keeps its
-		// instance across per-keystroke rebuilds. Island widgets are unpooled.
+		// instance across per-keystroke rebuilds. Decoration widgets are not pooled.
 		widgetPool.beginPass();
 		destroyIslands();
 		el.replaceChildren(
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
 				resolveLinkUrl: deps.resolveLinkUrl,
-				buildPortalWidget
+				buildPortalWidget,
+				grammar: deps.reading.grammar
 			})
 		);
-		// Ambient length 0: a cell carries no marker, so island offsets are raw offsets.
 		islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 			contentLength: contentLengthOf(node),
-			ambientLength: 0,
 			mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
-			onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
+			onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 		});
 		widgetPool.sweep();
 		lastRenderedKey = renderKey;
 
-		// An empty cell needs a `<br>` caret anchor, but a `<br>` inside an island
-		// belongs to the widget, not the cell — it must not satisfy the anchor.
+		// An empty cell needs a `<br>` for the caret to anchor in, but a `<br>` inside a
+		// decoration widget belongs to that widget, not the cell, so it cannot serve.
 		if (trimTrailingLineEnding(node.raw) === '') {
 			const hasAnchorBr = [...el.querySelectorAll('br')].some(
 				(br) => !br.closest('[data-decoration-island]')
@@ -138,11 +136,11 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			if (!hasAnchorBr) el.appendChild(document.createElement('br'));
 		}
 
-		// A cell whose whole content is an empty construct (`[](u)`) would otherwise paint
-		// nothing; the stamp precedes the restore, which lands through the same walk.
+		// A cell whose whole content is an empty construct (`[](u)`) would otherwise draw
+		// nothing; the attribute is set before the restore, which uses the same traversal.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 
-		if (caretWalkOffset !== null) restoreCaretAtWalkOffset(el, caretWalkOffset);
+		if (caret !== null) placeCaretAtRaw(el, caret, { clamp: 'exact' });
 	}
 
 	return {

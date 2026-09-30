@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
-import {
-	INLINE_PRIORITIES,
-	registerInlineSyntax,
-	__resetInlineSyntaxForTests
-} from '../../../core/inline/scan/plugin-syntax';
+import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
-import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
+import type { ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import type { Reading } from '$lib/schema/reading';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -43,11 +41,7 @@ function registerEmbedRung(): void {
 	);
 }
 
-function mount(
-	raw: string,
-	linkRef?: LinkReferenceResolverRef,
-	resolveLinkUrl: ResolveLinkUrl = (u) => u
-) {
+function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = (u) => u) {
 	const el = document.createElement('div');
 	let node = makeCell(raw);
 	let islands: Island[] = [];
@@ -58,14 +52,13 @@ function mount(
 		get node() {
 			return node;
 		},
-		get linkRef() {
-			return linkRef;
-		},
+		reading: reading ?? fixtureReading(),
 		resolveLinkUrl,
-		get presentationMode() {
-			return 'source' as const;
-		},
+		getTheme: () => 'dark',
 		getDocument: () => undefined,
+		getContentVersion: () => 0,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		get islands() {
 			return islands;
 		}
@@ -81,8 +74,6 @@ function mount(
 		}
 	};
 }
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 describe('createCellRender', () => {
 	it('renders emphasis as a styled <em> with dimmed markers', () => {
@@ -102,8 +93,8 @@ describe('createCellRender', () => {
 	});
 
 	it('rewrites a link href through a non-identity resolveLinkUrl', () => {
-		// An embedder rewriting a relative href to an absolute one — the seam the
-		// paragraph path threads and the cell path dropped.
+		// An embedder rewriting a relative href to an absolute one, which the paragraph
+		// path passes through and the cell path must too.
 		const { el, render } = mount('[t](/wiki/page)', undefined, (u) => `https://host${u}`);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe(
@@ -130,20 +121,18 @@ describe('createCellRender', () => {
 		]);
 	});
 
-	// A plugin's `![[…]]` rung mints a built-in image whose alt names the target, so
-	// the cell's alt-only path meets a node whose markers aren't the GFM two.
-	it('renders a plugin-minted image as its own source bytes', () => {
+	// A plugin's `![[…]]` handler makes a built-in image whose alt names the target, so the
+	// cell's alt-only path meets a node whose markers are not the two GFM ones.
+	it('renders a plugin-created image as its own source bytes', () => {
 		registerEmbedRung();
 		const { el, render } = mount('![[cat.png]]');
 		render.render();
 		expect(el.textContent).toBe('![[cat.png]]');
 	});
 
-	// A link with no text renders as two marker spans and nothing else, which a marker-hiding
-	// mode would paint as an empty cell with no caret position.
-	// Miss-analysis: the cell is the third surface minting marker spans, and the two prose
-	// surfaces carried the content-empty rule while this one was never asked the question.
-	it('stamps a cell whose whole content is chrome, and drops the stamp when text arrives', () => {
+	// A link with no text is only marker spans, which a marker-hiding mode paints as nothing.
+	// Miss-analysis: the content-empty mark was tested on the two prose blocks, never on a cell.
+	it('marks a cell whose whole content is chrome, and drops the mark when text arrives', () => {
 		const ctx = mount('[](u)');
 		ctx.render.render();
 		expect(ctx.el.hasAttribute('data-content-empty')).toBe(true);
@@ -158,7 +147,6 @@ describe('createCellRender', () => {
 		render.render();
 		const firstChild = el.firstChild;
 		render.render();
-		// Same node identity → no replaceChildren ran.
 		expect(el.firstChild).toBe(firstChild);
 	});
 
@@ -172,23 +160,28 @@ describe('createCellRender', () => {
 		expect(ctx.el.querySelector('strong')?.textContent).toBe('y');
 	});
 
-	it('re-resolves a reference when the LRD signature changes (raw contains "[")', () => {
+	it('re-resolves a reference when the definitions are rebuilt (raw contains "[")', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = {
-			get current() {
+		let epoch = 0;
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
+			},
+			get resolverEpoch() {
+				return epoch;
 			}
-		};
-		const { el, render } = mount('[t][r]', linkRef);
+		});
+		const { el, render } = mount('[t][r]', reading);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
 		url = 'https://new.com';
 		signature = 'sig-new';
+		epoch = 1;
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
 	});
@@ -197,23 +190,23 @@ describe('createCellRender', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-1';
 		let epoch = 1;
-		const linkRef: LinkReferenceResolverRef = {
-			get current() {
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			},
-			get epoch() {
+			get resolverEpoch() {
 				return epoch;
 			}
-		};
-		const { el, render } = mount('[t][r]', linkRef);
+		});
+		const { el, render } = mount('[t][r]', reading);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
-		// Discriminator: with an epoch supplied the signature string is NOT in the key, so a string
-		// change alone (production-impossible — the reducer moves them in lockstep) does not re-render.
+		// With a token supplied the signature string is not in the render key, so a change to the
+		// string alone, which cannot happen in practice, does not re-render.
 		url = 'https://new.com';
 		signature = 'sig-2';
 		render.render();
@@ -226,26 +219,26 @@ describe('createCellRender', () => {
 
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = {
-			get current() {
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return undefined;
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			}
-		};
-		const { el, render } = mount('plain text', linkRef);
+		});
+		const { el, render } = mount('plain text', reading);
 		render.render();
 		const child = el.firstChild;
 		signature = 'sig-new';
 		render.render();
-		// No bracket → signature not read into the key → memo holds, no rebuild.
+		// With no bracket the signature is not in the render key, so the cell does not rebuild.
 		expect(el.firstChild).toBe(child);
 	});
 
-	// ── Islands (parity with the prose render path, ambient length 0) ──────────
+	// ── Decorations (the same as the prose render, with no marker prefix) ──────
 
-	it('applies a replace island in a cell, covering the raw range', () => {
+	it('applies a replace decoration in a cell, covering the raw range', () => {
 		const { el, render, setIslands } = mount('a SECRET b');
 		setIslands([
 			replaceIsland(2, 8, () => Object.assign(document.createElement('span'), { textContent: '…' }))
@@ -255,7 +248,7 @@ describe('createCellRender', () => {
 		expect(island).not.toBeNull();
 		expect(island?.getAttribute('data-source-start')).toBe('2');
 		expect(island?.getAttribute('data-source-end')).toBe('8');
-		// The covered bytes leave the DOM text; the island stands for them.
+		// The covered bytes leave the DOM text; the decoration stands for them.
 		expect(el.textContent).not.toContain('SECRET');
 	});
 

@@ -1,5 +1,6 @@
 import type { Gestures } from '../gestures';
 import { clickInlineWidget, escapeRevealToCommit } from './math';
+import { pointInGap } from '../../text-runs';
 import {
 	type SimContext,
 	assertParseConvergence,
@@ -8,14 +9,10 @@ import {
 } from '../invariants';
 
 /**
- * The behavioral half of the pointer perimeter G2.12 pins by source inspection: a live
- * cross-block range, an interrupting gesture, then ONE printable key.
- *
- * ORACLE: each gesture is pinned to ONE outcome and asserted by byte EQUALITY, never by
- * membership in the legal pair and never read back off `isCrossBlockActive()` — both
- * self-confirm, since a neutered reset makes the corrupt output the other outcome. Each
- * `consumes` is stated from OBSERVATION, not derived from G2.12, or this suite would mirror
- * the thing it cross-checks. Builds are chosen to land corruption far from the prediction.
+ * A live cross-block range, a gesture that interrupts it, then one printable key: the running
+ * check that a caret placement ends the range (G2.12). Each gesture is held to one observed
+ * outcome, compared byte for byte, and each range is built so corruption lands far from the
+ * prediction.
  */
 
 export type RangeInterruptGesture =
@@ -32,8 +29,8 @@ export type RangeInterruptGesture =
 	| 'gap-caret-click';
 
 /**
- * What the one printable key is predicted to consume. The two reveal rungs differ only in
- * what commits the ephemeral buffer: a caret escape for inline, a blur for a block.
+ * What the one printable key is predicted to replace. The two cases where a source is shown
+ * differ only in what commits it: stepping the caret out for inline, a blur for a block.
  */
 type Consumes = 'range' | 'caret' | 'block' | 'reveal-escape' | 'reveal-blur' | 'gap-mint';
 
@@ -47,19 +44,17 @@ interface GestureSpec {
 const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	'dead-space-below': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
 	'dead-space-margin': { consumes: 'caret', build: 'select-all', act: clickInRightMargin },
-	// The consumer door onto the same landing: no press and no click target in front of it,
-	// so it reaches the range-ending preamble by its own route.
+	// The public call that reaches the same position without a click, ending the range by its own
+	// route.
 	'place-caret-at-point': { consumes: 'caret', build: 'select-all', act: placeCaretBelowDocument },
 	'image-click': { consumes: 'block', build: 'select-all', act: clickImageWidget },
 	'drag-handle-press': { consumes: 'range', build: 'prose-range', act: pressDragHandle },
-	// The one caret-pinned gesture on a prose range: Escape collapses to the ANCHOR, and a
-	// prose-range anchor is interior — a stable landing to assert against, no more than that
-	// (a byte-0 demotion now folds inside the commit and converges).
+	// Escape collapses to where the selection started, inside the text, the one caret this family
+	// leaves on a prose range.
 	escape: { consumes: 'caret', build: 'prose-range', act: pressEscape },
 	'search-round-trip': { consumes: 'range', build: 'prose-range', act: searchRoundTrip },
-	// Only the second cost a whole-document delete: an inline island's click reaches the
-	// cross-block dispatcher that resets on the way past, while a render-primary block has
-	// no source text to hit-test and must call the preamble itself.
+	// A click on an inline widget passes through the cross-block handler, which ends the range; a
+	// block that only renders has no text to click into and must end the range itself.
 	'inline-reveal-click': {
 		consumes: 'reveal-escape',
 		build: 'select-all',
@@ -70,17 +65,17 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 		build: 'select-all',
 		act: clickBlockMathRender
 	},
-	// Navigation lands at the target heading's offset 0, which demotes it, so the document
-	// owes a blank line there. That constraint is written at the fixture that owes it.
+	// Navigating lands at offset 0 of the target heading, which demotes it, so the document needs a
+	// blank line there; the fixture that provides it says so.
 	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry },
-	// The one landing outside the selection union: the key MINTS a block rather than
-	// entering one, so the boundary is read off the gap probe, not `getSelectionPaths`.
+	// The one position outside any block: the key creates a block, so the boundary is read from the
+	// gap caret, not from `getSelectionPaths`.
 	'gap-caret-click': { consumes: 'gap-mint', build: 'select-all', act: clickAboveLeadingBlock }
 };
 
 /**
- * The gesture itself must move NO bytes; one that does is a finding, not something to fold
- * into the baseline. Undoes back to the start so a session's end-state equality holds.
+ * A gesture that moves bytes on its own is a finding. Undoes back to the start, so the session's
+ * end state still matches.
  */
 export async function rangeInterrupt(
 	ctx: SimContext,
@@ -131,8 +126,8 @@ export async function rangeInterrupt(
 	});
 
 	if (spec.consumes === 'reveal-escape' || spec.consumes === 'reveal-blur') {
-		// A revealed source takes the char into the DOM without committing it, so the press's own
-		// verdict is what orders the byte-identity read below.
+		// A block showing its source takes the character into the DOM without committing it, so
+		// the editor's recorded decision about the key orders the byte check below.
 		await ctx.editor.typeDeclined(char);
 		await assertRevealEphemeral(ctx, gesture, before);
 		if (spec.consumes === 'reveal-blur') await commitRevealByBlur(ctx, before, landing);
@@ -153,44 +148,40 @@ export async function rangeInterrupt(
 }
 
 /**
- * Fixed order so a seed's pick is replayable. Read off the LIVE tree rather than declared
- * per note, so a fixture that grows an image gains the widget probe without editing a list.
+ * A fixed order, so a seed's picks replay. Read from the live tree, so a fixture that gains an
+ * image gains the image gesture with it.
  */
 export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeInterruptGesture[]> {
-	const [shape, imageOnlyBlock] = await Promise.all([
+	const [lastIsProse, imageOnlyBlock] = await Promise.all([
 		ctx.page.evaluate(() => {
-			const children = (window as any).__test.getDocument().children as {
-				kind: string;
-				raw: string;
-			}[];
-			const last = children[children.length - 1];
-			return { lastKind: last?.kind ?? '', lastRaw: last?.raw ?? '' };
+			const probe = (window as any).__test;
+			return probe.isProseLeafAt(probe.getBlockCount() - 1) as boolean;
 		}),
 		ctx.page.evaluate(findImageOnlyBlock)
 	]);
-	// Only object blocks carry a handle, so a prose-only document offers no grip to press.
+	// Only object blocks carry a drag handle, so a document of prose has none.
 	const hasHandle = (await ctx.page.locator(HANDLE_HOST).count()) > 0;
 	const available: RangeInterruptGesture[] = ['dead-space-margin', 'escape'];
 	if (hasHandle) available.push('drag-handle-press');
-	// The band below clamps onto the last block, so a caret lands only if that block offers
-	// a character position — a rule has none, and an image-only paragraph's child is a widget.
-	if (PROSE_KINDS.has(shape.lastKind) && !shape.lastRaw.trimStart().startsWith('![')) {
+	// A click below the document resolves to the last block, so a caret lands only if that block
+	// has a character position: prose does, a thematic break or a paragraph of pictures does not.
+	if (lastIsProse) {
 		available.push('dead-space-below');
 	}
-	// The prediction replaces the host block WHOLE, which is only what the editor does when
-	// the image is its entire content. Mid-prose images are not offered rather than guessed.
+	// The prediction replaces the whole block, which is what the editor does only when the image
+	// is all the block holds. An image inside prose is left out rather than guessed at.
 	if (imageOnlyBlock >= 0) available.push('image-click');
 	available.push('search-round-trip');
 	return available;
 }
 
-/** Runs IN THE PAGE via `page.evaluate`, so it must close over nothing. */
+/** Runs in the page through `page.evaluate`, so it must use no values from outside itself. */
 function findImageOnlyBlock(): number {
 	const children = (window as any).__test.getDocument().children as { raw: string }[];
 	return children.findIndex((c) => /^!\[[^\]]*\]\([^)]*\)$/.test(c.raw.trim()));
 }
 
-const PROSE_KINDS = new Set(['paragraph', 'heading', 'setextHeading']);
+const RANGE_LEAF_KINDS = new Set(['paragraph', 'heading']);
 
 // ── Range builds ────────────────────────────────────────────────────────────
 
@@ -204,8 +195,8 @@ interface BuiltRange {
 }
 
 /**
- * The double Ctrl+A needs a caret to escalate FROM, and a prose leaf is the one block that
- * cannot reveal a render-primary source under it.
+ * Ctrl+A twice needs a caret to start from, and a prose block is the one kind that cannot open
+ * a source view under it.
  */
 async function buildSelectAll(ctx: SimContext, g: Gestures): Promise<BuiltRange> {
 	const leaves = await topLevelLeaves(ctx);
@@ -215,8 +206,8 @@ async function buildSelectAll(ctx: SimContext, g: Gestures): Promise<BuiltRange>
 }
 
 /**
- * Endpoints past their markers keep the collapse a pure byte splice, which is what lets the
- * `range` prediction be exact without modelling merge rules.
+ * With both ends past their markers, the collapse is a plain cut and join of bytes, which is
+ * what lets the `range` prediction be exact without modelling the merge rules.
  */
 async function buildProseRange(ctx: SimContext, g: Gestures): Promise<BuiltRange> {
 	const leaves = await topLevelLeaves(ctx);
@@ -229,10 +220,8 @@ async function buildProseRange(ctx: SimContext, g: Gestures): Promise<BuiltRange
 }
 
 /**
- * The KIND filter is load-bearing three times over, not decoration: a render-primary leaf
- * reveals its source instead of anchoring a range, a fenced leaf's markers make the collapse
- * something other than a byte splice, and a reveal-committing blur must not open a second
- * reveal. A childless-and-long-enough filter alone would admit `$$x^2$$` to all three.
+ * Filtered by kind, not just size: a rendered block would open its source instead of anchoring a
+ * range, fence markers or a setext underline make the collapse more than a cut and join.
  */
 async function topLevelLeaves(ctx: SimContext): Promise<number[]> {
 	const leaves = await ctx.page.evaluate(
@@ -249,7 +238,7 @@ async function topLevelLeaves(ctx: SimContext): Promise<number[]> {
 			});
 			return out;
 		},
-		[...PROSE_KINDS]
+		[...RANGE_LEAF_KINDS]
 	);
 	if (leaves.length === 0) {
 		throw new Error(`[${ctx.label}] range-interrupt found no top-level prose leaf to start from`);
@@ -285,8 +274,8 @@ async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
-/** The band under the last block is the tail row's (a press there appends a paragraph), so
- *  the dead space these gestures aim at starts below it, inside the root. */
+/** The strip just under the last block belongs to the trailing insert row, where a click adds
+ *  a paragraph, so the empty space these gestures aim at starts below that, inside the editor. */
 async function belowDocumentY(ctx: SimContext): Promise<number> {
 	const root = await editorBox(ctx);
 	const tail = await ctx.page.locator('.editor-tail').boundingBox();
@@ -295,9 +284,8 @@ async function belowDocumentY(ctx: SimContext): Promise<number> {
 }
 
 /**
- * The public `placeCaretAtPoint`, called as a host shell owning chrome below the document
- * calls it. A programmatic call on purpose: the API is the door under test, not a shortcut
- * around a gesture, and a false answer means it placed nothing to type into.
+ * Calls the public `placeCaretAtPoint` directly, the way an app with its own UI below the
+ * document would: the API is under test here, and `false` means it placed no caret.
  */
 async function placeCaretBelowDocument(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
@@ -320,18 +308,16 @@ async function lastBlockBottom(ctx: SimContext): Promise<number> {
 }
 
 /**
- * Aimed at PROSE rather than at whatever sits first: the band clamp resolves to that block,
- * keeping the landing top-level — the coordinate space every prediction here works in.
+ * Aimed at prose rather than at whatever happens to be first: the click resolves to that block
+ * and so lands at the top level, which is where every prediction here counts offsets.
  */
 async function clickInRightMargin(ctx: SimContext): Promise<undefined> {
-	const root = await editorBox(ctx);
 	const index = (await topLevelLeaves(ctx))[0];
-	const top = await ctx.page.evaluate((i) => {
-		const block = document.querySelector(`[data-block-path='${JSON.stringify([i])}']`);
-		if (!block) throw new Error(`no block host at index ${i}`);
-		return block.getBoundingClientRect().top;
-	}, index);
-	await ctx.page.mouse.click(root.right - 5, top + 6);
+	const block = ctx.page.locator(`[data-block-path='${JSON.stringify([index])}']`);
+	const box = await block.boundingBox();
+	if (!box) throw new Error(`no block host at index ${index}`);
+	const margin = await pointInGap(ctx.page.locator('.editor'), block, 'right', box.y + 6);
+	await ctx.page.mouse.click(margin.x, margin.y);
 	return undefined;
 }
 
@@ -347,8 +333,8 @@ async function clickImageWidget(ctx: SimContext): Promise<number> {
 	return index;
 }
 
-/** The handle only paints on hover, so the press must be preceded by one; a paragraph has
- *  none, so the first top-level host that carries one is the seat. */
+/** The drag handle only appears on hover, so the press has to follow one; a paragraph has no
+ *  handle, so the first top-level block that does is the one used. */
 const HANDLE_HOST = '[data-block-path]:not([data-block-path*=","]):has(> .block-drag-handle)';
 
 async function pressDragHandle(ctx: SimContext): Promise<undefined> {
@@ -356,7 +342,7 @@ async function pressDragHandle(ctx: SimContext): Promise<undefined> {
 	await host.hover();
 	await ctx.editor.waitForRenderFlush();
 	const box = await host.locator('.block-drag-handle').first().boundingBox();
-	if (!box) throw new Error(`[${ctx.label}] the reorder grip did not paint on hover`);
+	if (!box) throw new Error(`[${ctx.label}] the reorder drag handle did not paint on hover`);
 	await ctx.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 	await ctx.page.mouse.down();
 	await ctx.page.mouse.up();
@@ -369,8 +355,8 @@ async function pressEscape(ctx: SimContext): Promise<undefined> {
 }
 
 /**
- * The one gesture in the family that takes the caret out of the editor entirely and hands
- * it back: focus leaves for the find input and returns on Escape.
+ * The one gesture here that takes focus out of the editor and gives it back: it leaves for the
+ * find field and returns on Escape.
  */
 async function searchRoundTrip(ctx: SimContext): Promise<undefined> {
 	await ctx.page.keyboard.press('ControlOrMeta+f');
@@ -385,14 +371,14 @@ async function searchRoundTrip(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
-/** Click the rendered inline math island to reveal its `$…$` source. */
+/** Click the rendered inline math widget to open its `$…$` source. */
 async function clickInlineMathWidget(ctx: SimContext): Promise<undefined> {
 	await clickInlineWidget(ctx.page, 0);
 	await ctx.page.locator('.math-inline-widget').first().waitFor({ state: 'detached' });
 	return undefined;
 }
 
-/** A whole-block render-primary view, unlike the inline island: the door owning the reset. */
+/** A whole block that renders, unlike the inline widget: a different path ends the range. */
 async function clickBlockMathRender(ctx: SimContext): Promise<undefined> {
 	await ctx.page.locator('.math-block-render').first().click();
 	await ctx.page.locator('.math-block-source').first().waitFor({ state: 'visible' });
@@ -406,9 +392,8 @@ async function clickTocEntry(ctx: SimContext): Promise<undefined> {
 }
 
 /**
- * The editor's leading padding above a gap-declaring first block. Root bands tile flush, so
- * that strip is the only band-less y a pointer can reach, which makes the document's start
- * the one gap boundary this family can arrive at by click.
+ * The editor's padding above the first block, when that block offers a gap before it: the
+ * blocks' clickable strips lie edge to edge, so this padding is the one gap a click can reach.
  */
 async function clickAboveLeadingBlock(ctx: SimContext): Promise<undefined> {
 	const point = await ctx.page.evaluate(() => {
@@ -420,11 +405,11 @@ async function clickAboveLeadingBlock(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
-// ── Oracles ─────────────────────────────────────────────────────────────────
+// ── Checks ──────────────────────────────────────────────────────────────────
 
 /**
- * Checked BEFORE the keystroke so a failure names the stranded range rather than showing a
- * wiped document. Range-keeping gestures must leave the endpoints byte-identical.
+ * Checked before the keystroke, so a failure names the range left behind instead of showing a
+ * wiped document.
  */
 async function assertRangeContract(
 	ctx: SimContext,
@@ -445,18 +430,19 @@ async function assertRangeContract(
 	}
 	if (live) {
 		throw new Error(
-			`[${ctx.label}] ${gesture} placed the keystroke's target but left the cross-block range ` +
-				`live — the next printable key type-replaces the whole of it.\n` +
-				`RANGE: ${JSON.stringify(built)}\n` +
+			`[${ctx.label}] ${gesture} placed the keystroke's target but left the cross-block range live:` +
+				` the next printable key type-replaces the whole of it.
+` +
+				`RANGE: ${JSON.stringify(built)}
+` +
 				`NOW:   ${JSON.stringify(await ctx.editor.bridge.getSelectionPaths())}`
 		);
 	}
 }
 
 /**
- * The gap's own probe, because `getSelectionPaths` reports null while a gap is live. Anything
- * but a top-level boundary inside the span table means the click entered a block instead, and
- * the prediction below would name a boundary nothing is parked at.
+ * `getSelectionPaths` reports null in a gap, so this reads the gap caret; any landing but a
+ * top-level boundary means the click went into a block and the prediction would be wrong.
  */
 async function requireGapLanding(
 	ctx: SimContext,
@@ -466,7 +452,7 @@ async function requireGapLanding(
 	const gap = await ctx.editor.bridge.getGapCaret();
 	if (!gap || gap.parentPath.length > 0 || gap.index >= spanCount) {
 		throw new Error(
-			`[${ctx.label}] ${gesture} was expected to park a top-level gap caret the span table ` +
+			`[${ctx.label}] ${gesture} was expected to put a top-level gap caret the span table ` +
 				`covers, got ${JSON.stringify(gap)} over ${spanCount} blocks.`
 		);
 	}
@@ -487,7 +473,7 @@ async function assertRevealEphemeral(
 	}
 }
 
-/** Click a sibling leaf, which is what commits a render-primary block's reveal. */
+/** Click another block, which is what commits the source a rendered block was showing. */
 async function commitRevealByBlur(
 	ctx: SimContext,
 	before: string,
@@ -518,11 +504,11 @@ interface PredictArgs {
 	range: BuiltRange;
 	spans: BlockSpan[];
 	landing: BuiltRange | null;
-	/** Absolute offset of a NESTED caret landing, resolved in the page; null when the
-	 *  leaf's bytes are not contiguous in its ancestors', undefined for a top-level one. */
+	/** Document offset for a caret inside a nested block; null when the block's bytes are not
+	 *  contiguous in its parents', undefined for a caret at the top level. */
 	nestedCaret: number | null | undefined;
 	consumedBlock: number | undefined;
-	/** Top-level boundary index a gap landing parked at, for `consumes: 'gap-mint'`. */
+	/** The top-level boundary the caret sits at in a gap, for `consumes: 'gap-mint'`. */
 	gapBoundary: number | undefined;
 }
 
@@ -554,19 +540,19 @@ function predict(args: PredictArgs): string {
 				);
 			}
 			const span = spans[consumedBlock];
-			// The block's trailing newline is separator, not content: replacing the block
-			// keeps the document's line structure.
+			// The newline at the end of a block separates it from the next rather than being
+			// part of it, so replacing the block keeps the document's line structure.
 			const end = span.end - (before.slice(span.start, span.end).match(/\n+$/)?.[0].length ?? 0);
 			return splice(before, span.start, end, char);
 		}
-		// The three range-ended landings share one arithmetic: the key goes in at the caret
-		// the gesture left. A reveal only defers WHEN those bytes appear, not where.
+		// A shown source only delays when the key's bytes appear, not where, so the three caret cases
+		// share one splice.
 		case 'caret':
 		case 'reveal-escape':
 		case 'reveal-blur': {
 			if (!landing) throw new Error(`[${ctx.label}] ${gesture} left no selection to type into`);
-			// Guessing past a null offset would red on a correct editor, so fail loud instead —
-			// see `nestedCaretOffset` for when the conversion exists at all.
+			// Guessing an offset here would fail against a correct editor, so throw instead;
+			// `nestedCaretOffset` says when the offset can be worked out at all.
 			if (landing.focus.path.length > 1 && nestedCaret == null) {
 				throw new Error(
 					`[${ctx.label}] ${gesture} landed the caret inside a container whose bytes are ` +
@@ -577,12 +563,11 @@ function predict(args: PredictArgs): string {
 			const at = nestedCaret ?? absolute(spans, landing.focus);
 			return splice(before, at, at, char);
 		}
-		// A minted paragraph, not an insertion into one: the key's own line plus the blank
-		// line GFM owes between two blocks, at the first byte of the block the gap precedes.
-		// LF is the fixture's line ending, and G4.20 mints the neighbour's.
+		// A new paragraph at the first byte of the block after the gap: the key's own line plus the
+		// blank line between blocks, in the fixtures' LF endings (G4.20).
 		case 'gap-mint': {
 			if (gapBoundary === undefined) {
-				throw new Error(`[${ctx.label}] ${gesture} named no gap boundary to mint at`);
+				throw new Error(`[${ctx.label}] ${gesture} named no gap boundary to create at`);
 			}
 			const at = spans[gapBoundary].start;
 			return splice(before, at, at, `${char}\n\n`);
@@ -599,8 +584,8 @@ function absolute(spans: BlockSpan[], point: RangePoint): number {
 }
 
 /**
- * The walk reproduces the serializer's own arithmetic, and the reconstruction check fails
- * loud if that stops being true rather than letting every prediction drift by one offset.
+ * This walk repeats the serializer's own arithmetic, and rebuilding the source from the spans
+ * throws if that stops being true, rather than letting every prediction sit one byte out.
  */
 async function topLevelSpans(ctx: SimContext): Promise<BlockSpan[]> {
 	const { spans, rebuilt, source } = await ctx.page.evaluate(() => {
@@ -630,10 +615,8 @@ async function topLevelSpans(ctx: SimContext): Promise<BlockSpan[]> {
 }
 
 /**
- * Absolute offset of a NESTED caret, or null when no conversion exists. The descent IS the
- * verification: locating each child's raw inside its parent's resolves a grid (a cell's raw
- * sits verbatim in its row's) but not a strip container (a blockquote child's `> ` markers
- * are stripped), where the walk reports null rather than a plausible wrong number.
+ * Finding each child's raw text inside its parent's works for a table cell but not under a
+ * blockquote, whose `> ` markers are stripped; there it returns null rather than a wrong number.
  */
 async function nestedCaretOffset(ctx: SimContext, point: RangePoint): Promise<number | null> {
 	return ctx.page.evaluate((pt) => {
@@ -669,8 +652,8 @@ async function nestedCaretOffset(ctx: SimContext, point: RangePoint): Promise<nu
 }
 
 /**
- * Absent from the source, so its insertion has a unique index no diff-derived check can
- * latch onto by coincidence; a letter, so it can never open a construct at column 0.
+ * A character the source does not already hold, so where it is inserted is unambiguous; a
+ * letter, so it can never open a construct at column 0.
  */
 function probeChar(source: string): string {
 	for (const ch of 'QZJXKVWY') {

@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { setPluginMetadata } from '$lib/core/nodes';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor, isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_LEAF,
@@ -13,15 +12,13 @@ import {
 } from '$lib/core/directive/kinds';
 
 describe('registerDirectiveKinds', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
 	it('registers the generic container and leaf fallback kinds', () => {
 		registerDirectiveKinds();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);
 		expect(isBlockKindRegistered(DIRECTIVE_LEAF)).toBe(true);
 	});
 
-	it('is idempotent — a re-import re-runs it without throwing', () => {
+	it('is idempotent: a re-import re-runs it without throwing', () => {
 		registerDirectiveKinds();
 		expect(() => registerDirectiveKinds()).not.toThrow();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);
@@ -32,10 +29,8 @@ describe('registerDirectiveKinds', () => {
 // a non-prose kind.
 describe('directiveLeaf render descriptor', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const leaf = () => getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
 
@@ -66,14 +61,12 @@ describe('directiveLeaf render descriptor', () => {
 	});
 });
 
-// The losslessness pin: the opener writes `raw` verbatim, so only the inverse — rebuild
-// from the captured metadata + children after a structural edit — can prove the capture.
+// The losslessness pin: the opener writes `raw` verbatim, so only the inverse (rebuilding from
+// the captured metadata and children after a structural edit) can prove the capture.
 describe('rebuildDirectiveContainerRaw', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const build = (
 		meta: DirectiveContainerMetadata,
@@ -91,7 +84,7 @@ describe('rebuildDirectiveContainerRaw', () => {
 
 	const paragraph = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
-	it('re-emits opener colons, verbatim info, inner trivia, and the closer', () => {
+	it('re-emits opener colons, verbatim info, inner blank lines, and the closer', () => {
 		const node = build(
 			{
 				name: 'x',

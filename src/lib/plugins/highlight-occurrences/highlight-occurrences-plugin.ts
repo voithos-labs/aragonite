@@ -1,18 +1,15 @@
 /**
- * The decoration-source shape on public doors only: onEditor wires a mark source to the
- * selection and edit channels, and the scan, its memo and the typing gate stay pure in
- * the sibling modules.
+ * A decoration source built on public API alone: `onEditor` wires a mark source to the
+ * selection, edit and source-swap events; the scan, its cache and the pause-while-typing rule
+ * stay pure in the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
 import { createOccurrenceSource } from './occurrence-source';
 
 export interface HighlightOccurrencesOptions {
-	/**
-	 * Called when the word index is rebuilt: on a document change, not on a caret move,
-	 * carrying how many leaves that rebuild had to tokenize. Public so a harness asserts
-	 * the memo against this wiring rather than a copy of it.
-	 */
+	/** Called when the word index is rebuilt (a document change, not a caret move) with how many
+	 *  blocks it tokenized; public so a test can check this wiring's caching. */
 	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
@@ -32,9 +29,13 @@ export function highlightOccurrencesPlugin(
 				const offEdit = editor.events.on('edit', ({ op }) => {
 					if (occurrences.noteEdit(op)) handle.invalidate();
 				});
+				const offSourceSwap = editor.events.on('sourceSwap', () => {
+					if (occurrences.noteSourceSwap()) handle.invalidate();
+				});
 				return () => {
 					offSelection();
 					offEdit();
+					offSourceSwap();
 					handle.dispose();
 				};
 			});

@@ -1,18 +1,15 @@
 /**
- * The oracles live-mode.md § 2's license is checked with: what a rewrite may drop, and the residue
- * § 4.1 forbids it from minting. Shared by the split and join property nets and the gesture fuzzer,
- * so one reading of the license answers for all three.
+ * The checks that hold a rewrite to what live-mode.md § 2 allows: what it may drop, and the
+ * leftovers § 4.1 forbids it from creating. The split and join property suites and the gesture
+ * fuzzer all share these, so one reading of the rule answers for all three.
  */
 
 import { constructContentRange, parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 import { getInlineConstructPolicy } from '$lib/schema/inline-construct-policy';
 
-/**
- * The residue § 4.1 forbids, in one block's content: a construct whose row declares
- * `autoUnwrapOnEmpty` standing over nothing. Off the parse and the table rather than a delimiter
- * spelling, so every row answers for itself and two legitimate runs meeting are not residue.
- */
+/** The leftovers § 4.1 forbids: an emptied construct whose row declares `autoUnwrapOnEmpty`. Read
+ *  off the parse, not a delimiter spelling, so two legitimate runs meeting do not count. */
 export function emptyConstructSpans(
 	raw: string,
 	content: { start: number; end: number }
@@ -38,11 +35,8 @@ export function emptyConstructSpans(
 	return spans;
 }
 
-/**
- * Whether `inner` can be read off `outer` by deleting characters — the shape of a rewrite that only
- * ever drops runs from the bytes it was handed. Code UNITS, not code points: an offset is a
- * code-unit index everywhere in the editor, so a lone surrogate is a byte like any other here.
- */
+/** Whether `inner` can be read off `outer` by deleting characters: a rewrite that only drops runs.
+ *  Compares code units, since every editor offset is a code-unit index. */
 export function isSubsequence(inner: string, outer: string): boolean {
 	let at = 0;
 	for (let i = 0; i < outer.length; i++) {
@@ -52,11 +46,10 @@ export function isSubsequence(inner: string, outer: string): boolean {
 }
 
 /** Every non-line-ending byte of `before` still present in `after`, as a multiset over code units.
- *  Relaxed from equality because closing and reopening a construct DUPLICATES its delimiter run. */
+ *  Relaxed from equality because closing and reopening a construct duplicates its delimiter run. */
 export function keepsEveryByte(before: string, after: string): boolean {
-	// The declared-drop exception (#106), re-derived: the rebalancer strips `droppedTail` before
-	// returning its halves, so the forgiveness is bounded by the line-terminal whitespace `before`
-	// holds — exact position would make this net an echo of the verifier, not an oracle.
+	// Only the line-ending whitespace `before` holds may go; matching the rebalancer's exact
+	// position would echo the code under test instead of checking it.
 	let droppable = (before.match(/[ \t]+(?=\r?\n|$)/g) ?? []).join('').length;
 	const budget = new Map<string, number>();
 	for (const byte of after.replace(/\r?\n/g, '').split('')) {
@@ -65,7 +58,7 @@ export function keepsEveryByte(before: string, after: string): boolean {
 	for (const byte of before.replace(/\r?\n/g, '').split('')) {
 		const left = budget.get(byte) ?? 0;
 		if (left === 0) {
-			if (byte.trim() === '' && droppable > 0) {
+			if ((byte === ' ' || byte === '\t') && droppable > 0) {
 				droppable--;
 				continue;
 			}

@@ -8,14 +8,14 @@ import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// G2.9: a paste surfaces under MORE THAN ONE op kind, chosen by the paste STRATEGY rather
-// than the target's depth, so a consumer counting pastes must watch all three. Driven
-// through the live `pasteDispatch` so the guard tracks the real routing.
+// A paste surfaces under more than one op kind, chosen by the paste strategy rather than the
+// target's depth, so a consumer counting pastes must watch all three (G2.9).
 
 function editOps(handler: Mock<(e: EditEvent) => void>): string[] {
 	return handler.mock.calls.map(([event]) => event.op);
@@ -24,14 +24,14 @@ function editOps(handler: Mock<(e: EditEvent) => void>): string[] {
 describe('G2.9 paste op-kind emission', () => {
 	it('a default structural paste emits replaceBlock, not paste', async () => {
 		const { deps, events } = makeEditorActionsDeps([parse('hello world\n').children[0]]);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+			pasteContext({ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator })
 		);
 
 		const ops = editOps(onEdit);
@@ -39,9 +39,34 @@ describe('G2.9 paste op-kind emission', () => {
 		expect(ops).not.toContain('paste');
 	});
 
+	// Miss-analysis: the routing tests stubbed the coordinator, so none read the event a real
+	// replace names.
+	it.each([
+		['at the top level', 'first\n\nhello world\n', [1]],
+		['inside a quote', '> first\n>\n> hello world\n', [0, 1]]
+	])('a default structural paste %s names the replaced block', async (_where, source, path) => {
+		const { deps, events } = makeEditorActionsDeps(parse(source));
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
+		const onEdit = vi.fn<(e: EditEvent) => void>();
+		events.on('edit', onEdit);
+
+		await pasteDispatch(
+			{ pastedText: '# heading\n\nbody\n', targetPath: path, offset: 6 },
+			pasteContext({ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator })
+		);
+
+		expect(onEdit.mock.calls.map(([event]) => event)).toEqual([
+			expect.objectContaining({
+				op: 'replaceBlock',
+				path,
+				detail: { source: 'paste-dispatch' }
+			})
+		]);
+	});
+
 	it('a list-absorb paste emits paste, not replaceBlock', async () => {
 		const { deps, events } = makeEditorActionsDeps([parse('1. one\n2. two\n').children[0]]);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		// list-absorb commits on the outer list scope, resolved through the registry.
 		const liveList = () => deps.doc.children[0];
@@ -53,7 +78,7 @@ describe('G2.9 paste op-kind emission', () => {
 
 		await pasteDispatch(
 			{ pastedText: '1. INSERTED\n', targetPath: [0, 0, 0], offset: 'one'.length },
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+			pasteContext({ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator })
 		);
 
 		const ops = editOps(onEdit);
@@ -63,19 +88,19 @@ describe('G2.9 paste op-kind emission', () => {
 
 	it('a cross-block inline paste emits updateContent, not paste or replaceBlock', async () => {
 		const { deps, events } = makeEditorActionsDeps(parse('hello world\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
 		await pasteDispatch(
 			{ pastedText: 'XYZ\nsecond', targetPath: [0], offset: 5 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		const ops = editOps(onEdit);

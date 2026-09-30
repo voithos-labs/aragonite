@@ -1,36 +1,36 @@
 /**
- * A leaf's bytes built by concatenating text from more than one source is a JOIN, and every
- * destructive one crosses `cleanJoinedRaw` — live paints no delimiter, so a literal concatenation
- * surfaces the marker runs the join orphaned (live-mode.md § 4.5). The census runs both ways: the
- * cleaner's readers are declared, and so is every other file building such a concatenation, each
- * with the reason it is not a destructive join. `mergeListItemIntoPrevious` shipped outside both
- * because its SIGNATURE could not reach the cleaner, which no one-directional scan can see.
+ * A leaf's bytes built from text of more than one source is a join, and every destructive one
+ * goes through `cleanJoinedRaw` (G4.76, `docs/design/live-mode.md` § 4.5). The census runs both
+ * ways: files that call the cleaner are declared, and so is every other file building such a
+ * concatenation, with the reason it is not a destructive join.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
+	callsAnywhere,
 	callsTo,
 	collectEditorSources,
 	rawAssignments,
-	walkCode,
+	splitTopLevel,
 	type SourceFile
 } from './scan-source';
 
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts':
-		'defines it, and crosses it from the split cut, the range cut and both merge primitives',
-	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)',
+	'src/lib/tree-operations/leaf-range.ts':
+		'defines it, and crosses it from every in-leaf range replace and `joinLeaves`, the merge’s join',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
-	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
-	'src/lib/components/blocks/text/live-selection-edit.ts': 'the native ranged edit'
+	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join'
 };
 
-/**
- * Files whose byte expressions concatenate several sources without being a destructive join,
- * each with the reason. A kind re-emitting its OWN bytes from its own children joins nothing a
- * reader could have been looking at.
- */
+/** Every file calling the one join into a leaf, and what it joins. */
+const JOIN_INTO_LEAF_CALLERS: Record<string, string> = {
+	'src/lib/tree-operations/node-ops.ts': 'defines it; the Backspace and Delete joins call it',
+	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)'
+};
+
+/** Files whose byte expressions concatenate several sources without a destructive join, each with
+ *  the reason; a kind re-emitting its own bytes from its own children joins nothing. */
 const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/plugins/admonitions/github-alert-kind.ts':
 		"the alert's own rebuildRaw: its marker meets its own body",
@@ -40,28 +40,15 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':
-		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete` and crosses `cutRangeFromDisplay`'
+		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete`, cut by `replaceRangeInLeaf` before the container routes run',
+	'src/lib/editor-actions/inline-range-commit.ts':
+		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
+	'src/lib/selection/cross-block/type-replace.ts':
+		'a key typed over a selection across blocks is a range delete, then the character at the caret it left: the delete cleans its join without the typed text in it, a known gap until the cross-block replace carries the text into the join (T18 slice 4)'
 };
 
 /** Operand names that terminate a line rather than contribute a source's bytes. */
 const TERMINATOR = /(ending|Ending|suffix|Suffix|prefix|Prefix|trivia|Trivia)\b/;
-
-/** Top-level `+` operands of `expr`, brackets and every literal respected. */
-function plusOperands(expr: string): string[] {
-	const parts: string[] = [];
-	let depth = 0;
-	let start = 0;
-	walkCode(expr, 0, (ch, i) => {
-		if (ch === '(' || ch === '[' || ch === '{') depth++;
-		else if (ch === ')' || ch === ']' || ch === '}') depth--;
-		else if (ch === '+' && depth === 0 && expr[i + 1] !== '+' && expr[i - 1] !== '+') {
-			parts.push(expr.slice(start, i).trim());
-			start = i + 1;
-		}
-	});
-	parts.push(expr.slice(start).trim());
-	return parts;
-}
 
 /** An operand carrying a source's own bytes: not a literal, not the line's terminator. */
 function isSourceOperand(operand: string): boolean {
@@ -70,21 +57,42 @@ function isSourceOperand(operand: string): boolean {
 }
 
 const joinsSources = (expr: string): boolean =>
-	plusOperands(expr).filter(isSourceOperand).length > 1;
+	splitTopLevel(expr, '+').filter(isSourceOperand).length > 1;
 
-/**
- * Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
- * and the bytes argument of the two kind-rule readers — the sinks a join reaches through.
- */
+/** The calls whose arguments carry bytes bound for a leaf: the two that apply a kind's rule, the
+ *  content write's rule, the leaf write by path, and the container-matching paste's merged leaf. */
+const BYTE_WRITERS = [
+	'writeOwnRaw',
+	'normalizeOwnRaw',
+	'legalizeWrite',
+	'commitLeafText',
+	'writeMergedLeaf'
+];
+
+/** Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
+ *  and the arguments of each call in {@link BYTE_WRITERS}, a bare name read through its binding. */
 function byteExpressions(file: SourceFile): string[] {
 	const assignments = rawAssignments([file]).map((w) => w.statement.replace(/^\.raw\s*\+?=/, ''));
-	const calls = ['writeOwnRaw', 'normalizeOwnRaw'].flatMap((reader) =>
-		callsTo(file.code, reader).map((args) => args)
+	// A method call counts too: the paste coordinator's leaf write is one.
+	const code = file.code.replace(
+		new RegExp(`\\.(?=(?:${BYTE_WRITERS.join('|')})\\s*\\()`, 'g'),
+		' '
 	);
-	return [...assignments, ...calls];
+	const calls = BYTE_WRITERS.flatMap((reader) => callsTo(code, reader));
+	const bound = calls.flatMap((args) =>
+		splitTopLevel(args, ',').flatMap((arg) => bindingOf(file.code, arg.trim()))
+	);
+	return [...assignments, ...calls, ...bound];
 }
 
-describe('cross-node join door census', () => {
+/** What a `const` or `let` in `code` binds `name` to, when `name` is a bare identifier. */
+function bindingOf(code: string, name: string): string[] {
+	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return [];
+	const binding = new RegExp(`\\b(?:const|let)\\s+${name}\\s*=\\s*([^;]+);`, 'g');
+	return [...code.matchAll(binding)].map((m) => m[1]);
+}
+
+describe('cross-node join entry-point census', () => {
 	const sources = collectEditorSources();
 	const namesCleaner = (file: SourceFile) => /(?<![\w.])cleanJoinedRaw\b/.test(file.code);
 
@@ -98,6 +106,16 @@ describe('cross-node join door census', () => {
 		).toEqual(Object.keys(CLEANER_READERS).sort());
 	});
 
+	it('the files calling joinIntoLeaf are the declared ones', () => {
+		expect(
+			sources
+				.filter((file) => callsAnywhere(file.code, 'joinIntoLeaf'))
+				.map((f) => f.relPath)
+				.sort(),
+			'a new caller of the one join into a leaf: declare what it joins'
+		).toEqual(Object.keys(JOIN_INTO_LEAF_CALLERS).sort());
+	});
+
 	it('every file concatenating several sources into a leaf’s bytes names the cleaner or is manifested', () => {
 		const concatenating = sources
 			.filter((file) => byteExpressions(file).some(joinsSources))
@@ -105,7 +123,7 @@ describe('cross-node join door census', () => {
 			.map((f) => f.relPath);
 		expect(
 			concatenating.sort(),
-			'a leaf’s bytes are being built from more than one source. A DESTRUCTIVE join crosses ' +
+			'a leaf’s bytes are being built from more than one source. A destructive join crosses ' +
 				'`cleanJoinedRaw`, or live surfaces the delimiter runs the join orphaned; anything else ' +
 				'joins NON_JOIN_CONCATENATIONS with the reason it is not one'
 		).toEqual(Object.keys(NON_JOIN_CONCATENATIONS).sort());
@@ -122,10 +140,16 @@ describe('cross-node join door census', () => {
 		expect(joinsSources("'| ' + cells.join(' | ')")).toBe(false);
 	});
 
-	// Miss-analysis: the private split knew quotes and brackets only, and its own cases fed it
-	// nothing else, so a regex quantifier read as two sources meeting with no test to say so.
+	// Miss-analysis: the private split knew quotes and brackets only, and no case fed it a regex.
 	it('a quantifier inside a regex literal is not an operand boundary', () => {
 		expect(joinsSources('/a+b/.test(head) ? head : head + lineEnding')).toBe(false);
+	});
+
+	it('a call to joinIntoLeaf is seen, and a name that only contains it is not', () => {
+		expect(
+			callsAnywhere('const r = joinIntoLeaf(body, [0], next, reading, sharing);', 'joinIntoLeaf')
+		).toBe(true);
+		expect(callsAnywhere('const r = rejoinIntoLeafs(body);', 'joinIntoLeaf')).toBe(false);
 	});
 
 	it('an undeclared file building a join fails the set equality', () => {
@@ -135,5 +159,15 @@ describe('cross-node join door census', () => {
 			code: 'node.raw = prevText + currText + lineEnding;'
 		};
 		expect(byteExpressions(rogue).some(joinsSources)).toBe(true);
+	});
+
+	// Miss-analysis: the scan read only call arguments written in place, so a join bound to a
+	// name first, or handed to a method, slipped past it.
+	it('a join bound to a name and handed to a method write is seen', () => {
+		const code =
+			'const text = before + typed + after;\n' +
+			'await ctx.pasteCoordinator.commitLeafText(path, text, opts);';
+		const bound: SourceFile = { relPath: 'src/lib/x.ts', text: code, code };
+		expect(byteExpressions(bound).some(joinsSources)).toBe(true);
 	});
 });

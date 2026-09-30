@@ -11,34 +11,37 @@ import {
 import {
 	measureContainerInteriorTyping,
 	measureDeepNestedTyping,
+	measureStructuralRebuild,
 	measureTypingIntoDocument,
 	measureTypingLatency,
+	measureVerticalArrival,
+	percentileMs,
 	writePerfResult
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
-// The `perf:check` gate skips these: they gate nothing, so it should not pay their
-// runtime or flake risk.
+// The `perf:check` gate skips these: they gate nothing, so it should not pay their runtime or
+// their risk of flaking.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
 );
 
-// All rows run against the dev server with DEV invariant assertions active,
-// so every number is a conservative upper bound on production latency.
+// Every row runs against the dev server with the dev-mode checks on, so each number is a
+// cautious upper bound on the latency in production.
 const DEV_CAVEAT = 'dev server, DEV invariant assertions active — conservative upper bound';
 
 const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 	['100KB', 100_000, 30],
 	['1MB', 1_000_000, 30],
-	// Fewer keystrokes at 10MB: per-keystroke cost is O(block)+O(doc) there, and
-	// 15 samples already give a stable p50/p95 for second-scale latencies.
+	// Fewer keystrokes at 10MB: each one costs with both the block and the document there, and
+	// 15 samples already give a steady p50 and p95 at latencies of about a second.
 	['10MB', 10_000_000, 15]
 ];
 
-// Rows above a shape's cap are not generated; omissions are recorded in the requirements
-// file. Empty because windowing and lazy inline content removed every former blocker.
+// Rows past a shape's limit are not generated, and each one left out is recorded in the
+// requirements file; the list is empty.
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {};
 
 function round(ms: number): number {
@@ -75,15 +78,14 @@ test.describe('typing latency', () => {
 
 // ── Container-interior typing (report companion to the gated rows) ──────────
 
-// The caret INSIDE a giant container — the axis the prose-target rows above cannot reach,
-// since they prepend a paragraph precisely to give the caret a top-level home. The first
-// child is the one windowing guarantees mounted. Gated twins live in perf-gate.
+// The caret inside a huge container, which the rows above avoid by putting a paragraph in front.
+// The first child is the one windowing always keeps mounted; the gated versions live in perf-gate.
 const CONTAINER_INTERIOR_SHAPES: Array<[shape: FixtureShape, leafPath: number[]]> = [
 	['giant-single-list', [0, 0, 0]],
 	['giant-single-blockquote', [0, 0]]
 ];
 
-test.describe('typing latency — container interior', () => {
+test.describe('typing latency: container interior', () => {
 	for (const [shape, leafPath] of CONTAINER_INTERIOR_SHAPES) {
 		test(`${shape} interior 1MB`, async ({ page }) => {
 			const editor = new EditorPage(page);
@@ -103,10 +105,30 @@ test.describe('typing latency — container interior', () => {
 	}
 });
 
+// ── Structural edits (report companion to the gated row) ───────────────────
+
+// Enter and Backspace at the top level, each rebuilding the whole windowing model. The gated
+// version of this row lives in perf-gate; this one writes the result a re-bless reads.
+test('flat-prose 10MB structural', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const edits = 16;
+	const m = await measureStructuralRebuild(page, editor, 'flat-prose', 10_000_000, edits);
+	writeResult('flat-prose-10MB', 'structural', {
+		shape: 'flat-prose',
+		bytes: 10_000_000,
+		loadMs: round(m.loadMs),
+		edits,
+		keystrokeP50Ms: round(m.p50Ms),
+		keystrokeP95Ms: round(m.p95Ms),
+		note: DEV_CAVEAT
+	});
+	expect(m.samples).toHaveLength(edits);
+});
+
 // ── At-depth typing (concern-4 corroboration, report-only) ───────────────────
 
-// Depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps; the keystroke
-// there pays the full ancestry rebuild the top-level rows skip.
+// Eight levels deep at 50KB each is the realistic worst case the vitest benchmark covers; a
+// keystroke there pays for rebuilding every block above it, which the top-level rows skip.
 test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const m = await measureDeepNestedTyping(page, editor, 8, 50_000, 30);
@@ -125,29 +147,24 @@ test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async (
 	expect(m.samples).toHaveLength(30);
 });
 
-// ── Installed inline rungs (report-only) ────────────────────────────────────
+// ── Installed inline handlers (report only) ─────────────────────────────────
 
-// The standing ceilings measure an EMPTY inline registry, so no other row sees what a
-// registered rung costs. An UNRESERVED trigger (`:`, `$`) flips `needsScan`'s per-character
-// probe on document-wide, making plain prose more expensive — the blind spot these rows fill.
-//
-// CONFOUND: `/test/plugins` installs eight base plugins, two deriving over the whole
-// document, so a route delta bounds the rung's cost from ABOVE and is not attributable to
-// the rung alone. Do not read "the bail probe costs X" off one.
+// An unreserved trigger character (`:`, `$`) turns on a per-character check over the document.
+// `/test/plugins` has two whole-document plugins, so a route difference is an upper bound.
 const RUNG_KEYSTROKES = 30;
 
 interface RungRow {
 	row: string;
-	// The trigger-dense fixture, or the plain-prose shape for the bail-probe row.
+	// The fixture full of trigger characters, or plain prose for the quick-exit row.
 	fixture: TriggerDenseKind | 'flat-prose';
-	// `?seed=` on the plugins route; latex rides the base set, so its row needs none.
+	// `?seed=` on the plugins route; latex is in the base set, so its row needs none.
 	seed?: string;
-	// A widget the rung mints on the loaded document, proving the rung is live.
+	// A widget the handler creates on the loaded document, which proves it is running.
 	requireWidget?: string;
-	// Loaded before the fixture when the fixture itself mints no widget — the only liveness
-	// evidence the plain-prose row can carry.
+	// Loaded before the fixture when the fixture itself produces no widget: the only evidence
+	// the plain-prose row can carry that the handler is running.
 	probeDocument?: { source: string; widget: string };
-	// One size unless a row's cost is suspected to scale with the document.
+	// One size, unless a row's cost is thought to grow with the document.
 	sizes: Array<[label: string, bytes: number]>;
 }
 
@@ -155,11 +172,8 @@ const ONE_SIZE: Array<[string, number]> = [['100KB', 100_000]];
 
 const RUNG_ROWS: RungRow[] = [
 	{
-		// Two mechanisms in one fixture: the `[^` prefix consultation, and the mounted
-		// reference's number re-deriving over the whole document (the third non-viewport
-		// axis in docs/design/performance.md). The only row with a size axis, because the
-		// consultation is range-bounded while the derivation is not — a 10× document at the
-		// same viewport separates them without a second fixture.
+		// Two costs: the bounded `[^` prefix lookup and the unbounded reference numbering
+		// (`docs/design/performance.md` § 3. A live whole-document derivation), told apart by size.
 		row: 'bracket-dense-footnotes',
 		fixture: 'bracket-footnote',
 		seed: 'footnotes',
@@ -183,8 +197,8 @@ const RUNG_ROWS: RungRow[] = [
 		sizes: ONE_SIZE
 	},
 	{
-		// Prose with no trigger at all: `:` is held out of SPECIAL_CHARS, so registering
-		// emoji turns on a per-character map lookup before the fast bail decides.
+		// Prose with no trigger character at all: the fast bail skips `:` by default, so
+		// registering emoji turns on a map lookup for every character before the quick exit.
 		row: 'plain-prose-bail-emoji',
 		fixture: 'flat-prose',
 		seed: 'emoji',
@@ -199,7 +213,7 @@ function rungFixture(fixture: RungRow['fixture'], bytes: number): string {
 		: generateTriggerDense(fixture, bytes);
 }
 
-test.describe('typing latency — installed inline rungs', () => {
+test.describe('typing latency: installed inline syntax handlers', () => {
 	for (const { row, fixture, seed, requireWidget, probeDocument, sizes } of RUNG_ROWS) {
 		for (const [sizeLabel, bytes] of sizes) {
 			test(`${row} ${sizeLabel}`, async ({ page }) => {
@@ -211,7 +225,7 @@ test.describe('typing latency — installed inline rungs', () => {
 					await plugins.loadContent(probeDocument.source);
 					expect(
 						await page.locator(probeDocument.widget).count(),
-						`the rung is not live on this route — ${probeDocument.widget} never mounted`
+						`the inline syntax handler is not live on this route: ${probeDocument.widget} never mounted`
 					).toBeGreaterThan(0);
 				}
 				const rung = await measureTypingIntoDocument(
@@ -239,7 +253,7 @@ test.describe('typing latency — installed inline rungs', () => {
 					rungFreeLoadMs: round(rungFree.loadMs),
 					rungFreeP50Ms: round(rungFree.p50Ms),
 					rungFreeP95Ms: round(rungFree.p95Ms),
-					note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the rung's cost from above`
+					note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the inline syntax handler's cost from above`
 				});
 				expect(rung.samples).toHaveLength(RUNG_KEYSTROKES);
 				expect(rungFree.samples).toHaveLength(RUNG_KEYSTROKES);
@@ -248,10 +262,50 @@ test.describe('typing latency — installed inline rungs', () => {
 	}
 });
 
+// ── Vertical arrival (report only) ──────────────────────────────────────────
+
+// An arrow into a paragraph of widgets: after one letter, the letter's box sets the edge and every
+// widget box after it is a candidate the column scan must skip.
+const ARRIVAL_WIDGETS = 200;
+const ARRIVALS = 15;
+const ARRIVAL_ROWS = [
+	{ row: 'arrival-widget-only', lead: '', title: 'a widget-only paragraph' },
+	{ row: 'arrival-mixed', lead: 'x', title: 'one letter then' }
+];
+
+for (const { row, lead, title } of ARRIVAL_ROWS) {
+	test(`arrival into ${title} 200 entities (report-only)`, async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		const fixture = `perf arrival above
+
+${lead}${'&amp;'.repeat(ARRIVAL_WIDGETS)}
+
+perf arrival below
+`;
+		const m = await measureVerticalArrival(page, editor, fixture, ARRIVALS);
+		expect(await page.locator("[data-block-path='[1]'] [data-inline-widget]").count()).toBe(
+			ARRIVAL_WIDGETS
+		);
+		writeResult(row, `${ARRIVAL_WIDGETS}-entities`, {
+			widgets: ARRIVAL_WIDGETS,
+			arrivals: ARRIVALS,
+			loadMs: round(m.loadMs),
+			fromAboveP50Ms: round(percentileMs(m.fromAbove, 50)),
+			fromAboveP95Ms: round(percentileMs(m.fromAbove, 95)),
+			fromBelowP50Ms: round(percentileMs(m.fromBelow, 50)),
+			fromBelowP95Ms: round(percentileMs(m.fromBelow, 95)),
+			note: DEV_CAVEAT
+		});
+		expect(m.fromAbove).toHaveLength(ARRIVALS);
+		expect(m.fromBelow).toHaveLength(ARRIVALS);
+	});
+}
+
 // ── Bridge sanity ───────────────────────────────────────────────────────────
 
 test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }) => {
-	// The bridge's instruments arm only in dev, so the prod route has nothing to read here.
+	// The bridge's counters run only in dev, so the production route has nothing to read.
 	test.skip(!!process.env.PERF_PROD, 'dev-only instruments');
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -263,8 +317,8 @@ test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
-	// The inline recompute rides the debounced input flush (~250ms after the keystroke),
-	// so the source settle above lands well before it.
+	// The inline recompute happens on the debounced input flush, about 250ms after the
+	// keystroke, so the wait on the source above returns well before it.
 	await page.waitForFunction(
 		() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 		null,

@@ -5,104 +5,106 @@
 
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
-import { cutRangeFromDisplay } from '../node-ops';
-import { focusIndexBeforeResidue } from './focus-target';
+import type { ChildSlot } from '../list/task-paragraph';
+import { replaceRangeInLeaf, type LeafRangeEdit } from '../leaf-range';
+import { getContentRange, readInline } from '../../core/inline';
+import { CONTENT_VISIBILITY, visibleRuns } from '../../core/inline/visibility';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
 import {
 	registerPasteSurface,
-	type PasteSurface,
 	type PasteRange,
-	type PasteSeam,
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
+import type { StoredAs } from '../../schema/stored-as';
 
 // Registered by their own component instead of the loop below. One registrar per kind, so
 // correctness doesn't hinge on module load order.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
-/**
- * The leaf's bytes and caret after the paste's DELETE half — through the one join seam, so a cut
- * that stranded a delimiter run the reader never saw drops it here rather than pasting it into
- * view (live-mode.md § 4.5). The range is forwarded whole: the endpoints are the seam's to read.
- */
-function applyPreDelete(
-	node: CstNode,
-	display: string,
-	preDelete: PasteRange | undefined,
-	offset: number,
-	seam: PasteSeam | undefined
-): { display: string; offset: number } {
-	if (!preDelete) return { display, offset };
-	return cutRangeFromDisplay(node, display, preDelete, seam?.presentationMode, seam?.linkRef);
-}
-
+/** The pasted text over the selection, or at the caret, written as typing it there would be. */
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	store: StoredAs,
+	lineEnding: LineEnding
 ): InlinePasteResult {
-	const display = trimTrailingLineEnding(node.raw);
-	const lineEnding = trailingLineEnding(node.raw);
-
-	const { display: effectiveDisplay, offset: effectiveOffset } = applyPreDelete(
-		node,
-		display,
-		preDelete,
-		offset,
-		seam
-	);
-
-	const newDisplay =
-		effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
-
+	const range = preDelete ?? { start: offset, end: offset };
+	const bare = dropClosingLineEnding(text);
+	const probe = replaceRangeInLeaf(node, range, bare, store);
+	const edit =
+		bare === text || endsVisibleLine(node, probe, store)
+			? probe
+			: replaceRangeInLeaf(node, range, text, store);
 	return {
-		newRaw: newDisplay + lineEnding,
-		caretOffset: effectiveOffset + text.length
+		newRaw: trimTrailingLineEnding(edit.raw) + trailingLineEnding(node.raw, lineEnding),
+		caretOffset: edit.caret
 	};
+}
+
+/**
+ * `text` without the ending of its last line, which against a line end would leave a blank line
+ * in the paragraph; a whole blank last line stays, since the clipboard carried it as a block.
+ */
+function dropClosingLineEnding(text: string): string {
+	const closing = /\r?\n$/.exec(text);
+	if (!closing) return text;
+	const rest = text.slice(0, closing.index);
+	return rest === '' || /\r?\n$/.test(rest) ? text : rest;
+}
+
+/** Whether nothing the user sees follows the caret on its line: a delimiter run the reading
+ *  hides there, such as a bold word's closer, still ends the line. */
+function endsVisibleLine(node: CstNode, edit: LeafRangeEdit, store: StoredAs): boolean {
+	const after = trimTrailingLineEnding(edit.raw).slice(edit.caret);
+	if (after === '' || /^\r?\n/.test(after)) return true;
+	if (!store.reading.hidesDelimitersAtCaret()) return false;
+	const lineEnd = edit.caret + (/\r?\n/.exec(after)?.index ?? after.length);
+	const content = getContentRange({ ...node, raw: edit.raw });
+	const { resolver, grammar } = store.reading;
+	const inlines = readInline(edit.raw, content.start, content.end, resolver, grammar);
+	return !visibleRuns(inlines, edit.raw, CONTENT_VISIBILITY, { grammar }).some(
+		(run) => run.visible && run.text !== '' && run.end > edit.caret && run.start < lineEnd
+	);
 }
 
 export function defaultStructuralHook(
 	node: CstNode,
 	offset: number,
 	blocks: CstNode[],
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	store: StoredAs,
+	lineEnding: LineEnding,
+	slot: ChildSlot
 ): StructuralPasteResult {
-	const display = trimTrailingLineEnding(node.raw);
-	const cut = applyPreDelete(node, display, preDelete, offset, seam);
-	// Compare the BYTES rather than the range: a cleanup can drop more than the selection did,
+	// The blocks go in after the cut, as a split does, so the cut takes no text of its own.
+	const cut = preDelete && replaceRangeInLeaf(node, preDelete, '', store);
+	const display = cut && trimTrailingLineEnding(cut.raw);
+	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
-		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
+		!cut || display === trimTrailingLineEnding(node.raw)
+			? node
+			: { ...node, raw: display + trailingLineEnding(node.raw, lineEnding) };
 
-	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks);
-	return {
-		replacement,
-		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),
-		focusOffset: CURSOR_END
-	};
-}
-
-/**
- * Caret target for a structural paste: the end of the PASTED content, not the trailing
- * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
- * so the pasted content ends one node earlier. Takes the display and offset the delete half
- * already resolved — a seam cleanup moves both, and re-deriving them here would disagree.
- */
-export function pastedContentFocusIndex(
-	display: string,
-	offset: number,
-	replacementLength: number
-): number {
-	return focusIndexBeforeResidue(replacementLength, offset < display.length);
+	const { nodes, lastPastedIndex } = buildPastedReplacement(
+		synthLeaf,
+		cut ? cut.caret : offset,
+		blocks,
+		lineEnding,
+		store.reading.grammar,
+		slot
+	);
+	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the
+	// residue into the last pasted block.
+	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
 
 // Built-in kinds are all registered by the time this top level runs; a plugin kind
@@ -117,13 +119,4 @@ for (const kind of getAllRegisteredKinds()) {
 			onStructuralPaste: defaultStructuralHook
 		});
 	}
-}
-
-/** Test-only: produce a default text surface descriptor. */
-export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {
-	return {
-		kind,
-		onInlinePaste: defaultInlineHook,
-		onStructuralPaste: defaultStructuralHook
-	};
 }

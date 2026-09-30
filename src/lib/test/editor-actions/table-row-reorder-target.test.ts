@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { tableRowReorderTarget } from '$lib/editor-actions/table-context';
 
-// rowCount is the FULL row count: the header is fixed at index 0 and body rows occupy
-// 1..rowCount-1. A null result means no-op, so a boundary press pushes no undo entry.
+// rowCount is the full row count: the header is fixed at index 0 and body rows occupy
+// 1..rowCount-1. A null result means no-op, so a keypress at the edge pushes no undo entry.
 describe('tableRowReorderTarget', () => {
 	it('moves an interior body row in the requested direction', () => {
 		expect(tableRowReorderTarget(1, 1, 4)).toBe(2);

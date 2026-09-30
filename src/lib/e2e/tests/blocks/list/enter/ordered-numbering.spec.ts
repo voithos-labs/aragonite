@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list Enter — ordered numbering', () => {
+test.describe('list Enter: ordered numbering', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -56,7 +56,7 @@ test.describe('list Enter — ordered numbering', () => {
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
 
-	// Google Docs / Obsidian semantics: exit paragraph doesn't consume a marker number.
+	// The exit paragraph takes no marker number, so the second half renumbers continuously.
 	test('ordered: Enter on empty middle item renumbers second half continuously', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n4. four\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });

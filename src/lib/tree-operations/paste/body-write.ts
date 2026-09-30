@@ -1,12 +1,14 @@
 /**
- * The paste family's `bodyWrite` moment: paste builds nodes upstream of every
- * content-write byte sink, so a container's escape lands here instead — on the clipboard text
- * ahead of the strategy-picking parse, and on the built replacement at the splice.
+ * Where paste applies a container's `bodyWrite` escape: paste builds nodes before any content
+ * write sees them, so the escape is applied here instead, to the clipboard text before the
+ * strategy-picking parse and to the built replacement at the splice.
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
+import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
+import { documentLineEnding, type LineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
 	ensureEditableContainers,
@@ -23,9 +25,10 @@ export function normalizeClipboardForBody(
 	text: string
 ): string {
 	let out = text;
+	const lineEnding = documentLineEnding(doc);
 	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
 		const ancestor = nodeAt(doc, targetPath.slice(0, depth));
-		if (ancestor && isBlockNode(ancestor)) out = normalizeBodyWrite(ancestor.kind, out);
+		if (ancestor && isBlockNode(ancestor)) out = normalizeBodyWrite(ancestor, out, lineEnding);
 	}
 	return out;
 }
@@ -37,36 +40,34 @@ export interface BodyLegalReplacement {
 }
 
 /**
- * Replacement nodes made legal as `ownerKind` children. A changed raw reparses whole, so
+ * Replacement nodes made legal as `owner`'s children. A changed raw reparses whole, so
  * the landed kind follows the escaped bytes and a container's children stay in step.
  */
 export function normalizeReplacementForBody(
-	ownerKind: AnyBlockKind | undefined,
+	owner: NodeView | undefined,
 	replacement: CstNode[],
-	grammar?: GrammarView
+	ending: LineEnding,
+	grammar: GrammarView
 ): BodyLegalReplacement {
-	if (ownerKind === undefined || !tryGetBlockKindDescriptor(ownerKind)?.bodyWrite) {
+	if (owner === undefined || !tryGetBlockKindDescriptor(owner.kind)?.bodyWrite) {
 		return { replacement, mapIndex: (i) => i };
 	}
 	const out: CstNode[] = [];
 	const starts: number[] = [];
 	for (const node of replacement) {
 		starts.push(out.length);
-		const escaped = normalizeBodyWrite(ownerKind, node.raw);
+		const escaped = normalizeBodyWrite(owner, node.raw, ending);
 		if (escaped === node.raw) {
 			out.push(node);
 			continue;
 		}
-		const reparsed = parse(escaped, {
-			scope: 'fragment',
-			...(grammar ? { grammar } : {})
-		}).children;
+		const reparsed = readBlocks(escaped, { grammar, scope: 'fragment' }).children;
 		if (reparsed.length === 0) {
 			out.push(node);
 			continue;
 		}
 		const carried = normalizeReplacementTrivia(node, reparsed);
-		for (const minted of carried) ensureEditableContainers(minted);
+		for (const minted of carried) ensureEditableContainers(minted, ending);
 		out.push(...carried);
 	}
 	return {

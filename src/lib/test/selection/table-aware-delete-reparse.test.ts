@@ -1,14 +1,16 @@
-// A cross-block delete from prose INTO a table leaves two ADJACENT blocks. A table opens only on
-// the first line of a paragraph block (core/parsers/paragraph.ts), so a truncated head that does
-// not end on a line ending lets the next parse swallow the table into the paragraph — the CST
-// looks correct and the loss lands on reload. Its sibling truncation in range-delete-chrome.ts
-// terminates the head first: the N−1-of-N shape rules.md § sibling-path parity names.
+// A cross-block delete from text into a table leaves two adjacent blocks. A table opens only on
+// the first line of a paragraph block (`core/parsers/paragraph.ts`), so a truncated head that does
+// not end on a line ending lets the next parse swallow the table into the paragraph: the CST
+// looks correct and the loss lands on reload. The sibling truncation in `range-delete-chrome.ts`
+// terminates the head first, the shape `rules.md` § sibling-path parity names.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Paragraph at [0], 3-row table at [1] (header + two body rows), blank line between.
 const PROSE_THEN_TABLE = 'intro text\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -23,7 +25,15 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
-	return serialize(tableAwareRangeDelete(doc, start, end, createSharingState(), undefined).newDoc);
+	return serialize(
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, start, end)),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
+	);
 }
 
 /** The block kinds the delete's own output parses back to. */
@@ -49,7 +59,7 @@ describe('a prose→table delete leaves bytes the parser still reads as a table'
 
 	it('leaves the surviving paragraph line-terminated when the table is consumed whole', () => {
 		// Same truncation, no table left to separate from — so the loss shows as a
-		// document that no longer ends on a line ending.
+		// document that does not end on a line ending.
 		const bytes = deletedBytes(PROSE_THEN_TABLE, { path: [0], offset: 5 }, cell([1], 5));
 
 		expect(bytes).toBe('intro\n');

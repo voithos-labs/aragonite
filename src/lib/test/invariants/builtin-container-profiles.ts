@@ -1,15 +1,19 @@
 /**
- * G4.3 conformance profiles for the BUILT-IN container kinds — fixture data for the kit
- * in `$lib/testing/container-conformance`, kept out of the shipped package because a
- * plugin author supplies their own. `container-conformance.test.ts` holds this map in
- * lockstep with the registry. Where a grid container's contract makes an invariant moot,
- * the cell is declared BOUNDARY/EXEMPT with a reason — never a silent skip.
+ * Conformance profiles for the built-in container kinds, with drivers for the ops only their own
+ * contexts perform. Test-side because a plugin author supplies their own profile;
+ * `container-conformance.test.ts` holds this map in lockstep with the registry. A cell a grid's
+ * contract makes moot is declared with a reason, never skipped.
  */
 
 import type { BlockKind } from '$lib/core/nodes';
-import type { ContainerConformanceProfile } from '$lib/testing';
+import type { BuiltinContainerProfile } from '$lib/testing/container-conformance';
+import {
+	checkListIndentOneUndo,
+	checkTableColumnOneUndo,
+	checkTableLocalIndexAddressing
+} from './builtin-container-drivers';
 
-type TerminatorCell = NonNullable<ContainerConformanceProfile['terminatorCollision']>;
+type TerminatorCell = BuiltinContainerProfile['terminatorCollision'];
 
 const STRIP_TERMINATOR_EXEMPT: TerminatorCell = {
 	mode: 'exempt',
@@ -23,7 +27,7 @@ const GRID_TERMINATOR_BOUNDARY: TerminatorCell = {
 		'grid containerContract: cells are re-emitted through the pipe/escape writer rather than wrapped between an opener and a terminator, so there is no terminator line to reproduce; cell-level delimiter escaping is covered by the table escaping suite'
 };
 
-export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceProfile>> = {
+export const CONTAINER_PROFILES: Partial<Record<BlockKind, BuiltinContainerProfile>> = {
 	blockquote: {
 		// outer bq > inner bq (local index 1) > [paragraph, paragraph].
 		deepNesting: { source: '> top\n>\n> > inner-a\n> >\n> > inner-b\n', leafPath: [0, 1, 0] },
@@ -57,8 +61,8 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		focusSource: '- a\n- b\n',
 		localIndex: { mode: 'assert' },
 		ancestry: { mode: 'assert' },
-		// indentItem / splitItemAtOffset / promoteNestedItem span ≥2 scopes via commitMultiScope.
 		multiScope: { mode: 'assert' },
+		drivers: { multiScope: checkListIndentOneUndo },
 		focusBubble: { mode: 'assert' },
 		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
@@ -74,7 +78,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 			containerChain: [0, 1],
 			targetChild: 1
 		},
-		// listItem can't be a parse root — it lives inside a list; the kit's walker
+		// listItem can't be a parse root: it lives inside a list; the kit's walker
 		// finds the listItem node (whose child is the inner paragraph).
 		focusSource: '- a\n',
 		localIndex: { mode: 'assert' },
@@ -92,17 +96,19 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 			source: '| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n',
 			leafPath: [0, 2, 1]
 		},
-		// Grid local addressing (rows by index) is asserted via table-context.
 		localIndex: { mode: 'assert' },
 		ancestry: {
 			mode: 'boundary',
 			reason:
-				'grid containerContract: rebuildTableRaw re-derives the ENTIRE table subtree (every row) ' +
-				'in one rebuild, so the innermost-first ordering of a chained ancestry rebuild is moot — ' +
+				'grid containerContract: rebuildTableRaw re-derives the entire table subtree (every row) ' +
+				'in one rebuild, so the innermost-first ordering of a chained ancestry rebuild is moot; ' +
 				'a single rebuild of the table already reflects any descendant cell edit.'
 		},
-		// commitColumnEdit spans the table scope + every row scope.
 		multiScope: { mode: 'assert' },
+		drivers: {
+			gridLocalIndex: checkTableLocalIndexAddressing,
+			multiScope: checkTableColumnOneUndo
+		},
 		focusBubble: {
 			mode: 'boundary',
 			reason:
@@ -121,7 +127,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		localIndex: {
 			mode: 'boundary',
 			reason:
-				'tableRow has no standalone author action bundle — its cells are leaves and all row/column ' +
+				'tableRow has no standalone author action bundle: its cells are leaves and all row/column ' +
 				'ops run through the table scope (createTableMutationsContext). Row local addressing is ' +
 				'exercised via the `table` profile.'
 		},

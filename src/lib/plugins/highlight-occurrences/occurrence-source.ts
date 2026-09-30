@@ -1,9 +1,7 @@
 /**
- * The plugin-guide § Decorations "memoize the scan on editEpoch" recipe: the index costs a
- * document walk, so it is rebuilt only when the epoch bumps, carrying each leaf's token list
- * across the rebuild, and a caret move re-filters the cached index with one map read.
- * The marks step aside while you type: an epoch arriving under a caret with no `edit` event
- * ahead of it is a keystroke, and any edit event puts them back.
+ * The occurrence mark source: the word index is rebuilt only when `editEpoch` changes, and a caret
+ * move is one map read. The marks hide while you type: an `editEpoch` with no `edit` or
+ * `sourceSwap` event before it is a keystroke, and either event shows them again.
  */
 
 import type {
@@ -23,31 +21,31 @@ import {
 const SOURCE_NAME = 'highlight-occurrences';
 
 export interface OccurrenceSourceDeps {
-	/** Fires on each real index rebuild, carrying how many leaves that rebuild had to
-	 *  tokenize: the seam a memoization test asserts against. */
+	/** Fires on each real index rebuild, with how many blocks that rebuild had to tokenize:
+	 *  what a caching test asserts on. */
 	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
 export interface OccurrenceSource {
 	readonly source: DecorationSource;
 	setSelection(selection: EditorSelection | null): void;
-	/**
-	 * Report an `edit` op. Any of them ends the hold; only `input`, the batched flush that
-	 * ends a typing burst, leaves the next epoch readable as another keystroke. Returns
-	 * whether the caller must invalidate to reveal marks the hold was keeping back.
-	 */
+	/** Report an `edit` op: any op shows the marks again, and only `input` (a typing burst's flush)
+	 *  leaves the next `editEpoch` a keystroke. Returns whether the caller must invalidate. */
 	noteEdit(op: string): boolean;
+	/** Report a `sourceSwap`: the next `editEpoch` is the new document, never a keystroke.
+	 *  Returns whether the caller must invalidate, as `noteEdit` does. */
+	noteSourceSwap(): boolean;
 }
 
 export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): OccurrenceSource {
 	let selection: EditorSelection | null = null;
 	let index: OccurrenceIndex = new Map();
 	let tokens: TokenCache = new Map();
-	// Sentinel below any real epoch, so the first provide always scans.
+	// Below any real `editEpoch`, so the first call always scans.
 	let indexedEpoch = -1;
 	let typing = false;
-	// Nothing can have been typed into a source that has not run yet, so the first epoch it
-	// ever sees is a document arrival however the caret sits.
+	// Nothing can have been typed into a source that has not run yet, so the first `editEpoch`
+	// it ever sees is the document arriving, wherever the caret is.
 	let structuralSinceScan = true;
 
 	function provide(doc: DocumentView, { editEpoch }: ProvideContext): MarkDecoration[] {
@@ -57,16 +55,20 @@ export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): Occurre
 			index = scan.index;
 			tokens = scan.tokens;
 			deps.onScan?.({ tokenizedLeaves: scan.tokenizedLeaves });
-			// A keystroke lands under a caret and says nothing on the edit channel until its
-			// burst flushes. An epoch missing either mark is some other document change: a
-			// commit that already announced itself, or a whole-document swap, which drops
-			// the caret before its epoch arrives.
-			typing = !structuralSinceScan && selection !== null;
+			// A keystroke says nothing on the edit event until its burst flushes; every other
+			// document change announced itself before its `editEpoch` arrived.
+			typing = !structuralSinceScan;
 			structuralSinceScan = false;
 		}
 		if (typing) return [];
 		const word = anchorWord(doc, selection);
 		return word ? (index.get(word) ?? []) : [];
+	}
+
+	function showMarks(): boolean {
+		const held = typing;
+		typing = false;
+		return held;
 	}
 
 	return {
@@ -75,12 +77,14 @@ export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): Occurre
 			selection = next;
 		},
 		noteEdit(op) {
-			// Undo bumps the content version before it emits, so a structural op can reach
-			// here AFTER the epoch it moved: ending the hold here covers both orders.
+			// Undo bumps the content version before it emits, so a structural op can arrive
+			// after the `editEpoch` it caused; turning marks back on here covers both orders.
 			if (op !== 'input') structuralSinceScan = true;
-			const held = typing;
-			typing = false;
-			return held;
+			return showMarks();
+		},
+		noteSourceSwap() {
+			structuralSinceScan = true;
+			return showMarks();
 		}
 	};
 }

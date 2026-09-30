@@ -7,12 +7,12 @@ follows the column into the clipped region and the grid scrolls to keep it in vi
 
 ## Happy paths
 
-- Alt+ArrowRight on the rightmost fully-visible column moves it past its clipped neighbour, the moved column's cell holds the caret, and the grid has scrolled so that cell is inside the table's visible box; a typed marker lands in it.
+- Alt+ArrowRight on the rightmost fully-visible column moves it past its clipped neighbour, the moved column's cell holds the caret, and the grid has scrolled so that cell is inside the table's visible box; a typed character lands in it.
 
 ## Edge cases
 
-- The columns genuinely overflow at the start (scrollWidth exceeds clientWidth), and the moved column's neighbour is clipped, so the test can't pass vacuously on a table that fits.
+- The columns really do overflow at the start (scrollWidth exceeds clientWidth), and the moved column's neighbour is clipped, so the test cannot pass on a table that fits.
 
 ## Notes
 
-- Retired with the column grips: the pointer-edge horizontal autoscroll that brought a clipped drop target into view mid-drag. The chord and the menu have no drop target to reach.
+- Retired with the column handles: the horizontal autoscroll at the pointer's edge that brought a clipped drop target into view mid-drag. The chord and the menu have no drop target to reach.

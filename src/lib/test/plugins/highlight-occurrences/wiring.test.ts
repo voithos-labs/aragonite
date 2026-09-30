@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import type {
 	EditorContext,
@@ -30,28 +30,29 @@ function editorStub() {
 	// as a count a single shared mock could reach by unsubscribing one channel twice.
 	const offSelection = vi.fn();
 	const offEdit = vi.fn();
+	const offSourceSwap = vi.fn();
+	const offs: Record<string, () => void> = {
+		selectionChange: offSelection,
+		edit: offEdit,
+		sourceSwap: offSourceSwap
+	};
+	const handlers: Record<string, (payload: unknown) => void> = {};
 	let added: DecorationSource | undefined;
-	let selectionHandler: ((sel: EditorSelection) => void) | undefined;
-	let editHandler: ((event: { op: string }) => void) | undefined;
 
 	const editor = {
 		decorations: {
 			addSource: (source: DecorationSource) => {
 				added = source;
-				// The engine runs a source the moment it registers; a stub that skips that
-				// first provide cannot see what the source makes of the epoch it mounts on.
+				// The decoration system runs a source the moment it registers; a stub that skips
+				// that first provide cannot see what the source makes of its first `editEpoch`.
 				source.provide(DOC, { editEpoch: 0 });
 				return { invalidate, dispose };
 			}
 		},
 		events: {
-			on: (name: string, handler: (event: never) => void) => {
-				if (name === 'selectionChange') {
-					selectionHandler = handler as unknown as (sel: EditorSelection) => void;
-					return offSelection;
-				}
-				editHandler = handler as unknown as (event: { op: string }) => void;
-				return offEdit;
+			on: (name: string, handler: (payload: unknown) => void) => {
+				handlers[name] = handler;
+				return offs[name];
 			}
 		}
 	} as unknown as EditorContext;
@@ -62,9 +63,11 @@ function editorStub() {
 		dispose,
 		offSelection,
 		offEdit,
+		offSourceSwap,
 		source: () => added,
-		fireSelection: (sel: EditorSelection) => selectionHandler?.(sel),
-		fireEdit: (op: string) => editHandler?.({ op })
+		fireSelection: (sel: EditorSelection) => handlers.selectionChange?.(sel),
+		fireEdit: (op: string) => handlers.edit?.({ op }),
+		fireSourceSwap: (generation: number) => handlers.sourceSwap?.({ generation })
 	};
 }
 
@@ -95,20 +98,21 @@ describe('highlightOccurrencesPlugin wiring', () => {
 
 		wired.fireSelection(caret([0], 0)); // caret on the first 'cat'
 		expect(wired.invalidate).toHaveBeenCalledTimes(1);
-		// The invalidate re-runs provide in the engine; here we call it directly to
-		// prove the source now sees the word under the caret (setSelection was wired).
+		// Invalidating re-runs provide inside the editor; calling it directly here shows
+		// the source now sees the word under the caret, so setSelection was wired.
 		const marks = wired.source()!.provide(DOC, { editEpoch: 0 }) as MarkDecoration[];
 		expect(marks).toHaveLength(2);
 		expect(marks[0].class).toBe(OCCURRENCE_CLASS);
 	});
 
-	it('disposes the source and unsubscribes from both channels on cleanup', () => {
+	it('disposes the source and unsubscribes from every channel on cleanup', () => {
 		const wired = attach();
 		expect(typeof wired.cleanup).toBe('function');
 		wired.cleanup!();
 		expect(wired.dispose).toHaveBeenCalledTimes(1);
 		expect(wired.offSelection).toHaveBeenCalledTimes(1);
 		expect(wired.offEdit).toHaveBeenCalledTimes(1);
+		expect(wired.offSourceSwap).toHaveBeenCalledTimes(1);
 	});
 
 	it('holds the marks back while typing and paints them when the burst flushes', () => {
@@ -116,7 +120,7 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		wired.fireSelection(caret([0], 0));
 		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
 
-		// A keystroke: the epoch bumps with no `edit` event ahead of it.
+		// A keystroke: `editEpoch` bumps with no `edit` event before it.
 		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
 
 		wired.fireEdit('input');
@@ -133,9 +137,19 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
 	});
 
-	// The scan seam is the plugin's only option; the memo it feeds is pinned at the
-	// source level, so this asserts the threading and nothing beyond it.
-	it('threads the onScan option into the source it mints', () => {
+	// A host that places the caret in the new document before its `editEpoch` lands must still
+	// see the marks: the swap announces itself, so the epoch is not read as a keystroke.
+	it('reads a source swap as a document change, not a typing burst', () => {
+		const wired = attach();
+		wired.fireSelection(caret([0], 0));
+
+		wired.fireSourceSwap(1);
+		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
+	});
+
+	// `onScan` is the plugin's only option; the cache it feeds is pinned at the source
+	// level, so this asserts the wiring and nothing beyond it.
+	it('threads the onScan option into the source it creates', () => {
 		const onScan = vi.fn();
 		const wired = attach({ onScan });
 		wired.source()!.provide(parse('cat sat cat\n'), { editEpoch: 0 });
@@ -144,13 +158,9 @@ describe('highlightOccurrencesPlugin wiring', () => {
 });
 
 describe('highlightOccurrencesPlugin through the install platform', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-	afterEach(() => resetPluginPlatformForTests());
-
-	// A unit installs once per process, so an author's suite reinstalls between cases: a
-	// registration that skipped the reset seam throws here, and a duplicated onEditor call
-	// misses the count.
-	it('reinstalls across the reset seam, registering exactly one callback each time', () => {
+	// An author's suite reinstalls between cases, so a registration ignoring the test reset
+	// throws here and a duplicated onEditor call fails the count.
+	it('reinstalls across the reset boundary, registering exactly one callback each time', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);
 
@@ -159,9 +169,9 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);
 	});
 
-	// One installed unit, two <Editor> instances: hoisting the source out of the onEditor
+	// One installed plugin, two <Editor> instances: moving the source out of the onEditor
 	// callback would let a caret in one editor decorate the other.
-	it('mints an independent source per editor', () => {
+	it('creates an independent source per editor', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		const [onEditor] = onEditorCallbacks('highlight-occurrences');
 		const first = editorStub();

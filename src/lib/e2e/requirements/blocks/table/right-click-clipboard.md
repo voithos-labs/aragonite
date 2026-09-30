@@ -1,8 +1,8 @@
 # Feature: table cell right-click clipboard
 
-The cell right-click menu folds in Cut/Copy/Paste so the clipboard stays reachable
-after the menu replaced the native one. They act on the cell's selection/caret as
-captured when the menu opened, native-equivalent.
+The cell right-click menu carries Cut/Copy/Paste, so the clipboard stays reachable
+now that the menu has replaced the browser's own. They act on the cell's selection or
+caret as it stood when the menu opened, the same as the browser's items would.
 
 ## Happy paths
 
@@ -19,4 +19,4 @@ captured when the menu opened, native-equivalent.
 ## Menu surface
 
 - Clipboard items (Cut/Copy/Paste) appear only in the cell right-click menu, at its top level.
-- The Row and Column flyouts carry only their axis's inserts and moves — never a clipboard item.
+- The Row and Column flyouts carry only their axis's inserts and moves, never a clipboard item.

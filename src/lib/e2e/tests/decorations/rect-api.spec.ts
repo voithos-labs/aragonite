@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, cstBlockCount } from '../perf/vr-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * Public rect API (requirements/decorations/rect-api.md). E2E, not a unit suite, because
@@ -101,7 +102,7 @@ test.describe('public rect api', () => {
 	}) => {
 		const line = 'word '.repeat(120).trim();
 		await editor.loadContent(`${line}\n`);
-		// SELECTION_END (MAX_SAFE_INTEGER) as end — text surfaces clamp it to the block's end.
+		// SELECTION_END (MAX_SAFE_INTEGER) as the end offset: a text block clamps it to its own end.
 		const rects = await rangeRects(page, [0], 0, MAX_SAFE);
 		expect(rects.length).toBeGreaterThanOrEqual(2);
 		expect(rects.every((r) => r!.width > 0)).toBe(true);
@@ -109,9 +110,8 @@ test.describe('public rect api', () => {
 
 	test('rangeRects on a heading measures raw offsets, marker included', async ({ page }) => {
 		await editor.loadContent('## Heading\n');
-		// Raw offsets: 0..1 is the first dimmed `#`; 3..4 is the visible `H`. Marker-inclusive
-		// offsets put the `#` rect left of the `H` rect. If offsets counted visible text only,
-		// offset 0 would land on `H` and the two lefts would coincide.
+		// Raw offsets: 0..1 is the dimmed `#`, 3..4 the visible `H`, so the `#` rect sits left of the
+		// `H` rect; offsets over visible text only would make the two lefts coincide.
 		const markerRects = await rangeRects(page, [0], 0, 1);
 		const letterRects = await rangeRects(page, [0], 3, 4);
 		expect(markerRects.length).toBeGreaterThan(0);
@@ -121,8 +121,8 @@ test.describe('public rect api', () => {
 
 	test('rangeRects addressing a table by cell-index range returns cell rects', async ({ page }) => {
 		await editor.loadContent('| Name | Role |\n| :--- | :--- |\n| Ada | dev |\n');
-		// Path [0] is the table; on a grid surface start/end are flat cell indices, so 0..2
-		// covers the two header cells (row 0, cols 0 and 1) → two whole-cell rects.
+		// Path [0] is the table; on a table, start and end are flat cell indices, so 0..2 covers
+		// the two header cells (row 0, columns 0 and 1) and returns two whole-cell rects.
 		const rects = await rangeRects(page, [0], 0, 2);
 		expect(rects.length).toBe(2);
 		expect(rects.every((r) => r!.width > 0)).toBe(true);
@@ -130,7 +130,7 @@ test.describe('public rect api', () => {
 
 	test('caretRect lands near a clicked position', async ({ page }) => {
 		await editor.loadContent('measure this caret\n');
-		const point = await editor.pointForOffset([0], 8);
+		const point = await pointAtRaw(editor.page, [0], 8);
 		await page.mouse.click(point.x, point.y);
 		await editor.waitForRenderFlush();
 
@@ -155,9 +155,8 @@ test.describe('public rect api', () => {
 		await editor.loadContent('first block\n\nsecond block\n');
 		await editor.focusBlockEnd(0);
 
-		// The probe records `caretRect()` from inside the SYNCHRONOUS emit, before the deferred
-		// `data-cross-block` effect writes the attribute — so a caretRect gated on that attribute
-		// would read unset here and leak the parked range's box.
+		// Records `caretRect()` inside the synchronous event, before the deferred `data-cross-block`
+		// effect runs, so a caretRect waiting on that attribute would return the range the caret left.
 		await page.evaluate(() => (window as any).__test.startCrossBlockCaretProbe());
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -165,7 +164,7 @@ test.describe('public rect api', () => {
 		const probe = await page.evaluate(
 			() => (window as any).__test.readCrossBlockCaretProbe() as CrossBlockCaretProbe
 		);
-		// captured guards against a false green where the handler never fired.
+		// `captured` guards against a false green where the handler never fired.
 		expect(probe.captured).toBe(true);
 		expect(probe.rect).toBeNull();
 	});
@@ -189,7 +188,7 @@ test.describe('public rect api', () => {
 		await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
 		const last = (await cstBlockCount(page)) - 1;
 
-		// Precondition: the last block must be off-window, or reveal has nothing to mount.
+		// Precondition: the last block must be off-window, or `reveal` has nothing to mount.
 		await expect(page.locator(`[data-block-path='${JSON.stringify([last])}']`)).toHaveCount(0);
 
 		const revealed = await page.evaluate((i) => (window as any).__test.rects.reveal([i]), last);
@@ -204,24 +203,22 @@ test.describe('public rect api', () => {
 
 	test('scrollTo centers a windowed-out mid-document block in the viewport', async ({ page }) => {
 		const count = await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
-		// A MID-document target cannot be clamped to an edge, which is what discriminates the
-		// scroll half: `last` hits max scrollTop and lands at the bottom, indistinguishable from
-		// a mount-only top pin.
+		// A mid-document target cannot be clamped to an edge, which makes the scroll half provable; the
+		// last block would land at the bottom even from a mount that never scrolled.
 		const mid = Math.floor(count / 2);
 		const sel = JSON.stringify([mid]);
 
-		// Precondition: off-window, or there is nothing for scrollTo to mount + move to.
+		// Precondition: off-window, or `scrollTo` has nothing to mount and move to.
 		await expect(page.locator(`[data-block-path='${sel}']`)).toHaveCount(0);
 
 		expect(await scrollTo(page, [mid], { block: 'center' })).toBe(true);
 		await editor.waitForRenderFlush();
 
-		// Mount half.
+		// First half: `scrollTo` mounted the block.
 		await expect(page.locator(`[data-block-path='${sel}']`)).toHaveCount(1);
 
-		// Scroll half: the viewport moved far from the top, AND the target sits near the
-		// vertical center — not pinned to the viewport top, which is exactly where a
-		// mount-only reveal (the false-green) would leave it (~half a viewport off center).
+		// The viewport moved far from the top and the target sits near the vertical center, not at the
+		// viewport top, where a mount that never scrolled would leave it.
 		const m = await centerMetrics(page, [mid]);
 		expect(m.blockCenter).not.toBeNull();
 		expect(m.scrollTop).toBeGreaterThan(m.viewportHeight);

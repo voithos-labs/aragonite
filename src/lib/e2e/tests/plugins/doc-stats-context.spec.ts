@@ -1,12 +1,11 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
+import { gotoReady } from '../../goto-ready';
 
-// The doc-stats dogfood publishes one record per live editor to `window.__docStats`
-// (requirements/plugins/doc-stats-context.md) — the observable every gate here reads.
-// Single-instance scenarios run on `/test/plugins?seed=docstats` (docStats is a bare entry there,
-// so its label is the 'default' options fallback); multi-instance scenarios on
-// `/test/plugins/multi` (labels left/right).
+// The doc-stats plugin writes one record per live editor to `window.__docStats`, which every test
+// here reads (requirements/plugins/doc-stats-context.md). Single-editor cases run on
+// `/test/plugins?seed=docstats`, labeled 'default'; two-editor cases on `/test/plugins/multi`.
 
 interface StatsRecord {
 	label: string;
@@ -38,10 +37,8 @@ async function waitForStats(
 	return readStats(page);
 }
 
-// `publish()` copies the registry's record REFERENCES into `window.__docStats`, so this write
-// poisons the plugin's own registry entries. Only a recompute for an instance replaces its record —
-// which is what makes "the chord recomputed THIS instance" observable: its blocks recover, a
-// bystander's stay at -1.
+// The plugin's `window.__docStats` entries are its own records, so this write corrupts them, and
+// only a recompute for one editor replaces that editor's record.
 async function poisonStats(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		for (const record of Object.values(window.__docStats ?? {})) record.blocks = -1;
@@ -52,7 +49,7 @@ const soleRecord = (stats: StatsMap): StatsRecord => Object.values(stats)[0];
 
 // ── Single instance: /test/plugins?seed=docstats (two paragraphs) ───────────
 
-test.describe('doc-stats context spine: single instance', () => {
+test.describe('doc-stats context chain: single instance', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -71,7 +68,7 @@ test.describe('doc-stats context spine: single instance', () => {
 	test('an edit event recomputes stats: typing updates the edit count', async ({ page }) => {
 		await editor.clickBlock(0);
 		await editor.typeSlowly(' plus');
-		// The `input` edit event flushes on the undo batch debounce; the poll settles on it.
+		// The `input` edit event flushes after the typing pause; the poll waits for it.
 		await waitForStats(
 			page,
 			(s) => (Object.values(s)[0]?.edits ?? 0) >= 1 && Object.values(s)[0]?.blocks === 2
@@ -88,13 +85,11 @@ test.describe('doc-stats context spine: single instance', () => {
 	});
 });
 
-// ── The regression pin: attach survives a structural edit ───────────────────
-// A tracking-effect mount attach would dispose + re-fire the spine on the first `children`
-// mutation, resetting the closure's cumulative edit counter (and transiently dropping the record).
-// Cumulative growth across split + undo + input, then a still-resolving chord, pins the
-// non-tracking attach.
+// ── The attach survives a structural edit ───────────────────────────────────
+// Attaching inside a tracking effect would re-run on the first `children` change, resetting the
+// edit count and dropping the record; a split, an undo, an input and a working chord rule that out.
 
-test.describe('doc-stats context spine: attach survives a structural edit', () => {
+test.describe('doc-stats context chain: attach survives a structural edit', () => {
 	test('Enter split + undo leave the subscription live and the chord resolving', async ({
 		page
 	}) => {
@@ -105,7 +100,7 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 		await editor.clickBlock(0);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Enter');
-		// blocks reads the LIVE document: the split's transient empty paragraph counts.
+		// `blocks` reads the live document, so the split's momentary empty paragraph counts.
 		const afterSplit = await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 3);
 		const editsAfterSplit = soleRecord(afterSplit).edits;
 		expect(editsAfterSplit).toBeGreaterThanOrEqual(1);
@@ -126,9 +121,9 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 
 // ── Two editors: /test/plugins/multi (left: 1 block, right: 2 blocks) ───────
 
-test.describe('doc-stats context spine: two editors', () => {
+test.describe('doc-stats context chain: two editors', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/multi');
+		await gotoReady(page, '/test/plugins/multi');
 		await waitForStats(page, (s) => Object.keys(s).length === 2);
 	});
 
@@ -136,7 +131,7 @@ test.describe('doc-stats context spine: two editors', () => {
 		page
 	}) => {
 		const stats = await readStats(page);
-		// Two registry keys ARE the distinct-editorId proof: a shared id would
+		// Two keys in the registry are the proof that the editor ids differ: a shared id would
 		// collapse the second set() into the first and leave one record.
 		expect(Object.keys(stats)).toHaveLength(2);
 		const byLabel = Object.fromEntries(Object.values(stats).map((r) => [r.label, r]));

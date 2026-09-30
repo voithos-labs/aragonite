@@ -1,18 +1,22 @@
 /**
- * G4.23 — requirement↔spec lockstep. `docs/contributing/testing.md` makes the filesystem the
- * authoritative list of e2e coverage: every spec pairs with a requirement file and vice
- * versa. Three rules, descending: PAIRING (hard, both directions plus stem collision), SHAPE
- * (hard, catches the placeholder written to satisfy pairing), SCENARIO INFLATION (allowlisted
- * ratio; equality was measured and refuted, so divergence is legal and unexplained divergence
- * is not). Bullets are semantic paraphrases: a green run proves pairing, never
- * scenario-to-test mapping. Lives outside `test:editor:invariants`; verify via `src/lib/e2e/lint/`.
+ * Every spec pairs with a requirement file and every requirement file with a spec, so the file
+ * tree is the list of what e2e covers (G4.23). Beyond pairing, a placeholder requirement fails,
+ * and so does a scenario count far ahead of the spec's listed tests unless the allowlist excuses
+ * it. A green run proves pairing alone, never that a bullet maps to a test.
  */
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { collectFiles } from '../../test/invariants/lint/scan-source';
+import {
+	listedTests,
+	listPlaywrightTests,
+	type ListedTest,
+	type ListReport
+} from './playwright-list';
 
-const SPEC_DIR = path.resolve('src/lib/e2e/tests');
-const REQUIREMENT_DIR = path.resolve('src/lib/e2e/requirements');
+const SPEC_DIR = 'src/lib/e2e/tests';
+const REQUIREMENT_DIR = 'src/lib/e2e/requirements';
 
 // ── Rule 3's named divergences ──────────────────────────────────────────────
 
@@ -22,13 +26,13 @@ interface InflationException {
 	reason: string;
 }
 
-/** Fails closed and only shrinks: a stale entry is reported, so the list cannot outlive
- *  the shape that justified it. */
+/** The list only shrinks: an entry whose spec stops diverging is reported, so it cannot outlive
+ *  its reason. */
 const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'simulation/',
 		reason:
-			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and oracle checkpoints, not tests'
+			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and reference checkpoints, not tests'
 	},
 	{
 		spec: 'capture/',
@@ -43,42 +47,12 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'selection/gap-caret-arrival-scopes.spec.ts',
 		reason:
-			'three of the six bullets are v1 narrowings — the click route, container entry, and the measured-unreachable windowed seam — and a fourth is the interaction note, none of them scenarios the two gestures could drive'
-	},
-	{
-		spec: 'blocks/atomic-cross-block-delete.spec.ts',
-		reason:
-			'four hard-invariant bullets asserted in EVERY scenario, and the two tests are one parametrized loop over the atomic variants'
-	},
-	{
-		spec: 'clipboard/list-copy-paste-roundtrip.spec.ts',
-		reason:
-			'six of seven tests are one parametrized loop over the ROUNDTRIPS rows, invisible to the literal test counter'
-	},
-	{
-		spec: 'clipboard/list-paste-absorbs-same-type.spec.ts',
-		reason:
-			'nine of ten tests are one parametrized loop over the absorb ROWS, invisible to the literal test counter'
-	},
-	{
-		spec: 'inline-editing/formatting-shortcuts.spec.ts',
-		reason:
-			'six of seven tests are one parametrized loop over the TOGGLES rows, invisible to the literal test counter'
+			'three of the six bullets are v1 narrowings (the click route, container entry, and the measured-unreachable windowed join), and a fourth is the interaction note, none of them scenarios the two gestures could drive'
 	},
 	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',
 		reason:
-			'the write rule reaches most of its doors headlessly (the byte sinks, find/replace, the range-delete arms), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
-	},
-	{
-		spec: 'perf/perf-gate.perf.spec.ts',
-		reason:
-			'two parametrized loops run 13 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
-	},
-	{
-		spec: 'perf/typing-latency.perf.spec.ts',
-		reason:
-			'five test calls, three of them parametrized loops, run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the rung rows and their confound) rather than scenarios'
+			'the write rule reaches most of its entry points headlessly (the byte sinks, find/replace, the range-delete branches), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
@@ -122,12 +96,12 @@ export function requirementStem(specPath: string): string {
 export interface RequirementShape {
 	hasTitle: boolean;
 	sections: number;
-	/** Top-level bullets plus `###` subsections — the two forms a scenario takes. */
+	/** Top-level bullets plus `###` subsections: the two forms a scenario takes. */
 	scenarioUnits: number;
 }
 
 /**
- * One `-` at COLUMN 0 is one scenario: continuation lines are indented and nested bullets are
+ * One `-` at column 0 is one scenario: continuation lines are indented and nested bullets are
  * detail of their parent. Ordered items are prose, not scenarios.
  */
 export function readRequirementShape(text: string): RequirementShape {
@@ -150,24 +124,17 @@ export function readRequirementShape(text: string): RequirementShape {
 }
 
 /**
- * A parametrized loop counts ONCE — the shape rule 3's threshold was measured against. A
- * string-literal TITLE is what makes a call a test: `test.skip(condition, reason)` is a run
- * guard, and counting those inflated the test side exactly in the files most likely to drift.
+ * Tests per spec file, keyed by the file's path under `tests/`. The listing repeats a test once
+ * per project that runs it, so a test is identified by its position and full title instead.
  */
-export function countTests(code: string): number {
-	const withoutComments = code
-		.split('\n')
-		.map((line) => {
-			const trimmed = line.trimStart();
-			const isComment =
-				trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*');
-			return isComment ? '' : line;
-		})
-		.join('\n');
-	const calls = withoutComments.matchAll(
-		/(?:^|[\s.;{}])test(?:\.skip|\.fixme|\.only)?\s*\(\s*(.?)/g
-	);
-	return [...calls].filter(({ 1: firstArgument }) => `'"\``.includes(firstArgument)).length;
+export function countListedTests(tests: readonly ListedTest[]): Map<string, number> {
+	const keysByFile = new Map<string, Set<string>>();
+	for (const test of tests) {
+		const keys = keysByFile.get(test.file) ?? new Set<string>();
+		keys.add(`${test.line}:${test.column}:${test.title}`);
+		keysByFile.set(test.file, keys);
+	}
+	return new Map([...keysByFile].map(([file, keys]) => [file, keys.size]));
 }
 
 /** Rule 3's predicate: a requirement list that ran far ahead of its spec. */
@@ -175,16 +142,9 @@ export function isInflated(scenarioUnits: number, tests: number): boolean {
 	return scenarioUnits >= 3 * Math.max(tests, 1) && scenarioUnits - tests >= 4;
 }
 
+/** Files under `root` with `suffix`, as paths relative to `root`. */
 function relativePaths(root: string, suffix: string): string[] {
-	const found: string[] = [];
-	function walk(dir: string, prefix: string): void {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			if (entry.isDirectory()) walk(path.join(dir, entry.name), `${prefix}${entry.name}/`);
-			else if (entry.name.endsWith(suffix)) found.push(prefix + entry.name);
-		}
-	}
-	walk(root, '');
-	return found.sort();
+	return collectFiles(root, { extensions: [suffix] }).map((file) => file.slice(root.length + 1));
 }
 
 interface Pair {
@@ -201,9 +161,13 @@ interface Lockstep {
 	specsWithoutRequirement: string[];
 	requirementsWithoutSpec: string[];
 	stemCollisions: string[];
+	listErrors: string[];
+	unlistedSpecs: string[];
 }
 
 function scanLockstep(): Lockstep {
+	const listing = listPlaywrightTests();
+	const listedTests = countListedTests(listing.tests);
 	const specs = relativePaths(SPEC_DIR, '.spec.ts');
 	const requirements = relativePaths(REQUIREMENT_DIR, '.md');
 	const requirementStems = new Set(requirements.map((file) => file.replace(/\.md$/, '')));
@@ -226,7 +190,7 @@ function scanLockstep(): Lockstep {
 			spec,
 			requirement: `${stem}.md`,
 			shape: readRequirementShape(readFileSync(path.join(REQUIREMENT_DIR, `${stem}.md`), 'utf8')),
-			tests: countTests(readFileSync(path.join(SPEC_DIR, spec), 'utf8'))
+			tests: listedTests.get(spec) ?? 0
 		});
 	}
 
@@ -240,7 +204,9 @@ function scanLockstep(): Lockstep {
 		),
 		stemCollisions: [...claimedBy]
 			.filter(([, claimants]) => claimants.length > 1)
-			.map(([stem, claimants]) => `${stem}.md ← ${claimants.join(' + ')}`)
+			.map(([stem, claimants]) => `${stem}.md ← ${claimants.join(' + ')}`),
+		listErrors: listing.errors,
+		unlistedSpecs: specs.filter((spec) => !listedTests.has(spec))
 	};
 }
 
@@ -254,7 +220,7 @@ function allowedInflation(spec: string): boolean {
 }
 
 export interface AllowlistAudit {
-	/** Names a spec the tree does not have — a typo, or a spec since deleted. */
+	/** Names a spec the tree does not have: a typo, or a spec since deleted. */
 	dangling: string[];
 	/** Every spec it covers is covered by another entry, so it can never be read. */
 	shadowed: string[];
@@ -262,13 +228,8 @@ export interface AllowlistAudit {
 	stale: string[];
 }
 
-/**
- * Each entry is audited INDEPENDENTLY: a first-match lookup conflates three failures, since a
- * file entry under a directory entry never wins it and reads as "no longer diverges" while
- * diverging. Shadowing is broken by POSITION, not set inclusion alone — mutually-subsuming
- * entries would name no entry to delete; reporting the later one leaves the earlier covering
- * every spec it named.
- */
+/** Audits each entry alone, since a first-match lookup never reaches a file entry under a directory
+ *  entry; only an earlier entry shadows a later one, so the report names one to delete. */
 export function auditAllowlist(
 	entries: readonly InflationException[],
 	specs: readonly string[],
@@ -299,6 +260,11 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		expect(lockstep.pairs.length).toBeGreaterThan(300);
 	});
 
+	// A spec that fails to load drops out of the listing instead of reading as zero tests.
+	it('listed every spec without a load error', () => {
+		expect(lockstep.listErrors, 'playwright test --list reported errors').toEqual([]);
+	});
+
 	it('every spec has a requirement file', () => {
 		expect(
 			lockstep.specsWithoutRequirement,
@@ -316,7 +282,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	it('no two specs claim one requirement file', () => {
 		expect(
 			lockstep.stemCollisions,
-			`requirement stems claimed twice — the .perf strip makes these collide, so one spec's scenarios hide behind the other's file:\n  ${lockstep.stemCollisions.join('\n  ')}`
+			`requirement stems claimed twice: the .perf strip makes these collide, so one spec's scenarios hide behind the other's file:
+  ${lockstep.stemCollisions.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -333,11 +300,11 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		).toEqual([]);
 	});
 
-	it('every spec declares at least one test', () => {
-		const empty = lockstep.pairs.filter(({ tests }) => tests === 0).map(({ spec }) => spec);
+	it('Playwright lists at least one test for every spec', () => {
 		expect(
-			empty,
-			`specs with no test() call — their requirement file's scenarios run nowhere:\n  ${empty.join('\n  ')}`
+			lockstep.unlistedSpecs,
+			`specs Playwright lists no test for, so their requirement file's scenarios run nowhere. Either the spec declares no test, or no project in playwright.config.ts matches it (a lane switched on by an env var needs that var in listPlaywrightTests):
+  ${lockstep.unlistedSpecs.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -352,7 +319,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 			);
 		expect(
 			unexplained,
-			`requirement lists 3× longer than their spec's test count. Either the scenarios lost their tests, or the divergence is deliberate — in which case name it in INFLATION_ALLOWLIST with the reason:\n  ${unexplained.join('\n  ')}`
+			`requirement lists 3× longer than the tests Playwright lists for their spec. Either the scenarios lost their tests, or the divergence is deliberate, in which case name it in INFLATION_ALLOWLIST with the reason:
+  ${unexplained.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -367,7 +335,8 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	it('no allowlist entry outlived the divergence it explains', () => {
 		expect(
 			audit.stale,
-			`allowlist entries whose spec no longer diverges (delete them — the list only shrinks):\n  ${audit.stale.join('\n  ')}`
+			`allowlist entries whose spec no longer diverges (delete them: the list only shrinks):
+  ${audit.stale.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -383,7 +352,7 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	});
 });
 
-describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
+describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 	it('strips the .perf project selector but keeps the subject stem', () => {
 		expect(requirementStem('perf/attribution.perf.spec.ts')).toBe('perf/attribution');
 		expect(requirementStem('perf/vr-windowing.spec.ts')).toBe('perf/vr-windowing');
@@ -416,27 +385,51 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 		expect(readRequirementShape(text).scenarioUnits).toBe(1);
 	});
 
-	it('counts test() calls outside comments, including modifiers', () => {
-		const code = [
-			"test('a', () => {});",
-			"test.skip('b', () => {});",
-			"// test('commented out', () => {});",
-			"	test.fixme('c', () => {});",
-			"expect(latest('d')).toBe(1);",
-			'test(`a ${shape} template title`, () => {});'
-		].join('\n');
-		expect(countTests(code)).toBe(4);
-	});
-
-	// The discriminating case: a run guard and a skipped test are both `test.skip(`,
-	// and only the second has a title.
-	it('does not count a file-level test.skip run guard as a test', () => {
-		expect(
-			countTests("test.skip(!process.env.PERF || !!process.env.PERF_GATE, 'report-only');")
-		).toBe(0);
-		expect(
-			countTests("test.skip(condition, 'reason');\ntest.skip('a real skipped test', fn);")
-		).toBe(1);
+	it('counts each test a loop generates once, however many projects list it', () => {
+		const loopFile = (project: string): ListReport['suites'][number] => ({
+			title: 'loop.spec.ts',
+			suites: [
+				{
+					title: 'rows',
+					specs: ['a', 'b', 'c'].map((row) => ({
+						title: `row ${row}`,
+						file: 'loop.spec.ts',
+						line: 5,
+						column: 3,
+						tests: [{ projectName: project }]
+					}))
+				}
+			]
+		});
+		const report: ListReport = {
+			// One copy per project: the report repeats a file under every project that runs it.
+			suites: [
+				loopFile('e2e-top'),
+				loopFile('e2e-webkit'),
+				{
+					title: 'nested/twins.spec.ts',
+					suites: ['first', 'second'].map((title) => ({
+						title,
+						specs: [
+							{
+								title: 'same title',
+								file: 'nested/twins.spec.ts',
+								line: 9,
+								column: 2,
+								tests: [{ projectName: 'e2e-top' }]
+							}
+						]
+					}))
+				}
+			],
+			errors: []
+		};
+		expect(countListedTests(listedTests(report))).toEqual(
+			new Map([
+				['loop.spec.ts', 3],
+				['nested/twins.spec.ts', 2]
+			])
+		);
 	});
 
 	it('fires on a requirement list that ran ahead, not on ordinary divergence', () => {
@@ -444,8 +437,7 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 		// The common shape: one test walks two or three bullets.
 		expect(isInflated(9, 5)).toBe(false);
 		expect(isInflated(18, 1)).toBe(true);
-		// Ratio without volume stays quiet: the delta floor holds a one-test spec's
-		// scenario list to four before it reads as drift.
+		// A one-test spec may list four scenarios before it reads as drift.
 		expect(isInflated(4, 1)).toBe(false);
 		expect(isInflated(5, 1)).toBe(true);
 	});

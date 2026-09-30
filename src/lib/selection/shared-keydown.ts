@@ -1,16 +1,18 @@
 /**
  * Shared keydown prelude for contenteditable blocks: Ctrl+A counter, cross-block dispatch,
- * sticky-column capture/reset, undo/redo, arrow boundary navigation. Block-specific handlers
+ * the caret memory's key note, undo/redo, arrow boundary navigation. Block-specific handlers
  * (Enter, Backspace, Tab, formatting) stay in each component.
  */
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
-import type { BlockElLookup, DocumentGetter } from '../editor-keys';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { DocumentGetter } from '../editor-keys';
+import type { CaretMemory } from '../cursor/caret-memory';
+import type { ScrollOwner } from '../cursor/scroll-owner';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
-import type { PluginActivation } from '../schema/plugin-activation';
+import type { CommandDispatchContext } from '../schema/block-commands';
+import { commandAtBlock } from './cross-block/keydown';
+import type { Reading } from '../schema/reading';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
@@ -19,30 +21,32 @@ import {
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { landableRawBounds } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
-import { eventToChord } from '../schema/keybindings';
+import { endsSelectAllRun, eventToChord } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export interface SharedKeydownContext extends LandableBoundsContext {
 	getEl(): HTMLElement | null;
-	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
+	/** Current caret offset in raw-content coordinates (the container's marker prefix excluded). */
 	getCursorOffset(): number | null;
-	/** Shift-selection focus offset in raw-content coordinates (ambient marker excluded). */
+	/** Shift-selection focus offset in raw-content coordinates (the marker prefix excluded). */
 	getFocusOffset(): number | null;
 	getIndex(): number;
 	getMyPath(): number[];
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
 	selection: SelectionState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	history: HistoryActions;
 	focus: FocusActions;
-	getBlockElByPath: BlockElLookup;
-	/** The plugins this instance activated; without it the suppression below swallows a
-	 *  chord another editor's plugin claimed. `undefined` = every installed plugin. */
-	activePlugins: PluginActivation | undefined;
+	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
+	scrollOwner: Pick<ScrollOwner, 'place'>;
+	/** The editor's command dispatch: the caret memory reads a chord by its current binding, and
+	 *  the history suppression below takes only this editor's plugin chords. */
+	commands: CommandDispatchContext;
+	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
+	reading: Reading;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -50,34 +54,19 @@ export async function handleSharedKeydown(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
-	// Bare modifier keys don't reset the Ctrl+A doubling counter: pressing Control before 'a' is
-	// part of the chord, not a separate action.
-	const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
-	const isBareModifier =
-		e.key === 'Control' ||
-		e.key === 'Shift' ||
-		e.key === 'Alt' ||
-		e.key === 'Meta' ||
-		e.key === 'AltGraph' ||
-		e.key === 'CapsLock';
-	if (!isCtrlA && !isBareModifier) {
-		ctx.selection.resetSelectAllCount();
-	}
+	if (endsSelectAllRun(e)) ctx.selection.resetSelectAllCount();
 
 	if (await ctx.crossBlock.handleKeyDown(e)) return true;
 
 	const el = ctx.getEl();
 	if (!el) return false;
 
-	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
-	ctx.edgeAffinity.note(e);
+	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorRelativeX(el));
 
-	// Native contenteditable history stays suppressed on keydown, since Ctrl+Y doesn't fire
-	// beforeinput historyRedo in Chromium/WebView2. The DEFAULT table is the right question here:
-	// it names the chords with a native history default, and running the command is the block's
-	// own override-aware dispatch, one branch further on.
+	// Ctrl+Y fires no `historyRedo` beforeinput in Chromium and WebView2, so every chord with a
+	// native history default is suppressed here; the block's own dispatch runs the command.
 	const historyChord = eventToChord(e);
-	if (historyChord && isDefaultGlobalChord(historyChord, ctx.activePlugins)) {
+	if (historyChord && isDefaultGlobalChord(historyChord, ctx.commands.activation)) {
 		e.preventDefault();
 		return false;
 	}
@@ -96,13 +85,20 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		if (isAtFirstVisualLine(el, offset, bounds().start)) {
+		if (isAtFirstVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's first reachable
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
 			if (e.shiftKey && offset <= bounds().start) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				extendFocusToPreviousBlock(
+					ctx.selection,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath,
+					'start'
+				);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			if (!e.shiftKey && !e.altKey) {
@@ -115,13 +111,20 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowDown') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		if (isAtLastVisualLine(el, offset, bounds().end)) {
+		if (isAtLastVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's last reachable
 			// offset, so native Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset >= bounds().end) {
 				e.preventDefault();
-				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath, 'vertical');
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				extendFocusToNextBlock(
+					ctx.selection,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath,
+					'vertical'
+				);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			if (!e.shiftKey && !e.altKey) {
@@ -133,15 +136,14 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowLeft') {
-		// Shift+Arrow reads focus, not anchor: getCursorOffset() gives the range start, which is
-		// the anchor for a forward selection. That would extend cross-block while focus is
-		// contracting toward a non-zero anchor, and misfire for backward selections.
+		// Shift+Arrow reads the focus, since `getCursorOffset()` gives the range start: the anchor
+		// of a forward selection, which would extend across blocks while the focus contracts.
 		const offset = e.shiftKey ? (ctx.getFocusOffset() ?? bounds().start) : ctx.getCursorOffset();
 		if (offset !== null && offset <= bounds().start) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			e.preventDefault();
@@ -155,8 +157,8 @@ export async function handleSharedKeydown(
 		if (offset !== null && offset >= bounds().end) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			e.preventDefault();
@@ -175,31 +177,23 @@ export interface LandableBounds {
 	end: number;
 }
 
-/** The reads the bounds need, so a block-edge gate outside this file can ask without standing up
+/** The reads the bounds need, so a block-edge check outside this file can ask without building
  *  the whole keydown context. */
 export interface LandableBoundsContext {
-	/** textContent length in raw-content coordinates (ambient marker excluded). */
+	/** textContent length in raw-content coordinates (the marker prefix excluded). */
 	getTextLen(): number;
-	getAmbientLength(): number;
 }
 
-/**
- * The raw offsets a caret can actually reach in this block, from the walk that decides where a
- * caret lands. A mode that hides a block's own markers with no reveal puts those bytes out of
- * reach, so the exits move in to what the DOM can land — the kind's declared content range is
- * not that bound: paragraph, fenced code and table cell each declare the whole raw and still
- * open or close with a run nothing paints. Every block-edge gate reads this, not 0/length.
- */
+/** The raw offsets a caret can reach in the block, from the same walk that places it: hidden
+ *  markers put bytes out of reach, so every block-edge check reads this, not 0 and length. */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
-	return landableRawBounds(el, ctx.getAmbientLength()) ?? { start: 0, end: ctx.getTextLen() };
+	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────
 
-/**
- * Routes historyUndo/historyRedo through the undo controller and delegates cross-block
- * paste/type-replace. True when the caller should return early from its own `onBeforeInput`.
- */
+/** Routes historyUndo/historyRedo through the undo controller and delegates cross-block paste
+ *  and typing; true when the caller should return early from its own `onBeforeInput`. */
 export async function handleSharedBeforeInput(
 	e: InputEvent,
 	ctx: { history: HistoryActions; crossBlock: CrossBlockHandlers }

@@ -1,7 +1,7 @@
 # Feature: Enter at a soft line break inside a paragraph
 
 A paragraph holding a soft break renders as two visual lines, and the caret at
-the end of the first one sits ON the break — the same document position as the
+the end of the first one sits on the break, the same document position as the
 start of the second line, reached by a different key. Enter there must split the
 paragraph in two, keeping every line below the caret.
 
@@ -13,7 +13,7 @@ paragraph in two, keeping every line below the caret.
 ## Edge cases
 
 - the split's bytes reload as the two blocks the tree holds, so the second paragraph survives a remount
-- a three-line paragraph split on its first break keeps BOTH following lines in the second half
+- a three-line paragraph split on its first break keeps both following lines in the second half
 
 ## User interactions
 
@@ -21,4 +21,4 @@ paragraph in two, keeping every line below the caret.
 
 ## Miss-analysis
 
-- Every Enter spec seeded a single-line block or cut mid-word, so none ever handed the split an offset that landed on a line ending. `enter-at-setext-end` came closest and pinned the opposite end of the same axis — that the seeded caret was NOT at raw end.
+- Every Enter spec seeded a single-line block or cut mid-word, so none ever handed the split an offset that landed on a line ending. `enter-at-setext-end` came closest and pinned the opposite end of the same axis: that the seeded caret was not at raw end.

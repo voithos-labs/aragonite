@@ -1,14 +1,14 @@
 # Feature: Search inside a childless opaque container
 
 A childless opaque container (a render-primary plugin block like mermaid) carries its text
-in its own raw — there are no leaf children for the scanner to reach. Search scans that raw
+in its own raw, with no leaf children for the scanner to reach. Search scans that raw
 like a leaf: matches are found, painted through the container shim's `measurePartialRects`
-(the decoration overlay's childless route), and navigable. Replace rewrites them too: the path
-substitutes into a private clone's raw and reparses, so the kind re-derives its own metadata and
-nothing goes stale. The one decline is kind-stability — a substitution that breaks the opener line
-comes back as a different kind, and a diagram must not silently become a plain code block (issue
-#41). Lives in the search area but drives the plugins harness, since only plugin kinds produce
-childless opaque containers.
+(the route the decoration overlay takes when a container has no children), and navigable.
+Replace rewrites them too: the path substitutes into a private clone's raw and reparses, so the
+kind re-derives its own metadata and nothing goes stale. The one refusal keeps the kind stable: a
+substitution that breaks the opener line comes back as a different kind, and a diagram must not
+silently become a plain code block (issue #41). This file lives in the search area but drives
+the plugins harness, since only plugin kinds produce childless opaque containers.
 
 ## Happy paths
 
@@ -24,10 +24,17 @@ childless opaque containers.
 - A query matching the fence's info string (`mermaid` → `js`) is declined for the container and
   applied to the prose: the fence keeps its opener and its kind, the declined match survives the
   rescan (count re-reads 1 / 1), and `replacedCount` reports 1.
+- A regex replace whose match runs from the last diagram line through the closing fence
+  (`B`, the line break and the three backticks, replaced with `C`) rewrites the diagram source
+  and the closing fence comes back: the block below (`Tail`) stays a paragraph of its own instead
+  of being swallowed into the diagram.
 
 ## Miss-analysis
 
 - The original defect shipped because the issues ledger itself encoded a wrong premise
   ("the match is found and navigable, only its highlight is missing") and no test queried
-  text that lived only inside a childless container's raw — the scan gap was invisible to
+  text that lived only inside a childless container's raw: the gap in the scan was invisible to
   every leaf-based search spec. This file pins the container-raw query directly.
+- The lost closing fence (#387) shipped because every mermaid write test went through the
+  diagram's own code editor, and no replace query reached past the diagram source into the fence
+  bytes, the one write path that hands the kind a truncated raw.

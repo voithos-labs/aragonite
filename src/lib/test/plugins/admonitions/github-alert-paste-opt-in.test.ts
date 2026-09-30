@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests, applyPasteTransforms } from '$lib/testing';
+import { applyPasteTransforms } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
 // Native rendering makes the alert paste transform opt-in. By default a pasted
@@ -9,11 +9,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
 const ALERT = '> [!TIP]\n> Handy.\n';
 
-describe('github alert — paste transform is opt-in', () => {
-	beforeEach(() => {
-		resetPluginPlatformForTests();
-	});
-
+describe('github alert: paste transform is opt-in', () => {
 	it('leaves pasted alert bytes untouched by default', () => {
 		installPlugins([admonitionsPlugin()]);
 		expect(applyPasteTransforms(ALERT)).toBe(ALERT);

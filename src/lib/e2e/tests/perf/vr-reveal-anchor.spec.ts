@@ -4,15 +4,14 @@ import { PluginsPage } from '../plugins/helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Reveal-anchor ownership (requirements/perf/vr-reveal-anchor.md). Two properties, both
- * cross-cutting and neither reachable from a single-caller spec: the pin names the FULL
- * target path (a nested target is not its container), and a stale claimant cannot release a
- * fresher one's pin. What happens AFTER the settle resolves is this file's subject; the
- * reveal's own composition is covered by `plugins/toc-navigation`.
+ * Who holds the scroll position after scrolling to a block, once the scroll is done. The held
+ * position names the full path to the target, so a nested target is not its container, and an
+ * older request cannot release a newer one's hold. How the scroll itself runs is covered by
+ * `plugins/toc-navigation`.
  */
 
-// Capped viewport → the editor is a real scroll container, so windowing activates
-// and the container below is genuinely taller than what can be seen at once.
+// A limited viewport makes the editor a real scroll container, so windowing runs and the
+// container below is genuinely taller than what fits on screen.
 test.use({ viewport: { width: 1000, height: 700 } });
 
 const LATE_IMAGE_URL = 'https://e2e-deferred.test/late-growth.svg';
@@ -20,8 +19,8 @@ const LATE_IMAGE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1400">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
 
-/** Hold the image response until the returned release is called, so its growth
- *  lands as a measure pass AFTER the reveal settles rather than during it. */
+/** Holds the image's response until the returned function is called, so it grows in a measure
+ *  pass after the scroll is done rather than during it. */
 async function deferImage(page: Page): Promise<() => void> {
 	let release!: () => void;
 	const gate = new Promise<void>((resolve) => {
@@ -35,9 +34,8 @@ async function deferImage(page: Page): Promise<() => void> {
 }
 
 /**
- * The image sits BELOW the container on purpose: nothing above the viewport moves when it
- * decodes, so the honest top-of-viewport correction is a no-op and any movement at all is
- * the pin re-asserting.
+ * The image sits below the container, so nothing above the viewport moves when it decodes and any
+ * movement at all is the held position re-asserting itself.
  */
 function tallContainerDoc(): { md: string; targetPath: number[] } {
 	const quoted = Array.from(
@@ -56,14 +54,13 @@ function tallContainerDoc(): { md: string; targetPath: number[] } {
 		`![late](${LATE_IMAGE_URL})`,
 		...Array.from({ length: 60 }, (_, i) => `Tail paragraph ${i} with enough words to fill a line.`)
 	];
-	// The blockquote is block 8; its heading is the last of its 27 children.
+	// The blockquote is block 8, and its heading is the last of its 27 children.
 	return { md: parts.join('\n\n') + '\n', targetPath: [8, 26] };
 }
 
 /**
- * The image sits ABOVE the target on purpose: `'nearest'` lands the target near the viewport
- * BOTTOM, so when the image decodes the honest anchor holds a paragraph above it and pushes
- * the target off the bottom. Only a held pin re-asserts it.
+ * The image sits above the target, which `'nearest'` leaves near the viewport's bottom: the
+ * ordinary correction pushes it off as the image decodes, and only a held position restores it.
  */
 function growthAboveDoc(): { md: string; targetPath: number[] } {
 	const parts = [
@@ -89,8 +86,8 @@ class AnchorPage extends PluginsPage {
 	}
 }
 
-// In-view = the block's box intersects the editor viewport, measured by path and
-// independently of `scrollTo`'s own report so the assertion isn't tautological.
+// In view means the block's box overlaps the editor's viewport, measured by path and without
+// asking `scrollTo` what it thinks, so the check is not circular.
 function blockInView(page: Page, path: number[]): Promise<boolean> {
 	return page.evaluate((p) => {
 		const er = (document.querySelector('.editor') as HTMLElement).getBoundingClientRect();
@@ -127,8 +124,8 @@ test.describe('reveal anchor: the pin names the full target path', () => {
 		await editor.waitForResizeObserverFlush();
 		expect(await blockInView(page, targetPath)).toBe(true);
 
-		// A pin holding only the container's top-level index re-asserts the CONTAINER's top
-		// on this measure pass, pushing the resolved target a container-height below the fold.
+		// A held position that names only the container's top-level index re-asserts the
+		// container's top on this pass, pushing the real target a container's height off screen.
 		const collapsedHeight = await imageHostHeight(page);
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
@@ -150,9 +147,8 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await editor.loadContent(md);
 		await editor.waitForRenderFlush();
 
-		// Two claimants inside one settle window, issued from a single task because that
-		// window is narrower than a Playwright click round trip (the real-gesture path is
-		// `plugins/toc-navigation`). The `'center'` reveal is the stale claimant.
+		// Two requests within one scroll, in a single task because that window is shorter than a
+		// Playwright click; `plugins/toc-navigation` drives it with real gestures. `'center'` is older.
 		await page.evaluate(() => {
 			const probe = window as unknown as {
 				__test: { rects: { scrollTo(p: number[], o: object): Promise<boolean> } };
@@ -166,12 +162,12 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await expect.poll(() => blockInView(page, targetPath)).toBe(true);
 		await editor.waitForResizeObserverFlush();
 
-		// The assertion the race reddens: the undecoded image keeps the document settling
-		// past the navigation's resolve, so a released pin loses the target by here.
+		// The undecoded image keeps the document shifting past the point the navigation returns, so a
+		// released hold loses the target by here.
 		expect(await blockInView(page, targetPath)).toBe(true);
 
-		// A second property, and not what the race turns on: the pin outlives the settle,
-		// so a decode landing afterwards re-asserts the target instead of shifting it.
+		// The hold outlives the scroll, so an image decoding afterwards re-asserts the target rather
+		// than shifting it.
 		const collapsedHeight = await imageHostHeight(page);
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 400);

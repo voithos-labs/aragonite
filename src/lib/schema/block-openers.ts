@@ -1,8 +1,7 @@
 /**
  * Per-kind block-opener registry: the parser's dispatch order and the paragraph-interrupt scan
- * both derive from these declarations, so a registered opener is automatically in both.
- * Paragraph is the unregistered total fallback; setext headings and tables emerge from its
- * continuation scan, not from openers.
+ * both come from these declarations, so registering an opener puts it in both. Paragraph is the
+ * fallback and has no opener; setext headings and tables come out of its continuation scan.
  */
 
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
@@ -10,35 +9,38 @@ import type { ParsedLine } from '../core/lines';
 import {
 	enqueueRegistrationCheck,
 	hasPendingRegistrationChecks,
-	markGrammarConsumed,
-	__resetRegistrationChecksForTests
+	markGrammarConsumed
 } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
-import { deletePluginEntries, registerOnce } from './register-once';
+import { createBlockKindRegistry, type RegistryRecord } from './plugin-registry';
+import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
+import { pluginInstallGeneration } from './plugin-install';
 
-/** Minted fresh per block and read synchronously; never a handle to keep past the return. */
+/** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
 	lines: ParsedLine[];
 	index: number;
 	end: number;
 	/** The line at `index`, precomputed once per dispatch. */
 	line: ParsedLine;
-	/** Blank-line bytes folded above this block: non-empty is the "preceded by blank" interrupt context (GFM §4.4). */
+	/** The blank lines above this block, which the paragraph-interrupt rules read (GFM §4.4);
+	 *  non-empty means a blank line precedes it. */
 	leadingTrivia: string;
-	/** True when this parse entry was given a whole document (`parse` scope `'document'`), false for one block's bytes read standalone. Constant through nested container recursion, so a document-position gate composes it with `index`/`depth`/`leadingTrivia`. */
+	/** True when the parse was given a whole document, false for one block's bytes alone. It holds
+	 *  through nested parses, so a position check also reads `index` and `depth`. */
 	isDocumentParse: boolean;
-	/** Container-nesting depth of this parse level (0 at the document root). A container opener that reparses its body recurses at `depth + 1`; the cap (`MAX_NESTING_DEPTH`) folds deeper input into paragraph content. */
+	/** Container nesting depth, 0 at the root. A container opener parses its body at `depth + 1`;
+	 *  past `MAX_NESTING_DEPTH` deeper input becomes paragraph content. */
 	depth: number;
-	/**
-	 * The instance seam over the global openers. Nested container reparses create their own
-	 * context and default to the global grammar (the enablement boundary — see `parse`).
-	 */
+	/** The editor's grammar. A container opener hands it to its body parse, so a kind this
+	 *  editor switched off stays off inside a list item or a quote too. */
 	grammar: GrammarView;
 }
 
 /**
- * A claim on the lines starting at `ctx.index`. `consumed` is a count, not a resume position,
- * and must be >= 1 — claiming nothing would spin the parse loop, so the dispatch declines it.
+ * What an opener returns for the lines starting at `ctx.index`. `consumed` is a line count, not
+ * a resume position, and must be at least 1: taking no line would spin the parse loop, so the
+ * parser rejects that result.
  */
 export interface BlockOpenerResult {
 	node: CstNode;
@@ -53,32 +55,35 @@ export interface BlockOpener {
 	interruptsParagraph: ((lineText: string) => boolean) | false;
 }
 
-const openers = new Map<AnyBlockKind, BlockOpener>();
-let orderedEntriesCache: [AnyBlockKind, BlockOpener][] | null = null;
-let orderedCache: BlockOpener[] | null = null;
-let interruptCache: ((lineText: string) => boolean)[] | null = null;
+type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 
-function invalidateGrammarCaches(): void {
-	orderedEntriesCache = null;
-	orderedCache = null;
-	interruptCache = null;
-}
+let orderedRecordsCache: OpenerRecord[] | null = null;
+let orderedCache: BlockOpener[] | null = null;
+let interruptCache: { generation: number; predicates: ((lineText: string) => boolean)[] } | null =
+	null;
+
+const openers = createBlockKindRegistry<BlockOpener>({
+	label: 'registerBlockOpener',
+	isBuiltin: isBuiltinBlockKind,
+	onChange: () => {
+		orderedRecordsCache = null;
+		orderedCache = null;
+		interruptCache = null;
+	}
+});
 
 export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): void {
-	registerOnce(
-		openers.has(kind),
-		() => {
-			openers.set(kind, opener);
-			enqueueRegistrationCheck(kind, 'opener');
-			invalidateGrammarCaches();
-		},
+	openers.register(
+		kind,
+		opener,
 		`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
 	);
+	enqueueRegistrationCheck(kind, 'opener');
 }
 
 /**
- * Probe whether an opener is registered — `registerBlockOpener` throws on duplicate, so a
- * plugin registering idempotently (HMR / re-import) guards on this. Takes a plain name.
+ * Is an opener registered? `registerBlockOpener` throws on a duplicate, so a plugin that may
+ * register twice (hot reload, re-import) checks this first. Takes a plain name.
  */
 export function isBlockOpenerRegistered(kind: string): boolean {
 	return openers.has(kind as AnyBlockKind);
@@ -89,113 +94,127 @@ export type OpenerEnablement = (kind: AnyBlockKind) => boolean;
 
 // Priority-ascending, ties broken by kind name: dispatch order is a pure function of the
 // declarations, never of registration order.
-function orderedEntries(): readonly [AnyBlockKind, BlockOpener][] {
-	if (!orderedEntriesCache) {
-		orderedEntriesCache = [...openers.entries()].sort(
-			([kindA, a], [kindB, b]) =>
-				a.priority - b.priority || (kindA < kindB ? -1 : kindA > kindB ? 1 : 0)
-		);
+function orderedRecords(): readonly OpenerRecord[] {
+	if (!orderedRecordsCache) {
+		orderedRecordsCache = openers
+			.records()
+			.sort(
+				(a, b) =>
+					a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+			);
 	}
-	return orderedEntriesCache;
+	return orderedRecordsCache;
 }
 
-/**
- * The parser's dispatch order (G1.10 warns on a priority tie). The grammar-consumption seam:
- * pending registrations are validated before this read, and flush-before-mark keeps a registrant
- * racing the first read out of the late-opener warn (G1.17). `isEnabled` filters plugin kinds
- * per instance; absent = all definitions, cached. Built-ins are never filtered.
- */
-export function getOrderedOpeners(isEnabled?: OpenerEnablement): readonly BlockOpener[] {
-	const entries = consumedEntries();
-	if (isEnabled) return entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
-	if (!orderedCache) orderedCache = entries.map(([, opener]) => opener);
+/** Every registered opener in dispatch order, whoever registered it. An editor's own order is its
+ *  `GrammarView.orderedOpeners`. */
+export function getOrderedOpeners(): readonly BlockOpener[] {
+	const records = consumedRecords();
+	if (!orderedCache) orderedCache = records.map((r) => r.value);
 	return orderedCache;
 }
 
-// The seam every ordered read passes: pending registrations validate before the read, and
-// flush-before-mark keeps a registrant racing the first read out of the late-opener warn (G1.17).
-function consumedEntries(): readonly [AnyBlockKind, BlockOpener][] {
+// Pending registrations are checked before the read and the grammar marked used only after it, so
+// a registration racing the first read is not warned about as a late opener (G1.17).
+function consumedRecords(): readonly OpenerRecord[] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
-	return orderedEntries();
+	return orderedRecords();
 }
 
 /**
- * Registry-derived paragraph-interrupt check, carrying the same seam duties as
- * `getOrderedOpeners`. NOT enablement-filtered: the parsers call it directly rather than
- * through a GrammarView, so the interrupt scan is the global-grammar boundary.
+ * Global, not per editor, so an unlisted plugin's line still ends a paragraph; a plugin whose
+ * setup threw interrupts nothing. The paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
-	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
-	markGrammarConsumed();
-	if (!interruptCache) {
-		interruptCache = [...openers.values()]
-			.map((o) => o.interruptsParagraph)
-			.filter((p): p is (lineText: string) => boolean => p !== false);
+	const records = consumedRecords();
+	const generation = pluginInstallGeneration();
+	if (interruptCache?.generation !== generation) {
+		interruptCache = {
+			generation,
+			predicates: records
+				.filter((r) => resolvesIn(everyInstalledPlugin, r.owner))
+				.map((r) => r.value.interruptsParagraph)
+				.filter((p): p is (lineText: string) => boolean => p !== false)
+		};
 	}
-	for (const predicate of interruptCache) {
+	for (const predicate of interruptCache.predicates) {
 		if (predicate(lineText)) return true;
 	}
 	return false;
 }
 
 /**
- * The grammar as a per-instance resolution object over the global openers, threaded by
- * `parse(source, { grammar })`. Only the opener dispatch is instance-resolved; the
- * paragraph-interrupt scan stays on the global-grammar boundary.
+ * A per-editor view of the global syntax, passed in as `parse(source, { grammar })` and to the
+ * inline scan. The opener dispatch, the setext underline check and every plugin's inline syntax,
+ * widgets, directive names and completers are resolved per editor; the paragraph-interrupt scan
+ * uses the global grammar.
  */
 export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
+	/** Whether a `===` or `---` line under paragraph text makes it a heading. */
+	readonly setextHeading: boolean;
+	/** The plugins this editor activated; every plugin-registered entry resolves through it. */
+	readonly activation: PluginActivation;
 }
 
-export const defaultGrammarView: GrammarView = {
-	orderedOpeners: () => getOrderedOpeners()
-};
-
-export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
-	// A reparse reads this per block, so the filtered list is memoized on the global ordering's
-	// identity: a later registration replaces that array, which rebuilds the filter.
-	let builtFrom: readonly [AnyBlockKind, BlockOpener][] | null = null;
+export function createGrammarView(
+	isEnabled: OpenerEnablement,
+	options: { setextHeading?: boolean; activation?: PluginActivation } = {}
+): GrammarView {
+	const activation = options.activation ?? everyInstalledPlugin;
+	// A reparse reads this once per block, so the filtered list is cached against the global
+	// ordering array and the installed set: a registration or an install rebuilds the filter.
+	let builtFrom: readonly OpenerRecord[] | null = null;
+	let builtAt = -1;
 	let filtered: readonly BlockOpener[] = [];
 	return {
+		setextHeading: options.setextHeading ?? true,
+		activation,
 		orderedOpeners() {
-			const entries = consumedEntries();
-			if (entries !== builtFrom) {
-				builtFrom = entries;
-				filtered = entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
+			const records = consumedRecords();
+			const generation = pluginInstallGeneration();
+			if (records !== builtFrom || generation !== builtAt) {
+				builtFrom = records;
+				builtAt = generation;
+				filtered = records
+					.filter((r) => resolvesIn(activation, r.owner) && isEnabled(r.key))
+					.map((r) => r.value);
 			}
 			return filtered;
 		}
 	};
 }
 
+/** The grammar a `parse()` with no editor reads: every opener but a failed plugin's. */
+export const defaultGrammarView: GrammarView = createGrammarView(() => true);
+
 // ── Outer block starts ──────────────────────────────────────────────────
 
 /** What a line means at the outer level, which turns on whether a paragraph is open above it. */
 export interface OuterBlockScan {
-	/** A lazy continuation: an open paragraph absorbs the starts §4.4 forbids from interrupting. */
+	/** A lazy continuation: an open paragraph absorbs the block starts §4.4 forbids from interrupting. */
 	paragraphOpen: boolean;
-	/** Defaults to the global openers, the boundary `lineInterruptsParagraph` also reads. */
-	grammar?: GrammarView;
+	/** The editor's grammar: an opener it left out starts no block here. */
+	grammar: GrammarView;
+	/** The lines `line` sits in (`lines[index]` is `line`), so an opener that needs a later line to
+	 *  open, a `$$` block and its closing line, sees it. Without them `line` is read alone. */
+	window?: { lines: ParsedLine[]; index: number; end: number };
 }
 
 /**
- * Does `line` start a block at the outer level? cmark-gfm ends both a lazy continuation and a
- * table's row scan there, and the paragraph-interrupt exceptions do not apply. Two claims are
- * transparent: a link reference definition is carved out of a paragraph at finalize rather than
- * opened as a block, and indented code cannot open while a paragraph is open to absorb the line.
+ * Whether `line` starts a block at the outer level, where cmark-gfm ends a lazy continuation or a
+ * table. A link reference definition never counts, nor indented code under an open paragraph.
  */
 export function lineStartsOuterBlock(line: ParsedLine, scan: OuterBlockScan): boolean {
-	const grammar = scan.grammar ?? defaultGrammarView;
+	const { grammar } = scan;
 	const probe: OpenContext = {
-		lines: [line],
-		index: 0,
-		end: 1,
+		...(scan.window ?? { lines: [line], index: 0, end: 1 }),
 		line,
 		leadingTrivia: '',
 		isDocumentParse: false,
-		// Depth-free by design: the verdict is which kind CLAIMS the line at the outer level, and
-		// depth only moves the nesting cap and the body parse under the claim, never the claim.
+		// Always 0 on purpose: the question is which kind opens at the outer level, and depth only
+		// moves the nesting cap and the body parse below, never which kind opens.
 		depth: 0,
 		grammar
 	};
@@ -211,21 +230,7 @@ function claimOpensBlock(kind: AnyBlockKind, paragraphOpen: boolean): boolean {
 	return !(paragraphOpen && kind === 'indentedCode');
 }
 
-/** Registry introspection for the invariant guard (G1.10). */
+/** Read by the dev-mode check that warns when two kinds share a priority (G1.10). */
 export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number }[] {
-	return [...openers.entries()].map(([kind, o]) => ({ kind, priority: o.priority }));
-}
-
-// Also resets the registration-check latches: a latch outliving the registry it shadows would
-// mislabel the next controlled set as late registrations.
-export function __resetBlockOpenersForTests(): void {
-	openers.clear();
-	invalidateGrammarCaches();
-	__resetRegistrationChecksForTests();
-}
-
-// The unified schema reset preserves built-ins for tests that merely add plugin kinds.
-export function __removePluginOpenersForTests(): void {
-	deletePluginEntries(openers, isBuiltinBlockKind);
-	invalidateGrammarCaches();
+	return openers.records().map((r) => ({ kind: r.key, priority: r.value.priority }));
 }

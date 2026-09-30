@@ -68,7 +68,7 @@ test.describe('sticky column: transparent blocks', () => {
 		await editor.goto();
 	});
 
-	test('thematic break is transparent — column preserved through ---', async () => {
+	test('thematic break is transparent: column preserved through ---', async () => {
 		await editor.loadContent(
 			'Long paragraph before thematic break with lots of text.\n\n---\n\nLong paragraph after the thematic break with lots of text.\n'
 		);
@@ -99,8 +99,8 @@ test.describe('sticky column: edge cases', () => {
 		await editor.goto();
 	});
 
-	// One blank line separates and the next is the empty block, so three newlines is exactly
-	// one empty paragraph between the two — asserted, not guarded, or the arm skips itself.
+	// One blank line separates and the next is the empty block, so three newlines is exactly one
+	// empty paragraph between the two: asserted rather than guarded, or the branch skips itself.
 	test('capture in empty paragraph does not crash', async () => {
 		await editor.loadContent('Above.\n\n\nBelow paragraph with text.\n');
 
@@ -115,14 +115,13 @@ test.describe('sticky column: edge cases', () => {
 		const targetX = await editor.getCaretPixelX();
 		const belowRect = await editables.nth(count - 1).boundingBox();
 		expect(belowRect).not.toBeNull();
-		// Lower-bound the landing too: a tolerance wide enough to swallow the
-		// content inset would otherwise let a degenerate (x≈0) caret pass under it.
-		// The caret must sit at/after the paragraph's left edge, not collapse to 0.
+		// A lower bound too, so a tolerance wide enough to swallow the content inset cannot pass a
+		// degenerate caret at x≈0.
 		expect(targetX).toBeGreaterThan(belowRect!.x - PIXEL_TOLERANCE);
 		expect(targetX).toBeLessThan(belowRect!.x + 20);
 	});
 
-	test('editor blur resets sticky column — blur, re-focus, fresh capture', async () => {
+	test('editor blur resets sticky column: blur, re-focus, fresh capture', async () => {
 		await editor.loadContent(
 			'Long first paragraph with plenty of characters.\n\nSecond long paragraph here.\n'
 		);

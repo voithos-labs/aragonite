@@ -1,7 +1,7 @@
 <script lang="ts">
-	// A childless opaque container on the public seam — the diagram whose only edit path would
-	// be its own UI. No BlockList: the factory supplies the whole caret surface, and the kind's
-	// descriptor supplies the `editable` the mounted surface reports.
+	// A childless opaque container built on the public API, like a diagram whose only edit path
+	// is its own UI. No BlockList: the factory supplies the whole focusable element, and the
+	// kind descriptor supplies the `editable` the mounted block reports.
 	import { createContainerBlock, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

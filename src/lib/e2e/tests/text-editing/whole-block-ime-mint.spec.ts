@@ -4,16 +4,16 @@ import { attachIme } from '../../simulation/ime';
 import { wholeBlockInput } from '../../whole-block-input';
 import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
-// Requirements: e2e/requirements/text-editing/whole-block-ime-mint.md.
+// Requirements: `e2e/requirements/text-editing/whole-block-ime-mint.md`.
 
-/** The shape an AltGr production arrives in: `insertText` on the editing host, with no keydown
- *  branch that would admit it (`e.key` under ctrl+alt). */
+/** The shape an AltGr character arrives in: `insertText` on the editing host, with no keydown
+ *  branch that would let it through (`e.key` under ctrl+alt). */
 async function insertTextViaCdp(editor: EditorPage, text: string): Promise<void> {
 	const cdp = await editor.page.context().newCDPSession(editor.page);
 	await cdp.send('Input.insertText', { text });
 }
 
-test.describe('whole-block focus — AltGr and IME input mint a paragraph below', () => {
+test.describe('whole-block focus: AltGr and IME input create a paragraph below', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await editor.loadContent(RULE_DOC);
 	});
 
-	test('an AltGr-shaped insert of `€` mints a paragraph carrying it', async () => {
+	test('an AltGr-shaped insert of `€` creates a paragraph carrying it', async () => {
 		await focusTheRule(editor);
 
 		await insertTextViaCdp(editor, '€');
@@ -30,7 +30,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await editor.bridge.waitForSourceMatches(/---\n\n€\n\nAfter/);
 	});
 
-	test('a committed composition mints the composed text, and one undo takes it back', async () => {
+	test('a committed composition creates the composed text, and one undo takes it back', async () => {
 		const original = await editor.bridge.getSource();
 		await focusTheRule(editor);
 		const ime = await attachIme(editor.page);
@@ -52,13 +52,13 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await ime.compose('にほん');
 		await ime.abort();
 
-		// A CDP composition, not a keystroke: the abort fires no keydown to take a verdict from.
+		// A CDP composition, not a keystroke: the abort fires no keydown for the editor to answer.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 	});
 
-	// A pointer entry lands natively on the block's own surface, which is not the editing host;
-	// without the hand-off the first character after a click is dropped exactly as before.
+	// A click lands natively on the block's own element, which is not the editing host; without
+	// the hand-off, the first character typed after a click is dropped.
 	test('a pointer entry reaches the editing host too', async () => {
 		await rule(editor).click();
 		await expect(wholeBlockInput(rule(editor))).toBeFocused();

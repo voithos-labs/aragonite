@@ -11,4 +11,4 @@
 
 - Caret never lands at a visually-invisible position inside an image widget (the hidden source-bytes span must not act as a caret target)
 - Cross-block ArrowLeft/Right into a paragraph that ends/starts with an image selects the widget directly rather than placing an invisible caret at the widget's edge
-- Cross-block ArrowUp landing on a standalone image must not place the caret inside the widget's hidden source span — typing afterwards must produce visible text, not a malformed splice into the image source bytes
+- Cross-block ArrowUp landing on a standalone image must not place the caret inside the widget's hidden source span: typing afterwards must produce visible text, not a malformed splice into the image source bytes

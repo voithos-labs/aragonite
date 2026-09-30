@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('nested list item — typing + undo', () => {
+test.describe('nested list item, typing + undo', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -51,9 +51,8 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// A focus change between sibling items must break the debounce batch even before the 250ms
-	// flush: the outer container's blockIndex was the only batch key, so sibling leaves shared a
-	// batch.
+	// A focus change between sibling items must end the typing batch before the 250ms pause, or the
+	// batch keyed on the outer container's index spans both leaves.
 	test('focus change between sibling items inside debounce window still breaks the batch', async () => {
 		const before = await editor.bridge.getSource();
 
@@ -62,7 +61,7 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' A');
 
-		// No waitForTimeout — switch focus before the 250ms debounce fires.
+		// No `waitForTimeout`: switch focus before the 250ms debounce fires.
 		const secondItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item two' });
 		await secondItem.click();
 		await editor.page.keyboard.press('End');

@@ -4,8 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// Miss-analysis (blank-line reload loss): a shape assertion over the Enter-split bytes would
-// have caught it — the round-trip suites asserted bytes, which the trivia fold preserves.
+// Miss-analysis: round-trip suites checked bytes, which folding blanks into `leadingTrivia` keeps.
 
 type Layout = [kind: string, leadingTrivia: string, raw: string];
 
@@ -44,7 +43,7 @@ describe('one blank line separates; the rest are blocks', () => {
 		]);
 	});
 
-	it('takes the run’s FIRST line as the separator, whatever its bytes', () => {
+	it('takes the run’s first line as the separator, whatever its bytes', () => {
 		expect(layout(parse('a\n  \n\nb\n').children)).toEqual([
 			['paragraph', '', 'a\n'],
 			['paragraph', '  \n', '\n'],
@@ -64,7 +63,7 @@ describe('one blank line separates; the rest are blocks', () => {
 // ── Document head and tail ───────────────────────────────────────────────────
 
 describe('document-leading and -trailing runs', () => {
-	it('materializes a leading run in full — no preceding block to separate from', () => {
+	it('materializes a leading run in full: no preceding block to separate from', () => {
 		const doc = parse('\n\na\n');
 		expect(doc.prefix).toBe('');
 		expect(layout(doc.children)).toEqual([
@@ -131,6 +130,13 @@ describe('blank runs inside containers', () => {
 			['paragraph', '', '\n'],
 			['paragraph', '', 'a\n']
 		]);
+	});
+
+	// The document's rule for its own trailing line: held aside while the block above is prose.
+	it('keeps a blockquote’s trailing blank line in innerSuffix below prose', () => {
+		const bq = parse('> b\n>\n').children[0];
+		expect(bq.innerSuffix).toBe('\n');
+		expect(layout(bq.children!)).toEqual([['paragraph', '', 'b\n']]);
 	});
 
 	it('materializes inside a list item', () => {

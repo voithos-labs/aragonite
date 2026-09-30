@@ -1,6 +1,6 @@
-# Block: List — Task Checkbox (edit-event shape and cross-block click)
+# Block: List, Task Checkbox (edit-event shape and cross-block click)
 
-Toggle emits exactly one `metadataUpdate` op; clicking the checkbox while a cross-block selection is active collapses the selection first.
+A toggle emits exactly one `metadataUpdate` op; clicking the checkbox while a cross-block selection is active collapses the selection first.
 
 ## Edge cases
 

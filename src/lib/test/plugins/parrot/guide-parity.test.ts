@@ -1,13 +1,11 @@
-// Miss-analysis: the plugin guide's parrot sample compiled only when a human filmed it, so
-// nothing caught a barrel rename or a runes change that broke the quickstart a reader copies.
+// Miss-analysis: nothing compiled the guide's parrot sample, so a barrel rename broke it unseen.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * The shipped parrot IS the guide's quickstart: `docs/guide/plugin-guide.md` owns the bytes,
- * `src/lib/plugins/parrot/` compiles them. Two adaptations bridge the two, and this derives
- * the plugin from the docs so either side drifting reds here rather than in a reader's editor.
+ * The shipped parrot is `docs/guide/plugin-guide.md`'s quickstart compiled with two adaptations,
+ * derived from the docs so either side drifting fails here rather than in a reader's editor.
  */
 
 const PLUGIN_DIR = 'src/lib/plugins/parrot';
@@ -25,10 +23,8 @@ const read = (rel: string) => readFileSync(path.resolve(rel), 'utf8');
 const FENCE_OPEN = /^\s*(`{3,})/;
 
 /**
- * The fence whose body holds `markerLine`, located by that marker rather than by index so
- * an edit elsewhere in the guide cannot silently retarget it. Any backtick run opens a
- * fence (Prettier promotes one whose body holds triple backticks) and the closer must be at
- * least as long.
+ * The fence whose body holds `markerLine`, found by marker so an edit elsewhere cannot retarget
+ * it. Prettier may lengthen a fence, so any backtick run opens one and a run as long closes it.
  */
 function fenceBodyAround(markdown: string, markerLine: string): string {
 	const lines = markdown.split('\n');
@@ -66,9 +62,8 @@ function spanBetween(lines: string[], startLine: string, endLine: string) {
 }
 
 /**
- * One tab onto the lines that are code. Every byte inside a `String.raw` literal keeps its
- * own indentation, its closing delimiter line included: a tab before that backtick lands
- * INSIDE the string and repaints the bird.
+ * One tab onto the lines that are code, never inside a `String.raw` literal: a tab before its
+ * closing backtick lands in the string and repaints the bird.
  */
 function nestOneLevel(block: string[]): string[] {
 	let inRaw = false;
@@ -82,7 +77,7 @@ function nestOneLevel(block: string[]): string[] {
 	});
 }
 
-/** Adaptation (a): a bundled plugin authors against the in-repo barrel alias (G4.16). */
+/** Adaptation (a): a bundled plugin imports only the in-repo barrel alias (G4.16). */
 const toLibImport = (code: string) =>
 	code.replaceAll("'@voithos-labs/aragonite/plugin'", "'$lib/plugin'");
 
@@ -126,8 +121,8 @@ describe('the bundled parrot is the plugin guide, compiled', () => {
 });
 
 // ── Non-vacuity: the derivation really does both adaptations ────────────────
-// Two byte-equal sides prove nothing about WHICH bytes, and the splice is the half that
-// can be wrong in the file and the derivation at once.
+// Two byte-equal sides prove nothing about which bytes, and the splice is the half that can
+// be wrong in the file and in the derivation at once.
 
 describe('the derivation performs both adaptations', () => {
 	const guide = read(GUIDE);

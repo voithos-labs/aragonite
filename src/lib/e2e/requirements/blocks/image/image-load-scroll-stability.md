@@ -1,9 +1,9 @@
 # Feature: image-load scroll stability
 
-The editor disables native browser scroll-anchoring (`overflow-anchor: none`) so its
-own anchor correction can own the scroll line under virtual rendering. A remote image
+The editor turns the browser's own scroll anchoring off (`overflow-anchor: none`) so that
+its own correction owns the scroll position under virtual rendering. A remote image
 without both width and height reserves no layout box until its bytes decode, then grows
-asynchronously. That async growth must NOT shift the visible content.
+asynchronously. That growth must not shift the visible content.
 
 ## Happy paths
 
@@ -12,10 +12,14 @@ asynchronously. That async growth must NOT shift the visible content.
 
 ## Edge cases
 
-- The image genuinely grows on load (the block height increases) — the correction must
-  fire from the real async growth, not a no-op that passes vacuously.
+- The image really does grow on load (the block gets taller): the correction has to fire
+  from that real growth, not from a case that passes while nothing happened.
 
 ## User interactions
 
 - Scroll an unsized, still-loading image above the viewport, then let it load: the
   reading position does not jump.
+
+## Error cases
+
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

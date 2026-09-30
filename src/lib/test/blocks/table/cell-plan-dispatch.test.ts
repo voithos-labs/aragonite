@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-//
-// `cellKeydownPlan` decides; the cell TRANSLATES a plan into a table-context call, and that
-// translation is the untested half. The planner has its own suite (cell-keydown-plan.test.ts)
-// over inputs a test hands it; here the input is a real keystroke and the assertion is the
-// document that came out. Scope: the NAVIGATION plans — the structural chords are keymap
-// bindings (cell-table-chords.test.ts). Editor mount, because every arm below commits.
+// The cell turns a `cellKeydownPlan` navigation plan into a call on the table context, driven by
+// a real keystroke in a full Editor mount and asserted on the result. The planner has its own
+// suite, and the structural chords are keymap bindings tested in `cell-table-chords.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);
@@ -20,7 +21,6 @@ afterEach(async () => {
 // 3 rows × 2 columns; row 0 is the header, row 2 the last body row.
 const GRID = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
-/** The cell element at `rowIdx`,`colIdx` of the table block at `[0]`. */
 function mountGrid(): void {
 	mounted = mountEditor({ source: GRID });
 }

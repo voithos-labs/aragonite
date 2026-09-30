@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_END, type BlockComponent } from '../block-component';
+	import type { BlockComponent } from '../block-component';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_SERVICES_KEY,
@@ -8,14 +8,10 @@
 		type EditorServices
 	} from '../editor-keys';
 	import {
-		normalize,
 		blockPaintsWholeBox,
 		classifyBlockForSelection,
-		charOffsetOf,
-		cellIndexOf,
-		type EditorSelection
+		endpointMeasureSpan
 	} from '../selection/primitives';
-	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -26,8 +22,10 @@
 		containerPaintsRects = false
 	}: {
 		path: number[];
-		blockRef: BlockComponent | undefined;
-		blockEl: HTMLElement | null | undefined;
+		/** How the endpoint rects are measured, and where: a delegating container passes neither,
+		 *  since it never measures. */
+		blockRef?: BlockComponent;
+		blockEl?: HTMLElement | null;
 		/** This container's children paint the range's endpoint rects, so it measures none. */
 		delegatesPainting?: boolean;
 		/** This container measures its own rects instead of delegating. Both are decided
@@ -35,28 +33,24 @@
 		containerPaintsRects?: boolean;
 	} = $props();
 
-	// Optional, like every context BlockHost reads: a bare mount provides no shell,
-	// and every use below is written for absence. Destructuring these threw first.
-	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
-	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
-	const getEditorRoot = editorDoc?.editorRoot;
-	const getDoc = editorDoc?.doc;
+	// Optional, like every context BlockHost reads: a mount without the editor shell
+	// provides none, and every use below is written for absence.
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const selection = services?.selection;
+	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	const range = $derived.by<EditorSelection | null>(() => {
-		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) return null;
-		return { anchor: selection.anchor, focus: selection.focus };
-	});
+	const coverage = $derived(services?.rangeCoverage() ?? null);
 
-	const classification = $derived(range ? classifyBlockForSelection(path, range) : 'outside');
+	const classification = $derived(coverage ? classifyBlockForSelection(path, coverage) : 'outside');
 
-	// Delegation-blind on purpose: a block the range holds whole paints one box over everything it
-	// renders, chrome included, and the seam already keeps its children from painting under it.
+	// Ignores who measures, on purpose: a block the range covers whole paints one box over
+	// everything it renders, markers included, and its children already paint nothing under it.
 	const paintsWholeBox = $derived(
-		range !== null && blockPaintsWholeBox(path, range, selection?.wholeUnitPath ?? null)
+		coverage !== null && blockPaintsWholeBox(path, coverage, selection?.wholeUnitPath ?? null)
 	);
 
-	// The measuring effect and the template read this one predicate, so a rendered
-	// rect is always one the effect measured; two predicates render a stale box.
+	// The measuring effect and the markup read this one value, so a painted rectangle is
+	// always one the effect measured; two separate tests would paint a stale box.
 	const paintsEndpoints = $derived(
 		!delegatesPainting &&
 			(classification === 'start' ||
@@ -71,9 +65,8 @@
 		height: number;
 	}
 
-	/** Merge rects on the same visual line into a single rect to prevent double-highlight. Same
-	 *  line means vertically overlapping, not equal tops: an inline widget (a KaTeX box) stands
-	 *  taller than the text beside it, and two rects painted over one span read twice as dark. */
+	/** Merges vertically overlapping rects, not just equal tops, so a tall inline widget beside
+	 *  text is not highlighted twice. */
 	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
 		if (rects.length <= 1) return rects;
 		const sorted = [...rects].sort((a, b) => a.top - b.top);
@@ -106,38 +99,20 @@
 			endpointRects = [];
 			return;
 		}
-		if (!blockRef?.measurePartialRects || !blockEl || !selection?.anchor || !selection?.focus) {
+		if (!blockRef?.measurePartialRects || !blockEl || !services || !coverage) {
 			endpointRects = [];
 			return;
 		}
 
 		const ref = blockRef;
 		const el = blockEl;
-		const sel = selection;
+		const covered = services.rangeCoverage;
 
 		function measure(): void {
-			if (!sel.anchor || !sel.focus || !ref.measurePartialRects) return;
-			const normalized = normalize({ anchor: sel.anchor, focus: sel.focus });
-			const doc = getDoc?.();
-			const { start, end } = doc
-				? snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end)
-				: normalized;
-			const startOffset =
-				classification === 'end'
-					? 0
-					: start.cellCoordinate
-						? cellIndexOf(start, 'SelectionOverlay:start')
-						: charOffsetOf(start, 'SelectionOverlay:start');
-			// measurePartialRects paints [start, end) exclusive, so the +1 turning a
-			// snapped table end (inclusive last cell) into an exclusive whole-row bound
-			// belongs to the cell branch only.
-			const endOffset =
-				classification === 'start'
-					? SELECTION_END
-					: end.cellCoordinate
-						? cellIndexOf(end, 'SelectionOverlay:end') + 1
-						: charOffsetOf(end, 'SelectionOverlay:end');
-			const viewportRects: DOMRect[] = ref.measurePartialRects(startOffset, endOffset);
+			const live = covered();
+			if (!live || !ref.measurePartialRects) return;
+			const { from, to } = endpointMeasureSpan(classification, live);
+			const viewportRects: DOMRect[] = ref.measurePartialRects(from, to);
 			const blockRect = el.getBoundingClientRect();
 			endpointRects = mergeRectsPerLine(
 				viewportRects.map((r) => ({

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { getPluginMetadata, type CstNode } from '$lib/core/nodes';
+import { getPluginMetadata, type CstNode, type PluginBlockKind } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
@@ -12,21 +12,21 @@ import {
 	DIRECTIVE_TEXT,
 	type DirectiveContainerMetadata
 } from '$lib/core/directive/kinds';
-import {
-	registerDirective,
-	__resetDirectiveRegistryForTests,
-	type ParsedDirective
-} from '$lib/core/directive/registry';
+import { registerDirective, type ParsedDirective } from '$lib/core/directive/registry';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
-activateDirectiveGrammar(); // before any parse
+let NOTE: PluginBlockKind;
+let WARNING: PluginBlockKind;
 
-// The acceptance gate for the directive primitive: an arbitrary spanning the whole
-// construct space, asserting serialize(parse(src)) === src. Curated non-ASCII pools
-// (not fc.unicode) keep CJK / astral / combining boundary shapes reliably reachable, and
-// the reachability self-tests below are the rules.md evidence that the arbitrary can
-// actually produce the bug-carrying shapes.
+beforeEach(() => {
+	activateDirectiveGrammar();
+	NOTE = declarePluginKind('directiveNoteProbe');
+	WARNING = declarePluginKind('directiveWarningProbe');
+});
+
+// Round-trips a generator spanning every directive shape. Curated non-ASCII pools keep CJK,
+// astral and combining boundaries reachable, and the self-tests below prove they are reached.
 
 const isNonAscii = (s: string): boolean => [...s].some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
 
@@ -39,7 +39,7 @@ const arbGenericName = fc
 	.tuple(fc.constantFrom(...NAME_START), fc.array(fc.constantFrom(...NAME_CHAR), { maxLength: 6 }))
 	.map(([head, tail]) => head + tail.join(''));
 
-// `note`/`warning` are registered on the container arm below; a generic draw may also
+// `note`/`warning` are registered as container kinds below; a generic draw may also
 // land on them, so both the registry-dispatch and the fallback path must round-trip.
 const arbName = fc.oneof(
 	{ arbitrary: arbGenericName, weight: 4 },
@@ -175,7 +175,7 @@ function arbContainerBody(parentColon: number): fc.Arbitrary<string> {
 	return fc.oneof(...arms);
 }
 
-// `cap` bounds this container's opener AND closer colon runs so a nested one stays
+// `cap` bounds this container's opener and closer colon runs so a nested one stays
 // strictly under its parent; the top-level cap leaves room for a longer closer.
 function arbContainer(cap: number): fc.Arbitrary<string> {
 	const maxColon = Math.min(6, cap);
@@ -211,9 +211,6 @@ const arbDirectiveDoc = fc.oneof(
 
 // ── CST walks (rebuild inverse + reachability) ────────────────────────────────
 
-const NOTE = declarePluginKind('directiveNoteProbe');
-const WARNING = declarePluginKind('directiveWarningProbe');
-
 const isContainerNode = (node: CstNode): boolean =>
 	node.kind === DIRECTIVE_CONTAINER || node.kind === NOTE || node.kind === WARNING;
 
@@ -246,14 +243,17 @@ function collectContainerInfos(nodes: CstNode[], out: string[]): void {
 // ── Properties ────────────────────────────────────────────────────────────────
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(424242) } as const;
-// Fixed rather than threaded through the fresh lane: the reachability self-tests must
-// stay deterministic, since a fresh seed could miss a rare shape and flake.
+// A fixed seed keeps the reachability self-tests deterministic; a fresh one could miss a rare
+// shape and flake.
 const SAMPLE_PARAMS = { numRuns: 3000, seed: 20260709 } as const;
 
 describe('directive total-coverage round-trip', () => {
 	let samples: string[] = [];
 
 	beforeAll(() => {
+		samples = fc.sample(arbDirectiveDoc, SAMPLE_PARAMS);
+	});
+	beforeEach(() => {
 		const wrapRaw = (kind: typeof NOTE) => ({
 			kind,
 			fromDirective: (parsed: ParsedDirective): CstNode => ({
@@ -264,9 +264,7 @@ describe('directive total-coverage round-trip', () => {
 		});
 		registerDirective('container', 'note', wrapRaw(NOTE));
 		registerDirective('container', 'warning', wrapRaw(WARNING));
-		samples = fc.sample(arbDirectiveDoc, SAMPLE_PARAMS);
 	});
-	afterAll(() => __resetDirectiveRegistryForTests());
 
 	it('serialize(parse(s)) === s over generated directive constructs', () => {
 		fc.assert(
@@ -294,19 +292,19 @@ describe('directive total-coverage round-trip', () => {
 		);
 	});
 
-	// Reachability evidence: the SAME arbitrary the properties run on must be able
-	// to produce the bug-carrying shapes, or the coverage is illusory.
-	it('CAN generate a container nested inside a container', () => {
+	// The arbitrary the properties run on must be able to produce the bug-carrying shapes, or
+	// the coverage is illusory.
+	it('can generate a container nested inside a container', () => {
 		expect(samples.some((src) => hasNesting(parse(src).children))).toBe(true);
 	});
 
-	it('CAN generate a container whose info carries non-ASCII bytes', () => {
+	it('can generate a container whose info carries non-ASCII bytes', () => {
 		const infos: string[] = [];
 		for (const src of samples) collectContainerInfos(parse(src).children, infos);
 		expect(infos.some(isNonAscii)).toBe(true);
 	});
 
-	it('CAN generate a text directive adjacent to a real link in one paragraph', () => {
+	it('can generate a text directive adjacent to a real link in one paragraph', () => {
 		const found = samples.some((src) =>
 			parse(src).children.some((block) => {
 				if (block.kind !== 'paragraph') return false;
@@ -322,7 +320,7 @@ describe('directive total-coverage round-trip', () => {
 
 // Shapes the generator under-weights, each pinning the structural fact the round-trip
 // cannot see: the serializer emits raw verbatim, so a wrong kind still round-trips.
-describe('directive round-trip — adversarial interleaving + edge cases', () => {
+describe('directive round-trip: adversarial interleaving + edge cases', () => {
 	const containerBodies: Array<[label: string, src: string]> = [
 		['list', ':::box\n- a\n- b\n:::\n'],
 		['table', ':::box\n| h |\n| --- |\n| c |\n:::\n'],
@@ -376,7 +374,7 @@ describe('directive round-trip — adversarial interleaving + edge cases', () =>
 		expect(parse(src).children.map((c) => c.kind)).toEqual(['directiveContainer', 'directiveLeaf']);
 	});
 
-	it('round-trips all three tiers mixed in one document', () => {
+	it('round-trips all three levels mixed in one document', () => {
 		const src = ':::box\ninner\n:::\n::toc\nsee :ab[c]{k=v} and [x](y)\n';
 		expect(serialize(parse(src))).toBe(src);
 	});

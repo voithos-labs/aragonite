@@ -1,6 +1,6 @@
 /**
  * Collects what an invariant check reports, tagged by the call site that ran it, so a suite can
- * assert "this check fired for this reason" rather than reading a console channel.
+ * assert that a check fired for a given reason rather than reading the console.
  */
 import type { InvariantViolation } from '../../assert';
 

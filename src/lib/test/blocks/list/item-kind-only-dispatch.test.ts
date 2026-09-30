@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
-//
-// Tab reaches a list item by BUBBLING: the inner paragraph declines it without preventDefault,
-// so the item's box is the second consumer of a key still travelling. That is why the item
-// dispatches kind-only — a global tier here would re-resolve the chords the focused leaf owns,
-// undo among them. `dispatchKindCommand`'s own tests prove it returns false; what only a mount
-// says is what false MEANS on this box: no preventDefault, and an untouched ListContext.
+// Tab reaches a list item by bubbling after the inner paragraph declines it, so the item
+// dispatches only its kind's commands: resolving global ones would re-run chords the focused
+// block already owns, undo among them. A declined key keeps `defaultPrevented` false and leaves
+// the `ListContext` untouched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../editor-mount';
-import { mountItem, pressOn, type MountedItem } from './mount-item';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { mountItem, type MountedItem } from './mount-item';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -25,20 +24,20 @@ afterEach(async () => {
 });
 
 describe('a list item claims its own kind chords and nothing else', () => {
-	// The control. Both negatives below are "this key was not claimed"; without a key
-	// that IS claimed on the same box, deleting the handler would leave them green.
+	// The control: the cases below assert that nothing took the key, which a deleted handler
+	// would also pass.
 	it('claims the chords its kind declares', () => {
 		mounted = mountItem(NESTABLE, 1);
 
-		expect(pressOn(mounted.content, { key: 'Tab' })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab' }).defaultPrevented).toBe(true);
 		expect(mounted.listContext.indentItem).toHaveBeenCalledWith(1);
 
-		expect(pressOn(mounted.content, { key: 'Tab', shiftKey: true })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(
+			true
+		);
 		expect(mounted.listContext.unindentItem).toHaveBeenCalledWith(1);
 	});
 
-	// The documented reason the dispatch is kind-only. Were this box to gain a global
-	// tier, these chords would resolve here as well as at the focused leaf.
 	it('leaves the global chords to the leaf that already owns them', () => {
 		mounted = mountItem(NESTABLE, 1);
 
@@ -48,30 +47,29 @@ describe('a list item claims its own kind chords and nothing else', () => {
 			{ key: 'y', ctrlKey: true },
 			{ key: 'b', ctrlKey: true }
 		]) {
-			expect(pressOn(mounted.content, init)).toBe(false);
+			expect(dispatchKey(mounted.content, init).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 		expect(mounted.listContext.unindentItem).not.toHaveBeenCalled();
 	});
 
-	// `eventToChord` returns null for a modifier being held. The sticky column's own copy of this
-	// set was once short two entries, which is how CapsLock dropped it.
+	// `eventToChord` returns null for a held modifier, CapsLock included, so the item takes none.
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountItem(NESTABLE, 1);
 
 		for (const key of ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock']) {
-			expect(pressOn(mounted.content, { key })).toBe(false);
+			expect(dispatchKey(mounted.content, { key }).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});
 
-	// A key the inner leaf consumed synchronously has already had its action taken; the
-	// item must not run a second one off the same press.
+	// A key the inner block consumed synchronously has already acted, so the item
+	// must not run a second action off the same keypress.
 	it('ignores a key an inner block already consumed', () => {
 		mounted = mountItem(NESTABLE, 1);
 		mounted.content.addEventListener('keydown', (e) => e.preventDefault(), { capture: true });
 
-		pressOn(mounted.content, { key: 'Tab' });
+		dispatchKey(mounted.content, { key: 'Tab' });
 
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});

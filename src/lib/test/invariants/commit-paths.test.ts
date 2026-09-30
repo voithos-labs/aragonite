@@ -6,8 +6,8 @@ import { asDocPath } from '$lib/selection/path-math';
 // Doc shape: [paragraph, blockquote[list[item, item]]]
 const doc = parse('pad\n\n> - one\n> - two\n');
 
-// asDocPath is an unchecked boundary mint, so the runtime guard is what validates the
-// dialect — a minted-but-invalid path still gets rejected.
+// asDocPath creates a path without checking it, so the runtime check is what decides whether the
+// path is document-absolute: one built that way and still invalid is rejected.
 const check = (path: number[], role: 'eventPath' | 'snapshot.path') =>
 	checkCommitPathAddressable(doc, asDocPath(path), role);
 
@@ -30,8 +30,8 @@ describe('checkCommitPathAddressable (G1.16)', () => {
 	});
 
 	it('rejects the append slot when it is not the final hop (prefix strictness)', () => {
-		// The append slot is legal as a FINAL index but not as a prefix, so this is the
-		// fixture that fails if the one-past-end allowance leaks to every hop.
+		// The append position is legal as a final index but not as a prefix, so this is the
+		// fixture that fails if the one-past-the-end allowance leaks to every step.
 		expect(check([2, 0], 'eventPath')).toMatchObject({
 			code: 'commit-path-dialect',
 			detail: { failedAt: 0 }

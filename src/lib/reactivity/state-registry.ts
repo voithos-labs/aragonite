@@ -1,7 +1,7 @@
-/** Resolve a container node (by identity; views accepted) to its BlockListState.
- *  WeakMap, so entries collect when the node becomes unreachable. */
+/** Find a container node's `BlockListState` by identity (a view works too). A `WeakMap`,
+ *  so entries are collected once the node is unreachable. */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { tick } from 'svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
@@ -9,21 +9,17 @@ import { devWarn } from '../dev-warn';
 
 const stateRegistry = new WeakMap<NodeView, BlockListState>();
 
-/** Overwrites any existing entry — the new state becomes authoritative on re-mount. */
+/** Overwrites any existing entry: on a remount the new state is the one that counts. */
 export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	stateRegistry.set(node, state);
-	if (DEV && existing && existing !== state) {
+	if (isDevChecks() && existing && existing !== state) {
 		void reportContestedClaim(node, existing, state);
 	}
 }
 
-/**
- * A dev signal, not a guarantee. Svelte creates a structural remount's new mount before
- * tearing the old one down, so a claim contested INSIDE a flush says nothing about
- * ownership; re-ask once it settles, when a loser still holding child refs means either a
- * second live owner or a teardown whose clear never reached the live slots.
- */
+/** Checked a tick later because Svelte mounts a remount's new component before tearing down the
+ *  one it replaces; a replaced state still holding child refs after that has a live rival. */
 async function reportContestedClaim(
 	node: NodeView,
 	loser: BlockListState,
@@ -34,7 +30,7 @@ async function reportContestedClaim(
 	if (loser.innerBlockRefs.every((ref) => ref === undefined)) return;
 	devWarn(
 		'state-registry',
-		`two live components claim the same ${node.kind} — the loser's child refs are orphaned. ` +
+		`two live components claim the same ${node.kind}: the loser's child refs are orphaned. ` +
 			`Either both mounts render this node, or the loser's teardown emptied slots the ` +
 			`scope no longer reads.`
 	);
@@ -44,13 +40,13 @@ export function getStateForNode(node: NodeView): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
 
-/** Strict variant, for a caller holding a live-tree node whose container must be mounted.
- *  `getStateForNode` stays for the ancestor walks where absence is a valid signal. */
+/** The strict lookup, for a live-tree node whose container must be mounted. Ancestor
+ *  traversals, where a missing entry is a valid answer, use `getStateForNode`. */
 export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {
 		throw new Error(
-			`[state-registry] no BlockListState registered for ${node.kind} — ` +
+			`[state-registry] no BlockListState registered for ${node.kind}: ` +
 				`caller assumed a mounted container. If this path can visit non-container ` +
 				`nodes, use getStateForNode and guard on undefined.`
 		);

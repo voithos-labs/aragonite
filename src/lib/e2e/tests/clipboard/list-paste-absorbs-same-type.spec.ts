@@ -1,5 +1,5 @@
-// One invariant — same-type list paste flattening into the enclosing list — parametrized
-// across paste positions and shapes, which is why these stay in one file.
+// One rule, a same-type list paste flattening into the enclosing list, over the paste
+// positions and shapes, which is why these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -23,8 +23,8 @@ const ROWS: AbsorbRow[] = [
 		offset: 'alpha'.length,
 		settle: /^4\. beta$/m,
 		expected: [/^1\. alpha$/m, /^2\. x$/m, /^3\. y$/m, /^4\. beta$/m],
-		// Regressions to guard: pasted list staying its own list (1-restart)
-		// or outer list resuming numbering after the gap.
+		// The pasted list must not stay its own list (restarting at 1), nor the outer list resume
+		// numbering after the gap.
 		rejected: [/^1\. x$/m, /^2\. beta$/m]
 	},
 	{
@@ -60,7 +60,7 @@ const ROWS: AbsorbRow[] = [
 		clip: '- x\n- y\n',
 		focus: [0, 0, 0],
 		offset: 'a'.length,
-		// All 4 items in a single flat list — exactly 4 top-level bullet lines.
+		// All 4 items in a single flat list: exactly 4 top-level bullet lines.
 		settle: (s: string) => (s.match(/^- /gm) ?? []).length === 4,
 		expected: [/^- a$/m, /^- x$/m, /^- y$/m, /^- b$/m]
 	},
@@ -76,9 +76,8 @@ const ROWS: AbsorbRow[] = [
 		rejected: [/^\d+\) /m]
 	},
 	{
-		// A clipboard without a trailing newline yields a last item whose raw lacks one, which
-		// `rebuildListRaw` concatenates with the next sibling when spliced into a non-tail
-		// position; the buggy state produced "6. Ordered7. third" as a merged line.
+		// A clipboard with no trailing newline yields a last item without one, which `rebuildListRaw`
+		// would join to the next sibling as "6. Ordered7. third".
 		name: 'ordered paste without trailing newline still absorbs as separate items',
 		doc: '1. Ordered first\n2. Ordered second\n3. Ordered third\n',
 		clip: '1. first\n2. Ordered second\n3. Ordered',
@@ -106,8 +105,8 @@ const ROWS: AbsorbRow[] = [
 		expected: [/^1\. alpha$/m, /^2\. only$/m, /^3\. beta$/m]
 	},
 	{
-		// A list that doesn't start at 1 keeps counting from its own base — the absorb path once
-		// hardcoded base 1, restarting the region at the item index and duplicating markers.
+		// A list that does not start at 1 keeps counting from its own base: hardcoding base 1
+		// restarts the region at the item index and duplicates markers.
 		name: 'ordered paste into a non-1-based list preserves the start number',
 		doc: '3. a\n4. b\n5. c\n',
 		clip: '1. x\n2. y\n',
@@ -115,14 +114,13 @@ const ROWS: AbsorbRow[] = [
 		offset: 'c'.length,
 		settle: /^7\. y$/m,
 		expected: [/^3\. a$/m, /^4\. b$/m, /^5\. c$/m, /^6\. x$/m, /^7\. y$/m],
-		// Buggy state renumbered c→3, duplicating the leading 3.
+		// Renumbering c to 3 would duplicate the leading 3.
 		rejected: [/^3\. c$/m, /^3\. [\s\S]*^3\. /m]
 	}
 ];
 
-// Flattens pasted items as SIBLINGS with continuous renumbering — neither three separate
-// lists nor a nested sub-list, matching the Obsidian / Google Docs convention. The
-// mismatched-type complement is list-paste-mismatched-breaks-out.spec.ts.
+// Flattens pasted items as siblings with continuous renumbering, never separate lists or a nested
+// sub-list; the mismatched-type counterpart is `list-paste-mismatched-breaks-out.spec.ts`.
 test.describe('paste: same-type list into list item flattens into enclosing list', () => {
 	let editor: EditorPage;
 
@@ -147,9 +145,8 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		});
 	}
 
-	// `$state` proxies wrap entries LAZILY, so mutating freshly-inserted items bypasses the
-	// set trap and a post-splice renumber never reaches the DOM. Pre-computing final markers
-	// before the splice keeps every reactive mutation on already-proxied items.
+	// `$state` proxies wrap entries lazily, so a renumber on freshly inserted items misses the set
+	// trap; the final markers are worked out before the splice, on items already wrapped.
 	test('DOM ambient markers match source markers after absorb', async () => {
 		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered\n');

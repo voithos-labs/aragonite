@@ -1,6 +1,6 @@
-// Dogfood for the widget-island render path on public doors only: one component widget at
-// the focused paragraph's end, moved by invalidating on selectionChange. Its e2e battery
-// is the byte-safety proof — typing near the island never captures the ghost text.
+// An example of rendering a widget decoration through the public API only: one component widget
+// at the end of the focused paragraph, moved by invalidating on selectionChange. Its e2e suite
+// is the proof that no bytes leak: typing next to the widget never picks up the ghost text.
 import {
 	definePlugin,
 	trimTrailingLineEnding,
@@ -35,8 +35,8 @@ export const ghostTextPlugin = definePlugin({
 						{
 							type: 'widget',
 							path: focusPath,
-							// Island offsets live in the block's raw-content space, which
-							// excludes the trailing line ending.
+							// A widget's offset is measured in the block's raw content, which
+							// leaves out the trailing line ending.
 							offset: trimTrailingLineEnding(node.raw).length,
 							widget: { component: GhostText }
 						}
@@ -44,7 +44,7 @@ export const ghostTextPlugin = definePlugin({
 				}
 			});
 			const off = editor.events.on('selectionChange', (sel) => {
-				// A table endpoint's offset is a cell index, not a raw offset — no ghost.
+				// A table endpoint's offset is a cell index rather than a raw offset, so no ghost.
 				focusPath = sel && !sel.focus.cellCoordinate ? sel.focus.path : null;
 				handle.invalidate();
 			});

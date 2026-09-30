@@ -1,6 +1,6 @@
-// Dogfood for an inline rung that mints a BUILT-IN kind over syntax of its own:
-// `![[path|width]]` becomes a real `image`, so widget, caret, and resize handles all
-// work. `rewriteImage` is the point — without it a resize writes GFM over the embed.
+// An example of an inline handler that creates a built-in kind from syntax of its own:
+// `![[path|width]]` becomes a real `image`, so the widget, the caret and the resize handles all
+// work. `rewriteImage` is the point: without it a resize would write GFM over the embed.
 import {
 	definePlugin,
 	registerInlineSyntax,
@@ -10,8 +10,8 @@ import {
 } from '$lib/plugin';
 
 const EMBED = /^!\[\[([^\]|]+?)(?:\|(\d+))?\]\]/;
-// The grammars overlap: `![[a]](u)` is a built-in image whose alt is `[a]`, and a
-// rung consulted ahead of the switch has to decline that one itself.
+// The two grammars overlap: `![[a]](u)` is a built-in image whose alt is `[a]`, and a handler
+// consulted first has to turn that one down itself.
 const IMAGE_TARGET = /\.(png|jpg|svg)$/;
 
 export const wikiEmbedPlugin = definePlugin({
@@ -39,8 +39,8 @@ function recognizeEmbed(raw: string, pos: number, end: number): InlineNode | nul
 	};
 }
 
-// An embed names only a target and a width, so a title, a label, or an alt edited away from
-// the target has no form here and declines rather than escaping into GFM.
+// An embed names only a target and a width, so a title, a label, or an alt edited away from the
+// target cannot be written here: this declines instead of falling back to GFM.
 function rewriteImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;

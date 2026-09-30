@@ -28,8 +28,8 @@ export function computeCodeEnter(input: CodeEnterInput): CodeEnterResult {
 	const { display, selection, mode, ending } = input;
 	const { start, end } = selection;
 
-	// Indent reads from the SELECTION START's line — Enter on a non-collapsed
-	// range deletes the range first, so the surviving line is that one.
+	// The indent is read from the line the selection starts on: Enter over a range
+	// deletes the range first, so that is the line left behind.
 	const indent = mode === 'normal' ? getLineLeadingWhitespace(display, start) : '';
 	const inserted = ending + indent;
 

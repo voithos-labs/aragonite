@@ -22,7 +22,7 @@ test.describe('blocked-scheme links are inert', () => {
 			popupFired = true;
 		});
 		await blocked.click({ modifiers: ['Control'] });
-		await editor.page.waitForTimeout(200); // absence-of-popup check; no state to predicate on
+		await editor.page.waitForTimeout(200); // checking no popup opens; there is no state to wait on
 		expect(popupFired).toBe(false);
 	});
 });

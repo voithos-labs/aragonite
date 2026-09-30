@@ -3,15 +3,14 @@ import type { Page } from '@playwright/test';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { type SimContext, assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
-// Ungated plugin-container ops oracle. The three opaque-only invariants (opaque-stale-raw,
-// opaque-rebuild-nondeterminism, reserved-chrome-slot) were observable only through scripted
-// per-feature scenarios; this brings them under a STATE-ACCUMULATING watcher for the first
-// time. A loaded-ops session on the table-ops pattern, deterministic under a fixed rng — run
-// with `--repeat-each` to shake out timing flakiness.
+// Plugin containers in a long session, run in the default gate: an opaque container's raw text
+// never goes stale, a rebuild is repeatable, and the title row keeps its place. Built like
+// table-ops, on a loaded document under a fixed generator; run it with `--repeat-each` to shake out
+// timing flakiness.
 
 const PLUGIN_DOC =
 	'Intro paragraph.\n\n' +
@@ -35,10 +34,9 @@ async function containerRaw(page: Page, kind: string): Promise<string> {
 	}, kind);
 }
 
-// ── Resync-based edit helpers ─────────────────────────────────────────────────
-// Every plugin edit lands mid-document (inside a container), never the end-of-doc
-// append the ExpectationTracker predicts, so these settle on the observed source
-// and resync — the same predict/resync split table-ops uses for cell edits.
+// ── Edits that resync ─────────────────────────────────────────────────────────
+// Every plugin edit lands inside a container, mid-document, where the ExpectationTracker cannot
+// predict it, so these wait for the source and resync, as table-ops does for cell edits.
 
 async function typeAtPath(ctx: SimContext, path: number[], text: string): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -58,9 +56,8 @@ async function typeAtCaret(ctx: SimContext, text: string): Promise<void> {
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
-// Enter in a details summary descends into the body without minting a block or
-// touching the source (inherited chrome), so it settles on the caret landing in
-// the body, not a source delta.
+// Enter in a details summary moves into the body without creating a block or changing the
+// source, so this waits for the caret to reach the body rather than for the source to change.
 async function enterDescendSummary(ctx: SimContext, detailsIdx: number): Promise<void> {
 	await ctx.page.keyboard.press('Enter');
 	await expect.poll(() => activeBlockPath(ctx.page)).toEqual([detailsIdx, 1]);
@@ -68,9 +65,8 @@ async function enterDescendSummary(ctx: SimContext, detailsIdx: number): Promise
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
-// Backspace at the start of the block below the details. Into an OPEN details the
-// last body child absorbs it (source delta); into a COLLAPSED one the walk must
-// refuse the hidden body and clamp the caret to the summary (no mutation).
+// Backspace at the start of the block below the details: open, the last body child takes it;
+// collapsed, the caret stops at the summary and nothing changes.
 async function mergeFromBelow(
 	ctx: SimContext,
 	tailIdx: number,
@@ -95,9 +91,8 @@ test.describe('plugin-container ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
-		// the base plugins, so the oracle stack watches the decoration engine run on every
-		// edit. loadContent overrides the seed's (absent) document with PLUGIN_DOC.
+		// `?seed=sim` adds the decoration source (sim-mark-plugin) to the base plugins, so the checks
+		// watch decorations on every edit; `loadContent` replaces the seed's document with PLUGIN_DOC.
 		await editor.gotoPlugins('sim');
 	});
 
@@ -115,113 +110,109 @@ test.describe('plugin-container ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'plugin-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
-		// ── Nested reorder inside an opaque container declines (byte-exact no-op) ──
-		// The note sits mid-document, so a mis-scoped reorder would teleport it to a
-		// different root index; the gesture asserts the source is byte-identical,
-		// putting the resolver's opaque-boundary decline under the oracle stack.
+		// ── A move inside an opaque container is refused and changes no bytes ──────
+		// The note sits mid-document, so a move that escaped the container would change the source,
+		// which the gesture checks.
 		const declineNoteIdx = await topLevelIndexOf(page, 'callout');
 		await g.reorderInContainer([declineNoteIdx, 1]);
-		await checkOracles('note-body-reorder-declined');
+		await assertCheckpoint(ctx, 'note-body-reorder-declined');
 
-		// ── Callout chrome + body typing ────────────────────────────────────────
+		// ── Typing in the callout's title and body ───────────────────────────────
 		let noteIdx = await topLevelIndexOf(page, 'callout');
 		await typeAtPath(ctx, [noteIdx, 0], '!');
-		// The container raw must have been rebuilt from children — a stale opaque raw
-		// would still read `:::callout Title`, the opaque-stale-raw invariant's positive check.
+		// The container's raw text must have been rebuilt from its children: raw text left
+		// stale would still read `:::callout Title`.
 		expect(await containerRaw(page, 'callout')).toContain(':::callout Title!');
-		await checkOracles('callout-title-edit');
+		await assertCheckpoint(ctx, 'callout-title-edit');
 
-		// Liveness pin: a source that silently stopped emitting would leave the battery green
-		// with zero decoration coverage. It sits after the FIRST EDIT, not at load, because
-		// `loadContent` fires no edit event and the source cannot paint before that commit.
+		// A decoration source that stopped would leave this suite green with no decoration coverage.
+		// Checked after the first edit, since `loadContent` fires no edit event.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);
 
 		await typeAtPath(ctx, [noteIdx, 1], ' more');
-		await checkOracles('note-body-edit');
+		await assertCheckpoint(ctx, 'note-body-edit');
 
-		// Command-dispatch gesture: a real minted-command chord bubbles from a
-		// callout leaf to the container handler and commits a metadataUpdate.
+		// Command dispatch: a real shortcut for a plugin command travels from a callout child up
+		// to the container's handler and commits a metadata update.
 		await g.pause();
 		await g.setCalloutKind();
 		expect(await containerRaw(page, 'callout')).toContain(':::aside');
-		await checkOracles('note-set-kind');
+		await assertCheckpoint(ctx, 'note-set-kind');
 
-		// ── Read-only global-command detour (net identity) ──────────────────────
-		// A plugin-registered GLOBAL chord commits nothing, so source and undo stack must be
-		// byte-identical across it — the command spine under the corruption oracle without
-		// disturbing the equality spine.
+		// ── A global command that only reads changes nothing ──────────────────────
+		// The source and the undo stack must be identical across a global plugin shortcut that commits
+		// nothing.
 		await g.pause();
 		const beforeDocStats = await editor.bridge.getSource();
 		const undoBefore = await page.evaluate(() => (window as any).__test.dumpUndoStack());
 		await g.publishDocStats();
 		expect(await editor.bridge.getSource()).toBe(beforeDocStats);
 		expect(await page.evaluate(() => (window as any).__test.dumpUndoStack())).toBe(undoBefore);
-		await checkOracles('global-command-docstats');
+		await assertCheckpoint(ctx, 'global-command-docstats');
 
 		// ── Split the callout body, then undo/redo the split's typing ───────────
 		await g.pause();
 		await editor.clickBlockAtPath([noteIdx, 1], 0);
 		await page.keyboard.press('End');
 		await g.pressEnter();
-		await checkOracles('note-body-split');
+		await assertCheckpoint(ctx, 'note-body-split');
 
 		await typeAtCaret(ctx, 'second');
-		await checkOracles('note-split-typed');
+		await assertCheckpoint(ctx, 'note-split-typed');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('note-split-undo');
+		await assertCheckpoint(ctx, 'note-split-undo');
 		await g.redo();
-		await checkOracles('note-split-redo');
+		await assertCheckpoint(ctx, 'note-split-redo');
 
-		// ── Details chrome edit, Enter-descend, body typing ─────────────────────
+		// ── Edit the details summary, Enter into the body, type there ────────────
 		let detailsIdx = await topLevelIndexOf(page, 'details');
 		await typeAtPath(ctx, [detailsIdx, 0], 'Z');
-		await checkOracles('summary-edit');
+		await assertCheckpoint(ctx, 'summary-edit');
 
 		await enterDescendSummary(ctx, detailsIdx);
-		await checkOracles('summary-enter-descend');
+		await assertCheckpoint(ctx, 'summary-enter-descend');
 
 		await typeAtCaret(ctx, 'pre');
 		expect(await editor.bridge.getSource()).toContain('preBody');
-		await checkOracles('details-body-edit');
+		await assertCheckpoint(ctx, 'details-body-edit');
 
 		// ── Collapse, merge-from-below into the collapsed container, expand ─────
 		await g.pause();
 		await g.toggleCollapse();
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'false');
-		await checkOracles('collapsed');
+		await assertCheckpoint(ctx, 'collapsed');
 
 		detailsIdx = await topLevelIndexOf(page, 'details');
 		let tailIdx = (await rootCount(page)) - 1;
 		await mergeFromBelow(ctx, tailIdx, false);
-		// The clamp refused the hidden body: caret parked on the summary, tail intact.
+		// The hidden body was refused: the caret stopped at the summary and the block below
+		// is intact.
 		expect(await activeBlockPath(page)).toEqual([detailsIdx, 0]);
-		await checkOracles('merge-into-collapsed');
+		await assertCheckpoint(ctx, 'merge-into-collapsed');
 
 		await g.toggleCollapse();
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'true');
-		await checkOracles('expanded');
+		await assertCheckpoint(ctx, 'expanded');
 
 		// ── Merge-from-below into the OPEN container, then undo ──────────────────
 		tailIdx = (await rootCount(page)) - 1;
 		await mergeFromBelow(ctx, tailIdx, true);
 		expect(await editor.bridge.getSource()).toContain('Tail paragraph');
-		await checkOracles('merge-into-open');
+		await assertCheckpoint(ctx, 'merge-into-open');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('merge-undo');
+		await assertCheckpoint(ctx, 'merge-undo');
 
-		// ── Cross-container selection → copy → paste → undo ─────────────────────
-		// Drag a selection from the callout body, across the list and the container
-		// boundaries, to the details summary — the aliasing stressor a clipboard
-		// commit spanning two opaque containers exposes.
+		// ── Select across containers, copy, paste, undo ──────────────────────────
+		// Drags from the callout body across the list to the details summary: a clipboard commit
+		// spanning two opaque containers is where shared nodes cause trouble.
 		noteIdx = await topLevelIndexOf(page, 'callout');
 		detailsIdx = await topLevelIndexOf(page, 'details');
 		await editor.dragFromTo([noteIdx, 1], 0, [detailsIdx, 0], 3);
@@ -231,25 +222,23 @@ test.describe('plugin-container ops simulation', () => {
 		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteHere();
-		await checkOracles('cross-container-paste');
+		await assertCheckpoint(ctx, 'cross-container-paste');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('cross-container-undo');
+		await assertCheckpoint(ctx, 'cross-container-undo');
 
-		// ── Paste a GitHub alert → the native githubAlert grammar ───────────────
-		// Conversion is opt-in, so the pasted `> [!TIP]` blockquote
-		// keeps its bytes and parses as a first-class githubAlert container,
-		// bringing the native alert paste path under the
-		// round-trip/nested-state/no-errors oracles.
+		// ── Paste a GitHub alert, which parses as a githubAlert ──────────────────
+		// Converting is opt-in, so the pasted `> [!TIP]` keeps its bytes and parses as a githubAlert
+		// container under the round-trip, nested-state and no-errors checks.
 		tailIdx = (await rootCount(page)) - 1;
 		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteGithubAlert();
-		await checkOracles('github-alert-paste');
+		await assertCheckpoint(ctx, 'github-alert-paste');
 
 		await g.pause();
 		await g.undo();
-		await checkOracles('github-alert-paste-undo');
+		await assertCheckpoint(ctx, 'github-alert-paste-undo');
 	});
 });

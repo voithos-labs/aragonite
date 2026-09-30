@@ -2,36 +2,33 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table arm sees a char offset
-// SelectionState would have snapped to a cell coordinate.
-afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end']));
+// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
+// `SelectionState` would have snapped to a cell coordinate.
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
-// The cross-block delete reaches a code block's bytes through its own sink, not the code
-// surface: the same-block arm writes the merged raw with no reparse behind it, so a join
-// that MINTS a closer line out of two lines holding none splits the block on reload. Same
-// class as issue #45, other door. Miss-analysis: `range-delete.test.ts` drove prose joins
-// only, and the fence rule was pinned at the component funnel, which this arm never crosses.
+// A same-block join that makes a closer line out of two plain lines must not split the fence.
+// Miss-analysis: joins were tested on text only, and the fence rule only at the component's write.
 
 const sharing = () => createSharingState();
 
 describe('range delete inside a fenced code block', () => {
-	it('grows the fence when the join mints a closer line', () => {
+	it('grows the fence when the join creates a closer line', () => {
 		const doc = parse('```js\n``\n`\nbody\n```\n\n# Heading\n');
 
 		// Delete the line break between "``" and "`", which forms "```" on one line.
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbody\n````\n\n# Heading\n');
@@ -43,28 +40,24 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'heading']);
 	});
 
-	it('leaves a join that mints no closer alone', () => {
+	it('leaves a join that creates no closer alone', () => {
 		const doc = parse('```js\nab\ncd\n```\n\n# Heading\n');
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nabcd\n```\n\n# Heading\n');
@@ -78,36 +71,28 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [0], offset: 3 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [0], offset: 3 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```\n\n# Heading\n');
 	});
 });
 
-// Issue #55, #45 from the other side: a range reaching past the closer LOSES a terminator the
-// metadata still claims, which no escalation can repair — there is no run to grow. The session
-// keeps the block and its siblings, so the bytes are made legal for that shape. Miss-analysis:
-// the #45 pins drove joins INSIDE one block (a minted terminator) and stopped at the one arm
-// that writes raw in place; the truncation arms reparse, which re-derives honest `closed: false`
-// metadata, so no pin could see the loss unless it drove them with a fenced-code endpoint.
+// A range past the closer loses a terminator the metadata still claims, so the delete restores it.
+// Miss-analysis: GH #55; the fence pins joined inside one block and never truncated past a closer.
 describe('range delete that consumes a fenced code closer', () => {
 	it('restores the closer the same-block range swallowed', () => {
 		const doc = parse('```js\nbody\n```\n\npara\n');
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 14 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 14 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nbo\n```\n\npara\n');
@@ -117,20 +102,18 @@ describe('range delete that consumes a fenced code closer', () => {
 	it('restores it when a cross-block range pulls the next block into the body', () => {
 		const doc = parse('```js\nbody\n```\n\npara\n\ntail\n');
 
-		const { collapsedCaret } = rangeDelete(
+		const { caret } = rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [1], offset: 2 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nbora\n```\n\ntail\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
 		// The restored closer lands past the join, so the caret keeps the truncation's offset.
-		expect(collapsedCaret).toEqual({ path: [0], offset: 8 });
+		expect(caret(doc)).toEqual({ path: [0], offset: 8 });
 		expectParseConverged(doc);
 	});
 
@@ -139,12 +122,10 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [1], offset: 1 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 1 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'table', 'paragraph']);
@@ -156,51 +137,45 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 13 },
-			{ path: [0], offset: 20 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 13 }, { path: [0], offset: 20 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbo\n````\n\npara\n');
 		expectParseConverged(doc);
 	});
 
-	it('mints the closer on the block’s own line ending (G4.20)', () => {
+	it('creates the closer on the block’s own line ending (G4.20)', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara\r\n');
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 9 },
-			{ path: [0], offset: 16 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 9 }, { path: [0], offset: 16 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n\r\npara\r\n');
 		expectParseConverged(doc);
 	});
 
-	// The parser preserves a missing final newline, so the joined slice carries none and the
-	// reattached ending falls back to LF. The closer's ending is the BLOCK's, not the slice's.
-	it('mints CRLF when the document’s last block has no trailing newline', () => {
+	// The parser preserves a missing final newline, so the joined slice carries none: the
+	// reattached ending is the document's CRLF, as is the restored closer's.
+	it('creates CRLF when the document’s last block has no trailing newline', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara');
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 9 },
-			{ path: [1], offset: 4 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 9 }, { path: [1], offset: 4 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
-		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\n');
+		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n');
 		expectParseConverged(doc);
 	});
 
@@ -212,12 +187,10 @@ describe('range delete that consumes a fenced code closer', () => {
 
 			rangeDelete(
 				doc,
-				{ path: [0], offset: 8 },
-				{ path: [1, 0], offset: 3 },
+				rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 })),
 				sharing(),
-				undefined,
-				undefined,
-				undefined
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'callout', 'paragraph']);

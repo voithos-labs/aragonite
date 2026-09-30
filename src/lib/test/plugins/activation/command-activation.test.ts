@@ -1,0 +1,64 @@
+// Miss-analysis: no case asked `runCommand` for a plugin's id in an editor that left it out.
+import { describe, expect, it } from 'vitest';
+import { runCommandById, registerBlockCommand } from '$lib/schema/block-commands';
+import type { CommandDispatchContext, KindCommandTarget } from '$lib/schema/block-commands';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
+import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
+import type { AnyCommandId } from '$lib/schema/command-id';
+import { commandContext } from '$lib/test/support/command-context';
+
+// A plugin context for any name, so only the command registry's own activation check can refuse.
+function context(activation: PluginActivation): CommandDispatchContext {
+	return commandContext({ pluginEditor: () => ({ editorId: 'e1' }) as EditorContext, activation });
+}
+
+const paragraph: KindCommandTarget = {
+	kind: 'paragraph',
+	runCommand: () => false,
+	getCommandContext: () => ({
+		node: { kind: 'paragraph', leadingTrivia: '', raw: 'x\n' },
+		updateMetadata: () => {}
+	})
+};
+
+function installCommands(ran: string[]): { block: AnyCommandId; global: AnyCommandId } {
+	let block: AnyCommandId | undefined;
+	let global: AnyCommandId | undefined;
+	installPlugins([
+		definePlugin({
+			name: 'commander',
+			setup() {
+				block = registerBlockCommand('paragraph', 'commander.block', () => {
+					ran.push('block');
+					return true;
+				});
+				global = registerGlobalCommand('commander.global', () => {
+					ran.push('global');
+					return true;
+				});
+			}
+		})
+	]);
+	return { block: block!, global: global! };
+}
+
+describe("runCommand reaches a plugin's command only where the plugin is listed", () => {
+	it('runs neither command in an editor that left the plugin out', () => {
+		const ran: string[] = [];
+		const ids = installCommands(ran);
+		const unlisted = context(activationFor([]));
+		expect(runCommandById(ids.block, undefined, paragraph, unlisted)).toBe(false);
+		expect(runCommandById(ids.global, undefined, paragraph, unlisted)).toBe(false);
+		expect(ran).toEqual([]);
+	});
+
+	it('runs both in an editor that lists it', () => {
+		const ran: string[] = [];
+		const ids = installCommands(ran);
+		const listed = context(activationFor(['commander']));
+		expect(runCommandById(ids.block, undefined, paragraph, listed)).toBe(true);
+		expect(runCommandById(ids.global, undefined, paragraph, listed)).toBe(true);
+		expect(ran).toEqual(['block', 'global']);
+	});
+});

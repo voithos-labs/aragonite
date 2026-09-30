@@ -4,8 +4,8 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * Decorations across a whole-document `source` swap
- * (requirements/decorations/source-swap-epoch.md). The swap must advance the edit epoch, or
- * the memoized occurrence index paints the PREVIOUS document's paths.
+ * (requirements/decorations/source-swap-epoch.md). The swap must bump the edit counter, or the
+ * memoized occurrence index paints the previous document's paths.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
@@ -29,7 +29,7 @@ test.describe('highlight-occurrences across a source-prop swap', () => {
 	test('marks clear on the swap and re-paint in the new document’s blocks', async ({ page }) => {
 		const before = await scanCount(page);
 		await editor.loadContent('nothing here at all\n\nalpha alpha alpha\n');
-		// The reset drops the selection, so the source has no anchor word to paint.
+		// The reset drops the selection, so the source has no word under the caret to paint.
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
 
 		await editor.clickBlockAtPath([1], 0);

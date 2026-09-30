@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list Backspace — delete empty item', () => {
+test.describe('list Backspace: delete empty item', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -43,6 +43,16 @@ test.describe('list Backspace — delete empty item', () => {
 		expect(source).not.toMatch(/^- /m);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('AboveZ');
+	});
+
+	test('live: Backspace on an empty item lands outside the closer above', async () => {
+		await editor.loadContent('- **a**\n- \n');
+		await editor.setPresentationMode('live');
+		await editor.clickBlockAtPath([0, 1, 0], 0);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForListItemCount(1);
+		await editor.page.keyboard.type('x');
+		await expect.poll(() => editor.bridge.getSource()).toBe('- **a**x\n');
 	});
 
 	test('Backspace on empty only item when list is first block deletes the list', async () => {

@@ -1,15 +1,14 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declaredPluginKind } from '$lib/plugin';
 import { checkClosureCoherence } from '$lib/invariants/registry';
 import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 
-// The leaves built on simpleLeafClosure. Asserting G1.24 over their REAL registered
-// descriptors fails an incoherent migration at install, not at the next flush.
+// The blocks built on simpleLeafClosure, checked against their registered descriptors so a
+// closure that disagrees fails at install time, not at the next render (G1.24).
 const MIGRATED: { kind: string; install: () => void }[] = [
 	{ kind: TOC_BLOCK, install: registerTocBlock },
 	{ kind: MATH_BLOCK, install: registerMathBlock },
@@ -18,8 +17,6 @@ const MIGRATED: { kind: string; install: () => void }[] = [
 ];
 
 describe('simpleLeafClosure migrations stay closure-coherent', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it.each(MIGRATED)('$kind passes G1.24 as registered', ({ kind, install }) => {
 		install();
 		const k = declaredPluginKind(kind);

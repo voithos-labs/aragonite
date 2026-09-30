@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's ambient-marker branch (edge-policy-dispatch). A selection whose DOM
-// range reaches into the contenteditable="false" ambient marker blocks native Backspace/Delete
-// silently — no beforeinput fires — so the dispatch commits the delete through the CST instead.
-// This branch lived inside the Svelte component and never had a unit test; the extraction lets
-// one pin it at its own level (rules.md: dispatch layers get tests at their own level).
+// The caret-edge dispatch's container-marker branch (edge-policy-dispatch). A selection whose DOM
+// range reaches into the contenteditable="false" marker prefix blocks the browser's Backspace and
+// Delete silently, with no beforeinput, so the dispatch deletes through the CST instead. Tested
+// here rather than through the Svelte component, so it is covered at its own level (rules.md).
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
@@ -23,8 +21,8 @@ interface Harness extends EdgeDispatchHarness {
 	marker: HTMLElement;
 }
 
-/** Mount `[md-marker][content]` — the shape a list item's ambient-prefixed prose child renders.
- *  `rawSelection` is the content range the (mocked) DOM→raw walk yields. */
+/** Mount `[md-marker][content]`, the shape a list item's prose child renders. `rawSelection` is
+ *  the content range the mocked DOM-to-raw traversal returns. */
 function mount(source: string, rawSelection: { start: number; end: number } | null): Harness {
 	const node = parse(source).children[0];
 
@@ -36,7 +34,6 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 	const el = mountSurface([marker, text]);
 
 	const harness = makeEdgeDispatch(node, el, {
-		getAmbientLength: () => marker.textContent!.length,
 		getRawSelection: () =>
 			rawSelection && {
 				start: asRawOffset(rawSelection.start),
@@ -61,7 +58,7 @@ installEdgeDispatchCleanup();
 describe('ambient-marker selection delete', () => {
 	it('Backspace over a selection reaching into the marker deletes the range via the CST', () => {
 		const h = mount('abcd\n', { start: 0, end: 2 });
-		// Anchor inside the marker, focus after two content chars — the shape a
+		// Anchor inside the marker, focus after two content characters: the shape a
 		// leftward shift-select from the content into the prefix produces.
 		select([h.marker.firstChild!, 1], [h.text, 2]);
 
@@ -79,8 +76,8 @@ describe('ambient-marker selection delete', () => {
 		expect(h.edits).toEqual([[0, 'cd\n', 0, 0]]);
 	});
 
-	// The sibling arms decline modifier chords so the platform word-delete runs natively; this arm
-	// must not — the browser fires no beforeinput over the marker, so declining would do nothing.
+	// The neighbouring branches decline modifier chords so word-delete runs natively, but over the
+	// marker the browser fires no beforeinput, so declining would do nothing at all.
 	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }])(
 		'%o+Backspace over a marker-touching selection still deletes the range',
 		(mods) => {
@@ -92,7 +89,7 @@ describe('ambient-marker selection delete', () => {
 		}
 	);
 
-	it('a selection entirely inside the content does not touch the marker — not consumed', () => {
+	it('a selection entirely inside the content does not touch the marker: not consumed', () => {
 		const h = mount('abcd\n', { start: 1, end: 3 });
 		select([h.text, 1], [h.text, 3]);
 

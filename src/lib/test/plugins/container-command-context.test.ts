@@ -1,38 +1,24 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-	dispatchKindCommand,
-	registerBlockCommand,
-	__resetBlockCommandsForTests
-} from '$lib/schema/block-commands';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import {
-	recordPluginKindOwner,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
 import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
+import { commandContextWith } from '$lib/test/support/command-context';
 
-// No cross-block range in these cases; the seam's range decline has its own suite.
-const GATES = {
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-};
-
-// Declared once at module scope: the reset clears the command registry, not the
-// plugin-kind declarations, so a per-test declare would double-throw.
-const note = declarePluginKind('demoNote');
-const noteAlt = declarePluginKind('demoNoteAlt');
+let note: PluginBlockKind;
+let noteAlt: PluginBlockKind;
+beforeEach(() => {
+	note = declarePluginKind('demoNote');
+	noteAlt = declarePluginKind('demoNoteAlt');
+});
 
 const noteNode = (kind = note): CstNode => ({ kind, leadingTrivia: '', raw: '' });
 
-// The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind
-// binding goes in as its compiled map form — the shape a plugin's own keymap resolves
-// through. This suite exercises only the target the container hands the dispatcher.
+// The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind binding
+// goes in as the compiled map a plugin's own keymap resolves to.
 function bindKindChord(
 	kind: AnyBlockKind,
 	chord: string,
@@ -45,11 +31,6 @@ function bindKindChord(
 		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]])
 	};
 }
-
-afterEach(() => {
-	__resetBlockCommandsForTests();
-	__resetInstalledPluginsForTests();
-});
 
 describe('plugin container kind-command target', () => {
 	it("routes a registered command's updateMetadata to the container's updateOwnMetadata", () => {
@@ -65,8 +46,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, updateOwnMetadata),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -88,8 +68,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node, commandHooks: () => hooks }, vi.fn()),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -106,8 +85,7 @@ describe('plugin container kind-command target', () => {
 		dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, vi.fn()),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handler.mock.calls[0][0].hooks).toBeUndefined();
@@ -122,19 +100,5 @@ describe('plugin container kind-command target', () => {
 		node = noteNode(noteAlt);
 		expect(target.kind).toBe(noteAlt);
 		expect(target.getCommandContext?.().node).toBe(node);
-	});
-
-	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
-		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		recordPluginKindOwner(note, 'admonitions');
-		const pluginEditor = vi.fn((name: string) =>
-			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
-		);
-		const node = noteNode();
-
-		const target = buildContainerKindTarget({ getNode: () => node }, vi.fn(), pluginEditor);
-
-		expect(target.getCommandContext?.().editor).toBe(fakeEditorContext);
-		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 });

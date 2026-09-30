@@ -5,10 +5,10 @@ import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
+import { fixtureReading, renderOptions } from '../../harness/fixture-grammar';
 
-// The bytes a live-mode Enter writes into each half. Every case states the plain byte-literal cut
-// the rewrite is offered — that is what a decline leaves behind — so a null return is as pinned as
-// a rewrite. `\n` padding is what `splitNode` has already added when the hook runs.
+// The bytes a live-mode Enter writes into each half. Each case states the literal cut a refusal
+// leaves; the `\n` padding is what `splitNode` has already added.
 
 function split(source: string, offset: number) {
 	const node = parse(source, { scope: 'fragment' }).children[0];
@@ -20,7 +20,7 @@ function split(source: string, offset: number) {
 		offset,
 		first.endsWith('\n') ? first : first + '\n',
 		second.endsWith('\n') ? second : second + '\n',
-		undefined
+		fixtureReading()
 	);
 }
 
@@ -31,7 +31,8 @@ function visibleAfterReload(raw: string): string[] {
 		return renderedText(
 			parseInline(block.raw, range.start, range.end, undefined),
 			block.raw,
-			CONTENT_VISIBILITY
+			CONTENT_VISIBILITY,
+			renderOptions()
 		);
 	});
 }
@@ -73,7 +74,7 @@ describe('a cut inside a symmetric pair closes it and reopens it', () => {
 	// halves still close. `splitNode` moved the cut past the ending before offering the halves.
 	it('closes across a soft break the cut consumes', () => {
 		const node = parse('**bo\nld**\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', undefined)).toEqual({
+		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', fixtureReading())).toEqual({
 			firstRaw: '**bo**\n',
 			secondRaw: '**ld**\n'
 		});
@@ -88,7 +89,7 @@ describe('a split link duplicates its destination', () => {
 		});
 	});
 
-	// A reference form resolves through the document's definitions, which the split seam has no
+	// A reference form resolves through the document's definitions, which this rewrite has no
 	// access to, so the bytes read as plain text here and the cut stays literal.
 	it('a reference form is left to the byte-literal cut', () => {
 		expect(split('[text][ref]\n', 3)).toBeNull();
@@ -113,8 +114,8 @@ describe('nested constructs rebalance outermost first', () => {
 });
 
 describe('a cut at a construct edge hands the construct over whole', () => {
-	// `Some **bold** text`: the caret at 7 and at 5 are the same pixel, so the pair must not be
-	// minted empty — `Some ****` is invisible residue live mode may never write.
+	// `Some **bold** text`: the caret at 7 and at 5 are the same point on screen, so the pair must
+	// not be written empty: `Some ****` is invisible and live mode may never write it.
 	it('at content start the construct goes to the second half', () => {
 		expect(split('Some **bold** text\n', 7)).toEqual({
 			firstRaw: 'Some \n',
@@ -129,7 +130,7 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 		});
 	});
 
-	// The space the handover strands cannot open a run, so it moves outside the delimiters —
+	// The space the handover strands cannot open a run, so it moves outside the delimiters:
 	// invisible either way, and the alternative is a literal `*` on screen.
 	it('a boundary space moves outside the run rather than kill it', () => {
 		expect(split('**a *ital* b**\n', 5)).toEqual({
@@ -143,18 +144,14 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 	});
 });
 
-// #106: relocating the space put it where the RELOAD reads it as hard-break residue, so the pair
-// came back a different shape (`~~foo~~\n\n  \n\n` is three children), and declining to the
-// byte-literal cut converged but printed the delimiters the reader never saw. A block's TERMINAL
-// whitespace is a hard break with no following line — it paints nothing — so the cut drops it.
-// Miss: shape-fixed-point's differential arm owns this divergence, but the gate's fixed seed
-// never drew the shape — only a PROPERTY_FRESH run did.
+// Trailing whitespace draws nothing, and moved outside the pair it reparses wrong, so it drops.
+// Miss-analysis: GH #106, the shape differential test's fixed seed never drew this shape.
 describe('a cut that would strand terminal whitespace drops it instead', () => {
 	it('hands the construct over whole and leaves the spaces behind', () => {
 		expect(split('~~foo~~  \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
 	});
 
-	// The sibling shapes: any terminal run the block paints nothing for, one or two characters,
+	// The sibling shapes: any trailing run the block draws nothing for, one or two characters,
 	// spaces or tabs, under either symmetric pair.
 	it('every terminal whitespace run is dropped the same way', () => {
 		expect(split('**foo**  \n', 5)).toEqual({ firstRaw: '**foo**\n', secondRaw: '\n' });
@@ -163,28 +160,28 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 		expect(split('~~foo~~ \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
 	});
 
-	// The screen is what the drop is licensed by, so the reload's own screen is the oracle: no
-	// delimiter appears where the reader saw none.
+	// The drop is licensed by what the screen shows, so the reparse's own screen decides: no
+	// delimiter appears where the user saw none.
 	it('the halves reload to a screen with no delimiter on it', () => {
 		const halves = split('~~foo~~  \n', 5);
 		expect(halves).not.toBeNull();
 		expect(visibleAfterReload(halves!.firstRaw + halves!.secondRaw)).toEqual(['foo']);
 	});
 
-	// An EMPTY half is still the ordinary handover (pinned above); only a whitespace-carrying one
-	// is trivia to the reload.
+	// An empty half is still the ordinary handover (covered above); only one carrying whitespace
+	// reparses as a blank line.
 	it('the empty-half handover is unaffected', () => {
 		expect(split('_a_\n', 2)).toEqual({ firstRaw: '_a_\n', secondRaw: '\n' });
 	});
 
-	// The whitespace is not terminal here — the second half carries content past it — so the
-	// ordinary rewrite keeps every byte.
+	// The whitespace is not at the end here, since the second half carries content past it, so
+	// the ordinary rewrite keeps every byte.
 	it('a cut inside the same content still rewrites', () => {
 		expect(split('~~foo~~  \n', 4)).toEqual({ firstRaw: '~~fo~~\n', secondRaw: '~~o~~  \n' });
 	});
 
-	// A declaration is a CLAIM, so the verifier reads the rule itself: with the producer's guard
-	// bypassed (the candidate built here by hand), a drop of visible bytes is refused.
+	// A declared drop is only a claim, so the check reads the rule itself: with the producer's own
+	// check bypassed (the candidate built here by hand), dropping visible bytes is refused.
 	it('the verifier refuses a drop of bytes the screen showed', () => {
 		const raw = '~~foo~~\tbar\n';
 		const bytes = {
@@ -204,7 +201,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 			reopened: []
 		};
 		const dropsVisible = { firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\tbar' };
-		expect(parsesBack(bytes, seam, dropsVisible, undefined)).toBe(false);
+		expect(parsesBack(bytes, seam, dropsVisible, fixtureReading())).toBe(false);
 
 		// The same candidate over an invisible tail is the one the rewrite writes.
 		const invisible = { ...bytes, raw: '~~foo~~\t\n', contentEnd: 8 };
@@ -213,7 +210,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 				invisible,
 				{ ...seam, tail: '\t' },
 				{ firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\t' },
-				undefined
+				fixtureReading()
 			)
 		).toBe(true);
 	});
@@ -232,11 +229,11 @@ describe('constructs that declare no rewrite decline the whole cut', () => {
 
 	it('a non-prose block is never rebalanced', () => {
 		const fence = parse('```\n**a**\n```\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', undefined)).toBeNull();
+		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', fixtureReading())).toBeNull();
 	});
 });
 
-describe('the seam is resolved against the flanking rules, not around them', () => {
+describe('the join is resolved against the flanking rules, not around them', () => {
 	// `** c**` is not left-flanking, so the naive reopen would print literal stars; the space
 	// steps outside instead and the bold reaches the word it belongs to.
 	it('a nested construct at its own trailing edge still reopens outside', () => {
@@ -278,10 +275,9 @@ describe('the first half never parses to more than one block', () => {
 	});
 });
 
-// The resolver rides the CALL, never the registration: it is per-instance while the slot is
-// process-global. Without it a reference form reads as brackets and the cut declines, which is
-// sound and still a marker leak — the whole reason the axis exists.
-describe('a reference form rebalances only when the resolver reaches the seam', () => {
+// The resolver is passed per call because it is per editor while the registry is process-wide;
+// without it a reference form reads as brackets and the cut leaves a marker on screen.
+describe('a reference form rebalances only when the resolver reaches the join', () => {
 	const DOC = 'Visit [example][site] here\n\n[site]: https://example.com\n';
 
 	function splitWithResolver(offset: number, withResolver: boolean) {
@@ -294,7 +290,9 @@ describe('a reference form rebalances only when the resolver reaches the seam', 
 			offset,
 			raw.slice(0, offset) + '\n',
 			raw.slice(offset),
-			withResolver ? { current: map.resolve, signature: map.signature } : undefined
+			fixtureReading(
+				withResolver ? { resolver: map.resolve, resolverSignature: map.signature } : {}
+			)
 		);
 	}
 
@@ -310,10 +308,8 @@ describe('a reference form rebalances only when the resolver reaches the seam', 
 	});
 });
 
-// #118: a childless never-extend construct has no interior a cut can land in — two halves of a URL
-// are not two URLs, and half an escape is a literal backslash — so the cut moves to its nearer edge
-// and one half takes it whole. Miss-analysis: the class was pinned as a KNOWN GAP in the split e2e
-// and as `toBeNull()` here, both of which assert the byte-literal cut rather than contest it.
+// Two halves of a URL are not two URLs, so the cut moves to a childless construct's nearer edge.
+// Miss-analysis: GH #118, the split e2e and this suite both asserted the literal cut as correct.
 describe('a childless never-extend construct is taken whole', () => {
 	it('an autolink lands entirely in the half its caret was nearer', () => {
 		expect(split('<https://example.com> tail\n', 13)).toEqual({
@@ -330,8 +326,8 @@ describe('a childless never-extend construct is taken whole', () => {
 		expect(split('a\\*b\n', 2)).toEqual({ firstRaw: 'a\n', secondRaw: '\\*b\n' });
 	});
 
-	// A hard break's own bytes are a line ending, so either moved cut reloads as a shape the
-	// candidate never claimed — the byte-literal cut stands, which is the declared fallback.
+	// A hard break's own bytes are a line ending, so either moved cut reparses as a shape the
+	// candidate never promised, and the literal cut stands, which is the declared fallback.
 	it('a hard break finds no moved cut that parses back', () => {
 		expect(split('x  \ny\n', 2)).toBeNull();
 		expect(split('x  \ny\n', 3)).toBeNull();
@@ -350,17 +346,14 @@ describe('a childless never-extend construct is taken whole', () => {
 		});
 	});
 
-	// Every byte survives the move, which is the contract that ruled the bracket-drop out.
 	it('keeps every byte of the construct across the two halves', () => {
 		const halves = split('<https://example.com> tail\n', 13)!;
 		expect(halves.firstRaw + halves.secondRaw).toContain('<https://example.com>');
 	});
 });
 
-// A construct standing over a content-empty one paints ALL its bytes (live-mode.md § 4.1), so
-// moving its opener across the seam moves bytes the reader is looking at. Miss-analysis: the
-// painted-chrome pins used the FLAT `[](u)`, which declines here by childless arity (the wrong
-// reason), so no case ever reached the rebalancer with a painting construct to cut open.
+// A construct over an empty one shows its bytes (live-mode.md § 4.1), so its opener stays put.
+// Miss-analysis: the visible cases used flat `[](u)`, which refuses here for having no children.
 describe('a construct that is painting chrome is not cut open', () => {
 	it('declines inside a bold pair standing over a link with no text', () => {
 		expect(split('**[](u)**\n', 2)).toBeNull();

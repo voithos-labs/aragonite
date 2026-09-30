@@ -1,30 +1,41 @@
 /**
- * Per-(instance, plugin) EditorContext: the one object onEditor callbacks, global-command
- * handlers, and BlockCommandContext.editor all receive. `document` is a getter so every read is
- * live (rules.md: getters, not values).
+ * One `EditorContext` per editor and plugin: the object `onEditor` callbacks, global-command
+ * handlers and `BlockCommandContext.editor` all receive. `document` is a getter so every read is
+ * live (`docs/contributing/rules.md` § The five rules), and `options` is the plugin's defaults
+ * merged with this editor's entry.
  */
 import type { DocumentView } from '../core/node-views';
+import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { InsertMarkdownOptions } from '../editor-props';
+import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
-import type { PluginActivation } from './plugin-activation';
+import { insertCatalogue } from './insert-catalogue';
+import type { Reading } from './reading';
+import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
+	installedPlugin,
 	installedPluginNames,
 	onEditorCallbacks,
+	resolvePluginOptions,
 	type EditorContext,
 	type EditorEventSubscriptions
 } from './plugin-install';
 
+type ErrorReport = { plugin: string; error: unknown };
+
 export interface EditorPluginContexts {
-	/** The instance's context for a plugin it activated; `undefined` for one it did not. The
-	 *  empty name is the instance's own base context (an unowned kind's), never gated. */
+	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
+	 *  name returns the editor's base context, the one kinds no plugin owns use, never filtered. */
 	get(pluginName: string): EditorContext | undefined;
-	attachAll(onError: (report: { plugin: string; error: unknown }) => void): void;
+	/** Also receives any options error reported before it was called. */
+	attachAll(onError: (report: ErrorReport) => void): void;
 	dispose(): void;
 }
 
-// Process-monotonic instance id: `editor-1`, `editor-2`, … Stable per mount, so a
-// plugin can key per-instance state on `editor.editorId`.
+// Editor ids counted up across the process: `editor-1`, `editor-2`, … Stable for the life of a
+// mount, so a plugin can key its per-editor state on `editor.editorId`.
 let n = 0;
 export const mintEditorId = () => `editor-${++n}`;
 
@@ -32,19 +43,44 @@ export function createEditorPluginContexts(deps: {
 	editorId: string;
 	getDoc: () => DocumentView;
 	events: EditorEventSubscriptions;
+	/** The entry's options as the host wrote them, before the merge. */
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;
 	rects: EditorRects;
+	inlineMenus: InlineMenuRegistry;
+	getDocumentGeneration: () => number;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
 	activation: PluginActivation;
+	/** The instance's own entry points; the context only delegates. */
+	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
+	runCommand: (commandId: string, arg?: unknown) => boolean;
+	/** How the editor reads its bytes, which every plugin inline read follows. */
+	reading: Reading;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
-	let onDisposeError: (report: { plugin: string; error: unknown }) => void = () => {};
+	// A block reads its options while it renders, which is before `attachAll` sets a handler.
+	const early: ErrorReport[] = [];
+	let report: (r: ErrorReport) => void = (r) => void early.push(r);
+
+	function optionsFor(pluginName: string): unknown {
+		const plugin = installedPlugin(pluginName) ?? {};
+		try {
+			return resolvePluginOptions(plugin, deps.optionsFor(pluginName));
+		} catch (cause) {
+			const message = cause instanceof Error ? cause.message : String(cause);
+			const error = new Error(
+				`plugin '${pluginName}': options rejected, running on its defaults: ${message}`,
+				{ cause }
+			);
+			report({ plugin: pluginName, error });
+			return resolvePluginOptions(plugin, undefined);
+		}
+	}
 
 	function get(pluginName: string): EditorContext | undefined {
-		if (pluginName !== '' && !deps.activation.isActive(pluginName)) return undefined;
+		if (pluginName !== '' && !resolvesIn(deps.activation, pluginName)) return undefined;
 		let ctx = contexts.get(pluginName);
 		if (!ctx) {
 			ctx = {
@@ -52,10 +88,22 @@ export function createEditorPluginContexts(deps: {
 				get document() {
 					return deps.getDoc();
 				},
+				get documentGeneration() {
+					return deps.getDocumentGeneration();
+				},
 				events: deps.events,
-				options: deps.optionsFor(pluginName),
+				options: optionsFor(pluginName),
 				decorations: deps.decorations,
 				rects: deps.rects,
+				inlineMenus: deps.inlineMenus,
+				get insertCatalogue() {
+					return insertCatalogue(deps.activation);
+				},
+				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
+				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
+				get computeInlineContent() {
+					return inlineReaderFor(deps.reading);
+				},
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},
@@ -71,9 +119,10 @@ export function createEditorPluginContexts(deps: {
 	return {
 		get,
 		attachAll(onError) {
-			onDisposeError = onError;
+			report = onError;
+			for (const r of early.splice(0)) onError(r);
 			for (const plugin of installedPluginNames()) {
-				if (!deps.activation.isActive(plugin)) continue;
+				if (!resolvesIn(deps.activation, plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
 					try {
 						const dispose = cb(get(plugin)!);
@@ -89,7 +138,7 @@ export function createEditorPluginContexts(deps: {
 				try {
 					d.dispose();
 				} catch (error) {
-					onDisposeError({ plugin: d.plugin, error });
+					report({ plugin: d.plugin, error });
 				}
 			}
 		}

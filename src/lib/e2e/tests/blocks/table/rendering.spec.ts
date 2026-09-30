@@ -13,20 +13,20 @@ test.describe('table block: rendering', () => {
 		await expect(page.locator('[role="table"]')).toBeVisible();
 		const rows = page.locator('[role="row"]');
 		await expect(rows).toHaveCount(2);
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		await expect(cells).toHaveCount(4);
 	});
 
 	test('clicking a cell focuses it', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const cell = page.locator('[role="cell"]').nth(0);
+		const cell = page.locator('.table-cell').nth(0);
 		await cell.click();
 		await expect(cell).toBeFocused();
 	});
 
 	test('typing in a cell updates raw and round-trips', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const cell = page.locator('[role="cell"]').nth(2);
+		const cell = page.locator('.table-cell').nth(2);
 		await cell.click();
 		await page.keyboard.press('End');
 		await editor.typeText('0');
@@ -41,7 +41,7 @@ test.describe('table block: rendering', () => {
 
 	test('escaped pipe survives in cell content', async ({ page }) => {
 		await editor.loadContent('| a | b \\| c |\n| --- | --- |\n');
-		const cell = page.locator('[role="cell"]').nth(1);
+		const cell = page.locator('.table-cell').nth(1);
 		await expect(cell).toHaveText('b \\| c');
 	});
 
@@ -51,7 +51,7 @@ test.describe('table block: rendering', () => {
 		// Source intentionally omits the visual cell padding so any rendered
 		// alignment must come from metadata, not from preserved leading spaces.
 		await editor.loadContent('|L|C|R|\n|:---|:---:|---:|\n|a|b|c|\n');
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		await expect(cells.nth(0)).toHaveCSS('text-align', 'left');
 		await expect(cells.nth(1)).toHaveCSS('text-align', 'center');
 		await expect(cells.nth(2)).toHaveCSS('text-align', 'right');
@@ -62,9 +62,9 @@ test.describe('table block: rendering', () => {
 
 	test('default alignment leaves text-align at the inherited start value', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const cells = page.locator('[role="cell"]');
-		// 'none' alignment should NOT set inline text-align — falls through to
-		// whatever the document default is (LTR start = 'start').
+		const cells = page.locator('.table-cell');
+		// 'none' alignment sets no inline `text-align`: it falls through to the
+		// document default (left to right gives 'start').
 		await expect(cells.nth(0)).toHaveCSS('text-align', 'start');
 		await expect(cells.nth(1)).toHaveCSS('text-align', 'start');
 	});
@@ -75,7 +75,7 @@ test.describe('table block: rendering', () => {
 		await editor.loadContent(
 			'| Left     | Center   |    Right |\n| :------- | :------: | -------: |\n| Column A | Column B | Column C |\n| Row two  | data     |     $100 |\n'
 		);
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		await expect(cells.nth(0)).toHaveText('Left');
 		await expect(cells.nth(1)).toHaveText('Center');
 		await expect(cells.nth(2)).toHaveText('Right');
@@ -84,9 +84,8 @@ test.describe('table block: rendering', () => {
 		await expect(cells.nth(8)).toHaveText('$100');
 	});
 
-	// A whitespace-only text node directly under a raw-walk container joins the raw-offset walk
-	// (cursor/widget-offset.ts counts every text node, incl. aria-hidden) and shifts a parked
-	// cross-block caret.
+	// A whitespace-only text node under one of these containers joins the raw-offset count
+	// (`cursor/widget-offset.ts` counts every text node) and shifts a resting cross-block caret.
 	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
 		page
 	}) => {

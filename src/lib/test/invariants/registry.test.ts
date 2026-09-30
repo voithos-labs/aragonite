@@ -57,7 +57,7 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 	});
 
 	it('exempts listItem from the component check (renders inside its parent list)', () => {
-		// listItem has no component-registry entry by design — the check must not
+		// listItem has no component-registry entry by design: the check must not
 		// fire even when hasComponent reports it missing.
 		expect(
 			checkRegistryCompleteness(
@@ -68,7 +68,7 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 		).toBeNull();
 	});
 
-	it('keeps the exemption narrow — a non-exempt missing component still fires', () => {
+	it('keeps the exemption narrow: a non-exempt missing component still fires', () => {
 		const violation = checkRegistryCompleteness(
 			['listItem', 'list'],
 			() => true,

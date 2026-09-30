@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { getInlineContent } from '../../core/inline/inline-cache';
@@ -11,47 +12,49 @@ function firstProse(src: string): CstNode {
 describe('getInlineContent', () => {
 	it('returns the inline tree for a prose node', () => {
 		const node = firstProse('a **b** c\n');
-		const content = getInlineContent(node);
+		const content = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		expect(content.some((n) => n.kind === 'strong')).toBe(true);
 	});
 
 	it('returns the same cached array on a repeat read (no raw change)', () => {
 		const node = firstProse('hello *world*\n');
-		expect(getInlineContent(node)).toBe(getInlineContent(node));
+		expect(getInlineContent(node, undefined, undefined, defaultGrammarView)).toBe(
+			getInlineContent(node, undefined, undefined, defaultGrammarView)
+		);
 	});
 
 	it('recomputes after an in-place raw change', () => {
 		const node = firstProse('plain\n');
-		const before = getInlineContent(node);
+		const before = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		node.raw = 'now **bold**\n';
-		const after = getInlineContent(node);
+		const after = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		expect(after).not.toBe(before);
 		expect(after.some((n) => n.kind === 'strong')).toBe(true);
 	});
 
 	it('recomputes a bracket block when the signature changes; ignores signature for bracketless', () => {
 		const ref = firstProse('see [x]\n');
-		const a = getInlineContent(ref, undefined, 'sig-1');
-		const b = getInlineContent(ref, undefined, 'sig-2');
+		const a = getInlineContent(ref, undefined, 'sig-1', defaultGrammarView);
+		const b = getInlineContent(ref, undefined, 'sig-2', defaultGrammarView);
 		expect(b).not.toBe(a);
 		const plain = firstProse('no brackets here\n');
-		expect(getInlineContent(plain, undefined, 'sig-2')).toBe(
-			getInlineContent(plain, undefined, 'sig-9')
+		expect(getInlineContent(plain, undefined, 'sig-2', defaultGrammarView)).toBe(
+			getInlineContent(plain, undefined, 'sig-9', defaultGrammarView)
 		);
 	});
 
 	it('a copied node (new object, same raw) computes its own entry', () => {
 		const node = firstProse('shared *text*\n');
-		const originalContent = getInlineContent(node);
+		const originalContent = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		const copy: CstNode = { ...node };
-		const copyContent = getInlineContent(copy);
+		const copyContent = getInlineContent(copy, undefined, undefined, defaultGrammarView);
 		expect(copyContent).not.toBe(originalContent);
 		expect(copyContent.some((n) => n.kind === 'emphasis')).toBe(true);
 	});
 
 	it('returns [] for a non-prose node', () => {
 		const code = parse('```\ncode\n```\n').children[0];
-		expect(getInlineContent(code)).toEqual([]);
+		expect(getInlineContent(code, undefined, undefined, defaultGrammarView)).toEqual([]);
 	});
 
 	it('forwards the resolver so a reference-style link resolves to a link node', () => {
@@ -59,7 +62,12 @@ describe('getInlineContent', () => {
 		const doc = parse(src);
 		const map = buildLinkReferenceMap(doc.children);
 
-		const resolved = getInlineContent(doc.children[0], map.resolve, map.signature);
+		const resolved = getInlineContent(
+			doc.children[0],
+			map.resolve,
+			map.signature,
+			defaultGrammarView
+		);
 		const link = resolved.find((n) => n.kind === 'link');
 		expect(link).toBeDefined();
 		expect(link?.url).toBe('https://example.com');
@@ -67,7 +75,7 @@ describe('getInlineContent', () => {
 
 		// Parsed fresh so the WeakMap entry from the resolved read above cannot mask the miss.
 		const fresh = parse(src).children[0];
-		const unforwarded = getInlineContent(fresh, undefined, '');
+		const unforwarded = getInlineContent(fresh, undefined, '', defaultGrammarView);
 		expect(unforwarded.some((n) => n.kind === 'link')).toBe(false);
 	});
 
@@ -78,10 +86,10 @@ describe('getInlineContent', () => {
 		const node = doc.children[0];
 		const map = buildLinkReferenceMap(doc.children);
 
-		const a1 = getInlineContent(node);
-		const b1 = getInlineContent(node, map.resolve, map.signature);
-		const a2 = getInlineContent(node);
-		const b2 = getInlineContent(node, map.resolve, map.signature);
+		const a1 = getInlineContent(node, undefined, undefined, defaultGrammarView);
+		const b1 = getInlineContent(node, map.resolve, map.signature, defaultGrammarView);
+		const a2 = getInlineContent(node, undefined, undefined, defaultGrammarView);
+		const b2 = getInlineContent(node, map.resolve, map.signature, defaultGrammarView);
 
 		expect(a2).toBe(a1);
 		expect(b2).toBe(b1);
@@ -92,13 +100,15 @@ describe('getInlineContent', () => {
 		const node = doc.children[0];
 		const map = buildLinkReferenceMap(doc.children);
 
-		const plainBefore = getInlineContent(node);
-		const resolvedBefore = getInlineContent(node, map.resolve, map.signature);
+		const plainBefore = getInlineContent(node, undefined, undefined, defaultGrammarView);
+		const resolvedBefore = getInlineContent(node, map.resolve, map.signature, defaultGrammarView);
 
 		node.raw = 'now [a][x] moved\n';
 
-		expect(getInlineContent(node)).not.toBe(plainBefore);
-		expect(getInlineContent(node, map.resolve, map.signature)).not.toBe(resolvedBefore);
+		expect(getInlineContent(node, undefined, undefined, defaultGrammarView)).not.toBe(plainBefore);
+		expect(getInlineContent(node, map.resolve, map.signature, defaultGrammarView)).not.toBe(
+			resolvedBefore
+		);
 	});
 
 	it('recomputes only the resolved slot when the signature changes', () => {
@@ -106,11 +116,16 @@ describe('getInlineContent', () => {
 		const node = doc.children[0];
 		const map = buildLinkReferenceMap(doc.children);
 
-		const plainRead = getInlineContent(node);
-		const resolvedRead = getInlineContent(node, map.resolve, map.signature);
+		const plainRead = getInlineContent(node, undefined, undefined, defaultGrammarView);
+		const resolvedRead = getInlineContent(node, map.resolve, map.signature, defaultGrammarView);
 
-		const rebumped = getInlineContent(node, map.resolve, `${map.signature}|y<:>u<:>`);
+		const rebumped = getInlineContent(
+			node,
+			map.resolve,
+			`${map.signature}|y<:>u<:>`,
+			defaultGrammarView
+		);
 		expect(rebumped).not.toBe(resolvedRead);
-		expect(getInlineContent(node)).toBe(plainRead);
+		expect(getInlineContent(node, undefined, undefined, defaultGrammarView)).toBe(plainRead);
 	});
 });

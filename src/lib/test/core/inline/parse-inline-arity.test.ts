@@ -7,7 +7,7 @@ import { parseInline } from '$lib/core/inline';
 const callWith = (...args: unknown[]) =>
 	(parseInline as unknown as (...a: unknown[]) => unknown)(...args);
 
-describe('parseInline — bounds are required', () => {
+describe('parseInline: bounds are required', () => {
 	it('throws on the source-only call rather than returning one text node', () => {
 		expect(() => callWith('a *b* c')).toThrow(TypeError);
 		expect(() => callWith('a *b* c')).toThrow(/parseInline\(src, 0, src\.length\)/);

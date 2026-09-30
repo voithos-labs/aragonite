@@ -1,7 +1,7 @@
 // The fencedCode CST node the code suites assert against, built from its raw bytes.
 import type { CstNode } from '$lib/core/nodes';
 
-/** The fence shape a raw string cannot be read for: what the parser recorded about it. */
+/** What the parser records about a fence that the fixture does not read from the raw. */
 export interface FenceShape {
 	closed: boolean;
 	fenceMarker: '`' | '~';

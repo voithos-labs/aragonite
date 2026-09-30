@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw
@@ -13,7 +12,6 @@ const UNTITLED = ':::callout\nBody\n:::\n';
 
 describe('callout kind round-trip', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 
@@ -64,12 +62,10 @@ describe('callout kind round-trip', () => {
 	});
 });
 
-// The round-trip suite above only exercises the opener's verbatim `raw`; these
-// guard `rebuildCalloutRaw` directly — the container-rebuild inverse the editor
-// runs when the callout's children mutate (the title returns to the opener line).
+// `rebuildCalloutRaw` runs when the callout's children change and puts the title back on the
+// opener line; the round trips above only read the opener's verbatim `raw`.
 describe('callout rebuildRaw is the opener inverse', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 

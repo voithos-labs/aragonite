@@ -30,8 +30,8 @@ test.describe('link clickability', () => {
 	test('Ctrl+click on email autolink opens mailto:', async () => {
 		await editor.loadContent('Email foo@bar.com today.\n');
 		const link = editor.page.locator('a.md-autolink', { hasText: 'foo@bar.com' });
-		// mailto: opens in default mail client — browser context.waitForEvent('page')
-		// won't fire. Intercept window.open and assert the called URL.
+		// mailto: opens the default mail client, so context.waitForEvent('page') never fires.
+		// Intercept window.open and check the URL it was called with.
 		await editor.page.evaluate(() => {
 			(window as unknown as { __openCalls: string[] }).__openCalls = [];
 			window.open = ((url: string) => {
@@ -56,7 +56,7 @@ test.describe('link clickability', () => {
 			popupFired = true;
 		});
 		await link.click();
-		// 200ms — verifying absence of a popup event; no observable state to predicate on.
+		// Checking no popup event arrives; there is no state to wait on.
 		await editor.page.waitForTimeout(200);
 		expect(popupFired).toBe(false);
 	});

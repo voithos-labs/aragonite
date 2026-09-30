@@ -1,0 +1,31 @@
+# Feature: a press in a preview mode lands where it was aimed
+
+Both preview modes show a block's markers once it has focus: prose shows its `**` and `#`,
+a code block shows its fence lines. The browser focuses a block on the press itself, and
+then works out where the caret goes, so showing the markers on focus moves the text under
+the pointer before the browser looks. So which block shows its markers doesn't change while
+the button is down: the caret or the selection's anchor lands on the character you pressed
+on, and the markers show once the button comes up.
+
+A tap is the same deal, just later than you'd think. The browser doesn't focus anything while
+your finger is down; it sends a mouse press and release after the finger lifts, and focuses on
+that press. So for a tap the markers wait for that trailing release.
+
+## Happy paths
+
+- Drag from inside an unfocused code block (preview-block and preview-inline): the
+  selection's anchor is the character you pressed on, and the fence lines show after the
+  release.
+- Drag from inside an unfocused paragraph with bold text (preview-block): the anchor is the
+  character you pressed on, and the `**` markers show after the release.
+- Tap inside an unfocused code block (preview-block and preview-inline) or on a word after the
+  bold text in an unfocused paragraph (preview-block): the caret lands on the character you
+  tapped, and the markers show after the tap.
+
+## Miss-analysis
+
+- Every click test in the preview modes checked the caret inside a range of offsets wide
+  enough to swallow the shifted markers (`presentation-preview-block.spec.ts`), and none
+  pressed and dragged, where the anchor shows the shift exactly.
+- The press fix held the markers from the pointer going down to it coming up, and every test
+  pressed with a mouse, so none tapped, where the focus only arrives after the pointer is up.

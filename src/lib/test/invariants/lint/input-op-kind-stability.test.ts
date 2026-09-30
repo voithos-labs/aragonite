@@ -1,14 +1,12 @@
 /**
- * An `input` edit event means "this commit held the block's kind" — a premise the LRD
- * signature-epoch gate (`components/lrd-map-gate.ts`) reads and cannot verify, since it
- * runs post-commit. It holds only while exactly one site emits `input`. Both declaration
- * shapes are scanned, so emitter N+1 fails whichever it reaches for; an op kind assembled
- * from a variable has no literal to match, and `test/lrd-map-gate.test.ts` is the
- * outcome-level belt for that.
+ * An `input` edit event means "this commit held the block's kind", a premise the LRD signature
+ * check (`components/lrd-map-gate.ts`) reads but cannot verify after the commit, so exactly one
+ * site may emit `input`. An op kind built from a variable has no literal to match; the outcome
+ * test `test/lrd-map-gate.test.ts` covers that case.
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import { collectEditorSources, sourceFile, type SourceFile } from './scan-source';
 
 /** The debounced typing flush: the one site whose `input` is kind-stable by construction. */
 const SANCTIONED_EMITTER = 'src/lib/editor-actions/commit/undo-controller.ts';
@@ -20,7 +18,7 @@ function inputOpEmitters(sources: SourceFile[]): string[] {
 	return sources.filter((f) => f.code.match(DECLARES_INPUT_OP)).map((f) => f.relPath);
 }
 
-describe("input-op kind stability — only the debounced flush emits op:'input'", () => {
+describe("input-op kind stability: only the debounced flush emits op:'input'", () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
@@ -33,12 +31,12 @@ describe("input-op kind stability — only the debounced flush emits op:'input'"
 
 	it('the flush declares it exactly once (a second op in the same file still fails)', () => {
 		const flush = sources.find((f) => f.relPath === SANCTIONED_EMITTER);
-		expect(flush, `sanctioned emitter not found: ${SANCTIONED_EMITTER}`).toBeDefined();
+		expect(flush, `allowed emitter not found: ${SANCTIONED_EMITTER}`).toBeDefined();
 		expect(flush!.code.match(DECLARES_INPUT_OP)).toHaveLength(1);
 	});
 });
 
-describe('input-op scan — matcher self-tests', () => {
+describe('input-op scan: matcher self-tests', () => {
 	const scan = (src: string) => inputOpEmitters([{ relPath: 'x.ts', text: src, code: src }]);
 
 	it('catches both declaration shapes', () => {
@@ -55,6 +53,6 @@ describe('input-op scan — matcher self-tests', () => {
 
 	it('ignores a declaration quoted inside a comment', () => {
 		const src = "// op: 'input' means the kind held\nconst held = true;";
-		expect(inputOpEmitters([{ relPath: 'x.ts', text: src, code: stripComments(src) }])).toEqual([]);
+		expect(inputOpEmitters([sourceFile('x.ts', src)])).toEqual([]);
 	});
 });

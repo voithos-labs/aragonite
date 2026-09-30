@@ -1,4 +1,4 @@
-# Feature: Find/replace bar — open, close, and toggles
+# Feature: Find/replace bar, open, close, and toggles
 
 Opening and dismissing the find/replace bar, and the match-set toggles (case,
 whole-word, regex) that narrow or reinterpret the query.
@@ -14,7 +14,19 @@ whole-word, regex) that narrow or reinterpret the query.
 - The case toggle (`Aa`) narrows a case-insensitive match set to the case-sensitive subset (count drops).
 - The whole-word toggle (`W`) drops substring-only matches (count drops).
 - The regex toggle (`.*`) interprets the query as a pattern (a metacharacter query matches where a literal one would not).
-- Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights — a stale scan memo must not serve the closed bar's cleared matches.
+- Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights: a cached scan must not serve the closed bar's cleared matches.
+
+## Closing returns to the caret
+
+- Caret in a line mid-document, find a match far below it, Enter to go there, then Esc: the view
+  comes back so the caret's line is on screen (at the nearest edge), and a typed `x` lands right
+  where the caret was before the search. Miss-analysis: the Esc test used a two-line document, so
+  nothing checked that the return scroll still happens once the focus call stops scrolling on
+  its own.
+- The same with the match so far away that the caret's block leaves the window entirely: Esc
+  still brings the line back and a typed `x` lands at its end. Miss-analysis: the saved caret was
+  a DOM range, so once its block unmounted there was nothing to put back, focus fell to the page
+  and the next key went nowhere; no test searched far enough to unmount it.
 
 ## Error cases
 

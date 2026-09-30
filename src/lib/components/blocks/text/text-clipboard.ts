@@ -5,21 +5,15 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
-import type {
-	DocumentGetter,
-	LinkReferenceResolverRef,
-	PasteImageHook
-} from '../../../editor-keys';
+import type { DocumentGetter, PasteImageHook } from '../../../editor-keys';
 import type { EditorEvents } from '../../../editor-events';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
-import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
+import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-import type { GrammarView } from '../../../schema/block-openers';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { StickyColumnState } from '../../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
+import type { CaretMemory } from '../../../cursor/caret-memory';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
@@ -29,58 +23,52 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { replaceRangeRaw } from './live-selection-edit';
-import type { PresentationMode } from '../../../presentation-mode';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { replaceSelectedWidget } from './widget-interaction';
+import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
 	get index(): number;
 	get myPath(): number[];
-	/** Local caret reads go through `cursor`; `caret` is the narrower door the shared
-	 *  clipboard seam anchors an image insertion with, a passthrough never read here. */
-	cursor: AmbientCursorIO;
+	/** Local caret reads go through `cursor`; `caret` is the narrower interface the shared
+	 *  clipboard code anchors an image insertion with, passed through and never read here. */
+	cursor: SurfaceBackend;
 	caret: ClipboardCaretIO;
 	crossBlock: CrossBlockHandlers;
 	events: EditorEvents;
 	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance grammar, so an unlisted plugin's opener never claims pasted bytes here. */
-	grammar: GrammarView | undefined;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
 	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
-	/** Reading mode: cut degrades to copy, paste is inert. The events still fire
-	 *  on a non-editable surface, so the gate lives in the handlers. */
+	/** Reading mode: cut becomes copy, paste does nothing. The events still fire
+	 *  on a non-editable element, so the check lives in the handlers. */
 	isReadOnly: () => boolean;
-	/** Fold a live source-reveal before a clipboard mutation, so cut/paste run against
-	 *  a CST consistent with the swapped DOM. Null when no reveal was open. */
+	/** Hide a construct's shown source before a clipboard edit, so cut and paste run
+	 *  against a CST that matches the DOM. Null when no source was showing. */
 	foldRevealBeforeMutation: () => RevealFold | null;
-	/** True while an inline-widget source reveal is active on this block. */
+	/** True while an inline widget on this block is showing its source. */
 	isRevealing: () => boolean;
-	/** The effective mode the cut's join seam answers to (live-mode.md § 4.5); `undefined` reads
-	 *  as not-live. */
-	getPresentationMode: () => PresentationMode | undefined;
-	/** The container prefix this block renders under, which the cut's seam reads its candidate
-	 *  back through — an item body the cut left starting with a space reloads under a wider marker. */
-	getAmbientPrefix: () => string;
-	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
-	 *  yields what the user sees rather than the stale raw slice. */
+	/** The block's live DOM as raw text, so a copy over an uncommitted edit yields what
+	 *  the user sees rather than a stale slice of `node.raw`. */
 	readRevealedText: () => string;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** How this editor reads its bytes: an unlisted plugin's opener never takes pasted bytes here,
+	 *  and a cut is a join its mode decides the cleanup of (live-mode.md § 4.5). */
+	get reading(): Reading;
+	/** Where the block's bytes are stored, read when a cut writes. */
+	storedAs: () => StoredAs;
 }
 
 export interface TextClipboard extends ClipboardHandlers {
-	/**
-	 * The block's own handler for a copy/cut/paste the editor root received: a selected widget
-	 * clears the native selection, so a block with no text position for a caret to survive in
-	 * gets its events at `<body>`, where no surface binding sees them.
-	 */
+	/** The block's handler for a clipboard event the editor root received: a selected widget clears
+	 *  the browser selection, so the event arrives at `<body>`, past the block's own binding. */
 	claimRootClipboard(event: ClipboardEvent): void;
 }
 
@@ -91,8 +79,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		return deps.node.raw.slice(offsets.start, offsets.end);
 	}
 
-	// Null unless a widget on THIS block is selected and still present in the parsed
-	// inline content. Shared by copy, cut, and paste-over-widget.
+	// Null unless a widget on this block is selected and still present in the parsed
+	// inline content. Shared by copy, cut, and paste over a widget.
 	function selectedWidgetOnThisBlock(): {
 		inline: ReturnType<typeof resolvedInlineContent>[number];
 		preSelectOffset: number;
@@ -101,15 +89,15 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		if (selected === null || !deps.widgetSelection.isSelected(deps.myPath, selected.sourceStart)) {
 			return null;
 		}
-		const inline = resolvedInlineContent(deps.node, deps.linkRef).find(
-			(n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart
+		const inline = resolvedInlineContent(deps.node, deps.reading).find(
+			(n) =>
+				isInlineWidget(n, deps.node.raw, deps.reading.grammar) && n.start === selected.sourceStart
 		);
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
 
 	const handlers = createClipboardHandlers({
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock,
@@ -131,8 +119,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			return true;
 		},
 
-		// A selection over an ACTIVE reveal covers uncommitted DOM, so slice the live text
-		// rather than the stale `node.raw`; copy must not fold, because folding mutates.
+		// A selection over a construct whose source is showing covers uncommitted DOM, so slice
+		// the live text rather than the stale `node.raw`; copy must not hide it, because that writes.
 		copyTail: (e) => {
 			e.preventDefault();
 			if (deps.isRevealing()) {
@@ -152,9 +140,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (widget === null) return false;
 			const { inline, preSelectOffset } = widget;
 			e.clipboardData?.setData('text/plain', deps.node.raw.slice(inline.start, inline.end));
-			const newRaw = deps.node.raw.slice(0, inline.start) + deps.node.raw.slice(inline.end);
-			void deps.blockEdit.updateBlockContent(deps.index, newRaw, preSelectOffset, inline.start);
-			deps.widgetSelection.clear();
+			void replaceSelectedWidget(deps, inline, preSelectOffset, '', 'literal');
 			return true;
 		},
 
@@ -165,55 +151,42 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 
 			const selOffsets = deps.cursor.getRawSelection();
 			if (!selOffsets) return;
-			// A cut is a delete, so it crosses the same join seam: in live the range can span
-			// delimiter runs the reader never saw, and a raw splice would print them.
-			const edit = replaceRangeRaw(
-				deps.node,
-				selOffsets,
-				'',
-				deps.getPresentationMode(),
-				deps.linkRef,
-				deps.getAmbientPrefix()
+			// A cut is a delete, so it goes through the same join rules: in live mode the range
+			// can span delimiter runs the user never saw, and a plain splice would print them.
+			const edit = replaceRangeInLeaf(deps.node, selOffsets, '', deps.storedAs());
+			const write = deps.blockEdit.updateBlockContent(
+				deps.index,
+				edit.raw,
+				'literal',
+				selOffsets.start,
+				edit.caret
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
-			deps.setPendingCursor(edit.caret);
+			if (write.admitted) deps.setPendingCursor(write.caret);
 		},
 
 		pasteTail: async (pastedText, foldedCaret) => {
+			// A selected widget is the selection a paste replaces, through the same route as any.
 			const widget = selectedWidgetOnThisBlock();
-			if (widget !== null) {
-				const { inline, preSelectOffset } = widget;
-				const newRaw =
-					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					preSelectOffset,
-					inline.start + pastedText.length
-				);
-				deps.widgetSelection.clear();
-				return;
-			}
-
-			// After a reveal fold the caret sits on the widget's element-level edge, where
-			// getRaw can read null; the committed caret is the correct landing offset.
+			if (widget !== null) deps.widgetSelection.clear();
+			// Once the widget's source is hidden again the caret sits on its element-level edge,
+			// where `getRaw` can read null; the committed caret is the right offset.
 			const offset = deps.cursor.getRaw() ?? foldedCaret ?? 0;
-			const selOffsets = deps.cursor.getRawSelection();
+			const range = widget?.inline ?? deps.cursor.getRawSelection();
 
 			const result = await pasteDispatch(
 				{
 					pastedText,
 					targetPath: deps.myPath,
-					offset: selOffsets ? selOffsets.start : offset,
-					preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
+					offset: range ? range.start : offset,
+					preDelete: range ? { start: range.start, end: range.end } : undefined,
+					caretBefore: widget?.preSelectOffset
 				},
 				{
 					doc: deps.getDoc(),
 					blockEdit: deps.blockEdit,
 					controller: deps.pasteCoordinator,
-					grammar: deps.grammar,
-					activePlugins: deps.activePlugins,
-					seam: { presentationMode: deps.getPresentationMode(), linkRef: deps.linkRef }
+					reading: deps.reading,
+					activePlugins: deps.activePlugins
 				}
 			);
 
@@ -226,8 +199,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 
 	return {
 		...handlers,
-		// Routed to the same arms the caret route reaches, so the reading gate, the reveal
-		// fold and the sticky reset come along rather than being re-carried here.
+		// Routed to the same handlers a caret-side event reaches, so the reading-mode check, the
+		// source hide and the sticky-column reset come along rather than being repeated here.
 		claimRootClipboard(event) {
 			if (selectedWidgetOnThisBlock() === null) return;
 			if (event.type === 'copy') handlers.onCopy(event);

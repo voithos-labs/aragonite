@@ -18,8 +18,8 @@ describe('plugin-kind node is a first-class CST citizen', () => {
 		});
 		expect(getBlockKindDescriptor(kind).editable).toBe(true);
 
-		// CstNode.kind must accept a PluginBlockKind. This assignment is the
-		// typecheck guard — it fails to compile if the field narrows back to BlockKind.
+		// CstNode.kind must accept a PluginBlockKind. This assignment is the check: it fails to
+		// compile if the field narrows back to BlockKind.
 		const node: CstNode = { kind, leadingTrivia: '', raw: '::: callout body' };
 		const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
 		expect(serialize(doc)).toBe('::: callout body');

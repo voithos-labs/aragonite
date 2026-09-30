@@ -1,20 +1,18 @@
 /**
- * Every live gesture rule is a row in the inline-construct policy table, or an arm that names a
- * construct itself and says why (live-mode.md § 3). This census holds both sets: the arms reading
- * rows, and the ones still answering by hand, each with a decided fate. It also asserts the
- * two-table boundary: rows answer hidden delimiter RUNS, the inline widget registry answers
- * atomic ISLANDS, and a file asking both states why.
+ * Every live gesture rule is a row in the inline-construct policy table, or a branch that names a
+ * construct itself and says why (live-mode.md § 3). This list holds both sets: the branches that
+ * read rows, and the ones still answering by hand, each with a decided fate. It also fixes the
+ * boundary between the two tables: rows answer for hidden delimiter runs, the inline widget
+ * registry answers for non-editable widgets, and a file asking both says why.
  */
 
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { EDITOR_SRC, collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import { EDITOR_SRC, collectEditorSources, type SourceFile } from './scan-source';
+import { probeFile } from './file-rule';
 
-/**
- * Where a live gesture can live: the block surfaces and the caret, selection, tree and view layers
- * they dispatch into. `core/` and `schema/` sit outside on purpose — the parser names every kind to
- * BUILD the tree, and the table's own registration site names every kind to declare its rows.
- */
+/** Where a live gesture can live: the block components and the layers they dispatch into. `core/`
+ *  and `schema/` sit outside, since the parser and the table's registration name every kind. */
 const GESTURE_ROOTS = [
 	'components',
 	'cursor',
@@ -25,27 +23,30 @@ const GESTURE_ROOTS = [
 	'ambient'
 ];
 
+/** Gesture code under `core/`: the link card's byte writer sits beside the link grammar it inverts. */
+const GESTURE_FILES = ['src/lib/core/inline/link-source-bytes.ts'];
+
 const POLICY_TABLE = 'src/lib/schema/inline-construct-policy.ts';
 const WIDGET_REGISTRY = 'src/lib/core/inline/inline-widgets.ts';
 
 // ── Matchers ─────────────────────────────────────────────────────────────────
 
-/** Every door out of the policy table, the table's own module excluded. */
+/** Every function that reads the policy table, the table's own module excluded. */
 const POLICY_READ =
 	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks|getLiveSplitRebalancer|getLiveJoinSeamCleaner)\s*\(/;
 
 const readsPolicyTable = (file: SourceFile): boolean =>
-	file.relPath !== POLICY_TABLE && POLICY_READ.test(stripComments(file.text));
+	file.relPath !== POLICY_TABLE && POLICY_READ.test(file.code);
 
-/** The widget registry's doors — the other table, whose subject is the atomic island. */
+/** The widget registry's functions: the other table, whose subject is the non-editable widget. */
 const WIDGET_READ =
 	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|isCharacterLikeWidget|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
 
 const readsWidgetRegistry = (file: SourceFile): boolean =>
-	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(stripComments(file.text));
+	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(file.code);
 
-/** The kinds the table rows. A quoted literal is the tripwire: naming one in a gesture arm is
- *  answering a per-construct question the row exists to answer. */
+/** The kinds the table has rows for. A quoted literal is the tripwire: naming one in a gesture
+ *  branch answers a per-construct question the row exists to answer. */
 const ROWED_KINDS = [
 	'emphasis',
 	'strong',
@@ -60,16 +61,15 @@ const ROWED_KINDS = [
 
 const KIND_LITERAL = new RegExp(`['"](${ROWED_KINDS.join('|')})['"]`);
 
-const namesConstructKind = (file: SourceFile): boolean =>
-	KIND_LITERAL.test(stripComments(file.text));
+const namesConstructKind = (file: SourceFile): boolean => KIND_LITERAL.test(file.code);
 
-// ── The arms that read rows ──────────────────────────────────────────────────
+// ── The branches that read rows ──────────────────────────────────────────────
 
 /** Every reader of the table, and which column it is there for. Set equality both ways, so a new
- *  reader is a census conversation rather than a silent eighth opinion on a row's meaning. */
+ *  reader is a decision rather than one more silent opinion on a row's meaning. */
 const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-edge-delete.ts':
-		'the destructive arm: autoUnwrapOnEmpty',
+		'the destructive arm: autoUnwrapOnEmpty, and the mark column to say which unwrapped construct a chord can write again',
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',
@@ -86,24 +86,26 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
 	'src/lib/selection/cross-block/format-toggle.ts':
 		'the cross-block arm: which mark a format command toggles',
-	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots'
+	'src/lib/tree-operations/leaf-range.ts': 'the one reader of the registered join slot',
+	'src/lib/tree-operations/node-ops.ts': 'the one reader of the registered split slot',
+	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose'
 };
 
-/** A file asking BOTH tables, and why it needs both answers. Only a block SURFACE legitimately
- *  does: it hosts every inline kind at once, so it meets the delimiter-run question and the
- *  atomic-island one on the same keystroke. An arm below a surface asking both is the boundary
- *  blurring, which is what this manifest is here to make visible. */
+/** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline
+ *  kind at once; anything below a block asking both blurs the boundary between the tables. */
 const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'the prose surface: which mark a format command toggles, and whether a node is an island',
-	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface'
+	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface',
+	'src/lib/inline-menu/inline-menu-session.ts':
+		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose'
 };
 
-// ── The arms that answer by hand ─────────────────────────────────────────────
+// ── The branches that answer by hand ─────────────────────────────────────────
 
 interface HandWrittenArm {
 	path: string;
-	/** How the census sees it: a kind literal the scan finds, or a shape only a reader can. */
+	/** How the scan sees it: a kind literal it can find, or a shape only a reader can. */
 	detection: 'kind-literal' | 'declared';
 	/** `backlog` is undecided, and forbidden. `deferred` names what blocks the row. `outside` is a
 	 *  decision: the question is not the table's to answer. */
@@ -117,21 +119,21 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'a label map, not an arm: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
+			'the menu noun "image" for a paragraph of pictures, not the inline kind: no gesture reads it and no construct policy hangs on it'
 	},
 	{
 		path: 'src/lib/components/menu/SelectionToolbar.svelte',
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the door decides admissibility'
+			'icon names on the mark buttons ("link"), not construct kinds: every button runs a command id and the command registry decides admissibility'
 	},
 	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',
 		detection: 'declared',
 		fate: 'outside',
 		reason:
-			'which constructs it takes whole is a per-NODE fact: `[](u)` is a link with no content range, `![a](u)` an atomic island with one, so a kind column would swap both answers'
+			'which constructs it takes whole is a per-node fact: `[](u)` is a link with no content range, `![a](u)` an atomic widget with one, so a kind column would swap both answers'
 	},
 	{
 		path: 'src/lib/components/blocks/text/live-join-seam.ts',
@@ -144,10 +146,10 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'declared',
 		fate: 'outside',
 		reason:
-			'a declared arm list, and never rows: this is a total order over gesture FAMILIES, where a row answers a per-construct question — the reading-mode cut is an entry in that order for the same reason'
+			'a declared `arms` list, and never rows: this is a total order over gesture families, where a row answers a per-construct question, and the reading-mode cut is an entry in that order for the same reason'
 	},
 	{
-		path: 'src/lib/components/blocks/text/link-source-bytes.ts',
+		path: 'src/lib/core/inline/link-source-bytes.ts',
 		detection: 'kind-literal',
 		fate: 'deferred',
 		reason:
@@ -158,7 +160,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'declared',
 		fate: 'deferred',
 		reason:
-			'the no-residue rule is restated at four arms; single-sourcing it into the table folds into the slots-to-rows move'
+			'the no-residue rule is restated at four `arms` entries; single-sourcing it into the table folds into the slots-to-rows move'
 	},
 	{
 		path: POLICY_TABLE,
@@ -172,13 +174,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'the widget registry side of the two-table boundary: image as an atomic island, not a hidden delimiter run'
+			'the widget registry side of the two-table boundary: image as an atomic widget, not a hidden delimiter run'
 	},
 	{
 		path: 'src/lib/components/image/image-edit-commit.ts',
 		detection: 'kind-literal',
 		fate: 'outside',
-		reason: 'the same island question, re-finding the widget an open editor is anchored to'
+		reason: 'the same widget question, re-finding the widget an open editor is anchored to'
 	}
 ];
 
@@ -188,15 +190,16 @@ const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kin
 
 // ── The census ───────────────────────────────────────────────────────────────
 
-describe('inline-construct policy arm census', () => {
-	const gestureSources = GESTURE_ROOTS.flatMap((root) =>
-		collectEditorSources(path.join(EDITOR_SRC, root))
-	);
+describe('inline-construct policy branch census', () => {
 	const allSources = collectEditorSources();
+	const gestureSources = [
+		...GESTURE_ROOTS.flatMap((root) => collectEditorSources(path.join(EDITOR_SRC, root))),
+		...allSources.filter((file) => GESTURE_FILES.includes(file.relPath))
+	];
 	const paths = (files: SourceFile[]) => files.map((file) => file.relPath).sort();
 	const unique = (values: string[]) => [...new Set(values)].sort();
 
-	it('every declared arm is on disk and reachable by the scan', () => {
+	it('every declared branch is on disk and reachable by the scan', () => {
 		const declared = unique([
 			...Object.keys(POLICY_ARMS),
 			...HAND_WRITTEN_ARMS.map((arm) => arm.path)
@@ -212,21 +215,21 @@ describe('inline-construct policy arm census', () => {
 		).toEqual(Object.keys(POLICY_ARMS).sort());
 	});
 
-	it('every gesture arm naming a construct kind is declared with its reason and fate', () => {
+	it('every gesture branch naming a construct kind is declared with its reason and fate', () => {
 		expect(
 			paths(gestureSources.filter(namesConstructKind)),
-			'a gesture arm started naming a construct kind: give the question a row, or declare the arm in HAND_WRITTEN_ARMS with why it stays'
+			'a gesture branch started naming a construct kind: give the question a row, or declare the branch in HAND_WRITTEN_ARMS with why it stays'
 		).toEqual(unique(kindLiteralArms.map((arm) => arm.path)));
 	});
 
-	it('no hand-written arm is an undecided backlog entry', () => {
+	it('no hand-written branch is an undecided backlog entry', () => {
 		expect(
 			backlog,
-			'a hand-written arm needs a row, a decided `outside`, or a `deferred` naming its blocker'
+			'a hand-written branch needs a row, a decided `outside`, or a `deferred` naming its blocker'
 		).toEqual([]);
 	});
 
-	it('every declared arm carries a reason', () => {
+	it('every declared branch carries a reason', () => {
 		expect(HAND_WRITTEN_ARMS.filter((arm) => arm.reason.trim() === '')).toEqual([]);
 		expect(Object.entries(POLICY_ARMS).filter(([, reason]) => reason.trim() === '')).toEqual([]);
 	});
@@ -250,9 +253,9 @@ describe('inline-construct policy arm census', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	const probe = (matcher: (file: SourceFile) => boolean, text: string) =>
-		matcher({ relPath: 'src/lib/components/blocks/text/probe.ts', text, code: '' });
+		matcher(probeFile({ relPath: 'src/lib/components/blocks/text/probe.ts', code: text }));
 
-	it('the policy matcher sees every door and skips a mention in prose', () => {
+	it('the policy matcher sees every entry point and skips a mention in prose', () => {
 		expect(probe(readsPolicyTable, 'const p = getInlineConstructPolicy(node.kind);')).toBe(true);
 		expect(probe(readsPolicyTable, 'if (isRevealableInlineKind(kind)) out.push(node);')).toBe(true);
 		expect(probe(readsPolicyTable, 'getLiveJoinSeamCleaner()?.(join)')).toBe(true);
@@ -260,7 +263,7 @@ describe('inline-construct policy arm census', () => {
 		expect(probe(readsPolicyTable, 'const x = myGetInlineConstructPolicy(kind);')).toBe(false);
 	});
 
-	it('the widget matcher sees the registry doors and skips prose', () => {
+	it('the widget matcher sees the registry entry points and skips prose', () => {
 		expect(probe(readsWidgetRegistry, 'getInlineWidgetEditing(widget.kind)?.revealSource')).toBe(
 			true
 		);
@@ -273,7 +276,7 @@ describe('inline-construct policy arm census', () => {
 			probe(namesConstructKind, "if (node.kind === 'inlineCode') return codeWrap(slice);")
 		).toBe(true);
 		expect(probe(namesConstructKind, 'const MARKS = ["strong", "emphasis"];')).toBe(true);
-		// The nearby spellings that are NOT a per-construct answer: a command id, a DOM tag read,
+		// The nearby spellings that are not a per-construct answer: a command id, a DOM tag read,
 		// and the same word in prose.
 		expect(probe(namesConstructKind, "if (id === 'format.toggleStrong') return toggle();")).toBe(
 			false
@@ -282,23 +285,21 @@ describe('inline-construct policy arm census', () => {
 		expect(probe(namesConstructKind, '// a link never extends at its edges')).toBe(false);
 	});
 
-	it('an undeclared gesture arm naming a kind fails the set equality', () => {
-		const rogue: SourceFile = {
+	it('an undeclared gesture branch naming a kind fails the set equality', () => {
+		const rogue = probeFile({
 			relPath: 'src/lib/components/blocks/text/rogue.ts',
-			text: "if (node.kind === 'strikethrough') return null;",
-			code: ''
-		};
+			code: "if (node.kind === 'strikethrough') return null;"
+		});
 		expect(paths([...gestureSources, rogue].filter(namesConstructKind))).not.toEqual(
 			unique(kindLiteralArms.map((arm) => arm.path))
 		);
 	});
 
 	it('an undeclared policy reader fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/selection/rogue.ts',
-			text: 'const p = getInlineConstructPolicy(kind);',
-			code: ''
-		};
+			code: 'const p = getInlineConstructPolicy(kind);'
+		});
 		expect(paths([...allSources, rogue].filter(readsPolicyTable))).not.toEqual(
 			Object.keys(POLICY_ARMS).sort()
 		);

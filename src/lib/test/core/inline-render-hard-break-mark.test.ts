@@ -1,0 +1,48 @@
+// @vitest-environment jsdom
+// Miss-analysis: hard-break tests checked only the rendered text, never a mode hiding its bytes.
+import { describe, it, expect } from 'vitest';
+import { renderInlineNodes } from '../../core/inline-render';
+import { parseInline } from '../../core/inline';
+import { renderedText, screenVisibility } from '../../core/inline/visibility';
+import { renderOptions } from '../harness/fixture-grammar';
+
+// A hard break's mark draws a dimmed return glyph where its bytes are hidden (editor.css), and
+// holds no text, so the offsets, the copy and the hiding rule read the same bytes as without it.
+
+function render(raw: string) {
+	const nodes = parseInline(raw, 0, raw.length);
+	const host = document.createElement('div');
+	host.appendChild(renderInlineNodes(nodes, raw, renderOptions()));
+	return { nodes, host };
+}
+
+describe('the hard-break mark', () => {
+	it.each([
+		['backslash', 'one\\\ntwo', '\\', false],
+		['backslash CRLF', 'one\\\r\ntwo', '\\', false],
+		['two spaces', 'one  \ntwo', '  ', true],
+		['three spaces CRLF', 'one   \r\ntwo', '   ', true]
+	])('%s: the marker sits in a mark that adds no text', (_, raw, markerText, spaces) => {
+		const { host } = render(raw);
+		const mark = host.querySelector('.md-hard-break');
+		expect(mark).not.toBeNull();
+		expect(mark!.querySelector('.md-marker')?.textContent).toBe(markerText);
+		expect(mark!.textContent).toBe(markerText);
+		expect(mark!.hasAttribute('data-trailing-spaces')).toBe(spaces);
+		expect(host.textContent).toBe(raw);
+	});
+
+	it('the hiding rule reads the break the same way with the mark around it', () => {
+		const raw = 'one  \ntwo';
+		const { nodes } = render(raw);
+		const shown = (mode: 'live' | 'source') =>
+			renderedText(nodes, raw, screenVisibility(mode, { chromePaints: false }), renderOptions());
+		expect(shown('live')).toBe('one\ntwo');
+		expect(shown('source')).toBe(raw);
+	});
+
+	it('a soft break (one space or none before the newline) carries no mark', () => {
+		expect(render('one \ntwo').host.querySelector('.md-hard-break')).toBeNull();
+		expect(render('one\ntwo').host.querySelector('.md-hard-break')).toBeNull();
+	});
+});

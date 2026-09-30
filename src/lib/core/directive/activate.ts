@@ -1,9 +1,8 @@
 /**
- * Grammar-side activation for the `:::name` directive primitive. No components: core must not
- * reach the component tree, so the public `activateDirectives` layers render on top of this.
- * Call-based, not a module-load side effect, so a consumer that never calls it leaves `:::` and
- * `:` unclaimed. Must run before the editor parses, ahead of the grammar-consumed latch (G1.17).
- * A second activation site is a no-op: every step guards on something the tier itself owns.
+ * Grammar-side activation for the `:::name` directive syntax. The public `activateDirectives`
+ * adds the components (core can't import them) and makes both belong to no plugin. A call, not an
+ * import side effect, so `:::` and `:` stay free until someone asks. Must run before the editor
+ * first parses (G1.17); calling it twice is a no-op, since every step checks its registration first.
  */
 
 import { registerDirectiveKinds, registerDirectiveTextKind, DIRECTIVE_TEXT } from './kinds';
@@ -11,11 +10,11 @@ import { registerDirectiveOpeners } from './container-opener';
 import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plugin-kind';
 import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 
 export function activateDirectiveGrammar(): void {
-	// The inline rung has nothing of its own to probe, so it borrows the `directiveText` latch,
-	// read HERE before `registerDirectiveTextKind` sets it. It cannot ask whether `:` is taken:
-	// the trigger is SHARED (emoji rungs on it too), so that question answers for another plugin.
+	// The inline handler has no registration of its own to check, so it borrows the
+	// `directiveText` flag, read before it is set; the `:` trigger is shared with emoji.
 	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
 	registerDirectiveKinds();
@@ -24,6 +23,8 @@ export function activateDirectiveGrammar(): void {
 
 	if (!alreadyActive) {
 		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
-		registerInlineSyntax(':', (raw, pos, end) => recognizeTextDirective(raw, pos, end, kind));
+		registerInlineSyntax(':', (raw, pos, end, grammar?: GrammarView) =>
+			recognizeTextDirective(raw, pos, end, kind, grammar ?? defaultGrammarView)
+		);
 	}
 }

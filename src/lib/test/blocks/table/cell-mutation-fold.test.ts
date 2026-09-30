@@ -1,25 +1,18 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the cell's reveal-fold rule was pinned on the two paths that already carried it
-// (the Enter carve-out, the clipboard skeleton), and every other case that drove a cell mutation
-// drove it with no reveal open — so the rule read as enforced while three sibling mutation seams
-// ran straight past it, and the table rebuild that discards the edit leaves the bytes well formed.
+// Miss-analysis: hiding a shown source before a cell edit was tested on two of its paths only.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 const CELL = 'x $a$ yz';
 
-function press(el: HTMLElement, key: string): void {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
-
-/** Open the widget's source reveal and type into it — an edit that lives in ephemeral DOM until
- *  something folds it, exactly as the user's does. */
+/** Show the widget's source and type into it: an edit that lives only in the DOM until something
+ *  hides it again, exactly as the user's does. */
 async function revealAndEdit(el: HTMLElement, edited: string): Promise<void> {
-	press(el, 'ArrowLeft');
-	await settleTicks();
+	dispatchKey(el, { key: 'ArrowLeft' });
+	await settleEditor();
 	const source = Array.from(el.childNodes).find(
 		(c) => c.nodeType === Node.TEXT_NODE && c.textContent === '$a$'
 	);
@@ -31,12 +24,11 @@ let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 describe('a cell mutation folds the open reveal before it runs', () => {
-	// The confirmed loss: insertRowBelow re-derives every row from cell `.raw`, so an unfolded
-	// reveal's edit is not merely uncommitted — it is gone, with no gesture left to recover it.
+	// `insertRowBelow` rebuilds every row from the cell `.raw`, so an edit in a source still
+	// showing is not merely uncommitted: it is gone, with no gesture left to recover it.
 	it('commits the revealed edit before an axis command rebuilds the table', async () => {
 		registerMathInline();
 		mounted = mountCell(CELL);
@@ -46,18 +38,18 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		expect(instance.runCommand('table.insertRowBelow')).toBe(true);
-		await settleTicks();
+		await settleEditor();
 
 		const commits = vi.mocked(blockEdit.updateBlockContent).mock.calls;
-		expect(commits.map((c) => c[1])).toEqual(['x $a_n$ yz']);
+		expect(commits.map((c) => trimTrailingLineEnding(c[1]))).toEqual(['x $a_n$ yz']);
 		expect(tableContext.insertRowBelow).toHaveBeenCalledTimes(1);
 		expect(vi.mocked(blockEdit.updateBlockContent).mock.invocationCallOrder[0]).toBeLessThan(
 			vi.mocked(tableContext.insertRowBelow).mock.invocationCallOrder[0]
 		);
 	});
 
-	// The implicit-commit sibling: the toggle reads the revealed DOM text and writes it back as
-	// the cell's raw, leaving the reveal open over bytes it no longer matches.
+	// Without hiding the source first, the toggle reads the shown DOM text and writes it back as
+	// the cell's raw, leaving the source showing over bytes it no longer matches.
 	it('folds before a format toggle rather than committing the revealed text as raw', async () => {
 		registerMathInline();
 		mounted = mountCell(CELL);
@@ -67,8 +59,10 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		instance.runCommand('format.toggleStrong');
-		await settleTicks();
+		await settleEditor();
 
-		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1]).toBe('x $a_n$ yz');
+		expect(trimTrailingLineEnding(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1])).toBe(
+			'x $a_n$ yz'
+		);
 	});
 });

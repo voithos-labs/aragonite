@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from '../plugins/helpers';
 
-// A mode flip while a reveal holds an uncommitted edit commits through the blur-class mode
-// effect. The header toggle PRESERVES editor focus, so the commit is driven by the flip, not
-// by a focus-stealing blur. Requirements:
+// Switching mode while a revealed source holds an uncommitted edit commits it through the mode
+// effect that blurs. The header toggle keeps editor focus, so the commit comes from the mode
+// switch, not from a blur that stole focus. Requirements:
 // e2e/requirements/presentation/presentation-block-math.md.
 
 const RENDER = '.math-block-render';
@@ -18,8 +18,8 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await expect(page.locator(RENDER)).toHaveCount(1);
 	});
 
-	// Reveal with a deterministic caret at source offset 0: enter from the paragraph
-	// above by keyboard, so no click mouseup competes for the caret.
+	// Show the source with the caret at offset 0 every time: enter from the paragraph above by
+	// keyboard, so no mouseup competes for the caret.
 	async function revealFromBefore() {
 		await ep.getBlock(0).click();
 		await ep.page.keyboard.press('End');
@@ -34,15 +34,15 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 
 	test('an uncommitted reveal edit commits on the flip and the render shows', async ({ page }) => {
 		await revealFromBefore();
-		// Step two chars past the opening `$$` and insert — `$$ax^2$$`, still revealed
-		// (uncommitted): only a blur commits a render-primary leaf.
+		// Step two characters past the opening `$$` and insert: `$$ax^2$$`, still showing its
+		// source and uncommitted, because only a blur commits a render-first block.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('a');
 		expect(await ep.page.locator(SOURCE).textContent()).toContain('$$ax^2$$');
 
-		// Flip to reading with NO intervening click. The blur-class mode effect blurs
-		// the still-focused source and commits while the mode is already reading.
+		// Switch to reading with no click in between: the mode effect blurs the still-focused
+		// source and commits while the mode is already reading.
 		await toggleMode();
 
 		await ep.bridge.waitForSourceContains('$$ax^2$$');
@@ -57,12 +57,12 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('a');
-		await toggleMode(); // to reading — commits `$$ax^2$$`
+		await toggleMode(); // to reading, which commits `$$ax^2$$`
 		await ep.bridge.waitForSourceContains('$$ax^2$$');
 
 		await toggleMode(); // back to source
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
-		// The block reveals and edits again after the round-trip through reading.
+		// The block shows its source and edits again after the round trip through reading.
 		await page.locator(RENDER).click();
 		await expect(page.locator(SOURCE)).toHaveCount(1);
 		await page.keyboard.press('End');
@@ -78,10 +78,10 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await ep.page.locator(RENDER).click();
 		await expect(page.locator(SOURCE)).toHaveCount(1);
 
-		await toggleMode(); // flip to reading with the source revealed but unedited
+		await toggleMode(); // to reading with the source showing but unedited
 		await expect(page.locator(SOURCE)).toHaveCount(0);
 		await expect(page.locator(`${RENDER} .katex`)).toHaveCount(1);
-		// A mode-toggle click over an unedited reveal, not a keystroke.
+		// A mode-toggle click while the source shows unedited, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});

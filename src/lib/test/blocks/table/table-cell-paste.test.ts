@@ -3,11 +3,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { CstNode } from '../../../core/nodes';
 import type { PresentationMode } from '../../../presentation-mode';
 import {
-	escapedCellOffset,
 	normalizeWhitespace,
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
-import type { PasteRange, PasteSeam } from '../../../tree-operations/paste-surfaces';
+import { escapedCellOffset } from '../../../schema/table-cell-raw';
+import type { PasteRange } from '../../../tree-operations/paste-surfaces';
 import { updateNodeContent } from '../../../tree-operations/content-write';
 import { writeTableRow } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
@@ -16,21 +16,32 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
+
+/** A children array as the body parent a write reads, owned by nothing, in an LF document. */
+const asBody = (parent: { children?: CstNode[] }) => ({
+	children: parent.children!,
+	owner: undefined,
+	lineEnding: '\n' as const
+});
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
 
 /** A paste into cell 0 of a two-cell row, carried the way the editor carries it: the hook returns
- *  spliced text, the sink applies the kind's rule, and the row is read back through a parse. */
+ *  spliced text, the write applies the kind's rule, and the row is read back through a parse. */
 function pasteIntoRow(
 	cellRaw: string,
 	offset: number,
 	text: string,
 	preDelete?: PasteRange,
-	seam?: PasteSeam
+	reading: Reading = fixtureReading()
 ) {
-	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete, seam);
+	const cell = makeCell(cellRaw);
+	const result = tableCellInlinePaste(cell, offset, text, preDelete, topLevelStore(cell, reading));
 	const row: CstNode = {
 		kind: 'tableRow',
 		leadingTrivia: '',
@@ -38,7 +49,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(row as never, 0, result.newRaw);
+	updateNodeContent(asBody(row), 0, result.newRaw, defaultGrammarView);
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -62,7 +73,7 @@ describe('normalizeWhitespace', () => {
 	});
 });
 
-describe('escapedCellOffset — the caret follows the sink’s inserted backslashes', () => {
+describe('escapedCellOffset: the caret follows the sink’s inserted backslashes', () => {
 	it('shifts a caret that sits past a newly escaped pipe', () => {
 		// Cell was "ab"; the user typed "|" between a and b, DOM caret at 2.
 		expect(escapedCellOffset('a|b', 2)).toBe(3);
@@ -76,8 +87,8 @@ describe('escapedCellOffset — the caret follows the sink’s inserted backslas
 		expect(escapedCellOffset('a|b', 1)).toBe(1);
 	});
 
-	// The door reports where the caret lands in the bytes the sink wrote, so the
-	// two have to agree on every prefix or the caret drifts into a `\|` pair.
+	// The caret is reported against the bytes that were actually written, so the two have
+	// to agree on every prefix or the caret drifts into a `\|` pair.
 	it('agrees with the raw the sink actually writes', () => {
 		const row: CstNode = {
 			kind: 'tableRow',
@@ -86,7 +97,7 @@ describe('escapedCellOffset — the caret follows the sink’s inserted backslas
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(row as never, 0, 'a|b|c');
+		updateNodeContent(asBody(row), 0, 'a|b|c', defaultGrammarView);
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });
@@ -95,7 +106,8 @@ describe('tableCellInlinePaste', () => {
 	it('inserts at offset, normalizing newlines and leaving the escape to the sink', () => {
 		const { newRaw, caretOffset, cells } = pasteIntoRow('pre', 3, 'a|b\nc');
 		expect(newRaw).toBe('prea|b c');
-		expect(caretOffset).toBe(3 + 'a\\|b c'.length);
+		// Counted in the spliced text: the write that escapes the pipe maps it.
+		expect(caretOffset).toBe(3 + 'a|b c'.length);
 		expect(cells).toEqual(['prea\\|b c', 'keep']);
 	});
 
@@ -111,7 +123,7 @@ describe('tableCellInlinePaste', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X').cells).toEqual(['a\\X\\|b', 'keep']);
 	});
 
-	// The pasted text carries no pipe at all, so escaping it is a no-op — but the
+	// The pasted text carries no pipe at all, so escaping it changes nothing, but the
 	// backslash it inserts pairs off the one holding the cell's own pipe down.
 	it('re-escapes a pipe the pasted text frees by pairing off a backslash', () => {
 		expect(pasteIntoRow('a\\|b', 2, '\\').cells).toEqual(['a\\\\\\|b', 'keep']);
@@ -121,50 +133,42 @@ describe('tableCellInlinePaste', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X', { start: 0, end: 2 }).cells).toEqual(['X\\|b', 'keep']);
 	});
 
-	// The delete half is a join, and a cell's stranded runs are as unpainted as a paragraph's.
-	// The seam runs BEFORE the escaping stage, which is why the sink still sees the final bytes.
-	describe('the delete half crosses the live join seam', () => {
+	// The paste's delete is a join, and a cell's stranded marker runs are hidden as a paragraph's
+	// are; the join runs before escaping, so the escaping sees the final bytes.
+	describe('the delete half crosses the live join', () => {
 		beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 		const CUT = { start: 8, end: 18 };
-		const seamIn = (presentationMode: PresentationMode) => ({
-			presentationMode,
-			linkRef: undefined
-		});
+		const readingIn = (presentationMode: PresentationMode) => fixtureReading({}, presentationMode);
+		const cellIn = (presentationMode: PresentationMode) => {
+			const cell = makeCell('Some **bold** text');
+			return { cell, store: topLevelStore(cell, readingIn(presentationMode)) };
+		};
 
 		it('live: the run the cut stranded goes with it', () => {
-			const result = tableCellInlinePaste(
-				makeCell('Some **bold** text'),
-				8,
-				'X',
-				CUT,
-				seamIn('live')
-			);
+			const { cell, store } = cellIn('live');
+			const result = tableCellInlinePaste(cell, 8, 'X', CUT, store);
 			expect(result.newRaw).toBe('Some bX');
 		});
 
-		it('the escaping stage still runs over what the seam wrote', () => {
+		it('the escaping stage still runs over what the join wrote', () => {
 			const { cells } = pasteIntoRow(
 				'a\\|b **z** c',
 				7,
 				'X',
 				{ start: 7, end: 10 },
-				seamIn('live')
+				readingIn('live')
 			);
 			// The stranded `**` went with the cut and the cell's own `\|` survived the round.
 			expect(cells).toEqual(['a\\|b X c', 'keep']);
 		});
 
-		it('every other mode keeps the literal cut', () => {
-			for (const mode of ['source', 'reading', 'preview-block', 'preview-inline'] as const) {
-				const result = tableCellInlinePaste(
-					makeCell('Some **bold** text'),
-					8,
-					'X',
-					CUT,
-					seamIn(mode)
-				);
+		// Reading mode hides delimiters too, but it writes nothing, so a paste never gets here.
+		it('every mode that draws the caret block’s delimiters keeps the literal cut', () => {
+			for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+				const { cell, store } = cellIn(mode);
+				const result = tableCellInlinePaste(cell, 8, 'X', CUT, store);
 				expect(result.newRaw).toBe('Some **bX');
 			}
 		});

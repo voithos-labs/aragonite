@@ -47,9 +47,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(itemBox.height).toBeLessThan(imageBox.height + 30);
 	});
 
-	// The renderer nests the widget one level deeper per wrapping construct (`em`, `strong`, `s`, a
-	// link's anchor), so a child-combinator `:has(> …)` misses them; the wrapper's own markers keep
-	// a trailing line box, hence the looser tolerance.
+	// The widget sits one level deeper per wrapping construct, past a child-combinator `:has(> …)`;
+	// the wrapper's markers keep a trailing line box, hence the looser tolerance.
 	for (const [shape, doc] of Object.entries(WRAPPED_LIST_IMAGE_DOCS)) {
 		test(`${shape}-wrapped list image keeps the ambient marker pinned`, async ({ page }) => {
 			await editor.loadContent(doc);
@@ -60,8 +59,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 			const imageBox = await page.locator('[data-image-widget] img').first().boundingBox();
 			if (!markerBox || !imageBox) throw new Error('layout boxes missing');
 
-			// Pinned at all, not merely near: under an inline-block anchor the marker and the image
-			// land close together anyway, so geometry alone cannot tell the link shape apart.
+			// Laid out as a marker at all, not merely near: under an inline-block `<a>` the marker
+			// and image land close anyway, so geometry alone cannot tell the link shape apart.
 			expect(await marker.evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
 			expect(
 				Math.abs(markerBox.y + markerBox.height - (imageBox.y + imageBox.height))
@@ -83,8 +82,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(imageBox.x - outerBox.x).toBeGreaterThanOrEqual(12);
 	});
 
-	// The rule pinning the list-item ambient marker bottom-left must not reach every `.md-marker`
-	// direct child, or these inline markers stack on the ambient `-`.
+	// The rule pinning the list item's `- ` marker to the bottom left must not reach every
+	// `.md-marker` direct child, or these inline markers stack on that `-`.
 	test('inline emphasis markers in a list-item image paragraph stay in normal flow', async ({
 		page
 	}) => {
@@ -98,7 +97,7 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(inlineMarkerPositions.every((p) => p === 'static')).toBe(true);
 	});
 
-	// Sibling guarantee: a non-list image paragraph gets no ambient-marker layout treatment at all.
+	// The sibling case: an image paragraph outside a list gets no marker layout at all.
 	test('inline markers in a non-list image paragraph stay in normal flow', async ({ page }) => {
 		await editor.loadContent('*bold* ![pic|200](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);

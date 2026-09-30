@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileTaskMetadata } from '../../tree-operations';
+import { reconcileTaskMetadata } from '../../tree-operations/list/reconcile-task';
 import type { CstNode, ListItemMetadata } from '../../core/nodes';
 
 function makeListItem(firstParagraphRaw: string, meta: ListItemMetadata): CstNode {
 	return {
 		kind: 'listItem',
 		leadingTrivia: '',
-		raw: '',
+		raw: (meta.marker ?? '') + (meta.taskMarker ?? '') + firstParagraphRaw,
 		metadata: meta,
 		innerPrefix: '',
 		children: [
@@ -31,7 +31,7 @@ function taskMeta(marker = '[ ] ', checked = false): ListItemMetadata {
 describe('reconcileTaskMetadata', () => {
 	it('promotes plain listItem whose paragraph gained `[ ] ` prefix', () => {
 		const item = makeListItem('[ ] hello\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[ ] ');
@@ -41,7 +41,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes with `[x] ` prefix, marking taskChecked true', () => {
 		const item = makeListItem('[x] done\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[x] ');
@@ -51,7 +51,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes preserving uppercase `[X]`', () => {
 		const item = makeListItem('[X] upper\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskMarker).toBe('[X] ');
 		expect(meta.taskChecked).toBe(true);
@@ -60,7 +60,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('promotes preserving multi-space variant `[x]  `', () => {
 		const item = makeListItem('[x]  padded\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskMarker).toBe('[x]  ');
 		expect(item.children![0].raw).toBe('padded\n');
@@ -69,8 +69,8 @@ describe('reconcileTaskMetadata', () => {
 	it('demotes task listItem when effective first line no longer matches', () => {
 		// The user deleted the `]` from `[x]`.
 		const item = makeListItem('x something\n', taskMeta('[', false));
-		// A stripped state that, recombined with the broken marker, no longer parses as a task.
-		reconcileTaskMetadata(item);
+		// A stripped state that, recombined with the broken marker, doesn't parse as a task.
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
@@ -81,7 +81,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('is a no-op when canonical task item stays a task item', () => {
 		const item = makeListItem('done\n', taskMeta('[x] ', true));
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[x] ');
@@ -91,7 +91,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('is a no-op when plain listItem stays plain (content has no bracket)', () => {
 		const item = makeListItem('hello\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
@@ -104,7 +104,7 @@ describe('reconcileTaskMetadata', () => {
 			leadingTrivia: '',
 			raw: '[ ] text\n'
 		};
-		reconcileTaskMetadata(node);
+		reconcileTaskMetadata(node, 0, false);
 		expect(node.kind).toBe('paragraph');
 		expect(node.raw).toBe('[ ] text\n');
 	});
@@ -119,14 +119,53 @@ describe('reconcileTaskMetadata', () => {
 				{ kind: 'list', leadingTrivia: '', raw: '', metadata: { ordered: false }, children: [] }
 			]
 		};
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 	});
 
+	// Miss-analysis: every reconcile test held a paragraph first child, never another kind.
+	it('drops the marker when the first block stopped being a paragraph', () => {
+		const item = makeListItem('# beta\n', taskMeta());
+		item.children![0].kind = 'heading';
+		item.children![0].metadata = { level: 1 };
+		reconcileTaskMetadata(item, 0, true);
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(false);
+		expect(meta.taskMarker).toBeNull();
+		expect(meta.taskChecked).toBe(false);
+		expect(item.children![0].raw).toBe('# beta\n');
+	});
+
+	// Miss-analysis: no reconcile test typed inside an item the parser loaded with a heading first.
+	it('keeps the marker on an item that was loaded with a heading first block', () => {
+		const item = makeListItem('# beta\n', taskMeta());
+		item.children![0].kind = 'heading';
+		item.children![0].metadata = { level: 1 };
+
+		reconcileTaskMetadata(item, 0, false);
+
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(true);
+		expect(meta.taskMarker).toBe('[ ] ');
+		expect(item.children![0].raw).toBe('# beta\n');
+	});
+
+	// Miss-analysis: every reconcile test used a typed opener, never the Enter completer's block.
+	it('drops the marker when a write replaced the paragraph with a table', () => {
+		const item = makeListItem('| a | b |\n| --- | --- |\n', taskMeta());
+		item.children![0].kind = 'table';
+
+		reconcileTaskMetadata(item, 0, true);
+
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(false);
+		expect(meta.taskMarker).toBeNull();
+	});
+
 	it('skips when first paragraph is empty', () => {
 		const item = makeListItem('\n', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(item.children![0].raw).toBe('\n');
@@ -134,7 +173,7 @@ describe('reconcileTaskMetadata', () => {
 
 	it('handles paragraph raw without trailing newline (live typing state)', () => {
 		const item = makeListItem('[ ] mid-typing', plainMeta());
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskMarker).toBe('[ ] ');
@@ -144,7 +183,7 @@ describe('reconcileTaskMetadata', () => {
 	it('updates taskChecked when existing task item has raw that flips check state', () => {
 		// Marker drift: the check state changes by rewriting the effective line, not the metadata.
 		const item = makeListItem('  task\n', taskMeta('[x]', true));
-		reconcileTaskMetadata(item);
+		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);
 		expect(meta.taskChecked).toBe(true);

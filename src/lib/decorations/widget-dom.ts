@@ -1,6 +1,6 @@
 /**
- * The one mounting seam for decoration widget specs, so error containment and teardown
- * semantics can't drift between block badges and inline islands.
+ * The one place a decoration widget is mounted, so error handling and teardown cannot drift
+ * between block badges and inline widgets.
  */
 
 import { mount, unmount } from 'svelte';
@@ -13,7 +13,7 @@ export interface DecorationWidgetHandle {
 }
 
 /**
- * Build a widget spec's DOM. A synchronous throw is contained and surfaced as null, so the
+ * Build a widget spec's DOM. A synchronous throw is caught and reported as null, so the
  * caller renders without the widget instead of tearing down the block.
  */
 export function mountDecorationWidget(
@@ -25,8 +25,8 @@ export function mountDecorationWidget(
 		if ('component' in spec) {
 			const el = document.createElement('span');
 			const instance = mount(spec.component, { target: el, props: { decoration: dec } });
-			// The flag is what makes the documented idempotence real: a second `unmount` of the same
-			// instance is not a no-op the way a second `remove()` is.
+			// The flag is what makes `destroy` safe to call twice: a second `unmount` of the same
+			// instance is not harmless the way a second `remove()` is.
 			let unmounted = false;
 			return {
 				el,

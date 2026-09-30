@@ -1,32 +1,19 @@
 // @vitest-environment jsdom
-// Miss-analysis: the flip's drop was pinned from the oracle's side (the cache empties) and from
-// the resize side (a block that moves re-measures), but nothing ever rebuilt a model after it,
-// which is the only moment the cache is read again, so the models silently outliving their
-// backing had no test at any layer.
+// Miss-analysis: no test rebuilt a height table after the mode switch emptied the cache.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { createHeightOracle } from '../../cursor/height-oracle';
-import { HEIGHT_ESTIMATES } from '../../cursor/typography-estimates';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCKS = 10;
-/** Well clear of the one-line prose estimate, so a reseeded slot is unmistakable. */
+/** Well clear of the one-line prose estimate, so an entry back on an estimate is obvious. */
 const MEASURED = 100;
 const ANCHOR = 5;
 
-function proseOracle() {
-	return createHeightOracle({
-		lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
-		codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
-		avgCharWidth: HEIGHT_ESTIMATES.avgCharWidth,
-		blockChrome: HEIGHT_ESTIMATES.blockChrome,
-		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
-	});
-}
-
-describe('a structural rebuild after the oracle dropped its cache', () => {
+describe('a structural rebuild after the check dropped its cache', () => {
 	it('keeps every surviving block at the height the model measured', async () => {
-		const oracle = proseOracle();
+		const layout = createLayoutState();
+		const oracle = layout.heightOracle;
 		const children = $state(Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)));
 		const ids = $state(Array.from({ length: BLOCKS }, (_, i) => `b${i}`));
 		const { windowing, port, cleanup } = mountListWindowing({
@@ -39,20 +26,20 @@ describe('a structural rebuild after the oracle dropped its cache', () => {
 
 		for (const [i, id] of ids.entries()) {
 			windowing.registerChild(id, {
-				readHeight: () => MEASURED,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, id, h)
+				index: i,
+				readHeight: () => MEASURED
 			});
 		}
 		await tick();
 		await windowing.revealChild(ANCHOR);
 		const parked = port.scrollTop();
-		expect(parked, 'parked on measured heights').toBe(ANCHOR * MEASURED);
+		expect(parked, 'the scroll rests on measured heights').toBe(ANCHOR * MEASURED);
 
-		// The flip: the cache goes, every model keeps the heights it took from it, and a block
-		// whose box did not move reports no resize to put them back.
-		oracle.dropMeasured();
+		// The mode switch: the cache goes, every height table keeps the heights it took from it,
+		// and a block whose box did not move reports no resize to put them back.
+		layout.forgetMeasuredHeights();
 
-		// Any structural edit rebuilds the model off the now-empty cache.
+		// Any structural edit rebuilds the height table off the now-empty cache.
 		children.push(makePara(`p${BLOCKS}\n`));
 		ids.push(`b${BLOCKS}`);
 		flushSync();

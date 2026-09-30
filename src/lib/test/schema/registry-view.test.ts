@@ -1,22 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { bothEnable, createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
 import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
+import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 
 const stubComponent = {} as BlockComponentEntry;
 
-// An opener that claims a single `@x`-prefixed line as this kind — byte-exact raw
-// so the parser's DEV opener guard passes.
+// An opener that takes a single `@x`-prefixed line as this kind, with byte-exact raw so the
+// parser's dev-mode opener check passes.
 const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 	priority: 5,
 	tryOpen: (ctx) =>
@@ -30,27 +30,18 @@ const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 });
 
 function registerCallout(): PluginBlockKind {
-	const kind = declarePluginKind('callout-x');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure
-	});
+	const kind = testLeaf('callout-x');
 	registerBlockComponent(kind, stubComponent);
 	registerBlockOpener(kind, lineOpener(kind));
 	return kind;
 }
 
-afterEach(() => __resetSchemaRegistriesForTests());
-
-// The default view IS the global read — the behavior-preserving guarantee that the
-// full unit suite (mounting BlockHost bare) relies on.
+// The default view is the global read, which the rest of the unit suite (mounting BlockHost on
+// its own) relies on.
 describe('defaultRegistryView resolves the global definitions verbatim', () => {
 	it('component + descriptor + grammar match the global registry', () => {
 		const kind = registerCallout();
-		expect(defaultRegistryView.component(kind)).toBe(getBlockComponent(kind));
+		expect(defaultRegistryView.component(kind)).toBe(getBlockComponent(kind, everyInstalledPlugin));
 		expect(defaultRegistryView.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
 		expect(parse('@x hi\n', { grammar: defaultRegistryView.grammar }).children[0].kind).toBe(kind);
 	});
@@ -72,7 +63,7 @@ describe('enablement filter', () => {
 		expect(view.component(kind)).toBeUndefined();
 	});
 
-	it('the descriptor is never filtered — a disabled kind still degrades, not throws', () => {
+	it('the descriptor is never filtered: a disabled kind still degrades, not throws', () => {
 		const view = createRegistryView({ isEnabled: (k) => k !== kind });
 		expect(view.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
 	});
@@ -90,33 +81,54 @@ describe('enablement filter', () => {
 		expect(parse('@x hi\n', { grammar: enabled.grammar }).children[0].kind).toBe(kind);
 	});
 
-	it('built-ins are never disableable — the predicate domain is plugin kinds', () => {
+	it('built-ins are never disableable: the predicate domain is plugin kinds', () => {
 		const disableEverything = createRegistryView({ isEnabled: () => false });
-		// A blanket "disable all" must drop only the plugin opener — a built-in losing its
-		// opener here would be the predicate escaping its domain.
+		// A blanket "disable all" must drop only the plugin opener: a built-in losing its opener
+		// here would mean the predicate reached past plugin kinds.
 		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
 		expect(disableEverything.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
 		expect(builtinOpenerCount).toBeGreaterThan(0);
-		// The plugin kind IS disabled by the same predicate.
+		// The plugin kind itself is disabled by the same predicate.
 		expect(disableEverything.component(kind)).toBeUndefined();
 	});
 });
 
-// The second filter is the harness door layered over the instance's own activation, so it must
-// only ever narrow: a door that widened would prove a resolution the shipped path cannot reach.
-describe('bothEnable', () => {
-	const admitsAll = () => true;
-	const admitsNone = () => false;
+// The second filter is the test harness's, layered over the editor's own activation, so it may
+// only narrow: one that widened would allow a resolution the shipped path cannot reach.
+describe('a kind filter layered over the activation', () => {
+	it('narrows what the activation allows and never widens it', () => {
+		let kind: PluginBlockKind | undefined;
+		installPlugins([
+			definePlugin({ name: 'callouts', setup: () => void (kind = registerCallout()) })
+		]);
 
-	it('admits a kind only when both sides do', () => {
-		expect(bothEnable(admitsAll, admitsNone)!('paragraph')).toBe(false);
-		expect(bothEnable(admitsNone, admitsAll)!('paragraph')).toBe(false);
-		expect(bothEnable(admitsAll, admitsAll)!('paragraph')).toBe(true);
+		const unlisted = createRegistryView({ plugins: activationFor([]), isEnabled: () => true });
+		expect(unlisted.component(kind!)).toBeUndefined();
+		const narrowed = createRegistryView({
+			plugins: activationFor(['callouts']),
+			isEnabled: () => false
+		});
+		expect(narrowed.component(kind!)).toBeUndefined();
+		expect(createRegistryView({ plugins: activationFor(['callouts']) }).component(kind!)).toBe(
+			stubComponent
+		);
+	});
+});
+
+describe('the syntax switch composes with the plugin filter', () => {
+	it('drops the plugin kind the filter leaves out and indented code together', () => {
+		const kind = registerCallout();
+		const view = createRegistryView({
+			isEnabled: (k) => k !== kind,
+			syntax: { indentedCode: false }
+		});
+		const doc = parse('@x one\n\n\tnotes\n', { grammar: view.grammar });
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
 	});
 
-	it('passes a lone predicate through, and undefined for neither', () => {
-		expect(bothEnable(admitsNone, undefined)).toBe(admitsNone);
-		expect(bothEnable(undefined, admitsNone)).toBe(admitsNone);
-		expect(bothEnable(undefined, undefined)).toBeUndefined();
+	it('a view with every syntax on and no filter is the default view', () => {
+		expect(createRegistryView({ syntax: { indentedCode: true, setextHeading: true } })).toBe(
+			defaultRegistryView
+		);
 	});
 });

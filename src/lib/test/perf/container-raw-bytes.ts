@@ -1,7 +1,7 @@
 import type { CstNode } from '../../core/nodes';
 
-// Containers materialize their descendants' raw, so summing container raw
-// across the tree measures the CST's storage duplication.
+// A container holds its descendants' raw too, so summing every container's raw across the
+// tree measures how many times over the CST stores the same bytes.
 export function containerRawBytes(nodes: CstNode[]): number {
 	let total = 0;
 	for (const node of nodes) {

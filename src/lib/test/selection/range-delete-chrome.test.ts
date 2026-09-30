@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { involvesReservedChrome } from '../../selection/range-delete-chrome';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Two body children so in-place truncation is distinguishable from an upward merge. Paths:
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
@@ -20,17 +22,19 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
-describe('involvesReservedChrome — gate tightness', () => {
+describe('involvesReservedChrome: gate tightness', () => {
 	beforeEach(registerCalloutForTests);
 
 	const cases: Array<[string, SelectionPoint, SelectionPoint, boolean]> = [
@@ -56,7 +60,7 @@ describe('involvesReservedChrome — gate tightness', () => {
 	});
 });
 
-describe('chrome wall — rangeDelete post-states', () => {
+describe('chrome wall: rangeDelete post-states', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + two body paragraphs', () => {
@@ -102,8 +106,8 @@ describe('chrome wall — rangeDelete post-states', () => {
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 	});
 
-	// Equivalence pin (range-delete-ceremony.ts): with start inside the end container resolveEndWall
-	// returns null, so nothing is consumed — dropping that start-inside guard deletes the container.
+	// With the start inside the end container, its last byte takes nothing whole; dropping that
+	// check would delete the container.
 	it('start in chrome, end at the container last byte: the container survives (start-inside guard)', () => {
 		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 5));
 		expect(source).toBe('Above\n\n:::callout Tit\n\n\n:::\n\nBelow\n');
@@ -117,21 +121,19 @@ describe('chrome wall — rangeDelete post-states', () => {
 		const note = doc.children[1];
 		const result = rangeDelete(
 			doc,
-			point([0], 5),
-			point([1, 2], 5),
+			rangeCoverage(doc, coverRange(doc, point([0], 5), point([1, 2], 5))),
 			createSharingState(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('Above\n\nBelow\n');
-		// One splice, not an empty-then-cascade: the detached node keeps its
-		// children so a commit scope holding it stays invariant-clean.
+		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
+		// so the undo entry holds a whole node.
 		expect(note.children?.length).toBe(3);
 	});
 
-	// Deliberate degenerate (not a bug): an end fully covering a surviving body child truncates it
-	// in place to an empty paragraph, because the wall's in-place rule guards the chrome/body edge.
+	// Intended: an end fully covering a body child truncates it in place to an empty paragraph,
+	// since the wall's in-place rule protects the edge between the title line and the body.
 	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
 		expect(source).toBe('Ab\n\n:::callout\n\n\nBody2\n:::\n\nBelow\n');
@@ -141,14 +143,14 @@ describe('chrome wall — rangeDelete post-states', () => {
 			'paragraph'
 		]);
 		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
-		// The placeholder survives the reload only because a second blank line stands below it:
-		// the `:::` peel eats the first one, and the follower's separator is that second line.
+		// The placeholder survives the reload only through a second blank line below it: stripping
+		// the `:::` fence eats the first, and the next block's separator is the second.
 		expect(doc.children[1].children?.map((c) => c.leadingTrivia)).toEqual(['', '', '\n']);
 		expectParseConverged(doc);
 	});
 
-	// G1.9 guard for the clear-write unshare: covered chrome must clear through an unshared COPY, or
-	// `chrome.raw = '\n'` corrupts the raw an undo entry still references — assert the child node.
+	// A covered title line must clear through a copy, or `chrome.raw = '\n'` corrupts the raw an
+	// undo entry still references (G1.9).
 	it('clears covered chrome without corrupting the snapshot-shared title node', () => {
 		const doc = parse(FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];
@@ -156,13 +158,19 @@ describe('chrome wall — rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, undefined, undefined, undefined);
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 2))),
+			sharing,
+			fixtureReading(),
+			'keyless'
+		);
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
 
-describe('chrome wall — generic-path parity (gate stays out of the way)', () => {
+describe('chrome wall: generic-path parity (gate stays out of the way)', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('body-only range merges exactly like a blockquote', () => {

@@ -4,8 +4,9 @@ import { serialize } from '../core/serializer';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
 import { roundTripCases } from '$lib/test/support/round-trip';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-describe('round-trip — task items', () => {
+describe('round-trip: task items', () => {
 	roundTripCases([
 		{ name: 'canonical lowercase [x]', source: '- [x] done\n' },
 		{ name: 'canonical [ ]', source: '- [ ] pending\n' },
@@ -26,7 +27,7 @@ describe('round-trip — task items', () => {
 		const para = item.children![0];
 
 		para.raw = 'upper more\n';
-		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), null, undefined);
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), null, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('- [X] upper more\n');
 	});
@@ -37,7 +38,7 @@ describe('round-trip — task items', () => {
 		const para = doc.children[0].children![0].children![0];
 
 		para.raw = 'extra more\n';
-		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), null, undefined);
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), null, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('- [x]  extra more\n');
 	});

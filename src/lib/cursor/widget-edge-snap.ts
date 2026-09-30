@@ -1,33 +1,28 @@
 /**
- * Which atomic island's raw edge a point lands on: the NEAREST edge among the islands the caller
- * measures, so a run of flush islands answers the one the point is actually beside. A point inside
- * one reads its kind: a character-like island names the edge on the point's side, while an island
- * that selects whole declines and keeps its own click handling.
+ * Which atomic inline widget's raw edge a point lands on: the nearest edge among the widgets the
+ * caller measures. A point on a widget that behaves like a character names the edge on its side;
+ * one on a widget that selects whole declines, leaving that widget's own click handling.
  */
 
 export interface WidgetEdgeCandidate {
-	/** The island's own raw source span; the caret seats at one end or the other. */
+	/** The widget's own raw source span; the caret goes at one end or the other. */
 	start: number;
 	end: number;
 	rect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>;
-	/** The kind reads as one character, so a press ON it names an edge by side rather than
-	 *  selecting the island whole. */
+	/** The kind behaves as one character, so a click on it names an edge by side rather than
+	 *  selecting the widget whole. */
 	seatsInside: boolean;
 }
 
 export interface WidgetEdgeSeat {
 	offset: number;
-	/** The press landed ON the island: the engine answers such a point with a position in the
-	 *  neighbouring text, so its own caret is no reason to stand this seat down. */
+	/** The click landed on the widget itself. The browser would put the caret in the text
+	 *  beside it, and that caret is no reason to drop this snap. */
 	inside: boolean;
 }
 
-/**
- * The raw offset a point snaps to, in document order for ties. Null where the point snaps to none:
- * inside an island that selects whole, whose own click handling owns it, or with no island to
- * either side. A null `y` is a point with no line to compare against, so vertical distance drops
- * out and horizontal containment alone reads as inside.
- */
+/** The raw offset a point snaps to, ties in document order. Null inside a widget that selects whole
+ *  (its own click handling owns it) or with no widget; a null `y` compares columns alone. */
 export function nearestWidgetEdgeSeat(
 	candidates: Iterable<WidgetEdgeCandidate>,
 	x: number,
@@ -40,11 +35,17 @@ export function nearestWidgetEdgeSeat(
 			if (!seatsInside) return null;
 			return { offset: x < (rect.left + rect.right) / 2 ? start : end, inside: true };
 		}
-		// Rows before columns: a point past the end of one line must not reach an island on
-		// another line that happens to sit at the same x.
+		// Compare rows before columns: a point past the end of one line must not reach a widget
+		// on another line that happens to sit at the same x.
 		const rowGap = y === null ? 0 : Math.max(rect.top - y, y - rect.bottom, 0);
 		if (x <= rect.left) best = nearer(best, { offset: start, rowGap, gap: rect.left - x });
 		if (x >= rect.right) best = nearer(best, { offset: end, rowGap, gap: x - rect.right });
+		// A point above or below the widget, inside its columns: no horizontal distance to cover,
+		// so the side it falls on names the edge, as it does for a point on the widget itself.
+		if (rect.left < x && x < rect.right) {
+			const offset = x < (rect.left + rect.right) / 2 ? start : end;
+			best = nearer(best, { offset, rowGap, gap: 0 });
+		}
 	}
 	return best === null ? null : { offset: best.offset, inside: false };
 }

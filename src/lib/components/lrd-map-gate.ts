@@ -1,23 +1,18 @@
+// When to rebuild the link reference definition map, and the counter that render caches key on.
+
 import type { DocumentView } from '../core/node-views';
 import type { EditEvent } from '../editor-events';
 import { nodeAt } from '../tree-operations/node-primitives';
 
-/**
- * Whether a commit could change the LRD set, keeping the O(nodes) map rebuild off the keystroke
- * hot path. Any op that is not a kind-stable `input`/`metadataUpdate` could add or remove a
- * definition; a kind-stable one only can when its target is itself an LRD. `input` is kind-stable
- * by construction, held by the input-op kind-stability lint under `test/invariants/lint/`.
- */
+/** Keeps the whole-document map rebuild off the keystroke path: `input` and `metadataUpdate`
+ *  never change a block's kind, so they matter only when the block is itself a definition. */
 export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
 	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
 }
 
-/**
- * A monotonic stamp that changes **exactly** when the signature string does.
- * Reference-bearing render memos key on the epoch instead of the whole (~MB)
- * signature, so bumping on every rebuild would re-render every bracket-bearing block.
- */
+/** Changes exactly when the signature does: render caches key on it rather than the (~MB)
+ *  signature, and a bump per rebuild would re-render every block with a bracket in it. */
 export function advanceSignatureEpoch(
 	prevSignature: string,
 	prevEpoch: number,

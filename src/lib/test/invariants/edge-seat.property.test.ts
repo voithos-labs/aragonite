@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
@@ -9,47 +10,35 @@ import type { EdgeAffinity } from '../../cursor/edge-affinity';
 import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
+import { renderOptions } from '../harness/fixture-grammar';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// The typing seat decides which side of an unpainted delimiter run a byte lands on, and it was
-// the one live rewrite with no property net. The oracle is the PAINTER, as it is in the split and
-// join nets: a plain letter may never put a delimiter byte on screen, whatever the seat answers.
-// It found its class on the first run — a childless construct (an escape, an angle autolink) has
-// no content range, so the seat declined and the byte landed between delimiters (`\Z*Lead`).
+// A letter typed at an unpainted delimiter run may never put a delimiter byte on screen, as the
+// renderer draws it; a childless construct declines, so its byte lands between the delimiters.
 
-// Miss analysis, twice. Carets were every code-point stop first, which drove offsets inside
-// PAINTED literal delimiters, where any byte reshuffles the parse — a markdown casualty no seat
-// can avert, reported as a seat failure. They are derived from the PAINTER now: only the offsets
-// in and against an unpainted run, which is where a seat has a job. The oracle stays one-sided
-// (delimiters may not INCREASE) because at an unpainted caret the byte appears nowhere at all.
+// Carets sit only in an unpainted run or at its ends, where the choice has a job. The check is
+// one-sided (delimiters may not increase), since at an unpainted caret the byte appears nowhere.
 
-// A delimiter that surfaces is then CLASSIFIED rather than excluded by input shape (#116): `seam`
-// where some offset the seat could have taken keeps the screen, `ambiguous` where none does and
-// the parse rebinds under every answer, which is the byte-literal fallback § 4.4 declares. The
-// vocabulary is the live-gesture fuzzer's, so the two nets bucket the same finding the same way.
+// A delimiter that appears is classified: `seam` where a reachable offset keeps the screen, and
+// `ambiguous` where none does, the byte-literal fallback of live-mode.md § 4.4.
 
-const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
+const FIXED_SEED = 818818;
+const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(FIXED_SEED) } as const;
 
-/** Every arrival a seat can be asked about, including the one that says nothing yet. */
+/** Every arrival the caret placement can be asked about, including the one that says nothing. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
-/**
- * Delimiter bytes any construct can paint, plus the escape's own backslash. `_` is deliberately
- * OUT: underscore emphasis is intraword-restricted, so a byte typed against `__x__` from either
- * outside edge kills the pair whatever the seat answers — markdown's own rule, not a seat that
- * chose the wrong side. Every asterisk-spelled pair stays in, and they carry the same class.
- */
+/** Delimiter bytes any construct can paint, plus the escape's backslash. `_` is left out: a byte
+ *  typed at either outside edge of `__x__` kills the pair wherever it goes, by markdown's rule. */
 const DELIMITERS = '*~`<>\\';
 
-/** Every fixture is a block holding content, so its chrome hides: the live reading. */
+/** Every fixture is a block holding content, so its markers hide: the live-mode reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
-/**
- * Which raw bytes the painter does NOT show, read off the rendered DOM rather than the parse: a
- * chunk inside a `.md-marker` is unpainted, and so is a byte no chunk claims at all — an angle
- * autolink drops its brackets rather than wrapping them, which is the very construct at issue.
- */
+/** Raw bytes the rendered DOM does not show: a `.md-marker` chunk, and any byte no chunk holds,
+ *  which is how an angle autolink drops its brackets. */
 function unpaintedBytes(raw: string): boolean[] {
-	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 	const host = document.createElement('div');
 	host.appendChild(fragment);
 	const unpainted = new Array<boolean>(raw.length).fill(true);
@@ -68,7 +57,7 @@ function unpaintedBytes(raw: string): boolean[] {
 	return unpainted;
 }
 
-/** The offsets a seat can be asked about: inside an unpainted run, or against one of its ends. */
+/** The offsets the caret can be asked about: inside an unpainted run, or at one of its ends. */
 function seatCarets(raw: string): number[] {
 	const unpainted = unpaintedBytes(raw);
 	return caretPositions(raw).filter(
@@ -76,8 +65,8 @@ function seatCarets(raw: string): number[] {
 	);
 }
 
-/** Caret stops the net skips, per offset rather than per fixture (#117): the span of a construct
- *  that paints NOTHING, which `[](url)` re-parses away under a byte anywhere in it. */
+/** Caret stops this property skips, per offset rather than per fixture: the span of a construct
+ *  that paints nothing, which `[](url)` re-parses away under a byte anywhere in it. */
 function excludedIntervals(display: string): [number, number][] {
 	const intervals: [number, number][] = [];
 	for (const node of parseInline(display, 0, display.length)) {
@@ -86,9 +75,8 @@ function excludedIntervals(display: string): [number, number][] {
 	return intervals;
 }
 
-/** Whether `after` is `before` with one `Z` spliced in and nothing else moved — the net's own
- *  version of the seat's claim, asked of the PAINTER rather than of the `renderedText` reading the
- *  seat verifies with, since an oracle sharing that check echoes the seam instead of contesting it. */
+/** Whether `after` is `before` with one `Z` spliced in, asked of the renderer: reusing the
+ *  `renderedText` check the code under test uses would echo it instead of testing it. */
 function splicesTyped(before: string, after: string): boolean {
 	if (after.length !== before.length + 1) return false;
 	let at = 0;
@@ -96,18 +84,22 @@ function splicesTyped(before: string, after: string): boolean {
 	return after[at] === 'Z' && after.slice(at + 1) === before.slice(at);
 }
 
-/** The offset a seat could have taken that keeps the screen, or undefined where the caret's whole
- *  screen position rebinds — `seam` against `ambiguous`. The reach is the seat's own, so a red
- *  never names an offset the seat is structurally unable to reach. */
+/** An offset the caret placement can reach that keeps the screen (`seam`), or undefined where
+ *  every reachable one rebinds it (`ambiguous`). */
 function rescueOffset(display: string, caret: number): number | undefined {
 	const painted = paintedText(display);
-	return seatOffsetsAt(caret, parseInline(display, 0, display.length), display, LIVE).find(
-		(offset) =>
-			splicesTyped(painted, paintedText(display.slice(0, offset) + 'Z' + display.slice(offset)))
+	return seatOffsetsAt(
+		caret,
+		parseInline(display, 0, display.length),
+		display,
+		LIVE,
+		defaultGrammarView
+	).find((offset) =>
+		splicesTyped(painted, paintedText(display.slice(0, offset) + 'Z' + display.slice(offset)))
 	);
 }
 
-/** What the seat writes: the byte at the offset it answers, or at the caret when it declines. */
+/** What gets written: the byte at the offset chosen, or at the caret when the choice declines. */
 function typeThroughSeat(
 	display: string,
 	caret: number,
@@ -119,19 +111,20 @@ function typeThroughSeat(
 		affinity,
 		display,
 		LIVE,
-		'Z'
+		'Z',
+		fixtureReading()
 	);
 	const at = seat?.offset ?? caret;
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };
 }
 
-describe('the typing seat over generated inline fixtures', () => {
-	// Relocating is the rare answer, so a run that never relocated proves nothing about the seat.
+describe('the typing caret position over generated inline fixtures', () => {
+	// Moving the byte is the rare answer, so a run that never moved one proves nothing here.
 	let relocated = 0;
 	let declined = 0;
 	let ambiguous = 0;
 
-	it('a typed letter never puts a delimiter on screen the seat could have kept hidden', () => {
+	it('a typed letter never puts a delimiter on screen the caret position could have kept hidden', () => {
 		fc.assert(
 			fc.property(
 				arbInlineSource,
@@ -157,7 +150,7 @@ describe('the typing seat over generated inline fixtures', () => {
 					}
 					throw new Error(
 						`${JSON.stringify(display)} @${caret} (${affinity}) → ${JSON.stringify(after)}: ` +
-							`${before} delimiters on screen became ${now}, and a seat at ${rescue} keeps them hidden`
+							`${before} delimiters on screen became ${now}, and a caret at ${rescue} keeps them hidden`
 					);
 				}
 			),
@@ -170,33 +163,35 @@ describe('the typing seat over generated inline fixtures', () => {
 		expect(declined).toBeGreaterThan(0);
 	});
 
-	// Zero on the fixed lane, and a ceiling rather than a floor: the shape turns up about once in
-	// fifteen thousand draws, so one HERE is the seat's REACH having shrunk — a candidate it can no
-	// longer see reads as markdown's fault. A fresh-seed fire is a find to look at, that lane's job.
-	it('no draw rebinds under every offset the seat can reach', () => {
-		expect(ambiguous).toBe(0);
-	});
+	// Zero on the fixed seed, as a ceiling: the shape turns up about once in fifteen thousand draws,
+	// so a hit here means the search range shrank. A fresh seed can draw it, pinned below.
+	it.runIf(PARAMS.seed === FIXED_SEED)(
+		'no draw rebinds under every offset the caret can reach',
+		() => {
+			expect(ambiguous).toBe(0);
+		}
+	);
 });
 
-// #116's class, classified rather than excluded by input shape. Every shared-asterisk-run spelling
-// the issue named HAS an answer now that the seat reaches the whole screen position rather than one
-// run; where every offset that position names rebinds, the byte-literal write stands (§ 4.4) and
-// the net reports which of the two it found instead of skipping the shape.
-// Miss-analysis: the net excluded the class by an INPUT REGEX against an open issue, so no test
-// here could see it until the exclusion became a classification.
+// Shared asterisk runs are classified as `seam` or `ambiguous`, never skipped.
+// Miss-analysis: a regex on the input excluded the class, so no test here could see it.
 describe('a surfaced delimiter is classified, never excluded', () => {
-	// The residue is not a shared run: this emphasis encloses a BARE autolink, and the trailing
-	// `**a**` offers the parse a second pairing — the opener's outside offset re-flanks into it
-	// while its inside offset kills the URL.
+	// Not a shared run: the trailing `**a**` offers a second pairing, so the opener's outside offset
+	// re-flanks into it while its inside offset kills the bare autolink's URL.
 	it('reports a screen position that rebinds under every offset as markdown’s own', () => {
 		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
 		// The downstream run is what discriminates: the same opener alone still has an answer.
 		expect(rescueOffset('*www.example.com*', 0)).toBe(0);
 	});
 
-	// What the classification may not swallow: a shared run the seat CAN answer is still a claim,
-	// and the answer lies in the neighbouring run rather than in this construct's own.
-	it('still claims a shared run the seat can seat', () => {
+	// Miss-analysis: #590, the ceiling above holds on the fixed seed only; 2275518750 drew this.
+	it('the fresh-seed draw is the same shape: a downstream run offers another pairing', () => {
+		expect(rescueOffset('*www.example.com*&bar**lorem**', 0)).toBeUndefined();
+	});
+
+	// What the classification may not swallow: a shared run the code can answer is still an answer,
+	// and it lies in the neighbouring run rather than in this construct's own.
+	it('still claims a shared run the caret can sit in', () => {
 		expect(rescueOffset('**a *b** c*', 0)).toBe(2);
 		expect(typeThroughSeat('**a *b** c*', 0, 'near').after).toBe('**Za *b** c*');
 	});

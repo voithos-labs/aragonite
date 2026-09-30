@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list Backspace — U1 unwrap on first item', () => {
+test.describe('list Backspace: U1 unwrap on first item', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -78,7 +78,7 @@ test.describe('list Backspace — U1 unwrap on first item', () => {
 		expect(source).toMatch(/^2\. Third/m);
 	});
 
-	// Google Docs semantics: post-blank item promotes to paragraph, remaining items continue the sequence (no Obsidian restart).
+	// A post-blank item promotes to a paragraph and the remaining items continue the numbering.
 	test('ordered: Backspace on post-blank item promotes to paragraph and continues numbering', async () => {
 		await editor.loadContent('1. one\n2. two\n\n3. three\n4. four\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });

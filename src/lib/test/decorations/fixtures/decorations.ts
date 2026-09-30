@@ -1,5 +1,5 @@
-/** Decoration literals for the engine suites. `stubWidget`'s DOM is never built: only the
- *  render path mounts a widget, and the engine routes islands by type and path alone. */
+/** Decoration objects for these suites. `stubWidget`'s DOM is never built: only the render
+ *  path mounts a widget, and the code here routes them by type and path alone. */
 
 import type { Decoration, DecorationWidgetSpec } from '$lib/decorations/types';
 

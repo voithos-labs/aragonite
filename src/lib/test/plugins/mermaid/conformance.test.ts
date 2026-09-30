@@ -1,7 +1,4 @@
-// Miss-analysis: the kit's terminator cell reached only the two containers whose bodies are real
-// children, and its declaration probe asserted a body child outright — so the one shipped shape it
-// could not admit (childless, body in metadata) was also the one shape with no other home for the
-// collision class, and the reference plugin container went unenrolled.
+// Miss-analysis: no kit cell reached a childless container whose body lives in metadata.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	augmentBlockKind,
@@ -9,11 +6,7 @@ import {
 	setPluginMetadata,
 	getPluginMetadata
 } from '$lib/plugin';
-import {
-	resetPluginPlatformForTests,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '$lib/testing';
+import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
 import {
 	registerMermaidKind,
 	MERMAID,
@@ -45,9 +38,8 @@ const mermaidProfile: ContainerConformanceProfile = {
 	terminatorCollision: { mode: 'assert' }
 };
 
-describe('G4.3 conformance kit — the childless opaque container', () => {
+describe('G4.3 conformance kit: the childless opaque container', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 
@@ -61,9 +53,9 @@ describe('G4.3 conformance kit — the childless opaque container', () => {
 		]);
 	});
 
-	// Non-vacuity: the cell has to see THIS container's collision, not merely pass over a write
+	// Non-vacuity: the cell has to see this container's collision, not simply pass over a write
 	// that never reached its bytes.
-	it('fails the terminator cell when the fixture seats the body nowhere', async () => {
+	it('fails the terminator cell when the fixture puts the caret at the body nowhere', async () => {
 		await expect(
 			runContainerConformance(MERMAID_KIND(), {
 				...mermaidProfile,
@@ -75,8 +67,8 @@ describe('G4.3 conformance kit — the childless opaque container', () => {
 		).rejects.toThrow(/the fixture body reached "mermaid"'s own bytes/);
 	});
 
-	// The hole the enrolment found: the declaration probe demanded a body child, so this shape
-	// could never reach `declarations` at all, whatever else its profile claimed.
+	// The declaration check reads a childless container's declarations too, rather than
+	// rejecting it for having no body child.
 	it('fails declaration sanity when a childless container declares a body wrap', async () => {
 		augmentBlockKind(MERMAID_KIND(), { container: { bodyWrap: { afterOpenerLine: true } } });
 

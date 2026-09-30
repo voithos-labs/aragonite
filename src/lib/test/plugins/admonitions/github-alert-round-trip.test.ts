@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { rebuildGithubAlertRaw } from '$lib/plugins/admonitions/github-alert-kind';
@@ -6,13 +6,13 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 
 // Load is byte-exact off the stored raw; a post-edit rebuild re-emits the marker
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses
-// to the same kind — the strip-container contract with a first-line marker.
+// to the same kind: the strip-container contract with a first-line marker.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-describe('github alert — byte round-trip on load', () => {
+describe('github alert: byte round-trip on load', () => {
 	roundTripCases([
 		'> [!NOTE]\n> Body.\n',
 		'> [!TIP]\n> One.\n>\n> Two.\n',
@@ -24,7 +24,7 @@ describe('github alert — byte round-trip on load', () => {
 	]);
 });
 
-describe('github alert — rebuild after an inner edit', () => {
+describe('github alert: rebuild after an inner edit', () => {
 	const edit = (source: string, newBody: string) => {
 		const node = parse(source).children[0];
 		node.children![0].raw = newBody;

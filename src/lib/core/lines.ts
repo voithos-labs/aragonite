@@ -1,4 +1,50 @@
-/** Line splitting preserving endings and offsets, plus the trailing-line-ending helpers. */
+/**
+ * Line splitting that keeps each line's ending and offsets, and the line-ending rule: a line the
+ * editor writes takes the document's ending ({@link documentLineEnding}), and per-line work reads
+ * each line's text without its ending ({@link displayLines}). Also GFM's whitespace, the one
+ * reading of blank and trimmed text for the parser and the editing code alike.
+ */
+
+import type { DocumentView } from './node-views';
+
+export type LineEnding = '\n' | '\r\n';
+
+// ── Markdown whitespace ──────────────────────────────────────────────────────
+
+/** GFM §2.1: a blank line holds only spaces and tabs; a non-breaking space is content. */
+const NON_BLANK_CHAR = /[^ \t]/;
+
+export function isBlankLine(text: string): boolean {
+	return !NON_BLANK_CHAR.test(text);
+}
+
+const BLANK_TEXT = /^(?:[ \t]|\r?\n)*$/;
+
+/** Whether `text` is blank lines only: spaces, tabs and line endings. The emptiness test for any
+ *  block's text, never `String.trim()`, which also drops a non-breaking space. */
+export function isBlankText(text: string): boolean {
+	return BLANK_TEXT.test(text);
+}
+
+/** A line ending a pattern admits at the end of a line's text: the document's last line can end
+ *  in a lone `\r`, which the line splitter leaves in the text, and a plugin may pass an ending. */
+export const OPTIONAL_LINE_ENDING = '(?:\\r\\n?|\\n)?';
+
+/** GFM §2.1's whitespace character: space, tab, LF, VT, FF, CR. Narrower than JS `\s`. */
+export const WHITESPACE_CHARS = ' \\t\\n\\v\\f\\r';
+export const WHITESPACE_CLASS = `[${WHITESPACE_CHARS}]`;
+export const WHITESPACE_RUN = new RegExp(`${WHITESPACE_CLASS}+`);
+const WHITESPACE_CHAR = new RegExp(`^${WHITESPACE_CLASS}$`);
+const EDGE_WHITESPACE = new RegExp(`^${WHITESPACE_CLASS}+|${WHITESPACE_CLASS}+$`, 'g');
+
+export function isWhitespaceChar(ch: string | undefined): boolean {
+	return ch !== undefined && WHITESPACE_CHAR.test(ch);
+}
+
+/** `text` without GFM whitespace at either end: what the spec means by "trimmed". */
+export function trimWhitespace(text: string): string {
+	return text.replace(EDGE_WHITESPACE, '');
+}
 
 /** Length of `raw` excluding any trailing line ending (LF or CRLF). */
 export function displayLength(raw: string): number {
@@ -11,49 +57,107 @@ export function trimTrailingLineEnding(raw: string): string {
 	return raw.slice(0, displayLength(raw));
 }
 
+/** The ending `raw` actually carries, empty when it has none: {@link trimTrailingLineEnding}'s
+ *  complement, for code reattaching a block's own bytes. */
+export function ownTrailingLineEnding(raw: string): '' | LineEnding {
+	return raw.slice(displayLength(raw)) as '' | LineEnding;
+}
+
+// ── The document's line ending ───────────────────────────────────────────────
+
 /**
- * The ending `raw` actually carries — {@link trimTrailingLineEnding}'s complement, the two
- * partitioning `raw`. What {@link trailingLineEnding} answers instead is which ending the
- * DOCUMENT uses, so a site reattaching a block's own bytes reads this one (G4.20).
+ * The ending every line the editor writes into `doc` takes: the document's first line break, else
+ * LF. Read afresh on each call, which scans only up to that first break.
  */
-export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
-	return raw.slice(displayLength(raw)) as '' | '\n' | '\r\n';
+export function documentLineEnding(doc: DocumentView): LineEnding {
+	return firstDocumentBreak(doc) ?? '\n';
+}
+
+function firstDocumentBreak(doc: DocumentView): LineEnding | null {
+	let before = '';
+	for (const chunk of documentChunks(doc)) {
+		const at = chunk.indexOf('\n');
+		if (at >= 0) return (at > 0 ? chunk[at - 1] : before) === '\r' ? '\r\n' : '\n';
+		if (chunk !== '') before = chunk[chunk.length - 1];
+	}
+	return null;
+}
+
+function* documentChunks(doc: DocumentView): Generator<string> {
+	yield doc.prefix;
+	for (const child of doc.children) {
+		yield child.leadingTrivia ?? '';
+		yield child.raw;
+	}
+	yield doc.suffix;
+}
+
+/** The first line break in `text`, or null when it holds none. In a document with one ending,
+ *  any break in a block's own bytes is the document's. */
+export function firstLineEnding(text: string): LineEnding | null {
+	const at = text.indexOf('\n');
+	if (at < 0) return null;
+	return text[at - 1] === '\r' ? '\r\n' : '\n';
+}
+
+/** The ending `raw` closes with, else `fallback`, usually the document's ending: a block with no
+ *  ending of its own is the document's last line. */
+export function trailingLineEnding(raw: string, fallback: LineEnding): LineEnding {
+	return ownTrailingLineEnding(raw) || fallback;
+}
+
+/** `text` closed with `ending` when its last line is open: a slice cut from a block would
+ *  otherwise run into whatever follows it once the bytes stand alone. */
+export function terminateLine(text: string, ending: LineEnding): string {
+	return text.endsWith('\n') ? text : text + ending;
+}
+
+/** Whether the last line of `text` holds only spaces and tabs, its ending aside. */
+export function endsInBlankLine(text: string): boolean {
+	const body = trimTrailingLineEnding(text);
+	return isBlankLine(body.slice(body.lastIndexOf('\n') + 1));
+}
+
+// ── Scalars ──────────────────────────────────────────────────────────────────
+
+/** The first half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */
+export function isHighSurrogate(unit: number): boolean {
+	return unit >= 0xd800 && unit <= 0xdbff;
+}
+
+/** The second half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */
+export function isLowSurrogate(unit: number): boolean {
+	return unit >= 0xdc00 && unit <= 0xdfff;
 }
 
 /**
- * `offset` moved off the interior of a surrogate pair, back to the pair's own start. Caret
- * offsets are UTF-16 code units, so a cut at one can halve an astral scalar and leave a lone
- * surrogate — bytes no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no inverse
- * gesture restores. Scalars only: a grapheme cluster is a rendering question, and answering it
- * here would move a caret the author placed between two legitimately separate scalars.
+ * `offset` moved off the interior of a surrogate pair, back to the pair's start: a cut there
+ * leaves a lone surrogate, which no UTF-8 encoder round-trips. Code points only, not graphemes.
  */
 export function snapToScalarBoundary(raw: string, offset: number): number {
 	if (offset <= 0 || offset >= raw.length) return offset;
 	const splitsPair =
-		(raw.charCodeAt(offset - 1) & 0xfc00) === 0xd800 &&
-		(raw.charCodeAt(offset) & 0xfc00) === 0xdc00;
+		isHighSurrogate(raw.charCodeAt(offset - 1)) && isLowSurrogate(raw.charCodeAt(offset));
 	return splitsPair ? offset - 1 : offset;
 }
 
-/**
- * The block's authored trailing line ending. Every site that reattaches or mints one reads it
- * here (G4.20), so a CRLF-authored block keeps its ending and an unterminated one gets `\n`.
- */
-export function trailingLineEnding(raw: string): '\n' | '\r\n' {
-	return raw.endsWith('\r\n') ? '\r\n' : '\n';
-}
+// ── Splitting ────────────────────────────────────────────────────────────────
 
-/**
- * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending (G4.20). A slice
- * whose last line stays open swallows whatever follows it once the bytes stand alone.
- */
-export function terminateLine(text: string, sourceRaw: string): string {
-	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
-}
-
-/** Paste entry points funnel through here so Windows CRLF does not leak into a note. */
+/** Every paste entry point goes through here, so the paste rules read LF whatever the clipboard
+ *  held; the paste writes the document's own ending back. */
 export function normalizeLineEndings(text: string): string {
 	return text.replace(/\r\n/g, '\n');
+}
+
+/** `text` with every line break written as `ending`: how LF text joins a document's own lines. */
+export function withLineEnding(text: string, ending: LineEnding): string {
+	return text.replace(/\r?\n/g, ending);
+}
+
+/** The line break starting at `offset` in `text`, empty when none starts there. */
+export function lineEndingAt(text: string, offset: number): '' | LineEnding {
+	if (text[offset] === '\n') return '\n';
+	return text.startsWith('\r\n', offset) ? '\r\n' : '';
 }
 
 export interface ParsedLine {
@@ -86,11 +190,64 @@ export function splitLines(source: string): ParsedLine[] {
 	return lines;
 }
 
-/**
- * Re-mint a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
- * a prefix-stripped body. Recompute, not spread: reusing an input line's offsets after shortening
- * its text desyncs the offsets from the bytes.
- */
+export interface DisplayLine {
+	text: string;
+	ending: '' | LineEnding;
+}
+
+/** A block's display as lines, each apart from its ending. A display always has a last line, empty
+ *  after a final break, and {@link joinDisplayLines} puts the bytes back exactly. */
+export function displayLines(display: string): DisplayLine[] {
+	const lines: DisplayLine[] = splitLines(display).map((line) => ({
+		text: line.text,
+		ending: line.lineEnding as '' | LineEnding
+	}));
+	if (display === '' || display.endsWith('\n')) lines.push({ text: '', ending: '' });
+	return lines;
+}
+
+/** {@link displayLines}' first line, read without splitting the rest of `text`. */
+export function firstDisplayLine(text: string): DisplayLine {
+	const at = text.indexOf('\n');
+	return displayLines(at < 0 ? text : text.slice(0, at + 1))[0];
+}
+
+export function joinDisplayLines(lines: readonly DisplayLine[]): string {
+	return lines.map((line) => line.text + line.ending).join('');
+}
+
+// ── Indentation ──────────────────────────────────────────────────────────────
+
+/** Columns of leading indentation, a tab advancing to the next multiple of four (GFM §2.2). */
+export function indentColumns(text: string): number {
+	let col = 0;
+	for (const char of text) {
+		if (char === ' ') col++;
+		else if (char === '\t') col += 4 - (col % 4);
+		else break;
+	}
+	return col;
+}
+
+/** `text` with up to `columns` columns of indentation removed. A tab the cut splits is written as
+ *  the spaces it spans, since every later reparse reads the child's raw from column zero. */
+export function stripIndentColumns(text: string, columns: number): string {
+	const leadLength = text.length - text.replace(/^[ \t]+/, '').length;
+	let col = 0;
+	let cut = 0;
+	while (cut < leadLength) {
+		const width = text[cut] === '\t' ? 4 - (col % 4) : 1;
+		if (col + width > columns) break;
+		col += width;
+		cut++;
+	}
+	const straddles = cut < leadLength && col < columns;
+	const tabShifts = columns % 4 !== 0 && text.slice(cut, leadLength).includes('\t');
+	if (!straddles && !tabShifts) return text.slice(cut);
+	return ' '.repeat(indentColumns(text) - columns) + text.slice(leadLength);
+}
+
+/** A `ParsedLine[]` rebuilt after a per-line strip, offsets recomputed from the stripped bytes. */
 export function remapStrippedLines(
 	lines: ParsedLine[],
 	stripLine: (line: ParsedLine, index: number) => string

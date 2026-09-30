@@ -1,30 +1,27 @@
 /**
- * The caret a `[prefix?, ...pasted, residue?]` replacement lands, on both sides of the splice
- * settle: which node the door aims at, the position the settle's folds carry for it, and the
- * offset that position is landable at.
+ * The caret a `[prefix?, ...pasted, residue?]` replacement lands, on both sides of the separator
+ * fix-up: which node the paste aims at, the position the fix-up's merges keep updated for it,
+ * and the leaf and offset the caret can actually sit at there.
  */
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import type { TrackedPosition } from '../settle';
+import { leafAtRawOffset, type LeafPosition } from '../container-offsets';
 
 /**
- * Focus index for the replacement: the last PASTED node. Single-sourced so every structural
- * route skips the reattached residue identically. Applies only where the residue is a SEPARATE
- * node; a route that reattaches it inside the last pasted leaf lands at a char offset in a
- * different coordinate space.
+ * The last pasted node's index, shared so every structural route skips a residue node the same
+ * way; a residue reattached inside the last pasted leaf is not a node and isn't counted.
  */
 export function focusIndexBeforeResidue(replacementLength: number, hasResidue: boolean): number {
 	return hasResidue && replacementLength >= 2 ? replacementLength - 2 : replacementLength - 1;
 }
 
 /**
- * The position the splice settle must carry: the end of the pasted bytes, in the scope's slots.
- * `CURSOR_END` resolves to the node's own display end here — a sentinel handed to the tracker
- * would clamp to whatever the fold reattached behind it, which is the bug it exists to prevent.
+ * The end of the pasted bytes, for the fix-up's merges to keep updated. `CURSOR_END` resolves to
+ * the node's display end here, or the tracker would clamp it past whatever a merge reattached.
  */
 export function trackedPasteCaret(
 	replacement: readonly CstNode[],
@@ -40,16 +37,14 @@ export function trackedPasteCaret(
 }
 
 /**
- * The offset {@link trackedPasteCaret}'s settled position is landable at. Only a known leaf spends
- * the tracked byte: a container walks any numeric offset to its last child, so its raw offsets
- * address no caret seat. Anything the caller named itself stands as given.
+ * The leaf and offset holding the tracked byte inside the landed block. An offset the caller named
+ * stands as given, and a block whose bytes map to no leaf (a table) takes the caret at its end.
  */
-export function landedPasteOffset(
+export function landedPastePosition(
 	landed: NodeView | undefined,
 	tracked: TrackedPosition,
 	focusOffset: number
-): number {
-	if (focusOffset !== CURSOR_END) return focusOffset;
-	const leaf = landed && tryGetBlockKindDescriptor(landed.kind)?.isContainer === false;
-	return leaf ? tracked.offset : CURSOR_END;
+): LeafPosition {
+	if (focusOffset !== CURSOR_END) return { path: [], offset: focusOffset };
+	return (landed && leafAtRawOffset(landed, tracked.offset)) ?? { path: [], offset: CURSOR_END };
 }

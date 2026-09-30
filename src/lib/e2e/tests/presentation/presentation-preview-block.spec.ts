@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Block-granular live preview: every block hides its markers except the focused one,
 // CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
@@ -24,7 +24,7 @@ async function togglePreview(page: Page): Promise<void> {
 	await page.getByTestId('preview-block-toggle').click();
 }
 
-test.describe('preview-block — markers by focus', () => {
+test.describe('preview-block: markers by focus', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -46,7 +46,7 @@ test.describe('preview-block — markers by focus', () => {
 		const headingMarker = ep.getBlock(0).locator('.md-marker').first();
 		const paraMarker = ep.getBlock(1).locator('.md-marker').first();
 
-		// Nothing focused yet — every block is rendered.
+		// Nothing focused yet, so every block is rendered.
 		await expect(headingMarker).toBeHidden();
 		await expect(paraMarker).toBeHidden();
 
@@ -59,7 +59,7 @@ test.describe('preview-block — markers by focus', () => {
 		await expect(paraMarker).toBeHidden();
 	});
 
-	test('markers are hidden, never omitted — the byte stays in the DOM', async () => {
+	test('markers are hidden, never omitted: the byte stays in the DOM', async () => {
 		expect(await ep.getBlockText(0)).toBe('# Heading one');
 		expect(await ep.getBlockText(1)).toBe('alpha **beta** gamma');
 	});
@@ -88,17 +88,17 @@ test.describe('preview-block — markers by focus', () => {
 		// Focus the first item's paragraph.
 		await ep.clickBlockAtPath([3, 0, 0], 0);
 		await expect(firstAmbient).toBeVisible(); // its `- ` reads as source
-		await expect(secondAmbient).toBeHidden(); // sibling keeps rendered bullet chrome
+		await expect(secondAmbient).toBeHidden(); // the sibling keeps its rendered bullet
 
-		// The focused item's rendered bullet is suppressed (no doubled `- •`); the
-		// sibling still paints one — guards the ::before source-order tie.
+		// The focused item's rendered bullet is suppressed, so there is no doubled `- •`, while
+		// the sibling still paints one; this guards the order the two `::before` rules resolve in.
 		const before = (el: Element) => getComputedStyle(el, '::before').content;
 		expect(await firstAmbient.evaluate(before)).not.toContain('•');
 		expect(await secondAmbient.evaluate(before)).toContain('•');
 	});
 });
 
-test.describe('preview-block — caret + traversal', () => {
+test.describe('preview-block: caret + traversal', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -112,15 +112,14 @@ test.describe('preview-block — caret + traversal', () => {
 		page
 	}) => {
 		// "alpha **beta** gamma": click mid-"beta" while the block is rendered.
-		const point = await centerOfWord(page, 'beta');
+		const point = await textRunCenter(page, 'beta');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 
 		const sel = await ep.bridge.getSelectionPaths();
 		expect(sel?.focus.path).toEqual([1]);
-		// "beta" is raw 8..12; the hidden `**` (raw 6..8) is counted, so the caret
-		// sits inside the content — not shifted onto/before the marker (that would
-		// read ~8 as a visible-only offset). Markers now reveal for the focused block.
+		// "beta" is raw 8..12 and the hidden `**` (raw 6..8) is counted, so the caret sits inside the
+		// content, not at ~8 as an offset over visible text alone would read.
 		expect(sel?.focus.offset).toBeGreaterThanOrEqual(8);
 		expect(sel?.focus.offset).toBeLessThanOrEqual(12);
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

@@ -1,22 +1,18 @@
-import { type SimContext } from '../invariants';
+import { type SimContext, actThenResync } from '../invariants';
 
-// Table gestures. RESYNC rather than predict: table construction auto-pads every cell to
-// canonical padding and a typed cell edit lands mid-source between pipes, so neither is the
-// end-of-document append the tracker predicts.
-//
-// A live table renders an interactive `.table-block` only after a LOAD — typed pipe syntax
-// stays a paragraph and never exposes `[role="cell"]` — so sessions must start from one.
+// Table gestures resync rather than predict: building a table pads every cell, and a cell edit
+// lands mid-source, neither being the append the expected answer predicts. Typed pipe syntax stays
+// a paragraph, so a session must start from a loaded document with a table.
 
-const CELL = '[role="cell"]';
+const CELL = '.table-cell';
 
-/** Click the cell at `cellIndex` (row-major over the rendered grid). */
+/** Click the cell at `cellIndex`, counted across the rendered grid row by row. */
 async function clickCell(ctx: SimContext, cellIndex: number): Promise<void> {
 	await ctx.page.locator(CELL).nth(cellIndex).click();
 }
 
 /**
- * The edit lands between pipes, so it cannot be predicted as an end-of-document append.
- * Presses End first so the text appends to existing cell content rather than splitting it.
+ * End first, so the text goes after the cell's content instead of splitting it.
  */
 export async function editCell(ctx: SimContext, cellIndex: number, text: string): Promise<void> {
 	await clickCell(ctx, cellIndex);
@@ -25,8 +21,8 @@ export async function editCell(ctx: SimContext, cellIndex: number, text: string)
 }
 
 /**
- * Touches EVERY row — the richest stale-`$state` / per-row-scope stress the table offers — so
- * the oracles see a keyed-container move across all rows at once.
+ * Touches every row, which is the hardest test of per-row state the table offers, so the checks
+ * see a keyed container change across all rows at once.
  */
 export async function insertColumnRight(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
@@ -49,17 +45,4 @@ export async function insertRowBelow(ctx: SimContext, cellIndex: number): Promis
 export async function deleteRow(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
 	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Shift+Backspace'));
-}
-
-/**
- * The "source differs" predicate is op-agnostic and needs no computed target. A no-op (delete
- * at the 1-row/1-column floor) leaves the source unchanged, so the settle times out and the
- * gesture fails loudly rather than recording a stale state as truth.
- */
-async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await act();
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
-	await ctx.editor.waitForRenderFlush();
-	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }

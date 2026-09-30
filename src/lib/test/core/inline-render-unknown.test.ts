@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import type { InlineNode } from '$lib/core/nodes';
+import { renderOptions } from '../harness/fixture-grammar';
 
 describe('unknown inline kind render', () => {
 	it('renders an unregistered kind as a raw-source span; textContent === raw slice', () => {
@@ -13,7 +14,8 @@ describe('unknown inline kind render', () => {
 				node,
 				{ kind: 'text', start: 5, end: 7, text: ' b' }
 			],
-			raw
+			raw,
+			renderOptions()
 		);
 		const host = document.createElement('div');
 		host.appendChild(frag);

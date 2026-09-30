@@ -10,15 +10,12 @@ import { serialize } from '$lib/core/serializer';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
-// A range delete leaves its survivor beside an absorbing neighbour ABOVE the selection, so the
-// settle folds a seam outside the selected endpoints — a fold the id ledger the commit composes
-// its structural descriptor from must observe too.
-// Miss-analysis: every cross-block delete pin asserted the scope's own children and bytes, and the
-// descriptor's own pins called `computeScopeDescriptor` with hand-written lengths, so no case ever
-// compared the published id array against the children a settle-folded delete actually left.
+// A survivor absorbed by the neighbour above merges blocks outside the range; the ids must follow.
+// Miss-analysis: no cross-block delete case compared the state's id array with the children left.
 
-/** A list above indented prose: their adjacent bytes re-read as one list, and the fold cascades. */
+/** A list above indented text: their adjacent bytes re-read as one list, and the merge cascades. */
 const ABSORBING_NEIGHBOUR = '- a\n\nAB\n\n  cd\n\n  ef\n';
 
 function makeEnv(source: string) {
@@ -29,23 +26,20 @@ function makeEnv(source: string) {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: harness.deps.revealPath,
+		revealPath: (path) => harness.deps.caretLanding.mount(path),
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	};
 	return { ...harness, controller, mutCtx };
 }
 
-describe('a cross-block delete whose settle folds a seam above the selection', () => {
+describe('a cross-block delete whose settle folds a join above the selection', () => {
 	it('publishes one doc id per surviving block, and the absorber keeps its own', async () => {
 		const env = makeEnv(ABSORBING_NEIGHBOUR);
 		const listId = env.getBlockIds()[0];
 		env.deps.selectionState.enterCrossBlock({ path: [1], offset: 0 }, { path: [2], offset: 0 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('- a\n\n  cd\n\n  ef\n');
 		expect(env.deps.doc.children.map((c) => c.kind)).toEqual(['list']);
@@ -63,15 +57,15 @@ describe('a cross-block delete whose settle folds a seam above the selection', (
 			{ path: [0, 2], offset: 0 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('> - a\n>\n>   cd\n>\n>   ef\n');
 		expect(env.deps.doc.children[0].children!.map((c) => c.kind)).toEqual(['list']);
 		expect(state.innerBlockIds).toEqual([listId]);
 	});
 
-	// The doc root keeps no id array of its own, so its ledger is BORROWED. One left behind would
-	// be maintained forever by the next top-level splice, against ids nothing reconciles.
+	// The document root keeps no id array of its own, so its id tracker is borrowed. One left
+	// behind would be maintained forever by the next top-level splice, against ids nothing reconciles.
 	it('gives the document root’s borrowed ledger back', async () => {
 		const env = makeEnv('lead\n\n> quoted\n\ntail\n');
 		const quote = env.deps.doc.children[1];
@@ -81,7 +75,7 @@ describe('a cross-block delete whose settle folds a seam above the selection', (
 		);
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 4 }, { path: [1, 0], offset: 6 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(env.getBlockIds()).toHaveLength(env.deps.doc.children.length);
 		expect(env.deps.doc.childIds).toBeUndefined();
@@ -92,7 +86,7 @@ describe('a cross-block delete whose settle folds a seam above the selection', (
 		const [firstId, , thirdId] = env.getBlockIds();
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 1 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('owo\n\nthree\n');
 		expect(env.getBlockIds()).toEqual([firstId, thirdId]);

@@ -1,26 +1,34 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import {
+	makeNestedHarness,
+	makeTopHarness,
+	registerStubBlockListState
+} from '$lib/test/harness/editor-actions';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { EditEvent } from '$lib/editor-events';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
 
-// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
-// them as stale.
+// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
+// reads them as stale.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
-// The one primitive both the image popover and the link card write through: splice bytes over a
-// raw range in the leaf at `path`, as ONE undo entry, at any depth.
+// The one primitive both the image popover and the link card write through: splice bytes over
+// a raw range in the leaf at `path`, as one undo entry, at any depth.
 
 function makeTop(source: string) {
 	const harness = makeTopHarness(source);
 	return {
 		...harness,
-		commit: createInlineRangeCommit({ getDoc: () => harness.doc, controller: harness.controller })
+		commit: createInlineRangeCommit({ deps: harness.deps, controller: harness.controller })
 	};
 }
 
-describe('inline-range commit — top level', () => {
+describe('inline-range commit: top level', () => {
 	it('splices the bytes over the range and leaves the rest of the raw alone', async () => {
 		const h = makeTop('Visit [x](old) now\n');
 		await h.commit.commitInlineRange([0], 6, 14, '[x](new)', 6);
@@ -65,10 +73,10 @@ describe('inline-range commit — top level', () => {
 	});
 });
 
-describe('inline-range commit — nested', () => {
-	it('writes through the container ceremony at a nested path', async () => {
+describe('inline-range commit: nested', () => {
+	it('writes through the container commit sequence at a nested path', async () => {
 		const h = makeNestedHarness('- Visit [x](old) now\n');
-		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		const commit = createInlineRangeCommit({ deps: h.deps, controller: h.controller });
 		const item = h.getNode().children![0];
 		const at = item.raw.indexOf('[x](old)');
 
@@ -79,7 +87,7 @@ describe('inline-range commit — nested', () => {
 
 	it('emits one updateContent edit at the nested leaf path', async () => {
 		const h = makeNestedHarness('- Visit [x](old) now\n');
-		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		const commit = createInlineRangeCommit({ deps: h.deps, controller: h.controller });
 		const edits: EditEvent[] = [];
 		h.events.on('edit', (e) => edits.push(e));
 		const at = h.getNode().children![0].raw.indexOf('[x](old)');
@@ -88,5 +96,101 @@ describe('inline-range commit — nested', () => {
 
 		expect(edits).toHaveLength(1);
 		expect(edits[0]).toMatchObject({ op: 'updateContent', path: [0, 0] });
+	});
+});
+
+// Miss-analysis: every splice here wrote over existing bytes, never into a blank paragraph.
+describe('inline-range commit: a blank paragraph filled or emptied', () => {
+	/** What a reload of the saved bytes reads, next to what the tree holds. */
+	function reloadDiff(doc: { children: readonly { kind: string }[] }) {
+		const reloaded = parse(serialize(doc as never)).children.map((node) => node.kind);
+		return { live: doc.children.map((node) => node.kind), reloaded };
+	}
+
+	it('filling the blank line Enter made keeps a blank line on both sides of it', async () => {
+		const h = makeTop('Above\n\n\nBelow\n');
+		expect(h.doc.children.map((node) => node.raw.trim())).toEqual(['Above', '', 'Below']);
+		await h.commit.commitInlineRange([1], 0, 0, '/', 1);
+		expect(serialize(h.doc)).toBe('Above\n\n/\n\nBelow\n');
+		const { live, reloaded } = reloadDiff(h.doc);
+		expect(reloaded).toEqual(live);
+	});
+
+	it('emptying a line leaves the blank paragraph a reload reads back', async () => {
+		const h = makeTop('Above\n\n/quote\n\nBelow\n');
+		await h.commit.commitInlineRange([1], 0, 6, '', 0);
+		const { live, reloaded } = reloadDiff(h.doc);
+		expect(reloaded).toEqual(live);
+		expect(parse(serialize(h.doc)).children.map((node) => node.raw)).toEqual(
+			h.doc.children.map((node) => node.raw)
+		);
+	});
+
+	it('emptying a line inside a container does the same', async () => {
+		const h = makeNestedHarness('> Above\n>\n> /quote\n>\n> Below\n');
+		const commit = createInlineRangeCommit({ deps: h.deps, controller: h.controller });
+		await commit.commitInlineRange([0, 1], 0, 6, '', 0);
+		const quote = h.deps.doc.children[0];
+		const reloaded = parse(serialize(h.deps.doc)).children[0];
+		expect(reloaded.children?.map((node) => node.raw)).toEqual(
+			quote.children?.map((node) => node.raw)
+		);
+	});
+});
+
+// Miss-analysis: the menus and the card computed their caret from the bytes they asked for and
+// placed it themselves, and no test wrote bytes a leaf's own rule rewrites, then read the caret.
+describe('inline-range commit: the caret it lands', () => {
+	const TABLE = '| h1 | h2 |\n| --- | --- |\n| X | keep |\n';
+
+	it('lands after the bytes a table cell stores, the escaping backslash counted', async () => {
+		const h = makeTop(TABLE);
+		registerStubBlockListState(h.doc.children[0]);
+
+		await h.commit.commitInlineRange([0, 1, 0], 0, 1, 'a|b', 3, { landCaret: true });
+
+		expect(blockNodeAt(h.doc, [0, 1, 0])!.raw).toBe('a\\|b');
+		expect(h.landings).toMatchObject([{ leafPath: [0, 1, 0], offset: 'a\\|b'.length }]);
+	});
+
+	it('lands nothing without being asked, as an image popover needs', async () => {
+		const h = makeTop('Visit [x](old) now\n');
+		await h.commit.commitInlineRange([0], 6, 14, '[x](new)', 6);
+		expect(h.landings).toEqual([]);
+	});
+
+	// Miss-analysis: no test read the landing's reveal policy, and the held one pulled a slash
+	// pick's line to the viewport's top on the next height change.
+	it.each([
+		['a splice that writes', '[x](new)'],
+		['a splice that changes nothing', '[x](old)']
+	])('%s lands in view without holding the line there', async (_label, bytes) => {
+		const h = makeTop('Visit [x](old) now\n');
+		const land = vi.spyOn(h.deps.caretLanding, 'land');
+		await h.commit.commitInlineRange([0], 6, 14, bytes, 6, { landCaret: true });
+		expect(land.mock.calls.map(([, opts]) => opts?.reveal)).toEqual(['into-view']);
+	});
+});
+
+// Miss-analysis: every length check ran at the top level, where no container rewrites the bytes.
+describe('inline-range commit: the length it reports is the length it stores', () => {
+	beforeEach(() => {
+		registerDetailsKind();
+	});
+
+	it('counts the escape a details body gives a closing tag', async () => {
+		const h = makeTopHarness('<details>\n<summary>T</summary>\n\nbody\n\n</details>\n');
+		registerStubBlockListState(h.doc.children[0]);
+		const commit = createInlineRangeCommit({ deps: h.deps, controller: h.controller });
+		const path = [0, h.doc.children[0].children!.length - 1];
+		const before = blockNodeAt(h.doc, path)!.raw;
+		expect(before).toBe('body\n');
+
+		const delta = commit.writtenDelta(path, 0, 4, '</details>');
+		await commit.commitInlineRange(path, 0, 4, '</details>', 10);
+
+		const stored = blockNodeAt(h.doc, path)!.raw;
+		expect(stored).not.toBe('</details>\n');
+		expect(delta).toBe(stored.length - before.length);
 	});
 });

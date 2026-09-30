@@ -1,6 +1,6 @@
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -220,13 +220,21 @@ Ol;......................................;l'
 cNd.........................................;lOc
 `
 	];
-	// One strip the CSS scrolls a frame at a time. The closing newline is load-bearing: a `pre`
+	// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre`
 	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
 	const REEL = FRAMES.join('\n') + '\n';
 	// The clip window's height, which is why every frame has to be the same number of rows.
 	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
-	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
+	// The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
+	// source: `parrotCaretAtPoint` reads it off the element to map a press back to a byte.
+	function parrotCaption(raw: string): { text: string; start: number } {
+		const rest = raw.slice('%%parrot'.length);
+		const text = trimWhitespace(rest);
+		return { text, start: '%%parrot'.length + rest.indexOf(text) };
+	}
+
+	const caption = $derived(parrotCaption(node.raw));
 
 	export const editable = true;
 	export const focusable = true;
@@ -237,8 +245,8 @@ cNd.........................................;lOc
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
+	export const afterSourceCommit = leaf.afterSourceCommit;
 </script>
 
 <div
@@ -258,11 +266,12 @@ cNd.........................................;lOc
 	{:else}
 		<div
 			class="parrot-caption"
+			data-caption-start={caption.start}
 			role="button"
 			tabindex="-1"
 			aria-label="Party parrot caption (click to edit)"
 		>
-			{caption}
+			{caption.text}
 		</div>
 	{/if}
 </div>
@@ -282,7 +291,7 @@ cNd.........................................;lOc
 		overflow-x: auto;
 		overflow-y: hidden;
 		scrollbar-width: none;
-		/* chrome, not content: every frame is in the DOM and none of them belong in a copy */
+		/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
 		user-select: none;
 		animation: parrot-hue 0.49s step-end infinite;
 	}

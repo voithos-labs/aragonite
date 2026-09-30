@@ -8,39 +8,36 @@ import { CONTENT_EMPTY_ATTR, isHiddenMarkerText } from '../../cursor/widget-offs
 import type { PresentationMode } from '../../presentation-mode';
 import { arbRawString, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
+import { renderOptions } from '../harness/fixture-grammar';
 
-// Two models answer "which bytes does the reader see": the node-space oracle every live rewrite
-// verifies through, and the DOM walk every caret gate reads. Nothing compared them, so they could
-// only be found apart by a gesture. This is that comparison, over the same fragment.
+// The node-space rule every live rewrite verifies through and the DOM traversal every caret check
+// reads both answer "which bytes does the user see", so the two are compared over each fragment.
 
-// Miss-analysis: the oracle's own tests fed it nodes and read a string, and the walk's own tests
-// mounted spans and read offsets — neither suite ever put the two answers side by side, so a
-// container whose chrome PAINTS (the `[](u)` incident) had the oracle saying nothing was on screen
-// while the walk landed a caret on all five bytes, and both suites stayed green.
+// Miss-analysis: each side was tested on its own inputs, so no test compared the two answers.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(141141) } as const;
 
-/** The rungs the model claims exactly. The preview pair is here on an UNFOCUSED container, which
- *  is the shape it answers for: their reveal is per-span DOM state and stays with the walk. */
+/** The modes the node-space rule covers exactly. The preview pair counts on an unfocused container
+ *  only, since showing their markers on focus is per-span DOM state the traversal reads. */
 const MODES: PresentationMode[] = ['source', 'reading', 'live', 'preview-block', 'preview-inline'];
 
-/** The block surface's own mounting: the mode on an ancestor, the stamp on the walk container. */
+/** How the block is mounted: the mode on an ancestor, the attribute on the traversal container. */
 function mount(raw: string, mode: PresentationMode, contentEmpty: boolean): HTMLElement {
 	const root = document.createElement('div');
 	if (mode !== 'source') root.setAttribute('data-presentation', mode);
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
 	if (contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
-	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
 	root.appendChild(block);
 	document.body.appendChild(root);
-	// The stamp paints only under focus (the stylesheet's `:focus-within` rung), and the oracle is
-	// stated over the painted state, so a stamped fixture holds focus.
+	// The attribute paints only under focus (the stylesheet's `:focus-within` rule), and the
+	// node-space rule is stated over the painted state, so a marked fixture holds focus.
 	if (contentEmpty) block.focus();
 	return block;
 }
 
-/** What the WALK leaves on screen: every text node it does not classify as hidden marker text. */
+/** What the traversal leaves on screen: every text node it does not call hidden marker text. */
 function walkVisibleText(block: HTMLElement): string {
 	const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
 	let out = '';
@@ -54,13 +51,14 @@ function oracleVisibleText(raw: string, mode: PresentationMode, contentEmpty: bo
 	return renderedText(
 		parseInline(raw, 0, raw.length),
 		raw,
-		screenVisibility(mode, { chromePaints: contentEmpty })
+		screenVisibility(mode, { chromePaints: contentEmpty }),
+		renderOptions()
 	);
 }
 
 afterEach(() => document.body.replaceChildren());
 
-describe('the node-space oracle and the DOM walk agree on what the reader sees', () => {
+describe('the node-space check and the DOM walk agree on what the reader sees', () => {
 	it.each(MODES)('over generated inline source in %s', (mode) => {
 		fc.assert(
 			fc.property(arbRawString, fc.boolean(), (raw, contentEmpty) => {
@@ -71,18 +69,23 @@ describe('the node-space oracle and the DOM walk agree on what the reader sees',
 		);
 	});
 
-	// The shipped incident, as a fixture rather than a draw: five bytes the reader sees, which the
-	// oracle answered '' for while the walk landed a caret on every one of them.
+	// The known case, as a fixture rather than a draw: five bytes the user sees, which the
+	// node-space rule answered '' for while the traversal landed a caret on every one of them.
 	it('a link with no text reads as five painted bytes once its chrome stands alone', () => {
 		expect(oracleVisibleText('[](u)', 'live', true)).toBe('[](u)');
 		expect(oracleVisibleText('[](u)', 'live', false)).toBe('');
 	});
 
-	// A reference label is the family the stamp does NOT paint, so the fold leaves it hidden.
+	// A reference label is the family the attribute does not paint, so it stays hidden.
 	it('a reference label stays hidden even where the rest of the chrome paints', () => {
 		const raw = '[a][ref]\n\n[ref]: u';
 		const nodes = parseInline(raw, 0, 8, () => ({ url: 'u' }));
-		const painted = renderedText(nodes, raw, screenVisibility('live', { chromePaints: true }));
+		const painted = renderedText(
+			nodes,
+			raw,
+			screenVisibility('live', { chromePaints: true }),
+			renderOptions()
+		);
 		expect(painted).toBe('[a]');
 	});
 });

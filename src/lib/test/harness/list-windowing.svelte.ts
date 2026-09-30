@@ -1,18 +1,20 @@
 /**
- * The `createListWindowing` mount ceremony the windowing suites share: a stubbed port and list
- * element, an `$effect.root`, and the wiring every scope takes. A suite passes only the fixture
- * and the option it tunes; everything else comes from the defaults below.
+ * The `createListWindowing` setup the windowing suites share: a stubbed scroll container, the
+ * scroll owner writing it, a list element, an `$effect.root`, and the wiring every child list
+ * takes. A suite passes only the fixture and the one option it tunes.
  */
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import {
 	createListWindowing,
 	type ListWindowing,
 	type ListWindowingDeps
 } from '../../reactivity/list-windowing.svelte';
+import { createListTree, type ListTree } from '../../reactivity/list-tree';
 import type { HeightOracle } from '../../cursor/height-oracle';
+import type { RootListScroll, ScrollOwner, ScrollOwnerDeps } from '../../cursor/scroll-owner';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from './stub-scrollport';
+import { stubListEl, stubScrollOwner, stubScrollport } from './stub-scrollport';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -23,20 +25,26 @@ export function fixedOracle(px: number): HeightOracle {
 	return {
 		estimate: () => px,
 		measured: () => undefined,
-		recordMeasured: () => {},
-		dropMeasured: () => {}
+		recordMeasured: () => {}
 	};
 }
 
-/** Height BY ID, so a permutation the model tracks changes each index's offset. The listed
- *  heights answer as MEASURED, which is what a block with a real box reports. */
+/** Heights keyed by id, so reordering the blocks changes each index's offset. The listed heights
+ *  count as measured, which is what a block with a real box reports. */
 export function heightsOracle(heights: Record<string, number>, estimate = 10): HeightOracle {
 	return {
 		estimate: () => estimate,
 		measured: (id: string) => heights[id],
-		recordMeasured: () => {},
-		dropMeasured: () => {}
+		recordMeasured: () => {}
 	};
+}
+
+/** Children and ids a suite can splice under a live list to drive a rebuild, for a suite that
+ *  is not a `.svelte.ts` module and so can't declare `$state` itself. */
+export function liveChildren(children: CstNode[], ids: string[]) {
+	const reactiveChildren = $state(children);
+	const reactiveIds = $state(ids);
+	return { children: reactiveChildren, ids: reactiveIds };
 }
 
 // ── Mount ───────────────────────────────────────────────────────────────────
@@ -51,13 +59,22 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	viewportTop?: number;
 	maxScrollTop?: number;
 	snapsToPixel?: boolean;
-	/** Chrome between the port's content origin and this list's first block. */
-	chromeAbove?: number;
+	/** The space between the scroll container's content origin and this list's first block; a
+	 *  getter when a suite grows a header above the list. */
+	chromeAbove?: number | (() => number);
+	/** The scroll owner's own deps: the editor correcting scroll and nothing mounted by default. */
+	ownerDeps?: Partial<ScrollOwnerDeps>;
 };
 
 export interface MountedListWindowing {
 	windowing: ListWindowing;
+	/** Writable, so a suite can stand in for the user scrolling. */
 	port: Scrollport;
+	owner: ScrollOwner;
+	/** The root list's correction, which the header slot shares. */
+	rootScroll: RootListScroll;
+	/** Every list mounted over this root, which a nested list joins. */
+	tree: ListTree;
 	cleanup: () => void;
 }
 
@@ -72,11 +89,15 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 		maxScrollTop,
 		snapsToPixel,
 		chromeAbove,
+		ownerDeps,
 		...deps
 	} = options;
 	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop, snapsToPixel });
+	const owner = stubScrollOwner(port, ownerDeps);
 	const listEl = stubListEl(port, listHeight, chromeAbove);
 
+	const getFocusPath = deps.getFocusPath ?? (() => null);
+	const tree = createListTree({ getScrollTop: () => port.scrollTop(), getFocusPath });
 	let windowing!: ListWindowing;
 	const cleanup = $effect.root(() => {
 		windowing = createListWindowing({
@@ -85,8 +106,8 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			getChildIds: () => ids,
 			getListEl: () => listEl,
 			getPort: () => port,
-			correctsScroll: () => true,
-			getFocusPath: () => null,
+			scroll: ownerWrites(owner),
+			getFocusPath,
 			getWidthVersion: () => 0,
 			getViewportHeightVersion: () => 0,
 			getParentPath: () => [],
@@ -97,6 +118,94 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			...deps
 		});
 	});
+	tree.add(windowing.level);
+	const rootScroll = owner.resolveTargetsWith({
+		resolve: tree.resolve,
+		holdForRound: tree.holdForRound,
+		mountTop: tree.mountTop,
+		syncScrollTop: () => windowing.syncScrollTop()
+	});
 	flushSync();
-	return { windowing, port, cleanup };
+	return { windowing, port, owner, rootScroll, tree, cleanup };
+}
+
+function ownerWrites(owner: ScrollOwner): ListWindowingDeps['scroll'] {
+	return {
+		beginRound: owner.beginRound,
+		roundOpen: owner.roundOpen,
+		measureSoon: owner.measureSoon,
+		scrollToMount: owner.scrollToMount
+	};
+}
+
+export interface NestedListOptions {
+	root: MountedListWindowing;
+	/** The root child this list renders inside. */
+	at: number;
+	children: readonly CstNode[];
+	ids: string[];
+	oracle: HeightOracle;
+	listHeight: number;
+	/** The space between the child's own top and this list's first block. */
+	chromeAbove?: number;
+	getFocusPath?: () => number[] | null;
+}
+
+/** A list nested in the root's child `at`, placed where the root's height table puts that child,
+ *  and joined to the root's tree. */
+export function mountNestedList(options: NestedListOptions): {
+	windowing: ListWindowing;
+	cleanup: () => void;
+} {
+	const { root, at, children, ids, oracle, listHeight, chromeAbove = 0 } = options;
+	const childTop = () => root.windowing.targetTopOf(at)?.top ?? 0;
+	const onScreen = (contentTop: number) =>
+		root.port.viewportTop() + contentTop - root.port.scrollTop();
+	const box = { getBoundingClientRect: () => ({ top: onScreen(childTop()) }) };
+	const listEl = {
+		clientWidth: 800,
+		closest: () => box,
+		getBoundingClientRect: () => ({ top: onScreen(childTop() + chromeAbove), height: listHeight })
+	} as unknown as HTMLElement;
+	let windowing!: ListWindowing;
+	const cleanup = $effect.root(() => {
+		windowing = createListWindowing({
+			oracle,
+			getChildren: () => children,
+			getChildIds: () => ids,
+			getListEl: () => listEl,
+			getPort: () => root.port,
+			scroll: ownerWrites(root.owner),
+			getFocusPath: options.getFocusPath ?? (() => null),
+			getWidthVersion: () => 0,
+			getViewportHeightVersion: () => 0,
+			getParentPath: () => [at],
+			overscan: 2,
+			pinExtensionCap: 100,
+			activateAbovePx: 1000,
+			deactivateBelowPx: 800
+		});
+	});
+	const remove = root.tree.add(windowing.level);
+	flushSync();
+	return {
+		windowing,
+		cleanup: () => {
+			remove();
+			cleanup();
+		}
+	};
+}
+
+/** The focus path of the block `id`, as the editor reads it off the block's element: the element's
+ *  path updates with the rest of the DOM, after the round a change opens has made its pick. */
+export function focusFollowing(ids: readonly string[], id: string) {
+	let at = ids.indexOf(id);
+	const stop = $effect.root(() => {
+		$effect(() => {
+			const next = ids.indexOf(id);
+			void tick().then(() => (at = next));
+		});
+	});
+	return { getFocusPath: () => (at === -1 ? null : [at]), stop };
 }

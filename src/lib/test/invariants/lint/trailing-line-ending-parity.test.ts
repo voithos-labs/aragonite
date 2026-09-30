@@ -1,11 +1,9 @@
 /**
- * G4.20 — trailing-line-ending reconstruction parity across keystroke-commit sites
- * (`docs/contributing/rules.md` § The bug shape to fear): a site that reads a block's
- * text back rebuilds the ending as `trailingLineEnding(<node>.raw)`, never a literal
- * newline, which downgrades a CRLF block and breaks round-trip. Reconstruction stays a
- * call-site duty because a block at EOF may legitimately lack an ending. Five arms, all
- * matching literal shapes — `invariants/crlf-edit-mirror.test.ts` is the outcome oracle
- * for the rest. The scan excludes `test/`, so this file's own examples aren't inspected.
+ * Every line the editor writes takes the document's line ending (G4.20). The fallback of
+ * `core/lines.ts :: trailingLineEnding` is a required argument, so the type holds the ending
+ * choice; these scans hold what the type cannot see, a line split that leaves a CRLF line's `\r`
+ * on its text, and a newline literal written into a node's bytes.
+ * `invariants/crlf-edit-mirror.test.ts` checks the outcome for every gesture it lists.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -13,11 +11,12 @@ import {
 	balancedRegion,
 	callArguments,
 	collectEditorSources,
-	rawAssignments,
-	type SourceFile
+	literalSpans,
+	rawAssignments
 } from './scan-source';
+import { describeFileRules, except } from './file-rule';
 
-// ── Source extraction ────────────────────────────────────────────────────────
+// ── Content writes ───────────────────────────────────────────────────────────
 
 /** The content (2nd) argument of every `updateBlockContent(` call in `code`. */
 function contentArgs(code: string): string[] {
@@ -33,80 +32,40 @@ function contentArgs(code: string): string[] {
 	return out;
 }
 
-/** Every string literal in `code`, as `{ start, text }` with `text` including its quotes. */
-function stringLiterals(code: string): Array<{ start: number; text: string }> {
-	const out: Array<{ start: number; text: string }> = [];
-	for (let i = 0; i < code.length; i++) {
-		const quote = code[i];
-		if (quote !== "'" && quote !== '"' && quote !== '`') continue;
-		const start = i++;
-		while (i < code.length && code[i] !== quote) i += code[i] === '\\' ? 2 : 1;
-		out.push({ start, text: code.slice(start, i + 1) });
-	}
-	return out;
-}
+/** A content argument closed with `+ '\n'` or `+ '\r\n'`: a literal where the ending belongs. */
+const APPENDS_NEWLINE_LITERAL = /\+\s*(['"`])(?:\\r)?\\n\1\s*$/;
 
-interface CommitFunnel {
-	relPath: string;
-	body: string;
-}
+describe('G4.20 no content write appends a newline literal', () => {
+	const writes = collectEditorSources().flatMap((file) =>
+		contentArgs(file.code).map((arg) => ({ relPath: file.relPath, arg }))
+	);
 
-interface RebuilderBody {
-	relPath: string;
-	name: string;
-	body: string;
-}
+	it('no updateBlockContent content argument ends in a newline literal', () => {
+		const violations = writes.filter((write) => APPENDS_NEWLINE_LITERAL.test(write.arg));
+		expect(
+			violations,
+			"a content write reattaches the block's ending with `trailingLineEnding(raw, documentEnding)`"
+		).toEqual([]);
+	});
 
-/** Every `function rebuild<Kind>Raw(…) { … }` body across the editor sources. */
-function containerRebuilders(sources: SourceFile[]): RebuilderBody[] {
-	const out: RebuilderBody[] = [];
-	for (const f of sources) {
-		const re = /function\s+(rebuild\w*Raw)\s*\(/g;
-		let m: RegExpExecArray | null;
-		while ((m = re.exec(f.code)) !== null) {
-			const parenIdx = f.code.indexOf('(', m.index);
-			const params = balancedRegion(f.code, parenIdx);
-			if (params === null) continue;
-			const braceIdx = f.code.indexOf('{', parenIdx + params.length);
-			const body = braceIdx === -1 ? null : balancedRegion(f.code, braceIdx);
-			if (body === null) continue;
-			out.push({ relPath: f.relPath, name: m[1], body });
-		}
-	}
-	return out;
-}
-
-/** Every `commitInput: (…) => { … }` body that reaches `updateBlockContent`. */
-function commitInputFunnels(sources: SourceFile[]): CommitFunnel[] {
-	const out: CommitFunnel[] = [];
-	for (const f of sources) {
-		const re = /commitInput\s*:\s*\([^)]*\)\s*=>\s*{/g;
-		let m: RegExpExecArray | null;
-		while ((m = re.exec(f.code)) !== null) {
-			const body = balancedRegion(f.code, f.code.indexOf('{', m.index));
-			if (body !== null && /\bupdateBlockContent\s*\(/.test(body)) {
-				out.push({ relPath: f.relPath, body });
-			}
-		}
-	}
-	return out;
-}
+	it('reads the real content writes (not vacuous)', () => {
+		expect(writes.length).toBeGreaterThanOrEqual(10);
+	});
+});
 
 // ── Classification ───────────────────────────────────────────────────────────
 
-/** Content arg ending in `+ trailingLineEnding(...)` — the sanctioned reconstruction. */
-const RECONSTRUCTS_COMPLIANT = /\+\s*trailingLineEnding\s*\([\s\S]*\)\s*$/;
-/** Content arg ending in `+ '\n'` / `"\n"` / `'\r\n'` — a literal-newline reconstruction. */
-const RECONSTRUCTS_LITERAL = /\+\s*(['"`])(?:\\r)?\\n\1\s*$/;
-const HAS_TRAILING_APPEND = /\btrailingLineEnding\s*\(/;
+/** Every string and template literal in `code`, as `{ start, text }` with `text` including its quotes. */
+function stringLiterals(code: string): Array<{ start: number; text: string }> {
+	return literalSpans(code)
+		.filter((span) => span.kind !== 'regex')
+		.map((span) => ({ start: span.start, text: code.slice(span.start, span.end) }));
+}
 
-/** A newline escape inside a source string literal — the two characters `\` `n`. */
+/** A newline escape inside a source string literal: the two characters `\` and `n`. */
 const LITERAL_NEWLINE = /\\n/;
-/**
- * The literal reaches the emitted bytes rather than only being READ (a `split` separator,
- * an `endsWith` probe, an `??` default). A literal hoisted into a variable first slips
- * past, as in Arm 1; the CRLF-mirror oracle covers the hoist.
- */
+/** The literal reaches the emitted bytes rather than only being read (a `split` separator, an
+ *  `endsWith` check). A literal in a variable slips past; the CRLF-mirror test covers that. */
 const EMITTED_BEFORE = /(?:\+|\braw\s*\+?=)\s*$/;
 const EMITTED_AFTER = /^\s*\+/;
 
@@ -122,47 +81,16 @@ function emittedNewlineLiterals(body: string): string[] {
 		.map((lit) => lit.text);
 }
 
-/** Funnels that legitimately append nothing, with the reason each is exempt. */
-const COMMITINPUT_ALLOWLIST: Record<string, string> = {
-	'src/lib/components/blocks/table/TableCellBlock.svelte':
-		'a GFM table cell holds no raw newline; commitInput commits the escaped cell text as-is'
-};
-
-// ── Arm 4 support: the seam's exclusivity ────────────────────────────────────
+// ── What the rule covers ─────────────────────────────────────────────────────
 
 /**
- * `x.endsWith('\r\n') ? '\r\n' : '\n'` written out longhand — `trailingLineEnding`'s
- * body. The `\\r` here matches the two source characters backslash-r.
- */
-const INLINE_ENDING_TERNARY = /endsWith\s*\(\s*['"]\\r\\n['"]\s*\)\s*\?/;
-
-/** The one home for the expression; every other site calls it. */
-const LINE_ENDING_SEAM = 'src/lib/core/lines.ts';
-
-const TERNARY_RULE =
-	`the \`endsWith('\\r\\n') ? … : …\` ending ternary belongs to ${LINE_ENDING_SEAM} alone — ` +
-	'call `trailingLineEnding(raw)`. Twelve inline copies of it were the source contributors ' +
-	'copied from, and copy #13 dropped the CRLF arm four separate times';
-
-/** `raw.slice(displayLength(raw))` — `ownTrailingLineEnding`'s body, the ending a block's own
- *  bytes carry rather than the one the document uses. */
-const INLINE_OWN_ENDING_SLICE = /\.slice\s*\(\s*displayLength\s*\(/;
-
-const OWN_ENDING_RULE =
-	`the \`.slice(displayLength(raw))\` ending complement belongs to ${LINE_ENDING_SEAM} alone — ` +
-	'call `ownTrailingLineEnding(raw)`. It answers the other half of the same question, so a ' +
-	'copy of it is the ternary copies again with the seam one call further away';
-
-// ── Arm 5 support: the rule's domain ─────────────────────────────────────────
-
-/**
- * Writes that legitimately mint a newline literal into a node's bytes. The count is part
- * of the entry because a file-granular allowlist lets write N+1 in unnoticed.
+ * Writes that legitimately put a newline literal into a node's bytes. The count is part of the
+ * entry because an allowlist per file would let the next write in unnoticed.
  */
 const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	'src/lib/selection/range-delete-ceremony.ts': {
 		count: 1,
-		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror oracle)'
+		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror check)'
 	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 2,
@@ -171,121 +99,17 @@ const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
 };
 
 const DOMAIN_RULE =
-	'a write to <node>.raw must derive its ending from the bytes it is re-emitting — ' +
-	'`trailingLineEnding(node.raw)`, never a newline literal. A literal downgrades a ' +
+	'a write to <node>.raw takes its own ending, else the document one — ' +
+	'`trailingLineEnding(node.raw, documentLineEnding(doc))`, never a newline literal. A literal downgrades a ' +
 	'CRLF-authored block to LF and breaks byte round-trip. Legitimately-literal writes ' +
 	'join RAW_LITERAL_ALLOWLIST with a reason AND their count';
 
-// ── Arm 1: reconstruction form ───────────────────────────────────────────────
-
-describe('G4.20 trailing-line-ending reconstruction parity', () => {
-	const sources = collectEditorSources();
-
-	it('inspected at least one editor source file', () => {
-		expect(sources.length).toBeGreaterThan(0);
-	});
-
-	it('no updateBlockContent content argument reconstructs the ending with a newline literal', () => {
-		const violations = sources.flatMap((f) =>
-			contentArgs(f.code)
-				.filter((arg) => RECONSTRUCTS_LITERAL.test(arg))
-				.map((arg) => ({ relPath: f.relPath, arg }))
-		);
-		expect(violations).toEqual([]);
-	});
-
-	it('found the compliant reconstruction sites (the scan is live, not vacuous)', () => {
-		const compliant = sources.flatMap((f) =>
-			contentArgs(f.code).filter((arg) => RECONSTRUCTS_COMPLIANT.test(arg))
-		);
-		expect(compliant.length).toBeGreaterThanOrEqual(5);
-	});
-});
-
-// ── Arm 2: commitInput funnel coverage ───────────────────────────────────────
-
-describe('G4.20 commitInput funnel coverage', () => {
-	const sources = collectEditorSources();
-
-	it('every commitInput funnel appends trailingLineEnding (table cells excepted)', () => {
-		const missing = commitInputFunnels(sources)
-			.filter((fn) => !(fn.relPath in COMMITINPUT_ALLOWLIST))
-			.filter((fn) => !HAS_TRAILING_APPEND.test(fn.body))
-			.map((fn) => fn.relPath);
-		expect(missing).toEqual([]);
-	});
-
-	it('the funnel scan found real editable surfaces', () => {
-		expect(commitInputFunnels(sources).length).toBeGreaterThanOrEqual(3);
-	});
-
-	it('each allowlist entry still names a funnel that appends nothing (no dead entry)', () => {
-		const byPath = new Map(commitInputFunnels(sources).map((fn) => [fn.relPath, fn]));
-		for (const relPath of Object.keys(COMMITINPUT_ALLOWLIST)) {
-			const fn = byPath.get(relPath);
-			expect(fn, `allowlisted commitInput funnel not found: ${relPath}`).toBeDefined();
-			expect(HAS_TRAILING_APPEND.test(fn!.body), `allowlist stale for ${relPath}`).toBe(false);
-		}
-	});
-});
-
-// ── Arm 3: container rebuilders ──────────────────────────────────────────────
-
-describe('G4.20 container rebuildRaw ending provenance', () => {
-	const rebuilders = containerRebuilders(collectEditorSources());
-
-	it('no rebuildRaw emits a newline literal into the bytes it re-derives', () => {
-		const violations = rebuilders.flatMap((fn) =>
-			emittedNewlineLiterals(fn.body).map((lit) => `${fn.relPath} ${fn.name}: ${lit}`)
-		);
-		expect(violations).toEqual([]);
-	});
-
-	it('the rebuilder scan found the built-in containers (not vacuous)', () => {
-		const names = rebuilders.map((fn) => fn.name);
-		expect(names).toEqual(
-			expect.arrayContaining(['rebuildBlockquoteRaw', 'rebuildListItemRaw', 'rebuildTableRaw'])
-		);
-	});
-});
-
-// ── Arm 4: the seam has no inline copies ─────────────────────────────────────
-
-describe('G4.20 trailing-line-ending seam exclusivity', () => {
-	const sources = collectEditorSources();
-
-	it('no file outside core/lines.ts writes the ending ternary longhand', () => {
-		const copies = sources
-			.filter((f) => f.relPath !== LINE_ENDING_SEAM)
-			.filter((f) => INLINE_ENDING_TERNARY.test(f.code))
-			.map((f) => f.relPath);
-		expect(copies, TERNARY_RULE).toEqual([]);
-	});
-
-	it('no file outside core/lines.ts writes the ending complement longhand', () => {
-		const copies = sources
-			.filter((f) => f.relPath !== LINE_ENDING_SEAM)
-			.filter((f) => INLINE_OWN_ENDING_SLICE.test(f.code))
-			.map((f) => f.relPath);
-		expect(copies, OWN_ENDING_RULE).toEqual([]);
-	});
-
-	it('the seam still holds both expressions the rules redirect to', () => {
-		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
-		expect(seam, `line-ending seam not found: ${LINE_ENDING_SEAM}`).toBeDefined();
-		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
-		expect(INLINE_OWN_ENDING_SLICE.test(seam!.code)).toBe(true);
-		expect(seam!.code).toContain('export function trailingLineEnding');
-		expect(seam!.code).toContain('export function ownTrailingLineEnding');
-	});
-});
-
-// ── Arm 5: the rule's domain — every write to a node's bytes ─────────────────
+// ── Every write to a node's bytes ────────────────────────────────────────────
 
 describe('G4.20 node.raw write ending provenance', () => {
 	const assignments = rawAssignments(collectEditorSources());
 
-	it('no write to <node>.raw mints a newline literal into the bytes', () => {
+	it('no write to <node>.raw creates a newline literal into the bytes', () => {
 		const violations = assignments
 			.filter((a) => emittedNewlineLiterals(a.statement).length > 0)
 			.filter((a) => !(a.relPath in RAW_LITERAL_ALLOWLIST))
@@ -300,7 +124,7 @@ describe('G4.20 node.raw write ending provenance', () => {
 				.filter((a) => emittedNewlineLiterals(a.statement).length > 0);
 			expect(
 				found.length,
-				`${relPath} holds ${found.length} literal raw writes, allowlisted for ${entry.count} — ${entry.why}`
+				`${relPath} holds ${found.length} literal raw writes, allowlisted for ${entry.count}: ${entry.why}`
 			).toBe(entry.count);
 		}
 	});
@@ -313,82 +137,22 @@ describe('G4.20 node.raw write ending provenance', () => {
 
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
 
-describe('G4.20 — extractor and matcher self-tests', () => {
-	// `'\\n'` in this file is the four source characters ' \ n ' — a backslash-n
-	// literal, never an actual line break.
-	const violating = "updateBlockContent(index, text + '\\n', preEdit)";
-	const compliant = 'updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit)';
-	const passthrough = 'updateBlockContent(index, newRaw, preEdit)';
-
+describe('G4.20: extractor and matcher self-tests', () => {
 	it('extracts the content argument across nested calls', () => {
-		expect(contentArgs(compliant)).toEqual(['text + trailingLineEnding(node.raw)']);
-		expect(contentArgs('updateBlockContent(i, f(a, b) + trailingLineEnding(n.raw), o)')).toEqual([
-			'f(a, b) + trailingLineEnding(n.raw)'
+		expect(contentArgs('updateBlockContent(i, f(a, b) + blockEnding(), o)')).toEqual([
+			'f(a, b) + blockEnding()'
 		]);
-		expect(contentArgs(passthrough)).toEqual(['newRaw']);
+		expect(contentArgs('updateBlockContent(index, newRaw, preEdit)')).toEqual(['newRaw']);
 	});
 
-	it('flags a literal-newline reconstruction and passes the trailingLineEnding form', () => {
-		const bad = contentArgs(violating)[0];
-		expect(RECONSTRUCTS_LITERAL.test(bad)).toBe(true);
-		expect(RECONSTRUCTS_COMPLIANT.test(bad)).toBe(false);
-
-		const good = contentArgs(compliant)[0];
-		expect(RECONSTRUCTS_COMPLIANT.test(good)).toBe(true);
-		expect(RECONSTRUCTS_LITERAL.test(good)).toBe(false);
-
-		expect(RECONSTRUCTS_LITERAL.test("x + '\\r\\n'")).toBe(true);
-	});
-
-	it('leaves a raw pass-through commit out of both arms', () => {
-		const arg = contentArgs(passthrough)[0];
-		expect(RECONSTRUCTS_LITERAL.test(arg)).toBe(false);
-		expect(RECONSTRUCTS_COMPLIANT.test(arg)).toBe(false);
-	});
-
-	it('funnel scan flags a missing append, passes the compliant form, ignores non-committing bodies', () => {
-		const one = (src: string) => commitInputFunnels([{ relPath: 'x', text: src, code: src }]);
-
-		const missing = one(
-			'const s = { commitInput: (text, pre) => { u.updateBlockContent(i, text, pre); } };'
+	it('flags a newline literal appended to a content write, and spares the derived ending', () => {
+		const [literal] = contentArgs("updateBlockContent(index, text + '\\n', preEdit)");
+		expect(APPENDS_NEWLINE_LITERAL.test(literal)).toBe(true);
+		expect(APPENDS_NEWLINE_LITERAL.test("x + '\\r\\n'")).toBe(true);
+		const [derived] = contentArgs(
+			'updateBlockContent(index, text + trailingLineEnding(node.raw, ending), preEdit)'
 		);
-		expect(missing.length).toBe(1);
-		expect(HAS_TRAILING_APPEND.test(missing[0].body)).toBe(false);
-
-		const present = one(
-			'const s = { commitInput: (text, pre) => { u.updateBlockContent(i, text + trailingLineEnding(node.raw), pre); } };'
-		);
-		expect(present.length).toBe(1);
-		expect(HAS_TRAILING_APPEND.test(present[0].body)).toBe(true);
-
-		// A commitInput that never reaches updateBlockContent is not a funnel.
-		expect(one('const s = { commitInput: (text) => { return other(text); } };')).toEqual([]);
-	});
-
-	it('rebuilder scan reads the body past a destructured parameter list', () => {
-		const src = 'function rebuildXRaw({ a }: P, e = t(a)): void { node.raw = a + e; }';
-		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
-		expect(found.map((fn) => fn.name)).toEqual(['rebuildXRaw']);
-		expect(found[0].body).toBe('{ node.raw = a + e; }');
-	});
-
-	// Miss-analysis: the private region walk skipped strings but not regex literals, and its cases
-	// only ever fed it strings, so the body it truncated at a regex brace was never read back.
-	it('rebuilder scan reads the body past a brace inside a regex literal', () => {
-		const src = 'function rebuildXRaw(n: P): void { node.raw = a.replace(/}/g, b) + e; }';
-		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
-		expect(found[0].body).toBe('{ node.raw = a.replace(/}/g, b) + e; }');
-	});
-
-	it('ternary matcher flags the longhand copy and passes the seam call', () => {
-		// Built by concatenation so this file does not itself contain the banned shape.
-		const longhand = "const e = raw.endsWith('\\r\\n')" + " ? '\\r\\n' : '\\n';";
-		expect(INLINE_ENDING_TERNARY.test(longhand)).toBe(true);
-		expect(INLINE_ENDING_TERNARY.test('const e = trailingLineEnding(node.raw);')).toBe(false);
-		// A bare CRLF probe is a legitimate read; only the ending ternary is banned.
-		expect(INLINE_ENDING_TERNARY.test("if (raw.endsWith('\\r\\n')) return raw.length - 2;")).toBe(
-			false
-		);
+		expect(APPENDS_NEWLINE_LITERAL.test(derived)).toBe(false);
 	});
 
 	it('raw-assignment scan extracts the statement and skips comparisons', () => {
@@ -404,8 +168,8 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 	});
 
 	it('reads a right-hand side Prettier wrapped onto its own line', () => {
-		// The shape a long concatenation is actually formatted as — and the arm's
-		// whole subject. Stopping at the first newline truncated it to `.raw =`.
+		// The shape a long concatenation is actually formatted as, which a scan stopping at the
+		// first newline would truncate to `.raw =`.
 		const wrapped = "node.raw =\n\tmeta.indent +\n\tmeta.body +\n\t'|\\n';";
 		const found = rawAssignments([{ relPath: 'x', text: wrapped, code: wrapped }]);
 		expect(found).toHaveLength(1);
@@ -423,7 +187,7 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(emittedNewlineLiterals(found[0].statement)).toEqual([]);
 	});
 
-	it('domain arm flags a literal raw write and passes a derived one', () => {
+	it('domain branch flags a literal raw write and passes a derived one', () => {
 		const flagged = (src: string) =>
 			rawAssignments([{ relPath: 'x', text: src, code: src }]).filter(
 				(a) => emittedNewlineLiterals(a.statement).length > 0
@@ -448,3 +212,35 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(emittedNewlineLiterals('node.raw = head + trailingLineEnding(node.raw);')).toEqual([]);
 	});
 });
+
+// ── Line splits ──────────────────────────────────────────────────────────────
+
+/** `.split('\n')` or `.split(/\r?\n/)`: a split that leaves a CRLF line's `\r` on its text, or
+ *  drops each line's ending. */
+const LINE_SPLIT = /\.split\(\s*(?:(['"`])\\n\1|\/\\r\?\\n\/)\s*\)/;
+
+describeFileRules(
+	[
+		{
+			id: 'G4.20 per-line work reads each line without its ending',
+			population: except('src/lib/core/lines.ts'),
+			matches: LINE_SPLIT,
+			allowed: {
+				'src/lib/debug/dump-tree.ts': "a debug dump prints each line's bytes, a `\\r` included",
+				'src/lib/plugins/parrot/ParrotBlock.svelte': 'splits a constant animation frame',
+				'src/lib/tree-operations/table-grid-clipboard.ts':
+					'splits clipboard text normalized to LF on the same line'
+			},
+			reason:
+				'split a block into lines with `displayLines` (or `splitLines`) from `core/lines.ts`: ' +
+				"`split('\\n')` leaves a CRLF line's `\\r` on its text, where a line match misreads it",
+			hits: ["const lines = raw.split('\\n');", 'const lines = text.split(/\\r?\\n/);'],
+			misses: [
+				'const lines = displayLines(raw);',
+				"const cells = row.split('|');",
+				"const at = raw.indexOf('\\n');"
+			]
+		}
+	],
+	collectEditorSources()
+);

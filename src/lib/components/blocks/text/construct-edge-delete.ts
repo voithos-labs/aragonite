@@ -1,24 +1,22 @@
 /**
- * What a destructive key takes at an inline construct's unpainted delimiter run: the adjacent
- * CONTENT character, plus the delimiters the cut leaves enclosing nothing (live-mode.md § 4.4
- * `autoUnwrapOnEmpty`). Bytes that read right can parse wrong, so a candidate is written only once
- * a re-parse says the reader lost exactly what the cut aimed at.
+ * What a destructive key takes at an inline construct's hidden delimiter run: the neighbouring
+ * content character, plus the delimiters the cut leaves enclosing nothing (live-mode.md § 4.4
+ * `autoUnwrapOnEmpty`). Bytes that read right can parse wrong, so a candidate is written only when,
+ * read back where it is stored, it shows the user lost exactly what the cut aimed at.
  */
 
-import {
-	constructContentRange,
-	inlineDescendants,
-	parseInline,
-	type ContentRange
-} from '../../../core/inline';
+import { constructContentRange, inlineDescendants, type ContentRange } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
 	type VisibilityContext
 } from '../../../core/inline/visibility';
-import type { InlineNode } from '../../../core/nodes';
+import { readBack, shownOf } from '../../../core/inline/live-edit/read-back';
+import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import type { StoredAs } from '../../../schema/stored-as';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { removesExactly, soleProseReparse } from './screen-diff';
+import { removesExactly } from './screen-diff';
+import { isHighSurrogate, isLowSurrogate } from '../../../core/lines';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -27,34 +25,32 @@ export type DeleteDirection = 'backward' | 'forward';
 /** Named fields rather than a positional row: `display`, the two ranges and the caret are all
  *  offsets into the same string, and a swapped pair would type-check. */
 export interface EdgeDeletionQuery {
-	/** The block's display bytes — its raw without the trailing line ending. */
+	/** The block's displayed text: its raw without the trailing line ending. */
 	display: string;
 	/** The bytes the block's own kind calls content; a cut never reaches past them. */
 	content: ContentRange;
 	caret: number;
 	direction: DeleteDirection;
-	/** How the block reads on screen. Required, so a second caller cannot inherit the hiding
-	 *  assumption by silence. */
+	/** How the block reads on screen. Required, so a second caller cannot inherit an assumption
+	 *  about what is hidden by saying nothing. */
 	screen: VisibilityContext;
-	/** The inline tree the render painted from, so the runs skipped here are the runs hidden. */
+	/** The inline tree the render drew from, so the runs skipped here are the runs really hidden. */
 	inlines: readonly InlineNode[];
-	/** What the caller installs the rewrite as, which is what the candidate is read back as.
-	 *  Required for the same reason `screen` is: a cell's text is never a block. */
-	installedAs: EdgeDeletionSurface;
+	/** Where the block's bytes are stored, with the reading `inlines` was read in: a candidate is
+	 *  read back there, so a cell's text stays text and a list item's reads behind its marker. */
+	store: StoredAs;
 }
-
-/** A prose surface installs a block; a table cell installs cell text, whose bytes read as a list or
- *  a quote the moment they open with `- ` or `> ` though the cell paints neither. */
-export type EdgeDeletionSurface = 'block' | 'cell';
 
 export interface EdgeDeletionWrite {
-	/** The block's whole display bytes after the cut. */
+	/** The block's whole displayed text after the cut. */
 	raw: string;
 	caret: number;
+	/** The marks of the constructs the cut emptied and unwrapped, for the caller to hold pending. */
+	unwrappedMarks: readonly AnyInlineKind[];
 }
 
-/** The press is this arm's but no rewrite parses back: taking nothing is the only answer that
- *  keeps the markers off screen, since the engine's version paints them. */
+/** The key belongs here but no rewrite parses back: taking nothing is the only answer that keeps
+ *  the markers off screen, since the browser's version would show them. */
 export interface EdgeDeletionSwallow {
 	swallow: true;
 }
@@ -62,40 +58,44 @@ export interface EdgeDeletionSwallow {
 export type EdgeDeletion = EdgeDeletionWrite | EdgeDeletionSwallow;
 
 /**
- * What a destructive key at `caret` does, or null when the press is not this arm's — nothing
- * content-side of the caret, or a cut with no hidden run beside it, which the engine gets right.
+ * What a destructive key at `caret` does, or null when it does not belong here: nothing on the
+ * content side of the caret, or a cut with no hidden run beside it, which the browser gets right.
  */
 export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | null {
-	// Painted delimiters are bytes the reader saw, so no run here is this arm's to protect and the
-	// license to drop one (live-mode.md § 2) does not reach: the press is the engine's. Every
-	// oracle call below is past this gate, which is why they can all take the content reading.
+	// Visible delimiters are bytes the user saw, so the key stays with the browser; everything
+	// below can therefore use the content reading.
 	if (query.screen.chromePaints) return null;
 	const { display, content, caret, direction } = query;
 	const constructs = policyConstructs(query.inlines);
 	const target = deletionTarget(display, constructs, content, caret, direction);
 	if (!target) return null;
 
-	// The adjacency that decides is the deleted SPAN's, not the caret's: the engine deletes from
-	// where the byte is. With no run beside the cut the press stays with the engine, which owns
-	// grapheme and IME behavior.
+	// Decided beside the deleted span, not the caret. With no hidden run beside the cut the key
+	// stays with the browser, which handles graphemes and IME.
 	const plain = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
 	const touchesHiddenRun =
 		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
 	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
-	const before = visibleText(display, query.installedAs);
+	const before = visibleText(display, query);
 	if (before === null) return null;
 	const removed = target.atomic
-		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
+		? renderedText([target.atomic], display, CONTENT_VISIBILITY, {
+				grammar: query.store.reading.grammar
+			})
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
-		const after = visibleText(raw, query.installedAs);
+		const after = visibleText(raw, query);
 		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
-		return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
+		return {
+			raw,
+			caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start),
+			unwrappedMarks: plain.unwrappedMarks
+		};
 	}
 	return { swallow: true };
 }
@@ -118,11 +118,8 @@ function nativeCut(caret: number, direction: DeleteDirection): Span {
 		: { start: caret, end: caret + 1 };
 }
 
-/**
- * The first thing the reader can see on `direction`'s side of the caret: delimiter bytes are
- * stepped over, an atomic run is taken whole, and the walk stops at the content range because the
- * block's own structural bytes are not this arm's to touch.
- */
+/** The first thing the user can see on `direction`'s side of the caret. The scan stops at the
+ *  content range, since the block's own structural bytes are never deleted here. */
 function deletionTarget(
 	display: string,
 	constructs: readonly PolicyConstruct[],
@@ -143,28 +140,18 @@ function deletionTarget(
 	return null;
 }
 
-/** The whole code point `at` belongs to. Half a surrogate pair is not a character, and this arm
- *  claims presses beside a hidden run wherever they land — emoji included. */
+/** The whole code point `at` belongs to. Half a surrogate pair is not a character, and this module
+ *  handles keys beside a hidden run wherever they land, emoji included. */
 function codePointAt(display: string, at: number): Span {
-	const start = isLowSurrogate(display, at) && isHighSurrogate(display, at - 1) ? at - 1 : at;
-	return { start, end: isHighSurrogate(display, start) ? start + 2 : start + 1 };
+	const start =
+		isLowSurrogate(display.charCodeAt(at)) && isHighSurrogate(display.charCodeAt(at - 1))
+			? at - 1
+			: at;
+	return { start, end: isHighSurrogate(display.charCodeAt(start)) ? start + 2 : start + 1 };
 }
 
-function isHighSurrogate(display: string, at: number): boolean {
-	const code = display.charCodeAt(at);
-	return code >= 0xd800 && code <= 0xdbff;
-}
-
-function isLowSurrogate(display: string, at: number): boolean {
-	const code = display.charCodeAt(at);
-	return code >= 0xdc00 && code <= 0xdfff;
-}
-
-/**
- * The second reading of a press whose plain cut does not parse back: take the delimiter runs the
- * cut now sits between with it, the "these two constructs become one" a reader sees when the
- * character between them goes. Verified against the SCREEN, not the structure.
- */
+/** The second try when the plain cut does not parse back: also take the delimiter runs the cut sits
+ *  between, so the two constructs become one as the user sees it. */
 function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Span {
 	let { start, end } = cut;
 	while (isDelimiterByte(constructs, start - 1)) start--;
@@ -172,19 +159,23 @@ function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Sp
 	return { start, end };
 }
 
-/** A pair left around nothing is invisible residue, so a construct the cut empties goes with it —
- *  repeatedly, since dropping the inner pair can empty its parent. */
-function expandThroughEmptied(constructs: readonly PolicyConstruct[], target: Target): Span {
-	const cut: Span = { start: target.start, end: target.end };
+/** A delimiter pair left around nothing is invisible leftovers, so a construct the cut empties
+ *  goes with it, repeatedly, since dropping the inner pair can empty its parent. */
+function expandThroughEmptied(
+	constructs: readonly PolicyConstruct[],
+	target: Target
+): Span & { unwrappedMarks: AnyInlineKind[] } {
+	const cut = { start: target.start, end: target.end, unwrappedMarks: [] as AnyInlineKind[] };
 	let grew = true;
 	while (grew) {
 		grew = false;
-		for (const { node, content, autoUnwrapOnEmpty } of constructs) {
+		for (const { node, content, autoUnwrapOnEmpty, markable } of constructs) {
 			if (!autoUnwrapOnEmpty || !content) continue;
 			if (content.start < cut.start || content.end > cut.end) continue;
 			if (node.start >= cut.start && node.end <= cut.end) continue;
 			cut.start = Math.min(cut.start, node.start);
 			cut.end = Math.max(cut.end, node.end);
+			if (markable) cut.unwrappedMarks.push(node.kind);
 			grew = true;
 		}
 	}
@@ -195,14 +186,17 @@ function expandThroughEmptied(constructs: readonly PolicyConstruct[], target: Ta
 
 interface PolicyConstruct {
 	node: InlineNode;
-	/** Null for a construct whose delimiters enclose no content of their own — an escape, a hard
-	 *  break — which therefore has nothing to delete a character out of. */
+	/** Null for a construct whose delimiters enclose no content of their own, such as an escape or
+	 *  a hard break, which has nothing to delete a character out of. */
 	content: Span | null;
 	autoUnwrapOnEmpty: boolean;
+	/** Whether a format chord writes this kind's delimiters, so unwrapping it takes a mark off
+	 *  the caret rather than only bytes. */
+	markable: boolean;
 }
 
-/** Only kinds the policy table names take part: an unpolicied construct's bytes are read as
- *  ordinary content, which is what native already treats them as. */
+/** Only kinds the policy table names take part: a construct with no policy has its bytes read as
+ *  ordinary content, which is what the browser already treats them as. */
 function policyConstructs(inlines: readonly InlineNode[]): PolicyConstruct[] {
 	const found: PolicyConstruct[] = [];
 	for (const node of inlineDescendants(inlines)) {
@@ -211,7 +205,8 @@ function policyConstructs(inlines: readonly InlineNode[]): PolicyConstruct[] {
 		found.push({
 			node,
 			content: constructContentRange(node),
-			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty
+			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty,
+			markable: policy.mark !== undefined
 		});
 	}
 	return found;
@@ -231,22 +226,11 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/**
- * What a reader sees, asked of the thing that paints it, over the bytes read back the way `surface`
- * installs them — null where they do not read back at all. The content reading, not the block's
- * own: a cut that empties a construct folds its chrome into view, and the diff would read that
- * arrival as bytes lost; sound because the painting-chrome case returned at the door.
- */
-function visibleText(raw: string, surface: EdgeDeletionSurface): string | null {
-	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
-	if (surface === 'cell')
-		return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
-	// A cut that empties the block is the one candidate with no block to read: emptied is a shape
-	// the reload keeps, so it answers for itself rather than through the parser.
+/** What the user sees of the bytes read back where they are stored, or null where they do not
+ *  read back as one prose block: a cut can push two runs together into a fence opener. */
+function visibleText(raw: string, { store }: EdgeDeletionQuery): string | null {
+	// A cut that empties the block leaves no block to read, and empty shows nothing wherever it is.
 	if (raw === '') return '';
-	// A candidate that re-reads as another block is not what the caller is about to install: a cut
-	// can abut two literal runs into a fence opener, which on reload swallows every block below.
-	const sole = soleProseReparse(raw);
-	if (sole === null) return null;
-	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY);
+	const read = readBack(raw, store);
+	return read && shownOf(read, store);
 }

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
-import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_END, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { makeShimChildList, makeShimDeps } from '$lib/test/harness/editor-actions';
 
 function makeRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
@@ -33,8 +33,7 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
-	// Miss-analysis: the flag was a literal `true` with no reader, so no test could tell a
-	// declared value from the hardcode — the only pin was the default it never left.
+	// Miss-analysis: the only test checked the default, which a hardcoded `true` also passed.
 	it('reports the declared editable value, re-read live', () => {
 		let declared = false;
 		const c = createContainerBlockComponent(
@@ -57,12 +56,6 @@ describe('createContainerBlockComponent', () => {
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
-	it('focus(FOCUS_LAST_START) cascades to the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		container(refs).focus(FOCUS_LAST_START);
-		expect(refs[1].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-	});
-
 	it('focus(<other offset>) targets the last child with CURSOR_END', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(3);
@@ -73,18 +66,13 @@ describe('createContainerBlockComponent', () => {
 		expect(() => container([]).focus(0)).not.toThrow();
 	});
 
-	// The body is unmounted, so a walk-in from below must clamp to child 0, never the
-	// absent last ref.
+	// The body is unmounted, so an entry from below must clamp to child 0, never the absent
+	// last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
-		return createContainerBlockComponent(makeShimDeps(refs, { isCollapsed: () => true }));
+		return createContainerBlockComponent(
+			makeShimDeps(refs, { childList: makeShimChildList(refs, { isCollapsed: () => true }) })
+		);
 	}
-
-	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		collapsedContainer(refs).focus(FOCUS_LAST_START);
-		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-		expect(refs[1].focus).not.toHaveBeenCalled();
-	});
 
 	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
 		const refs = [makeRef(), makeRef()];
@@ -126,7 +114,7 @@ describe('createContainerBlockComponent', () => {
 			]
 		};
 		const c = createContainerBlockComponent(
-			makeShimDeps([], { nodeChildrenLength: 1, node: imageOnly })
+			makeShimDeps([], { childList: makeShimChildList([], { count: () => 1 }), node: imageOnly })
 		);
 		expect(c.isVerticallyTransparent?.()).toBe(true);
 	});
@@ -136,9 +124,9 @@ describe('createContainerBlockComponent', () => {
 	});
 });
 
-// `focus` ends a live cross-block range so the next keystroke can't type-replace the
+// `focus` ends a live cross-block range so the next keystroke cannot type over the
 // document; `parkCaret` deliberately does not.
-describe('createContainerBlockComponent — the two caret doors', () => {
+describe('createContainerBlockComponent: the two caret entry points', () => {
 	function withRange(refs: BlockComponent[]) {
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [4], offset: 2 });
@@ -155,7 +143,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
-	it('parkCaret leaves it live — the extend paths depend on that', () => {
+	it('parkCaret leaves it live: the extend paths depend on that', () => {
 		const refs = [makeRef(), makeRef()];
 		const { selection, api } = withRange(refs);
 
@@ -165,8 +153,8 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
 	});
 
-	// The half that matters: the extend's range survives (BlockComponent.parkCaret).
-	it('a child without the park door is skipped, not landed through focus', () => {
+	// The half that matters: the selection extend's range survives (BlockComponent.parkCaret).
+	it('a child without `parkCaret` is skipped, not landed through focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
 
@@ -177,8 +165,8 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 
 	// `parkCaret` is optional so an external leaf may omit it; the documented cost is a
-	// missed PARK, never a stranded caret on an ordinary focus walk.
-	it('focus lands in a child without the park door, through its focus', () => {
+	// missed `parkCaret`, never a stranded caret on an ordinary focus walk.
+	it('focus lands in a child without `parkCaret`, through its focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
 
@@ -189,9 +177,9 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 });
 
-// The ThematicBreak model exposed through the container shim: with a focus element
-// getter, caret entry lands on that element instead of walking absent children.
-describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
+// The ThematicBreak model through the container component: with a focus element getter,
+// caret entry lands on that element instead of walking absent children.
+describe('createContainerBlockComponent: whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
 		return createContainerBlockComponent(
 			makeShimDeps(refs, { node: mermaidNode(), getFocusEl: () => focusEl })
@@ -247,10 +235,9 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 	});
 });
 
-// The shim ALWAYS exposes measurePartialRects, the seam the search/decoration overlays
-// measure a childless container through. A child-bearing container returns nothing and
-// is never asked: the overlay gates on delegatesPainting, not on this return.
-describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
+// The search and decoration overlays measure a childless container through measurePartialRects;
+// a container with children returns nothing, and the overlays never ask it.
+describe('createContainerBlockComponent: measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
 
@@ -260,7 +247,7 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 	}): BlockComponent {
 		return createContainerBlockComponent(
 			makeShimDeps([], {
-				nodeChildrenLength: over.childCount ?? 0,
+				childList: makeShimChildList([], { count: () => over.childCount ?? 0 }),
 				node: mermaidNode(),
 				getBoxEl: over.getBoxEl
 			})
@@ -271,7 +258,7 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 		expect(shim({}).measurePartialRects).toBeTypeOf('function');
 	});
 
-	it('a child-bearing container returns [] — children self-paint', () => {
+	it('a child-bearing container returns []: children self-paint', () => {
 		expect(shim({ childCount: 2, getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([]);
 	});
 

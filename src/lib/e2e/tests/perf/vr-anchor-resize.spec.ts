@@ -12,24 +12,22 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// VR-1 resize invalidation, on its two independent axes. WIDTH re-wraps prose and stales the
-// measured cache, so the model rebuilds and re-measures. HEIGHT re-wraps nothing and spares
-// that cache, but it moves the SLICE — the window's extent is derived from the scrollport's
-// height — so the two axes carry separate signals and separate scenarios.
+// Dropping measurements on a resize, in its two cases (VR-1). A width change re-wraps the prose,
+// so the height table rebuilds and measures again. A height change keeps the measurements but
+// changes how many blocks are mounted, so each case gets its own signal and scenario.
 
 const VIEWPORT = { width: 1280, height: 720 };
 
-// Width-SENSITIVE prose that re-wraps as the column narrows, so a width change really moves
-// every height (a `<br>` fixture's hard breaks would not).
+// Prose that re-wraps as the column narrows, so a change of width really moves every height,
+// which a fixture full of hard `<br>` breaks would not.
 const WIDE_PROSE_BLOCKS = 900;
 function buildWideProseDoc(): string {
 	const line = Array.from({ length: 60 }, (_, w) => `word${w % 16}`).join(' ');
 	return Array.from({ length: WIDE_PROSE_BLOCKS }, () => line).join('\n\n') + '\n';
 }
 
-/** The first mounted top-level host clearing the editor's viewport top, measured RELATIVE to
- *  the editor: a resize reflows the harness chrome above the slot, a shift the anchor
- *  correction does not own. */
+/** Measured against the editor, since a resize reflows the harness's own header above it and that
+ *  shift is not the correction's doing. */
 function anchorInEditor(page: Page): Promise<{ path: string; topInEditor: number } | null> {
 	return page.evaluate((sel) => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
@@ -61,8 +59,8 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
-	// Above-window blocks reseed estimate-to-estimate either way; only the band measured at
-	// the WIDE width makes re-measure observable.
+	// Blocks above the window go from one estimate to another either way; only the stretch
+	// measured at the wide width shows whether it measures again.
 	const wideScrollHeight = await editorScrollHeight(page);
 	await progressiveScrollTo(editor, Math.round(wideScrollHeight / 2));
 
@@ -73,7 +71,7 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 		return { width: editorEl.clientWidth, scrollHeight: editorEl.scrollHeight };
 	});
 
-	// Narrow enough to re-wrap every paragraph, firing the editor's width ResizeObserver.
+	// Narrow enough to re-wrap every paragraph, which fires the editor's width observer.
 	await page.setViewportSize({ width: 760, height: 900 });
 	for (let i = 0; i < 5; i++) await editor.waitForRenderFlush();
 
@@ -87,21 +85,19 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 
 	expect(after.width).toBeLessThan(before.width - 100);
 
-	// (1) Re-measure: without the width wiring the model keeps wide heights and scrollHeight
-	// barely moves, so the 10% growth bound fails on the revert.
+	// (1) Measuring again: without the width wiring the height table keeps the wide heights and
+	// scrollHeight barely moves, so the 10% growth check fails once the wiring is removed.
 	expect(after.scrollHeight).toBeGreaterThan(before.scrollHeight * 1.1);
 
-	// (2) Anchor: ONE correction across ONE model transition holds to well under a line, so
-	// 20px sits far above the residual and far below a one-block slip.
+	// (2) The scroll: one correction across one rebuild holds to well under a line of text, so
+	// 20px is far above what is left over and far below slipping by a whole block.
 	expect(anchorTopAfter).not.toBeNull();
 	expect(drift).toBeLessThan(20);
 	expect(pageErrors).toEqual([]);
 });
 
-// The height axis. The width observer returns on a height-only change by design, and the
-// scrollport's height is a plain DOM read inside the window derived — so without its own
-// invalidation signal the slice never recomputes and the newly exposed band stays bare
-// spacer until any scroll or keystroke.
+// The width observer ignores a height change by design, and the scroll container's height is
+// read from the DOM, so without its own signal the uncovered stretch stays bare spacer.
 test('growing the viewport height alone extends the mounted band into the exposed area', async ({
 	page
 }) => {
@@ -111,7 +107,7 @@ test('growing the viewport height alone extends the mounted band into the expose
 	await page.setViewportSize(VIEWPORT);
 	await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
 
-	// Mid-document, so the slice is genuinely windowed rather than pinned at the doc start.
+	// Mid-document, so the mounted blocks are a real window rather than the start of it.
 	await editor.scrollEditorTo(Math.round((await editorScrollHeight(page)) / 2));
 	await editor.waitForRenderFlush();
 	expect(await spacerCount(page)).toBeGreaterThan(0);
@@ -119,7 +115,7 @@ test('growing the viewport height alone extends the mounted band into the expose
 	const anchor = await anchorInEditor(page);
 	expect(anchor).not.toBeNull();
 
-	// HEIGHT only — the same width, so nothing re-wraps and the measured cache must survive.
+	// Height only, at the same width, so nothing re-wraps and the measurements must survive.
 	await page.setViewportSize({ width: VIEWPORT.width, height: Math.round(VIEWPORT.height * 2.2) });
 	await editor.waitForRenderFlush();
 
@@ -127,12 +123,12 @@ test('growing the viewport height alone extends the mounted band into the expose
 	const anchorTopAfter = await hostTopInEditor(page, anchor!.path);
 	console.log(`VR height-only ${JSON.stringify({ ...span, anchorTopAfter })}`);
 
-	// The failure this pins: the mounted set is unchanged, so the bottom of the taller
-	// viewport is bare spacer (~40% of it, measured).
+	// The failure this catches: nothing new mounts, so the bottom of the taller viewport is
+	// bare spacer, about 40% of it as measured.
 	expect(span.bottomGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 	expect(span.topGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 
-	// And the newly-running correction must not throw the reader while it fills the band.
+	// The correction must not move the user while it fills that stretch.
 	expect(anchorTopAfter).not.toBeNull();
 	expect(Math.abs(anchorTopAfter! - anchor!.topInEditor)).toBeLessThan(60);
 	expect(pageErrors).toEqual([]);

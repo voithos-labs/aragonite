@@ -4,9 +4,9 @@ import type { Page } from '@playwright/test';
 import { clickBlockSettled, clickWordSettled, enterPresentationMode, stepTo } from './helpers';
 import { attachIme } from '../../simulation/ime';
 
-// A collapsed-caret toggle in live mode writes no bytes; the next insertion carries the mark.
-// The source is the oracle — live paints no delimiter, so nothing on screen distinguishes a
-// pended mark from an empty pair until bytes exist.
+// A toggle at a collapsed caret in live mode writes no bytes; the next insertion carries the
+// mark. The source is the reference, because live paints no delimiter, so nothing on screen
+// tells a pending mark from an empty pair until bytes exist.
 // Requirements: e2e/requirements/presentation/presentation-live-pending-marks.md.
 
 const DOC = [
@@ -28,9 +28,8 @@ const BOLD = 1;
 const PHRASE = 2;
 const AUTOLINK = 3;
 const STRUCK = 4;
-/** Two spaces, so a caret between them has whitespace on BOTH sides — the one collapsed position
- *  where a nested pair's outer run is flanking enough to open and close (`**` before a backtick
- *  after a letter is neither). */
+/** Two spaces, so a caret between them has whitespace on either side, the one collapsed position
+ *  where a nested pair's outer run can both open and close. */
 const GAP = 5;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
@@ -40,7 +39,7 @@ const italic = (page: Page) => page.keyboard.press('ControlOrMeta+i');
 const struck = (page: Page) => page.keyboard.press('ControlOrMeta+Shift+X');
 const code = (page: Page) => page.keyboard.press('ControlOrMeta+e');
 
-test.describe('live mode — a pended mark rides the next insertion', () => {
+test.describe('live mode: a pended mark rides the next insertion', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -70,8 +69,8 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 		await ep.bridge.waitForSourceContains('plain***X***');
 	});
 
-	// `Some **bold** text`: `bold` is [7,11). A mark the chain already carries REMOVES, so the
-	// byte escapes the construct rather than nesting a second pair inside it.
+	// `Some **bold** text`: `bold` is [7,11). Toggling a mark the text already has removes it, so
+	// the byte escapes the construct rather than nesting a second pair inside it.
 	test('a mark pended inside bold unbolds the next insertion', async ({ page }) => {
 		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 9);
@@ -81,8 +80,8 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 		await ep.bridge.waitForSourceContains('Some **bo**X**ld** text');
 	});
 
-	// The whole reason the byte-pair strategy cannot ship in live: an abandoned toggle would
-	// leave `****` the user can see the effect of but never explain.
+	// An abandoned toggle must leave no bytes: `****` would change the text with nothing on screen to
+	// explain it.
 	test('Mod+B then a click away leaves the bytes untouched', async ({ page }) => {
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
@@ -96,13 +95,27 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
+
+	// A host placing the caret moves it as surely as a click does, so the promise is dropped.
+	test('Mod+B then a host setSelection: the next keystroke types plain', async ({ page }) => {
+		await clickBlockSettled(ep, PLAIN);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+
+		await bold(page);
+		const caret = { path: [BOLD], offset: 0 };
+		expect(await ep.bridge.setSelection({ anchor: caret, focus: caret })).toBe(true);
+		await ep.waitForRenderFlush();
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('XSome **bold** text');
+
+		expect(await ep.bridge.getSource()).not.toContain('**X**');
+	});
 });
 
-// The two chords no other scenario spends: strikethrough's two-byte run and inline code's
-// backtick, whose delimiters the resolver has to write for itself. The nesting rows are the pin
-// on the order being the TABLE's and not the chords' — a code span wrapping literal stars is what
-// the wrong order produces, and the resolver would decline it and type plain instead.
-test.describe('live mode — the marks beyond bold and italic', () => {
+// The two chords no other scenario uses. The nesting rows check that the order comes from the mark
+// table: the wrong order wraps literal stars in a code span, which the resolver would decline.
+test.describe('live mode: the marks beyond bold and italic', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -115,7 +128,7 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 		await ep.waitForRenderFlush();
 	};
 
-	/** Between the two spaces of `gap  here`, reached by real presses from the line start. */
+	/** Between the two spaces of `gap  here`, reached by real keypresses from the line start. */
 	const atGap = async (page: Page): Promise<void> => {
 		await clickBlockSettled(ep, GAP);
 		await page.keyboard.press('Home');
@@ -160,7 +173,7 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 	// `~~struck~~ tail`: content is [2,8), so offset 4 sits after `st`. The same close-and-reopen
 	// escape bold takes, on the run whose delimiters are two bytes rather than two asterisks.
 	test('a mark pended inside a struck phrase splits it open', async ({ page }) => {
-		// Home lands past the hidden opener, so the two presses are counted from content start.
+		// Home lands past the hidden opener, so the steps are counted from the content start.
 		await clickBlockSettled(ep, STRUCK);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
@@ -174,11 +187,9 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 	});
 });
 
-// The shape that made the first cut of this resolver ship literal stars: a bold PHRASE, split
-// at the space. `**hello**X** world**` reads right and renders `helloX** world**`, because a
-// closing run before a space is not left-flanking. The resolver re-parses its own candidate and
-// steps outside the construct instead, so what a first session sees here is the whole point.
-test.describe('live mode — a removal that would show delimiters steps outside instead', () => {
+// A bold phrase split at the space: `**hello**X** world**` renders `helloX** world**`, since a
+// closing run before a space is not left-flanking, so the resolver steps outside the construct.
+test.describe('live mode: a removal that would show delimiters steps outside instead', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -195,7 +206,7 @@ test.describe('live mode — a removal that would show delimiters steps outside 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('X**hello world**');
 
-		// What the reader sees: one plain X, and a phrase that is still entirely bold.
+		// What the user sees: one plain X, and a phrase that is still entirely bold.
 		const block = ep.getBlock(PHRASE);
 		await expect(block).toHaveText('Xhello world', { useInnerText: true });
 		await expect(block.locator('strong')).toHaveText('hello world', { useInnerText: true });
@@ -203,10 +214,9 @@ test.describe('live mode — a removal that would show delimiters steps outside 
 	});
 });
 
-// An autolink is ONE childless span: there is no seam inside it a delimiter can go through, and
-// its angle brackets are marker spans the reader has never seen. A wrap inside the URL destroys
-// the link and paints them, so the mark declines and the byte types plain.
-test.describe('live mode — a mark inside a URL declines rather than destroy the link', () => {
+// An autolink is one span with no children, so a mark inside the URL would destroy the link and
+// paint its brackets; the mark declines and the byte types plain.
+test.describe('live mode: a mark inside a URL declines rather than destroy the link', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -233,15 +243,15 @@ test.describe('live mode — a mark inside a URL declines rather than destroy th
 	});
 });
 
-test.describe('live mode — a mark is spent once and cleared by any caret move', () => {
+test.describe('live mode: a mark is spent once and cleared by any caret move', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterLive(page);
 	});
 
-	// Spent once, but the caret it left is inside the pair it made, so the NEXT byte extends
-	// that construct by the ordinary arrival rule rather than by a second mark.
+	// Spent once, but the caret it left is inside the pair it made, so the next byte extends that
+	// construct by the ordinary arrival rule rather than by a second mark.
 	test('the second keystroke extends what the first one made, not a second pair', async ({
 		page
 	}) => {
@@ -253,7 +263,7 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('plain**X**');
 
-		// Settled first: the mark's commit re-renders the block and restores the caret, and a
+		// Waited for first: the mark's commit re-renders the block and restores the caret, and a
 		// second byte racing that restore says nothing about whether the mark was spent.
 		await page.keyboard.type('Y');
 		await ep.bridge.waitForSourceContains('plain**XY**');
@@ -287,7 +297,44 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 	});
 });
 
-test.describe('live mode — the insertion that spends a mark owns its undo entry', () => {
+// Emptying the construct a mark just made unwraps it; the preview modes keep the empty pair, and
+// the keypress hands the mark back so live agrees and the next byte is still italic.
+test.describe('live mode: a press that empties a construct hands its mark back', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+
+		await clickBlockSettled(ep, PLAIN);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+
+		await italic(page);
+		await page.keyboard.type('x');
+		await ep.bridge.waitForSourceContains('plain*x*');
+
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceNotContains('*x*');
+		await ep.waitForRenderFlush();
+	});
+
+	test('the second chord turns the mark off, so the next byte types plain', async ({ page }) => {
+		await italic(page);
+		await page.keyboard.type('y');
+
+		await ep.bridge.waitForSourceContains('plainy');
+		await ep.bridge.waitForSourceNotContains('*y*');
+	});
+
+	test('with no second chord the next byte is still italic', async ({ page }) => {
+		await page.keyboard.type('y');
+
+		await ep.bridge.waitForSourceContains('plain*y*');
+		await expect(ep.getBlock(PLAIN).locator('em')).toHaveText('y');
+	});
+});
+
+test.describe('live mode: the insertion that spends a mark owns its undo entry', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -312,7 +359,7 @@ test.describe('live mode — the insertion that spends a mark owns its undo entr
 	});
 });
 
-test.describe('live mode — an IME commit spends a mark like a keystroke', () => {
+test.describe('live mode: an IME commit spends a mark like a keystroke', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -333,12 +380,9 @@ test.describe('live mode — an IME commit spends a mark like a keystroke', () =
 	});
 });
 
-// The dispatcher runs `handlePendingMarks` BEFORE `handleCstWidget`, so a plain key beside an
-// atomic widget is claimed by the marks arm and the widget arm never sees it. That ordering was
-// unverified; these rows pin what the verified path does with it — the rewrite is checked against
-// the render path, so a splice that would change painted text is declined and the widget survives
-// whole on either side of it.
-test.describe('live mode — a pending mark beside an inline widget', () => {
+// The dispatcher runs `handlePendingMarks` before `handleCstWidget`, so these rows check that a
+// splice that would change painted text is declined and the widget survives whole.
+test.describe('live mode: a pending mark beside an inline widget', () => {
 	const WIDGET_DOC = 'see &amp; now\n';
 
 	test('the byte lands before the widget, wrapped, and the entity survives', async ({ page }) => {
@@ -362,8 +406,8 @@ test.describe('live mode — a pending mark beside an inline widget', () => {
 		await ep.loadContent(WIDGET_DOC);
 		await ep.waitForRenderFlush();
 
-		// Stepped rather than seated: the widget is one atomic stop, so five presses from the
-		// line start clear it — and a DOM-offset seat cannot address the far side of an island.
+		// Stepped rather than placed directly: the widget is one atomic stop, so five keypresses
+		// from the line start clear it, and a DOM offset cannot address the far side of a widget.
 		await ep.clickBlock(0);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();

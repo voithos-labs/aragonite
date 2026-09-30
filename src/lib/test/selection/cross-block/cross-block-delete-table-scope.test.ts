@@ -15,6 +15,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The stale-table-row-ids class: a cross-block delete whose whole-row snap splices table.children
 // must commit the table as its own scope, keeping row BlockListState ids/refs in lockstep.
@@ -23,20 +24,17 @@ const HEADER_PLUS_TWO = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
-	// Production wiring: getDoc enables the state seam's table-endpoint
-	// normalization + whole-row snap, which the plain harness omits.
+	// Production wiring: `getDoc` enables the selection state's table-endpoint normalization and
+	// whole-row snap, which the plain harness omits.
 	harness.deps.selectionState = createSelectionState({ getDoc: () => harness.deps.doc });
 	const controller = createUndoController(harness.deps);
 	const mutCtx: CrossBlockMutationContext = {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: harness.deps.revealPath,
+		revealPath: (path) => harness.deps.caretLanding.mount(path),
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	};
 	return {
 		...harness,
@@ -57,7 +55,7 @@ function expectLockstep(state: BlockListState, node: CstNode): void {
 	expect(state.innerBlockRefs).toHaveLength(node.children!.length);
 }
 
-describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
+describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 	it('paragraph → body cell: row state stays in lockstep, promoted header keeps its id', async () => {
 		const env = makeEnv(`lead\n\n${HEADER_PLUS_TWO}`);
 		const state = registerTableState(env, 1);
@@ -69,7 +67,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[1];
 		expect(table.kind).toBe('table');
@@ -88,7 +86,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [1], offset: 5 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[0];
 		expect(table.kind).toBe('table');
@@ -109,7 +107,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(editEvents.map((e) => e.op)).toEqual(['delete']);
 		expect(env.deps.undoManager.getStacks().undo).toHaveLength(1);
@@ -125,7 +123,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [0, 2, 1], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[0];
 		expect(table.children).toHaveLength(3);
@@ -146,7 +144,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 		await tick();
 		await env.history.requestUndo();
 
@@ -164,7 +162,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(env.deps.doc.children).toHaveLength(1);
 		expect(env.deps.doc.children[0].kind).toBe('paragraph');
@@ -174,7 +172,7 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 
 // A row registers its BlockListState on mount, so a windowed-out row never does. A full-column
 // delete splices every row's cells, but only the mounted rows need a reactive scope.
-describe('commitColumnDelete — a windowed-out row has no registered state', () => {
+describe('commitColumnDelete: a windowed-out row has no registered state', () => {
 	// Three columns so canDeleteColumn permits removing one (≥2 must remain).
 	const THREE_COL = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
@@ -202,7 +200,7 @@ describe('commitColumnDelete — a windowed-out row has no registered state', ()
 		// Row 1 stays windowed out — no registerRowState, so no registered state.
 		selectFirstColumn(env);
 
-		await performCrossBlockDelete(env.mutCtx, { tableCoverageDelete: true });
+		await performCrossBlockDelete(env.mutCtx, 'keyless', { tableCoverageDelete: true });
 
 		const table = env.deps.doc.children[0];
 		expect(metadataOf(table, 'table').columnCount).toBe(2);

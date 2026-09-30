@@ -1,5 +1,5 @@
-// One invariant — paste replacement — parametrized across the selection shapes that span
-// list items, which is why these stay in one file.
+// One rule, paste replacement, over the selection shapes that span list items, which is why
+// these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -64,7 +64,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		expect(source).not.toContain('three');
 	});
 
-	test('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
+	test('paste multi-block content into cross-block selection spanning two list items', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.seedClipboard('alpha\n\nbeta\n');
@@ -90,8 +90,8 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		// Dismiss the copy-time cross-block selection so the next shift-click
-		// starts a fresh range instead of extending the old one.
+		// Dismiss the copy-time cross-block selection so the next shift-click starts a fresh range
+		// instead of extending that one.
 		await editor.page.keyboard.press('Escape');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
@@ -107,9 +107,8 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		expect(source).toMatch(/\bone\b/);
 	});
 
-	// Regression: drag selection leaves the native selection empty, so Chromium
-	// dispatched paste to <body> instead of any block. Fixed by parking a
-	// collapsed caret in the focus block when entering cross-block.
+	// A drag selection leaves the native selection empty, so Chromium would dispatch paste at
+	// `<body>`; entering cross-block puts a collapsed caret in the focus block to prevent that.
 	test('drag selection across list items: paste single-block text lands', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 		await editor.seedClipboard('text');

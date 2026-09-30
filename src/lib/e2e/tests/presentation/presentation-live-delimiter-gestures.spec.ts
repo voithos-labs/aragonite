@@ -10,8 +10,8 @@ import {
 	stepTo
 } from './helpers';
 
-// Typing a construct closed and leaving it in live mode: the auto-pair arm and the typing seat
-// as one gesture. The source is the oracle throughout.
+// Typing a construct closed and leaving it in live mode: auto-pairing and where the typed byte
+// goes, as one gesture. The source is the reference throughout.
 // Requirements: e2e/requirements/presentation/presentation-live-delimiter-gestures.md.
 
 const DOC = [
@@ -49,7 +49,7 @@ async function atEnd(ep: EditorPage, page: Page, block: number, target: number):
 	await stepTo(ep, page, 'ArrowLeft', target);
 }
 
-test.describe('live mode — the closer typed over a hidden closer steps past it', () => {
+test.describe('live mode: the closer typed over a hidden closer steps past it', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -72,8 +72,8 @@ test.describe('live mode — the closer typed over a hidden closer steps past it
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// The keydown seat owns WHERE a byte lands at a hidden edge; the pair is still the arm's.
-	test('a delimiter typed at the trailing edge from outside lands its twin past the closer', async ({
+	// Keydown decides where a byte lands at a hidden edge; auto-pairing still adds the pair.
+	test('a delimiter typed at the trailing edge from outside lands its paired closer past the closer', async ({
 		page
 	}) => {
 		await atEnd(ep, page, STRONG, 13);
@@ -82,7 +82,19 @@ test.describe('live mode — the closer typed over a hidden closer steps past it
 	});
 });
 
-test.describe('live mode — a construct typed to completion is left behind', () => {
+// A backtick typed at a hidden closer is written by the keydown path, which records the pair as
+// the auto-pair's own just as the `beforeinput` path does: Backspace between the two takes both.
+test('live mode: Backspace takes both of a pair written at a hidden closer', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', 'x **b** y\n');
+	await ep.focusBlock(0, 7);
+	await page.keyboard.type('`');
+	await ep.bridge.waitForSourceMatches(/``/);
+	await page.keyboard.press('Backspace');
+
+	await expect.poll(() => ep.bridge.getSource()).toBe('x **b** y\n');
+});
+
+test.describe('live mode: a construct typed to completion is left behind', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -93,7 +105,7 @@ test.describe('live mode — a construct typed to completion is left behind', ()
 	});
 
 	// `tail*` pairs nothing (an opener straight after a word byte), so the closer is typed by hand.
-	test('a closer typed by hand seats the next byte outside', async ({ page }) => {
+	test('a closer typed by hand puts the caret at the next byte outside', async ({ page }) => {
 		await page.keyboard.type('*ab* z');
 		await ep.bridge.waitForSourceContains('plain tail*ab* z');
 	});
@@ -104,7 +116,7 @@ test.describe('live mode — a construct typed to completion is left behind', ()
 	});
 });
 
-test.describe('live mode — the pairs the destructive-edges rows never covered', () => {
+test.describe('live mode: the pairs the destructive-edges rows never covered', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -145,7 +157,7 @@ test.describe('live mode — the pairs the destructive-edges rows never covered'
 
 const CELL_DOC = '| a | b |\n| --- | --- |\n| Some **strong** tail | plain |\n';
 
-test.describe('live mode — the same gestures in a table cell', () => {
+test.describe('live mode: the same gestures in a table cell', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -159,7 +171,7 @@ test.describe('live mode — the same gestures in a table cell', () => {
 		await ep.bridge.waitForSourceContains('| Some **strong**X tail |');
 	});
 
-	test('a closer typed by hand seats the next byte outside', async ({ page }) => {
+	test('a closer typed by hand puts the caret at the next byte outside', async ({ page }) => {
 		const cell = page
 			.locator("[role='table'] [contenteditable='true']")
 			.filter({ hasText: 'plain' });

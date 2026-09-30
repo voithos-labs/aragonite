@@ -17,11 +17,8 @@ export interface ReplaceRange {
 	groups?: string[];
 }
 
-/**
- * Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid. No
- * per-replacement escape hook: a structural leaf's delimiters escape over the WHOLE
- * post-splice raw, so that is the caller's `toLegalRaw` pass over the result.
- */
+/** Substitutes right-to-left so earlier offsets stay valid. Escaping a structural leaf's
+ *  delimiters is the caller's `toLegalRaw` pass over the result. */
 export function applyRangesToText(text: string, ranges: ReplaceRange[], template: string): string {
 	let out = text;
 	const ordered = [...ranges].sort((a, b) => b.start - a.start);

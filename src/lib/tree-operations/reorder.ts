@@ -1,14 +1,17 @@
 import type { CstNode } from '../core/nodes';
-import { isBlankParagraph, parse } from '../core/parser';
-import { trailingLineEnding } from '../core/lines';
+import { isBlankParagraph, readBlocks } from '../core/parser';
+import { lineEndingAt, ownTrailingLineEnding } from '../core/lines';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
+import { endWindowLines } from './open-tail';
+import type { BodyParent } from './node-primitives';
 import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
+import type { GrammarView } from '../schema/block-openers';
 
 // A stale index (a mid-drag delete shrank the array) would splice `undefined` into the
-// $state tree, so both entry points bail through this BEFORE any unshare or write.
+// $state tree, so both entry points check the bounds before any copy or write.
 function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 	if (from < 0 || from >= len || to < 0 || to >= len) {
 		devWarn('reorder', `reorder out of bounds: from=${from} to=${to} len=${len}`);
@@ -18,7 +21,7 @@ function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 }
 
 // A reorder rewrites no bytes and creates no node: it is one contiguous `replace`
-// whose idMap permutes the spanned window so each moved block keeps its id + ref.
+// whose idMap permutes the spanned window so each moved block keeps its id and ref.
 export function reorderChildren(children: CstNode[], from: number, to: number): StructuralChange {
 	if (from === to) return { op: 'noop' };
 	if (isReorderOutOfBounds(from, to, children.length)) return { op: 'noop' };
@@ -36,27 +39,26 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 }
 
 /**
- * Reorder children while keeping block separators positional. A separator is stored as the next
- * child's `leadingTrivia` but read per slot, so it belongs to the position, not the node. Writing
- * it is a byte write, so spanned children are unshared first (`unshare.ts`) and `children` must
- * already be an owned array. The landing rides the result: a fold settling a seam the move
- * invalidated can sit above the moved block.
+ * Reorder a body's children, each separator staying with its position rather than its node. The
+ * children must be an owned array; the result's `landing` counts any merge the move set off.
  */
 export function reorderChildrenWithTrivia(
-	children: CstNode[],
+	body: BodyParent,
 	from: number,
 	to: number,
 	sharing: SharingState,
-	/** Top-level blocks only: a blank line is a document separator, not a list's or a quote's,
-	 *  whose own children carry their marker and would read a bare blank line as an end. */
-	separators = false
+	/** The editor's grammar, in which the checks below reread each pair of moved blocks. */
+	grammar: GrammarView
 ): SettledSplice {
+	const children = body.children;
 	if (from === to) return { change: { op: 'noop' }, landing: to };
 	if (isReorderOutOfBounds(from, to, children.length)) {
 		return { change: { op: 'noop' }, landing: from };
 	}
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
+	// Whether the moved block sat flush against both its neighbours, read before the rotation.
+	const flushAround = !children[from].leadingTrivia && !children[from + 1]?.leadingTrivia;
 	const windowTrivia: string[] = [];
 	for (let i = lo; i <= hi; i++) {
 		windowTrivia.push(ensureUnsharedChild({ children }, i, sharing).leadingTrivia);
@@ -65,48 +67,52 @@ export function reorderChildrenWithTrivia(
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
-	if (separators) {
-		// The rotation reseats every slot in the window, and a block can land flush under a
-		// paragraph that then reads its lines as its own (a table dissolving into the prose above
-		// it). The seam it VACATED is the exception: a pair rejoining once the block between them
-		// leaves is the reload's own reading, which the absorber below settles.
-		const vacated = from < to ? from : from + 1;
-		for (let at = lo; at <= hi + 1; at++) {
-			if (at !== vacated) separateSeam(children, at, sharing);
-		}
-		// A blank line reseated by position can hold a line its follower holds too; the run owes
-		// exactly one, and none at the document head, where the reload reads each as a block.
-		for (let at = lo; at <= hi; at++) {
-			if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
-		}
+	// The joins below read the moved blocks side by side, so a moved open last line ends first; this
+	// call goes once the commit settles the move's joins, and the commit gives the ending back.
+	endWindowLines(body, change, sharing, grammar);
+	// Each join the move touches gets a blank line where the two blocks would read as one; the
+	// pair the moved block left rejoins only if it sat flush against both of them.
+	const vacated = from < to ? from : from + 1;
+	for (let at = lo; at <= hi + 1; at++) {
+		if (at !== vacated || !flushAround) separateSeam(children, at, sharing, grammar);
 	}
-	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, sharing);
+	// A blank block moved by position can hold a line its follower holds too; the run needs
+	// exactly one, and none at the document head, where the reload reads each as a block.
+	for (let at = lo; at <= hi; at++) {
+		if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
+	}
+	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, grammar, sharing);
 }
 
 /**
- * Give the follower at `at` a separator where the reload would otherwise not read the two
- * blocks back as themselves, and only then: a block that swallows across a blank line (an
- * unterminated fence taking the prose below it) is the reload's true reading, left to the
- * absorber, which the fold tests pin.
+ * Give the follower at `at` a separator only where the reload would not read the two blocks back
+ * as themselves; a block that swallows across a blank line is left to the neighbour merge.
  */
-function separateSeam(children: CstNode[], at: number, sharing: SharingState): void {
+function separateSeam(
+	children: CstNode[],
+	at: number,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
 	if (at <= 0 || at >= children.length) return;
 	const prev = children[at - 1];
 	const next = children[at];
-	const apart = withLeadingLine(next.leadingTrivia, trailingLineEnding(next.raw));
+	// The block above is not the last, so its line ending is the document's.
+	const apart = withLeadingLine(next.leadingTrivia, ownTrailingLineEnding(prev.raw));
 	if (apart === next.leadingTrivia) return;
-	if (readsAsBoth(prev, next.leadingTrivia, next) || !readsAsBoth(prev, apart, next)) return;
+	const readsAsBoth = (trivia: string) => readsAsPair(prev, trivia, next, grammar);
+	if (readsAsBoth(next.leadingTrivia) || !readsAsBoth(apart)) return;
 	ensureUnsharedChild({ children }, at, sharing).leadingTrivia = apart;
 }
 
 function withLeadingLine(trivia: string, eol: string): string {
-	return trivia.startsWith('\n') || trivia.startsWith('\r\n') ? trivia : eol + trivia;
+	return lineEndingAt(trivia, 0) !== '' ? trivia : eol + trivia;
 }
 
 // Two blocks of the same shape, not merely two: a quote lazily taking the first line of the
 // prose below it still reads as two, with the remainder a different kind.
-function readsAsBoth(prev: CstNode, trivia: string, next: CstNode): boolean {
-	const blocks = parse(prev.raw + trivia + next.raw, { scope: 'fragment' }).children;
+function readsAsPair(prev: CstNode, trivia: string, next: CstNode, grammar: GrammarView): boolean {
+	const blocks = readBlocks(prev.raw + trivia + next.raw, { grammar, scope: 'fragment' }).children;
 	return (
 		blocks.length === 2 &&
 		blocks[0].kind === prev.kind &&

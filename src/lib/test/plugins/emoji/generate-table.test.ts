@@ -13,7 +13,7 @@ const DB = [
 	{ emoji: '❤️', aliases: ['heart'] }
 ];
 
-describe('emojiTableEntries — flatten aliases to glyph, stably ordered', () => {
+describe('emojiTableEntries: flatten aliases to glyph, stably ordered', () => {
 	it('maps every alias, including a multi-alias entry, to its glyph', () => {
 		const table = new Map(emojiTableEntries(DB));
 		expect(table.get('smile')).toBe('😄');
@@ -37,7 +37,7 @@ describe('emojiTableEntries — flatten aliases to glyph, stably ordered', () =>
 	});
 });
 
-describe('renderEmojiTable — a generated, self-describing module', () => {
+describe('renderEmojiTable: a generated, self-describing module', () => {
 	const source = renderEmojiTable(emojiTableEntries(DB));
 
 	it('marks the file generated and names the regeneration command', () => {

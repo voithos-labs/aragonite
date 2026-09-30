@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
-//
-// BlockquoteBlock is pure wiring: every behavior is a delegation published from
-// `createContainerBlock` as one `containerApi`, and a delegation that stops delegating is
-// invisible until a user hits it. Bare mount deliberately — `containerApi` is the
-// component's own surface, and an Editor mount hands it to BlockHost rather than to the
-// test. Nothing here commits, so the node-replacement staleness never arises.
+// BlockquoteBlock only hands on `createContainerBlock`'s behaviour as one `containerApi`, and a
+// dropped delegation shows nowhere else. Mounted alone because an Editor mount hands
+// `containerApi` to BlockHost, not to the test.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockquoteBlock from '$lib/components/blocks/BlockquoteBlock.svelte';
 import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { componentAt } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -53,12 +51,12 @@ describe('blockquote delegates to its inner BlockList', () => {
 	it('resolves the addressed child, not merely the first one', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n');
 
-		const first = mounted.instance.containerApi.getBlockComponentByPath([0]);
-		const second = mounted.instance.containerApi.getBlockComponentByPath([1]);
+		const first = componentAt(mounted.instance.containerApi.childList(), [0]);
+		const second = componentAt(mounted.instance.containerApi.childList(), [1]);
 
 		expect(first?.editable).toBe(true);
 		expect(second).not.toBe(first);
-		expect(mounted.instance.containerApi.getBlockComponentByPath([2])).toBeNull();
+		expect(componentAt(mounted.instance.containerApi.childList(), [2])).toBeNull();
 	});
 
 	it('lands focus in the first child when the container is focused', () => {
@@ -72,12 +70,9 @@ describe('blockquote delegates to its inner BlockList', () => {
 		expect(mounted.instance.containerApi.getCursorOffset()).toBe(0);
 	});
 
-	// The seam defaults `reorderable` to false; the blockquote overrides it at its own call
-	// site, so dropping that prop is a silent affordance loss — children render, undraggable.
-	// Reorder UNIT, not grip: prose carries no drag handle (`components/drag-handle.ts`), so the
-	// class is the whole claim here — the quote's children are addressable by reorder, unlike
-	// an opaque container's rows, which the directive test pins.
-	it('marks its children as reorder units, unlike the seam default', () => {
+	// `createContainerBlock` defaults `reorderable` to false and the blockquote overrides it, so
+	// dropping that prop leaves children that render but cannot be dragged.
+	it('marks its children as reorder units, unlike the default', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n', true);
 
 		const hosts = mounted.target.querySelectorAll('.blockquote-block > .block-list > .block-host');

@@ -11,9 +11,10 @@ import {
 } from '$lib/schema/keybinding-overrides';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { SearchState } from '$lib/search/search-state.svelte';
+import { commandContext } from '../support/command-context';
 
-// The bar's live surface, reduced to what the root handler drives. `isOpen`
-// tracks open/close so the Escape arm and the savedRange guard see real state.
+// The search bar's live state, cut down to what the root handler drives. `isOpen`
+// tracks open and closed so the Escape branch and the savedRange check see real state.
 function fakeSearch() {
 	const calls = { open: 0, close: 0, queries: [] as string[] };
 	const state = {
@@ -33,16 +34,16 @@ function fakeSearch() {
 
 interface Harness {
 	root: HTMLElement;
-	/** The `header` slot's box — host chrome mounted INSIDE the root. */
+	/** The `header` snippet's box: the host's own header, mounted inside the root. */
 	header: HTMLElement;
 	press(key: string, init?: KeyboardEventInit): KeyboardEvent;
 	search: ReturnType<typeof fakeSearch>;
 	crossBlockKeys: KeyboardEvent[];
-	/** Text the range's own type-replace door was handed, in order. */
+	/** Text the range's own type-to-replace path was handed, in order. */
 	inserted: string[];
 	undoCount(): number;
 	redoCount(): number;
-	savedRanges: (Range | null)[];
+	searchCaretSaves(): number;
 	replaceExpanded: boolean[];
 	setMode(mode: PresentationMode): void;
 	setCrossBlock(on: boolean): void;
@@ -60,7 +61,7 @@ function harness(): Harness {
 	const search = fakeSearch();
 	const crossBlockKeys: KeyboardEvent[] = [];
 	const inserted: string[] = [];
-	const savedRanges: (Range | null)[] = [];
+	let searchCaretSaves = 0;
 	const replaceExpanded: boolean[] = [];
 	let undoCount = 0;
 	let redoCount = 0;
@@ -70,27 +71,22 @@ function harness(): Harness {
 	let overrides: KeybindingOverride[] | undefined;
 
 	const deps: EditorRootKeydownDeps = {
-		// No plugins stood up here, so every installed one is active.
-		activation: undefined,
 		get searchBarEnabled() {
 			return searchBar;
 		},
-		get mode() {
-			return mode;
-		},
 		get canReplace() {
 			return mode !== 'reading';
-		},
-		get keybindingOverrides() {
-			return normalizeKeybindingOverrides(overrides);
 		},
 		get isCrossBlock() {
 			return crossBlock;
 		},
 		search: search.state as unknown as SearchState,
-		history: { requestUndo: () => void undoCount++, requestRedo: () => void redoCount++ },
-		pluginEditor: () => undefined as never,
-		onCommandError: () => {},
+		// No plugins are activated here, so every installed one is active.
+		commands: commandContext({
+			history: { requestUndo: () => void undoCount++, requestRedo: () => void redoCount++ },
+			getPresentationMode: () => mode,
+			keybindingOverrides: () => normalizeKeybindingOverrides(overrides)
+		}),
 		crossBlock: {
 			handleKeyDown: (e) => {
 				crossBlockKeys.push(e);
@@ -102,7 +98,7 @@ function harness(): Harness {
 			}
 		},
 		isHostChrome: (node) => !!node && header.contains(node),
-		saveSearchRange: (range) => savedRanges.push(range),
+		saveSearchCaret: () => searchCaretSaves++,
 		setReplaceExpanded: (expanded) => replaceExpanded.push(expanded)
 	};
 
@@ -120,7 +116,7 @@ function harness(): Harness {
 		inserted,
 		undoCount: () => undoCount,
 		redoCount: () => redoCount,
-		savedRanges,
+		searchCaretSaves: () => searchCaretSaves,
 		replaceExpanded,
 		setMode: (next) => (mode = next),
 		setCrossBlock: (on) => (crossBlock = on),
@@ -138,13 +134,13 @@ beforeEach(() => {
 });
 
 // ── Dispatch order ───────────────────────────────────────────────────────────
-// The arms are not commutative: the global-chord arm early-returns for everything
-// below it, so a key an earlier arm claims is unreachable by a later one.
+// The order matters: the global-chord branch returns early for everything below it,
+// so a key an earlier branch takes can never reach a later one.
 
-describe('editor-root keydown — dispatch order is load-bearing', () => {
-	it('a search chord with focus INSIDE a block still opens the bar', () => {
-		// The global-chord arm's focus gate is false here and returns for everything
-		// below it, so moving the search arm under it drops Mod+F for every block.
+describe('editor-root keydown: dispatch order is required', () => {
+	it('a search chord with focus inside a block still opens the bar', () => {
+		// The global-chord branch's focus check is false here and returns for everything
+		// below it, so moving the search branch under it drops Mod+F for every block.
 		const h = harness();
 		const block = document.createElement('div');
 		block.contentEditable = 'true';
@@ -201,8 +197,8 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 	});
 
 	// A range over a block with no character position focuses the root, where no `beforeinput`
-	// fires: without this arm the character reached nothing and the range stood untouched.
-	it('a printable key with a cross-block range goes to the range’s text door', () => {
+	// fires: without this branch the character reaches nothing and the range stays untouched.
+	it('a printable key with a cross-block range goes to the range’s text entry point', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
@@ -213,7 +209,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('a chorded or composing key is not text and keeps its own arm', () => {
+	it('a chorded or composing key is not text and keeps its own branch', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
@@ -224,7 +220,7 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b', 'x']);
 	});
 
-	it('the cross-block arm stays silent on a collapsed caret', () => {
+	it('the cross-block branch stays silent on a collapsed caret', () => {
 		const h = harness();
 		h.root.focus();
 
@@ -233,9 +229,9 @@ describe('editor-root keydown — dispatch order is load-bearing', () => {
 	});
 });
 
-// ── The reading-mode arm (G4.19 arm 2) ───────────────────────────────────────
+// ── Reading mode ─────────────────────────────────────────────────────────────
 
-describe('editor-root keydown — reading-mode gate', () => {
+describe('editor-root keydown, reading-mode gate', () => {
 	it('runs an editor-global command in source mode', () => {
 		const h = harness();
 		h.root.focus();
@@ -252,8 +248,8 @@ describe('editor-root keydown — reading-mode gate', () => {
 
 		const event = h.press('z', MOD_Z);
 		expect(h.undoCount()).toBe(0);
-		// The chord is owned either way — reading mode must not leak Mod+Z to the
-		// browser's own undo over a contenteditable.
+		// The chord is taken either way: reading mode must not let Mod+Z through to
+		// the browser's own undo over a contenteditable.
 		expect(event.defaultPrevented).toBe(true);
 	});
 
@@ -279,10 +275,8 @@ describe('editor-root keydown — reading-mode gate', () => {
 
 // ── Consumer keybinding overrides ────────────────────────────────────────────
 
-// Miss-analysis for the rebind case below: every override case here re-pointed a chord the
-// BUILT-IN table already owned, so the arm's pre-gate answered true for reasons that had
-// nothing to do with the override, and its override-blindness was invisible.
-describe('editor-root keydown — global-scope binding resolution', () => {
+// Miss-analysis: every override case re-pointed a chord the built-in table already owned.
+describe('editor-root keydown: global-scope binding resolution', () => {
 	it('resolves the chord through a consumer override, not the built-in table', () => {
 		const h = harness();
 		h.setOverrides([{ chord: 'Mod+Z', command: 'history.redo' }]);
@@ -312,7 +306,7 @@ describe('editor-root keydown — global-scope binding resolution', () => {
 		const event = h.press('z', MOD_Z);
 		expect(h.undoCount()).toBe(0);
 		expect(h.redoCount()).toBe(0);
-		// The arm still owns the chord — a disabled binding must not leak to the browser.
+		// It still takes the chord: a disabled binding must not reach the browser.
 		expect(event.defaultPrevented).toBe(true);
 	});
 
@@ -336,9 +330,9 @@ describe('editor-root keydown — global-scope binding resolution', () => {
 	});
 });
 
-// ── The claimsBodyChord arm ──────────────────────────────────────────────────
+// ── claimsBodyChord ──────────────────────────────────────────────────────────
 
-describe('editor-root keydown — body-chord containment', () => {
+describe('editor-root keydown: body-chord containment', () => {
 	it('the sole registered editor claims a search chord with focus outside it', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -396,11 +390,10 @@ describe('editor-root keydown — body-chord containment', () => {
 });
 
 // ── Focused-element containment ──────────────────────────────────────────────
-// The arm answers a caret with NO focused element, never "anything focused inside the
-// root". A surface that holds focus — a block, or the gap caret's proxy — owns its own
-// dispatch, and widening this arm would run every such chord twice.
+// The root answers only a caret with no focused element: a focused block or gap caret handles
+// its own chords, and widening the root's check would run each such chord twice.
 
-describe('editor-root keydown — a focused surface inside the root owns its chords', () => {
+describe('editor-root keydown: a focused surface inside the root owns its chords', () => {
 	it('a global chord resolves nothing while a focusable child holds focus', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -415,9 +408,9 @@ describe('editor-root keydown — a focused surface inside the root owns its cho
 	});
 });
 
-// ── The isForeignTextEntry arm ───────────────────────────────────────────────
+// ── isForeignTextEntry ───────────────────────────────────────────────────────
 
-describe('editor-root keydown — foreign text-entry yields Find', () => {
+describe('editor-root keydown: foreign text-entry yields Find', () => {
 	it.each([
 		['textarea', () => document.createElement('textarea')],
 		['text input', () => Object.assign(document.createElement('input'), { type: 'text' })]
@@ -443,7 +436,7 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 		expect(h.search.calls.open).toBe(1);
 	});
 
-	it('a text-entry surface INSIDE this editor is not foreign', () => {
+	it('a text-entry surface inside this editor is not foreign', () => {
 		const h = harness();
 		registerEditor(h.root);
 		const field = document.createElement('input');
@@ -456,12 +449,11 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 	});
 });
 
-// ── The header slot ──────────────────────────────────────────────────────────
-// `root.contains(active)` is true for host chrome, so the "focus is in this editor"
-// claims read it as their own content and a host title field loses Find mid-typing.
-// The discriminator is the slot: the same field one level up still claims.
+// ── The host's header ────────────────────────────────────────────────────────
+// `root.contains(active)` is true for the host's header too, so a host title field would lose
+// Find while typed in; only the header element tells the two apart.
 
-describe('editor-root keydown — host chrome owns its own keystrokes', () => {
+describe('editor-root keydown: host chrome owns its own keystrokes', () => {
 	it('yields a search chord to a text field in the header slot', () => {
 		const h = harness();
 		registerEditor(h.root);
@@ -491,7 +483,7 @@ describe('editor-root keydown — host chrome owns its own keystrokes', () => {
 
 // ── Search-chord side effects ────────────────────────────────────────────────
 
-describe('editor-root keydown — search chord arms', () => {
+describe('editor-root keydown: search chord branches', () => {
 	it('Mod+H expands the replace row; Mod+F leaves it collapsed', () => {
 		const h = harness();
 		h.root.focus();
@@ -508,7 +500,7 @@ describe('editor-root keydown — search chord arms', () => {
 		h.press('f', MOD_F);
 		h.press('f', MOD_F);
 		expect(h.search.calls.open).toBe(2);
-		expect(h.savedRanges).toHaveLength(1);
+		expect(h.searchCaretSaves()).toBe(1);
 	});
 
 	it('falls through when the find bar is disabled by prop', () => {
@@ -551,7 +543,7 @@ describe('editor-root keydown — search chord arms', () => {
 
 // ── Non-vacuity ──────────────────────────────────────────────────────────────
 
-describe('editor-root keydown — the harness can observe a miss', () => {
+describe('editor-root keydown: the harness can observe a miss', () => {
 	it('a plain key with no claim reaches nothing at all', () => {
 		const h = harness();
 		const outside = document.createElement('button');

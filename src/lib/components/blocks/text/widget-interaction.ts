@@ -1,17 +1,16 @@
 /**
- * Inline-widget interaction for TextEditableBlock: the offset math and the handler
- * bodies that branch off keydown/click. Each keydown sub-handler returns whether it
- * consumed the event, so the component can interleave them with the shared pipeline.
+ * Inline-widget interaction for the prose editable elements (the text block and the table cell):
+ * selecting a widget, showing its source, and the keydown and click handlers around both. Each
+ * keydown handler returns whether it consumed the event, so the component can interleave them
+ * with the shared pipeline.
  */
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
-import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
+import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	flattenInlineWidgets,
@@ -20,16 +19,13 @@ import {
 	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../../core/lines';
+import { asRawOffset } from '../../../cursor/coordinate-spaces';
 import {
-	asRawOffset,
-	toClampedRawOffset,
-	toDomTextOffset
-} from '../../../cursor/coordinate-spaces';
-import {
-	domTextOffsetAtNode,
-	createRangeAtDomTextOffsets,
-	selectionFocusWalkOffset
+	extendSelectionToRaw as extendSelectionToRawIn,
+	rawOffsetAt,
+	rawSelectionFocus,
+	selectRawRange
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
@@ -54,43 +50,50 @@ import {
 	rawHasNoTextAfter,
 	widgetElByStart
 } from './widget-adjacency';
+import type { StoredAs } from '../../../schema/stored-as';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import type { Reading } from '../../../schema/reading';
+import type { WriteMode } from '../../../schema/block-kind-descriptor';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
 	get index(): number;
+	/** The document's line ending, which a commit takes where the block has none of its own. */
+	getLineEnding: () => LineEnding;
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
-	getAmbientLength: () => number;
 	getEditorContentWidth: () => number;
-	cursor: AmbientCursorIO;
+	cursor: SurfaceBackend;
 	widgetSelection: WidgetSelectionState;
 	blockEdit: BlockEditActions;
 	focusActions: FocusActions;
 	setSnapTarget: (offset: number | null) => void;
-	/** Park a caret for the post-render restore. `writtenText` is the text that offset
-	 *  addresses: a kind whose write sink rewrites bytes moves the offset, and only that
-	 *  text can map it. */
-	setPendingCursor: (offset: number | null, writtenText?: string) => void;
-	/** The block's live DOM as raw text, read on reveal commit to pick up the ephemeral
-	 *  source edit that never went through the CST. */
+	/** Remember a caret offset, counted in the stored bytes, for the restore after the next render. */
+	setPendingCursor: (offset: number | null) => void;
+	/** The block's live DOM as raw text, read when a shown source is committed, to pick up
+	 *  the temporary edit that never went through the CST. */
 	readRawText: () => string;
-	/** Mirrors reveal-active into the component, so `onInput` and IME compositionend
-	 *  suppress the per-keystroke CST commit while source is shown. */
+	/** Tells the component a source is showing, so `onInput` and IME `compositionend`
+	 *  skip the per-keystroke CST commit while it is. */
 	setRevealing: (value: boolean) => void;
-	/** Folding a revealed source mid-selection would strand an endpoint anchored in it. */
+	/** Hiding a shown source mid-selection would strand a selection endpoint anchored in it. */
 	isCrossBlock: () => boolean;
-	/** Effective mode; reading gates reveal-open and the widget edit arms. Optional so
-	 *  bare harnesses read as 'source'. */
-	getPresentationMode?: () => PresentationMode;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	/** The grammar the widgets were rendered with, and the presentation mode: reading mode shows
+	 *  no source and edits no widget. */
+	get reading(): Reading;
+	/** Where the block's bytes are stored, read when a selected widget is replaced. */
+	storedAs: () => StoredAs;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
 export interface WidgetPress {
-	/** Ctrl/Cmd at the CLICK: with it, a widget claiming the activation click keeps the gesture. */
+	/** Ctrl or Cmd held at the click: with it, a widget that takes the activation click keeps it. */
 	modified?: boolean;
-	/** `MouseEvent.detail`; two or more is a double-click, which takes the token it just revealed. */
+	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
+	/** The pointer travelled between press and release, so the gesture was a drag. Showing a
+	 *  widget's source there would unmount the widget the drag just painted a range across. */
+	moved?: boolean;
 }
 
 export interface WidgetInteraction {
@@ -100,49 +103,62 @@ export interface WidgetInteraction {
 	/** Keydown while a widget is selected. Every key is consumed in that state, so a
 	 *  true return must not fall through to the shared pipeline. */
 	handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean>;
-	/** Shift+Arrow into a widget; extends the native selection to the far boundary. */
+	/** Shift+Arrow into a widget; extends the browser selection to the far boundary. */
 	handleShiftArrowIntoWidget(e: KeyboardEvent): boolean;
-	/** Enter a widget at a caret edge — the reveal-vs-select policy split. The caret-edge
-	 *  dispatch classifies the edge and calls this. */
+	/** Enter a widget at a caret edge: show its source or select it, as the kind's policy
+	 *  says. The caret-edge dispatch decides which edge and calls this. */
 	enterWidget(
 		widget: { start: number; end: number; kind: AnyInlineKind },
 		fromTrailingEdge: boolean
 	): void;
-	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
-	 *  source, any other is selected. Returns whether an edge widget was entered. */
+	/** Arriving from another block: a widget at the near edge that can show its source
+	 *  opens it, any other is selected. Returns whether an edge widget was entered. */
 	enterEdgeWidget(side: 'start' | 'end'): boolean;
-	/** Snap a click that landed outside any text node to the nearest widget edge, or open a
-	 *  reveal-source widget it hit. */
+	/** Move a click that landed outside any text node to the nearest widget edge, or open the
+	 *  source of a widget it hit. */
 	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, press?: WidgetPress): void;
-	/** A caret restored strictly inside a reveal-source widget — a formula that just closed
-	 *  around it — opens that source there instead of being pushed past the island. */
+	/** A caret restored strictly inside a widget that can show its source, such as a formula
+	 *  that just closed around it, opens that source there instead of being pushed past it. */
 	revealInterior(offset: number): boolean;
-	/** A reveal-source widget currently shows its editable `$…$` source. */
+	/** A widget is currently showing its editable `$…$` source. */
 	isRevealing(): boolean;
-	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
-	 *  claimed: it is the block's split command, and the command seam folds first. */
+	/** Escape, which cancels back to the rendered form, while a source is shown. Enter is
+	 *  deliberately left alone: it is the block's split command, which hides the source first. */
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
-	/** Commit the revealed source when focus leaves the block. */
+	/** Commit the shown source when focus leaves the block. */
 	commitRevealOnBlur(): void;
-	/** Fold an active reveal before ANY mutation of the block, so the mutation runs
-	 *  against a CST matching the swapped DOM. Null if none was open; otherwise the
-	 *  committed caret and a write completion the caller MUST await before mutating. */
+	/** Hide a shown source before any edit, so the edit runs against a CST that matches the DOM.
+	 *  Null if none was shown; otherwise a write the caller must await before editing. */
 	foldRevealBeforeMutation(caretAfter?: number): RevealFold | null;
-	/** Fold when the caret escapes a revealed source but stays inside the block; blur
-	 *  owns the focus-leaving fold. */
+	/** Hide the source when the caret leaves it but stays inside the block; blur handles
+	 *  the case where focus leaves the block. */
 	foldRevealIfSelectionEscaped(): void;
-	/** The point sits on a reveal-source widget — pointerdown preventDefaults the
-	 *  browser's caret task so nothing races the reveal's own placement. */
+	/** The point sits on a widget that can show its source. `pointerdown` then cancels the
+	 *  browser's own caret placement so nothing races this one. */
 	isPointOnRevealWidget(x: number, y: number): boolean;
+	/** Where a press on an inline widget anchors a drag: the widget's raw edge on the point's side.
+	 *  Null over no widget, or over one with a pointer gesture of its own. */
+	islandDragAnchor(x: number, y: number): number | null;
 }
 
-/**
- * The inline-code wash over a revealed source, painted through the CSS Custom Highlight API
- * (`::highlight(md-inline-reveal)` in editor.css) rather than a wrapper span: the reveal's
- * contract, and every offset read on it, is that the source is a bare text node in the block.
- * The range selects the NODE, so it keeps covering the text as typing grows it. Absent the API
- * (jsdom, an old engine) the source simply shows unwashed.
- */
+/** The widget edge a selected widget hands a caret-moving key off from, or null for any other key. */
+function caretMoveEdge(key: string): 'start' | 'end' | null {
+	switch (key) {
+		case 'ArrowUp':
+		case 'Home':
+		case 'PageUp':
+			return 'start';
+		case 'ArrowDown':
+		case 'End':
+		case 'PageDown':
+			return 'end';
+		default:
+			return null;
+	}
+}
+
+/** The shown source is tinted with the CSS Custom Highlight API because offset reads need it to
+ *  stay a bare text node. Without the API (jsdom, an old browser) it shows untinted. */
 const REVEAL_HIGHLIGHT = 'md-inline-reveal';
 const washRanges = new WeakMap<Text, Range>();
 
@@ -174,57 +190,86 @@ function unwashRevealedSource(node: Text): void {
 	revealHighlight()?.delete(range);
 }
 
+/** What {@link replaceSelectedWidget} writes through. */
+export interface WidgetReplaceDeps {
+	get node(): NodeView;
+	get index(): number;
+	blockEdit: BlockEditActions;
+	widgetSelection: WidgetSelectionState;
+	setPendingCursor: (offset: number | null) => void;
+	/** Where the block's bytes are stored, read when the widget is replaced. */
+	storedAs: () => StoredAs;
+}
+
+/** Replace a selected widget's bytes with `text` in one undoable write and put the caret after
+ *  `text`, since with the widget gone the browser has no caret to keep. */
+export async function replaceSelectedWidget(
+	deps: WidgetReplaceDeps,
+	widget: { start: number; end: number },
+	preSelectOffset: number,
+	text: string,
+	mode: WriteMode
+): Promise<void> {
+	const edit = replaceRangeInLeaf(deps.node, widget, text, deps.storedAs());
+	const write = deps.blockEdit.updateBlockContent(
+		deps.index,
+		edit.raw,
+		mode,
+		preSelectOffset,
+		edit.caret
+	);
+	// Before the write's render, so the caret and the new bytes land in one flush.
+	if (write.admitted) deps.setPendingCursor(write.caret);
+	deps.widgetSelection.clear();
+	await write;
+	// The render that places the caret, so a caller awaiting the insert finds the caret there.
+	await tick();
+}
+
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
-	const isReading = () => deps.getPresentationMode?.() === 'reading';
+	const isReading = () => deps.reading.mode() === 'reading';
 
 	// Resolver-aware so widget detection matches the render path's view; a mismatch
 	// around reference-style image widgets breaks cursor and clipboard offsets.
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return resolvedInlineContent(node, deps.linkRef);
+		return resolvedInlineContent(node, deps.reading);
 	}
 
-	/**
-	 * Every widget in this block, DESCENDING into non-widget parents. The flat inline list is
-	 * the wrong shape to scan for widgets: a construct wrapping one — emphasis around a math
-	 * span, a link around an image — hides it, and every pointer and arrow-key path that
-	 * scanned the flat list simply did not see it. `> *… $L/9 \times 10^{20}$ …*` is the case
-	 * that surfaced it: the quote's whole text is one emphasis node, so nothing inside it was
-	 * ever clickable.
-	 */
+	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.reading.grammar);
+	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.reading.grammar);
+
+	/** Every widget in this block, nested ones included: a construct wrapping a widget (emphasis
+	 *  around a formula, a link around an image) hides it from the top-level inline list. */
 	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw);
+		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.reading.grammar);
 	}
 
-	// ── Reveal-source editing ──────────────────────────────────────────────────
-	// A reveal-source widget swaps its rendered island for editable source. The edit is ephemeral
-	// DOM (`onInput` stays suppressed) and re-renders on commit, so it lands as ONE undo entry.
-	// Every exit funnels its state-clear through `resetReveal`, so a new exit decides only how the
-	// widget is restored.
+	// ── Editing a widget's source ──────────────────────────────────────────────
+	// The source edit lives only in the DOM and is written on commit, so it lands as one undo entry.
 	interface RevealState {
 		kernel: SourceReveal;
 		/** Trailing-edge fallback for the commit caret when the source node is gone. */
 		widgetEnd: number;
 		/** Undo anchor: where the caret sat before entry. */
 		caretBefore: number;
-		/** Pre-edit display text; a commit with no diff folds without touching the CST. */
+		/** The displayed text before the edit; a commit with no change touches no CST. */
 		originalDisplay: string;
-		/** Entry window between showSource and the kernel's caret landing: a selectionchange
-		 *  delivered inside it reads a pre-reveal selection, not an escape. */
+		/** Between showing the source and the caret arriving in it: a `selectionchange` in that gap
+		 *  reports the prior selection, not the caret leaving. */
 		settling: boolean;
 	}
 	let revealState: RevealState | null = null;
 
-	// Outside the record because they must survive `resetReveal` for the kernel's async
-	// restore. Identity is load-bearing: two byte-identical widgets share a reuse-pool key,
-	// so a lookup can return the OTHER instance and `replaceWith` would MOVE it.
+	// Kept outside the record to survive `resetReveal` for the async restore. The exact element
+	// is kept because two byte-identical widgets share a pool key, so a lookup could return the other.
 	let activeSourceNode: Text | null = null;
 	let revealedWidget: HTMLElement | null = null;
-	// The offset the last fold parked, which lies inside the construct it just folded: the
-	// restore must not read it as a formula closing around the caret and reopen the reveal.
+	// The offset left behind when a source was last hidden, which lies inside that construct:
+	// the restore must not read it as a formula closing around the caret and show it again.
 	let foldParkedCaret: number | null = null;
 
-	// Every fold entry is module-private and pre-guarded by all of its callers, so a fold
-	// with no active reveal means a new caller skipped the guard or a flag leaked (G1.26).
+	// Every way of hiding a source is private to this module and checked by all its callers,
+	// so hiding with none shown means a caller skipped the check or a flag leaked (G1.26).
 	function assertFoldTargetsActiveReveal(entry: string): void {
 		assertInvariant('reveal-transition', () =>
 			revealState
@@ -241,9 +286,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		revealedWidget = null;
 	}
 
-	// The one canonical teardown. Widget restoration is a SEPARATE step, so the swap
-	// handles are left untouched: cancel resets the record before awaiting the kernel
-	// restore that still needs them.
+	// The swap handles are left alone: cancel resets the record before awaiting the restore,
+	// which still needs them.
 	function resetReveal(): void {
 		revealState = null;
 		deps.setRevealing(false);
@@ -254,10 +298,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		caretBefore: number,
 		atSourceOffset = 0
 	): Promise<void> {
-		// Every reveal entry converges here, so this is the one reading-mode gate needed.
+		// Every way in comes through here, so this is the only reading-mode check needed.
 		if (isReading()) return;
-		// The settle window spans only microtasks plus the synchronous focus dispatch, so
-		// no user gesture lands inside it — a re-entry is a call from the chain itself (G1.26).
+		// The wait for the caret spans only microtasks and the synchronous focus dispatch, so a
+		// re-entry can only come from this call chain itself (G1.26).
 		assertInvariant('reveal-transition', () =>
 			revealState?.settling
 				? {
@@ -271,7 +315,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const start = widget.start;
 		const end = widget.end;
 		const source = deps.node.raw.slice(start, end);
-		// The imperative span-swap IS the mechanism: the opaque island becomes a text node.
+		// Swapping the span is the whole mechanism: the opaque widget becomes a text node.
 		const kernel = createSourceReveal({
 			get container() {
 				return deps.getEl();
@@ -285,7 +329,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			get source() {
 				return source;
 			},
-			getAmbientLength: deps.getAmbientLength,
 			isRevealed: () => activeSourceNode !== null,
 			showSource: () => {
 				const container = deps.getEl();
@@ -313,15 +356,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		try {
 			await kernel.reveal(atSourceOffset);
 		} finally {
-			// `finally`, not a plain clear: a wedged-true flag would disable the escape fold
-			// for the rest of the block's life. Guarded — a fold mid-await already nulled it.
+			// `finally`, not a plain clear: a flag stuck true would disable the escape check for
+			// the rest of the block's life. Null-checked, since hiding mid-await already cleared it.
 			if (revealState) revealState.settling = false;
 		}
 	}
 
-	// Persist the ephemeral source edit, or fold back untouched. The caret lands on the
-	// source node's LIVE trailing edge, so a concurrent prose edit shifts it correctly.
-	// ALWAYS folds: a null read as "nothing to wait for" would let a seam splice stale bytes.
+	// Always hides, even with nothing to write: a null read as "nothing to wait for" would let a
+	// caller splice stale bytes. The caret lands on the source node's current trailing edge.
 	function commitReveal(
 		reason: RevealFoldReason = 'commit',
 		caretOverride?: number
@@ -337,77 +379,93 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const editedDisplay = deps.readRawText();
 		const caretAfter =
 			caretOverride ??
-			(el && sourceNode
-				? toClampedRawOffset(
-						domTextOffsetAtNode(el, sourceNode, sourceNode.length),
-						deps.getAmbientLength()
-					)
-				: active.widgetEnd);
+			(el && sourceNode ? rawOffsetAt(el, sourceNode, sourceNode.length) : active.widgetEnd);
 		const { caretBefore, originalDisplay } = active;
-		// The reactive re-render rebuilds the island, so drop the swap handles without a
-		// DOM restore, then run the canonical teardown.
+		// The reactive re-render rebuilds the widget, so drop the swap handles without
+		// restoring the DOM, then run the teardown.
 		if (sourceNode) unwashRevealedSource(sourceNode);
 		activeSourceNode = null;
 		revealedWidget = null;
 		resetReveal();
-		foldParkedCaret = caretAfter;
-		// No edit: fold without touching the CST. A zero-diff write still pushes a dead
-		// undo entry, so the user's next Ctrl+Z would revert nothing instead of their
-		// prior action. The pending-cursor set alone re-renders from the untouched CST.
+		// No edit, so no write: a write that changes nothing still pushes an undo entry, and the
+		// next Ctrl+Z would spend itself on nothing.
 		if (editedDisplay === originalDisplay) {
+			foldParkedCaret = caretAfter;
 			deps.setPendingCursor(caretAfter);
 			return { caret: caretAfter, settled: tick() };
 		}
 		const write = deps.blockEdit.updateBlockContent(
 			deps.index,
-			editedDisplay + trailingLineEnding(deps.node.raw),
+			editedDisplay + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+			'authored',
 			caretBefore,
 			caretAfter
 		);
-		deps.setPendingCursor(caretAfter, editedDisplay);
-		return { caret: caretAfter, settled: settleWrite(write) };
+		// A refused write leaves the bytes as the reveal found them, where the caret began.
+		const caret = write.admitted ? write.caret : caretBefore;
+		foldParkedCaret = caret;
+		deps.setPendingCursor(caret);
+		return { caret, settled: settleWrite(write) };
 	}
 
-	// "Settled" for every fold caller: the write landed AND the render it forced flushed.
-	// A rejection is absorbed — the commit ceremony rethrows only in DEV, so forwarding
-	// would let a DEV-only throw cancel the gesture the seam is holding open.
-	async function settleWrite(write: void | Promise<void>): Promise<void> {
+	// A rejection is swallowed: the commit rethrows only in dev builds, and a dev-only throw must
+	// not cancel the gesture in progress.
+	async function settleWrite(write: Promise<unknown>): Promise<void> {
 		try {
 			await write;
 		} catch {
-			// reported at the commit seam
+			// reported where the commit happens
 		}
 		await tick();
 	}
 
-	// Discard the ephemeral edit and rebuild the original widget from the untouched raw:
-	// a CST-free view toggle, so no undo entry.
+	// Discard the temporary edit and rebuild the original widget from the untouched raw:
+	// a change of view only, so no undo entry.
 	async function cancelReveal(): Promise<void> {
 		assertFoldTargetsActiveReveal('cancelReveal');
 		if (!revealState) return;
 		const active = revealState;
 		traceRevealFold('cancel');
 		const { kernel } = active;
-		// Reset BEFORE the await so the record reads idle across the kernel's restore:
-		// `replaceWith` fires selectionchange, and a live record would let the escape-fold
-		// re-enter mid-swap. The restore reads the swap handles kept outside the record.
+		// Reset before the await: `replaceWith` fires `selectionchange`, and a live record would
+		// let the escape check re-enter mid-swap.
 		resetReveal();
 		await kernel.commit();
 	}
 
-	// Click-away fold for an UNEDITED reveal: no caret is written, because the escaping
-	// click owns the caret and the commit path's trailing-edge landing would hijack it.
+	// No caret is written, because the click that left owns it. A selected range is read in raw
+	// offsets and put back after the rebuild, which would otherwise leave its end inside a widget.
 	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
 		assertFoldTargetsActiveReveal('foldRevealNoEdit');
 		if (!revealState) return;
 		traceRevealFold(reason);
+		const span = liveRangeInBlock();
 		resetReveal();
 		restoreRenderedWidget();
+		if (span) void restoreRangeInBlock(span);
 	}
 
-	// Containment is decided by RAW OFFSET through the canonical walk, boundary-inclusive:
-	// a caret at the source's edge may anchor in the ADJACENT text node, the browser's
-	// choice, and node identity would misread that as an escape.
+	/** The live selection in raw offsets, when it is a range with both ends inside this block. */
+	function liveRangeInBlock(): { start: number; end: number } | null {
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+		const range = sel.getRangeAt(0);
+		if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+		return {
+			start: rawOffsetAt(el, range.startContainer, range.startOffset),
+			end: rawOffsetAt(el, range.endContainer, range.endOffset)
+		};
+	}
+
+	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
+		await tick();
+		const el = deps.getEl();
+		if (el) selectRawRange(el, span.start, span.end);
+	}
+
+	// Compared by raw offset, bounds included: a caret at the source's edge may sit in the
+	// neighbouring text node, which a node comparison would misread as leaving.
 	function selectionEscapedSource(): boolean {
 		if (!revealState || !activeSourceNode || revealState.settling) return false;
 		if (deps.isCrossBlock()) return false;
@@ -418,24 +476,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!anchorNode || !focusNode) return false;
 		if (!el.contains(anchorNode) || !el.contains(focusNode)) return false;
 		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return false;
-		const ambient = deps.getAmbientLength();
-		const sourceStart = toClampedRawOffset(domTextOffsetAtNode(el, activeSourceNode, 0), ambient);
+		const sourceStart = rawOffsetAt(el, activeSourceNode, 0);
 		const sourceEnd = sourceStart + activeSourceNode.length;
-		const anchorOff = toClampedRawOffset(
-			domTextOffsetAtNode(el, anchorNode, sel.anchorOffset),
-			ambient
-		);
-		const focusOff = toClampedRawOffset(
-			domTextOffsetAtNode(el, focusNode, sel.focusOffset),
-			ambient
-		);
+		const anchorOff = rawOffsetAt(el, anchorNode, sel.anchorOffset);
+		const focusOff = rawOffsetAt(el, focusNode, sel.focusOffset);
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
 		return !inSource(anchorOff) && !inSource(focusOff);
 	}
 
-	// An escape must SURVIVE A TICK to fold: cross-block entry clears the native selection
-	// before its flag flips, manufacturing a transient escape-shaped state that re-verifying
-	// rejects. The latch survives the very exit it triggers, so `resetReveal` never clears it.
+	// The escape is re-checked after a tick: entering a cross-block selection clears the browser
+	// selection before its flag is set. `resetReveal` leaves `foldCheckQueued`, which outlives it.
 	let foldCheckQueued = false;
 	function foldRevealIfSelectionEscaped(): void {
 		if (foldCheckQueued || !selectionEscapedSource()) return;
@@ -456,54 +506,41 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		})();
 	}
 
-	// The ONE hit test the pointerdown probe, the click dispatch, and the post-fold
-	// re-resolve share.
-	/**
-	 * What the pointer is actually over, asked of the DOM rather than of a rectangle. An
-	 * island's border box is not what the reader sees: a KaTeX render (a superscript, a
-	 * fraction) paints ABOVE and BELOW its own box, so a click on the visible glyphs missed
-	 * the rect by a pixel or two and the widget looked inert to the mouse while the keyboard
-	 * reached it fine. `elementFromPoint` has no such gap — it answers with whatever is
-	 * painted at the point, overflow included.
-	 */
+	/** The widget under the pointer, asked of the DOM rather than of a rectangle: a KaTeX render
+	 *  draws past its own border box, and `elementFromPoint` counts that overflow. */
 	function revealWidgetFromDom(
 		el: HTMLElement,
 		x: number,
 		y: number
 	): { inline: InlineNode } | null {
-		// Feature-detected: jsdom implements no hit testing, and the rect scan below is the
-		// answer there — the same shape as `getTargetRanges`' detection on the code surface.
+		// jsdom has no hit testing; the rectangle scan in `hitTestRevealWidget` answers there.
 		if (typeof document.elementFromPoint !== 'function') return null;
 		const at = document.elementFromPoint(x, y);
 		const island =
 			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;
-		// Containment guard: the point may sit over another block's widget entirely.
+		// The point may sit over another block's widget entirely.
 		if (!island || !el.contains(island)) return null;
 		const start = Number(island.getAttribute('data-source-start'));
 		if (!Number.isInteger(start)) return null;
 		const inline = widgetsOf().find(
-			(n) => n.start === start && getInlineWidgetEditing(n.kind)?.revealSource
+			(n) => n.start === start && widgetEditing(n.kind)?.revealSource
 		);
 		return inline ? { inline } : null;
 	}
 
-	/**
-	 * Where a click on a rendered widget seats the caret when its kind maps no point: the END of
-	 * the content a kind names, INSIDE its delimiters, so typing continues the construct rather
-	 * than escaping it. A kind naming no span keeps the leading edge — guessing an end from its
-	 * parsed text put a footnote's caret past its bracket.
-	 */
+	/** Where a click on a widget puts the caret when the kind maps no point: the end of its content
+	 *  span, inside the delimiters, so typing continues the construct. No span keeps the leading edge. */
 	function insideEndOffset(inline: InlineNode): number {
 		const source = deps.node.raw.slice(inline.start, inline.end);
-		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
+		const span = widgetEditing(inline.kind)?.revealContentSpan?.(source);
 		return span && span.end >= 0 && span.end <= source.length ? span.end : 0;
 	}
 
-	/** The offset a press names inside a widget's source. Read against the PRE-fold geometry:
-	 *  a fold reflows the line and the point stops meaning anything the moment it runs. */
+	/** The offset a click names inside a widget's source. Read against the layout from before
+	 *  any source was hidden: hiding one reflows the line, and the point then means nothing. */
 	function seatFromPoint(el: HTMLElement, inline: InlineNode, x: number, y: number): number | null {
 		const widget = widgetElByStart(el, inline.start);
-		const atPoint = getInlineWidgetEditing(inline.kind)?.revealOffsetAtPoint;
+		const atPoint = widgetEditing(inline.kind)?.revealOffsetAtPoint;
 		if (!widget || !atPoint) return null;
 		const source = deps.node.raw.slice(inline.start, inline.end);
 		const seat = atPoint(widget, source, x, y);
@@ -517,12 +554,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	): { inline: InlineNode } | null {
 		const painted = revealWidgetFromDom(el, x, y);
 		if (painted) return painted;
-		// Fallback for a point the DOM cannot answer for (a synthetic call with no element
-		// under it): the original box test, which still covers a widget that paints inside
-		// its own bounds.
+		// The box test, for a point the DOM cannot answer, such as a synthetic call.
 
 		for (const inline of widgetsOf()) {
-			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
+			if (!widgetEditing(inline.kind)?.revealSource) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
@@ -538,13 +573,19 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return el !== null && hitTestRevealWidget(el, x, y) !== null;
 	}
 
-	// The whole-token select belongs to the double-click that OPENED a reveal, and nothing in
-	// the second click's own shape tells it apart from a later one inside the same source.
+	function islandDragAnchor(x: number, y: number): number | null {
+		const el = deps.getEl();
+		if (!el) return null;
+		const seat = nearestWidgetEdgeSeat(measuredWidgets(el, dragsFromIsland), x, y);
+		return seat?.inside ? seat.offset : null;
+	}
+
+	// Selecting the whole token belongs to the double-click that opened the source, and nothing
+	// in the second click's own shape tells it apart from a later one inside that source.
 	let revealOpenedByLastClick = false;
 
-	// Order is the whole point: resolve the target BEFORE folding, because the fold shifts
-	// layout and the click point only means something against pre-fold geometry, then
-	// re-locate by OFFSET, because an edited commit shifts raw positions by its delta.
+	// The target is resolved before hiding the current source, which reflows the line the click was
+	// read against, then found again by offset, since a committed edit shifts raw positions.
 	async function revealFromClick(clickX: number, clickY: number): Promise<void> {
 		const el = deps.getEl();
 		if (!el) return;
@@ -555,12 +596,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (revealState) {
 			const active = revealState;
 			const revealedStart =
-				activeSourceNode === null
-					? Number.POSITIVE_INFINITY
-					: toClampedRawOffset(
-							domTextOffsetAtNode(el, activeSourceNode, 0),
-							deps.getAmbientLength()
-						);
+				activeSourceNode === null ? Number.POSITIVE_INFINITY : rawOffsetAt(el, activeSourceNode, 0);
 			const rawBefore = deps.node.raw.length;
 			if (deps.readRawText() === active.originalDisplay) {
 				foldRevealNoEdit();
@@ -570,7 +606,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 		}
 		const target = widgetsOf().find(
-			(n) => n.start === targetStart && getInlineWidgetEditing(n.kind)?.revealSource
+			(n) => n.start === targetStart && widgetEditing(n.kind)?.revealSource
 		);
 		if (!target) return;
 		el.focus();
@@ -578,11 +614,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		void startReveal(target, target.start, seat ?? insideEndOffset(target));
 	}
 
-	/**
-	 * Take the whole revealed token; declines unless the double-click landed on it. Keyed off the
-	 * point, not the selection: the root's second-press word select runs before this click and
-	 * may have moved the selection off the source.
-	 */
+	/** Select the whole shown token if the double-click landed on it. Decided from the point: the
+	 *  editor root's word-select runs first and may have moved the selection off the source. */
 	function selectRevealedSource(x: number, y: number | null): boolean {
 		const source = activeSourceNode;
 		if (!revealState || !source || y === null) return false;
@@ -602,9 +635,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return revealState !== null;
 	}
 
-	// Escape is the only key the reveal claims. Enter deliberately isn't: it is the block's
-	// split command everywhere else, and the command seam folds the reveal before it
-	// mutates, so one Enter both commits the edit and splits.
+	// Enter is left to the block's split command, which hides the source before it writes, so one
+	// Enter both commits the edit and splits.
 	async function handleRevealingKeydown(e: KeyboardEvent): Promise<boolean> {
 		if (!revealState) return false;
 		if (e.key === 'Escape') {
@@ -615,16 +647,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return false;
 	}
 
-	// The one fold that stands down mid-cross-block: a sweeping selection keeps the source
-	// revealed so its rects measure real text and no endpoint anchored in it is stranded
-	// (the escape fold carries the same rule in `selectionEscapedSource`).
+	// A cross-block drag keeps the source shown, so its rectangles measure real text and no
+	// endpoint in it is stranded (`selectionEscapedSource` holds the same rule).
 	function commitRevealOnBlur(): void {
 		if (revealState && !deps.isCrossBlock()) commitReveal('blur');
 	}
 
-	// A mutation runs the CST pipeline against `node.raw`, which a live reveal has outrun,
-	// so it must fold first. Returns the committed caret — a folded caret on an
-	// element-level edge would land the paste at offset 0 — and the write's completion.
+	// The committed caret is returned because a caret left on an element-level edge would land a
+	// paste at offset 0.
 	function foldRevealBeforeMutation(caretAfter?: number): RevealFold | null {
 		if (!revealState) return null;
 		return commitReveal('commit', caretAfter);
@@ -633,7 +663,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function isVerticallyTransparent(): boolean {
 		// Resolver-free, matching the off-window keyboard-extend path, so the vertical-skip
 		// decision is uniform everywhere. Other widget reads stay resolver-aware.
-		return isVerticallyTransparentNode(deps.node);
+		return isVerticallyTransparentNode(deps.node, deps.reading.grammar);
 	}
 
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
@@ -641,18 +671,23 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const selectedWidget = deps.widgetSelection.getSelected();
 		if (selectedWidget === null) return false;
 
-		const widget = findWidgetNodeByStart(selectedWidget.sourceStart, inlinesOf(node), node.raw);
+		const widget = findWidgetNodeByStart(
+			selectedWidget.sourceStart,
+			inlinesOf(node),
+			node.raw,
+			deps.reading.grammar
+		);
 		const widgetIsHere =
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
 		if (!widgetIsHere) return false;
 
-		// The kind's editing policy claims custom keys first. Flattened so the nested image
-		// of `[![alt][ref]][repo]` is the resolved widget.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw).find(
+		// The kind's editing policy takes its own keys first. Flattened so the nested image
+		// of `[![alt][ref]][repo]` is the widget resolved.
+		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.reading.grammar).find(
 			(n) => n.start === widget.start
 		);
 		if (inline) {
-			const policy = getInlineWidgetEditing(inline.kind);
+			const policy = widgetEditing(inline.kind);
 			const consumed = policy?.onSelectedKey?.(e, {
 				node,
 				inline,
@@ -661,22 +696,27 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				index: deps.index,
 				preSelectOffset: selectedWidget.preSelectOffset,
 				editorContentWidth: deps.getEditorContentWidth(),
-				presentationMode: deps.getPresentationMode?.() ?? 'source',
+				presentationMode: deps.reading.mode(),
 				updateContent: (newRaw, caretBefore, caretAfter) =>
-					void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
+					void deps.blockEdit.updateBlockContent(
+						deps.index,
+						newRaw,
+						'authored',
+						caretBefore,
+						caretAfter
+					)
 			});
 			if (consumed) return true;
 		}
-		// Declining hands the chord to the keymap dispatch, which sits AFTER this handler and
-		// owns undo/redo. Arrows are the exception: selecting cleared the native range, so a
-		// shared-pipeline arm would read offset 0 and move focus to a block that isn't there.
+		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
+		// selecting cleared the browser range, so a later handler would read offset 0.
 		if (hasModifier(e)) {
 			if (!e.key.startsWith('Arrow')) return false;
 			e.preventDefault();
 			return true;
 		}
-		// Swallowed even by a kind that claims no Shift+Arrow: stepping out is reserved
-		// for plain Arrow.
+		// Consumed even by a kind that handles no Shift+Arrow: stepping out is reserved
+		// for a plain Arrow.
 		if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 			e.preventDefault();
 			return true;
@@ -691,31 +731,26 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.widgetSelection.clear();
 				await deps.focusActions.moveFocus(deps.index + (left ? -1 : 1), left ? 'end' : 'start');
 			} else {
-				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end));
+				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end), { clamp: 'reachable' });
 				deps.widgetSelection.clear();
 			}
 			return true;
 		}
-		// A vertical arrow is the shared pipeline's line walk, which needs a real caret to read:
-		// seat one at the edge the arrow leaves from and decline, so the walk runs from there.
-		if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-			deps.cursor.setRaw(asRawOffset(e.key === 'ArrowUp' ? widget.start : widget.end));
+		// A vertical arrow, Home, End and the page keys are shared moves that need a real caret to
+		// read: put one at the edge the key leaves from and decline, so the move runs from there.
+		const moveEdge = e.shiftKey ? null : caretMoveEdge(e.key);
+		if (moveEdge) {
+			deps.cursor.setRaw(asRawOffset(moveEdge === 'start' ? widget.start : widget.end), {
+				clamp: 'reachable'
+			});
 			deps.widgetSelection.clear();
 			return false;
 		}
-		// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
-		// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the user
-		// actually was when selection took over.
+		// Reading mode still consumes the key, since a selected widget owns its keys, but writes
+		// nothing.
 		const spliceWidget = (text: string): void => {
 			if (isReading()) return;
-			const newRaw = node.raw.slice(0, widget.start) + text + node.raw.slice(widget.end);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				newRaw,
-				selectedWidget.preSelectOffset,
-				widget.start + text.length
-			);
-			deps.widgetSelection.clear();
+			void replaceSelectedWidget(deps, widget, selectedWidget.preSelectOffset, text, 'authored');
 		};
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
@@ -724,7 +759,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			deps.cursor.setRaw(asRawOffset(widget.end));
+			deps.cursor.setRaw(asRawOffset(widget.end), { clamp: 'reachable' });
 			deps.widgetSelection.clear();
 			return true;
 		}
@@ -733,16 +768,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			spliceWidget(e.key);
 			return true;
 		}
-		// Every remaining key is swallowed, so navigation can't leak into the shared pipeline
-		// mid-selection. preventDefault too: reporting the key consumed stops only THIS
-		// editor's chain, and the browser's default would still mutate behind the CST.
+		// Every remaining key is consumed and its default prevented, since the browser's default
+		// would still edit behind the CST.
 		e.preventDefault();
 		return true;
 	}
 
 	function handleShiftArrowIntoWidget(e: KeyboardEvent): boolean {
-		// While source is revealed the CST still reports an atomic island, but the DOM is
-		// editable text: let native selection run over it, not past a phantom widget.
+		// While a source is shown the CST still reports an atomic widget, but the DOM holds
+		// editable text: let the browser's selection run over it, not past a widget that is gone.
 		if (revealState) return false;
 		const el = deps.getEl();
 		if (!el) return false;
@@ -754,15 +788,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return true;
 	}
 
-	// The ONE seam the reveal-vs-select policy split lives at, shared by within-block caret
-	// entry and cross-block edge landing. `fromTrailingEdge` fixes both the reveal caret
-	// target and the undo / pre-select anchor.
+	// The one place the show-source-or-select choice is made. `fromTrailingEdge` sets both where
+	// the caret goes in the source and the undo anchor.
 	function enterWidget(
 		widget: { start: number; end: number; kind: AnyInlineKind },
 		fromTrailingEdge: boolean
 	): void {
 		const enteredOffset = fromTrailingEdge ? widget.end : widget.start;
-		if (getInlineWidgetEditing(widget.kind)?.revealSource) {
+		if (widgetEditing(widget.kind)?.revealSource) {
 			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
 			void startReveal(widget, enteredOffset, atSourceOffset);
 		} else {
@@ -782,7 +815,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (parkedByFold || revealState) return false;
 		const widget = widgetsOf().find((w) => w.start < offset && offset < w.end);
 		if (!widget) return false;
-		const editing = getInlineWidgetEditing(widget.kind);
+		const editing = widgetEditing(widget.kind);
 		if (!editing?.revealSource || !editing.revealContentSpan) return false;
 		const at = offset - widget.start;
 		const span = editing.revealContentSpan(deps.node.raw.slice(widget.start, widget.end));
@@ -796,8 +829,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
-				? findFirstEdgeWidget(inlines, deps.node.raw)
-				: findLastEdgeWidget(inlines, deps.node.raw);
+				? findFirstEdgeWidget(inlines, deps.node.raw, deps.reading.grammar)
+				: findLastEdgeWidget(inlines, deps.node.raw, deps.reading.grammar);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent keys route to this block's handler.
 		deps.getEl()?.focus();
@@ -811,22 +844,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		press: WidgetPress = {}
 	): void {
 		deps.setSnapTarget(null);
-		const doubleClick = (press.clickCount ?? 1) >= 2;
-		// Every double-click opens with a click of its own, so the opening click is where the
-		// flag is armed and the flag from any earlier gesture is dropped.
-		if (!doubleClick) revealOpenedByLastClick = false;
+		const clickCount = press.clickCount ?? 1;
+		// Every double-click starts with a single click, so that first click is where the flag
+		// is set and any flag left over from an earlier gesture is cleared.
+		if (clickCount === 1) revealOpenedByLastClick = false;
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
-		// The point-in-rect test runs BEFORE the text-node guard below, so a column-aligned
-		// click on real text on another visual line falls through to the caret path.
-		if (clickY !== null) {
-			const hit = hitTestRevealWidget(el, clickX, clickY);
+		// A third click selects the block (`selection/multi-click.ts`), and showing a source under
+		// it would place a caret over the range it just painted.
+		if (clickY !== null && clickCount < 3) {
+			const hit = press.moved ? null : hitTestRevealWidget(el, clickX, clickY);
 			if (hit) {
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					getInlineWidgetEditing(hit.inline.kind)?.claimsActivationClick &&
-					isWidgetActivationClick(press.modified ?? false, deps.getPresentationMode?.() ?? 'source')
+					widgetEditing(hit.inline.kind)?.claimsActivationClick &&
+					isWidgetActivationClick(press.modified ?? false, deps.reading.mode())
 				) {
 					return;
 				}
@@ -834,25 +867,28 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				return;
 			}
 		}
-		// The first click of a double-click already revealed, so the second lands in the source
-		// text and the browser's word rule takes `[` or `$` as a word of its own.
-		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
-		// The snap below seats a CARET, so it stands down for a range this surface paints, which it
-		// would collapse; the rule `clampOutOfAmbient` already carries.
+		// The first click of a double-click showed the source, and the browser's word rule would take
+		// `[` or `$` alone, so the second click selects the whole token.
+		if (clickCount === 2 && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
+		// The snap below places a caret, so it does nothing while this block shows a selected
+		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
 		if (seat === null) return;
-		// A press BESIDE an island stands down for a visible caret; a press ON one cannot, since the
-		// engine answers that hit test with a position in the neighbouring text.
+		// A click beside a widget leaves a visible caret alone; a click on one cannot, since the
+		// browser answers that hit test with a position in the neighbouring text.
 		if (!seat.inside && caretIsInTextContent(el, live)) return;
 		el.focus();
-		deps.cursor.setRaw(asRawOffset(seat.offset));
-		// `setRaw`'s walker may have landed in a trailing text node, where native renders.
+		deps.cursor.setRaw(asRawOffset(seat.offset), { clamp: 'reachable' });
+		// `setRaw` may have landed in a trailing text node, where the browser draws a caret.
 		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(seat.offset);
 	}
 
-	function* measuredWidgets(el: HTMLElement): Generator<WidgetEdgeCandidate> {
+	function* measuredWidgets(
+		el: HTMLElement,
+		seatsInside: (kind: AnyInlineKind) => boolean = characterLike
+	): Generator<WidgetEdgeCandidate> {
 		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
@@ -860,16 +896,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					start: inline.start,
 					end: inline.end,
 					rect: widget.getBoundingClientRect(),
-					seatsInside: isCharacterLikeWidget(inline.kind)
+					seatsInside: seatsInside(inline.kind)
 				};
 			}
 		}
 	}
 
+	/** Which inline widgets a drag may start inside: a kind with a pointer gesture of its own (an
+	 *  image's resize handles) owns its press. */
+	function dragsFromIsland(kind: AnyInlineKind): boolean {
+		return characterLike(kind) || widgetEditing(kind)?.revealSource === true;
+	}
+
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const focus = selectionFocusWalkOffset(el, deps.getAmbientLength());
+		const focus = rawSelectionFocus(el);
 		if (focus === null) return null;
 		for (const inline of widgetsOf()) {
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
@@ -884,13 +926,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function extendSelectionToRaw(rawOffset: number): void {
 		const el = deps.getEl();
-		if (!el) return;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return;
-		const target = toDomTextOffset(asRawOffset(rawOffset), deps.getAmbientLength());
-		const range = createRangeAtDomTextOffsets(el, target, target);
-		if (!range) return;
-		sel.extend(range.endContainer, range.endOffset);
+		if (el) extendSelectionToRawIn(el, rawOffset);
 	}
 
 	return {
@@ -906,6 +942,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		commitRevealOnBlur,
 		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
-		isPointOnRevealWidget
+		isPointOnRevealWidget,
+		islandDragAnchor
 	};
 }

@@ -1,12 +1,12 @@
 /**
- * Merge eligibility and target resolution for Backspace-at-start — the role-pair rules and the
- * target-finding walker; per-kind `MergeRole` assignment lives on `BlockKindDescriptor`.
- * See docs/design/editor.md — Merge eligibility: roles, not pairs.
+ * Merge eligibility and target resolution for Backspace at the start of a block: the role-pair
+ * rules and the walk that finds the target. Each kind's `MergeRole` is declared on
+ * `BlockKindDescriptor` (`docs/design/editor.md` § Merge eligibility: roles, not pairs).
  */
 
 import type { CstNode } from '../core/nodes';
 import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor';
-import { isCollapsedContainer } from './reserved-chrome';
+import { caretChildCount } from './reserved-chrome';
 
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
@@ -39,10 +39,8 @@ export interface MergeTarget {
 }
 
 /**
- * Descend into the last child until landing on a prose / prose-absorber leaf; null on a
- * not-mergeable leaf or an empty container. A collapsed container clamps its body out of view,
- * so the walk descends to the chrome leaf (child 0) instead — its not-mergeable role turns the
- * merge into the caller's focus-move fallback rather than a hidden-body write.
+ * Descend through last children to a prose or prose-absorber leaf; null on a not-mergeable leaf or
+ * an empty container. A collapsed container stops at its title row, which refuses the merge.
  */
 export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
 	const role = getMergeRole(node.kind);
@@ -52,7 +50,7 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
 	if (!node.children || node.children.length === 0) {
 		return null;
 	}
-	const nextIndex = isCollapsedContainer(node) ? 0 : node.children.length - 1;
+	const nextIndex = caretChildCount(node) - 1;
 	return walkToDeepestMergeLeaf(node.children[nextIndex], [...path, nextIndex]);
 }
 

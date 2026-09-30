@@ -12,6 +12,7 @@ You prob want to read this page before your first edit, and the casebook before 
 - [Fixing bugs](#fixing-bugs): how a fix lands here, test first.
 - [Testing shape](#testing-shape): where tests have to sit to catch anything.
 - [Working the gates](#working-the-gates): the check commands, what green looks like, and the one way to fool yourself.
+- [Before you open the PR](#before-you-open-the-pr): the six checks a PR here trips most, each with its command.
 - [Records](#records): where defects, decisions, and stale prose go.
 
 ## The five rules
@@ -78,17 +79,20 @@ keymap dispatch. Habits that kill it:
   (`src/lib/test/invariants/lint/`): "every entry path matching X routes through Y", which fails
   the day path N+1 is born instead of at the next audit.
 
-A source-scan guard is a unit test that reads the source tree instead of running it. Every scan
-in that folder has the same last line, and its red names the offending file and token:
+A source-scan guard is a unit test that reads the source tree instead of running it. Many scans
+in that folder are one row in a shared rule table: the shape, the files allowed to hold it, and
+the snippets the matcher must flag or spare. A red names the offending file and the rule's reason:
 
 ```ts
-// src/lib/test/invariants/lint/timing-hacks.test.ts
-it('every timing primitive lives in an allowlisted file', () => {
-	const violations = sources
-		.flatMap((f) => findTimingHits(f.relPath, f.code))
-		.filter((hit) => !(hit.relPath in ALLOWLIST));
-	expect(violations).toEqual([]);
-});
+// src/lib/test/invariants/lint/file-rules.test.ts
+{
+	id: 'G4.4 no timing hacks for sequencing',
+	matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
+	allowed: { 'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering' /* ... */ },
+	reason: '`await tick()` is the only sequencing primitive; ...',
+	hits: ['setTimeout(() => x, 0)'],
+	misses: ['clearTimeout(id);']
+}
 ```
 
 ## Fixing bugs
@@ -190,6 +194,43 @@ $ npm run test:editor:invariants
 - A dev warning reds a gate. [`warnings.md`](warnings.md) says which channel means what, and how a
   test claims a fire it lit on purpose.
 
+## Before you open the PR
+
+Six checks a pull request here trips more often than everything else put together, each with the
+command that runs it. They take seconds, and the commit gate runs them anyway; the point of the
+list is that you hear it from the terminal instead of from the review.
+
+1. **Every new e2e spec has a requirement file, and vice versa** (G4.23):
+   `src/lib/e2e/tests/<area>/x.spec.ts` pairs with `src/lib/e2e/requirements/<area>/x.md`, and the
+   requirement carries at least one scenario. A scenario list three times longer than the test count
+   `playwright test --list` shows for the spec needs a reason in the scan's allowlist (a test
+   generated in a loop counts once per row).
+   `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
+2. **Every comment fits the budget** (G4.26): no directory gains a block over two text lines (five
+   for a header), no block anywhere goes past six (seven for a header), and no house word (seam,
+   door, funnel, mint, and the rest of [`glossary.md`](glossary.md)) in any comment. A requirement file carries none in its body
+   text either.
+   `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
+3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
+   host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).
+   `npx vitest run src/lib/test/invariants/lint/css-ownership.test.ts`
+4. **Every icon a menu row names is a key of the glyph table** in
+   `src/lib/menu-icons.ts`: a new icon is a new entry there, and a name that
+   isn't one fails the `MenuIconName` type.
+   `npm run check`
+5. **Nothing sequences on `setTimeout`, `requestAnimationFrame` or a microtask trick** (G4.4):
+   `await tick()` is the one sequencing primitive, and the short list of timers that sequence
+   nothing (a debounce, an animation) is the allowlist in the test. The unit suites follow it
+   too: they wait with `settleEditor` from `src/lib/test/harness/settle.ts`.
+   `npx vitest run src/lib/test/invariants/lint/file-rules.test.ts src/lib/test/invariants/lint/suite-file-rules.test.ts`
+6. **A new file with a `pointerdown` or `mousedown` handler is in one of the two lists** of the
+   G2.12 scan: the pointer handlers that place a caret, with the entry point each one goes through, or
+   the ones that place none, with the reason.
+   `npx vitest run src/lib/test/invariants/lint/caret-gesture-range-reset.test.ts`
+
+`npm run test:editor:invariants` runs lines 2, 3, 5 and 6 together; the first lives beside the
+e2e specs, so it keeps its own line.
+
 ## Records
 
 **The GitHub issue tracker is the defect ledger.** Three conventions carry all the metadata, and
@@ -263,7 +304,7 @@ Three more places a record lives, or pointedly doesn't:
 - **The changelog is past-only**, and a shipped milestone lands in it in the same commit that
   ships the feature. A decision lives with the contract it binds, not in a plan document;
   forward-looking plans aren't in this repository at all.
-- **A moved seam moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
+- **A moved entry point moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
   `npm run lint` fails on a path or symbol the map names that no longer exists, which is the
   reminder. The check (`scripts/check-codebase-map.mjs`) reads every backticked `src/`, `docs/`
   and `scripts/` path in `docs/design/` and `docs/contributing/`, so it covers more than the map,

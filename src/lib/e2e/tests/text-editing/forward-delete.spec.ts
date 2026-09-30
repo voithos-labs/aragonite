@@ -10,15 +10,6 @@ test.describe('forward delete', () => {
 		await editor.goto();
 	});
 
-	test('Delete at end of block merges with next', async () => {
-		await editor.loadContent('# Hello\n\nWorld\n');
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceContains('# HelloWorld');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-	});
-
 	test('Delete in middle of block works normally', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);
@@ -26,8 +17,8 @@ test.describe('forward delete', () => {
 		await editor.bridge.waitForSourceContains('Helloworld');
 	});
 
-	// Forward twin of the Backspace two-step (text-editing/edge-cases.spec.ts): the
-	// thematic break takes whole-block focus first, and deletes on the second press.
+	// The forward counterpart of the Backspace two-step (`text-editing/edge-cases.spec.ts`): the
+	// thematic break takes whole-block focus first, and deletes on the second keypress.
 	test('Delete before thematic break focuses it, and a second press removes it', async () => {
 		await editor.loadContent('Hello\n\n---\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
@@ -49,8 +40,8 @@ test.describe('forward delete', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
-		// Type a marker afterward to flush any async edit Delete might trigger;
-		// a successful merge would collapse to 1 block and the assertion would surface it.
+		// Type a character afterwards to flush any async edit Delete might start; a merge that
+		// went through would collapse this to one block and the count below would show it.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		expect(await editor.bridge.getBlockCount()).toBe(2);

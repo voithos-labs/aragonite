@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	// The whole shared set, so the host palette is judged with every plugin's chrome installed.
+	// The whole shared set, so the host palette is judged with every plugin's own UI installed.
 	import { DEMO_PLUGINS } from '../../demo-plugins';
 
-	/**
-	 * The themed-host embed: host-chrome tokens declared on the page wrapper and NO
-	 * `.aragonite-editor-theme` anywhere, so the editor consumes a host cascade the way an
-	 * app's own theme system feeds it. The token vocabulary mirrors the first integration's.
-	 */
+	// Host-chrome tokens on the page wrapper and no `.aragonite-editor-theme` anywhere, so the
+	// editor reads the host's cascade the way an app's own theme system feeds it.
 
 	interface HostTheme {
 		name: string;
@@ -43,7 +40,7 @@
 				'color-text-primary': '#e8e8e5',
 				'color-text-secondary': '#cfcfca',
 				'color-ui-dulled': '#a3a39d',
-				'color-ui-muted': '#8f8f89',
+				'color-ui-muted': '#93938d',
 				'color-accent': '#567b67',
 				'color-error': '#ff5f57',
 				'color-selection': '#c58a4a'
@@ -74,8 +71,8 @@
 				'color-border': '#c9c7c0',
 				'color-text-primary': '#2a2a27',
 				'color-text-secondary': '#4a4a45',
-				'color-ui-dulled': '#71716a',
-				'color-ui-muted': '#83837b',
+				'color-ui-dulled': '#5c5c56',
+				'color-ui-muted': '#62625c',
 				'color-accent': '#567b67',
 				'color-error': '#d03025',
 				'color-selection': '#b5793f'
@@ -257,8 +254,8 @@ An admonition picks its own palette; only the chrome around it is the host's.
 		overflow: hidden;
 	}
 
-	/* The host draws the frame and the editor scrolls inside it with no chrome of its own;
-	   the type scale is inherited from here, which only works with no opt-in class above. */
+	/* The host draws the frame and the editor scrolls inside it with no frame of its own;
+	   the type scale is inherited from here, which only works when no opt-in class sits above. */
 	.doc-editor {
 		height: 100%;
 		--editor-font-size: 14px;

@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import { convertAlertBlockquoteRaw } from '$lib/plugins/admonitions/gh-alert';
+import { documentLineEnding } from '$lib/plugin';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -12,12 +13,11 @@ beforeAll(() => {
 function convertedAlertRegion(source: string): string {
 	const alert = parse(source).children.find((child) => child.kind === 'githubAlert');
 	if (!alert) throw new Error(`fixture parses to no githubAlert: ${JSON.stringify(source)}`);
-	return convertAlertBlockquoteRaw(alert.raw)!;
+	return convertAlertBlockquoteRaw(alert.raw, documentLineEnding(parse(source)))!;
 }
 
-// Both converters take their extent from `blockquoteExtent`, so CommonMark §5.1 lazy
-// continuation must land identically on both. The last two rows are the shapes only a
-// STATEFUL extent gets right — a line regex forks on them.
+// Both converters take their extent from `blockquoteExtent`, so they must agree on lazy
+// continuation; the last two rows are the shapes a line-by-line regex gets wrong.
 const AGREEING_SOURCES: [string, string][] = [
 	['plain quoted body', '> [!NOTE]\n> a\n> b\n'],
 	['tab-indented continuation line', '> [!NOTE]\n\t> body\n'],
@@ -54,13 +54,13 @@ describe('the alert extent is the parser’s, byte for byte', () => {
 
 	it('emits CRLF endings on the opener, body and synthesized closer', () => {
 		expect(convertGithubAlerts('> [!NOTE]\r\n> a\r\n').converted).toBe(':::note\r\na\r\n:::\r\n');
-		expect(convertAlertBlockquoteRaw('> [!NOTE]\r\n> a\r\n')).toBe(':::note\r\na\r\n:::\r\n');
+		expect(convertAlertBlockquoteRaw('> [!NOTE]\r\n> a\r\n', '\n')).toBe(':::note\r\na\r\n:::\r\n');
 	});
 
 	it('gives each emitted line the ending of the source line it replaces', () => {
 		// A document-level ending would emit one ending throughout and still pass
 		// every uniform-ending fixture; only a mixed source discriminates.
-		expect(convertAlertBlockquoteRaw('> [!NOTE]\r\n> a\n')).toBe(':::note\r\na\n:::\n');
-		expect(convertAlertBlockquoteRaw('> [!NOTE]\n> a\r\n')).toBe(':::note\na\r\n:::\r\n');
+		expect(convertAlertBlockquoteRaw('> [!NOTE]\r\n> a\n', '\n')).toBe(':::note\r\na\n:::\n');
+		expect(convertAlertBlockquoteRaw('> [!NOTE]\n> a\r\n', '\n')).toBe(':::note\na\r\n:::\r\n');
 	});
 });

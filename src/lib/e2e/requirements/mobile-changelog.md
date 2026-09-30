@@ -1,6 +1,6 @@
 # Feature: the `/changelog` route at phone width
 
-A reader following a release link on a phone reaches every release family, both presentation
+Someone following a release link on a phone reaches every release family, both presentation
 modes and the way back to the showcase. The route is unchanged apart from what a 320px column
 and a device with no hover force, so this file owns only the geometry the pinned 1280 viewport
 cannot see. Everything else about the route lives in `plugins/changelog-route.md`.
@@ -17,12 +17,12 @@ route exposes no `window.__test` bridge, and nothing here quotes a release note.
   viewport.
 - A tap on the oldest family's chip makes it the active one and swaps the document to that
   family's title. Both reads happen before the tap as well: the newest family's title carries
-  the oldest one's as a prefix, so only an anchored match read from both sides discriminates.
+  the oldest one's as a prefix, so only a match anchored at both ends tells them apart.
 - Every chip and the link clears 24 CSS px on both axes, the WCAG 2.2 AA minimum. 44 is not the
   target: the header carries a chip per release family, and 44 apiece costs the document more
   rows than the condensed header saves.
 - With the outline open, every entry in it clears 24 CSS px too. The outline is the toc
-  plugin's own chrome, and this route is where it meets a thumb.
+  plugin's own UI, and this route is where it meets a thumb.
 
 ## User interactions
 

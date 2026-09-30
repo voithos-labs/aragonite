@@ -14,7 +14,7 @@ const exit = (text: string, offset: number, meta: Partial<FenceMeta> = {}) =>
 		meta: { fenceMarker: '`', fenceLength: 3, info: '', closed: true, ...meta }
 	});
 
-describe('computeFenceExit — closed fence', () => {
+describe('computeFenceExit: closed fence', () => {
 	it('exits cleanly when the cursor sits at the very end of a closed fence', () => {
 		const text = 'hello\nworld';
 		expect(exit(text, text.length)).toEqual({ kind: 'exit' });
@@ -73,7 +73,7 @@ describe('computeFenceExit — closed fence', () => {
 	});
 });
 
-describe('computeFenceExit — unclosed fence mints a closer', () => {
+describe('computeFenceExit: unclosed fence creates a closer', () => {
 	it('replaces the trailing blank line with a backtick closer at end', () => {
 		const text = 'hello\n';
 		expect(exit(text, text.length, { closed: false })).toEqual({
@@ -82,7 +82,7 @@ describe('computeFenceExit — unclosed fence mints a closer', () => {
 		});
 	});
 
-	it('mints a closer of the opener fence length', () => {
+	it('creates a closer of the opener fence length', () => {
 		const text = 'a\n';
 		expect(exit(text, text.length, { fenceLength: 5, info: 'rust', closed: false })).toEqual({
 			kind: 'closeAndExit',
@@ -90,7 +90,7 @@ describe('computeFenceExit — unclosed fence mints a closer', () => {
 		});
 	});
 
-	it('mints a tilde closer for a tilde fence', () => {
+	it('creates a tilde closer for a tilde fence', () => {
 		const text = 'a\n';
 		expect(exit(text, text.length, { fenceMarker: '~', closed: false })).toEqual({
 			kind: 'closeAndExit',
@@ -117,10 +117,8 @@ describe('computeFenceExit — unclosed fence mints a closer', () => {
 	});
 });
 
-// Miss-analysis: exiting a code block was only ever asked of Enter, so the OTHER thing a user
-// does at the end of a block — typing the closer — reached the write seam instead, where a body
-// line that reads as a closer can only mean "grow the fence".
-describe('computeTypedFenceExit — a closer typed on the empty last line', () => {
+// Miss-analysis: leaving a code block was only tested through Enter, never by typing the closer.
+describe('computeTypedFenceExit: a closer typed on the empty last line', () => {
 	const typedExit = (text: string, offset: number, typed: string, meta: Partial<FenceMeta> = {}) =>
 		computeTypedFenceExit({
 			text,
@@ -169,7 +167,7 @@ describe('computeTypedFenceExit — a closer typed on the empty last line', () =
 	});
 
 	it('escalates instead wherever the line is not the run alone', () => {
-		// Content ahead of the run, and the caret mid-line: both are body text, so the write seam
+		// Content ahead of the run, and the caret mid-line: both are body text, so the fence rule
 		// keeps its CommonMark answer and grows the fence.
 		expect(typedExit('```\nx``\n```', 7, '`')).toEqual({ kind: 'none' });
 		expect(typedExit('```\n``x\n```', 6, '`')).toEqual({ kind: 'none' });
@@ -179,7 +177,7 @@ describe('computeTypedFenceExit — a closer typed on the empty last line', () =
 		expect(typedExit('```\n``\nbody\n```', 6, '`')).toEqual({ kind: 'none' });
 	});
 
-	// An open fence has no closer yet, so the run the author types IS the closer: it is written.
+	// An open fence has no closer yet, so the run the author types is the closer and is written.
 	it('writes the byte in an unclosed fence', () => {
 		expect(typedExit('```\na\n``\n', 8, '`', { closed: false })).toEqual({ kind: 'none' });
 	});

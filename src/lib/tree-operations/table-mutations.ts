@@ -1,10 +1,11 @@
-// In-place table CST mutations; the caller owns the commit ceremony and the raw rebuild,
-// so these touch neither reactivity, undo, nor raw. Column mutators emit exactly one
+// In-place table CST mutations; the caller owns the commit and the raw rebuild, so these
+// touch neither reactivity, undo, nor raw. Column mutators emit exactly one
 // StructuralChange per row, in row order, for multi-scope callers to pair with row scopes.
 
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { reorderChildren } from './reorder';
+import { generateBlockId } from '../block-id';
 import type { StructuralChange } from './structural-change';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
@@ -50,9 +51,44 @@ export function deleteRow(table: CstNode, rowIdx: number): void {
 	const rows = table.children ?? [];
 	const willRemoveHeader = rowIdx === 0;
 	rows.splice(rowIdx, 1);
-	if (willRemoveHeader && rows.length > 0) {
-		metadataOf(rows[0], 'tableRow').isHeader = true;
+	if (willRemoveHeader && rows.length > 0) promoteFirstRowToHeader(table);
+}
+
+/**
+ * Make the table's first row its header. A header wider than the delimiter row reads as no table,
+ * so its surplus cells become new columns, each row filling them from its own surplus first.
+ */
+export function promoteFirstRowToHeader(table: CstNode): void {
+	const rows = table.children ?? [];
+	if (rows.length === 0) return;
+	const meta = metadataOf(table, 'table');
+	const extra = metadataOf(rows[0], 'tableRow').surplusCells?.length ?? 0;
+	if (extra > 0) {
+		meta.columnCount += extra;
+		meta.alignments = [...meta.alignments, ...Array<TableAlignment>(extra).fill('none')];
 	}
+	// Written as copies: only the table is this edit's own, and a row can still be in an undo entry.
+	for (let i = 0; i < rows.length; i++) {
+		if (i === 0 || extra > 0) rows[i] = widenedRow(rows[i], meta.columnCount, i === 0);
+	}
+}
+
+/** A copy of the row holding `columnCount` cells, the missing ones taken from its surplus first. */
+function widenedRow(row: CstNode, columnCount: number, isHeader: boolean): CstNode {
+	const surplus = metadataOf(row, 'tableRow').surplusCells ?? [];
+	const missing = Math.max(0, columnCount - row.children!.length);
+	const added = Array.from({ length: missing }, (_, k): CstNode => ({
+		kind: 'tableCell',
+		leadingTrivia: '',
+		raw: surplus[k] ?? ''
+	}));
+	const rest = surplus.slice(missing);
+	const metadata: TableRowMetadata =
+		rest.length > 0 ? { isHeader, surplusCells: rest } : { isHeader };
+	const copy = { ...row, metadata, children: [...row.children!, ...added] } as CstNode;
+	if (row.childIds) copy.childIds = [...row.childIds, ...added.map(() => generateBlockId())];
+	delete copy.childSpans;
+	return copy;
 }
 
 export function deleteColumn(table: CstNode, colIdx: number): StructuralChange[] {
@@ -89,8 +125,8 @@ export function setAlignment(table: CstNode, colIdx: number, alignment: TableAli
 export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const current = meta.alignments[colIdx];
-	// 'none' renders identically to 'left', so stepping through it would look like a stuck
-	// press; jump to 'center' instead. Once cycling begins the column never re-enters it.
+	// 'none' renders identically to 'left', so stepping through it would look like the click
+	// did nothing; jump to 'center' instead. Once cycling begins the column never re-enters it.
 	if (current === 'none') {
 		meta.alignments[colIdx] = 'center';
 		return;
@@ -104,9 +140,8 @@ export function cycleAlignment(table: CstNode, colIdx: number): void {
 // editor-actions/ so selection/ never has to reach across for them.
 
 /**
- * Whether a row delete is allowed. `rowCount` is the FULL count including the header. A
- * header delete promotes the next row so it needs only a second row; a body delete needs
- * a second body row, else it would leave a header-only table.
+ * `rowCount` includes the header. A header delete promotes the next row, so it needs only a
+ * second row; a body delete needs a second body row, or it leaves a header-only table.
  */
 export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
 	if (rowCount <= 1) return false;

@@ -16,7 +16,12 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('XSecond paragraph');
+		// ArrowDown keeps the caret's pixel column across the boundary, so which character it
+		// ends up beside depends on the font: assert the paragraph reached, not the offset.
+		await editor.bridge.waitForSource((s) => {
+			const [first, , second] = s.split('\n');
+			return first === 'First paragraph.' && second.includes('X');
+		});
 	});
 
 	test('ArrowUp at start of block moves focus to previous block', async () => {
@@ -48,13 +53,13 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('A');
-		// Anchored to the start of the source: a caret ArrowUp moved to END of block satisfies a
-		// bare `contains`, which is the regression this predicate rules out.
+		// Anchored to the start of the source: a caret that ArrowUp moved to the end of the block
+		// would satisfy a bare `contains`, which is what this predicate rules out.
 		await editor.bridge.waitForSource((s) => s.startsWith('AFirst paragraph'));
 	});
 
 	// A heading's own marker span is its first child, so the first-visual-line check reads
-	// geometry rather than a text node — the arrival paragraphs never exercise.
+	// geometry rather than a text node, a case arriving from a paragraph never covers.
 	test('ArrowUp at the top of a block moves into the heading above', async () => {
 		await editor.loadContent('# Title\n\nParagraph text.\n');
 
@@ -70,7 +75,10 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Q');
-		await editor.bridge.waitForSourceMatches(/> .*Inside quoteQ|> .*QInside quote/);
+		await editor.bridge.waitForSource((s) => {
+			const [before, , quote] = s.split('\n');
+			return before === 'Before' && quote.startsWith('> ') && quote.includes('Q');
+		});
 	});
 
 	test('ArrowUp out of container block exits to block before', async () => {
@@ -117,4 +125,40 @@ test.describe('keyboard navigation', () => {
 		await editor.typeText('hi ');
 		await editor.bridge.waitForSourceContains('hi Hello.');
 	});
+});
+
+// Backspace leaves no side of its own, so the move's end arrival decides it; the top level and a
+// quote run different traversals, so each route runs.
+const CLOSER_SIDE_ROUTES = [
+	{
+		where: 'at the top level',
+		source: '**a**\n\n```\ncode\n```\n',
+		from: [1],
+		typed: '**a**x\n\n```\ncode\n```\n'
+	},
+	{
+		where: 'inside a quote',
+		source: '> **a**\n>\n> ```\n> code\n> ```\n',
+		from: [0, 1],
+		typed: '> **a**x\n>\n> ```\n> code\n> ```\n'
+	}
+] as const;
+
+test.describe('keyboard navigation: leaving a code block into a hidden closer, live mode', () => {
+	for (const { where, source, from, typed } of CLOSER_SIDE_ROUTES) {
+		test(`Backspace out of a code body types after the bold closer above, ${where}`, async ({
+			page
+		}) => {
+			const editor = new EditorPage(page);
+			await editor.goto('?presentationMode=live');
+			await editor.loadContent(source);
+			await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+
+			// Raw offset 4 is the body's start, just past the opening fence line.
+			await editor.focusBlockAtPath([...from], 4);
+			await page.keyboard.press('Backspace');
+			await page.keyboard.type('x');
+			await editor.bridge.waitForSource((s) => s === typed);
+		});
+	}
 });

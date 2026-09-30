@@ -1,7 +1,7 @@
 import { type SimContext } from '../invariants';
 
-// The mount/reveal census a gesture settles on: a promotion, a widget swap, or a definition
-// materializing is observable as the matching node count reaching `count`, and nothing else.
+// The counts a gesture waits on: a block changing kind, a widget swapping in, or a definition
+// appearing all show up as the matching node count reaching `count`, and nothing else does.
 
 export async function waitForNodeCount(
 	ctx: SimContext,

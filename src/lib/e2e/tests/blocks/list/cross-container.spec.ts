@@ -49,7 +49,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		expect(source).toMatch(/^\s+- btext$/m);
 	});
 
-	test('loose list item (multi-paragraph): merge lands in the LAST paragraph of the last item', async () => {
+	test('loose list item (multi-paragraph): merge lands in the last paragraph of the last item', async () => {
 		await editor.loadContent('- first item\n\n- second item\n\n  second para\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
@@ -74,8 +74,8 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		expect(source).not.toMatch(/^text$/m);
 	});
 
-	// The fallback leaves the tree alone, so absence-of-mutation is the whole observable: no source
-	// predicate can discriminate it, and a byte-exact re-read is the only honest oracle.
+	// The fallback leaves the tree alone, so nothing changing is the whole point: no source
+	// condition can tell it apart, and a byte-exact re-read is the only honest check.
 	test('list with opaque deepest leaf: fall back to move-focus', async () => {
 		await editor.loadContent('- item\n\n  ```\n  code\n  ```\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });

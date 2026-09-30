@@ -1,28 +1,37 @@
 /**
- * Cross-block mutation: delete a range, push undo, collapse, restore the caret. Commit
- * routing: pure top-level (both endpoints at doc.children, no cross-path table) commits
- * structurally; anything nested or with a cross-path table endpoint needs one scope per
- * spliced container, since the whole-row snap splices `table.children`. Intra-table
- * full-table/row/column coverage routes to `range-delete-table-coverage`.
+ * Cross-block delete: one commit that deletes the range, collapses it and restores the caret.
+ * A range between top-level blocks commits structurally; anything nested, or with an endpoint in
+ * a table the other endpoint isn't in, needs one scope per spliced container.
  */
 
-import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
-import type { GrammarView } from '../../schema/block-openers';
-import type { LinkReferenceResolverRef, PresentationModeGetter } from '../../editor-keys';
-import { deleteSnapshot, type SelectionPoint } from '../primitives';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Reading } from '../../schema/reading';
+import { deleteSnapshot, type CaretPosition, type SelectionPoint } from '../primitives';
+import type { Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
-import type { CommitController, MultiScopeTarget } from '../../action-contracts';
+import type {
+	CommitAfterTick,
+	CommitController,
+	CommitLanding,
+	MultiScopeTarget
+} from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
-import { rangeDelete } from '../range-delete';
+import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-delete';
+import {
+	coverRange,
+	rangeCoverage,
+	type CoveredRange,
+	type RangeCoverage
+} from '../range-coverage';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
+import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
+import { countsCells } from '../../schema/block-kind-descriptor';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { maybeCommitTableCoverageDelete } from '../range-delete-table-coverage';
+import { commitGridLineDelete } from '../range-delete-table-coverage';
+import type { SharingState } from '../../tree-operations/sharing';
+import type { RemovalGesture } from '../caret-target';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -32,48 +41,46 @@ export interface CrossBlockMutationContext {
 	getBlockElByPath: (path: number[]) => HTMLElement | null;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
-	/** Push an undo snapshot immediately, bypassing the debounce. */
-	pushUndoSnapshot: () => void;
-	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
-	 *  site can't silently skip the thread; `undefined` = global. */
-	grammar: GrammarView | undefined;
-	/** The effective mode the delete's join seam answers to (live-mode.md § 4.5). Required-nullable for the
-	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, so the seam parses the reference forms the render
-	 *  path drew. Required-nullable beside the mode. */
-	linkRef: LinkReferenceResolverRef | undefined;
+	/** How the editor reads its bytes: the ancestor rebuild reads its grammar, and the join cleanup
+	 *  its link definitions and mode (`docs/design/live-mode.md` § 4.5). */
+	reading: Reading;
 }
 
-/** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
+/** Options for {@link performCrossBlockDelete}. Absent = plain delete, own caret. */
 export interface CrossBlockDeleteOptions {
-	/** `'join'`: the caller already pushed a snapshot covering this delete. */
-	undoEntry?: UndoEntryMode;
 	/** The caller installs a final caret after further mutations. */
 	skipCaretRestore?: boolean;
-	/**
-	 * Route intra-table full/row/column coverage to a structural delete. Backspace opts in;
-	 * type-replace/paste/cut stay on cell-clear so the follow-up insert lands in the anchor cell.
-	 */
+	/** Delete a range covering a whole table, row or column structurally; without it the cells
+	 *  are cleared and the table keeps its shape. */
 	tableCoverageDelete?: boolean;
 }
 
 /**
- * rangeDelete the current cross-block selection, commit, collapse, restore the caret.
- * Returns the collapsed caret, or null when the selection wasn't cross-block.
+ * Runs a cross-block gesture's writes as one undo entry holding the range as it stood; the range
+ * start is where undo puts the caret back when nothing is focused.
  */
+export function rangeUndoStep(
+	ctx: CrossBlockMutationContext,
+	run: () => Promise<unknown>
+): Promise<void> {
+	const start = ctx.selection.start;
+	return ctx.controller.undoStep(deleteSnapshot(start?.path ?? [0], start?.offset ?? 0), run);
+}
+
+/** Returns the collapsed caret, or null when the selection wasn't cross-block. `gesture` picks the
+ *  caret's side when the range takes a block whole. */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
+	gesture: RemovalGesture,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
-	// A re-entrant delete (auto-repeat, paste, composition) parked on the reveal await would
-	// resolve the SAME endpoints and delete against the mutated tree. Serialize per selection;
-	// with nothing in flight this adds no await, preserving the sync variant's no-yield window.
+	// A re-entrant delete (key repeat, paste, composition) would resolve the same endpoints against
+	// the mutated tree, so deletes queue per selection; with none queued this adds no await.
 	let inFlight: Promise<SelectionPoint | null> | undefined;
 	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
 		await inFlight.catch(() => {});
 	}
-	const run = runCrossBlockDelete(ctx, options);
+	const run = runCrossBlockDelete(ctx, gesture, options);
 	inFlightDeletes.set(ctx.selection, run);
 	try {
 		return await run;
@@ -86,6 +93,7 @@ const inFlightDeletes = new WeakMap<SelectionState, Promise<SelectionPoint | nul
 
 async function runCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
+	gesture: RemovalGesture,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
 	if (!ctx.selection.isCrossBlock) return null;
@@ -93,8 +101,8 @@ async function runCrossBlockDelete(
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
-	// A cross-path table endpoint leaves the pure path: the whole-row snap splices
-	// table.children, which only the multi-scope commit syncs. Intra-table clears only raws.
+	// A table endpoint splices `table.children` (the whole-row snap), which only the multi-scope
+	// commit syncs; a range inside one table clears only raws and stays top-level.
 	const samePath = pathsEqual(start.path, end.path);
 	const isPureTopLevel =
 		start.path.length === 1 &&
@@ -107,155 +115,111 @@ async function runCrossBlockDelete(
 			}
 		: undefined;
 
-	// Start-wins collapse: the merged block lands at start.path[0] and stays put. Mount it now,
-	// while caretRestore (a sync post-tick landing) still needs a live element. Gated on
-	// caretRestore so the IME path never yields before its synchronous commit.
+	// The start wins the collapse, so mount it now while `caretRestore` still needs a live element;
+	// skipped without `caretRestore` so the IME path never yields before its synchronous commit.
 	if (caretRestore) {
 		await ctx.revealPath(start.path);
 	}
 
-	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
-		const block = nodeAt(doc, start.path);
-		if (block && isBlockNode(block) && block.kind === 'table') {
-			const handled = await maybeCommitTableCoverageDelete(
-				ctx,
-				block,
-				start,
-				end,
-				options,
-				caretRestore
-			);
-			if (handled) return handled.caret;
-		}
+	const range = coverRange(doc, start, end);
+	const coverage = rangeCoverage(doc, range);
+	const grid = options?.tableCoverageDelete ? coverage.grid : null;
+	if (grid && (grid.kind === 'row' || grid.kind === 'column')) {
+		return commitGridLineDelete(ctx, grid, !!caretRestore);
 	}
-
-	if (isPureTopLevel) {
-		return await commitPureTopLevelDelete(ctx, start, end, options, caretRestore);
+	// A table held whole goes, where `rangeDelete` would clear its cells; the commit lands the
+	// caret on the side the key points.
+	if (grid?.kind === 'table') {
+		const caret = caretByLanding(ctx, !!caretRestore);
+		const remove: RangeRemoval = (sharing) =>
+			removeHeldWhole(doc, coverage, sharing, ctx.reading, gesture);
+		return commitCrossContainerDelete(ctx, doc, range, remove, caret);
 	}
-	return await commitCrossContainerDelete(ctx, doc, start, end, options, caretRestore);
+	const caret = caretAfterCommit(ctx, caretRestore);
+	if (isPureTopLevel) return await commitPureTopLevelDelete(ctx, coverage, gesture, caret);
+	const remove: RangeRemoval = (sharing) =>
+		rangeDelete(doc, coverage, sharing, ctx.reading, gesture);
+	return await commitCrossContainerDelete(ctx, doc, range, remove, caret);
 }
 
-/**
- * compositionstart variant: the IME swallows the composition if the handler yields, so this
- * must not await. The commit ceremony is synchronous up to its post-publish `await tick()`,
- * so firing without awaiting keeps the whole delete inside the no-await window.
- */
+/** For compositionstart, where the IME drops the composition if the handler yields: the commit
+ *  is synchronous up to its `await tick()`, so firing without awaiting deletes before any yield. */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
-	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
+	void performCrossBlockDelete(ctx, 'keyless', { skipCaretRestore: true });
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
+/** What the commit runs over the range: `rangeDelete`, or the removal of a table held whole. */
+type RangeRemoval = (sharing: SharingState) => RangeDeleteResult;
+
 function isTableAt(doc: Document, path: number[]): boolean {
 	const node = nodeAt(doc, path);
-	return node !== null && isBlockNode(node) && node.kind === 'table';
+	return node !== null && countsCells(node);
 }
 
-/**
- * Pure top-level commit path. Both paths have length 1, so rangeDelete never reaches into a
- * nested container and the proxy-doc (children copy) is a safe mutation target.
- */
+/** Both paths have length 1, so `rangeDelete` never reaches into a nested container and the
+ *  top-level children copy is a safe mutation target. */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	coverage: RangeCoverage,
+	gesture: RemovalGesture,
+	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
-	let collapsedCaret: SelectionPoint | null = null;
+	const { start } = coverage.range;
 
-	const snapshot = deleteSnapshot(options, start.path, start.offset);
+	const snapshot = deleteSnapshot(start.path, start.offset);
 
 	const doc = ctx.getDoc();
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			// Prefix stays inert; the suffix rides the live document as accessors, so the
-			// tail settle can materialize the folded trailing line.
-			const proxyDoc: Document = {
-				kind: 'document',
-				prefix: '',
-				children: topLevelChildren,
-				get suffix() {
-					return doc.suffix;
-				},
-				set suffix(value: string) {
-					doc.suffix = value;
-				}
-			};
-			const ledger = trackChildIds(proxyDoc);
-			const result = rangeDelete(
-				proxyDoc,
-				start,
-				end,
-				ctx.controller.sharing,
-				ctx.grammar,
-				ctx.getPresentationMode?.(),
-				ctx.linkRef
-			);
-			collapsedCaret = result.collapsedCaret;
+			const body = documentBody(doc, topLevelChildren);
+			const ledger = trackChildIds(body);
+			caret.hold(rangeDelete(body, coverage, ctx.controller.sharing, ctx.reading, gesture));
 			ctx.selection.collapse();
 			return ledger.read();
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		...caret.commitArgs
 	});
 
-	return collapsedCaret;
+	return caret.read();
 }
 
-/**
- * Cross-container commit path: one rangeDelete on the live doc inside a commitMultiScope
- * whose scope list covers every container whose children array was spliced.
- */
+/** One `remove` on the live doc, with a commit scope for every container it splices. */
 async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	range: CoveredRange,
+	remove: RangeRemoval,
+	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
-	const touched = collectTouchedContainers(doc, start.path, end.path);
-	const scopes: MultiScopeTarget[] = [];
-
-	// Doc scope goes first when the LCA is doc-level, so commitMultiScope publishes
-	// doc.children / blockIds / blockRefs atomically with the container scopes.
-	if (start.path[0] !== end.path[0]) {
-		scopes.push(ctx.controller.getDocScope());
-	}
-
-	for (const t of touched) {
-		scopes.push({ node: t.node, state: t.state, path: t.path });
-	}
-
-	let collapsedCaret: SelectionPoint | null = null;
+	const { start, end } = range;
+	// The document goes first and always: it holds every endpoint, and a block the range takes
+	// whole at the top level is spliced out of it, so its ids and refs change with the containers'.
+	const scopes: MultiScopeTarget[] = [
+		ctx.controller.getDocScope(),
+		...collectTouchedContainers(doc, start.path, end.path)
+	];
 
 	await ctx.controller.commitMultiScope({
 		scopes,
-		// The selection start survives the delete (start-wins collapse), so its deep path is a
-		// resolving restore coordinate.
-		snapshot: deleteSnapshot(options, start.path, start.offset),
+		// The selection start survives the delete (the start wins the collapse), so its path still
+		// resolves as the restore position.
+		snapshot: deleteSnapshot(start.path, start.offset),
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
-			// Opened BEFORE the mutation: paths go stale as rangeDelete splices, while the owned
+			// Opened before the mutation: paths go stale as `rangeDelete` splices, while the copied
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(
-				doc,
-				start,
-				end,
-				sharing,
-				ctx.grammar,
-				ctx.getPresentationMode?.(),
-				ctx.linkRef
-			);
-			collapsedCaret = result.collapsedCaret;
+			const result = remove(sharing);
+			caret.hold(result);
 			ctx.selection.collapse();
 
-			// An endpoint-table scope takes its descriptor from the row splice the table branch
-			// actually performed, matched on the owned node, never from re-derived snap math.
+			// An endpoint table's scope reports the row splice the table branch actually made,
+			// matched on the copied node, never a re-derived snap.
 			const rowSplices = result.tableRowSplices ?? [];
 			return ledgers.map((ledger, i): StructuralChange => {
 				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);
@@ -267,27 +231,66 @@ async function commitCrossContainerDelete(
 			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		...caret.commitArgs
 	});
 
-	return collapsedCaret;
+	return caret.read();
 }
 
-/**
- * Every mounted container on either endpoint path whose children array gets spliced: strict
- * ancestors, plus a table endpoint itself (the whole-row snap splices its children). Document
- * root excluded; callers add it via `getDocScope()`. Outermost-first, de-duplicated.
- */
+/** How a delete's caret goes down: held from the mutation, then read on the committed tree. */
+interface CaretPlacement {
+	hold: (deleted: RangeDeleteResult) => void;
+	read: () => SelectionPoint | null;
+	commitArgs: { afterTick?: CommitAfterTick; landing?: CommitLanding };
+}
+
+/** Put down after the commit's tick when `caretRestore` is given; paste and typing continue at
+ *  the same read. */
+function caretAfterCommit(
+	ctx: CrossBlockMutationContext,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+): CaretPlacement {
+	let result: RangeDeleteResult | null = null;
+	let caret: SelectionPoint | null = null;
+	return {
+		hold: (deleted) => {
+			result = deleted;
+		},
+		read: () => caret,
+		commitArgs: {
+			afterTick: () => {
+				caret = result?.caret(ctx.getDoc()) ?? null;
+				caretRestore?.(caret);
+			}
+		}
+	};
+}
+
+/** The commit puts the caret down itself, and only when `lands` is set. */
+function caretByLanding(ctx: CrossBlockMutationContext, lands: boolean): CaretPlacement {
+	let result: RangeDeleteResult | null = null;
+	const read = () => result?.caret(ctx.getDoc()) ?? null;
+	const landing = (): CaretPosition | null => {
+		const caret = read();
+		return caret && { path: docPathFrom(caret.path), offset: caret.offset };
+	};
+	return {
+		hold: (deleted) => {
+			result = deleted;
+		},
+		read,
+		commitArgs: { landing: lands ? landing : undefined }
+	};
+}
+
+/** Every mounted container on either endpoint path whose children get spliced: strict ancestors,
+ *  plus a table endpoint itself. The caller adds the document root with `getDocScope()`. */
 function collectTouchedContainers(
 	doc: Document,
 	startPath: number[],
 	endPath: number[]
-): Array<{ path: number[]; node: CstNode; state: BlockListState }> {
-	const touched: Array<{
-		path: number[];
-		node: CstNode;
-		state: BlockListState;
-	}> = [];
+): MultiScopeTarget[] {
+	const touched: MultiScopeTarget[] = [];
 	const seen = new Set<string>();
 
 	function visit(leafPath: number[]): void {

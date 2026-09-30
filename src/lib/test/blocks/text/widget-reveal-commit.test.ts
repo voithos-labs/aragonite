@@ -1,26 +1,29 @@
 // @vitest-environment jsdom
-//
-// commitReveal's undo / caret contract, driven through the real createWidgetInteraction over a
-// mounted math-widget DOM — above the reveal primitive (cursor/reveal-source.test.ts) and below
-// the e2e undo stack (plugins/latex-inline.spec.ts). Three regressions it would hide: a zero-diff
-// commit pushing a dead undo entry, a post-commit caret taken off the widget's stale end, and the
-// cross-block rule moving off the BLUR caller into the commit itself.
+// `commitReveal`'s undo and caret rules through the real `createWidgetInteraction` over a mounted
+// math widget. It catches a commit that changes nothing pushing an undo entry, a caret taken from
+// the widget's stale end, and the cross-block rule moving from the blur caller into the commit.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import type { Commit } from './widget-selected-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
-// A paragraph "Before $x^2$ after" mounted as TextEditableBlock renders it: the
-// math is one atomic [data-inline-widget] island between two real text nodes.
-function mountMathBlock() {
+// "Before $x^2$ after" as TextEditableBlock renders it, math between two text nodes. The write
+// hands back its caret moved by `shift`, as a kind's rule inserting bytes ahead of it would.
+function mountMathBlock(shift = 0) {
 	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
 	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const pendingCursors: { offset: number | null; writtenText?: string }[] = [];
+	const pendingCursors: (number | null)[] = [];
+	const record = recordingWrite(({ index, raw, before, after }) =>
+		commits.push({ index, raw, before, after })
+	);
 	let crossBlock = false;
 
 	const trap = () => {
@@ -32,13 +35,14 @@ function mountMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-						commits.push({ index, raw, before, after });
+					updateBlockContent: (...args: Parameters<typeof record>) => {
+						const write = record(...args);
+						return withStoredCaret(write, write.caret + shift);
 					}
 				},
 				focusActions: new Proxy({}, { get: trap }),
-				setPendingCursor: (offset: number | null, writtenText?: string) => {
-					pendingCursors.push({ offset, writtenText });
+				setPendingCursor: (offset: number | null) => {
+					pendingCursors.push(offset);
 				},
 				setRevealing: () => {},
 				isCrossBlock: () => crossBlock
@@ -50,7 +54,7 @@ function mountMathBlock() {
 	// anchor the commit assertions below depend on; the trailing edge would anchor at math.end.
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 	}
 
 	return {
@@ -67,13 +71,13 @@ function mountMathBlock() {
 	};
 }
 
-// The fold seam every commit gesture funnels through. Driving it directly keeps these cases
-// about the commit contract rather than about whichever key happens to reach it.
+// The one call every commit gesture goes through. Driving it directly keeps these cases about
+// the commit rules rather than about whichever key happens to reach it.
 function commitViaFold(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
 	interaction.foldRevealBeforeMutation();
 }
 
-describe('commitReveal — no-edit short-circuit', () => {
+describe('commitReveal: no-edit short-circuit', () => {
 	it('folds back without a CST commit when the source is unchanged', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -81,17 +85,17 @@ describe('commitReveal — no-edit short-circuit', () => {
 
 		commitViaFold(block.interaction);
 
-		// The dead-undo-entry finding: a zero-diff updateBlockContent still pushes a
-		// snapshot, so the user's next Ctrl+Z reverts nothing.
+		// A call to `updateBlockContent` that changes nothing still pushes a snapshot,
+		// so the user's next Ctrl+Z reverts nothing.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(false);
-		// Folded back via the focus-guarded pending cursor, landing at the widget's trailing edge. No
-		// text rides along: nothing was written, so the offset already addresses the CST's own bytes.
-		expect(block.pendingCursors).toEqual([{ offset: block.math.end, writtenText: undefined }]);
+		// Hidden again through the focus-checked pending cursor, landing at the widget's trailing
+		// edge: nothing was written, so the offset already fits the CST.
+		expect(block.pendingCursors).toEqual([block.math.end]);
 	});
 });
 
-describe('handleRevealingKeydown — the keys a reveal claims', () => {
+describe('handleRevealingKeydown: the keys a reveal claims', () => {
 	it('leaves Enter to the block, which splits after folding', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -100,8 +104,8 @@ describe('handleRevealingKeydown — the keys a reveal claims', () => {
 			new KeyboardEvent('keydown', { key: 'Enter' })
 		);
 
-		// Declining is the whole contract: a claimed Enter cost the user the split,
-		// and nothing here may fold on its own — the command seam owns that order.
+		// Declining is the whole rule: taking Enter would cost the user the split, and
+		// nothing here may hide the source on its own, since the command path sets that order.
 		expect(consumed).toBe(false);
 		expect(block.interaction.isRevealing()).toBe(true);
 		expect(block.commits).toEqual([]);
@@ -120,7 +124,7 @@ describe('handleRevealingKeydown — the keys a reveal claims', () => {
 	});
 });
 
-describe('commitReveal — edit persistence and caret precision', () => {
+describe('commitReveal: edit persistence and caret precision', () => {
 	it('commits an in-source edit once, caret at the widget trailing edge', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -140,8 +144,8 @@ describe('commitReveal — edit persistence and caret precision', () => {
 	it('derives the caret from the widget position, not a whole-block length delta', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
-		// Edit the prose AFTER the widget: the widget's trailing edge is unmoved, so a
-		// `widgetEnd + totalDelta` caret would land one char too far.
+		// Edit the prose after the widget: the widget's trailing edge is unmoved, so a
+		// `widgetEnd + totalDelta` caret would land one character too far.
 		block.trailingTextNode().textContent = ' afterZ';
 
 		commitViaFold(block.interaction);
@@ -151,22 +155,19 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		expect(block.commits[0].after).toBe(block.math.end);
 	});
 
-	it('parks the caret together with the text that caret addresses', async () => {
-		const block = mountMathBlock();
+	// Only the write knows where a kind's rule moved the caret, so the one it hands back is parked.
+	it('parks the caret the write hands back, not the one it computed', async () => {
+		const block = mountMathBlock(100);
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
 
 		commitViaFold(block.interaction);
 
-		// The pending cursor bypasses the block-edit door a rewriting kind's write sink needs, so it
-		// can only be mapped against the text it addresses — which therefore has to travel with it.
-		expect(block.pendingCursors).toEqual([
-			{ offset: block.math.end + 1, writtenText: 'Before $yx^2$ after' }
-		]);
+		expect(block.pendingCursors).toEqual([block.math.end + 1 + 100]);
 	});
 });
 
-describe('commitReveal — the cross-block rule lives at the blur caller', () => {
+describe('commitReveal: the cross-block rule lives at the blur caller', () => {
 	it('keeps the source revealed on blur while a selection spans blocks', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -174,8 +175,8 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 
 		block.interaction.commitRevealOnBlur();
 
-		// Bailed: no commit, source still revealed so the fold can't remove the text
-		// node an endpoint is anchored in.
+		// Refused: no commit, and the source still shows, so hiding it cannot remove the
+		// text node an endpoint is anchored in.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(true);
 	});
@@ -188,8 +189,8 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 
 		const caret = block.interaction.foldRevealBeforeMutation();
 
-		// A null return means "nothing was open", which the clipboard seam tests to decide whether to
-		// tick and fold. Refusing here let cut/paste splice the pre-reveal bytes with no undo entry.
+		// A null return means nothing was shown, which the clipboard code checks to decide whether
+		// to wait. Refusing here would let cut and paste splice the old bytes with no undo entry.
 		expect(caret).not.toBeNull();
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0].raw).toBe('Before $yx^2$ after\n');
@@ -197,10 +198,10 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 	});
 });
 
-describe('cancelReveal — identity-exact fold-back', () => {
-	// Two byte-identical widgets: the cancel swap must restore the EXACT element it detached. A
-	// rebuild-by-lookup (the pool keys on `${kind} ${source}`) would MOVE the other instance.
-	it('Escape restores the same element it swapped out, leaving its twin untouched', async () => {
+describe('cancelReveal: identity-exact fold-back', () => {
+	// Two byte-identical widgets: cancelling must put back the exact element it detached.
+	// Rebuilding by lookup (the pool keys on `${kind} ${source}`) would move the other instance.
+	it('Escape restores the same element it swapped out, leaving its counterpart untouched', async () => {
 		const { el, node, widgets, inlineWidgets } = mountWidgetBlock(
 			'Twice $x^2$ and $x^2$ again',
 			MATH_INLINE
@@ -220,11 +221,11 @@ describe('cancelReveal — identity-exact fold-back', () => {
 		);
 
 		interaction.enterWidget(second, false);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 
-		// Identity, not equivalence: the detached element itself returns, in place.
+		// The same element, not an equal one: the detached element itself returns, in place.
 		expect(el.childNodes[1]).toBe(firstWidget);
 		expect(el.childNodes[3]).toBe(secondWidget);
 		expect((el.childNodes[3] as HTMLElement).dataset.sourceStart).toBe(String(second.start));

@@ -4,9 +4,9 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
-// `docs/design/editor.md` §10: a replacement into a table cell escapes the delimiters the
-// cell's raw reserves so it cannot split the row. Escaping the replacement string alone
-// mis-handles a backslash on either side of the seam, and the row reparses one cell wider.
+// A replacement into a table cell escapes the delimiters the cell's raw reserves so it cannot
+// split the row. Escaping the replacement string alone mishandles a backslash on either side of
+// the join, and the row reparses one cell wider.
 
 /** Literal matches inside table cells, as `{path, start, end}` scan results. */
 function scanCells(doc: Document, needle: string) {
@@ -61,7 +61,7 @@ describe('search/replace into a table cell', () => {
 		expect(bodyCells(deps)).toEqual(['a\\|', 'keep']);
 	});
 
-	it('is idempotent — replacing into an already-escaped cell adds no backslashes', async () => {
+	it('is idempotent, replacing into an already-escaped cell adds no backslashes', async () => {
 		const { deps, sr } = makeSearchReplace('| h1 | h2 |\n| --- | --- |\n| a\\|X | keep |\n');
 
 		await sr.replaceAll(scanCells(deps.doc, 'X'), 'Y');
@@ -78,7 +78,7 @@ describe('search/replace into a table cell', () => {
 	});
 
 	// The real scanner, not `scanCells`: a paragraph has no cells to address, so the
-	// cell-addressed driver hands this arm an empty match set and pins nothing.
+	// cell-addressed driver would hand this case an empty match set and test nothing.
 	it('leaves a non-cell leaf’s replacement unescaped', async () => {
 		const { deps, sr } = makeSearchReplace('para X here\n');
 

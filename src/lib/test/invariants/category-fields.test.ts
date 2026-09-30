@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { checkCategoryFields } from '../../invariants/node-shape';
@@ -13,7 +13,7 @@ function leaf(source: string): CstNode {
 
 // The only kinds that legally carry a non-empty `innerPrefix` are wrapped containers, and every
 // one of them ships as a plugin.
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -46,10 +46,8 @@ describe('checkCategoryFields (G1.5)', () => {
 		expect(checkCategoryFields(bq)).toBeNull();
 	});
 
-	// A blockquote and a list item open their body on the container's own first line, so no
-	// parse can peel a blank into `innerPrefix` and a filled slot is bytes nobody typed.
-	// Miss-analysis: the field-legality check read the container/leaf split only, so a slot
-	// legal for the CATEGORY but impossible for the KIND had no predicate at all.
+	// A blockquote or list item body starts on its own first line, so an `innerPrefix` is untyped.
+	// Miss-analysis: the field check read only the container/leaf split, never what a kind allows.
 	it.each([
 		['blockquote', () => leaf('> quoted\n')],
 		['listItem', () => leaf('- item\n').children![0]]
@@ -63,8 +61,8 @@ describe('checkCategoryFields (G1.5)', () => {
 		expect(checkCategoryFields(node)?.detail).toEqual({ kind, field: 'innerPrefix' });
 	});
 
-	// The other direction, or the predicate would just outlaw the slot: a chrome line above the
-	// body is exactly what makes a peeled blank the wrap's.
+	// The other direction, or the check would simply outlaw the field: a title line above the body
+	// is exactly what makes a stripped blank belong to the wrap.
 	it('accepts an innerPrefix on a container whose body sits under a chrome line', () => {
 		const admonition = leaf(':::note T\n\nbody\n\n:::\n');
 		expect(admonition.innerPrefix).toBe('\n');
@@ -82,8 +80,8 @@ describe('checkCategoryFields (G1.5)', () => {
 // mergeRole is a per-kind registration fact, so a per-node check re-runs a constant every
 // commit and leaves a bad registration undetected until the first edit.
 describe('G1.30 merge-role vocabulary', () => {
-	// The declared vocabulary drives the check, so a sixth role added to the tuple is accepted
-	// here without an edit — the drift this pins is a role the registration seam would reject.
+	// The declared set drives the check, so a sixth role added to the tuple is accepted here with
+	// no edit; what this pins is a role the registration code would reject.
 	it('accepts every declared role', () => {
 		expect(
 			checkMergeRoleVocabulary(

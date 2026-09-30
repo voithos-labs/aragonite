@@ -6,14 +6,10 @@ import {
 	type RegexScanRequest
 } from '../../search/regex-executor';
 import { makeSearchHarness, type ReplaceStub } from './harness';
+import { settleEditor } from '$lib/test/harness/settle';
 
-// Regex scans leave the main thread, so their results land after the call that
-// asked for them. These pin what the find bar does in that window.
-
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-
-/** An executor that settles only when the test says so, so the window between
- *  kickoff and landing is inspectable. */
+/** An executor that resolves only when the test says so, so the gap between starting and
+ *  finishing can be inspected. */
 function makeHeldExecutor() {
 	const held: { request: RegexScanRequest; settle: (o: RegexScanOutcome) => void }[] = [];
 	const executor: RegexExecutor = {
@@ -30,22 +26,22 @@ function makeState(source: string, regexExecutor?: RegexExecutor, replace?: Repl
 	return { state };
 }
 
-describe('SearchState — off-thread regex scans', () => {
+describe('SearchState: off-thread regex scans', () => {
 	it('publishes matches when the scan lands, not when the query is set', async () => {
-		// The real executor on its synchronous fallback: still a promise, so the
-		// find bar sees the same two-phase shape it sees in a browser.
+		// The real executor on its synchronous fallback: still a promise, so the find bar sees the
+		// same two-step shape it sees in a browser.
 		const { state } = makeState('cat cat\n\ncat\n', createRegexExecutor());
 		state.setQuery('c.t');
 		expect(state.isScanning).toBe(true);
 		expect(state.matches).toHaveLength(0);
 
-		await flush();
+		await settleEditor();
 		expect(state.isScanning).toBe(false);
 		expect(state.matches).toHaveLength(3);
 		expect(state.activeIndex).toBe(0);
 	});
 
-	it('literal search stays synchronous — no scanning window at all', () => {
+	it('literal search stays synchronous: no scanning window at all', () => {
 		const { state } = makeState('cat cat\n');
 		state.setOptions({ regex: false });
 		state.setQuery('cat');
@@ -60,7 +56,7 @@ describe('SearchState — off-thread regex scans', () => {
 		state.setQuery('d.g');
 		expect(held).toHaveLength(2);
 
-		// The superseded scan settles LAST, so a missing epoch check would let it win.
+		// The scan that was replaced resolves last, so a missing counter check would let it win.
 		held[1].settle({
 			ok: true,
 			epoch: held[1].request.epoch,
@@ -77,7 +73,7 @@ describe('SearchState — off-thread regex scans', () => {
 				[]
 			]
 		});
-		await flush();
+		await settleEditor();
 
 		expect(state.matches).toHaveLength(1);
 		expect(state.matches[0].path).toEqual([1]);
@@ -94,7 +90,7 @@ describe('SearchState — off-thread regex scans', () => {
 			epoch: held[0].request.epoch,
 			ranges: [[{ start: 0, end: 3 }]]
 		});
-		await flush();
+		await settleEditor();
 
 		expect(state.isOpen).toBe(false);
 		expect(state.matches).toHaveLength(0);
@@ -106,7 +102,7 @@ describe('SearchState — off-thread regex scans', () => {
 		const { state } = makeState('cat cat\n', executor);
 		state.setQuery('(a+)+$');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'timeout' });
-		await flush();
+		await settleEditor();
 
 		expect(state.error).toBe('Regex too slow');
 		expect(state.matches).toHaveLength(0);
@@ -119,7 +115,7 @@ describe('SearchState — off-thread regex scans', () => {
 		const { state } = makeState('cat\n', executor);
 		state.setQuery('c.t');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'error' });
-		await flush();
+		await settleEditor();
 
 		expect(state.error).toBe('Regex search failed');
 		expect(state.matches).toHaveLength(0);
@@ -130,19 +126,19 @@ describe('SearchState — off-thread regex scans', () => {
 		const { state } = makeState('cat cat\n', executor);
 		state.setQuery('(a+)+$');
 		held[0].settle({ ok: false, epoch: held[0].request.epoch, reason: 'timeout' });
-		await flush();
+		await settleEditor();
 		expect(state.error).toBe('Regex too slow');
 
 		state.setQuery('c.t');
 		expect(state.error).toBeNull();
 		held[1].settle({ ok: true, epoch: held[1].request.epoch, ranges: [[{ start: 0, end: 3 }]] });
-		await flush();
+		await settleEditor();
 		expect(state.matches).toHaveLength(1);
 	});
 
 	it('replaceAll waits for the pending scan instead of reading an empty set', async () => {
-		// Without the await, replaceAll's `if (!matches.length) return` fires on the
-		// scan window and the click silently does nothing.
+		// Without the await, `replaceAll`'s `if (!matches.length) return` fires while the scan is
+		// still running and the click silently does nothing.
 		let replacedWith: number | null = null;
 		const { state } = makeState('cat cat\n', createRegexExecutor(), {
 			replaceOne: async () => 0,

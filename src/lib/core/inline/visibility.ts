@@ -1,9 +1,8 @@
 /**
  * What a marker-hiding mode leaves on screen. `inline-render.ts` decides which bytes become which
- * span; this decides which of those spans the reader sees, and it is the one home for that rule:
- * the DOM walk (`cursor/widget-offset.ts`) is its other consumer, in the space that has a caret.
- * The two answers are held together by `test/invariants/screen-truth.property.test.ts`, not by
- * convention. Context vocabulary: `docs/design/live-mode.md` § 2.
+ * span; this file decides which of those spans the user sees, and it is the one place that rule
+ * lives: the DOM traversal (`cursor/widget-offset.ts`) reads it too, and a property test
+ * (`screen-truth.property.test.ts`) holds the two answers together. Terms: `live-mode.md` § 2.
  */
 
 import type { InlineNode } from '../nodes';
@@ -13,8 +12,8 @@ import { type PresentationMode } from '../../presentation-mode';
 
 // ── The families ─────────────────────────────────────────────────────────────
 
-/** The span families a marker-hiding mode drops. `fence-line` is a block's own chrome, minted
- *  outside this file, and is named here because the hiding rule is one rule. */
+/** The span families a marker-hiding mode drops. `fence-line` spans are a block's own fence lines,
+ *  created outside this file, and are named here because the hiding rule is one rule. */
 export type MarkerFamily = 'marker' | 'fence-line' | 'ref-label';
 
 const FAMILY_CLASS: Record<MarkerFamily, string> = {
@@ -29,44 +28,44 @@ export const MARKER_FAMILY_SELECTOR = Object.values(FAMILY_CLASS)
 	.join(', ');
 
 /**
- * The family `el` belongs to, or null for anything else. A `contenteditable="false"` marker is
- * the ambient prefix island, which keeps its box in every mode (`ambient/ambient-cursor.ts`), so
- * it belongs to no family.
+ * Whether `el` is a container's leading marker prefix (`> `, `- `): the read-only marker span a
+ * container draws before its first child's text, which keeps its box in every mode.
  */
+export function isMarkerPrefixSpan(el: Element): boolean {
+	return (
+		el.classList.contains(FAMILY_CLASS.marker) && el.getAttribute('contenteditable') === 'false'
+	);
+}
+
+/** The family `el` belongs to, or null for anything else. A marker prefix span belongs to none,
+ *  since no mode hides it. */
 export function markerFamilyOf(el: Element): MarkerFamily | null {
 	const classes = el.classList;
-	if (classes.contains(FAMILY_CLASS.marker)) {
-		return el.getAttribute('contenteditable') === 'false' ? null : 'marker';
-	}
+	if (classes.contains(FAMILY_CLASS.marker)) return isMarkerPrefixSpan(el) ? null : 'marker';
 	if (classes.contains(FAMILY_CLASS['fence-line'])) return 'fence-line';
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
 	return null;
 }
 
-/** Whether the content-empty override paints `family` (`styles/editor.css`, same scoping). A
- *  reference label is resolution metadata rather than chrome a caret types against, so it stays
- *  hidden, and a container holding only labels has no paint to promise. */
+/** Whether the content-empty override in `styles/editor.css` shows `family`. A reference label
+ *  is lookup metadata, not a marker the caret types against, so it stays hidden. */
 export function familyPaintsAlone(family: MarkerFamily): boolean {
 	return family !== 'ref-label';
 }
 
 // ── The context ──────────────────────────────────────────────────────────────
 
-/** What a container does to the marker spans rendered into it. Minted only by the two readings
+/** What a container does to the marker spans rendered into it. Built only by the two readings
  *  below, so a call site states which question it is asking rather than two loose booleans. */
 export interface VisibilityContext {
-	/** Whether marker spans drop at all — false in source mode, where every byte is on screen. */
+	/** Whether marker spans drop at all: false in source mode, where every byte is on screen. */
 	readonly hidesMarkers: boolean;
-	/** Whether the container's chrome stands over no content and therefore paints anyway. */
+	/** Whether the container's markers stand over no content and therefore stay visible. */
 	readonly chromePaints: boolean;
 }
 
-/**
- * What the reader sees on a container painting under `mode`. `chromePaints` is that container's
- * own stamp condition (live-mode.md § 4.1), which reading declines: it takes no keystrokes, so a
- * construct with nothing behind its chrome may paint nothing there. The preview rungs' per-span
- * reveal is DOM state and stays with the walk; this answers for an unrevealed container.
- */
+/** Reading mode ignores the content-empty condition (live-mode.md § 4.1), since it takes no
+ *  keystrokes. Answers for an unrevealed container: a preview's per-span reveal is DOM state. */
 export function screenVisibility(
 	mode: PresentationMode,
 	container: { chromePaints: boolean }
@@ -87,19 +86,14 @@ export function screenVisibility(
 	}
 }
 
-/**
- * The content behind every marker family, whatever the container paints: the reading a rewrite's
- * before/after conservation diff needs, since chrome folds the moment content arrives and a diff
- * against the screen would read that fold as bytes lost. Sound only past a
- * {@link paintsOnlyChrome} gate — over chrome the reader IS looking at, this reading calls those
- * bytes unseen and licenses dropping them.
- */
+/** The content behind every marker family, for a rewrite's before/after comparison. Sound only
+ *  behind a {@link paintsOnlyChrome} check, or it lets visible markers drop (live-mode.md § 2). */
 export const CONTENT_VISIBILITY: VisibilityContext = { hidesMarkers: true, chromePaints: false };
 
-/** A container whose chrome stands over no content: every family the override paints does. */
+/** A container whose markers stand over no content: every family the override shows is visible. */
 const CHROME_STANDS_ALONE: VisibilityContext = { hidesMarkers: true, chromePaints: true };
 
-/** Whether a `family` span paints NOTHING under `ctx` — the one hiding rule, before any preview
+/** Whether a `family` span shows nothing under `ctx`: the one hiding rule, before any preview
  *  reveal. */
 export function familyHidesText(family: MarkerFamily, ctx: VisibilityContext): boolean {
 	return ctx.hidesMarkers && !(ctx.chromePaints && familyPaintsAlone(family));
@@ -108,8 +102,8 @@ export function familyHidesText(family: MarkerFamily, ctx: VisibilityContext): b
 // ── The reader's text ────────────────────────────────────────────────────────
 
 /**
- * One stretch of `raw` as the reader meets it. `text` is what it paints, which is not always
- * `raw.slice(start, end)`: an atomic widget substitutes its own.
+ * One stretch of `raw` as the user sees it. `text` is what it shows, which is not always
+ * `raw.slice(start, end)`: a widget substitutes its own.
  */
 export interface VisibleRun {
 	start: number;
@@ -118,18 +112,13 @@ export interface VisibleRun {
 	visible: boolean;
 }
 
-/**
- * `nodes` as runs of raw bytes, each carrying what it paints under `ctx`. Read off the rendered
- * DOM rather than derived per kind, because which bytes a construct shows only the painter
- * answers (G4.33): a caller re-deriving that drifts from what paints, which is the only thing the
- * answer is worth anything as. Top-level nodes render one at a time, so a CLIPPED list (a join
- * seam's surviving side) keeps honest offsets instead of a running count that assumes contiguity.
- */
+/** Read off the rendered DOM, since only the renderer knows which bytes a construct shows
+ *  (G4.33). Each top-level node renders alone, so a clipped list keeps its offsets. */
 export function visibleRuns(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): VisibleRun[] {
 	const runs: VisibleRun[] = [];
 	for (const node of nodes) {
@@ -138,29 +127,24 @@ export function visibleRuns(
 	return runs;
 }
 
-/** The text a reader SEES for `nodes` — every run `ctx` leaves on screen, in source order. */
+/** The text the user sees for `nodes`: every run `ctx` leaves on screen, in source order. */
 export function renderedText(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): string {
 	let out = '';
 	for (const run of visibleRuns(nodes, raw, ctx, opts)) if (run.visible) out += run.text;
 	return out;
 }
 
-/**
- * Whether `nodes` are chrome standing over nothing, and therefore ALL on screen (live-mode.md
- * § 4.1). The inline half of the content-empty stamp, for a seam with no DOM to read the stamp
- * off: a license over bytes the reader never saw has nothing to claim here. A block's OWN chrome
- * (a `## ` prefix, a fence line) sits outside the inline content range, so an empty one answers
- * false and the surfaces that own it are unaffected.
- */
+/** Whether `nodes` are markers over no content, which stay on screen (live-mode.md § 4.1). A
+ *  block's own markers (`## `, a fence) sit outside the inline range: an empty block is false. */
 export function paintsOnlyChrome(
 	nodes: readonly InlineNode[],
 	raw: string,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): boolean {
 	return (
 		renderedText(nodes, raw, CONTENT_VISIBILITY, opts) === '' &&
@@ -182,7 +166,7 @@ function collectRuns(
 ): void {
 	let at = start;
 	const stack: RunFrame[] = [];
-	// Reversed push, so pop order is source order — which `at` advances along.
+	// Reversed push, so pop order is source order, which `at` advances along.
 	const pushChildren = (parent: Node, hidden: boolean) => {
 		const children = parent.childNodes;
 		for (let i = children.length - 1; i >= 0; i--) stack.push({ dom: children[i], hidden });
@@ -198,8 +182,8 @@ function collectRuns(
 		}
 		if (dom.nodeType !== Node.ELEMENT_NODE) continue;
 		const el = dom as Element;
-		// Only an atomic widget's shell carries a source range here, and it is the one element
-		// whose text is not its bytes — so the range is both the test and the re-sync.
+		// Only a widget's shell carries a source range here, and it is the one element whose text
+		// is not its bytes, so the range is both the test and the re-sync.
 		const source = widgetSourceRange(el);
 		if (source !== null) {
 			out.push({ ...source, text: el.textContent ?? '', visible: !hidden });

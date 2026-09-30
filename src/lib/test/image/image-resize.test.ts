@@ -59,9 +59,7 @@ describe('snapWidth', () => {
 	});
 });
 
-// Miss-analysis: the suite tested the aspect helper the commit called and never asked whether
-// the DRAG that reached it wanted an aspect-preserving height, so the preview branch and the
-// commit branch could read opposite senses of the same flag with every case still green.
+// Miss-analysis: only the ratio helper was tested, so preview and commit read its flag oppositely.
 describe('resolveDraggedHeight', () => {
 	it('leaves an aspect-locked drag to the `|N` form, whatever the box measured', () => {
 		expect(resolveDraggedHeight(true, 300)).toBeUndefined();

@@ -1,8 +1,8 @@
 /**
- * Parity guard for the published opener ladder: `OPENER_PRIORITIES` must equal the
- * built-in openers the registry holds, in both directions — a new built-in opener that
- * skips the constant, and a constant key with no registration, are the same defect.
- * Importing the parser is what registers the built-ins.
+ * Keeps the published opener priorities in step with the registry: `OPENER_PRIORITIES` must
+ * match the built-in openers the registry holds, in both directions. A new built-in opener that
+ * skips the constant and a constant key with no registration are the same defect. Importing the
+ * parser is what registers the built-ins.
  */
 import { describe, it, expect } from 'vitest';
 import '../../core/parser';
@@ -19,8 +19,8 @@ describe('OPENER_PRIORITIES ↔ registry parity', () => {
 		);
 		expect(registered).toEqual({ ...OPENER_PRIORITIES });
 
-		// Non-vacuity: `paragraph` is a built-in with no opener, so a table claiming it
-		// must not match — the same way a built-in opener priced with a bare literal fails.
+		// Non-vacuity: `paragraph` is a built-in with no opener, so a table listing it must not
+		// match, the same way a built-in opener given a bare number instead of the constant fails.
 		expect({ ...OPENER_PRIORITIES, paragraph: 5 }).not.toEqual(registered);
 	});
 

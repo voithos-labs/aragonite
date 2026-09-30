@@ -1,19 +1,19 @@
 # Feature: IME-ops (note-taking simulation)
 
-A loaded-ops session that drives real IME composition under the simulation's oracle
-stack. The handler-level and CDP e2e harnesses pin the composition contract in
-isolation; the note-taking simulation typed ASCII only until this session. A CDP
-composition surface is threaded through the SimContext (created once per session,
-never a global), and the gesture vocabulary composes → updates → commits a
-multibyte candidate at the caret while the oracle stack — structured error +
-invariant-console watcher, live-CST round-trip, nested-state audit, parse
-convergence — re-checks after every move.
+A loaded-ops session that drives real IME composition under the simulation's
+reference checks. The handler-level and CDP e2e harnesses pin the composition
+contract in isolation; this session drives it inside a full note-taking run, which
+types ASCII everywhere else. A CDP composition driver is passed through `SimContext`
+(created once per session, never a global), and the gesture vocabulary composes,
+updates, then commits a multibyte candidate at the caret while the reference checks
+(the structured-error and invariant console watcher, the live-CST round-trip, the
+nested-state audit, and the reparse comparison) run again after every move.
 
-Determinism comes from a single seeded PRNG selecting the composition from a fixed
-table; one test per seed spreads the candidates across runs. Mid-composition there
-is no source change to settle on — the compose window is DOM-only — so a compose
-settles on the composed text arriving in the focused element's DOM, and the commit
-settles on the committed bytes reaching the source.
+Runs repeat because a single seeded random generator picks the composition from a
+fixed table; one test per seed spreads the candidates across runs. Mid-composition
+there is no change in the source to wait for, since the compose window touches only
+the DOM, so a compose waits for the composed text to arrive in the focused element's
+DOM and the commit waits for the committed bytes to reach the source.
 
 ## Happy paths
 
@@ -24,20 +24,20 @@ settles on the committed bytes reaching the source.
 - an aborted composition (the window ended with no insert) commits nothing: the
   source is byte-identical before and after
 - a single undo after a composed commit restores the pre-composition text in one step
-  (one undo entry — the commit funnels through one content update)
+  (one undo entry: the commit goes through a single content update)
 - a committed multibyte insert in one paragraph survives while an undone commit in
   another is gone
 
 ## Edge cases
 
 - the compose window writes to the focused element's DOM, not the source, so a
-  mid-composition source delta is a corruption signal the session fails on
+  change in the source mid-composition is a corruption signal the session fails on
 - the seed selects the composition content from a fixed table, so a failure replays
   byte-for-byte at that seed
 
 ## User interactions
 
-- the composition is driven through a real CDP surface: `Input.imeSetComposition` per
+- the composition is driven through real CDP calls: `Input.imeSetComposition` per
   update fires genuine compositionstart/update events; `Input.insertText` commits
   through a real compositionend; an empty insert aborts
 - the target block is focused with a real end-of-block caret placement before the
@@ -47,7 +47,8 @@ settles on the committed bytes reaching the source.
 ## Error cases
 
 - no console, page, or structured editor error fires across the session, including the
-  `[invariant:…]` channel (G1.27's composition-pairing guard among them)
-- the live CST round-trips and converges with a reparse of its serialization at every
+  `[invariant:…]` channel (the composition-pairing check, G1.27, among them)
+- the live CST round-trips and matches a reparse of its serialization at every
   checkpoint
-- the nested-state audit finds no BlockListState desync after any commit, abort, or undo
+- the nested-state audit finds no `BlockListState` out of sync after any commit, abort,
+  or undo

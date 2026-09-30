@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
 
-test.describe('clipboard — inline formatting preservation', () => {
+test.describe('clipboard: inline formatting preservation', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

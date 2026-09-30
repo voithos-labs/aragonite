@@ -30,8 +30,8 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\nnew\n$$\n\ntail\n');
 	});
 
-	// The confirmed swallow: with the FOLDED view holding focus the block had no keydown door at
-	// all, so Mod+Z reached neither the leaf nor the editor root arm.
+	// With the rendered view holding focus, only the block's own keydown handler lets Mod+Z reach the
+	// undo stack.
 	test('Mod+Z reaches the stack while the folded view holds focus', async ({ page }) => {
 		await editor.render.click();
 		await expect(editor.source).toBeFocused();
@@ -46,12 +46,9 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
-	// #161's own repro. The block forms as the second `$` lands, with the caret in its revealed
-	// source. The draft is ephemeral: Mod+Z walks it back a typing burst at a time, the document's
-	// own granularity, and the press after the last one returns the paragraph rather than flushing
-	// draft bytes into the document the undo just restored. Exact text, not `toHaveText`: that
-	// matcher folds whitespace, and a stray newline in the draft is one more local entry.
-	test('undo from inside a just-minted reveal walks the draft back, then returns the paragraph', async ({
+	// Mod+Z in a just-formed block's open source steps back one typing burst at a time, then restores
+	// the paragraph without leaking draft bytes; exact text, since `toHaveText` collapses whitespace.
+	test('undo from inside a just-created reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {
 		await editor.setup('\n');
@@ -61,7 +58,7 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\n\n$$\n');
 		await expect(editor.source).toBeFocused();
 
-		// Two bursts with a pause between them, so the draft holds two entries rather than five.
+		// Two bursts with a pause between them, so the draft holds two entries and not five.
 		await editor.typeSlowly('x^');
 		await editor.waitForUndoBatchFlush();
 		await editor.typeSlowly('2');

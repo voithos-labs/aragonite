@@ -4,7 +4,9 @@ So you want to work on this thing. Condolences.
 
 Anyways, for more in depth stuff, find them here:
 
+- [`docs/contributing/first-hour.md`](docs/contributing/first-hour.md): what to read first, in order
 - [`docs/contributing/rules.md`](docs/contributing/rules.md): rules to abide by
+- [`docs/contributing/glossary.md`](docs/contributing/glossary.md): the words the repo made up, one line each
 - [`docs/contributing/codebase-map.md`](docs/contributing/codebase-map.md): behavior to file mapping
 - [`docs/contributing/testing.md`](docs/contributing/testing.md): the two test layers, and how to write into them
 - [`docs/contributing/code-style.md`](docs/contributing/code-style.md): naming, comments, etc.
@@ -112,11 +114,11 @@ If you'd like to see what all of this looks like on a real feature, [`docs/contr
 
 How much you run scales with what you did, in three tiers:
 
-| Tier        | What you run                                                                                                                                           | When                                                                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| inner loop  | the area scripts for the directories you touched                                                                                                       | while iterating; seconds to a minute, and nowhere near enough to commit on       |
-| commit gate | `npm test`, plus `npm run check` and `npm run lint`                                                                                                    | green before every commit; tens of minutes, so start it and go do something else |
-| ship gate   | the commit gate, plus `npm run perf:check`; a release adds the WebKit run ([testing.md § The WebKit run](docs/contributing/testing.md#the-webkit-run)) | before a merge or a release; several minutes on top                              |
+| Tier        | What you run                                                                                                                                                                                                                                                                                   | When                                                                             |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| inner loop  | the area scripts for the directories you touched                                                                                                                                                                                                                                               | while iterating; seconds to a minute, and nowhere near enough to commit on       |
+| commit gate | `npm test`, plus `npm run check` and `npm run lint`                                                                                                                                                                                                                                            | green before every commit; tens of minutes, so start it and go do something else |
+| ship gate   | the commit gate, plus `npm run perf:check`; add `npm run test:e2e:webkit` when you touched selection, typing or the clipboard (CI runs that lane on every PR regardless, and the release PR can't merge past it: [testing.md § The WebKit lane](docs/contributing/testing.md#the-webkit-lane)) | before a merge or a release; several minutes on top                              |
 
 `perf:check` builds and previews the app first, so it measures the editor rather than the dev server. Not `test:editor:perf`: that one already runs inside `npm test` and tells you nothing new.
 
@@ -126,7 +128,7 @@ Two rules from the rule set, both bought with incidents. Never pipe a gate comma
 
 Three warnings though, about the e2e suite on real hardware:
 
-- A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class is gone (a guard, G4.48, prices timing as a growth ratio instead, which cancels machine speed); what's left is the allowlist in `src/lib/test/invariants/lint/wall-clock-budgets.test.ts`, each entry with its reason. CI is the arbiter, same as perf.
+- A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class is gone (a guard, G4.48, prices timing as a growth ratio instead, which cancels machine speed); what's left is the allowlist in `src/lib/test/invariants/lint/suite-file-rules.test.ts`, each entry with its reason. CI is the arbiter, same as perf.
 - A run you interrupt can leave a dev server alive, and the next run will cheerfully reuse it and serve stale code, which looks exactly like everything failing at once. Kill leftover node processes before rerunning. `npm run test:e2e:isolated` sidesteps the whole class by starting the run's own server on its own port and reusing nothing ([testing.md § E2E tests](docs/contributing/testing.md#e2e-tests-playwright) has the ports).
 - Pre-warm the dev server on a cold checkout. Playwright's server timeout is short enough that a cold Vite boot on fresh `node_modules` can outrun it. Run `npm run dev` once and let it come up, or learn to read your first e2e run's instant failure as the phantom it is.
 
@@ -163,6 +165,8 @@ CI runs on every pull request:
 - the perf job, scaled for the runner, against a production build
 - a consumer smoke test, which packs the library, installs the tarball into a real app and checks it survives server rendering and hydration
 - a check that the committed emoji table still matches the upstream it was generated from
+
+Before you open it, run the six lines in [rules.md § Before you open the PR](docs/contributing/rules.md#before-you-open-the-pr). They're the checks a PR here trips most, each takes seconds, and the review will ask about them otherwise.
 
 Merging needs one code-owner approval. Review is root-cause first, and it'll ask for the test alongside the fix; I know that's a lot to ask of a drive-by contributor, but I have to ask anyway, for the sake of aragonite's health. If you want to start somewhere that's beginner friendly, issues labelled `good first issue` are picked to be exactly that.
 

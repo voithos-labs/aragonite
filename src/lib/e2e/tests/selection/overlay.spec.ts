@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 
-test.describe('selection — overlay: happy paths', () => {
+test.describe('selection: overlay: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -42,7 +43,7 @@ test.describe('selection — overlay: happy paths', () => {
 	});
 });
 
-test.describe('selection — overlay: edge cases', () => {
+test.describe('selection: overlay: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -72,6 +73,49 @@ test.describe('selection — overlay: edge cases', () => {
 		await expect(
 			editor.page.locator("[data-block-path='[2]'] .selection-overlay-endpoint").first()
 		).toBeAttached();
+	});
+
+	test('a list item the range holds whole paints its own box', async () => {
+		await editor.loadContent('- one\n- two\n- three\n- four\n');
+		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
+			2
+		);
+	});
+
+	test('a nested sub-list under a held item paints no second box', async () => {
+		await editor.loadContent('- one\n- two\n  - sub\n- three\n- four\n');
+		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
+			2
+		);
+		await expect(editor.page.locator("[data-block-path='[0,1,1]'] .selection-overlay")).toHaveCount(
+			0
+		);
+	});
+
+	test('a drag into a closed title row paints the details as one box, the row end to end', async ({
+		page
+	}) => {
+		const plugins = new PluginsPage(page);
+		await plugins.gotoPlugins('details');
+		await plugins.loadContent(
+			'Above\n\n<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n'
+		);
+		await plugins.dragFromTo([0], 2, [1, 0], 2);
+		await plugins.waitForCrossBlock(true);
+
+		const box = page.locator("[data-block-path='[1]'] > .selection-overlay-middle");
+		await expect(box).toHaveCount(1);
+		await expect(page.locator("[data-block-path='[1,0]'] .selection-overlay")).toHaveCount(0);
+		const painted = (await box.boundingBox())!;
+		const row = (await page.locator("[data-block-path='[1,0]']").boundingBox())!;
+		expect(painted.x).toBeLessThanOrEqual(row.x);
+		expect(painted.x + painted.width).toBeGreaterThanOrEqual(row.x + row.width);
 	});
 
 	test('a container the range holds whole paints one box, its children none', async () => {

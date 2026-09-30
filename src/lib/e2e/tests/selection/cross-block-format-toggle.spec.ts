@@ -4,9 +4,9 @@ import type { Page } from '@playwright/test';
 import { clickWordSettled, landAt } from '../presentation/helpers';
 
 // A format toggle over a cross-block range rewrites every participating block under one undo
-// entry: the anchor block's tail, each middle block's content, the focus block's head. Direction
-// is coverage across the range — all covered unapplies, anything else applies. Non-prose blocks
-// and the link editor stay out.
+// entry: the anchor block's tail, each middle block's content, the focus block's head. Which way
+// it goes depends on coverage across the range: all covered removes the format, anything else
+// applies it. Non-prose blocks and the link editor stay out.
 
 const TWO = 'First block here\n\nSecond block here\n';
 const BOTH_BOLD = '**First block here**\n\n**Second block here**\n';
@@ -20,7 +20,7 @@ async function selectWholeDocument(ep: EditorPage, page: Page): Promise<void> {
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`cross-block format toggle — ${mode}`, () => {
+	test.describe(`cross-block format toggle: ${mode}`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -72,10 +72,8 @@ test.describe('what the press skips and what it costs', () => {
 		);
 	});
 
-	// Every other scenario builds the range with Mod+A, so both endpoint blocks are whole. A
-	// shift-click landing on a word START gives the focus block a head span ending in a space —
-	// the edge where markdown cannot close a run, and where a source-mode press wrote delimiters
-	// that formed no construct.
+	// Mod+A makes both endpoint blocks whole, so a shift-click on a word's start builds the one head
+	// span ending in a space, where markdown cannot close a run.
 	test('a partial range marks each endpoint span, trimming the space at its edge', async ({
 		page
 	}) => {
@@ -92,8 +90,8 @@ test.describe('what the press skips and what it costs', () => {
 		await ep.bridge.waitForSourceEquals('alpha **beta**\n\n**gamma** delta\n', 3000);
 	});
 
-	// The commit takes the DOCUMENT scope precisely so a block no container mounted still gets
-	// written; every other case here fits inside one render window and would not notice.
+	// The commit runs over the whole document precisely so a block no container mounted still
+	// gets written; every other case here fits in one render window and would not notice.
 	test('a block windowed out of the DOM is marked like the rest', async ({ page }) => {
 		const ep = new EditorPage(page);
 		await ep.goto();
@@ -123,8 +121,8 @@ test.describe('what the press skips and what it costs', () => {
 		await ep.bridge.waitForSourceEquals(TWO, 3000);
 	});
 
-	// Every default toggle chord is claimed by the cross-block keydown arm, so a rebound chord is
-	// the one gesture that proves the leaf's own dispatch reaches the cross-block road too.
+	// The cross-block keydown handler takes every default toggle chord, so a rebound chord is
+	// the one gesture that proves the leaf's own dispatch reaches the cross-block path too.
 	test('Mod+Alt+G rebound to the strong toggle wraps the range like the default chord', async ({
 		page
 	}) => {
@@ -143,9 +141,9 @@ test.describe('what the press skips and what it costs', () => {
 	});
 });
 
-test.describe('the sibling that stays declined — Mod+K over a cross-block range', () => {
-	// The cross-block entry parks a COLLAPSED native caret at the anchor, so the link-card
-	// entry's native-collapse check alone reads a painted range as an ordinary caret.
+test.describe('the sibling that stays declined: Mod+K over a cross-block range', () => {
+	// Entering cross-block leaves a collapsed native caret at the anchor, so the link card's
+	// native-collapse check on its own reads a painted range as an ordinary caret.
 	const LINKED = 'Visit [example](https://example.com) now\n\nSecond block here\n';
 
 	test('opens no card and edits no bytes while the range is painted', async ({ page }) => {
@@ -155,11 +153,11 @@ test.describe('the sibling that stays declined — Mod+K over a cross-block rang
 		await ep.waitForRenderFlush();
 		const before = await ep.bridge.getSource();
 
-		// Arrow-walk the caret into the link text — a click there would open the card.
+		// Step the caret into the link text with arrows: a click there would open the card.
 		await clickWordSettled(ep, page, 'Visit');
 		await landAt(ep, page, 9);
-		// The first press may extend natively inside the block; keep going until the range is
-		// the editor's. The anchor — where the collapsed native caret parks — stays in the link.
+		// The first keypress may extend natively inside the block, so this keeps going until the range
+		// is the editor's; the anchor, where the collapsed native caret sits, stays in the link.
 		for (let i = 0; i < 3; i++) {
 			await page.keyboard.press('Shift+ArrowDown');
 			await ep.waitForRenderFlush();
@@ -176,8 +174,8 @@ test.describe('the sibling that stays declined — Mod+K over a cross-block rang
 	});
 });
 
-test.describe('the sibling that stays destructive — cross-block type-replace', () => {
-	test('plain typing over the range still replaces it in ONE undo entry', async ({ page }) => {
+test.describe('the sibling that stays destructive: cross-block type-replace', () => {
+	test('plain typing over the range still replaces it in one undo entry', async ({ page }) => {
 		const ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent('First block here\n\nSecond block here\n\nThird block here\n');
@@ -191,5 +189,26 @@ test.describe('the sibling that stays destructive — cross-block type-replace',
 
 		await ep.undo();
 		await ep.bridge.waitForSourceEquals(before, 3000);
+	});
+});
+
+test.describe('a toggle over a list item’s first slot', () => {
+	test('Mod+B off `**[ ] a**` leaves a to-do with its box, as a reload shows it', async ({
+		page
+	}) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent('- **[ ] a**\n\n**b**\n');
+		await ep.waitForRenderFlush();
+		await ep.focusBlockAtPath([1], 1);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await ep.waitForCrossBlock(true);
+
+		await page.keyboard.press('ControlOrMeta+b');
+
+		await ep.bridge.waitForSourceEquals('- [ ] a\n\nb\n', 3000);
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		expect(await ep.parseConverged()).toBe(true);
 	});
 });

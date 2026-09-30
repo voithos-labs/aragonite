@@ -1,32 +1,21 @@
 /**
- * Container-parity invariant for keyed BlockList rendering: a container whose
- * `children` outgrows its `childIds` hands Svelte's keyed `{#each}` undefined
- * keys, after which post-undo reconciliation drifts from CST. Call after any
- * structural mutation on a keyed container.
- *
- * Does NOT apply to the document root — top-level ids live on `deps.blockIds`.
+ * The keyed-container id check (`invariants/child-id-parity.ts`) for suites that mutate the tree
+ * without components: seed every container the way a mounted list does, mutate, then assert.
+ * It does not apply to the document root, whose ids live on `deps.blockIds`.
  */
 
 import { expect } from 'vitest';
-import { assignIds } from '$lib/block-id';
 import type { CstNode } from '$lib/core/nodes';
+import { checkChildIdParity } from '$lib/invariants/child-id-parity';
+import { makeBlockListState } from './editor-actions';
 
-export function assertContainerParity(node: CstNode, path = 'root'): void {
-	if (!node.children) return;
-	expect(node.childIds, `${path} (${node.kind}) missing childIds`).toBeDefined();
-	expect(
-		node.childIds!.length,
-		`${path} (${node.kind}) childIds length ${node.childIds!.length} != children length ${node.children.length}`
-	).toBe(node.children.length);
-	for (let i = 0; i < node.children.length; i++) {
-		assertContainerParity(node.children[i], `${path}.${node.kind}[${i}]`);
-	}
+export function assertContainerParity(node: CstNode): void {
+	expect(checkChildIdParity(node, { everyKeyed: true })).toBeNull();
 }
 
-/** Mirrors `createBlockListState`'s lazy `childIds` seeding, so tests that bypass
- *  the component layer start from the shape Svelte would observe. */
+/** Builds each container's production list state, which fills its `childIds` as a mount does. */
 export function seedChildIdsRecursive(node: CstNode): void {
 	if (!node.children) return;
-	if (!node.childIds) node.childIds = assignIds(node.children);
+	makeBlockListState(() => node);
 	for (const child of node.children) seedChildIdsRecursive(child);
 }

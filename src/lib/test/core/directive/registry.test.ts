@@ -1,51 +1,53 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerDirective,
 	resolveDirective,
 	isDirectiveRegistered,
-	__resetDirectiveRegistryForTests,
 	type DirectiveDefinition
 } from '$lib/core/directive/registry';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-const kind = declarePluginKind('directiveRegistryProbe');
+let kind: PluginBlockKind;
+beforeEach(() => {
+	kind = declarePluginKind('directiveRegistryProbe');
+});
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
 	({ kind, leadingTrivia: parsed.leadingTrivia, raw: parsed.raw }) as CstNode;
-
-afterEach(() => __resetDirectiveRegistryForTests());
 
 describe('registerDirective', () => {
 	it('resolves a registered definition and reports it registered', () => {
 		const def: DirectiveDefinition = { kind, fromDirective: factory };
 		registerDirective('container', 'note', def);
-		expect(resolveDirective('container', 'note')).toBe(def);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(def);
 		expect(isDirectiveRegistered('container', 'note')).toBe(true);
 	});
 
-	it('leaves an unregistered (tier,name) unresolved', () => {
-		expect(resolveDirective('container', 'note')).toBeUndefined();
+	it('leaves an unregistered (level,name) unresolved', () => {
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBeUndefined();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 	});
 
-	it('throws on a duplicate (tier,name)', () => {
+	it('throws on a duplicate (level,name)', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
 		expect(() => registerDirective('container', 'note', { kind, fromDirective: factory })).toThrow(
 			/already registered/i
 		);
 	});
 
-	it('scopes registration by tier — the same name coexists across tiers', () => {
+	it('scopes registration by level: the same name coexists across levels', () => {
 		const container: DirectiveDefinition = { kind, fromDirective: factory };
 		const leaf: DirectiveDefinition = { kind };
 		registerDirective('container', 'note', container);
 		registerDirective('leaf', 'note', leaf);
-		expect(resolveDirective('container', 'note')).toBe(container);
-		expect(resolveDirective('leaf', 'note')).toBe(leaf);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(container);
+		expect(resolveDirective('leaf', 'note', defaultGrammarView)).toBe(leaf);
 	});
 });
 
-describe('registerDirective per-tier factory contract', () => {
+describe('registerDirective per-level factory contract', () => {
 	it('rejects a container without a fromDirective factory', () => {
 		expect(() => registerDirective('container', 'x', { kind })).toThrow(
 			/requires a fromDirective/i
@@ -74,10 +76,10 @@ describe('registerDirective per-tier factory contract', () => {
 	});
 });
 
-describe('__resetDirectiveRegistryForTests', () => {
-	it('clears registrations so the same (tier,name) re-registers without throwing', () => {
+describe('__resetSchemaRegistriesForTests', () => {
+	it('clears registrations so the same (level,name) re-registers without throwing', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
-		__resetDirectiveRegistryForTests();
+		__resetSchemaRegistriesForTests();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 		expect(() =>
 			registerDirective('container', 'note', { kind, fromDirective: factory })

@@ -1,15 +1,15 @@
 /**
- * Op vocabulary + driver for the undo-restoration property test. Every op routes
- * through the REAL action factories, never the commit primitive directly, so the
- * walk exercises the entry paths a user reaches. Headless boundary: cell-addressed
- * focus and IME paths need a DOM and stay with the e2e suites.
+ * The operations the undo-restoration property test uses, and the driver that runs them. Every
+ * operation goes through the real action factories, never the commit call directly, so the run
+ * exercises the paths a user reaches. What stays out: focus by cell coordinate and IME, which
+ * need a DOM and live in the e2e suites.
  */
 
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createContainerEditActions } from '../../editor-actions/container-edit';
@@ -30,6 +30,7 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // ── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -49,18 +50,19 @@ export type Op =
 	| { t: 'tableInsertColumn'; i: number }
 	| { t: 'tableDeleteColumn'; i: number }
 	| { t: 'tableReorderRow'; i: number; dir: -1 | 1 }
+	| { t: 'tableReorderColumn'; i: number; dir: -1 | 1 }
 	| { t: 'tableCycleAlignment'; i: number }
 	| { t: 'typeCell'; r: number; c: number; n: number }
 	| { t: 'rangeDelete'; a: number; b: number; off: number }
 	| { t: 'undo' }
 	| { t: 'redo' };
 
-/** Typing one of these mid-content re-classifies the block, which is the
- *  live-tree-vs-raw divergence class neutral filler characters cannot reach. */
+/** Typing one of these mid-content changes the block's kind, which is how the live tree and
+ *  the raw bytes come apart; neutral filler characters never get there. */
 export const MARKDOWN_TYPE_CHARS = ['|', '#', '>', '-', '*', '`', '[', ']', '!'] as const;
 
-/** Resolves the arbitrary `off` by code point, not by `displayLength`'s UTF-16
- *  units, so an astral source is never sliced through a surrogate pair. */
+/** Resolves the generated `off` by code point, not by `displayLength`'s UTF-16 units, so an
+ *  astral source is never cut through a surrogate pair. */
 export function typeCharCodePointOffset(body: string, off: number): number {
 	return off % ([...body].length + 1);
 }
@@ -85,6 +87,11 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 		i: fc.nat(4),
 		dir: fc.constantFrom(-1 as const, 1 as const)
 	}),
+	fc.record({
+		t: fc.constant('tableReorderColumn' as const),
+		i: fc.nat(3),
+		dir: fc.constantFrom(-1 as const, 1 as const)
+	}),
 	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
 	fc.record({ t: fc.constant('typeCell' as const), r: fc.nat(4), c: fc.nat(3), n: fc.nat(2) }),
 	fc.record({ t: fc.constant('rangeDelete' as const), a: fc.nat(5), b: fc.nat(5), off: fc.nat(4) }),
@@ -92,8 +99,8 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({ t: fc.constant('redo' as const) })
 );
 
-// CRLF and astral/combining sources join the ASCII/LF ones because the divergence
-// class lives partly in line-ending and code-point handling.
+// Sources with CRLF, astral characters and combining marks join the plain ASCII ones because
+// line endings and code points are part of where the tree and the bytes come apart.
 export const arbSource = fc.constantFrom(
 	'alpha\n\n- one\n- two\n- three\n\nomega\n',
 	'1. first\n2. second\n3. third\n',
@@ -120,8 +127,8 @@ export function makeHarness(source: string) {
 
 export type Harness = ReturnType<typeof makeHarness>;
 
-/** Register fresh states for every container in the subtree — the headless
- *  stand-in for component (re)mounting after identity-changing commits. */
+/** Register fresh state for every container in the subtree: the stand-in, with no components,
+ *  for remounting after a commit that changes node identity. */
 export function registerSubtreeStates(node: CstNode): void {
 	if (!node.children) return;
 	registerBlockListState(
@@ -172,6 +179,7 @@ export async function runOp(h: Harness, op: Op): Promise<void> {
 		case 'tableInsertColumn':
 		case 'tableDeleteColumn':
 		case 'tableReorderRow':
+		case 'tableReorderColumn':
 		case 'tableCycleAlignment':
 		case 'typeCell':
 			return runTableOp(h, op);
@@ -192,7 +200,7 @@ async function runTopOp(
 	const { c, i } = paragraphs[op.i % paragraphs.length];
 	if (op.t === 'typeTop') {
 		const text = trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1) + '\n';
-		await h.blockEdit.updateBlockContent(i, text, 0);
+		await h.blockEdit.updateBlockContent(i, text, 'authored', 0);
 	} else if (op.t === 'splitTop') {
 		await h.blockEdit.splitBlock(i, Math.min(op.off, displayLength(c.raw)));
 	} else {
@@ -200,9 +208,8 @@ async function runTopOp(
 	}
 }
 
-/** Splices through the same `updateBlockContent` entry TextEditableBlock types on,
- *  which reparses — so a `>` at offset 0 re-classifies the block as a live keystroke
- *  would, and the oracle holds only if that re-classification is byte-faithful. */
+/** Writes through `updateBlockContent`, the call TextEditableBlock types through, so a `>` at
+ *  offset 0 reparses the block's kind exactly as a real keystroke would. */
 async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Promise<void> {
 	const doc = h.deps.doc;
 	const paragraphs = doc.children
@@ -216,7 +223,7 @@ async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Prom
 	const ch = MARKDOWN_TYPE_CHARS[op.ch % MARKDOWN_TYPE_CHARS.length];
 	const next = [...cps.slice(0, at), ch, ...cps.slice(at)].join('');
 	const utf16At = cps.slice(0, at).join('').length;
-	await h.blockEdit.updateBlockContent(i, next + '\n', utf16At, utf16At + 1);
+	await h.blockEdit.updateBlockContent(i, next + '\n', 'authored', utf16At, utf16At + 1);
 }
 
 async function runListOp(
@@ -251,13 +258,13 @@ async function runListOp(
 				return [listIndex];
 			}
 		},
+		getLineEnding: () => documentLineEnding(h.deps.doc),
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
 		controller: h.controller,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'insertItem') {
@@ -290,7 +297,7 @@ async function runListOp(
 			})
 		);
 		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
-		await itemBundle.blockEdit.updateBlockContent(0, text, 0);
+		await itemBundle.blockEdit.updateBlockContent(0, text, 'authored', 0);
 	}
 }
 
@@ -305,7 +312,7 @@ async function runQuoteOp(h: Harness, op: { i: number; n: number }): Promise<voi
 	if (leaf.kind !== 'paragraph') return;
 	const bundle = nestedBundleAt(h, quoteIndex);
 	const text = trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1) + '\n';
-	await bundle.blockEdit.updateBlockContent(innerIdx, text, 0);
+	await bundle.blockEdit.updateBlockContent(innerIdx, text, 'authored', 0);
 }
 
 async function runTableOp(
@@ -319,6 +326,7 @@ async function runTableOp(
 				| 'tableInsertColumn'
 				| 'tableDeleteColumn'
 				| 'tableReorderRow'
+				| 'tableReorderColumn'
 				| 'tableCycleAlignment'
 				| 'typeCell';
 		}
@@ -348,7 +356,7 @@ async function runTableOp(
 			})
 		);
 		const text = trimTrailingLineEnding(row.children[colIdx].raw) + 'z'.repeat(op.n + 1);
-		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 0);
+		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 'authored', 0);
 		return;
 	}
 
@@ -368,8 +376,7 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
-		focusCell: () => {},
-		announceReorder: () => {}
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'tableInsertRow') await ctx.insertRowBelow(op.i % rowCount);
@@ -379,6 +386,9 @@ async function runTableOp(
 	else if (op.t === 'tableReorderRow') {
 		const rowIdx = op.i % rowCount;
 		await (op.dir === -1 ? ctx.moveRowUp(rowIdx) : ctx.moveRowDown(rowIdx));
+	} else if (op.t === 'tableReorderColumn') {
+		const colIdx = op.i % colCount;
+		await (op.dir === -1 ? ctx.moveColumnLeft(colIdx) : ctx.moveColumnRight(colIdx));
 	} else await ctx.cycleAlignment(op.i % colCount);
 }
 
@@ -398,22 +408,21 @@ async function runRangeDelete(
 	if (!start || !end) return;
 
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await performCrossBlockDelete({
-		selection: h.deps.selectionState,
-		getDoc: () => h.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: h.deps.revealPath,
-		controller: h.controller,
-		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
-	});
+	await performCrossBlockDelete(
+		{
+			selection: h.deps.selectionState,
+			getDoc: () => h.deps.doc,
+			getBlockElByPath: () => null,
+			revealPath: (path) => h.deps.caretLanding.mount(path),
+			controller: h.controller,
+			reading: fixtureReading()
+		},
+		'keyless'
+	);
 }
 
-/** Synthetic selection endpoint inside `block` (top-level index `i`). Tables return
- *  null: their endpoints carry cell coordinates, a DOM-driven encoding this driver
- *  does not synthesize. */
+/** A made-up selection endpoint inside `block` (top-level index `i`). A table returns null:
+ *  its endpoints hold cell coordinates, which come from the DOM and this driver cannot make. */
 function leafPoint(block: CstNode, i: number, off: number): SelectionPoint | null {
 	if (block.kind === 'paragraph' || block.kind === 'heading') {
 		return { path: [i], offset: Math.min(off, displayLength(block.raw)) };

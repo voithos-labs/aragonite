@@ -1,42 +1,35 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { attachIme } from '../../../simulation/ime';
 
-// Every ranged gesture applies to the selection's intersection with the BODY, so neither fence line
-// can be rewritten into an unclosed fence that absorbs the document. Requirements:
-// fence-ranged-edit.md.
+// Where the mode hides a code block's fence lines (live mode here), every gesture over a range
+// applies only to the part of the selection inside the body, so neither hidden fence line can be
+// rewritten into an unclosed fence that absorbs the document. Requirements: `fence-ranged-edit.md`.
 
 // Fixture display text "```js\nconst x = 1\n```":
 // opener text [0,5) · body [6,17) · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
 const BODY_MID = 12; // inside "const x = 1", before "x"
-const INTO_CLOSER = 8; // Shift+ArrowRight presses to reach offset 20
+const PAST_BODY = 8; // Shift+ArrowRight presses that run past the body's end
 
 async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	await editor.focusBlock(0, start);
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
-test.describe('code block — ranged edits spanning a fence line', () => {
+test.describe('code block: ranged edits reaching a hidden fence line', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
+		await editor.setPresentationMode('live');
 		await editor.loadContent(SOURCE);
 		await editor.getBlock(0).click();
 	});
 
-	test('Backspace over a body-into-closer selection deletes only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('const \n');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-	});
-
 	test('undo restores the whole block after a clamped delete', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
+		await selectFrom(editor, BODY_MID, PAST_BODY);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('const \n');
 
@@ -45,81 +38,29 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	test('Delete over a body-into-closer selection deletes only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceContains('const \n');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
-	});
-
-	test('typing over a body-into-closer selection replaces only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.typeText('Z');
-		await editor.bridge.waitForSourceContains('const Z');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nconst Z\n```\n');
-	});
-
-	test('cut copies the selection verbatim and deletes only the body part', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('ControlOrMeta+x');
-		await editor.bridge.waitForSourceContains('const \n');
-
-		// The clipboard keeps the literal bytes the user selected, including the fence characters
-		// the delete refused.
-		expect(await editor.readClipboard()).toBe('x = 1\n``');
-		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
-	});
-
-	test('paste over a body-into-closer selection replaces only the body part', async () => {
+	test('paste over a selection past the body replaces only the body part', async () => {
 		await editor.seedClipboard('Y');
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
+		await selectFrom(editor, BODY_MID, PAST_BODY);
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('const Y');
 
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
 	});
 
-	// Paste follows the same refusal as typing: a target confined to structure has nowhere to
-	// write.
-	test('paste with the caret inside a fence run is inert', async () => {
-		await editor.seedClipboard('Y');
+	// The range opens on the highlighted `const` at the body start [6] and ends inside `foo` [20],
+	// across the line break.
+	for (const [gesture, select] of [
+		['a drag', () => editor.dragFromTo([0], 6, [0], 20)],
+		['Shift+Arrow', () => selectFrom(editor, 6, 14)]
+	] as const) {
+		test(`typing over ${gesture} from the body start across a line break keeps both fences`, async () => {
+			await editor.loadContent('```js\nconst x = 1;\nfoo();\n```\n');
+			await select();
+			await editor.page.keyboard.type('Q');
 
-		for (const offset of [19, 1]) {
-			await editor.focusBlock(0, offset);
-			await editor.paste();
-			// A paste event, not a keystroke: no keydown, so no verdict.
-			await editor.waitForNoSourceMutation();
-
-			expect(await editor.bridge.getSource()).toBe(SOURCE);
-		}
-	});
-
-	test('paste over a closer-only selection is inert', async () => {
-		await editor.seedClipboard('Y');
-		await selectFrom(editor, 18, 3);
-		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so no verdict.
-		await editor.waitForNoSourceMutation();
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('Backspace over an opener-into-body selection keeps the opener line', async () => {
-		await selectFrom(editor, 3, 6); // "js\ncon"
-		await editor.page.keyboard.press('Backspace');
-		// Equality, not a fragment: what survives this edit is a substring of the
-		await editor.bridge.waitForSourceEquals('```js\nst x = 1\n```\n');
-	});
-
-	test('a selection inside the info string is still editable verbatim', async () => {
-		await selectFrom(editor, 3, 2); // "js"
-		await editor.typeText('py');
-		await editor.bridge.waitForSourceContains('```py');
-
-		expect(await editor.bridge.getSource()).toBe('```py\nconst x = 1\n```\n');
-	});
+			await expect.poll(() => editor.bridge.getSource()).toBe('```js\nQoo();\n```\n');
+		});
+	}
 
 	test('select-all then Backspace empties the body and keeps the code block', async () => {
 		await editor.page.keyboard.press('ControlOrMeta+a');
@@ -129,67 +70,62 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe('```js\n\n```\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
+});
 
-	test('Backspace at the start of the closer line is inert', async () => {
-		await editor.focusBlock(0, 18);
-		await editor.pressDeclined('Backspace');
+// Chromium's replace of a range from the body's first highlighted word also drops the hidden
+// opener, so each replace gesture is a row. Opener [0,5) · body [6,32) · closer [33,36).
+const LONG = '```js\nconst x = 1;\nfoo();\nbar();\n```\n';
+const ACROSS: [number, number] = [6, 21]; // from `const` into `foo`, across a line break
+const REST = 'o();\nbar();';
 
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
+type Step = (editor: EditorPage) => Promise<void>;
+const typeQ: Step = (editor) => editor.page.keyboard.type('Q');
+const composeA: Step = async (editor) => {
+	const ime = await attachIme(editor.page);
+	await ime.compose('あ');
+	await ime.commit('あ');
+};
+const shiftAcross: Step = (editor) => selectFrom(editor, ACROSS[0], ACROSS[1] - ACROSS[0]);
 
-	// The browser ranges this one: the caret is collapsed, but the pending edit's target covers the
-	// opener's line ending. Literal `Control`, not `ControlOrMeta`: word-delete is the OS's gesture
-	// and macOS spells it with another key, so folding the modifier would change what is tested.
-	test('word-delete at the body start is inert', async () => {
-		await editor.focusBlock(0, 6);
-		await editor.pressDeclined('Control+Backspace');
+const REPLACEMENTS: Array<[name: string, select: Step, replace: Step, body: string]> = [
+	[
+		'a typed key over a drag',
+		(e) => e.dragFromTo([0], ACROSS[0], [0], ACROSS[1]),
+		typeQ,
+		'Q' + REST
+	],
+	['a typed key over Shift+Arrow', shiftAcross, typeQ, 'Q' + REST],
+	['an emoji over Shift+Arrow', shiftAcross, (e) => e.page.keyboard.insertText('😀'), '😀' + REST],
+	['an IME composition over Shift+Arrow', shiftAcross, composeA, 'あ' + REST],
+	['an IME composition over the whole body', (e) => selectFrom(e, 6, 26), composeA, 'あ'],
+	[
+		'a typed key after Ctrl+A',
+		async (e) => {
+			await e.focusBlock(0, 10);
+			await e.selectAll();
+		},
+		typeQ,
+		'Q'
+	]
+];
 
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
+test.describe('code block: any replacement of a body range keeps the hidden fence lines', () => {
+	let editor: EditorPage;
 
-	// A closed fence's marker runs are structure: one character either way leaves an unclosed fence
-	// that swallows the document.
-	test('typing inside the closer fence is inert', async () => {
-		await editor.focusBlock(0, 19);
-		// `typeText` is one `insertText`, which fires no keydown: no verdict to wait on.
-		await editor.typeText('x');
-		await editor.waitForNoSourceMutation();
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('Backspace inside the closer fence is inert', async () => {
-		await editor.focusBlock(0, 20);
-		await editor.pressDeclined('Backspace');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('deleting a selected opener marker run is inert', async () => {
-		await selectFrom(editor, 0, 3);
-		await editor.pressDeclined('Backspace');
-
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	test('cut of a closer-only selection copies it but deletes nothing', async () => {
-		await selectFrom(editor, 18, 3);
-		await editor.page.keyboard.press('ControlOrMeta+x');
-		await editor.waitForClipboardWrite();
-
-		expect(await editor.readClipboard()).toBe('```');
-		expect(await editor.bridge.getSource()).toBe(SOURCE);
-	});
-
-	// An unclosed fence has no closer to orphan, so its markers stay editable — a just-typed ```
-	// must be un-typable.
-	test('an unclosed fence keeps its markers editable', async () => {
-		await editor.loadContent('```js\nconst x\n');
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.setPresentationMode('live');
+		await editor.loadContent(LONG);
 		await editor.getBlock(0).click();
-		await selectFrom(editor, 0, 3);
-		await editor.page.keyboard.press('Backspace');
-		// Equality again: the post-state is the fixture minus a prefix, so every fragment is
-		// already true before the gesture.
-		await editor.bridge.waitForSourceEquals('js\nconst x\n');
 	});
+
+	for (const [name, select, replace, body] of REPLACEMENTS) {
+		test(`${name} replaces only body text`, async () => {
+			await select(editor);
+			await replace(editor);
+
+			await expect.poll(() => editor.bridge.getSource()).toBe('```js\n' + body + '\n```\n');
+		});
+	}
 });

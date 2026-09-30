@@ -8,7 +8,6 @@
 import {
 	INLINE_PRIORITIES,
 	declarePluginInlineKind,
-	isInlineKindDeclared,
 	mintWidgetShell,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
@@ -31,11 +30,8 @@ function isShortcodeChar(code: number): boolean {
 	);
 }
 
-/**
- * Claims only on a table hit, carrying the glyph on `decoded` (the decoded-entity mold).
- * The name is sliced only once a closing colon has bounded a non-empty run, so the common
- * decline paths allocate nothing.
- */
+/** Matches only a shortcode in the table, carrying the glyph on `decoded` as an entity does; the
+ *  name is sliced only once a closing colon bounds it, so a miss allocates nothing. */
 export function recognizeEmoji(
 	raw: string,
 	pos: number,
@@ -53,8 +49,8 @@ export function recognizeEmoji(
 	return { kind, start: pos, end: i + 1, decoded: glyph };
 }
 
-/** `user-select: none` keeps the glyph atomic to the caret; set inline because a
- *  `buildWidget` island has no style scope. */
+/** `user-select: none` keeps the caret from entering the glyph; set inline because a widget
+ *  built by `buildWidget` has no scoped stylesheet. */
 export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 	const shell = mintWidgetShell('md-emoji-widget', node);
 	shell.textContent = node.decoded ?? '';
@@ -63,13 +59,10 @@ export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 }
 
 export function registerEmoji(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(EMOJI_KIND)) return;
 	const kind = declarePluginInlineKind(EMOJI_KIND);
 	registerInlineSyntax(':', (raw, pos, end) => recognizeEmoji(raw, pos, end, kind), {
-		// The register-once grain forbids a second `:` registration at the plugin rung, so the
-		// +10 is what lets emoji share the trigger with the directive text tier.
+		// Registering `:` twice at the same priority is refused, so the +10 is what lets emoji
+		// share the trigger with the directive text handler.
 		priority: INLINE_PRIORITIES.plugin + 10
 	});
 	registerInlineWidgetKind(kind, {

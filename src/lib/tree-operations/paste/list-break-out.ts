@@ -1,6 +1,6 @@
 /**
  * Paste break-out: lift a pasted list out of an enclosing list rather than nesting it,
- * whenever the two ordered flags disagree — keeping the pasted list separate preserves its
+ * whenever the two ordered flags disagree: keeping the pasted list separate preserves its
  * semantic type. Same-type pastes go through `list-absorb`.
  */
 
@@ -11,16 +11,16 @@ import { cloneNode } from '../clone';
 import { spliceMany } from '../splice-many';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { containerPasteFor } from './container-paste';
-import { rebuildListRaw } from '../../schema/container-rebuilders';
-import { newlineTerminateListItems } from '../list/terminator';
-import { trailingLineEnding } from '../../core/lines';
+import { documentLineEnding, type LineEnding } from '../../core/lines';
 import { assembleListHalf, buildSplitItems } from '../list/list-builders';
 import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from './focus-target';
+import { focusIndexBeforeResidue, landedPastePosition, trackedPasteCaret } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
+import type { GrammarView } from '../../schema/block-openers';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -33,14 +33,13 @@ export interface ListBreakOut {
 	innerIndex: number;
 	/** Caret offset within the target leaf's raw. */
 	offset: number;
-	/** The target leaf's bytes AFTER the paste's delete half. */
+	/** The target leaf's bytes after the paste's delete half. */
 	targetRaw?: string;
 }
 
 /**
- * The break-out plan, or null: requires a top block declaring `containerPaste.siblingAbsorb`
- * whose `matchesAncestor` REJECTS the nearest list ancestor (matching pastes belong to
- * `list-absorb` and must not also trigger here), targeting a direct leaf of the listItem.
+ * The break-out plan when a top block declaring `containerPaste.siblingAbsorb` does not match the
+ * nearest list and the target is a direct leaf of its item; null otherwise.
  */
 export function findListBreakOut(
 	doc: Document,
@@ -75,28 +74,32 @@ export function findListBreakOut(
 export async function applyListBreakOut(
 	plan: ListBreakOut,
 	pastedBlocks: CstNode[],
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const list = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!list?.children) return;
 
+	const lineEnding = documentLineEnding(ctx.doc);
 	const { replacement, hasTrailingResidue } = buildListBreakOutReplacement(
 		list,
 		plan.itemIndex,
 		plan.innerIndex,
 		plan.offset,
 		pastedBlocks,
-		plan.targetRaw
+		lineEnding,
+		plan.targetRaw,
+		ctx.reading.grammar
 	);
 	if (replacement.length === 0) return;
 
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) ensureEditableContainers(node, lineEnding);
 
 	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
 	const spliceIndex = plan.listPath[plan.listPath.length - 1];
-	// The last pasted block, never the second-half residue list — and carried through the settle,
-	// whose folds can move the slot out from under a landing chosen here.
+	// The last pasted block, never the second-half residue list, and kept updated through the
+	// fix-up, whose merges can move the position out from under a caret chosen here.
 	const caret = trackedPasteCaret(
 		replacement,
 		spliceIndex,
@@ -106,7 +109,7 @@ export async function applyListBreakOut(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: start,
 		mutate: ([scopeView]) => {
 			spliceMany(scopeView.children, spliceIndex, 1, replacement);
 			const change: StructuralChange = {
@@ -124,12 +127,13 @@ export async function applyListBreakOut(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		trackCaret: [caret],
-		afterTick: () => {
+		landing: () => {
 			const landed = nodeAt(ctx.doc, parentScope.path)?.children?.[caret.index];
-			return ctx.controller.landCaret(
-				[...parentScope.path, caret.index],
-				landedPasteOffset(landed, caret, CURSOR_END)
-			);
+			const at = landedPastePosition(landed, caret, CURSOR_END);
+			return {
+				path: docPathFrom([...parentScope.path, caret.index, ...at.path]),
+				offset: at.offset
+			};
 		}
 	});
 }
@@ -137,16 +141,15 @@ export async function applyListBreakOut(
 // ── Replacement builder (pure, testable) ─────────────────────────────────────
 
 export interface ListBreakOutReplacement {
-	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]` — halves omitted when empty. */
+	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]`, halves omitted when empty. */
 	replacement: CstNode[];
 	/** The second-half list (post-caret residue) is present as the last node. */
 	hasTrailingResidue: boolean;
 }
 
 /**
- * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks` between the
- * halves. `hasTrailingResidue` lets the caller land the caret on the last pasted block
- * rather than the residue. Input nodes are cloned, not mutated.
+ * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks` between the halves,
+ * cloning every input node rather than mutating it.
  */
 export function buildListBreakOutReplacement(
 	list: CstNode,
@@ -154,14 +157,23 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[],
-	targetRaw?: string
+	ending: LineEnding,
+	targetRaw: string | undefined,
+	grammar: GrammarView
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
 	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
 	if (!item.children[innerIndex]) return { replacement: [], hasTrailingResidue: false };
 
-	const { leadingItem, trailingItem } = buildSplitItems(item, innerIndex, offset, targetRaw);
+	const { leadingItem, trailingItem } = buildSplitItems(
+		item,
+		innerIndex,
+		offset,
+		ending,
+		targetRaw,
+		grammar
+	);
 
 	const itemsBefore = items.slice(0, itemIndex).map(cloneNode);
 	const itemsAfter = items.slice(itemIndex + 1).map(cloneNode);
@@ -177,17 +189,7 @@ export function buildListBreakOutReplacement(
 	if (firstHalfItems.length > 0) {
 		replacement.push(assembleListHalf(list, firstHalfItems, base));
 	}
-	for (const block of pastedBlocks) {
-		const cloned = cloneNode(block);
-		// Normalize the clone's items so its rebuilt raw can't mash into the next block.
-		// The ending comes from the list being broken out of — the pasted block lands
-		// among its lines.
-		if (cloned.kind === 'list' && cloned.children) {
-			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
-			rebuildListRaw(cloned);
-		}
-		replacement.push(cloned);
-	}
+	for (const block of pastedBlocks) replacement.push(cloneNode(block));
 	const hasTrailingResidue = secondHalfItems.length > 0;
 	if (hasTrailingResidue) {
 		// Continue numbering across the paste gap: the split item consumes one slot in each

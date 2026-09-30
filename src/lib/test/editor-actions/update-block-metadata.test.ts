@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/editor-actions';
+import {
+	makeNestedHarness,
+	makeNode,
+	makeTopHarness,
+	mountEveryBlock
+} from '$lib/test/harness/editor-actions';
 
 // rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {
@@ -28,7 +33,7 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		// Copy-path-on-write: the captured pre-op node stays pristine for the snapshot sharing it.
+		// Copy before write: the pre-edit node stays untouched for the snapshot sharing it.
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 		expect(node.metadata).toEqual({ taskChecked: false });
 		expect(editHandler).toHaveBeenCalledTimes(1);
@@ -56,17 +61,7 @@ describe('updateBlockMetadata', () => {
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 	});
 
-	it("undoEntry: 'join' — no undo snapshot pushed", async () => {
-		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, actions } = makeTopHarness([node]);
-
-		await actions.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
-
-		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
-		expect(node.metadata).toEqual({ taskChecked: true });
-	});
-
-	it('empty patch — no snapshot, no event, metadata unchanged', async () => {
+	it('empty patch: no snapshot, no event, metadata unchanged', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, events, actions } = makeTopHarness([node]);
 
@@ -80,9 +75,9 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
-	// A `noop` commit leaves the staleness oracle unable to infer the touched node, so the
-	// top-level scope must name it or the resync gets zero G1.1/G1.12/G1.13 validation.
-	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
+	// A `noop` commit leaves the dev-mode stale-raw check unable to infer the touched node, so
+	// the top-level scope must name it or the write goes unchecked (G1.1, G1.12, G1.13).
+	it('names the resynced node for the dev check (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, controller, actions } = makeTopHarness([node]);
 		const spy = vi.spyOn(controller, 'commitStructural');
@@ -94,31 +89,19 @@ describe('updateBlockMetadata', () => {
 		expect(args.touchedNodes).toContain(deps.doc.children[0]);
 	});
 
-	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
+	it('lands no caret when the patch is empty (no commit runs)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, actions } = makeTopHarness([node]);
+		const { deps, actions, landings } = makeTopHarness([node]);
+		mountEveryBlock(deps);
 
-		const afterTick = vi.fn(() => {
-			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
-		});
-		await actions.updateBlockMetadata(0, { taskChecked: true }, { afterTick });
+		await actions.updateBlockMetadata(0, {}, { caret: { path: [], offset: 0 } });
 
-		expect(afterTick).toHaveBeenCalledOnce();
-	});
-
-	it('skips afterTick when the patch is empty (no commit runs)', async () => {
-		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { actions } = makeTopHarness([node]);
-
-		const afterTick = vi.fn();
-		await actions.updateBlockMetadata(0, {}, { afterTick });
-
-		expect(afterTick).not.toHaveBeenCalled();
+		expect(landings).toEqual([]);
 	});
 
 	it('shallow-merge preserves untouched fields', async () => {
 		// A switch to `node.metadata = metadata` (no spread) fails here. The fixture is a
-		// registered leaf kind: kind-agnostic for the merge check, and the dev oracle validates it.
+		// registered leaf kind: any kind works for the merge check, and the dev check validates it.
 		const node = makeNode('paragraph', 'hello\n', {
 			marker: '- ',
 			taskItem: true,
@@ -178,7 +161,8 @@ const CONTAINERS = {
 	blockquote: () => ({
 		inner: makeNode('paragraph', 'hello\n', { marker: '- ', taskItem: true, taskChecked: false }),
 		kind: 'blockquote',
-		raw: '> hello\n'
+		raw: '> hello\n',
+		metadata: { quoteDepth: 1 }
 	}),
 	list: () => ({
 		inner: makeTaskListItem('pending', '[ ] '),
@@ -216,7 +200,7 @@ function makeContainerSetup(
 	};
 }
 
-describe('updateBlockMetadata — container scope', () => {
+describe('updateBlockMetadata: container scope', () => {
 	it('mutates inner node metadata and emits metadataUpdate with correct eventPath and fields', async () => {
 		const containerIndex = 2;
 		const { bundle, liveInner, events } = makeContainerSetup(containerIndex);
@@ -235,15 +219,7 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(evt.detail.fields).toEqual(['taskChecked']);
 	});
 
-	it(`undoEntry: 'join' — commitContainer called with "skip" sentinel (no snapshot pushed)`, async () => {
-		const { bundle, deps } = makeContainerSetup(1);
-
-		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
-
-		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
-	});
-
-	it('empty patch — early-returns with no commitContainer call and no snapshot', async () => {
+	it('empty patch: early-returns with no commitContainer call and no snapshot', async () => {
 		const containerIndex = 1;
 		const { bundle, deps, events } = makeContainerSetup(containerIndex);
 
@@ -264,14 +240,38 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(liveInner().metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
 	});
 
-	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
-		// Without the ceremony's ancestry rebuild the inner listItem.raw updates while the
-		// list's composite raw stays stale.
+	it('task taskMarker patch rebuilds inner listItem raw and parent list raw', async () => {
+		// Without the commit's ancestor rebuild the inner listItem.raw updates while the
+		// list's own raw stays stale.
 		const { bundle, liveInner, liveContainer } = makeContainerSetup(1, 'list');
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
 
 		expect(liveInner().raw).toBe('- [x] pending\n');
 		expect(liveContainer().raw).toBe('- [x] pending\n');
+	});
+});
+
+// ── The caret a metadata write asks for ──────────────────────────────────────
+
+// A plugin's `updateOwnMetadata(patch, { caret })` lands through this commit, once, relative to
+// the block. Miss-analysis: no test counted the carets a metadata write placed.
+describe('updateBlockMetadata with a caret', () => {
+	it('lands once at the path below the block, after the write', async () => {
+		const h = makeTopHarness('a\n\n> one\n>\n> two\n');
+		mountEveryBlock(h.deps);
+
+		await h.actions.updateBlockMetadata(1, { quoteDepth: 1 }, { caret: { path: [1], offset: 2 } });
+
+		expect(h.landings).toEqual([{ leafPath: [1, 1], offset: 2, outcome: 'placed' }]);
+	});
+
+	it('leaves the caret where it is when none is asked for', async () => {
+		const h = makeTopHarness('a\n\n> one\n');
+		mountEveryBlock(h.deps);
+
+		await h.actions.updateBlockMetadata(1, { quoteDepth: 1 });
+
+		expect(h.landings).toEqual([]);
 	});
 });

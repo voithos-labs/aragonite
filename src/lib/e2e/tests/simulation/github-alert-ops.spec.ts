@@ -3,20 +3,17 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Ungated github-alert-ops oracle. A `> [!TYPE]` blockquote is its own `githubAlert` strip
-// container — bytes untouched, marker in the container raw only — so its formation,
-// kind-stable inner edit, contained middle-child merge and marker-dropping unwrap are the
-// container-corruption class the oracle stack exists to catch.
-//
-// The alert marker INTERRUPTS the paragraph above, so a from-scratch formation leaves no
-// single-newline lazy-merge divergence and convergence runs unconditionally.
+// GitHub alerts, run in the default gate. A `> [!TYPE]` blockquote is its own `githubAlert`
+// container with its bytes untouched, so these checks cover building one, editing inside it,
+// merging a middle child and unwrapping it. The alert's marker breaks the paragraph above, so a
+// built alert never sits a single newline from a block, and the reparse check runs throughout.
 
 const ALERT_DOC =
-	'Intro paragraph.\n\n' + // [0] — a fresh alert is typed after this
-	'> [!WARNING]\n> first body\n>\n> second body\n\n' + // [1] — a seeded two-child alert
+	'Intro paragraph.\n\n' + // [0]: a new alert is typed after this
+	'> [!WARNING]\n> first body\n>\n> second body\n\n' + // [1]: an alert with two children
 	'Tail paragraph.\n'; // [2]
 
 test.describe('github-alert-ops simulation', () => {
@@ -39,52 +36,48 @@ test.describe('github-alert-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'github-alert-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 
-		// ── Form an alert from scratch after the tail; the seeded alert stays at [1] ─
-		// Types `> [!TIP]` + body live, so the container promotes and the body lands
-		// inside it. The typed alert mounts at [3].
+		// ── Build an alert after the last block; the one already there stays at [1] ──
+		// Types `> [!TIP]` and a body key by key, so the block becomes a container with the body
+		// inside; the typed alert ends up at [3].
 		await g.typeGithubAlert(2, 'TIP', 'Fresh alert body');
 		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
-		await checkOracles('typed-from-scratch');
+		await assertCheckpoint(ctx, 'typed-from-scratch');
 
-		// ── Inner edit on the typed alert rebuilds through its marker, kind stable ───
+		// ── Editing inside the typed alert rebuilds it and keeps its kind ───────────
 		await g.editContainerBody([3, 0], ' plus');
 		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('Fresh alert body plus');
-		await checkOracles('body-edited');
+		await assertCheckpoint(ctx, 'body-edited');
 
-		// ── Reorder the seeded alert's body children within the container ────────────
-		// Alt+ArrowDown permutes body child 0 in place; the alert keeps its kind, marker,
-		// and root slot — the teleport the strip-container parity fix removed.
+		// ── Move the existing alert's body children within the container ────────────
+		// Alt+ArrowDown swaps body child 0 in place; the alert keeps its kind, its marker and its
+		// position in the document.
 		await g.reorderGithubAlertBodyChild(1, 0, 1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
-		await checkOracles('body-reordered');
+		await assertCheckpoint(ctx, 'body-reordered');
 
-		// ── Middle-child merge on the seeded alert stays inside the container ────────
-		// Backspace at the start of the non-first body child folds it into its previous
-		// sibling; the alert keeps its kind, marker, and root slot — assert containment.
+		// ── Merging a middle child stays inside the container ────────────────────────
+		// Backspace at the start of a body child that is not the first joins it to the one
+		// above; the alert keeps its kind, its marker and its position, which is checked.
 		await g.mergeGithubAlertMiddleChild(1, 1);
-		await checkOracles('middle-child-merge');
+		await assertCheckpoint(ctx, 'middle-child-merge');
 
-		// ── Unwrap the seeded alert: the marker drops, [1] reparses plain ───────────
+		// ── Unwrap the existing alert: the marker goes and [1] reparses as plain ────
 		await g.unwrapGithubAlert(1);
 		expect(await editor.bridge.getBlockKind(1)).not.toBe('githubAlert');
 		expect(await editor.bridge.getSource()).not.toContain('[!WARNING]');
-		await checkOracles('unwrapped');
+		await assertCheckpoint(ctx, 'unwrapped');
 
-		// ── Undo the unwrap (one Backspace, one entry) restores the seeded alert ────
+		// ── One undo of that Backspace brings the alert back ─────────────────────────
 		await g.pause();
 		await g.undo();
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
-		await checkOracles('undo-unwrap');
+		await assertCheckpoint(ctx, 'undo-unwrap');
 	});
 });

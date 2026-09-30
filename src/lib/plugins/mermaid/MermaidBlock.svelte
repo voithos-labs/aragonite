@@ -1,25 +1,26 @@
 <script lang="ts">
-	// Render-primary on the public seam: `createContainerBlock` supplies the metadata
-	// commit and kind-command keydown, but the body renders the diagram, with no
-	// BlockList. Editing swaps in a plugin-owned textarea whose draft commits through
-	// the metadata seam as one undoable entry.
+	// Render-primary, built on the public API: `createContainerBlock` supplies the metadata
+	// commit and the keydown for kind commands, but the body renders the diagram, with no
+	// BlockList. Editing swaps in a textarea this plugin owns, whose text commits through the
+	// metadata update as one undo entry.
 	import { tick } from 'svelte';
 	import {
 		createContainerBlock,
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
+		POINTER_GESTURE_ATTR,
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
-	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
+	import { mermaidSlot, type MermaidRenderResult } from './mermaid-renderer';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// Every steady state carries a focus surface — the edit textarea included, so a broken or
-	// empty diagram is an arrow stop and a recovery entry point rather than a caret trap.
+	// Every state has something focusable, the edit textarea included, so a broken or empty
+	// diagram is a stop for the arrow keys and a way back in rather than a caret trap.
 	function focusSurfaceEl(): HTMLElement | null {
 		return (
 			boxEl?.querySelector<HTMLElement>('.mermaid-source, .mermaid-viewport, .mermaid-surface') ??
@@ -46,15 +47,15 @@
 		commandHooks: () => ({ openEdit, openFocusView })
 	});
 
-	// The factory routes whole-block focus, delete, traversal and reorder, and carries
-	// the `measurePartialRects` the overlays paint off: there are no child hosts here.
+	// The factory handles whole-block focus, delete, traversal and reorder, and provides the
+	// `measurePartialRects` the overlays are painted from: there are no child blocks here.
 	export { containerApi };
 
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
 	const displayCode = $derived(trimTrailingLineEnding(code));
 
-	// An empty diagram has no picture to draw and the engine rejects it, so its natural view is
-	// the edit surface; reading mode, which writes no bytes, gets a placeholder instead.
+	// An empty diagram has no picture to draw and mermaid rejects it, so it opens straight into
+	// the textarea; reading mode, which writes no bytes, gets a placeholder instead.
 	const isEmpty = $derived(displayCode.trim() === '');
 	const isReading = $derived(getPresentationMode() === 'reading');
 
@@ -63,15 +64,15 @@
 	let rendered = $state<MermaidRenderResult | null>(null);
 	$effect(() => {
 		const current = code;
-		// Reading the theme here is what subscribes this effect to a flip, which has to
-		// redraw because the engine writes colors into the SVG.
+		// Reading the theme here is what makes this effect re-run when the theme changes, and
+		// it must redraw because mermaid writes colors into the SVG.
 		const theme = getTheme();
-		if (isEmpty || !hasMermaidRenderer()) return;
+		if (isEmpty || !mermaidSlot.configured) return;
 		let stale = false;
-		void renderMermaid(current, theme).then(async (result) => {
+		void mermaidSlot.render(current, { theme }).then(async (result) => {
 			if (stale) return;
-			// A swap replaces the rendered surface alone, so only focus INSIDE it is re-handed:
-			// the editor hidden input host and the toolbar are box children and survive untouched.
+			// A redraw replaces only the rendered element, so only focus inside it is handed back:
+			// the editor's hidden input and the toolbar are children of the box and survive.
 			const hadFocus = focusSurfaceEl()?.contains(document.activeElement) ?? false;
 			rendered = result;
 			if (hadFocus) {
@@ -87,7 +88,7 @@
 	const surfaceState = $derived(
 		isEmpty
 			? 'empty'
-			: !hasMermaidRenderer()
+			: !mermaidSlot.configured
 				? 'no-renderer'
 				: rendered?.error
 					? 'error'
@@ -143,9 +144,12 @@
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
 
-	// Armed by focus, so an unfocused diagram hijacks neither the page nor the editor's own drag.
-	// Tracked rather than probed: the editor reads the same fact as markup, so there is one value.
+	// Turned on by focus, so an unfocused diagram hijacks neither the page nor the editor's own
+	// drag. The markup attribute is written from this one value.
 	let gestureArmed = $state(false);
+	// The attribute that tells the editor's pointer handling a drag here is the diagram's own.
+	const viewportGesture = $derived({ [POINTER_GESTURE_ATTR]: gestureArmed ? '' : undefined });
+	const overlayGesture = { [POINTER_GESTURE_ATTR]: '' };
 
 	function onViewportWheel(e: WheelEvent): void {
 		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
@@ -160,15 +164,15 @@
 	}
 
 	function onOverlayWheel(e: WheelEvent): void {
-		// A dedicated zoom surface with nothing behind to scroll, so unlike the
-		// in-document view a bare wheel zooms.
+		// A zoom view of its own with nothing behind it to scroll, so unlike the in-document
+		// view a plain wheel zooms.
 		e.preventDefault();
 		e.stopPropagation();
 		overlayView.zoomBy(e.deltaY);
 	}
 
-	// One click contract for the viewport and the non-rendered cards, so dblclick stays
-	// the recovery path out of a broken diagram.
+	// The viewport and the cards that show no picture answer clicks the same way, so a double
+	// click stays the way out of a broken diagram.
 	function onSurfacePointerDown(e: PointerEvent): void {
 		e.stopPropagation();
 	}
@@ -218,11 +222,11 @@
 		// there too, so this closes the command path.
 		if (isReading) return;
 		if (!editing) seedDraft();
-		// Captured BEFORE the flip: the card reaches its fitted height only after mounting, and
-		// a scrollport at the document's end clamps against the short layout in between.
+		// Captured before the swap: the card reaches its fitted height only after mounting, and
+		// a scroll container at the document's end clamps against the short layout in between.
 		const restoreScroll = captureScrollPosition();
 		editRequested = true;
-		void restoreScroll().then(() => textareaEl?.focus());
+		void restoreScroll().then(() => textareaEl?.focus({ preventScroll: true }));
 	}
 
 	function cancelEdit(): void {
@@ -241,10 +245,12 @@
 		// an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;
 		const lineEnding = getPluginMetadata<MermaidMetadata>(node)?.openerLineEnding ?? '\n';
-		updateOwnMetadata({ code: joinMermaidBody(value, lineEnding) });
-		// Only a keyboard commit refocuses; a blur commit must not yank focus back from
-		// wherever the user clicked.
-		if (refocus) refocusBlock();
+		// Only a keyboard commit puts the caret back on the block; a blur commit must not yank
+		// focus back from wherever the user clicked.
+		updateOwnMetadata(
+			{ code: joinMermaidBody(value, lineEnding) },
+			refocus ? { caret: { path: [], offset: 0 } } : undefined
+		);
 	}
 
 	// Logical lines, not visual: the box carries no editor caret geometry, so the newlines
@@ -271,8 +277,8 @@
 			e.preventDefault();
 			cancelEdit();
 		} else if (atEditBoxEdge(e.key) && moveFocusOut(e)) {
-			// Focus leaves the box, so `focusout` commits the draft: the arrow exit forks
-			// nothing off the blur path.
+			// Focus leaves the box, so `focusout` commits the text: leaving by arrow key takes
+			// the same path as a blur.
 			e.preventDefault();
 		} else if (e.key === 'Tab') {
 			// Escape is the exit, so Tab indents in place. execCommand inserts through the
@@ -338,7 +344,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
-				data-pointer-gesture={gestureArmed ? '' : undefined}
+				{...viewportGesture}
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
@@ -354,8 +360,8 @@
 				</div>
 			</div>
 		{:else}
-			<!-- {#key} keeps the per-arm remount: a state flip replaces the surface element,
-			     and its focus/blur timing with it. -->
+			<!-- {#key} remounts once per state: a change of state replaces the element, and
+			     its focus and blur timing with it. -->
 			{#key surfaceState}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
@@ -367,7 +373,7 @@
 					ondblclick={onSurfaceDblClick}
 				>
 					{#if surfaceState === 'empty'}
-						<!-- Reading mode only: everywhere else an empty diagram renders its edit surface. -->
+						<!-- Reading mode only: everywhere else an empty diagram opens its textarea. -->
 						<div class="mermaid-empty">Empty diagram</div>
 					{:else if surfaceState === 'no-renderer'}
 						<pre class="mermaid-static">{displayCode}</pre>
@@ -401,7 +407,7 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
-				data-pointer-gesture
+				{...overlayGesture}
 				onwheel={onOverlayWheel}
 				onpointerdown={(e) => {
 					e.stopPropagation();
@@ -442,8 +448,8 @@
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 
-	/* Revealed on hover/focus so the diagram carries no chrome at rest (SearchBar's
-	   elevated-surface + ghost-button convention). */
+	/* Shown on hover or focus so the diagram has no buttons over it at rest, following
+	   SearchBar's raised panel and plain buttons. */
 	.mermaid-toolbar {
 		position: absolute;
 		top: 6px;
@@ -467,7 +473,7 @@
 		pointer-events: auto;
 	}
 
-	/* Reading mode drops the edit affordance; Focus/Reset are view-only and stay. */
+	/* Reading mode drops the edit button; Focus and Reset only change the view, so they stay. */
 	:global([data-presentation='reading']) .mermaid-toolbar :global([data-testid='mermaid-edit']) {
 		display: none;
 	}
@@ -502,8 +508,8 @@
 		outline: none;
 	}
 
-	/* Only a focused block pans, so only then does the viewport hint with the grab cursor.
-	   `:focus-within`: whole-block focus lands on the editor's hidden input host beside it. */
+	/* Only a focused block pans, so only then does the viewport show the grab cursor.
+	   `:focus-within`, because whole-block focus goes to the editor's hidden input beside it. */
 	.mermaid-block:focus-within .mermaid-viewport {
 		cursor: grab;
 	}
@@ -514,8 +520,8 @@
 		justify-content: center;
 	}
 
-	/* Deltas over the shared .md-source-surface (editor.css). Height is written by the
-	   fit-to-content effect; `overflow-y: hidden` keeps the grow visible instead of scrolled. */
+	/* Only the differences from the shared .md-source-surface (editor.css). Height is written by
+	   the fit-to-content effect; `overflow-y: hidden` lets the box grow rather than scroll. */
 	.mermaid-source {
 		padding: 8px;
 		overflow-y: hidden;

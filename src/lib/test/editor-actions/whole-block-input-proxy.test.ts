@@ -1,22 +1,32 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '$lib/core/serializer';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { settleEditor } from '$lib/test/harness/settle';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
 	composeWholeBlockFocusSurface,
+	createWholeBlockInputProxy,
 	holdsWholeBlockFocus,
 	isEditableEventTarget,
 	isWholeBlockInputProxy,
 	type WholeBlockInputProxy
 } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { makeShimDeps, makeTopHarness } from '$lib/test/harness/editor-actions';
 
-// The hidden editing host is contenteditable, so every gate that asks "is a plugin's own
-// editable surface holding this?" would answer yes about the editor's own chrome. These are the
-// three seams that would then misroute: the focus-surface composition, the shim's focus landing,
-// and the shim's cursor-offset report.
+// The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
+const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);
+vi.mock('svelte', async (original) => ({
+	...(await original<typeof import('svelte')>()),
+	onMount: (fn: () => unknown) => mountCallbacks.push(fn)
+}));
+
+// The hidden editing host is contenteditable, so each "is a plugin's own editor holding this?"
+// check must exclude it: the focus-element composition, focus placement and offset report.
 
 function attach<T extends HTMLElement>(el: T): T {
 	document.body.appendChild(el);
@@ -38,6 +48,7 @@ function proxyIn(host: HTMLElement): HTMLElement {
 
 beforeEach(() => {
 	document.body.innerHTML = '';
+	mountCallbacks.length = 0;
 });
 
 describe('the editing host is not a plugin editable', () => {
@@ -55,9 +66,9 @@ describe('the editing host is not a plugin editable', () => {
 });
 
 // Without the exclusion the composition reads its own host as the plugin's edit mode and
-// withdraws the surface, so every whole-block affordance dies the moment the host takes focus.
+// withdraws the focus element, so all whole-block key handling dies once the host takes focus.
 describe('the composed surface, with the host holding focus', () => {
-	// The declared element is deliberately absent, which is the arm that consults activeElement.
+	// The declared element is deliberately absent, which is the branch that reads activeElement.
 	afterEach(() => allowDevWarns(['container-block']));
 
 	it('falls back to the box rather than withdrawing', () => {
@@ -111,8 +122,8 @@ describe('container shim routing through the host', () => {
 		expect(document.activeElement).not.toBe(boxEl);
 	});
 
-	// Identity against the declared element reported null with focus one sibling away, which
-	// reads to every caller as "this block does not hold the caret".
+	// Comparing against the declared element alone would report null with focus one sibling away,
+	// which every caller reads as "this block does not hold the caret".
 	it('reports offset 0 while the host holds focus, and null once focus leaves the block', () => {
 		const boxEl = box();
 		const host = proxyIn(boxEl);
@@ -125,5 +136,56 @@ describe('container shim routing through the host', () => {
 		elsewhere.tabIndex = 0;
 		elsewhere.focus();
 		expect(shimApi.getCursorOffset()).toBeNull();
+	});
+});
+
+// Miss-analysis: the only label pin mounted a divider, whose name never changes.
+describe('the editing host names its block', () => {
+	it('reads the name again on each focus, so a changed name is the one announced', () => {
+		const boxEl = box();
+		const declared = attach(document.createElement('div'));
+		let label = 'Chart';
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => boxEl,
+			getFocusEl: () => declared,
+			isReading: () => false,
+			getLabel: () => label,
+			mint: () => {}
+		});
+		mountCallbacks.forEach((run) => run());
+		expect(proxy.el()?.getAttribute('aria-label')).toBe('Chart');
+
+		label = 'Diagramme';
+		proxy.focus(declared);
+
+		expect(document.activeElement).toBe(proxy.el());
+		expect(proxy.el()?.getAttribute('aria-label')).toBe('Diagramme');
+	});
+});
+
+// Miss-analysis: no test typed a character into the host in reading mode.
+describe('the editing host in reading mode', () => {
+	it('is not editable, and a character that reaches it anyway writes nothing', async () => {
+		const editor = makeTopHarness('---\n', { reading: fixtureReading({}, 'reading') });
+		const boxEl = box();
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => boxEl,
+			getFocusEl: () => null,
+			isReading: () => true,
+			getLabel: () => 'Divider',
+			mint: (text) => void editor.actions.insertParagraph(1, text)
+		});
+		mountCallbacks.forEach((run) => run());
+		expect(proxy.el()?.getAttribute('contenteditable')).toBe('false');
+
+		proxy
+			.el()!
+			.dispatchEvent(
+				new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', cancelable: true })
+			);
+		await settleEditor();
+
+		expect(serialize(editor.doc)).toBe('---\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });

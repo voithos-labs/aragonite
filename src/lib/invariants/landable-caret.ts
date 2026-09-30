@@ -1,11 +1,9 @@
 /**
- * G1.33 — a block a caret is being seated in, under an editable marker-hiding rung, paints at
- * least one landable caret position. A surface whose whole content is a hidden marker run takes
- * the keystroke at an element boundary between `display:none` spans, and the engine seats the
- * byte on whichever side it likes. Built-ins satisfy it by painting chrome that stands over no
- * content (`docs/design/live-mode.md` § 4.1); this catches a plugin surface that does not.
- * Reported at block-host granularity: a table cell has no host of its own, so a cell violation
- * names its table's path while the predicate still resolves the cell's own surface.
+ * G1.33: in a mode that hides markers, a block the caret is about to enter paints at least one
+ * position the caret can sit at; if every content byte is a hidden marker, the browser puts the
+ * keystroke on whichever side of the hidden spans it likes. Built-in blocks paint markers that
+ * stand over no content (`docs/design/live-mode.md` § 4.1 What live never writes); the check is
+ * for plugin blocks. A table cell has no block host, so it reports its table's path.
  */
 
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
@@ -23,14 +21,13 @@ export function checkLandableCaret(
 	if (!el || !paintsNoLandableContent(el)) return null;
 	return {
 		code: 'landable-caret',
-		message: `the block at [${blockPath}] is every byte a hidden marker run, so "${mode}" paints it nowhere and the caret being seated there has no position of its own — paint the chrome while it stands over no content`,
+		message: `the block at [${blockPath}] is every byte a hidden marker run, so "${mode}" paints it nowhere and the caret being placed there has no position of its own: paint the chrome while it stands over no content`,
 		detail: { path: [...blockPath], mode }
 	};
 }
 
-/** The walk container behind a focus landing: the seam offers every landing, block chrome and
- *  inner spans included, and only a surface that takes a keystroke can trap a caret. By
- *  attribute, not `isContentEditable`, which jsdom leaves false on an editable div. */
+/** The editable element behind the focus, which may sit on a marker or an inner span. Read from
+ *  the attribute, since jsdom leaves `isContentEditable` false on an editable div. */
 function editableSurfaceOf(focused: HTMLElement): HTMLElement | null {
 	const el = focused.closest<HTMLElement>('[contenteditable]');
 	return el && el.getAttribute('contenteditable') !== 'false' ? el : null;

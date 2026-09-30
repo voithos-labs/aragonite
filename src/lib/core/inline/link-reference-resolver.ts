@@ -1,11 +1,14 @@
-/** CommonMark §4.7 label normalization plus the resolver built from LRD nodes. */
+/** Link label matching (GFM §6.6) and the resolver built from a document's link reference
+ *  definitions. */
 
 import type { CstNode } from '../nodes';
 import { metadataOf } from '../nodes';
+import { trimWhitespace, WHITESPACE_RUN } from '../lines';
 
-/** CommonMark §4.7 normalization. BMP-only: full Unicode case-fold is deferred until reported. */
+/** GFM §6.6 label normalization, lowercasing rather than full Unicode case folding. Whitespace
+ *  is §2.1's ASCII set, so `[a<NBSP>b]` and `[a b]` are different labels. */
 export function normalizeLinkLabel(raw: string): string {
-	return raw.trim().replace(/\s+/g, ' ').toLowerCase();
+	return trimWhitespace(raw).split(WHITESPACE_RUN).join(' ').toLowerCase();
 }
 
 export type ResolvedReference = Readonly<{ url: string; title?: string }>;
@@ -15,14 +18,14 @@ export interface LinkReferenceMap {
 	/** Takes a non-normalized label. */
 	resolve: LinkReferenceResolver;
 	/**
-	 * Stable snapshot of the LRD set. The lazy inline cache validates reference-bearing blocks
-	 * on it, so an LRD change elsewhere re-resolves them. The render path keys on a compact
-	 * epoch instead, never this string: it reaches ~MB scale in reference-heavy documents.
+	 * Stable snapshot of the definition set, which the lazy inline cache keys on. The render path
+	 * keys on a small counter instead: this string reaches megabytes in reference-heavy documents.
 	 */
 	readonly signature: string;
 }
 
-/** Collects LRDs nested inside containers too. First-wins on duplicate labels (§4.7). */
+/** Collects link reference definitions nested in containers too; a label's first definition
+ *  wins (§4.7). */
 export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 	const entries = new Map<string, ResolvedReference>();
 	collectLinkReferences(nodes, entries);
@@ -42,7 +45,7 @@ export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 
 function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedReference>): void {
 	const stack: CstNode[] = [];
-	// Reversed push, so pop order is document order — which is what first-wins reads.
+	// Reversed push, so pop order is document order and the first definition wins.
 	const push = (level: CstNode[]) => {
 		for (let i = level.length - 1; i >= 0; i--) stack.push(level[i]);
 	};
@@ -53,7 +56,7 @@ function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedRe
 			const meta = metadataOf(node, 'linkReferenceDefinition');
 			if (meta?.label === undefined || meta.url === undefined) continue;
 			const key = normalizeLinkLabel(meta.label);
-			if (entries.has(key)) continue; // first-wins
+			if (entries.has(key)) continue;
 			entries.set(
 				key,
 				meta.title !== undefined

@@ -1,16 +1,15 @@
 /**
- * The required status-check contexts in `scripts/apply-branch-protection.mjs` come in two halves:
- * ci.yml's job ids, each matrix job expanded the way GitHub names its checks, and the externals
- * declared there against the workflow reporting each one. Hand-kept, the list rots in two silent
- * directions: a context nothing reports leaves every PR waiting forever, and a dropped one leaves
- * a job running while gating nothing. Neither shows before the flip to public, since the API
- * plan-gates protection on a private free-plan repo.
+ * The required status-check contexts in `scripts/apply-branch-protection.mjs` match what the
+ * workflows report: ci.yml's job ids, matrix jobs expanded the way GitHub names them, and each
+ * declared external against the workflow reporting it. A context nothing reports leaves every PR
+ * waiting forever, and a dropped one leaves a job running while gating nothing.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { collectFiles, literalSpans, stripComments } from './scan-source';
 
-const WORKFLOWS = path.resolve('.github/workflows');
+const WORKFLOWS = '.github/workflows';
 const CI = 'ci.yml';
 const SCRIPT = path.resolve('scripts/apply-branch-protection.mjs');
 
@@ -71,7 +70,7 @@ export function checkNames(yaml: string): string[] {
 		const name = JOB_NAME.exec(line);
 		if (name) label = name[1].replace(/^['"]|['"]$/g, '');
 		if (MATRIX_KEYS_UNPARSED.test(line)) {
-			throw new Error(`${line.trim()} in job "${label}" — this reader expands inline lists only`);
+			throw new Error(`${line.trim()} in job "${label}": this reader expands inline lists only`);
 		}
 		const dimension = MATRIX_DIMENSION.exec(line);
 		if (dimension) dimensions.push(flowSequence(dimension[2]));
@@ -82,9 +81,12 @@ export function checkNames(yaml: string): string[] {
 
 // ── The protection rule ──────────────────────────────────────────────────────
 
-/** Single-quoted strings in a slice of the script, `//` comments dropped first. */
+/** Single-quoted strings in a slice of the script, comments skipped. */
 function quotedStrings(source: string): string[] {
-	return [...source.replace(/\/\/.*$/gm, '').matchAll(/'([^']*)'/g)].map((match) => match[1]);
+	const code = stripComments(source, 'script');
+	return literalSpans(code)
+		.filter((span) => code[span.start] === "'")
+		.map((span) => code.slice(span.start + 1, span.end - 1));
 }
 
 /** The `CI_CONTEXTS` array: the half of the rule ci.yml itself reports. */
@@ -101,14 +103,14 @@ export function externalContexts(script: string): Map<string, string[]> {
 		throw new Error('apply-branch-protection.mjs declares no EXTERNAL_CONTEXTS map');
 	}
 	const declared = new Map<string, string[]>();
-	for (const line of block[1].replace(/\/\/.*$/gm, '').split('\n')) {
+	for (const line of stripComments(block[1], 'script').split('\n')) {
 		const entry = /^\s*'([^']+)':\s*\[([^\]]*)\]/.exec(line);
 		if (entry !== null) declared.set(entry[1], quotedStrings(entry[2]));
 	}
 	return declared;
 }
 
-/** Declared externals the named workflow does not report — a missing file, a renamed job. */
+/** Declared externals the named workflow does not report: a missing file, a renamed job. */
 export function unreportedExternals(
 	declared: Map<string, string[]>,
 	reported: Map<string, string[]>
@@ -143,12 +145,10 @@ export function undeclaredReporters(
 }
 
 const workflowChecks = new Map(
-	readdirSync(WORKFLOWS)
-		.filter((file) => file.endsWith('.yml'))
-		.map((file): [string, string[]] => [
-			file,
-			checkNames(readFileSync(path.join(WORKFLOWS, file), 'utf8'))
-		])
+	collectFiles(WORKFLOWS, { extensions: ['.yml'] }).map((file): [string, string[]] => [
+		path.basename(file),
+		checkNames(readFileSync(file, 'utf8'))
+	])
 );
 const ci = workflowChecks.get(CI) ?? [];
 const script = readFileSync(SCRIPT, 'utf8');
@@ -162,7 +162,7 @@ describe('branch protection ↔ workflow check names', () => {
 	it('requires exactly the checks ci.yml reports', () => {
 		expect(
 			[...declaredCi].sort(),
-			`CI_CONTEXTS in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged — a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
+			`CI_CONTEXTS in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged: a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
 		).toEqual([...ci].sort());
 	});
 
@@ -192,22 +192,22 @@ describe('branch protection ↔ workflow check names', () => {
 		const colliding = undeclaredReporters(required, declaredExternal, outsideCi);
 		expect(
 			colliding,
-			`a second workflow reporting a required check satisfies the rule from outside the PR door: ${colliding.join(', ')}`
+			`a second workflow reporting a required check satisfies the rule from outside the PR entry point: ${colliding.join(', ')}`
 		).toEqual([]);
 	});
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// A reader that parses nothing makes both directions above pass on two empty sets, which is
-// the failure this census exists to prevent.
+// A reader that parses nothing would pass both directions above on two empty sets.
 
-describe('branch-protection context readers — self-tests', () => {
+describe('branch-protection context readers: self-tests', () => {
 	it('finds the real job set, matrix shards expanded', () => {
 		expect(ci.length).toBeGreaterThan(4);
 		expect(ci).toContain('unit');
 		expect(ci.filter((name) => name.startsWith('e2e '))).toHaveLength(4);
 		expect(declaredCi.length).toBe(ci.length);
 		expect(declaredExternal.get('cla.yml')).toEqual(['cla']);
+		expect(declaredExternal.get('webkit.yml')).toEqual(['webkit']);
 	});
 
 	it('follows a job rename rather than the hand-written list', () => {

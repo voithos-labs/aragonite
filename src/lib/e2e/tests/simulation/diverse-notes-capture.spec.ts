@@ -12,9 +12,9 @@ declare const process: { env: Record<string, string | undefined> };
 
 test.skip(!process.env.SIM_CAPTURE, 'set SIM_CAPTURE=1 to run the capture session');
 
-// Longer, more diverse notes than the headline biology note, each putting its distinctive
-// construct in the EQUALITY SPINE so end-state equality guards it. Distinct seeds keep the
-// injected-typo streams — and the seed-keyed capture directories — independent.
+// Longer and more varied notes than the main biology one, each placing its own construct in
+// the document the end state is compared against, so that comparison covers it. Separate seeds
+// keep the injected typos, and the capture directories named after them, independent.
 test.describe('note-taking simulation: diverse-notes capture', () => {
 	let editor: EditorPage;
 

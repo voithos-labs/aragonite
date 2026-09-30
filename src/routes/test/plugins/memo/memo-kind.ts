@@ -1,7 +1,7 @@
 /**
- * Harness validator for the plain editable-leaf tier. The recognizer is deliberately
- * trivial: the kind exists to drive `createEditableLeaf({ mode: 'plain' })` through the
- * public factory, not to be a useful block. Dev/e2e harness only.
+ * A harness block that exercises the plain editable leaf. What it recognizes is deliberately
+ * trivial: the kind exists to drive `createEditableLeaf({ mode: 'plain' })` through the public
+ * factory, not to be a useful block. Dev and e2e harness only.
  */
 
 import {
@@ -17,8 +17,8 @@ export const MEMO_BLOCK = 'memo';
 export function registerMemoBlock(): void {
 	const memo = declarePluginKind(MEMO_BLOCK);
 
-	// Harness-only commands over the editable-leaf tier's minted-command dispatch: `memo.tag`
-	// commits through the sanctioned route, `memo.boom` throws so containment surfaces.
+	// Harness-only commands, dispatched the way an editable leaf's registered commands are:
+	// `memo.tag` commits the supported way, `memo.boom` throws so the containment shows.
 	const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 		ctx.updateMetadata({ memoTagged: true });
 		return true;
@@ -55,9 +55,8 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockOpener(memo, {
-		// `%%` collides with no built-in matcher; 27 sits between the block-math opener
-		// (15) and the shared `:::` directive opener (45), above the bundled parrot's 25
-		// so `%%parrot` lines go to the parrot.
+		// Lower priorities try first, so 27 lets the bundled parrot opener (25) take `%%parrot`
+		// lines before the memo sees them.
 		priority: 27,
 		interruptsParagraph: (text) => text.startsWith('%%'),
 		tryOpen(ctx) {

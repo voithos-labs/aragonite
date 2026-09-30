@@ -1,25 +1,23 @@
 /**
- * The `(kind, id) → handler` block-command registry and every dispatch seam over it. A chord
- * (leaf or container bubble), the `runCommand` door and its admissibility read all resolve the
- * same tiers here, so the rules that hold regardless of invocation live at one seam.
- * Register-once, throw-on-duplicate (casebook.md "Registries are code, not state"). Here, not
- * `./commands`: `commands → block-commands → command-id` cycles.
+ * The `(kind, id) → handler` registry of block commands and every dispatch path over it. A chord
+ * on a leaf or a container, `EditorInstance.runCommand`, and the "can this run" read all resolve
+ * through the same lookup, so a rule that holds however a command was invoked is enforced once.
+ * Register-once, throw on duplicate. Not in `./commands`: `commands → block-commands → command-id`
+ * would be an import cycle.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import {
-	mintCommandId,
-	__resetMintedCommandIdsForTests,
-	type AnyCommandId,
-	type PluginCommandId
-} from './command-id';
-import { registerOnce } from './register-once';
+import { mintCommandId, type AnyCommandId, type PluginCommandId } from './command-id';
+import type { PluginActivation } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
 import {
 	resolveBinding,
 	resolveKindBinding,
 	getCommand,
+	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
+	runPluginCommand,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -27,35 +25,42 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import { currentInstallingPlugin, type EditorContext } from './plugin-install';
-import { isReadingMode } from '../presentation-mode';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
+import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
-	/** Read context — a bytes-readonly view; metadata edits go through `updateMetadata`. */
+	/** A read-only view of the node; metadata edits go through `updateMetadata`. */
 	node: NodeView;
 	arg: unknown;
 	updateMetadata(patch: Record<string, unknown>): void;
 	/**
-	 * The mounted component's view-state hooks, which a render-primary plugin casts to its own
-	 * hooks type. `undefined` when no component is mounted, and a handler must decline
-	 * gracefully then; the platform never learns the shape (`unknown` by design).
+	 * The mounted component's view-state hooks, cast by the plugin to its own type. `undefined`
+	 * when no component is mounted, and a handler must then decline cleanly.
 	 */
 	hooks?: unknown;
-	/** The dispatching instance's per-plugin EditorContext (document/events/options reads).
-	 *  Undefined when the target surface has no instance wiring. */
+	/** The dispatching editor's `EditorContext` for the plugin that registered the command.
+	 *  Undefined when the dispatch is not wired to an editor instance. */
 	editor?: EditorContext;
 }
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-const blockCommands = new Map<string, BlockCommandHandler>();
+/** What the focused block supplies; the dispatch adds the argument and the editor context. */
+export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
+
+const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
+	label: 'registerBlockCommand',
+	isBuiltin: () => false
+});
 
 const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`;
 
+// The two ids every block answers the same way, so they resolve here rather than per component.
+const MOVE_STEP: Partial<Record<string, -1 | 1>> = { 'block.moveUp': -1, 'block.moveDown': 1 };
+
 /**
- * Register-once check precedes the mint, so a duplicate `(kind, name)` reports as
- * "register-once" rather than as an already-minted collision. The name-validating mint runs
- * inside `apply` before the map write, so an invalid name never leaves an orphaned handler.
+ * A duplicate `(kind, name)` reports as a register-once conflict, not an id collision, and the
+ * name is validated before the handler is stored, so an invalid name leaves no orphaned handler.
  */
 export function registerBlockCommand(
 	kind: AnyBlockKind,
@@ -63,36 +68,31 @@ export function registerBlockCommand(
 	handler: BlockCommandHandler
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
-	let id: PluginCommandId | undefined;
-	registerOnce(
-		blockCommands.has(key),
-		() => {
-			id = mintCommandId(name, currentInstallingPlugin());
-			blockCommands.set(key, handler);
-		},
+	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
+	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
+	blockCommands.register(
+		key,
+		handler,
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
-	return id!;
+	return id;
 }
 
+/** The handler where `activation` resolves the plugin that registered it. */
 export function getBlockCommand(
 	kind: AnyBlockKind,
-	id: AnyCommandId
+	id: AnyCommandId,
+	activation: PluginActivation
 ): BlockCommandHandler | undefined {
-	return blockCommands.get(compositeKey(kind, id));
-}
-
-export function __resetBlockCommandsForTests(): void {
-	blockCommands.clear();
-	__resetMintedCommandIdsForTests();
+	return blockCommands.get(compositeKey(kind, id), activation);
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────
 
 /**
- * The cross-block arm a range command routes to, injected because this schema leaf may not
- * import selection machinery. `canRun` is reachability, not participation: a press whose range
- * reaches no block still consumes the chord and writes nothing.
+ * The cross-block handler a range command routes to, injected because this schema module may not
+ * import the selection code. `canRun` asks whether the handler is reachable, not whether it will
+ * act: a keypress whose range reaches no block still consumes the chord and writes nothing.
  */
 export interface CrossBlockCommandRouter {
 	canRun(id: AnyCommandId): boolean;
@@ -101,38 +101,59 @@ export interface CrossBlockCommandRouter {
 }
 
 /**
- * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
- * they change under a live editor between one dispatch and the next. Every field is required,
- * so a new dispatch site cannot silently skip the reading-mode gate, the range decline, or the
- * cross-block route — `undefined` for the router is the answer a bubble caller gives.
+ * The editor state that decides whether a command may run, whatever invoked it. Getters, never
+ * values: they change between one dispatch and the next.
  */
 export interface CommandGates {
-	getPresentationMode: GlobalCommandContext['getPresentationMode'];
+	getPresentationMode: () => PresentationMode;
+	/** The plugins the editor activated: a plugin's command resolves only where it is listed. */
+	activation: PluginActivation;
 	/** True while a cross-block range is painted. */
 	isCrossBlockRange(): boolean;
-	crossBlockCommands: CrossBlockCommandRouter | undefined;
+	crossBlockCommands: CrossBlockCommandRouter;
 }
 
-/** What leaf dispatch and the `runCommand` door hand the seam: the gates plus the global tier. */
-export type CommandDispatchContext = GlobalCommandContext & CommandGates;
+/** Moves the block at a path one step among its siblings: the editor's reorder action. Resolves to
+ *  whether the move landed. */
+export interface BlockMover {
+	nudgeReorderUnit(path: number[], dir: -1 | 1): Promise<boolean>;
+}
+
+/** Everything a chord or `EditorInstance.runCommand` dispatches against, built once per editor so
+ *  every dispatch site shares one history, one set of overrides and one error channel. */
+export interface CommandDispatchContext extends CommandGates {
+	history: GlobalCommandContext['history'];
+	pluginEditor: GlobalCommandContext['pluginEditor'];
+	keybindingOverrides(): KeybindingOverrideMap | undefined;
+	onCommandError: CommandErrorSink;
+	/** Runs `block.moveUp` and `block.moveDown` for every block, against the target's path. */
+	reorder: BlockMover;
+}
 
 export interface KindCommandTarget {
 	kind: AnyBlockKind;
-	runCommand(id: AnyCommandId, arg?: unknown): boolean;
-	// The node → metadata-commit bridge a minted block command resolves against, supplied by the
-	// surfaces holding the focused node and a commit route. A target omitting it resolves no
-	// minted command, so the dispatch AND the admissibility read alike fall through to `runCommand`.
-	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
-	/** The id's toggle-state at the surface's own caret or selection — what a toolbar paints
-	 *  pressed. Absent means the surface has no toggle-state to report, which reads inactive. */
+	/** The block's own built-in commands. Absent on a block that owns none (a plugin container),
+	 *  where a built-in id declines. */
+	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
+	// What a plugin block command runs against, supplied by the focused block; without it no
+	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
+	getCommandContext?(): BlockTargetContext;
+	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
+	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
+	/** The focused block's path, which `block.moveUp` and `block.moveDown` move. A container a key
+	 *  bubbles up to supplies none: the block below it already ran the move. */
+	getPath?(): number[];
+	/** Runs `run` once a source the block shows is hidden and written, so a move takes the written
+	 *  bytes along. Absent runs it at once. */
+	afterSourceCommit?(run: () => void): void;
 }
 
 /**
- * A contained plugin command failure. A block command reports its `kind`; a global command
- * reports its `plugin` and carries no kind. The dispatch seam hands this to the caller's sink,
- * which routes it to the editor's error channel (`origin: 'command'`, `editor-events.ts`) —
- * caller-injected so this schema leaf keeps no edge to the shell owning the event surface.
+ * A caught plugin command failure, naming the plugin that registered the command; a block command
+ * also reports its `kind`. Dispatch hands it to the caller's callback, which routes it to the
+ * editor's error event (`origin: 'command'`, `editor-events.ts`), injected so this schema module
+ * imports nothing from the editor shell.
  */
 export interface CommandErrorReport {
 	kind?: AnyBlockKind;
@@ -142,92 +163,111 @@ export interface CommandErrorReport {
 }
 export type CommandErrorSink = (report: CommandErrorReport) => void;
 
-/**
- * Which tier answers an id at a target. `'dead'` is a bound id no arm below the surface answers;
- * `'no-surface'` is the block-local id with nothing focused, where no arm was tried and so none
- * of the dispatch's one-time diagnostics is owed.
- */
+/** Which level answers an id: `'dead'` is bound but unanswered (and warns), `'no-surface'` has no
+ *  block or `runCommand` to reach, `'unlisted'` is a plugin command this editor left inactive. */
 type BlockLocalResolution =
 	| {
 			tier: 'minted';
 			target: KindCommandTarget;
 			handler: BlockCommandHandler;
-			context: Omit<BlockCommandContext, 'arg'>;
+			context: BlockTargetContext;
+			/** The plugin whose setup registered the handler, whose editor context it runs with. */
+			owner: string | null;
 	  }
 	| { tier: 'builtin'; target: KindCommandTarget }
+	| { tier: 'move'; target: KindCommandTarget; path: () => number[]; dir: -1 | 1 }
 	| { tier: 'dead' }
-	| { tier: 'no-surface' };
+	| { tier: 'no-surface' }
+	| { tier: 'unlisted' };
 
 type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalResolution;
 
 /**
- * The kind tiers, in dispatch order. A GLOBAL id resolves DEAD here: the leaf path has already
- * run it, and the container bubble deliberately has no global tier, so a container can never
- * re-fire the focused leaf's undo.
+ * The block-level lookups, in dispatch order. A global id resolves as dead here, since the leaf
+ * already ran it and a container must never re-fire the focused leaf's undo.
  */
 function resolveBlockLocalCommand(
 	id: AnyCommandId,
-	target: KindCommandTarget | null
+	target: KindCommandTarget | null,
+	activation: PluginActivation
 ): BlockLocalResolution {
 	if (!target) return { tier: 'no-surface' };
-	if (getCommand(id)) return { tier: 'dead' };
-	const handler = getBlockCommand(target.kind, id);
+	if (getCommand(id, activation)) return { tier: 'dead' };
+	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
 	// read a host may run per selection change.
 	const context = handler ? target.getCommandContext?.() : undefined;
-	if (handler && context) return { tier: 'minted', target, handler, context };
-	return isBuiltinCommandId(id) ? { tier: 'builtin', target } : { tier: 'dead' };
+	if (handler && context) {
+		const owner = blockCommands.ownerOf(compositeKey(target.kind, id));
+		return { tier: 'minted', target, handler, context, owner };
+	}
+	const dir = MOVE_STEP[id];
+	if (dir && target.getPath) return { tier: 'move', target, path: target.getPath, dir };
+	if (isBuiltinCommandId(id)) {
+		return target.runCommand ? { tier: 'builtin', target } : { tier: 'no-surface' };
+	}
+	const installedElsewhere =
+		isCommandRegistered(id) || blockCommands.has(compositeKey(target.kind, id));
+	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 
-/** The full walk: global first, then the kind tiers. Both the dispatch and the admissibility
- *  read spend this one, so a greyed affordance cannot disagree with the click under it. */
-function resolveCommand(id: AnyCommandId, target: KindCommandTarget | null): CommandResolution {
-	const globalRun = getCommand(id);
+/** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
+ *  "can this run" read use it, so a greyed-out button cannot disagree with the click under it. */
+function resolveCommand(
+	id: AnyCommandId,
+	target: KindCommandTarget | null,
+	activation: PluginActivation
+): CommandResolution {
+	const globalRun = getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
-	return resolveBlockLocalCommand(id, target);
+	return resolveBlockLocalCommand(id, target, activation);
 }
 
-/**
- * Spend a resolved kind tier. Containment is unconditional — the safety guarantee lives here, not
- * at the call sites, so an unwired caller still turns a plugin throw into a no-op, it just doesn't
- * report. A dead id declines loudly rather than reaching a `runCommand` with no arm for it.
- */
+/** Run a resolved block-level command, catching and reporting a plugin throw; an id no handler
+ *  answers declines with a warning. */
 function runBlockLocalCommand(
 	resolved: BlockLocalResolution,
 	id: AnyCommandId,
 	arg: unknown,
 	path: CommandDispatchPath,
-	onCommandError?: CommandErrorSink
+	ctx: CommandDispatchContext
 ): boolean {
 	switch (resolved.tier) {
-		case 'minted':
-			try {
-				return resolved.handler({ ...resolved.context, arg });
-			} catch (error) {
-				onCommandError?.({ kind: resolved.target.kind, command: id, error });
-				return true;
-			}
+		case 'minted': {
+			const { owner, handler, context, target } = resolved;
+			const editor = pluginEditorFor(ctx.pluginEditor, owner);
+			return runPluginCommand(owner, { kind: target.kind, command: id }, ctx.onCommandError, () =>
+				handler({ ...context, editor, arg })
+			);
+		}
 		case 'builtin':
-			return resolved.target.runCommand(id, arg);
+			return resolved.target.runCommand?.(id, arg) ?? false;
+		case 'move': {
+			const { target, path, dir } = resolved;
+			const move = () => void ctx.reorder.nudgeReorderUnit(path(), dir);
+			if (target.afterSourceCommit) target.afterSourceCommit(move);
+			else move();
+			return true;
+		}
 		case 'dead':
 			warnDeadKeyCommand(id, path);
 			return false;
 		case 'no-surface':
+		case 'unlisted':
 			return false;
 	}
 }
 
-/** `ranged` rides the block-local answer because a live range with no arm reading it is not
- *  the same state as a caret, and only this walk has already asked. */
+/** `ranged` travels with the block-level answer because a selection no handler reads is not the
+ *  same state as a caret, and only this lookup has already asked the question. */
 type RangeRoute =
 	| { kind: 'block-local'; ranged: boolean }
 	| { kind: 'decline' }
 	| { kind: 'cross-block'; router: CrossBlockCommandRouter };
 
 /**
- * Where an id goes with a range painted. The one-block arms have no host block to take their
- * offsets from, so they either route to the cross-block arm or decline; everything else is
- * range-safe and runs on the focused surface (`RANGE_DECLINED_COMMAND_IDS` in `./commands`).
+ * While a selection spans blocks, a single-block command routes to the cross-block handler or
+ * declines (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
  */
 function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
@@ -235,48 +275,30 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
 	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
-	return router?.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
 }
 
-/**
- * The gates every entry path owes, whatever resolved the id. Reading mode is inert: the whole
- * vocabulary dead-keys, and navigation never routes through commands, so a reader loses nothing.
- */
-function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
-	if (isReadingMode(gates.getPresentationMode)) return false;
-	return rangeRouteFor(id, gates).kind !== 'decline';
-}
-
-/**
- * The id-keyed seam: chord dispatch enters with a resolved binding, `EditorInstance.runCommand`
- * with the id itself, so both meet the same gates and the same arms. Precedence is the leaf
- * order: global (undo/redo) → minted block command → built-in kind command. A null target means
- * no focused surface, where the global tier still runs and the block-local tiers decline.
- */
+/** The one dispatch keyed by id, which a chord and `EditorInstance.runCommand` both reach. With no
+ *  focused block (a null target) only global commands run; reading mode runs none. */
 function runResolvedCommand(
 	id: AnyCommandId,
 	arg: unknown,
 	target: KindCommandTarget | null,
 	ctx: CommandDispatchContext,
-	path: CommandDispatchPath,
-	onCommandError?: CommandErrorSink
+	path: CommandDispatchPath
 ): boolean {
 	if (isReadingMode(ctx.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, ctx);
 	if (route.kind === 'decline') return false;
 	if (route.kind === 'cross-block') return route.router.run(id);
-	const resolved = resolveCommand(id, target);
-	// Inject the sink so a plugin-global handler's contained throw reports through the same
-	// channel as a block command's; the global tier is the only path reaching one.
-	if (resolved.tier === 'global') return resolved.run({ ...ctx, onCommandError });
-	return runBlockLocalCommand(resolved, id, arg, path, onCommandError);
+	const resolved = resolveCommand(id, target, ctx.activation);
+	if (resolved.tier === 'global') return resolved.run({ ...ctx, arg });
+	return runBlockLocalCommand(resolved, id, arg, path, ctx);
 }
 
 /**
- * The door's admissibility read: the gates plus the same tier walk the dispatch spends, never a
- * second derivation of them. Silent by design — a host may ask on every selection change, so an
- * unreachable id spends none of the dispatch's one-time dead-key diagnostics.
- * See `editor-props.ts` for the contract this answers.
+ * The read behind `EditorInstance.canRunCommand`, through the dispatch's own checks and lookup.
+ * Silent, since a host may ask on every selection change and must not spend the dead-key warnings.
  */
 export function canRunCommandById(
 	id: AnyCommandId,
@@ -286,13 +308,12 @@ export function canRunCommandById(
 	if (isReadingMode(gates.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
-	const { tier } = resolveCommand(id, target);
-	return tier !== 'dead' && tier !== 'no-surface';
+	const { tier } = resolveCommand(id, target, gates.activation);
+	return tier === 'global' || tier === 'minted' || tier === 'builtin' || tier === 'move';
 }
 
-/** The door's pressed-state read, `canRunCommandById`'s sibling: state rather than
- *  admissibility, so a disabled affordance may still paint pressed. Whoever would spend the
- *  press answers — the cross-block arm over a range, the focused surface at a caret. */
+/** The read behind `EditorInstance.isCommandActive`: state, not permission, so a disabled button
+ *  may still show pressed. Whoever would run the command answers. */
 export function isCommandActiveById(
 	id: AnyCommandId,
 	target: KindCommandTarget | null,
@@ -300,53 +321,43 @@ export function isCommandActiveById(
 ): boolean {
 	const route = rangeRouteFor(id, gates);
 	if (route.kind === 'cross-block') return route.router.isActive(id);
-	// A range no arm reads has no pressed state: the focused surface holds a parked caret, whose
-	// bytes are not the ones a press would rewrite.
+	// A selection no handler reads has no pressed state: the focused block only holds a resting
+	// caret, whose bytes are not the ones the command would rewrite.
 	if (route.kind === 'decline' || route.ranged) return false;
 	return target?.isCommandActive?.(id) ?? false;
 }
 
-/** The `EditorInstance.runCommand` door: an id with no keystroke behind it. */
+/** The `EditorInstance.runCommand` entry point: an id with no keystroke behind it. */
 export function runCommandById(
 	id: AnyCommandId,
 	arg: unknown,
 	target: KindCommandTarget | null,
-	ctx: CommandDispatchContext,
-	onCommandError?: CommandErrorSink
+	ctx: CommandDispatchContext
 ): boolean {
-	return runResolvedCommand(id, arg, target, ctx, 'door', onCommandError);
+	return runResolvedCommand(id, arg, target, ctx, 'door');
 }
 
-/** Leaf-path chord dispatch (the focused editable/chrome surface). */
+/** Chord dispatch on the focused leaf: an editable block, or a container's title row. */
 export function dispatchKeyCommand(
 	chord: string,
 	target: KindCommandTarget,
-	ctx: CommandDispatchContext,
-	overrides?: KeybindingOverrideMap,
-	onCommandError?: CommandErrorSink
+	ctx: CommandDispatchContext
 ): boolean {
-	const binding = resolveBinding(chord, target.kind, overrides, ctx.activation);
+	const binding = resolveBinding(chord, target.kind, ctx.keybindingOverrides(), ctx.activation);
 	if (!binding) return false;
-	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord', onCommandError);
+	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord');
 }
 
-/**
- * Container-bubble dispatch. Kind-only, no global tier: undo/redo belong to the focused leaf,
- * and a container bubble re-firing them would double-fire (`resolveKindBinding` in `./commands`).
- * The bubble callers hold no GlobalCommandContext, so they pass the gates directly — and an
- * override that resolves a GLOBAL id here resolves DEAD, declining loudly rather than being
- * dropped by a `runCommand` that has no arm for it.
- */
+/** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
+ *  commands belong to the focused leaf and would otherwise fire twice. */
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
-	gates: CommandGates,
-	overrides?: KeybindingOverrideMap,
-	onCommandError?: CommandErrorSink
+	ctx: CommandDispatchContext
 ): boolean {
-	const binding = resolveKindBinding(chord, target.kind, overrides);
-	if (!binding) return false;
-	if (!commandIsAdmissible(binding.command, gates)) return false;
-	const resolved = resolveBlockLocalCommand(binding.command, target);
-	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', onCommandError);
+	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
+	if (!binding || isReadingMode(ctx.getPresentationMode)) return false;
+	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
+	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
+	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx);
 }

@@ -10,42 +10,50 @@
 		codeLanguageLabel
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
+	import type { MenuPresence } from '../../menu/menu-presence.svelte';
+	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
+	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 
-	// The chrome for the modes that paint no fence: the language door plus whatever action
-	// affordances the host has earned by installing a hook. Drafts live here and only a
+	// What the modes that draw no fence show instead: the language control plus whatever
+	// actions the host has enabled by installing a hook. A draft lives here and only a
 	// commit reaches the tree.
 	let {
 		info,
+		activation,
 		editable,
 		autoOpen = false,
 		onCommit,
 		onCancel,
 		onRun,
 		onCopy,
-		menuItems
+		menuItems,
+		menuPresence
 	}: {
 		/** The opener's full info string; the button shows its first token. */
 		info: string;
-		/** False in reading mode, which writes no bytes — the chip is then a label. */
+		/** The editor's plugins, so the picker offers only the languages this editor highlights. */
+		activation: PluginActivation;
+		/** False in reading mode, which writes no bytes, so the chip is then a label. */
 		editable: boolean;
-		/** Open the language field as soon as the rail mounts: a fence the user just created
-		 *  has no language yet, and asking is the whole reason the chip exists. */
+		/** Open the language field as soon as the gutter mounts, for a fence the user just
+		 *  created and has not given a language yet. */
 		autoOpen?: boolean;
 		/** Only Enter or a list pick calls this, and it owns the caret's landing afterwards. */
 		onCommit: (info: string) => void;
 		/** Nothing written. Escape asks for the caret back; a blur must not yank it from
 		 *  wherever the user just clicked, so it does not. */
 		onCancel: (returnCaret: boolean) => void;
-		/** Absent when the host installed no execution hook — no run affordance renders. */
+		/** Absent when the host installed no execution hook, so no run button renders. */
 		onRun?: () => void;
 		/** Copies the fence body; resolves once the clipboard write settles. */
 		onCopy: () => Promise<boolean>;
 		/** Consulted on each open, so items read live state. Empty renders no affordance. */
 		menuItems?: () => readonly CodeMenuItem[];
+		menuPresence: MenuPresence;
 	} = $props();
 
-	const language = $derived(info.split(/\s+/)[0] || 'text');
+	const language = $derived(fenceLanguage(info) || 'text');
 
 	let editing = $state(false);
 	let draft = $state('');
@@ -53,7 +61,7 @@
 	// shows with the block's own language leading it, which is what a bare Enter re-commits.
 	let filtering = $state(false);
 	let activeIndex = $state(0);
-	/** The user moved the highlight, so the row it sits on outranks whatever they typed. */
+	/** The user moved the highlight, so the row it sits on wins over whatever they typed. */
 	let highlightMoved = false;
 	let copied = $state(false);
 	let menuOpen = $state(false);
@@ -67,16 +75,15 @@
 	let menuEl: HTMLElement | undefined = $state();
 	let menuButtonEl: HTMLElement | undefined = $state();
 
-	// The picker offers what the renderer can actually tokenize, filtered as the draft is
-	// typed. `text` is always offered: it is how a user CLEARS a language, and no grammar
-	// registers under that name.
+	// The picker offers what the renderer can highlight. `text` is always offered: it is how a
+	// user clears a language, and no grammar registers under that name.
 	const suggestions = $derived.by(() => {
-		const all = ['text', ...listLanguages().filter((name) => name !== 'text')];
+		const all = ['text', ...listLanguages(activation).filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
 		if (needle.length > 0) {
-			// An alias is a search key, never a row of its own: `rs` finds `rust`, and the list
-			// still carries one entry per language.
-			const spellings = (name: string) => [name, ...getLanguageAliases(name)];
+			// An alternate spelling is a search key, never a row of its own: `rs` finds `rust`,
+			// and the list still carries one entry per language.
+			const spellings = (name: string) => [name, ...getLanguageAliases(name, activation)];
 			const starts = all.filter((name) => spellings(name).some((s) => s.startsWith(needle)));
 			const seated = new Set(starts);
 			const contains = all.filter(
@@ -84,18 +91,18 @@
 			);
 			return [...starts, ...contains];
 		}
-		// Unfiltered, the block's own language leads, in the spelling the fence uses — so the
-		// row that matters is where the eye already is, and its canonical twin is not below it.
+		// Unfiltered, the block's own language leads, spelled as the fence spells it, so the
+		// row that matters is where the eye already is and its canonical form is not below it.
 		const current = language;
 		const rest = all.filter((name) => name !== current && !isCurrentLanguage(name));
 		return [current, ...rest];
 	});
 
-	/** One language in two spellings is still the block's own, so the mark comparing them asks
-	 *  the registry rather than the text. */
+	/** One language in two spellings is still the block's own, so the check compares what the
+	 *  registry resolves rather than the text. */
 	function isCurrentLanguage(name: string): boolean {
 		const canonical = (spelling: string) =>
-			getLanguageGrammar(spelling)?.name ?? spelling.toLowerCase();
+			getLanguageGrammar(spelling, activation)?.name ?? spelling.toLowerCase();
 		return canonical(name) === canonical(language);
 	}
 
@@ -104,8 +111,8 @@
 		if (activeIndex >= suggestions.length) activeIndex = 0;
 	});
 
-	// Mount-time open for a freshly minted fence. Guarded on `editable` like every other
-	// write door, and fired once: re-arming it would reopen the field after every commit.
+	// Opens on mount for a fence that was just created. Checked against `editable` like every
+	// other write, and fired once: setting it again would reopen the field after every commit.
 	let autoOpened = false;
 	$effect(() => {
 		if (!autoOpen || autoOpened || !editable) return;
@@ -121,12 +128,10 @@
 		menuOpen = false;
 		editing = true;
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
-		// a bare Enter would re-commit what is already set.
+		// a bare Enter re-commits what is already set.
 		activeIndex = 0;
-		// A provisional placement at the trigger, BEFORE the popout renders. Without it the
-		// popout mounts parked at the viewport's top-left corner while it waits to be measured,
-		// and focusing the field inside it drags the page up there — which is the scroll
-		// jumping to the top on creating a code block. The measure below refines it.
+		// A first guess at the trigger's position before the popout is measured: mounted at the
+		// viewport's corner, focusing the field inside it would scroll the page up there.
 		const anchor = chipEl?.getBoundingClientRect();
 		if (anchor) {
 			listAt = {
@@ -136,8 +141,8 @@
 			};
 		}
 		void tick().then(() => {
-			// `preventScroll`: the rail is already on screen, and a scroll here would land as a
-			// genuine scroll event on the reposition path below.
+			// `preventScroll`: the gutter is already on screen, and a scroll here would arrive
+			// as a real scroll event on the repositioning path below.
 			inputEl?.focus({ preventScroll: true });
 		});
 	}
@@ -148,21 +153,22 @@
 
 	function commit(value: string): void {
 		close();
-		// `text` is the picker's spelling of "no language", and the info string's is empty.
+		// `text` is the picker's way of saying "no language"; the info string says it with ''.
 		onCommit(value.trim() === 'text' ? '' : value);
 	}
 
 	function onFieldKeyDown(e: KeyboardEvent): void {
-		// The field owns its keys while open: no Escape of this state may reach whatever else
-		// listens for one. A composing Enter/Escape is the IME's, never the field's.
+		// The field owns its keys while open: an Escape that closes it must not reach anything
+		// else listening for one. An Enter or Escape during a composition belongs to the IME.
 		e.stopPropagation();
 		if (e.isComposing) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			// A spelling the registry resolves is a name, not a query: it commits as typed, so
+			// A spelling the registry resolves is a name, not a search: it commits as typed, so
 			// `js` survives a picker whose rows are canonical. A moved highlight takes the row.
 			const typed = draft.trim();
-			const namesLanguage = !highlightMoved && typed !== '' && getLanguageGrammar(typed) !== null;
+			const namesLanguage =
+				!highlightMoved && typed !== '' && getLanguageGrammar(typed, activation) !== null;
 			commit(
 				namesLanguage ? typed : (suggestions[activeIndex] ?? (typed === '' ? language : typed))
 			);
@@ -185,7 +191,7 @@
 	}
 
 	// Only for keyboard travel: the highlight must stay on screen as it moves. Opening does
-	// NOT call this — the menu opens at row 0, which is already in view.
+	// not call this: the menu opens at row 0, which is already in view.
 	function scrollActiveIntoView(): void {
 		void tick().then(() => {
 			listEl?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
@@ -194,7 +200,7 @@
 
 	function onFieldBlur(e: FocusEvent): void {
 		if (!editing) return;
-		// A pointer moving from the field to its own list is not a dismissal; the list's
+		// A pointer moving from the field to its own list is not a dismissal: the list's
 		// mousedown handler commits, and this must not tear the field down before it does.
 		const next = e.relatedTarget;
 		if (next instanceof Node && (railEl?.contains(next) || pickerEl?.contains(next))) return;
@@ -206,10 +212,8 @@
 		copied = await onCopy();
 	}
 
-	// The confirmation lives exactly as long as the rail's own reveal: the pointer leaving
-	// the block (or focus leaving the rail) hides the rail, and the next reveal is a fresh
-	// gesture that should offer to copy again rather than still be reporting the last one.
-	// A wall-clock revert would be sequencing on a timer, which G4.4 rules out.
+	// The copied confirmation clears when the pointer or focus leaves the gutter, so the next
+	// showing offers to copy again without a timer (G4.4).
 	function clearCopied(): void {
 		copied = false;
 	}
@@ -230,9 +234,8 @@
 		item.run();
 	}
 
-	// Escape rides the BUTTONS, not their container: the rail is a labelled `group`, and a
-	// non-interactive role may not carry key handlers. Focus sits on the ⋮ button while the
-	// menu is open, and on an item once the user tabs in — both are covered here.
+	// Escape is handled on the ⋮ button and the items, where focus sits while the menu is open:
+	// the gutter is a labelled `group`, and a non-interactive role may not carry key handlers.
 	function onMenuKeyDown(e: KeyboardEvent): void {
 		if (e.key !== 'Escape' || !menuOpen) return;
 		e.stopPropagation();
@@ -241,9 +244,8 @@
 		menuButtonEl?.focus();
 	}
 
-	// The menu outlives the click that opened it, so it closes on the next press anywhere
-	// else. Scoped by containment, not target identity: a press on a disabled item is
-	// still inside.
+	// The menu closes when focus leaves the gutter and its menu, judged by containment, so a
+	// click on a disabled item still counts as inside.
 	function onRailFocusOut(e: FocusEvent): void {
 		const next = e.relatedTarget;
 		if (next instanceof Node && (railEl?.contains(next) || menuEl?.contains(next))) return;
@@ -252,16 +254,14 @@
 	}
 
 	// ── Popout placement ──────────────────────────────────────────────────────
-	// Both popouts are `position: fixed`, like the table's action menu: an absolutely
-	// positioned one inside the block host would extend the editor's own scrollable area
-	// when it overhangs the last block, which is the surface growing under the reader.
-	// Fixed takes them out of flow entirely, so opening one can resize nothing.
+	// Both popouts are `position: fixed`: an absolute one overhanging the last block would grow
+	// the editor's scrollable area under the user.
 
 	interface Placement {
 		x: number;
 		y: number;
-		/** Space the popout may occupy on the side it was placed, so a long list scrolls
-		 *  inside the gap instead of growing past the viewport edge. */
+		/** How much space the popout may take on the side it was placed, so a long list
+		 *  scrolls inside that space instead of growing past the viewport edge. */
 		maxHeight: number;
 	}
 	let listAt = $state<Placement | null>(null);
@@ -269,27 +269,17 @@
 
 	const EDGE_MARGIN = 8;
 	const ANCHOR_GAP = 6;
-	/** A menu is a menu, not a column of the viewport: past this it scrolls. The room actually
-	 *  available still wins when it is smaller. */
+	/** Past this height a popout scrolls; the space actually available wins when it is smaller. */
 	const MAX_POPOUT_HEIGHT = 320;
 
-	/**
-	 * Place a popout beside its trigger WITHOUT ever covering it. Below is preferred; above is
-	 * taken when below cannot hold it and above can; whichever side wins caps the popout's
-	 * height to the room actually there. A plain viewport clamp — what this used to do — slides
-	 * the box up over the button that opened it, which is exactly what must not happen.
-	 */
+	/** Short of room below its trigger, a popout caps its height and scrolls rather than moving
+	 *  above, so one gesture always opens the same way. */
 	function placeAgainst(anchor: HTMLElement | undefined, popout: HTMLElement): Placement {
 		const a = (anchor ?? popout).getBoundingClientRect();
 		const size = popout.getBoundingClientRect();
-		// ALWAYS downward. Flipping above when the room below ran short made the menu appear
-		// on whichever side the block happened to sit, so the same gesture opened in two
-		// directions; a menu that is always under its trigger is the predictable one. When the
-		// room is short the popout scrolls inside what is there instead of moving.
 		const roomBelow = window.innerHeight - a.bottom - ANCHOR_GAP - EDGE_MARGIN;
 		const maxHeight = Math.min(MAX_POPOUT_HEIGHT, Math.max(120, roomBelow));
 		const y = a.bottom + ANCHOR_GAP;
-		// Right-aligned to the trigger, then held inside the viewport horizontally only.
 		const maxX = Math.max(EDGE_MARGIN, window.innerWidth - size.width - EDGE_MARGIN);
 		const x = Math.min(Math.max(EDGE_MARGIN, a.right - size.width), maxX);
 		return { x, y, maxHeight };
@@ -311,10 +301,8 @@
 		menuAt = placeAgainst(menuButtonEl, menuEl);
 	});
 
-	// A fixed popout does not move with the rail it hangs off, so it is re-placed against
-	// its anchor whenever the page scrolls or resizes. Re-placing, not dismissing: a
-	// dismissal both threw away a menu the user had just opened and raced the scroll that
-	// focusing the field used to cause, closing the picker in the same tick it opened.
+	// A fixed popout does not move with the gutter, so it is placed again on every scroll and
+	// resize; not closed, since focusing the field can itself scroll and would close the picker.
 	$effect(() => {
 		if (!editing && !menuOpen) return;
 		const reposition = (): void => {
@@ -334,14 +322,13 @@
 			? `left:${at.x}px;top:${at.y}px;max-height:${at.maxHeight}px`
 			: 'left:0;top:0;visibility:hidden';
 
-	// Presence of a hook is the whole gate — see `EditorPolicies.onRunCode`.
+	// Whether a hook exists is the whole condition; see `EditorPolicies.onRunCode`.
 	const showRun = $derived(editable && onRun !== undefined);
 	const showMenu = $derived(menuItems !== undefined);
 </script>
 
-<!-- Lucide (ISC) path data, inlined rather than depended on: the editor ships two runtime
-	dependencies and an icon package would be a third. Sized 14 / stroke 1.75 to match the
-	host app's menus. See THIRD-PARTY-NOTICES.md. -->
+<!-- Lucide (ISC) path data, inlined rather than adding an icon package; sized to match
+	the host app's menus. See THIRD-PARTY-NOTICES.md. -->
 {#snippet icon(paths: string)}
 	<svg
 		viewBox="0 0 24 24"
@@ -429,6 +416,7 @@
 		bind:this={pickerEl}
 		class="md-menu code-rail-popout code-lang-picker"
 		style={popoutStyle(listAt)}
+		{@attach menuPresence.track}
 	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
@@ -496,6 +484,7 @@
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
+		{@attach menuPresence.track}
 	>
 		{#each openMenuItems as item (item.id)}
 			<li role="none">
@@ -512,10 +501,8 @@
 {/if}
 
 <style>
-	/* Bare controls over the code box's top-right — no container of their own, so the code
-	   they sit above reads through between them. Positioned against the block host, whose
-	   box the code box fills below the host's 6px stand-off (editor.css, fencedCode), and out
-	   of the code box's own scroller so a horizontal scroll leaves them where they are. */
+	/* Positioned against the block host rather than inside the code box's scroller, so a
+	   horizontal scroll leaves the controls where they are. */
 	.code-rail {
 		position: absolute;
 		top: 12px;
@@ -531,9 +518,8 @@
 		transition: opacity 120ms ease-out;
 	}
 
-	/* Block hover or block focus, and nothing else — plus the two states that outlive both,
-	   since a popout must not vanish from under the pointer that opened it. Child and sibling
-	   combinators, so an outer container's hover never reveals a nested block's rail. */
+	/* Shown on block hover or focus, or while a popout is open; child and sibling combinators
+	   keep an outer container's hover from showing a nested block's controls. */
 	:global(.block-host:hover) > .code-rail,
 	:global(.code-block:focus) ~ .code-rail,
 	.code-rail:focus-within,
@@ -592,9 +578,8 @@
 		outline-offset: -1px;
 	}
 
-	/* The host app's menu surface, so a code block's menus read as the app's own. */
-	/* Surface, hairline, shadow, face and colour come from the shared `.md-menu` (editor.css);
-	   this adds only the picker's own layout. */
+	/* Panel, hairline, shadow, face and colour come from the shared `.md-menu` (editor.css);
+	   this adds only the popouts' own layout. */
 	.code-rail-popout {
 		display: flex;
 		flex-direction: column;
@@ -604,7 +589,7 @@
 		overflow: hidden;
 	}
 
-	/* Search sits INSIDE the menu rather than swapping the rail's chip for a field: the chip
+	/* Search sits inside the menu rather than swapping the gutter's chip for a field: the chip
 	   is a fixed box that never changes width, so opening the picker moves nothing. */
 	.code-lang-search {
 		display: flex;
@@ -614,7 +599,7 @@
 		margin: -4px -4px 4px;
 		padding: 8px 12px;
 		border-bottom: 1px solid var(--menu-search-divider, rgba(255, 255, 255, 0.08));
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 	}
 
 	.code-lang-search input {
@@ -642,7 +627,7 @@
 		overscroll-behavior: contain;
 	}
 
-	/* A hairline thumb, as the host app's list menus use — the platform's default bar is
+	/* A hairline thumb, as the host app's list menus use, since the platform's default bar is
 	   wider than the rows it sits beside. */
 	.code-lang-list::-webkit-scrollbar {
 		width: 1px;

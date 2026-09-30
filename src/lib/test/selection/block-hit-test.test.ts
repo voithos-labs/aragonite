@@ -1,23 +1,12 @@
 // @vitest-environment jsdom
-//
-// What `blockAtPoint` hands back for each combination of the two point→internals descriptor hooks.
-// `charSurface` is the load-bearing answer: a kind with no character positions must report none,
-// or a consumer hit-tests the block WRAPPER and gets a plausible-but-wrong offset across the whole
-// subtree instead of a decline. `table` declares both hooks, so only test kinds reach every arm.
+// What `blockAtPoint` hands back for each combination of the two descriptor hooks. `charSurface`
+// is the answer that matters: a kind with no character positions must report none, or a consumer
+// hit-tests the block wrapper and gets a plausible but wrong offset instead of a refusal. The
+// built-in table declares both hooks, so only test kinds reach every branch.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
 import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-
-const leaf = {
-	mergeRole: 'not-mergeable',
-	editable: true,
-	supportsInline: false,
-	closure: testClosure
-} as const;
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const CARET_TARGET = { path: [1, 2], offset: 7 };
 
@@ -36,31 +25,25 @@ describe('blockAtPoint hook plumbing', () => {
 		wrapper.appendChild(editable);
 		root.appendChild(wrapper);
 		document.body.appendChild(root);
-		// The press lands on the editable surface; the walk climbs to the wrapper.
+		// The click lands on the editable element; the lookup climbs to the wrapper.
 		document.elementFromPoint = (() => editable) as typeof document.elementFromPoint;
 	});
 
 	afterEach(() => {
 		document.elementFromPoint = origFromPoint;
 		root.remove();
-		__resetSchemaRegistriesForTests();
 	});
 
 	/** Register a kind with the given hooks and label the wrapper with it. */
 	function withKind(name: string, hooks: Record<string, unknown>) {
-		const kind = declarePluginKind(name);
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			...leaf,
-			...hooks
-		});
+		const kind = testLeaf(name, hooks);
 		wrapper.setAttribute('data-block-kind', kind);
 		return blockAtPoint(root, 10, 10);
 	}
 
-	it('gives a caret-only kind its EDITABLE surface, and still carries the caret hook', () => {
-		// The load-bearing arm: a custom caret landing does not make a kind coordinate-addressed for a
-		// drag, so the drag consumers keep a surface they can hit-test characters against.
+	it('gives a caret-only kind its editable surface, and still carries the caret hook', () => {
+		// A custom caret target does not make a kind a grid for a drag, so the drag paths keep an
+		// element they can hit-test characters against.
 		const hit = withKind('caretOnlyKind', { caretTargetAtPoint: () => CARET_TARGET });
 
 		expect(hit?.charSurface).toBe(editable);
@@ -68,7 +51,7 @@ describe('blockAtPoint hook plumbing', () => {
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
 
-	it('withdraws the surface from a drag-addressed kind — its editable is a CELL', () => {
+	it('withdraws the surface from a drag-addressed kind: its editable is a cell', () => {
 		const hit = withKind('dragOnlyKind', { foreignDragHitTest: () => 5 });
 
 		expect(hit?.charSurface).toBeNull();
@@ -95,8 +78,8 @@ describe('blockAtPoint hook plumbing', () => {
 		expect(hit?.caretTargetAtPoint).toBeUndefined();
 	});
 
-	// The mermaid shape: a rendered body with no editable in it. Reporting the wrapper here is
-	// what let a drag mint a character offset out of an SVG's and a toolbar's text.
+	// The mermaid shape: a rendered body with no editable in it. Reporting the wrapper here would
+	// let a drag derive a character offset from an SVG's and a toolbar's text.
 	it('reports no surface when a kind renders no editable descendant', () => {
 		editable.remove();
 		document.elementFromPoint = (() => wrapper) as typeof document.elementFromPoint;
@@ -106,9 +89,7 @@ describe('blockAtPoint hook plumbing', () => {
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
 
-	// Miss-analysis: the hit-test had no test at its own level for a wrapper whose only
-	// contenteditable is chrome, so the exclusion that keeps a drag released ON a whole-block
-	// kind selecting it whole could be deleted with 1055 tests staying green.
+	// Miss-analysis: no hit-test case had a wrapper whose only editable is the hidden input host.
 	it('reports no surface when the only editable descendant is the hidden input host', () => {
 		editable.remove();
 		const rule = wrapper.appendChild(document.createElement('div'));
@@ -126,9 +107,10 @@ describe('blockAtPoint hook plumbing', () => {
 	});
 });
 
-describe('endpointAtPoint — what a pointer may address', () => {
+describe('endpointAtPoint: what a pointer may address', () => {
 	const hit = (over: Partial<BlockHit> = {}): BlockHit => ({
 		path: [2],
+		host: document.createElement('div'),
 		charSurface: null,
 		...over
 	});

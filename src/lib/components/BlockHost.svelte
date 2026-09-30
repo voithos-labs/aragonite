@@ -7,27 +7,25 @@
 		type BlockComponentExports
 	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
-	import type { BlockDecoration } from '../decorations/types';
-	import { acceptedBlockAttrs } from '../decorations/reserved-attrs';
-	import { mountDecorationWidget } from '../decorations/widget-dom';
+	import { useBlockDecorations } from '../decorations/use-block-decorations.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import { showsDragHandle } from './drag-handle';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 	import { defaultRegistryView } from '../schema/registry-view';
+	import { isGridDescriptor } from '../schema/block-kind-descriptor';
 	import { FAILED_BLOCK_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		RECORD_BLOCK_HEIGHT_KEY,
-		type BlockMeasureChannel,
 		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
 	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
+	import { useMeasuredChild } from '../reactivity/use-measured-child.svelte';
 	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
@@ -49,68 +47,64 @@
 		reorderable?: boolean;
 	} = $props();
 
-	// Optional throughout: bare unit harnesses mount BlockHost without the editor
-	// shell, so every read here (and both overlays') is written for absence.
+	// The services and document contexts are optional here and in both overlays, for a partial
+	// test mount; the policies carry the editor's own getters, so a mount always has them.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
-	// Per-instance enablement reaches the render path through the view; bare mounts
-	// read the global default.
+	// A bare mount reads the global registry view.
 	const registryView = services?.registryView ?? defaultRegistryView;
-	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const getDoc = editorDoc?.doc;
 	// Stable object, so a plain read rather than a getter.
 	const rects = services?.rects;
-	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
-	const getDragHandles = policies?.blockDragHandles;
-	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
-	// that window in after the change.
-	const dragHandles = $derived(getDragHandles?.() ?? false);
-	// The affordance opt-in already folds reading mode in, but a picture's grip does not wait
-	// for that opt-in, so reading mode is asked here too.
-	const isReading = $derived(policies?.presentationMode?.() === 'reading');
-	// A reorder unit without a grip (a paragraph) is still a drop neighbour and keyboard-movable.
-	const showsHandle = $derived(reorderable && !isReading && showsDragHandle(node, dragHandles));
+	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	// $derived, so a runtime toggle reaches blocks that mount after it.
+	const dragHandles = $derived(policies.blockDragHandles());
+	// Checked here too, because an image's handle does not go through the drag-handle prop.
+	const isReading = $derived(policies.presentationMode() === 'reading');
+	// A bare mount has no editor reading: every installed plugin's syntax, no link definitions.
+	const inlineReading = editorDoc?.reading ?? {
+		grammar: registryView.grammar,
+		resolver: undefined,
+		resolverSignature: ''
+	};
+	// A block with no drag handle (a paragraph) can still be dropped next to and moved by key.
+	const showsHandle = $derived(
+		reorderable && !isReading && showsDragHandle(node, dragHandles, inlineReading)
+	);
 
 	let myPath = $derived([...parentPath, index]);
 
-	const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
-	const blockDecs = $derived(
-		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
-	);
-
 	let descriptor = $derived(registryView.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
-	// Who measures this block's rects, decided ONCE here and handed to both overlays —
-	// duplicated, the two drift and a container measures over its own children. Delegation
-	// needs children with hosts: a childless container and a grid have none.
+	// Decided once for both overlays: a container with children (not a grid) leaves painting its
+	// rectangles to the children's own hosts.
 	let delegatesPainting = $derived(
-		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
+		isContainer && (node.children?.length ?? 0) > 0 && !isGridDescriptor(descriptor)
 	);
 
 	let hostEl: HTMLElement | null = $state(null);
-	// The one point that resolves a block's published surface (leaf exports vs
-	// containerApi); every consumer of this host's ref reads what it returns.
+	// The one place a block's published interface is resolved; every reader of the ref gets it.
 	let instance: BlockComponentExports | undefined = $state();
 	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
 
-	// Neither conjunct is redundant though both look it: the shim gives every container
-	// `measurePartialRects`, so that term guards only a hand-rolled one omitting it, and
-	// the delegation term guards a hand-rolled child-bearing non-grid container.
+	// Both halves count: a hand-written container can lack `measurePartialRects`, or have children
+	// and not be a grid.
 	let containerPaintsRects = $derived(
 		isContainer && !delegatesPainting && !!ref?.measurePartialRects
 	);
 
 	let entry = $derived(registryView.component(node.kind));
 
-	// A kind with no registered component falls back to the raw-editable surface below
+	// A kind with no registered component falls back to the plain editable block below
 	// rather than silently rendering nothing.
 	$effect(() => {
 		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
 	});
 
-	// The error boundary sticks on its fallback until reset() runs, so restoring
-	// DIFFERENT bytes retries the render while an unchanged raw can't loop.
-	// Plain lets, not $state: the effect keys on node.raw alone and reads these live.
+	// The error boundary retries only when the bytes change, so a failing render cannot loop.
+	// Plain `let`s, so the effect keys on `node.raw` alone.
 	let failedRaw: string | null = null;
 	let retryFailedRender: (() => void) | null = null;
 
@@ -135,103 +129,33 @@
 		return publishRefSlot(slots, index, ref, hostEl);
 	});
 
-	// No `focus` means neither sanctioned shape was published. `defineBlockComponent`
-	// types this; the guard catches a registration that got in through a cast.
+	// `defineBlockComponent` types this; the check catches a registration cast past it.
 	$effect(() => {
 		if (ref && typeof ref.focus !== 'function')
 			devWarn('block-host', 'component published no BlockComponent surface', node.kind);
 	});
 
-	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
-
 	useMountGauge();
 
-	// Enroll in the scope's batched measure pass rather than measuring inline: a
-	// per-block read interleaved with a sibling's model write costs one reflow per
-	// mounted block on a fling (VR-4). Re-registers on path change.
-	$effect(() => {
-		void myPath;
-		if (!measureChannel) return;
-		return measureChannel.register(myPath, index, id, () =>
-			hostEl ? hostEl.getBoundingClientRect().height : 0
-		);
+	useMeasuredChild({
+		getId: () => id,
+		getPath: () => myPath,
+		getEl: () => hostEl,
+		getRaw: () => node.raw
 	});
 
-	// An edit resizes this one block; re-measure it directly. Skip the MOUNT run — the
-	// batched pass above owns mount measurement, and a per-block read on a fling is the
-	// thrash it exists to remove (VR-4).
-	let firstRun = true;
-	$effect(() => {
-		void node.raw;
-		if (firstRun) {
-			firstRun = false;
-			return;
-		}
-		measureChannel?.measureNow(id);
-	});
+	const kindCue = services?.kindCue;
+	// A nested host's fade bubbles here, so only this host's own animation ends the cue.
+	function endKindCue(event: AnimationEvent): void {
+		if (event.target === hostEl && event.animationName === 'kind-cue-fade')
+			kindCue?.dismiss(myPath);
+	}
 
-	// A block can grow after mount without its `raw` changing (async content decoding
-	// in), which the effect above never sees, and overflow-anchor is off so the growth
-	// would slide the viewport. The scope gates on the height it last applied.
-	$effect(() => {
-		if (!hostEl || !measureChannel) return;
-		const observer = new ResizeObserver((entries) => {
-			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : entries[0]?.contentRect.height;
-			if (height != null) measureChannel.measureOnResize(id, height);
-		});
-		observer.observe(hostEl);
-		return () => observer.disconnect();
-	});
-
-	// Set imperatively, not spread, so a source change or dispose removes exactly the
-	// keys it applied and leaves the host's own attributes alone.
-	$effect(() => {
-		const decs = blockDecs;
-		const el = hostEl;
-		if (!el || decs.length === 0) return;
-		const appliedKeys: string[] = [];
-		for (const dec of decs) {
-			for (const [key, value] of acceptedBlockAttrs(dec.attrs, myPath)) {
-				el.setAttribute(key, value);
-				appliedKeys.push(key);
-			}
-		}
-		return () => {
-			for (const key of appliedKeys) el.removeAttribute(key);
-		};
-	});
-
-	// Badges prepend BEFORE the block component, so BLOCK_CONTENT_SELECTOR
-	// (block-content-selector.ts) excludes `.decoration-badge` — keep it in step if
-	// this wrapper class changes.
-	$effect(() => {
-		const decs = blockDecs;
-		const el = hostEl;
-		if (!el) return;
-		const destroys: Array<() => void> = [];
-		const badges = document.createDocumentFragment();
-		for (const dec of decs) {
-			if (!dec.badge) continue;
-			const handle = mountDecorationWidget(dec.badge, dec, (error) =>
-				editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
-			);
-			if (!handle) continue;
-			const wrapper = document.createElement('div');
-			wrapper.className = 'decoration-badge';
-			wrapper.setAttribute('contenteditable', 'false');
-			wrapper.appendChild(handle.el);
-			badges.appendChild(wrapper);
-			destroys.push(() => {
-				handle.destroy();
-				wrapper.remove();
-			});
-		}
-		if (destroys.length === 0) return;
-		el.insertBefore(badges, el.firstChild);
-		return () => {
-			for (const destroy of destroys) destroy();
-		};
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => hostEl,
+		engine,
+		onRenderError: (error) => editorEvents?.emit('error', error)
 	});
 </script>
 
@@ -239,10 +163,12 @@
 	class={[
 		'block-host',
 		{ 'reorder-host': reorderable && dragHandles, 'handle-host': showsHandle },
-		...blockDecs.flatMap((d) => d.class ?? [])
+		...blockDecorations.classes
 	]}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
+	data-kind-cue={kindCue?.labelAt(myPath)}
+	onanimationend={endKindCue}
 	bind:this={hostEl}
 >
 	<svelte:boundary onerror={onRenderError}>
@@ -278,8 +204,7 @@
 			</div>
 		{/snippet}
 	</svelte:boundary>
-	<!-- hostEl is null until mount; safe because SelectionState is only populated by
-		 user gesture, and the overlay's $effect guards on !blockEl. -->
+	<!-- hostEl is null until mount; the overlay checks for a missing blockEl. -->
 	<SelectionOverlay
 		path={myPath}
 		blockRef={ref}
@@ -294,8 +219,7 @@
 		{isContainer}
 		{containerPaintsRects}
 	/>
-	<!-- Rendered LAST so the block-el lookup still resolves block content as its
-		 first match. -->
+	<!-- Last, so the block-element lookup finds the block content first. -->
 	{#if showsHandle}
 		<BlockDragHandle />
 	{/if}
@@ -306,10 +230,8 @@
 		position: relative;
 	}
 
-	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost scales
-	   with mounted-component count. Global because handle hosts nest; the `:not(:has(
-	   ...))` reveals the innermost hovered handle, not a staircase of ancestors. A gripless
-	   unit (a paragraph in a quote) is no host, so hovering it reveals its container's. */
+	/* Hover by CSS alone, so no reactive state per block; the `:not(:has(...))` shows only the
+	   innermost hovered host's handle. */
 	:global(.handle-host:hover:not(:has(.handle-host:hover)) > .block-drag-handle),
 	:global(.block-drag-handle:hover) {
 		opacity: 1;

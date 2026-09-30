@@ -1,8 +1,7 @@
 /**
- * G4.54 — a published entry barrel is a sink: no module in its own import closure may
- * import it back. Rollup splits such a re-export cycle across chunks and warns that
- * execution order will break, a hazard only a consumer's bundler sees, because in-repo
- * `$lib` resolves to source and assigns no chunks at all.
+ * No module in a published entry barrel's own import closure may import the barrel back (G4.54):
+ * Rollup splits such a cycle across chunks and breaks execution order, which only a consumer's
+ * bundler sees, since in-repo `$lib` resolves to source.
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -63,7 +62,7 @@ function buildGraph(): Map<string, string[]> {
 	return graph;
 }
 
-/** Every `importer → entry` edge reachable from `entry` — empty when the barrel is a sink. */
+/** Every `importer → entry` edge reachable from `entry`: empty when the barrel is a dead end. */
 function backEdgesInto(graph: Map<string, string[]>, entry: string): string[] {
 	const seen = new Set([entry]);
 	const stack = [entry];
@@ -102,7 +101,7 @@ describe('published entry barrels are import sinks', () => {
 
 // ── Self-tests (non-vacuity) ─────────────────────────────────────────────────
 
-describe('entry-barrel sink — classifier non-vacuity', () => {
+describe('entry-barrel sink: classifier non-vacuity', () => {
 	const entry = `${LIB}/plugin.ts`;
 
 	it('reports a back edge however deep in the closure it sits', () => {

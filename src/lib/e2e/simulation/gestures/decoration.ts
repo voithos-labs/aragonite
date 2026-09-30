@@ -1,9 +1,9 @@
 import { type SimContext } from '../invariants';
 import { arrowRightToOffset, cursorOffset } from './caret-walk';
 
-// Decoration-tier gestures (plugins route, `?seed=sim`). Decorations are view-only, so
-// painting never changes the source — only the replace delete and the transparent widget
-// backspace move bytes, and both net to identity via undo.
+// Decoration gestures (plugins route, `?seed=sim`). Decorations are for display only, so
+// drawing one never changes the source. Only deleting a replace decoration and backspacing
+// through a see-through one move bytes, and an undo puts both back.
 
 const ISLAND = '[data-decoration-island]';
 const SELECTED = '.md-widget-selected';
@@ -14,7 +14,7 @@ interface IslandSpan {
 	kind: 'replace' | 'widget';
 }
 
-// ── Island reads ─────────────────────────────────────────────────────────────
+// ── Reading a decoration ─────────────────────────────────────────────────────
 
 async function readIsland(ctx: SimContext, blockIndex: number): Promise<IslandSpan> {
 	const span = await ctx.page.evaluate((i) => {
@@ -27,7 +27,7 @@ async function readIsland(ctx: SimContext, blockIndex: number): Promise<IslandSp
 		};
 	}, blockIndex);
 	if (!span || !Number.isInteger(span.start) || !Number.isInteger(span.end)) {
-		throw new Error(`[${ctx.label}] no decoration island in block ${blockIndex}`);
+		throw new Error(`[${ctx.label}] no decoration widget in block ${blockIndex}`);
 	}
 	return { ...span, kind: span.end > span.start ? 'replace' : 'widget' };
 }
@@ -38,11 +38,8 @@ async function islandCount(ctx: SimContext, blockIndex: number): Promise<number>
 
 // ── Gestures ─────────────────────────────────────────────────────────────────
 
-/**
- * A replace island steps over as ONE atomic unit, so the exact far/near offsets are the
- * load-bearing assertion; a zero-width widget island is transparent and the caret crosses
- * onto the adjacent real byte. Either way the source must be byte-identical after.
- */
+/** A replace decoration is stepped over in one go, so the offsets on each side are checked; a
+ *  zero-width widget is see-through, so the caret crosses onto the real byte beside it. */
 export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { start, end, kind } = await readIsland(ctx, blockIndex);
@@ -53,7 +50,7 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 		await page.keyboard.press('ArrowRight');
 		await assertCursor(ctx, blockIndex, end, 'replace step-over lands past the hidden range');
 		if ((await page.locator(SELECTED).count()) !== 0) {
-			throw new Error(`[${ctx.label}] a step-over arrow selected the replace island`);
+			throw new Error(`[${ctx.label}] a step-over arrow selected the replace decoration`);
 		}
 		await page.keyboard.press('ArrowLeft');
 		await assertCursor(ctx, blockIndex, start, 'replace step-back lands at the leading edge');
@@ -64,11 +61,11 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 		const after = await cursorOffset(ctx, blockIndex);
 		if (after === null || after <= start) {
 			throw new Error(
-				`[${ctx.label}] widget island trapped the caret at offset ${after} (island offset ${start})`
+				`[${ctx.label}] widget decoration trapped the caret at offset ${after} (widget offset ${start})`
 			);
 		}
 		if ((await page.locator(SELECTED).count()) !== 0) {
-			throw new Error(`[${ctx.label}] arrowing across the widget island selected it`);
+			throw new Error(`[${ctx.label}] arrowing across the widget decoration selected it`);
 		}
 	}
 
@@ -77,11 +74,8 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 	tracker.resync(before);
 }
 
-/**
- * Two-press select-then-delete, then undo — net identity. The assertion with teeth is on the
- * FIRST press: it selects the island whole and must leave the hidden bytes byte-identical,
- * so a silent one-byte eat fails here rather than hiding inside the delete.
- */
+/** The first keypress selects the whole decoration and must leave its hidden bytes intact, so a
+ *  swallowed byte fails there rather than hiding inside the delete. */
 export async function edgeDeleteReplaceIsland(
 	ctx: SimContext,
 	blockIndex: number,
@@ -91,7 +85,7 @@ export async function edgeDeleteReplaceIsland(
 	const { start, end, kind } = await readIsland(ctx, blockIndex);
 	if (kind !== 'replace') {
 		throw new Error(
-			`[${ctx.label}] edgeDeleteReplaceIsland needs a replace island in ${blockIndex}`
+			`[${ctx.label}] edgeDeleteReplaceIsland needs a replace decoration in ${blockIndex}`
 		);
 	}
 	const before = await editor.bridge.getSource();
@@ -101,12 +95,13 @@ export async function edgeDeleteReplaceIsland(
 	await page.keyboard.press(key);
 	await editor.waitForRenderFlush();
 	if ((await page.locator(SELECTED).count()) !== 1) {
-		throw new Error(`[${ctx.label}] first ${key} did not select the replace island whole`);
+		throw new Error(`[${ctx.label}] first ${key} did not select the replace decoration whole`);
 	}
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(
-			`[${ctx.label}] first ${key} changed the source — the hidden bytes must survive until the ` +
-				`second press.\nBEFORE: ${JSON.stringify(before)}`
+			`[${ctx.label}] first ${key} changed the source: the hidden bytes must survive until the ` +
+				`second press.
+BEFORE: ${JSON.stringify(before)}`
 		);
 	}
 
@@ -119,11 +114,8 @@ export async function edgeDeleteReplaceIsland(
 	tracker.resync(before);
 }
 
-/**
- * The island is transparent, so the press eats the ADJACENT real byte — never a no-op that
- * strips only the island DOM. The widget sits at its sentinel word's leading edge, so the
- * eaten byte is the space before it and the word survives to re-derive the island.
- */
+/** The widget is see-through and sits at the front of its word, so Backspace takes the space
+ *  before it, never just the widget's DOM, and the word survives to grow the decoration again. */
 export async function backspaceThroughWidgetIsland(
 	ctx: SimContext,
 	blockIndex: number
@@ -132,17 +124,20 @@ export async function backspaceThroughWidgetIsland(
 	const { start, kind } = await readIsland(ctx, blockIndex);
 	if (kind !== 'widget') {
 		throw new Error(
-			`[${ctx.label}] backspaceThroughWidgetIsland needs a widget island in ${blockIndex}`
+			`[${ctx.label}] backspaceThroughWidgetIsland needs a widget decoration in ${blockIndex}`
 		);
 	}
 	const before = await editor.bridge.getSource();
-	if (start === 0) throw new Error(`[${ctx.label}] widget island at offset 0 has no adjacent byte`);
+	if (start === 0)
+		throw new Error(`[${ctx.label}] widget decoration at offset 0 has no adjacent byte`);
 
 	await arrowRightToOffset(ctx, blockIndex, start);
 	await page.keyboard.press('Backspace');
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await islandCount(ctx, blockIndex)) !== 1) {
-		throw new Error(`[${ctx.label}] the widget island vanished after the transparent backspace`);
+		throw new Error(
+			`[${ctx.label}] the widget decoration vanished after the transparent backspace`
+		);
 	}
 
 	await editor.undo();
@@ -151,10 +146,8 @@ export async function backspaceThroughWidgetIsland(
 	tracker.resync(before);
 }
 
-/**
- * Net identity. The insert lands adjacent to the island, whose content key is untouched, so
- * the island re-derives and the count holds across the edit.
- */
+/** The typed character leaves the decoration's own text untouched, so the decoration is derived
+ *  again and the count holds across the edit. */
 export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await readIsland(ctx, blockIndex);
@@ -166,7 +159,7 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await islandCount(ctx, blockIndex)) !== islandsBefore) {
 		throw new Error(
-			`[${ctx.label}] an adjacent insert perturbed the island count in ${blockIndex}`
+			`[${ctx.label}] an adjacent insert perturbed the widget count in ${blockIndex}`
 		);
 	}
 
@@ -176,11 +169,8 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 	tracker.resync(before);
 }
 
-/**
- * The block decoration is source-keyed on content, so the badge must FOLLOW the bytes to the
- * new path and back. The treatment-follows-path contract itself is e2e-pinned; this drives
- * the interleave under load.
- */
+/** A block decoration is keyed on the block's content, so the badge follows the bytes to the new
+ *  position and back, here in the middle of a long session. */
 export async function reorderDecoratedBlock(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();

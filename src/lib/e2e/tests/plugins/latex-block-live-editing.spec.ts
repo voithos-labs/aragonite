@@ -1,8 +1,9 @@
 import { test, expect } from '../../fixtures';
+import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// Editing keys at the edges of a revealed `$$` source whose fence lines live mode hides: the
-// line extremes, Enter, Backspace and Tab must all stay inside the body.
+// Editing keys at the edges of an open `$$` source whose fence lines live mode hides: the ends of
+// the line, Enter, Backspace and Tab must all stay inside the body.
 // Requirements: e2e/requirements/plugins/latex-block-live-editing.md.
 
 const BODY = '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}';
@@ -31,7 +32,7 @@ test.describe('block math editing edges (live)', () => {
 		await expect(editor.source).toBeFocused();
 	};
 
-	test('Home on the first body line seats at its column 0, not before the hidden opener', async ({
+	test('Home on the first body line puts the caret at its column 0, not before the hidden opener', async ({
 		page
 	}) => {
 		await enterFromAbove(page);
@@ -42,7 +43,7 @@ test.describe('block math editing edges (live)', () => {
 		await expect.poll(() => editor.sourceText()).toBe(`$$\nX${BODY}\n$$`);
 	});
 
-	test('End on the last body line seats after its last byte, not past the hidden closer', async ({
+	test('End on the last body line puts the caret after its last byte, not past the hidden closer', async ({
 		page
 	}) => {
 		await enterFromBelow(page);
@@ -84,8 +85,8 @@ test.describe('block math editing edges (live)', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
-	// Parity with prose: no built-in binds Tab, so it is the browser's focus step out of the
-	// block, and the leaf folds on the blur it causes, committing the draft whole.
+	// The same as prose: nothing built in binds Tab, so it is the browser's focus step out of the
+	// block, and the block closes on the blur that causes, committing the draft whole.
 	test('Tab leaves the block as it leaves a paragraph, and the draft commits whole', async ({
 		page
 	}) => {
@@ -95,5 +96,40 @@ test.describe('block math editing edges (live)', () => {
 
 		await expect(editor.source).toHaveCount(0);
 		await editor.bridge.waitForSourceEquals(`Before\n\n$$\nX${BODY}\n$$\n\nAfter\n`);
+	});
+});
+
+// A one-line `$$x^2$$` keeps its closer on the body's line, so a range through the body reaches
+// it; the closer comes back and the block absorbs the range, as a fenced code block does.
+test.describe('a range out of the body keeps the block (live)', () => {
+	let editor: BlockMathPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new BlockMathPage(page);
+		await editor.gotoMathSeed('mathblock');
+		await editor.setPresentationMode('live');
+		await editor.revealByClick();
+		// Six real steps out of the body and into the paragraph below, so the range ends where
+		// keyboard extension actually put it rather than at a computed offset.
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
+	});
+
+	test('Backspace absorbs the text the range reached and the block stays math', async ({
+		page
+	}) => {
+		await page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('undo puts the paragraph back in one step', async ({ page }) => {
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');
 	});
 });

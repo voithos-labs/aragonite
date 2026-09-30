@@ -12,7 +12,7 @@ Where to jump:
 - [Unit tests (Vitest)](#unit-tests-vitest): where a file goes, the area scripts, mounting a
   block without the whole editor, and the console-warning gate.
 - [E2E tests (Playwright)](#e2e-tests-playwright): the fixture import rule, the test bridge, the
-  area scripts, the plugins route and what's installed on it, the WebKit run, the requirement
+  area scripts, the plugins route and what's installed on it, the WebKit lane, the requirement
   files, and the gotchas.
 - [The conformance differ](#the-conformance-differ): our inline parser diffed against
   commonmark.js.
@@ -73,8 +73,8 @@ elided, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. W
 under test moves into a subdirectory, its test follows.
 
 Mirror **import depth**, not just the module's directory: a test importing
-`tree-operations/list/terminator` directly (rather than the `tree-operations` barrel) lives at
-`test/tree-operations/list/terminator.test.ts`.
+`tree-operations/list/ordered-markers` directly (rather than the `tree-operations` barrel) lives
+at `test/tree-operations/list/ordered-markers.test.ts`.
 
 Four deliberate exceptions, and no, a fifth isn't on offer:
 
@@ -102,7 +102,7 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 | `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                           |
 | `test:editor:reactivity`     | Block-list state and state registry                                                                 |
 | `test:editor:selection`      | Selection-state logic                                                                               |
-| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, island model                     |
+| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, widget model                     |
 | `test:editor:blocks`         | Per-block unit tests                                                                                |
 | `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                            |
 | `test:editor:plugins`        | Plugin authoring surfaces and dogfood kinds: container round-trips, chrome leaves, paste transforms |
@@ -123,35 +123,42 @@ else.
 ### Mounting a block in isolation
 
 A block component reads its wiring from the editor's context tree, so a bare
-`mount(SomeBlock, …)` needs that context present. `test/harness/mount-context.ts` supplies it:
-`editorMountContext(overrides?)` returns the Map a block requires, with the action triple,
-history, and the three editor facets (services, policies, document) pre-stubbed. A test states
-only what it asserts on and takes sensible stubs for the rest. From
-`test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose block over a parsed
-document and hands it a decoration engine that reports no islands:
+`mount(SomeBlock, …)` needs that context present. `src/lib/test/harness/mount-block.ts :: mountBlock`
+mounts one block over a parsed document under the standard context from
+`test/harness/mount-context.ts`, which pre-stubs the action triple, history, and the three editor
+facets (services, policies, document). A test states only what it asserts on and takes sensible
+stubs for the rest. From `test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose
+block and hands it a decoration engine that reports no widgets:
 
 ```ts
-import { mount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
-const doc = parse(source);
-const blockEdit = makeStubBlockEdit();
-const instance = mount(TextEditableBlock, {
-	target,
-	props: { node: doc.children[0], index: 0, myPath: [0] },
-	context: editorMountContext({
-		blockEdit,
-		doc: { doc: () => doc },
-		services: { decorations: noIslands }
-	})
+const { target, blockEdit, dispose } = mountBlock(TextEditableBlock, {
+	source: 'hello\n',
+	overrides: { services: { decorations: noIslands } }
 });
-flushSync();
+// blockEdit is spied: expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(...)
 ```
 
 When the editor grows a newly required context, that costs one harness edit instead of a fix
-across every block-mount test.
+across every block-mount test. One catch: a bare mount keeps the node it was
+handed, since nothing above it re-renders after a commit. So a test that makes more than one
+gesture mounts the whole Editor with `src/lib/test/harness/mount-editor.svelte.ts :: mountEditor`
+instead, and writes its `props` the way a host would. After a gesture, either mount waits with
+`src/lib/test/harness/settle.ts :: settleEditor` (or sends the key with `pressKey`), never with a
+timer.
+
+### Every test starts with just the built-ins
+
+The unit setup (`src/lib/test/support/plugin-platform.ts`) resets the plugin platform before
+every test, so you don't write that reset yourself. The catch: a plugin you install as the file
+loads, or in `beforeAll`, is gone before the first test runs, and the suite quietly tests plain
+GFM instead (your `$$` fence is a paragraph now). Install in `beforeEach` or inside the test.
+`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own (one that
+resets only part of the platform, or one hidden behind a helper, counts too), and a registration at
+load, in a `describe` body or in `beforeAll`. A test about the reset itself calls
+`resetPluginPlatformForTests` in the test body.
 
 ### A dev warning fails its test
 
@@ -159,7 +166,7 @@ Every `devWarn` fire reaches a structured sink the unit setup registers, and a f
 claims fails that test. The sink takes reporting over, so under the unit runner the console line
 never happens and a `console.warn` spy sees nothing. Svelte's own runtime warnings have no sink
 to register, so the setup wraps `console.warn` and files them into the same records under
-`svelte:<code>`; they claim through the same doors. The same per-test hook resets `editorEnv`,
+`svelte:<code>`; they claim through the same calls. The same per-test hook resets `editorEnv`,
 so a suite that configures the environment configures it per test; a `beforeAll` override is
 gone by the second case. Which console channel a fire belongs to, and what each one means, is
 [`warnings.md`](warnings.md).
@@ -208,19 +215,23 @@ The editor component driven in real Chromium. No backend needed; it's self-conta
 review. Every `devWarn` reaches the browser console under the `[aragonite:…]` prefix and every
 Svelte runtime warning under `[svelte] <code>`, and the shared `test` fails any spec whose page
 emitted one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing
-silently and turning up a release later. The verdict lands at teardown and names the fire:
+silently and turning up a release later. An uncaught page error or rejection fails it the same way,
+under the tag `pageerror`, and so does an error only `window.onerror` sees (Chromium reports a
+ResizeObserver loop there and nowhere else), which the fixture relays under `onerror:<message>`.
+The verdict lands at teardown and names the fire:
 
 ```
-Error: unexpected [aragonite:…] / [svelte] console fires:
+Error: unexpected [aragonite:…] / [svelte] console fires or uncaught errors:
 warning: [aragonite:demo] a fire the spec did not declare
 ```
 
 A spec that deliberately trips one names its tags,
 `test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire,
 `test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning, or
-`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, and the fire above would
-have passed under `test.use({ expectWarns: ['demo'] })`. All three run in both directions: a named
-tag that stops firing fails too.
+`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, or
+`test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message, and the
+fire above would have passed under `test.use({ expectWarns: ['demo'] })`. All four run in both
+directions: a named tag that stops firing fails too.
 
 ### Architecture
 
@@ -249,7 +260,7 @@ Editor.svelte (production component, unchanged)
   a timeout to widen. Reading mode takes no keystrokes, so `expectSurfaceInert()` asserts the
   structural fact instead (no editable surface under the root) and drains a tick.
   `waitForNoSourceMutation` is the fallback for a gesture with no verdict — a click, a drag, a
-  paste, a menu item, the `runCommand` door — and each remaining call says which.
+  paste, a menu item, the `runCommand` entry — and each remaining call says which.
 
 The two halves side by side, on a two-block document with the caret parked at the end of the
 paragraph:
@@ -312,12 +323,12 @@ editing, and selection + clipboard.
 | `test:e2e:selection`      | Cross-block selection behavior                                                                                                                                                                                                                                                                                   |
 | `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                                                                                                                                                                                                         |
 | `test:e2e:search`         | Find/replace bar and controller behavior                                                                                                                                                                                                                                                                         |
-| `test:e2e:decorations`    | Decoration engine in the browser: mark / island / block paint, search as its first client                                                                                                                                                                                                                        |
+| `test:e2e:decorations`    | Decoration engine in the browser: mark / widget / block paint, search as its first client                                                                                                                                                                                                                        |
 | `test:e2e:presentation`   | Presentation modes: reading-mode inertness, block- and inline-granular preview reveal, mid-session mode flips                                                                                                                                                                                                    |
 | `test:e2e:simulation`     | The note-taking simulation sessions (their own section below)                                                                                                                                                                                                                                                    |
 | `test:e2e:a11y`           | axe over `.editor`: fails on any violation outside the committed allowlist                                                                                                                                                                                                                                       |
 | `test:e2e:vr`             | Virtual rendering on large fixtures: windowing, reveal, table-row windowing, mounted-count ceiling                                                                                                                                                                                                               |
-| `test:e2e:webkit`         | The second-engine run: a curated slice under the WebKit binary, env-gated, per release rather than per commit (next section)                                                                                                                                                                                     |
+| `test:e2e:webkit`         | The second-engine lane: a curated slice under the WebKit binary, env-gated; CI runs it on every PR and the release PR can't merge past it (next section)                                                                                                                                                         |
 
 The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither is a perf gate;
 both ride `npm test`.
@@ -368,10 +379,11 @@ What each fixture is for:
   on `window`, so its spec can count how often it rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section
   below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the
-  text into a replace island, a widget island, and a block badge. Both under `?seed=sim`, so
+  text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so
   the simulation runs with the decoration engine live on every keystroke.
 
-`walk-views.ts` is the leaf walk they share. Four subroutes carry the multi-editor cases:
+`src/routes/walk-views.ts` is the leaf walk they share with the showcase's own demo plugins. Four
+subroutes carry the multi-editor cases:
 `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the
 second), `staggered/` (editor one installs callout, editor two mounts later with details added,
 for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the
@@ -379,21 +391,51 @@ left with the kind switched off through the harness-only `__registryEnablement` 
 `activation/` (two editors in one process, only the first listing the parrot and the block
 badge, for the per-instance activation spec).
 
-### The WebKit run
+### The WebKit lane
 
-A second contenteditable implementation, run per release rather than per commit. The reason to
-keep it out of `npm test` is signal, not time: a second engine in the per-commit loop doubles the
-flake surface for a class of bug that doesn't appear between releases.
+A second contenteditable implementation, and a check the release can't merge past.
 `npm run test:e2e:webkit` sets `WEBKIT=1`, and that variable is what makes the `e2e-webkit`
-project exist at all, so the run can't half-happen inside the default suite. It collects a
-curated slice of the existing typing, split/merge, selection and round-trip specs, plus
-everything under `tests/webkit/`, which holds the specs only this run executes, covering the two
-helpers that branch on the engine. It fails rather than reports, and it can afford to because it
-carries no known-red backlog for a regression to hide behind. CI runs it as a non-blocking job on
-the release pull request (`dev` to `main`) and on manual dispatch, so a release sees the second
-engine without adding it to the per-commit loop. Locally, run it alone, and on a quiet tree:
-it shares the dev server with every other project, and a save into `src/` mid-run triggers an
-SSR reload whose component re-registration turns the run red for a reason the product never had.
+project exist at all, so the lane can't half-run inside `npm test`. It's kept out of `npm test`
+on purpose, and the reason is signal rather than time: a second engine in your local loop doubles
+the flake surface, and the engine build only moves when Playwright does, so that's when this
+class of bug shows up. So CI carries it, and you run it by hand when you've touched selection,
+typing or the clipboard.
+
+What it runs: a curated slice of the typing, split/merge, selection and round-trip specs
+(`WEBKIT_LANE` in `playwright.config.ts`), plus everything under `tests/webkit/`, which only this
+lane executes.
+
+**In CI it blocks.** `.github/workflows/webkit.yml` runs the lane on every pull request to `main`
+and to `dev`. On the release PR (`dev` to `main`) its `webkit` check is required, same as the
+`ci.yml` jobs: `scripts/apply-branch-protection.mjs` lists it, and a lint holds that list in
+step with the workflows. `dev` can't be protected (it takes the history rewrites), so there the
+lane only reports, but a red on your dev PR is yours: the release PR runs the same lane over the
+same commits, and it won't merge until that's green. A red the day after a Playwright bump, with
+no editor change in sight, is the engine build moving under the same code (the browser build is
+pinned by the `@playwright/test` version in `package.json`). That's a real finding too, either an
+engine difference to handle or a flake to quarantine.
+
+**Quarantining a flake.** A flake is a spec that reads red on some runs of the lane and green on
+others, same code. Since the lane blocks, one of those can hold a release on a coin toss, so it
+comes out of the lane, and only out of the lane:
+
+1. File the issue (`severity: watch` while nothing's confirmed) with what was seen and the
+   command that repeats it, which is the same in bash and PowerShell:
+
+   ```
+   node scripts/run-with-env.mjs WEBKIT=1 -- npx playwright test --project=e2e-webkit selection/pointer.spec.ts --repeat-each 10 --trace on
+   ```
+
+2. Make the test's first line `test.fixme(browserName === 'webkit', '#<issue>: what it does')`,
+   with `browserName` taken from the test's fixture args. Chromium keeps running the test; the
+   lane reports it as skipped, with the issue number in the reason.
+3. Leave the requirement bullet as it is (the claim still holds under Chromium) and add an
+   indented line under it saying where the skip is, so the two files stay paired (G4.23).
+4. When the issue closes, the `fixme` goes with it.
+
+**Running it locally.** Alone, and on a quiet tree: the lane shares the dev server with every
+other project, and a save into `src/` mid-run triggers an SSR reload whose component
+re-registration turns the run red for a reason the product never had.
 
 Two harness helpers branch on the engine, both behind unchanged signatures, so no spec knows
 which side it got. WebKit rejects the clipboard permissions at **context creation**, which no
@@ -403,7 +445,7 @@ carrying a `DataTransfer`, which is where the editor's own handlers already read
 WebKit exposes no CDP session, so the IME driver hand-fires the composition sequence: the one
 exemption G4.49 grants, which no spec may copy.
 
-What the run proves: editor behavior survives a second engine, and the commit path survives a
+What the lane proves: editor behavior survives a second engine, and the commit path survives a
 WebKit-shaped composition without double-applying at `compositionend`. What it doesn't: event
 ORDER, which only the CDP side can assert, and the paste chord itself, which the dispatched
 event bypasses. Both stay pinned in Chromium.
@@ -413,11 +455,9 @@ which no in-repo suite can see at all: clipboard retargeting, the host's own acc
 and image-src scheme policy are the embedding host's decisions rather than the page's, so that
 class of bug is found by a real host or by a user.
 
-**The caveat, wherever this run is described.** WebKit-on-Windows through Playwright isn't
-Safari and isn't a WKWebView. It's the closest available proxy, so a green run is weaker
-evidence than its pass count suggests, and #37 stays open until something runs on Apple
-hardware. The browser build is pinned by the `@playwright/test` version in `package.json`, so a
-Playwright upgrade that turns this run red is telling you something real.
+**The caveat, wherever this lane is described.** Playwright's WebKit build isn't Safari and
+isn't a WKWebView. It's the closest available proxy, so a green run is weaker evidence than its
+pass count suggests, and #37 stays open until something runs on Apple hardware.
 
 ### Requirements pair one-to-one with specs
 
@@ -434,14 +474,16 @@ The details:
   requirements split with them.
 - G4.23 (`src/lib/e2e/lint/requirement-spec-lockstep.test.ts`) enforces the lockstep: both
   directions, the stem collision two specs could hide behind, per-file shape, and a requirement
-  list that ran 3× ahead of its spec's test count. That last rule is allowlisted, and an entry
-  there states its reason: count EQUALITY is refuted by measurement (one test routinely walks
-  several bullets), so padding the suite to satisfy a count is never the fix.
+  list that ran 3× ahead of its spec's test count. The test count is what
+  `playwright test --list` reports for the spec, so a test generated in a loop counts once per
+  row. That last rule is allowlisted, and an entry there states its reason: count
+  EQUALITY is refuted by measurement (one test routinely walks several bullets), so padding the
+  suite to satisfy a count is never the fix.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong
-  family and it silently stops running in the suite you meant; G4.17 catches a basename in
-  neither. Requirement files pair by the stem with the `.perf` suffix stripped.
+  family and it silently stops running in the suite you meant. The lockstep scan fails a
+  spec no project lists, and G4.17 fails one that two projects list. Requirement files pair by the stem with the `.perf` suffix stripped.
 - **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a
   `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the
   parent category.
@@ -449,6 +491,10 @@ The details:
   and why none did, in the requirement file the regression spec pairs with. A unit-level
   regression has no requirement file, so its miss-analysis is that test's own header line
   instead.
+- **Requirement files are written in plain words.** The reader is someone who opened the repo
+  today, same as for a comment ([`code-style.md`](code-style.md) § Comments). The house-word scan
+  holds their body text to zero private words; a heading keeps its wording, since specs and docs
+  point at it.
 
 ### Writing a new E2E spec
 
@@ -475,6 +521,22 @@ test.describe('my feature', () => {
 Note the import path: `../fixtures`, not `@playwright/test`. That's the invariant watcher, and
 it's the one line in this file most worth not copying wrong.
 
+A spec on any other route calls `gotoReady` instead of `page.goto`:
+
+```ts
+await gotoReady(page, '/test/syntax'); // waits for window.__syntax, then the fonts
+```
+
+It lives in `src/lib/e2e/goto-ready.ts` and waits for the global the route sets once it's
+hydrated, since the server-rendered markup shows up well before any click handler does.
+`reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
+A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/goto-ready.test.ts`.
+
+A new route gets a row in `src/lib/e2e/goto-ready.ts :: READY_BY_ROUTE`, or `gotoReady` won't
+compile for it. Every route that mounts an editor already sets `__parityDocuments`, so that's the
+usual value. If the specs read a global the route sets for them (`__syntax`, say), that one goes in
+instead.
+
 ### Patterns and gotchas
 
 **Pace per-character typing with a state settle.** Two input helpers coexist.
@@ -494,9 +556,17 @@ genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard
 the absence oracle of a gesture with no keydown verdict) and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
 reactivity and render flush, not a debouncer.
 
-**Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor
-through the Selection API. Native `End`/`Home` work for simple cases but are unreliable across
-inline-rendered spans.
+**Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
+through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
+key leaves it; `focusBlock` takes a raw offset, and `focusBlockAtPath` does the same for a nested
+block or a table cell. When the placement itself is under test, click (`clickBlockAtPath`) and
+walk with the keyboard instead.
+
+**Aim a pointer through `src/lib/e2e/text-runs.ts`, never a DOM walk of your own.** `pointAtRaw`
+asks the block where a raw offset sits on screen, and `textRunRect` finds a word in the text the
+mode actually paints. A walk written in the spec counts a widget's glyph or a hidden marker its
+own way and aims beside the offset it meant, so a source scan fails any `createTreeWalker` under
+`src/lib/e2e/tests/`.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
 CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a
@@ -575,6 +645,13 @@ nesting_ against commonmark, so emphasis classified into the wrong kinds fails e
 bytes still tile. That's the gap a byte-conservation or offset-tiling property can't see. It
 allows only the divergence classes the baseline documents as deliberate.
 
+The spec's link reference definition examples get a check of their own
+(`gfm-conformance/definition-examples.test.ts`), because the inline differ skips any input that
+defines a reference. Each example is compared as a whole document: which definitions commonmark.js
+found, what each one resolves to, and the blocks left around them. An example we don't match on
+purpose sits in the baseline's `definitionDeviations` with its reason, and it fails the day it
+starts matching, same as the inline entries.
+
 ## Property suites and fresh seeds
 
 A gate that fails differently each time is a gate people learn to ignore, so the property/fuzz
@@ -613,8 +690,8 @@ seed for the same reason the other reachability self-tests do.
 A shape a guard's own oracle can't survive belongs in that guard's fixed corpus rather than in a
 shared generator; but shedding the shape is the second answer, and teaching the oracle to
 CLASSIFY it is the first. Asterisk delimiter nesting is the standing example, both ways round:
-it rebinds under a neighbouring byte, so the typing-seat net once read that as its own failure
-and the generator shed it; the net now separates a seat that missed an answer from a parse that
+it rebinds under a neighbouring byte, so the typing-position net once read that as its own failure
+and the generator shed it; the net now separates a typing position that missed an answer from a parse that
 offers none, and the shape is back in `arbInlineSource`.
 
 **Reproducing a fresh find.** The seed line above is the reproduction: pin that seed as the
@@ -687,13 +764,14 @@ deep bullet nesting in the outline, a nested `> >` blockquote in the reading not
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
 expectation tracker seeded from the current source, and the error collector into the one
-context every oracle reads; `assertCoreOracles` is the checkpoint sweep (no errors, round-trip
-stable, nested state consistent). From `tests/simulation/table-ops.spec.ts`:
+context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, every
+container's child ids in step, nested state, round-trip, a valid selection, and parse convergence
+unless the note waives it). From `tests/simulation/table-ops.spec.ts`:
 
 ```ts
 import { Gestures } from '../../simulation/gestures';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 await editor.loadContent(START_TABLE);
@@ -702,9 +780,9 @@ const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 const g = new Gestures(ctx, makeRng(1));
 
 await g.insertColumnRight(0);
-await assertCoreOracles(ctx, 'after-insert-column');
+await assertCheckpoint(ctx, 'after-insert-column');
 await g.editCell(1, 'C');
-await assertCoreOracles(ctx, 'after-edit-cell');
+await assertCheckpoint(ctx, 'after-edit-cell');
 ```
 
 **Determinism** comes from a single seeded PRNG: same seed ⇒ same gesture stream ⇒ same asserted
@@ -742,7 +820,7 @@ $ npm run test:e2e:isolated -- --project=e2e-simulation transcription-smoke.spec
 
 Running 1 test using 1 worker
 
-  ✓  1 [e2e-simulation] › src\lib\e2e\tests\simulation\transcription-smoke.spec.ts:14:2 › note-taking simulation: transcription smoke › drives a short note from empty and the oracle suite holds (9.9s)
+  ✓  1 [e2e-simulation] › src\lib\e2e\tests\simulation\transcription-smoke.spec.ts:14:2 › note-taking simulation: transcription smoke › drives a short note from empty and the invariant suite holds (9.9s)
 
   1 passed (12.7s)
 ```

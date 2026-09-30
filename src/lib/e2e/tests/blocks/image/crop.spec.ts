@@ -2,8 +2,8 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { waitForFirstImageLoaded } from './helpers';
 
-// The crop is limestone's cover crop on an inline image: the toolbar's crop button turns the
-// image into a pan surface (drag pans, the wheel zooms) and the tick writes `|WxH@X,Y[,Z]`.
+// The crop is limestone's cover crop on an inline image: the toolbar's crop button makes the
+// image pannable (drag pans, the wheel zooms) and the tick writes `|WxH@X,Y[,Z]`.
 test.describe('image crop', () => {
 	let editor: EditorPage;
 
@@ -26,7 +26,7 @@ test.describe('image crop', () => {
 		await waitForFirstImageLoaded(page);
 		const widget = page.locator('[data-image-widget]').first();
 
-		// A single click only selects it: the toolbar appears, the pan surface does not.
+		// A single click only selects the image: the toolbar appears, the pan area does not.
 		await widget.click();
 		await expect(page.locator('.md-image-properties')).toBeVisible();
 		await expect(page.locator('.md-image-crop-surface')).toHaveCount(0);
@@ -44,7 +44,7 @@ test.describe('image crop', () => {
 		// A square frame on a landscape fixture: the cover fit overflows sideways, so a drag pans x.
 		await editor.loadContent('![cat|200x200](/test-fixtures/sample.png)\n');
 		const widget = await selectAndStartCrop(page);
-		// The resize grip steps aside while the pan surface owns the pointer.
+		// The resize handle steps aside while the pan area owns the pointer.
 		await expect(page.locator('.md-resize-handle')).toHaveCount(0);
 
 		const box = (await widget.boundingBox())!;
@@ -110,7 +110,7 @@ test.describe('image crop', () => {
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 		await expect(page.locator('[data-image-widget].md-image-cropped')).toHaveCount(0);
-		// The grip returns with the toolbar.
+		// The resize handle returns with the toolbar.
 		await expect(page.locator('.md-resize-handle')).toHaveCount(1);
 	});
 
@@ -134,10 +134,9 @@ test.describe('image crop', () => {
 		await editor.bridge.waitForSourceContains('![cat|300x150@50,50]');
 	});
 
-	// The grip previewed on the <img>, which for a crop is the picture panned inside the frame,
-	// not the box being resized: mid-drag it bulged out of its frame, and above zoom 1 the drag
-	// started from the painted picture's width and jumped.
-	test('the grip previews on the frame while resizing a cropped image', async ({ page }) => {
+	// The resize preview follows the frame, not the `<img>`, which for a crop is the panned
+	// picture: previewing on it bulges out of the frame, and above zoom 1 the drag jumps.
+	test('the drag handle previews on the frame while resizing a cropped image', async ({ page }) => {
 		await editor.loadContent('![cat|300x150@30,60,2](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);
 		const widget = page.locator('[data-image-widget]').first();
@@ -165,7 +164,7 @@ test.describe('image crop', () => {
 		expect(during.ih).toBeGreaterThanOrEqual(during.fh - 1);
 
 		await page.mouse.up();
-		// Not the loaded 300x150: a predicate the fixture already satisfies settles on nothing.
+		// Not the loaded 300x150: a condition the fixture already meets would never resolve.
 		await editor.bridge.waitForSourceMatches(/!\[cat\|(?!300x150)\d+x\d+@30,60,2\]/);
 	});
 

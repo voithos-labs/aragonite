@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { computeInlineContent } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { emojiPlugin } from '$lib/plugins/emoji';
 import { projectInlineText } from '$lib/plugins/toc/heading-outline';
 
@@ -13,7 +12,7 @@ function label(src: string): string {
 	return projectInlineText(computeInlineContent(node), node.raw);
 }
 
-describe('projectInlineText — clean heading labels', () => {
+describe('projectInlineText: clean heading labels', () => {
 	const cases: Array<[string, string, string]> = [
 		['drops emphasis markers', '# Plain *Bold* text\n', 'Plain Bold text'],
 		['unwraps inline code', '# a `code` span\n', 'a code span'],
@@ -28,12 +27,9 @@ describe('projectInlineText — clean heading labels', () => {
 	}
 });
 
-// The brief's mandated case: an emoji shortcode in a heading renders as its glyph,
-// not its `:shortcode:` bytes — the "widget → rendered text" arm of the rule.
-describe('projectInlineText — emoji glyph projection', () => {
-	beforeEach(resetPluginPlatformForTests);
-	afterEach(resetPluginPlatformForTests);
-
+// An emoji shortcode in a heading renders as its glyph, not its `:shortcode:` bytes:
+// the widget branch of the projection rule.
+describe('projectInlineText: emoji glyph projection', () => {
 	it('renders an emoji shortcode as its glyph when the emoji plugin is registered', () => {
 		installPlugins([emojiPlugin()]);
 		expect(label('# Mood :smile: today\n')).toBe('Mood 😄 today');

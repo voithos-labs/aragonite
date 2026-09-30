@@ -4,6 +4,7 @@ import { tick } from 'svelte';
 import {
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
+	installRevealAnchorRelease,
 	installSelectionChangeBridge
 } from '$lib/components/editor-root-listeners';
 
@@ -20,9 +21,8 @@ afterEach(() => {
 
 // ── Blur announcer ───────────────────────────────────────────────────────────
 
-// Miss-analysis: every selectionChange emitter fired on selections the editor still held, so no
-// test ever took focus OUT of the editor and asked whether the channel reported the departure.
-describe('editor-root listeners — blur announcer', () => {
+// Miss-analysis: no selectionChange test moved focus out of the editor.
+describe('editor-root listeners: blur announcer', () => {
 	function announcer() {
 		const root = document.createElement('div');
 		const inside = document.createElement('button');
@@ -30,7 +30,7 @@ describe('editor-root listeners — blur announcer', () => {
 		const outside = document.createElement('button');
 		document.body.append(root, outside);
 		let emitted = 0;
-		teardowns.push(installEditorBlurAnnouncer({ root, emit: () => emitted++ }));
+		teardowns.push(installEditorBlurAnnouncer({ root, announce: () => emitted++ }));
 		return { root, inside, outside, count: () => emitted };
 	}
 
@@ -56,8 +56,8 @@ describe('editor-root listeners — blur announcer', () => {
 		expect(t.count()).toBe(0);
 	});
 
-	// A structural commit unmounts the focused surface (focusout, no relatedTarget) and lands
-	// focus again after its own tick: a departure that came back is no departure at all.
+	// A structural commit unmounts the focused block (focusout, no relatedTarget) and puts
+	// focus back after its own tick: focus that came back never left.
 	it('stays silent when focus returns to the root within the flush', async () => {
 		const t = announcer();
 		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
@@ -69,7 +69,7 @@ describe('editor-root listeners — blur announcer', () => {
 
 // ── Mod-active tracker ───────────────────────────────────────────────────────
 
-describe('editor-root listeners — mod-active tracker', () => {
+describe('editor-root listeners: mod-active tracker', () => {
 	function tracker() {
 		const root = document.createElement('div');
 		document.body.append(root);
@@ -121,16 +121,21 @@ describe('editor-root listeners — mod-active tracker', () => {
 
 // ── Selectionchange bridge ───────────────────────────────────────────────────
 
-describe('editor-root listeners — selectionchange bridge', () => {
-	function bridge() {
+describe('editor-root listeners: selectionchange bridge', () => {
+	function bridge(widgetSelected = false) {
 		const root = document.createElement('div');
 		const header = document.createElement('div');
 		const headerField = document.createElement('span');
 		headerField.textContent = 'title';
 		header.append(headerField);
 		const content = document.createElement('p');
+		content.setAttribute('data-block-path', '[0]');
 		content.textContent = 'body text';
-		root.append(header, content);
+		// The image popover mounts inside the root but outside every block.
+		const popover = document.createElement('div');
+		const popoverField = document.createElement('input');
+		popover.append(popoverField);
+		root.append(header, content, popover);
 		const outside = document.createElement('p');
 		outside.textContent = 'elsewhere';
 		document.body.append(root, outside);
@@ -139,10 +144,13 @@ describe('editor-root listeners — selectionchange bridge', () => {
 		const teardown = installSelectionChangeBridge({
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
-			emit: () => emits++
+			announceIfMoved: () => emits++,
+			selection: {
+				widget: widgetSelected ? { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 } : null
+			}
 		});
 		teardowns.push(teardown);
-		return { headerField, content, outside, teardown, emits: () => emits };
+		return { headerField, content, popover, outside, teardown, emits: () => emits };
 	}
 
 	function selectInside(el: Node): void {
@@ -154,6 +162,7 @@ describe('editor-root listeners — selectionchange bridge', () => {
 	}
 
 	const fire = () => document.dispatchEvent(new Event('selectionchange'));
+	const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 	it('emits for a selection in the editor content', () => {
 		const b = bridge();
@@ -183,11 +192,89 @@ describe('editor-root listeners — selectionchange bridge', () => {
 		expect(b.emits()).toBe(0);
 	});
 
-	it('teardown detaches the listener', () => {
+	// The browser reports a click's caret a task later, so the click itself announces too.
+	it('emits for a click in the editor content', () => {
+		const b = bridge();
+		selectInside(b.content);
+		click(b.content);
+		expect(b.emits()).toBe(1);
+	});
+
+	it('stays silent for a click in the host chrome', () => {
+		const b = bridge();
+		selectInside(b.headerField);
+		click(b.headerField);
+		expect(b.emits()).toBe(0);
+	});
+
+	function caretInside(el: Node): void {
+		window.getSelection()?.collapse(el.firstChild, 0);
+	}
+
+	// Miss-analysis: the image-selection specs read the selected text, which a caret leaves empty.
+	it('drops, and never announces, a caret the browser puts beside a selected widget', () => {
+		const b = bridge(true);
+		caretInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(0);
+		expect(b.emits()).toBe(0);
+	});
+
+	it('keeps a range dragged while a widget is selected', () => {
+		const b = bridge(true);
+		selectInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
+		expect(b.emits()).toBe(1);
+	});
+
+	// Miss-analysis: the popover spec read only the source, which a reset cursor rarely breaks.
+	it('keeps a caret in a popover field while a widget is selected', () => {
+		const b = bridge(true);
+		window.getSelection()?.collapse(b.popover, 0);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
+	});
+
+	it('keeps a caret when no widget is selected', () => {
+		const b = bridge();
+		caretInside(b.content);
+		fire();
+		expect(window.getSelection()?.rangeCount).toBe(1);
+	});
+
+	it('teardown detaches both listeners', () => {
 		const b = bridge();
 		b.teardown();
 		selectInside(b.content);
 		fire();
+		click(b.content);
 		expect(b.emits()).toBe(0);
+	});
+});
+
+// ── Releasing the held block ─────────────────────────────────────────────────
+
+describe('editor-root listeners: reveal-anchor release', () => {
+	function release() {
+		const port = document.createElement('div');
+		document.body.append(port);
+		let released = 0;
+		teardowns.push(installRevealAnchorRelease(port, () => released++));
+		return { port, count: () => released };
+	}
+
+	it.each(['keydown', 'pointerdown', 'wheel'])('%s on the port releases the pin', (type) => {
+		const r = release();
+		r.port.dispatchEvent(new Event(type));
+		expect(r.count()).toBe(1);
+	});
+
+	// A programmatic scroll correction fires `scroll` itself and would release the hold
+	// half way through.
+	it('a scroll releases nothing', () => {
+		const r = release();
+		r.port.dispatchEvent(new Event('scroll'));
+		expect(r.count()).toBe(0);
 	});
 });

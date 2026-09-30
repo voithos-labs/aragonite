@@ -1,10 +1,10 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// `--editor-font-size` is the editor's type-scale root: the root sizes its text
-// from it and every construct is `em`-relative, so one host declaration scales the
-// surface. Only real layout can answer this — computed font sizes and the `:where()`
-// shadowing rule are exactly what jsdom does not have.
+// `--editor-font-size` sets the editor's base text size, and every construct is sized in `em`
+// from it, so one declaration by the app scales the whole editor. Only a real browser can
+// answer this, since computed font sizes and how `:where()` loses to other rules are exactly
+// what jsdom does not have.
 
 const DOC = '# Heading one\n\nParagraph text.\n';
 
@@ -30,23 +30,23 @@ test.describe('--editor-font-size', () => {
 		const after = await fontSizes(editor);
 
 		expect(after.paragraph).toBe('20px');
-		// The heading rides the same root (2em), so the scale moves as one — a heading
-		// re-anchored to its own absolute size would stay put here.
+		// The heading is sized from the same base (2em), so everything scales together; a
+		// heading given its own fixed size would stay where it is.
 		expect(after.heading).toBe('40px');
 		expect(before.paragraph).not.toBe(after.paragraph);
 	});
 
 	test('the opt-in class default shadows a value inherited from above it', async ({ page }) => {
 		const before = await fontSizes(editor);
-		// The default lives on `.aragonite-editor-theme`, which this route carries, and a
-		// direct declaration beats an inherited one whatever its specificity.
+		// The default sits on `.aragonite-editor-theme`, which this route carries, and a value
+		// declared on the element beats an inherited one whatever its specificity.
 		await page.addStyleTag({ content: 'body { --editor-font-size: 20px; }' });
 		expect(await fontSizes(editor)).toEqual(before);
 	});
 
 	test('a value declared below the theme scope reaches the editor', async ({ page }) => {
-		// The wrapper between the class and the editor root: nothing re-declares the token
-		// below it, so a themed host sizes the editor from its own layout wrapper.
+		// The wrapper between the theme class and the editor root: nothing declares the value
+		// again below it, so a themed app sizes the editor from its own wrapper.
 		await page.addStyleTag({ content: '.editor-slot { --editor-font-size: 20px; }' });
 		const after = await fontSizes(editor);
 

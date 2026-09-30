@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-//
-// The composition funnel wired to the REAL block-edit actions + undo controller: a composed
-// commit lands its bytes once and anchors its undo snapshot at the offset captured at
-// compositionstart (what one Ctrl+Z restores — the browser-order counterpart lives in
-// e2e/tests/ime-composition); a cancelled composition leaves the document byte-identical.
+// The composition commit wired to the real block-edit actions and undo controller: a composed
+// commit lands its bytes once, one Ctrl+Z restores the caret captured at `compositionstart`,
+// and a cancelled composition leaves the document byte-identical. The browser-order run is
+// the `ime-composition` e2e spec.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -24,7 +23,7 @@ beforeEach(() => {
 	const controller = createUndoController(harness.deps);
 	const blockEdit = createBlockEditActions(harness.deps, controller);
 	surface = makeSurface((text, preEdit, saved) => {
-		void blockEdit.updateBlockContent(0, text + '\n', preEdit, saved);
+		void blockEdit.updateBlockContent(0, text + '\n', 'authored', preEdit, saved);
 	});
 	surface.el.textContent = 'hello world';
 });

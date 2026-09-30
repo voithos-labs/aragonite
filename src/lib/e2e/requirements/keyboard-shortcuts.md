@@ -1,14 +1,10 @@
 # Feature: Prose keyboard shortcuts
 
-Covers in-prose keyboard shortcuts: hard break, literal tab insertion, heading-level conversion, and Escape for collapsing a live cross-block selection.
+Covers in-prose keyboard shortcuts: literal tab insertion, where a heading-level conversion leaves the caret, and Escape for collapsing a live cross-block selection. What the hard break and the heading levels write is pinned at the unit level.
 
 ## Happy paths
 
-- Shift+Enter inside a paragraph inserts a GFM hard break (`\` + newline) without splitting the block
 - Tab inside a paragraph inserts a literal tab character at the cursor (no focus-escape)
-- Ctrl+2 on a paragraph converts it to an H2 heading
-- Ctrl+3 on an existing H1 replaces the prefix so the heading becomes H3
-- Ctrl+0 on a heading converts it back to a plain paragraph
 
 ## Edge cases
 

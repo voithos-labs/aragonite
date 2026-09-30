@@ -5,7 +5,8 @@ import { checkCloneSafeMetadata } from '../invariants/node-shape';
 
 // ── Document ────────────────────────────────────────────────────────────────
 
-// A deep clone of a view is a fully owned mutable tree — the clone door (core/node-views.ts).
+// A deep clone of a view is a fully owned mutable tree, the one clone path `core/node-views.ts`
+// allows.
 export function cloneDocument(doc: DocumentView): Document {
 	return {
 		kind: 'document',
@@ -18,8 +19,8 @@ export function cloneDocument(doc: DocumentView): Document {
 // ── Node ────────────────────────────────────────────────────────────────────
 
 export function cloneNode(node: NodeView): CstNode {
-	// `kind` is a runtime value spanning every arm, so no literal arm matches —
-	// the cast is the generic-clone door, mirroring copyNode's spread (unshare.ts).
+	// `kind` is a runtime value spanning every union member, so no literal member matches; the
+	// cast is the generic clone, mirroring `copyNode`'s spread (`unshare.ts`).
 	const cloned = {
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
@@ -42,7 +43,7 @@ export function cloneNode(node: NodeView): CstNode {
 }
 
 // Snapshots must share no mutable reference with the live tree, or an in-place splice on
-// live metadata reaches the snapshot. One level deep suffices — G1.6 forbids deeper.
+// live metadata reaches the snapshot. One level deep suffices; metadata nests no deeper (G1.6).
 export function cloneMetadata(
 	meta: NonNullable<NodeView['metadata']>
 ): NonNullable<CstNode['metadata']> {

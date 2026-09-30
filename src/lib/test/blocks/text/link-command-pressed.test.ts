@@ -1,19 +1,13 @@
 // @vitest-environment jsdom
-//
-// `link.openCard` paints pressed from the construct the card would EDIT, not from the mark table
-// every other toolbar id reads — and a range must lie inside that construct, since the card edits
-// one link.
-// Miss-analysis: the pressed read was a mark-row lookup that returned before any read, and no test
-// at either surface ever asked a NON-mark command what it painted, so the whole id class with no
-// mark row was unasserted.
+// `link.openCard` shows as pressed from the construct the card would edit, not the mark table
+// other toolbar ids read, and a range must lie inside that construct.
+// Miss-analysis: no test asked what a command with no mark-table entry shows as pressed.
 import { describe, it, expect, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorServices } from '$lib/editor-keys';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
 const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
 
@@ -21,20 +15,13 @@ const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['dec
 const LINKED = 'Visit [example](https://x.com) now\n';
 
 function mountText(source: string, mode: PresentationMode) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit: makeStubBlockEdit(),
-			doc: { doc: () => doc },
+	const { instance, target } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: {
 			policies: { presentationMode: () => mode },
 			services: { decorations: noIslands }
-		})
+		}
 	});
-	flushSync();
 	const el = target.querySelector('.text-editable-block') as HTMLElement;
 	el.focus();
 	return { instance, el };
@@ -48,7 +35,7 @@ afterEach(async () => {
 	window.getSelection()?.removeAllRanges();
 });
 
-/** Flip the selection's direction, leaving the same two endpoints: the focus moves to the head. */
+/** Reverse the selection's direction, keeping both endpoints: the focus moves to the head. */
 function reverseSelection(): void {
 	const sel = window.getSelection()!;
 	const r = sel.getRangeAt(0);
@@ -78,7 +65,7 @@ describe('the link editor’s pressed state on a prose surface', () => {
 		expect(pressed(LINKED, 2, 10)).toBe(false);
 	});
 
-	// The construct is resolved at the FOCUS end, so only a backward range puts its far endpoint
+	// The construct is resolved at the focus end, so only a backward range puts its far endpoint
 	// past the link: forward, the focus itself lands outside and resolves nothing.
 	it('a backward selection whose anchor left the link is outside it', () => {
 		mounted = mountText(LINKED, 'live');
@@ -91,8 +78,8 @@ describe('the link editor’s pressed state on a prose surface', () => {
 		expect(pressed('[a](u)[b](v) tail\n', 1, 8)).toBe(false);
 	});
 
-	// The construct's own end is inside it, the boundary the reveal chain and the card entry
-	// already share.
+	// The construct's own end counts as inside it, the boundary the marker chain and the card
+	// entry already share.
 	it('the caret at the construct end is still inside it', () => {
 		expect(pressed(LINKED, 30)).toBe(true);
 	});

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: #200's depth pins reached the render and caret paths and stopped there, so the
-// gesture seams reading the same tree one gesture later — reveal, link card, join, split, pending
-// mark — had no pin at all and every one of them still recursed per nesting level.
+// The gesture paths that read the inline tree walk a deeply nested chain without recursing.
+// Miss-analysis: GH #200's depth tests stopped at render and caret; gesture paths still recursed.
 import { describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
@@ -11,13 +10,14 @@ import { linkConstructAt } from '$lib/components/blocks/text/link-at-point';
 import { clipNodes } from '$lib/components/blocks/text/live-join-seam';
 import { splittableChainAt } from '$lib/components/blocks/text/live-split-rebalance';
 import { constructChainAt } from '$lib/components/blocks/text/pending-mark-insert';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
-// Assumes the default V8 stack, as the sibling pins do: raising `--stack-size` turns every one of
-// these green against a recursive walk.
+// Assumes the default V8 stack, as the sibling tests do: raising `--stack-size` makes every one
+// of these pass even against a recursive traversal.
 const DEPTH = 32_000;
 
-/** `leaf` under `DEPTH` nested `strong`s — the parser nests one per `**` pair, so the source is
- *  the shape — and the tree a seam reads back out of it. */
+/** `leaf` under `DEPTH` nested `strong`s: the parser nests one per `**` pair, so the source is
+ *  the shape, and this is the tree read back out of it. */
 function nested(leaf: string): { raw: string; nodes: InlineNode[] } {
 	const raw = '**'.repeat(DEPTH) + leaf + '**'.repeat(DEPTH);
 	return { raw, nodes: parseInline(raw, 0, raw.length) };
@@ -26,7 +26,7 @@ function nested(leaf: string): { raw: string; nodes: InlineNode[] } {
 /** The offset between the leaf's two characters: inside every construct of the chain. */
 const CUT = 2 * DEPTH + 1;
 
-describe('live gesture-seam walks at input-controlled nesting depth', () => {
+describe('live gesture-boundary walks at input-controlled nesting depth', () => {
 	it('reveals the whole chain past the recursion ceiling, outermost first', () => {
 		const chain = constructChainAtOffset(nested('ab').nodes, CUT);
 
@@ -38,7 +38,10 @@ describe('live gesture-seam walks at input-controlled nesting depth', () => {
 		const raw = '**'.repeat(DEPTH) + '[a](/u)' + '**'.repeat(DEPTH);
 		const block = parse(raw + '\n', { scope: 'fragment' }).children[0];
 
-		expect(linkConstructAt(block, 2 * DEPTH)).toMatchObject({ kind: 'link', end: 2 * DEPTH + 7 });
+		expect(linkConstructAt(block, 2 * DEPTH, fixtureReading())).toMatchObject({
+			kind: 'link',
+			end: 2 * DEPTH + 7
+		});
 	});
 
 	it('clips a join side past the recursion ceiling, on either side of the cut', () => {

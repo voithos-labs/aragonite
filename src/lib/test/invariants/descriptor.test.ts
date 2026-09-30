@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { checkContentRange } from '../../invariants/descriptor';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { DIRECTIVE_LEAF, registerDirectiveKinds } from '../../core/directive/kinds';
 
 function leaf(source: string): CstNode {
@@ -46,16 +45,12 @@ describe('checkContentRange (G1.8)', () => {
 	});
 });
 
-// Miss-analysis (M-2): the fixtures were all prose kinds, so the gate's premise — that
-// `supportsInline` and `getContentRange` travel together — was never tested against the kind
-// that breaks it. The directive leaf ships a content range with `supportsInline: false`, and
-// the range is consumed unconditionally (the split-cut clamp reads it).
+// Miss-analysis: every fixture was a prose kind, where `supportsInline` and a content range agree.
+// The directive leaf has a content range without inline support, and the split clamp reads it.
 describe('checkContentRange (G1.8) covers a non-prose kind that declares a content range', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const directiveLeaf = (): CstNode => ({
 		kind: declaredPluginKind(DIRECTIVE_LEAF),

@@ -5,10 +5,15 @@ import {
 	previewContentReparse
 } from '$lib/editor-actions/replacement-focus';
 import { parse } from '$lib/core/parser';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import type { NodeView } from '$lib/core/node-views';
+
+/** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
+const legalIn = (node: NodeView, text: string, owner?: NodeView) =>
+	legalizeWrite({ children: [node], owner, lineEnding: '\n' }, 0, text, 'literal');
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));
@@ -54,7 +59,7 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 
 	// A plugin may own data-block-path with a non-JSON value, and the parse runs inside
-	// afterTick — outside the ceremony's catch, so a throw is an unhandled rejection.
+	// afterTick, outside the commit's catch, so a throw is an unhandled rejection.
 	it('restores without throwing when data-block-path is non-JSON', () => {
 		focusHostWithRawPath('plugin-owned-token');
 		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();
@@ -62,28 +67,46 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 });
 
-// The preview picks between the structural commit and the routine typing path and
-// nothing re-decides it, so it must answer about the bytes the write actually lands —
-// which a container that rewrites its body's bytes makes differ.
-describe('previewContentReparse reads the owning container', () => {
+// The trial reparse alone picks the structural commit or the typing path, so it must read the
+// bytes the write stores, which differ when a container rewrites its body's bytes.
+describe('previewContentReparse reads the write the owning container made legal', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 
 	const bodyParagraph = () => parse('body\n').children[0];
 
 	it('reports a kind change for a bare terminator with no owner to escape it', () => {
-		expect(
-			previewContentReparse(bodyParagraph(), '</details>\n', undefined, undefined, '').op
-		).not.toBe('noop');
+		const node = bodyParagraph();
+		const write = legalIn(node, '</details>\n');
+		const target = { children: [node], owner: undefined, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).not.toBe('noop');
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
-		const owner = declaredPluginKind(DETAILS);
-		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined, owner, '').op).toBe(
-			'noop'
-		);
+		const node = bodyParagraph();
+		const owner = { kind: declaredPluginKind(DETAILS), leadingTrivia: '', raw: '' };
+		const write = legalIn(node, '</details>\n', owner);
+		const target = { children: [node], owner, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).toBe('noop');
+	});
+});
+
+// Miss-analysis: the trial read a body leaf standalone, and no case typed `# ` into a to-do.
+describe('previewContentReparse reads a task paragraph as the commit does', () => {
+	const todo = () => parse('- [ ] beta\n').children[0].children![0];
+
+	it('reports a same-kind edit for `# ` typed after the task marker', () => {
+		const item = todo();
+		const write = legalIn(item.children![0], '# beta\n', item);
+		const target = { children: item.children!, owner: item, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).toBe('noop');
+	});
+
+	it('reports the kind change for the same text in a plain item', () => {
+		const item = parse('- beta\n').children[0].children![0];
+		const write = legalIn(item.children![0], '# beta\n', item);
+		const target = { children: item.children!, owner: item, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).not.toBe('noop');
 	});
 });

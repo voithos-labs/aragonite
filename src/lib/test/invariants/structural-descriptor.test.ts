@@ -4,12 +4,12 @@ import {
 	checkStructuralDescriptor
 } from '$lib/invariants/structural-descriptor';
 
-// G1.36. Miss-analysis: the descriptor vocabulary had no predicate at all — every producer was
-// trusted to derive a fitting window, and the one consumer clamps a negative count to an empty
-// splice, so a wrong window left no trace anywhere a test could read it.
+// A structural descriptor's window must fit the array it syncs, since the one consumer clamps a
+// negative count to an empty splice and a wrong window leaves no trace (G1.36).
+// Miss-analysis: every producer was trusted to derive a fitting window, and nothing checked one.
 
 describe('checkStructuralDescriptor', () => {
-	it('passes the shapes a settle actually mints', () => {
+	it('passes the shapes a settle actually creates', () => {
 		expect(checkStructuralDescriptor({ op: 'noop' }, 0)).toBeNull();
 		expect(checkStructuralDescriptor({ op: 'delete', at: 1, count: 2 }, 3)).toBeNull();
 		expect(checkStructuralDescriptor({ op: 'insert', at: 3, count: 2 }, 3)).toBeNull();

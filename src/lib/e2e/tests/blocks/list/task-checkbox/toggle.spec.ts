@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('task checkbox — toggle and undo', () => {
+test.describe('task checkbox: toggle and undo', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

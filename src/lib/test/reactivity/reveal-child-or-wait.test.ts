@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the staleness arms below asserted the WINDOW question, so the false
-// positive they encoded (a mounted child cleared by a one-flush window skew, and never
-// re-published) read as intent; no arm asked whether the ref's element was still attached.
+// Miss-analysis: the cases asked if the child was in range, never if its element was in the DOM.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	revealChildOrWait,
@@ -10,9 +8,8 @@ import {
 } from '../../reactivity/publish-ref.svelte';
 import { settlesWithin } from '../harness/microtask-settle';
 
-// A windowed scope whose revealChild publishes a fresh ref one microtask later,
-// mirroring a row/item mounting after a scroll. A fresh scope per test IS the
-// isolation — the mount registry keys on the slots object, not on the index.
+// A windowed block list whose `revealChild` writes a fresh ref one microtask later, as a mount
+// after a scroll does.
 function makeScope() {
 	const refs: (object | undefined)[] = [];
 	const slots: RefSlots<object> = {
@@ -28,7 +25,7 @@ function makeScope() {
 	return { refs, slots, revealChild };
 }
 
-/** A scope whose child never publishes: the slot reads empty however often it mounts. */
+/** A list whose child never writes its ref: the entry reads empty however often it mounts. */
 function neverMountsScope(): RefSlots<object> {
 	return { set: () => {}, get: () => undefined };
 }
@@ -37,7 +34,7 @@ describe('revealChildOrWait', () => {
 	it('reveals and waits when the slot is empty (in-window mount pending)', async () => {
 		const { refs, slots, revealChild } = makeScope();
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).toHaveBeenCalledWith(0);
 		expect(refs[0]).toBeTruthy();
@@ -47,7 +44,7 @@ describe('revealChildOrWait', () => {
 		const { refs, slots, revealChild } = makeScope();
 		refs[0] = {};
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 	});
@@ -55,12 +52,12 @@ describe('revealChildOrWait', () => {
 	it('drops a ref whose published element left the DOM and re-reveals', async () => {
 		const { refs, slots, revealChild } = makeScope();
 		const detached = {};
-		// A wholesale `replaceRefs` re-seat is the live shape: the publisher that recorded
-		// this element is long gone, so no teardown will ever empty the slot.
+		// A wholesale `replaceRefs` is the real shape: whatever recorded this element is long gone,
+		// so no teardown will ever empty the entry.
 		publishRefSlot(slots, 0, detached, document.createElement('div'));
 		refs[0] = detached;
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).toHaveBeenCalledWith(0);
 		expect(refs[0]).toBeTruthy();
@@ -74,8 +71,8 @@ describe('revealChildOrWait', () => {
 		document.body.append(el);
 		publishRefSlot(slots, 0, mounted, el);
 
-		// A programmatic scroll moves the slice a flush before the DOM follows. Clearing here
-		// strands the ref — nothing re-publishes an unchanged mount.
+		// A scripted scroll moves the range a flush before the DOM follows. Clearing here strands
+		// the ref, since nothing writes it again for a mount that never changed.
 		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => false });
 
 		expect(revealChild).not.toHaveBeenCalled();
@@ -88,7 +85,7 @@ describe('revealChildOrWait', () => {
 		const unrecorded = {};
 		refs[0] = unrecorded;
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 		expect(refs[0]).toBe(unrecorded);
@@ -97,19 +94,19 @@ describe('revealChildOrWait', () => {
 	it('does not reveal an out-of-doc index (transient size lag never mounts)', async () => {
 		const { refs, slots, revealChild } = makeScope();
 
-		// index === count → out of doc
-		await revealChildOrWait(0, { slots, childCount: 0, revealChild });
+		// index === count is past the end of the document
+		await revealChildOrWait(0, { slots, childCount: 0, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 		expect(refs[0]).toBeUndefined();
 	});
 
-	// VR-5: the loop is woken ONLY by a same-scope, same-index mount, so a scroll that
-	// misses would hang forever. These assert termination, not placement.
+	// A scroll that misses must end the wait rather than hang on a mount that never comes (VR-5).
+	// These check that it ends, not where it lands.
 	describe('terminates instead of hanging when the reveal misses (VR-5)', () => {
 		it('resolves without mounting when the recomputed window excludes the target', async () => {
-			// A stale model at call time: the slot stays empty and the target is reported
-			// outside the recomputed window.
+			// A stale height table when it is called: the entry stays empty and the target is
+			// reported outside the recomputed range.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -121,15 +118,13 @@ describe('revealChildOrWait', () => {
 				isInWindow: () => false
 			});
 
-			// Nothing ever wakes the registry for this scope, so settling at all proves the
-			// membership short-circuit returned before the mount-wait loop.
 			expect(await settlesWithin(call)).toBe(true);
 			expect(revealChild).toHaveBeenCalledWith(0);
 		});
 
 		it('degrades when an in-window target never publishes (failed-render boundary)', async () => {
-			// In-window but rendering its failed boundary, so bind:this never assigns and
-			// no same-index mount will ever fire.
+			// Inside the range but rendering its failure fallback, so `bind:this` never assigns and
+			// no mount at that index will ever fire.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -143,38 +138,6 @@ describe('revealChildOrWait', () => {
 
 			expect(await settlesWithin(call)).toBe(true);
 			expect(revealChild).toHaveBeenCalledWith(0);
-		});
-
-		it('degrades when a non-windowing target never mounts and no wake ever fires', async () => {
-			// Neither membership nor a wake can end this one, so only the tick-bounded loop
-			// does. The raised settle budget covers its full re-wait cap.
-			const revealChild = vi.fn(async () => {
-				await Promise.resolve();
-			});
-
-			const call = revealChildOrWait(0, {
-				slots: neverMountsScope(),
-				childCount: 1,
-				revealChild
-			});
-
-			expect(await settlesWithin(call, 300)).toBe(true);
-			expect(revealChild).toHaveBeenCalledWith(0);
-		});
-
-		it('still terminates when this scope mounts and unpublishes in the same flush', async () => {
-			// The residual spurious wake under per-scope keying: a real mount at this index
-			// that clears again before the waiter re-reads. Only the per-wake cap stops it.
-			const { slots, refs, revealChild } = makeScope();
-			const call = revealChildOrWait(0, { slots, childCount: 1, revealChild });
-
-			for (let pump = 0; pump < 500; pump++) {
-				await Promise.resolve();
-				publishRefSlot(slots, 0, {});
-				refs[0] = undefined;
-			}
-
-			expect(await settlesWithin(call)).toBe(true);
 		});
 	});
 });

@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// The caret's every door into and out of a `$$` block, in the mode that paints its fence lines
-// and the one that hides them. Requirements: e2e/requirements/plugins/latex-block-navigation.md.
+// Every way the caret enters and leaves a `$$` block, in the mode that paints its fence lines and
+// the one that hides them. Requirements: e2e/requirements/plugins/latex-block-navigation.md.
 
 const BODY = '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}';
 const SOURCE = `$$\n${BODY}\n$$`;
@@ -22,7 +22,7 @@ class MathNavPage extends BlockMathPage {
 for (const mode of ['live', 'source'] as const) {
 	test.describe(`block math navigation (${mode})`, () => {
 		let editor: MathNavPage;
-		// The first landable offset: live hides the opener line, source paints it.
+		// The first offset the caret can reach: live hides the opener line, source paints it.
 		const bodyStart = mode === 'live' ? 3 : 0;
 		const bodyEnd = mode === 'live' ? 3 + BODY.length : SOURCE.length;
 
@@ -32,7 +32,7 @@ for (const mode of ['live', 'source'] as const) {
 			await editor.setPresentationMode(mode);
 		});
 
-		test('ArrowRight from above reveals at the first landable byte, and ArrowLeft leaves', async ({
+		test('ArrowRight from above reveals at the first reachable byte, and ArrowLeft leaves', async ({
 			page
 		}) => {
 			await editor.getBlock(0).click();
@@ -46,7 +46,7 @@ for (const mode of ['live', 'source'] as const) {
 			expect(await editor.landedIn()).toBe(0);
 		});
 
-		test('ArrowLeft from below reveals at the last landable byte, and ArrowRight leaves', async ({
+		test('ArrowLeft from below reveals at the last reachable byte, and ArrowRight leaves', async ({
 			page
 		}) => {
 			await editor.getBlock(2).click();
@@ -62,9 +62,9 @@ for (const mode of ['live', 'source'] as const) {
 	});
 }
 
-// Live only: source mode paints the fence lines, and the sticky entry from above lands on the
-// second line there rather than the `$$` line, so its count is a column question, not this one.
-test.describe('block math navigation (live) — the vertical walk', () => {
+// Live only: source mode paints the fence lines, and entering from above by column lands on the
+// second line there rather than on the `$$` line, which is a question about columns, not this one.
+test.describe('block math navigation (live): the vertical walk', () => {
 	let editor: MathNavPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('block math navigation (live) — the vertical walk', () => {
 	});
 });
 
-test.describe('block math navigation (live) — an empty block', () => {
+test.describe('block math navigation (live): an empty block', () => {
 	let editor: MathNavPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -109,8 +109,8 @@ test.describe('block math navigation (live) — an empty block', () => {
 		await editor.loadContent('Before\n\n$$$$\n\nAfter\n');
 	});
 
-	// The reveal completes the chrome-only source to a body line the caret can sit on; leaving
-	// again commits that completion like any other reveal edit.
+	// Opening the source completes a marker-only block with a body line the caret can sit on, and
+	// leaving again commits that completion like any other edit made while it was open.
 	test('arrows pass through from above, leaving the completed block behind', async ({ page }) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');

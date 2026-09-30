@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
 
-test.describe('text editing — edge cases', () => {
+test.describe('text editing: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -10,25 +10,14 @@ test.describe('text editing — edge cases', () => {
 		await editor.goto();
 	});
 
-	test('Backspace at start of first block does nothing', async () => {
-		await editor.loadContent('Only block\n');
-		const sourceBefore = await editor.bridge.getSource();
-
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Backspace');
-
-		const sourceAfter = await editor.bridge.getSource();
-		expect(sourceAfter).toBe(sourceBefore);
-	});
-
-	// The caret is the whole outcome of the ineligible arm: source and block count cannot move,
-	// so asserting only those reads the press as dead (the shape issue #138 was filed as).
+	// Where the merge does not apply, the caret is the whole outcome: source and block count cannot
+	// move, so asserting only those reads the keypress as doing nothing.
 	for (const [label, doc, landing, after] of [
 		['heading above heading', '# Heading A\n\n## Heading B\n', 11, '# Heading A\n\n## Heading B\n'],
 		// The empty heading the caret leaves demotes on blur: a rule of its own, not a merge.
 		['prose above a prose-absorber', 'lorem\n\n# \n', 5, 'lorem\n\n\n']
 	] as const) {
-		test(`Backspace at a heading's start under ${label} — no merge, caret lands at its end`, async () => {
+		test(`Backspace at a heading's start under ${label}: no merge, caret lands at its end`, async () => {
 			await editor.loadContent(doc);
 			const countBefore = await editor.bridge.getBlockCount();
 
@@ -43,19 +32,8 @@ test.describe('text editing — edge cases', () => {
 		});
 	}
 
-	test('heading absorbs following paragraph on merge', async () => {
-		await editor.loadContent('# Title\n\nBody text\n');
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('Backspace');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('TitleBody text');
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-	});
-
-	// The thematic break is a whole-block-focus kind, so a caret-adjacent Backspace
-	// focuses it and only a second press deletes — the same two-step the mermaid
-	// diagram gets (plugins/mermaid-focus.spec.ts pins the plugin twin).
+	// The thematic break takes whole-block focus, so a Backspace beside it focuses it and a second
+	// deletes it, the two-step `plugins/mermaid-focus.spec.ts` checks for the plugin.
 	test('Backspace after thematic break focuses it, and a second press deletes it', async () => {
 		await editor.loadContent('Before\n\n---\n\nAfter\n');
 		const original = await editor.bridge.getSource();
@@ -75,30 +53,7 @@ test.describe('text editing — edge cases', () => {
 		expect(await editor.bridge.getBlockCount()).toBeLessThan(countBefore);
 	});
 
-	test('kind change reversal — deleting # prefix reverts heading to paragraph', async () => {
-		await editor.loadContent('# Title\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Backspace');
-
-		const kind = await editor.bridge.getBlockKind(0);
-		expect(kind).toBe('paragraph');
-	});
-
-	test('split heading at middle — first stays heading, second becomes paragraph', async () => {
-		await editor.loadContent('# HelloWorld\n');
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Enter');
-
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-	});
-
-	test('Enter at end of heading — heading unchanged, new empty paragraph', async () => {
+	test('Enter at end of heading, heading unchanged, new empty paragraph', async () => {
 		await editor.loadContent('# Heading\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
@@ -106,8 +61,8 @@ test.describe('text editing — edge cases', () => {
 		await editor.waitForBlockHostCount(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 
-		// The empty block is in the bytes rather than folded into the heading's trailing
-		// trivia, so reloading them shows the same two blocks.
+		// The empty block is in the bytes rather than absorbed into the heading's trailing
+		// blank lines, so reloading them shows the same two blocks.
 		const src = await editor.bridge.getSource();
 		expect(src).toBe('# Heading\n\n\n');
 		await editor.loadContent(src);

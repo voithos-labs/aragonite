@@ -1,14 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import {
-	mintCommandId,
-	isPluginCommandId,
-	__resetMintedCommandIdsForTests
-} from '$lib/schema/command-id';
+import { describe, it, expect } from 'vitest';
+import { mintCommandId, isPluginCommandId } from '$lib/schema/command-id';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 
-afterEach(() => __resetMintedCommandIdsForTests());
+/** Run `mint` inside the setup of a plugin called `name`, so the plugin owns what it creates. */
+function asPlugin(name: string, mint: () => void): void {
+	installPlugins([definePlugin({ name, setup: mint })]);
+}
 
-describe('command-id mint', () => {
-	it('mints a branded id and reports it as a plugin id', () => {
+describe('command-id create', () => {
+	it('creates a branded id and reports it as a plugin id', () => {
 		const id = mintCommandId('callout.setKind');
 		expect(id).toBe('callout.setKind');
 		expect(isPluginCommandId(id)).toBe(true);
@@ -19,28 +19,30 @@ describe('command-id mint', () => {
 		expect(isPluginCommandId('history.undo')).toBe(false);
 	});
 
-	it('rejects a second mint of the same name (plugin-vs-plugin)', () => {
+	it('rejects a second create of the same name (plugin-vs-plugin)', () => {
 		mintCommandId('callout.setKind');
-		expect(() => mintCommandId('callout.setKind')).toThrow(/already minted/i);
+		expect(() => mintCommandId('callout.setKind')).toThrow(/already taken/i);
 	});
 
-	it('lets the same owner re-mint a name (one command shared across its kinds)', () => {
-		// The registry key is composite (kind, name), so one name across several of a
-		// plugin's own kinds is coherent and the re-mint returns the brand, not a throw.
-		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
-		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
+	it('lets the same owner re-create a name (one command shared across its kinds)', () => {
+		// The registry key is (kind, name), so one name used across several of a plugin's own kinds
+		// is fine, and asking again returns the branded id rather than throwing.
+		asPlugin('callouts', () => {
+			expect(mintCommandId('callout.toggle')).toBe('callout.toggle');
+			expect(mintCommandId('callout.toggle')).toBe('callout.toggle');
+		});
 	});
 
 	it('still throws cross-plugin, naming the prior owner', () => {
-		mintCommandId('callout.toggle', 'callouts');
-		expect(() => mintCommandId('callout.toggle', 'intruder')).toThrow(
-			/already minted by plugin "callouts"/
+		asPlugin('callouts', () => void mintCommandId('callout.toggle'));
+		expect(() => asPlugin('intruder', () => void mintCommandId('callout.toggle'))).toThrow(
+			/already taken by plugin "callouts"/
 		);
 	});
 
-	it('throws on an unattributed re-mint (no installing plugin)', () => {
-		mintCommandId('callout.toggle', null);
-		expect(() => mintCommandId('callout.toggle', null)).toThrow(/already minted/i);
+	it('throws on an unattributed re-create (no installing plugin)', () => {
+		mintCommandId('callout.toggle');
+		expect(() => mintCommandId('callout.toggle')).toThrow(/already taken/i);
 	});
 
 	it('rejects a name colliding with a built-in command id', () => {

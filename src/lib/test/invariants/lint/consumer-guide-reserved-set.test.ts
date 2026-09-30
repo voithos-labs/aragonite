@@ -1,8 +1,8 @@
 /**
- * The consumer guide's § Which shortcuts the editor consumes pastes a sample of
- * `reservedChords()` and then makes a claim about what the set never holds. Both are contracts a
- * host builds its accelerator map on, and neither is inside the shortcut table, so the chord
- * lint next door never reads them.
+ * The consumer guide's § Which shortcuts the editor consumes pastes a sample of `reservedChords()`
+ * and then makes a claim about what the set never holds. Both are contracts a host builds its
+ * accelerator map on, and neither is inside the shortcut table, so the chord lint beside this one
+ * never reads them.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -57,7 +57,7 @@ describe('consumer-guide § Which shortcuts the editor consumes ↔ reservedChor
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
 // An empty sample, an empty claim or an empty live set lets both assertions pass on nothing.
 
-describe('reserved-set readers — self-tests', () => {
+describe('reserved-set readers: self-tests', () => {
 	it('reads a real sample, a real claim and a real set', () => {
 		expect(section).not.toBe('');
 		expect(sampled.length).toBeGreaterThan(8);

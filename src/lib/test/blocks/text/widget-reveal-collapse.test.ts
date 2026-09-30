@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-//
-// Reveal COLLAPSE scoping, driven through the real createWidgetInteraction over a mounted
-// two-widget math DOM — sibling of widget-reveal-commit.test.ts, which pins the commit/undo
-// contract. Collapse is selection-containment-scoped, not blur-scoped: a caret leaving the
-// revealed source while staying inside the block folds it, and a click on a second widget folds
-// the first and reveals the second as one sequenced gesture instead of dying on the active guard.
+// When a shown source is hidden again, through the real `createWidgetInteraction` over two math
+// widgets (commit and undo rules are `widget-reveal-commit.test.ts`). A caret leaving the source
+// within the block hides it, and a click on a second widget hides the first and shows the second
+// as one sequence.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -14,10 +13,11 @@ import {
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
-// "One $a^1$ two $b^2$ end" as TextEditableBlock renders it: two atomic islands
+// "One $a^1$ two $b^2$ end" as TextEditableBlock renders it: two atomic widgets
 // between three real text nodes. Children: [prose, widgetA, prose, widgetB, prose].
 function mountTwoMathBlock() {
 	const { el, node, widgets, inlineWidgets } = mountWidgetBlock(
@@ -45,9 +45,9 @@ function mountTwoMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: (...args: unknown[]) => {
-						commits.push(args);
-					}
+					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+						commits.push([index, raw, before, after])
+					)
 				},
 				focusActions: new Proxy({}, { get: trap }),
 				setPendingCursor: (offset: number | null) => {
@@ -60,11 +60,11 @@ function mountTwoMathBlock() {
 		)
 	);
 
-	// Entry from the trailing edge opens the reveal at that edge (the Obsidian model, no
-	// select-then-Enter); enterWidget runs startReveal's synchronous prefix before it returns.
+	// Entering from the trailing edge shows the source at that edge, as Obsidian does, with no
+	// select-then-Enter; `enterWidget` runs the synchronous part of `startReveal` before it returns.
 	async function revealFirst(): Promise<void> {
 		interaction.enterWidget(first, true);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 	}
 
 	return {
@@ -86,7 +86,7 @@ function mountTwoMathBlock() {
 	};
 }
 
-describe('foldRevealIfSelectionEscaped — containment scope', () => {
+describe('foldRevealIfSelectionEscaped: containment scope', () => {
 	it('folds identity-exact, without a CST commit, when the caret leaves the source in-block', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
@@ -94,23 +94,23 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
-		// Identity, not equivalence: the very element the reveal detached returns to its slot. Boolean
-		// form deliberately: a `.toBe(domNode)` diff would trip Svelte's `$state` trap and mask it.
+		// The very element that was detached returns; a boolean, since a `.toBe(domNode)` diff
+		// would trip Svelte's `$state` proxy.
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 
-	it('leaves the escaped caret alone — no pending-cursor override', async () => {
+	it('leaves the escaped caret alone: no pending-cursor override', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
 		b.pendingCursors.length = 0;
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.pendingCursors).toEqual([]);
 		const sel = window.getSelection()!;
@@ -124,7 +124,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		placeCaretAt(b.sourceNode(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 	});
@@ -136,38 +136,38 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 1);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 		expect(b.commits).toEqual([]);
 	});
 
-	it('holds a reveal still settling — the fold window between showSource and placeCaret', async () => {
+	it('holds a reveal still settling: the fold window between showSource and placeCaret', async () => {
 		const b = mountTwoMathBlock();
-		// The click's own queued selectionchange lands after showSource swapped but before placeCaret
-		// moves into the source, so an unguarded containment check folds the opening reveal.
+		// The click's own queued selectionchange lands after showSource swapped but before
+		// placeCaret moves into the source, so an unchecked containment test would hide it again.
 		placeCaretAt(b.trailingText(), 2);
-		const settling = b.revealFirst(); // NOT awaited: parked at the pre-placeCaret tick
+		const settling = b.revealFirst(); // not awaited: left at the tick before placeCaret
 
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		await settling;
 
 		expect(b.interaction.isRevealing()).toBe(true);
 		expect(b.el.childNodes[1].nodeType).toBe(Node.TEXT_NODE);
 		expect(b.el.childNodes[1].textContent).toBe('$a^1$');
 
-		// Settled: the same escape folds normally again.
+		// Once settled, the same exit hides the source normally again.
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });
 
-describe('reveal switch — clicking widget B while A is revealed', () => {
-	// The owned click dispatch folds A in place and reveals B as one sequence,
-	// instead of dying on the active guard; no selectionchange competes with it.
+describe('reveal switch, clicking widget B while A is revealed', () => {
+	// The editor's own click handling hides A in place and shows B as one sequence,
+	// rather than stopping because one is already shown; no selectionchange competes.
 	it('folds A and reveals B in one sequenced gesture through the click dispatch', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();

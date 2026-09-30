@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import {
@@ -7,16 +7,11 @@ import {
 	isBlockComponentRegistered
 } from '../../schema/block-component-registry';
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const fakeComponent = (() => {}) as unknown as Parameters<typeof defineBlockComponent>[0];
 
 describe('registration probes', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('reports a built-in kind as registered and an unknown name as not', () => {
 		expect(isBlockKindRegistered('paragraph')).toBe(true);
 		expect(isBlockKindRegistered('nope')).toBe(false);

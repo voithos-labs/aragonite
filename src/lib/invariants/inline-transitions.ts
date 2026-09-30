@@ -1,16 +1,14 @@
 /**
- * Predicates for the inline layer's transition guards (G1.25–G1.27): the widget-pool pass
- * bracket, the reveal kernel's source-length precondition, and the IME composition window.
+ * The checks behind the inline transition guards (G1.25 to G1.27): the widget pool's
+ * begin/sweep bracket, the source-length rule for a revealed construct, and the window during
+ * which an IME composition is open.
  */
 import type { InvariantViolation } from '../assert';
 
 export type PoolBracketAction = 'acquire' | 'beginPass' | 'sweep';
 
-/**
- * G1.25 — every pool mutation respects the beginPass/sweep bracket. Outside one, adoption
- * flags and pass tallies are meaningless and key-only lookup cannot tell byte-identical
- * duplicate widgets apart.
- */
+/** G1.25: every pool change happens between `beginPass` and `sweep`; outside that bracket a
+ *  lookup by key alone cannot tell two byte-identical widgets apart. */
 export function checkPoolBracket(
 	passOpen: boolean,
 	action: PoolBracketAction
@@ -19,7 +17,7 @@ export function checkPoolBracket(
 		return passOpen
 			? {
 					code: 'begin-unswept',
-					message: 'beginPass while a bracket is already open — the previous pass was never swept'
+					message: 'beginPass while a bracket is already open: the previous pass was never swept'
 				}
 			: null;
 	}
@@ -28,19 +26,17 @@ export function checkPoolBracket(
 		? {
 				code: 'acquire-outside-bracket',
 				message:
-					'acquire outside a beginPass/sweep bracket — adoption is only meaningful inside a rebuild pass'
+					'acquire outside a beginPass/sweep bracket: adoption is only meaningful inside a rebuild pass'
 			}
 		: {
 				code: 'sweep-outside-bracket',
 				message:
-					'sweep without an open bracket — nothing was adopted, so it would destroy every live widget'
+					'sweep without an open bracket, nothing was adopted, so it would destroy every live widget'
 			};
 }
 
-/**
- * G1.26 (kernel leg) — a reveal's source bytes span exactly its [sourceStart, sourceEnd)
- * range; a mismatch shifts every raw offset outside the source, desyncing the offset walk.
- */
+/** G1.26, the shared editable core's half: a revealed construct's source bytes span exactly
+ *  `[sourceStart, sourceEnd)`, or every raw offset after the source shifts. */
 export function checkRevealSourceLength(
 	sourceLength: number,
 	sourceStart: number,
@@ -54,15 +50,12 @@ export function checkRevealSourceLength(
 	};
 }
 
-/**
- * G1.27 — a compositionend lands only inside a composition the surface saw start. Browsers
- * pair the events per element, so an unpaired end means a consumer wired `compositionend`
- * without `compositionstart` and every composition keystroke reached the CST mid-IME.
- */
+/** G1.27: a `compositionend` arrives only inside a composition the element saw start, so an
+ *  unpaired end means `compositionstart` was never wired and IME keystrokes reached the tree. */
 export function checkCompositionEndPaired(composing: boolean): InvariantViolation | null {
 	if (composing) return null;
 	return {
 		code: 'end-without-start',
-		message: 'compositionend with no open composition — the surface never saw compositionstart'
+		message: 'compositionend with no open composition: the surface never saw compositionstart'
 	};
 }

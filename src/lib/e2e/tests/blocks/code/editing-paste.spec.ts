@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('code block paste — fence bumping', () => {
+test.describe('code block paste: fence bumping', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -16,8 +16,8 @@ test.describe('code block paste — fence bumping', () => {
 		// where writes are refused.
 		await editor.focusBlock(0, 9);
 
-		// The run has to be a LINE to threaten the fence, so an inline `` ```pasted code``` `` is
-		// ordinary body text.
+		// The run has to be on its own line to threaten the fence, so an inline
+		// `` ```pasted code``` `` is ordinary body text.
 		await editor.seedClipboard('\n```\npasted code\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('pasted code');

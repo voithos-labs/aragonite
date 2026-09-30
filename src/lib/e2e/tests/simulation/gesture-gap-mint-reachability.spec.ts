@@ -7,9 +7,9 @@ import { assertStructuralIntegrity } from '../../simulation/invariants';
 import { mintAtGap } from '../../simulation/gestures/structure';
 import { makeSimContext } from './helpers';
 
-// Reachability self-tests: each asserts a real paragraph appeared AT the boundary, since a
-// gesture that quietly entered the block below would be an invisible hole in the corruption
-// oracle. The negative case proves the ineligible-boundary guard fails loud.
+// Each case checks that a real paragraph appeared at the boundary, since a gesture that
+// quietly typed into the block below would be an invisible hole in the coverage. The last case
+// shows the gesture throws at a boundary it cannot use.
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const FENCE = '```\ncode\n```\n';
@@ -22,7 +22,7 @@ function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
 }
 
-test.describe('sim gesture reachability: gap mint', () => {
+test.describe('sim gesture reachability: gap create', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -52,21 +52,20 @@ test.describe('sim gesture reachability: gap mint', () => {
 		await assertStructuralIntegrity(ctx);
 	});
 
-	// The gesture's own guard, not the editor's: at an ineligible boundary the Backspace
-	// merges as it always did, and a gesture that recorded that as a mint would be coverage
-	// for nothing.
+	// The gesture's own check: at a boundary it cannot use, Backspace merges as usual, and a gesture
+	// that recorded that as a new block would cover nothing.
 	test('a boundary neither neighbour declares fails loudly', async ({ page }) => {
 		await editor.loadContent(PARA_THEN_FENCE);
 
 		await expect(mintAtGap(await makeCtx(page, editor), 1, 'Q')).rejects.toThrow(
-			/parked no gap caret/
+			/no gap caret there/
 		);
 	});
 });
 
-// The opaque-container tier (#93): the boundary needs the arrow-up arrival, because a chrome
-// container's first-leaf Backspace is a deliberate no-op rather than an edge fallback.
-test.describe('sim gesture reachability: gap mint between opaque containers', () => {
+// Opaque containers: the caret arrives by arrow-up, because Backspace on the first child of a
+// container with a title row does nothing on purpose.
+test.describe('sim gesture reachability: gap create between opaque containers', () => {
 	const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 	const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
 	/** admonition, admonition, paragraph: the eligible boundary is 1. */
@@ -79,7 +78,7 @@ test.describe('sim gesture reachability: gap mint between opaque containers', ()
 		await editor.loadContent(TWO_CALLOUTS);
 	});
 
-	test('the arrow-up arrival mints a paragraph between the two callouts', async ({ page }) => {
+	test('the arrow-up arrival creates a paragraph between the two callouts', async ({ page }) => {
 		const ctx = await makeSimContext(page, editor, 'reach-opaque');
 
 		await mintAtGap(ctx, 1, 'Q', { arrival: 'arrow-up' });
@@ -89,11 +88,11 @@ test.describe('sim gesture reachability: gap mint between opaque containers', ()
 		await assertStructuralIntegrity(ctx);
 	});
 
-	// Backspace at the callout's title no-ops by design, so the default arrival must fail
-	// loud here rather than record chrome coverage as a mint.
+	// Backspace on the callout's title does nothing by design, so arriving that way must throw
+	// here rather than record it as a new block.
 	test('the backspace arrival fails loudly at a chrome-container boundary', async ({ page }) => {
 		await expect(
 			mintAtGap(await makeSimContext(page, editor, 'reach-opaque'), 1, 'Q')
-		).rejects.toThrow(/parked no gap caret/);
+		).rejects.toThrow(/no gap caret there/);
 	});
 });

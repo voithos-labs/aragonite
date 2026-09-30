@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * The katex adapter — the engine half of the core/adapter split, reached through the
- * `@voithos-labs/aragonite/plugins/latex/renderer` subpath. Anything that needs a real katex render
- * lives here; the engine-free memo seam is proven in `math-renderer.test.ts`.
+ * The KaTeX adapter, reached through the `@voithos-labs/aragonite/plugins/latex/renderer`
+ * subpath. Anything that needs a real KaTeX render lives here; the caching layer above it is
+ * proven in `math-renderer.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
 import { katexRenderer } from '$lib/plugins/latex/renderer';
@@ -18,10 +18,8 @@ describe('katexRenderer', () => {
 		expect(dom.querySelector('.katex-mathml')).not.toBeNull();
 	});
 
-	// A5 — invalid math surfaces as an ERROR the reader can see and explain, never KaTeX's bare
-	// `.katex-error` strip: the source itself, painted as an error, with the parser's message
-	// on hover. This adapter-level proof is A5's primary guard; latex-acceptance.spec.ts ties it
-	// to the live widget-build path in a browser.
+	// Invalid math shows as its source painted as an error, with the parser's message on hover,
+	// never KaTeX's bare `.katex-error` run; latex-acceptance.spec.ts covers the live widget.
 	it('renders invalid math as its source marked as an error, with the message on hover (A5)', () => {
 		const source = '\\frac{';
 		const { dom, error } = katexRenderer(source, { display: false });

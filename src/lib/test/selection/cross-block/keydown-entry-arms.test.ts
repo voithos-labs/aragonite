@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
-//
-// The two arms that run while cross-block mode is NOT yet active, plus the compositionstart half
-// the same factory returns. Ctrl+A is a two-press ladder keyed off a count on SelectionState, so a
-// press that forgot to increment leaves it stuck at one block. compositionstart has no beforeinput
-// to gate on: an active range must be deleted SYNCHRONOUSLY or composed text lands on a stale one.
+// The two branches that run while cross-block mode is not yet active, plus compositionstart.
+// Ctrl+A escalates over two presses counted on `SelectionState`, so a press that forgot to count
+// leaves it stuck at one block; compositionstart has no beforeinput to wait for, so an active range
+// must be deleted synchronously or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { takeDevWarns } from '../../support/warn-gate';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
-describe('cross-block keydown — Ctrl+A ladder', () => {
+describe('cross-block keydown: Ctrl+A priority order', () => {
 	it('first press selects within the block, without entering cross-block mode', async () => {
 		const env = makeKeydownEnv(SOURCE);
 
@@ -40,7 +41,7 @@ describe('cross-block keydown — Ctrl+A ladder', () => {
 		expect(env.selection.focus?.path).toEqual([2]);
 	});
 
-	// Ctrl+Shift+A is a different chord and must not ladder.
+	// Ctrl+Shift+A is a different chord and must not count as a second press.
 	it('ignores the shifted chord', async () => {
 		const env = makeKeydownEnv(SOURCE);
 
@@ -52,7 +53,7 @@ describe('cross-block keydown — Ctrl+A ladder', () => {
 	});
 });
 
-describe('cross-block keydown — compositionstart', () => {
+describe('cross-block keydown: compositionstart', () => {
 	it('deletes the active range synchronously and reports it handled', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
@@ -71,27 +72,29 @@ describe('cross-block keydown — compositionstart', () => {
 		expect(env.source()).toBe(SOURCE);
 	});
 
-	it('declines in reading mode, deleting nothing', () => {
+	// Miss-analysis: only the arm's own reading-mode check was tested, never the delete's refusal.
+	it('forced in reading mode, where nothing can compose, deletes nothing and warns', () => {
 		const env = makeKeydownEnv(SOURCE, { presentationMode: 'reading' });
 		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
 
-		expect(env.keydown.handleCompositionStart()).toBe(false);
+		env.keydown.handleCompositionStart();
 
 		expect(env.source()).toBe(SOURCE);
-		expect(env.selection.isCrossBlock).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 
-	// Both ephemeral caret states reset unconditionally, before the range check: a composition is
-	// an edit, so neither a column captured by an earlier vertical arrow nor the side an earlier
-	// arrival recorded may survive it.
-	it('resets the sticky column and the edge affinity even when it declines', () => {
+	// Both transient caret states reset before the range check: a composition is an edit, so no
+	// column from an earlier vertical arrow and no side an earlier placement recorded survives it.
+	it('forgets the column, the side and the marks even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
-		env.stickyColumn.capture(asEditorX(600));
-		env.edgeAffinity.note({ key: 'ArrowRight', altKey: false });
+		env.caretMemory.captureColumn(asEditorX(600));
+		env.caretMemory.noteKey({ key: 'ArrowRight' }, null);
+		env.caretMemory.pendingMarks.toggle('strong');
 
 		env.keydown.handleCompositionStart();
 
-		expect(env.stickyColumn.get()).toBeNull();
-		expect(env.edgeAffinity.get()).toBeNull();
+		expect(env.caretMemory.column()).toBeNull();
+		expect(env.caretMemory.side()).toBeNull();
+		expect(env.caretMemory.pendingMarks.get()).toBeNull();
 	});
 });

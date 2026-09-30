@@ -3,15 +3,14 @@ import { test, expect } from '../../fixtures';
 import { MermaidPage } from './mermaid-helpers';
 
 /**
- * Opening a diagram's source at the document's END must not cost the reader more scroll than
- * the swap's own height loss (requirements/plugins/mermaid-source-scroll.md). The tall render
- * gives way to a short card, and the transient layout the card passes through on its way to its
- * fitted height is where a scrollport already at its bottom clamps too far.
+ * Opening a diagram's source at the end of the document must not move the user further than the
+ * height the swap itself loses (requirements/plugins/mermaid-source-scroll.md). The tall render
+ * gives way to a short box, and the momentary layout that box passes through on its way to its
+ * final height is where a scroll container already at its bottom clamps too far.
  */
 
-// The showcase's own trailing diagram: tall rendered, short source. The height it loses is what
-// pulls the scrollport up, and the card's transient two-row layout is what it falls short of on
-// the way to its fitted height.
+// The showcase's trailing diagram, tall rendered and short in source: the lost height pulls the
+// scroll container up, and the box's momentary two-row layout is where it clamps too far.
 const TALL_DIAGRAM = [
 	'```mermaid',
 	'xychart-beta',
@@ -60,12 +59,12 @@ test.describe('opening a diagram source at the document end', () => {
 		await editor.loadDiagram(DOC);
 		await editor.scrollEditorTo(1e6);
 		await editor.waitForRenderFlush();
-		// The click focuses the block AND reveals the hover-gated toolbar the test presses next.
+		// The click focuses the block and brings up the hover-only toolbar the test clicks next.
 		await editor.viewport.click();
 		await editor.waitForRenderFlush();
 		before = await portGeometry(page);
-		// Only a fixture while the diagram really is a tall thing at the bottom of a scrolled
-		// document: a fixture that stopped being either passes every assertion below vacuously.
+		// This is only a fixture while the diagram really is tall and at the bottom of a scrolled
+		// document; one that stopped being either would pass every assertion below for nothing.
 		expect(before.scrollTop).toBe(before.maxScrollTop);
 		expect(before.blockBottom - before.blockTop).toBeGreaterThan(before.portHeight / 3);
 	});
@@ -83,8 +82,8 @@ test.describe('opening a diagram source at the document end', () => {
 	test('the swap costs no scroll beyond the height it removed', async ({ page }) => {
 		const after = await openSource(page);
 
-		// Sub-pixel layout makes the two deltas differ by a fraction, never by the card's
-		// unfitted shortfall.
+		// Sub-pixel layout makes the two differences vary by a fraction, never by the gap the
+		// box's momentary layout would leave.
 		expect(before.scrollTop - after.scrollTop).toBeCloseTo(
 			before.scrollHeight - after.scrollHeight,
 			0
@@ -98,5 +97,37 @@ test.describe('opening a diagram source at the document end', () => {
 		expect(after.blockBottom - after.blockTop).toBeLessThan(after.portHeight);
 		expect(after.blockTop).toBeGreaterThanOrEqual(0);
 		expect(after.blockBottom).toBeLessThanOrEqual(after.portHeight);
+	});
+});
+
+test.describe('opening a diagram source that runs off the bottom of the screen', () => {
+	test('the page stays where it was', async ({ page }) => {
+		const editor = new MermaidPage(page);
+		await editor.loadDiagram(`${PROSE}\n\n${TALL_DIAGRAM}\n\n${PROSE}\n`);
+		// The diagram's top two thirds of the way down the scroll container, its lower half past
+		// the bottom edge.
+		const top = await page.evaluate(() => {
+			const port = document.querySelector('.editor') as HTMLElement;
+			const block = document.querySelector('.mermaid-block') as HTMLElement;
+			const at = block.getBoundingClientRect().top - port.getBoundingClientRect().top;
+			return port.scrollTop + at - (port.clientHeight * 2) / 3;
+		});
+		await editor.scrollEditorTo(top);
+		const before = await portGeometry(page);
+		expect(before.blockTop).toBeGreaterThan(0);
+		expect(before.blockBottom).toBeGreaterThan(before.portHeight);
+
+		// A click in the diagram's visible top, which the toolbar needs, then its Edit control.
+		const box = (await editor.viewport.boundingBox())!;
+		await page.mouse.click(box.x + box.width / 2, box.y + 20);
+		await editor.waitForRenderFlush();
+		const clicked = await portGeometry(page);
+		await page.getByTestId('mermaid-edit').click();
+		await editor.textarea.waitFor({ state: 'visible' });
+		await expect(editor.textarea).toBeFocused();
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect((await portGeometry(page)).scrollTop).toBe(clicked.scrollTop);
 	});
 });

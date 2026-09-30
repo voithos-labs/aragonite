@@ -4,36 +4,33 @@ import {
 	type WholeBlockKeyDeps
 } from '$lib/editor-actions/container-block-component';
 import { displayLength } from '$lib/core/lines';
-import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { commandForKey } from '$lib/schema/commands';
+import {
+	normalizeKeybindingOverrides,
+	type KeybindingOverride
+} from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { commandContextWith } from '$lib/test/support/command-context';
 
-function makeDeps(isReading = () => false) {
+function makeDeps(isReading = () => false, keybindings: KeybindingOverride[] = []) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
 	const insertParagraph = vi.fn();
 	const moveFocus = vi.fn();
-	const stickyColumn = createStickyColumnState();
-	const edgeAffinity = createEdgeAffinityState();
+	const caretMemory = createCaretMemory();
+	const overrides = normalizeKeybindingOverrides(keybindings);
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
 		blockEdit: { splitBlock, deleteBlock, insertParagraph },
 		focus: { moveFocus },
 		isReading,
-		stickyColumn,
-		edgeAffinity
+		caretMemory,
+		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides))
 	};
-	return {
-		deps,
-		splitBlock,
-		deleteBlock,
-		insertParagraph,
-		moveFocus,
-		stickyColumn,
-		edgeAffinity
-	};
+	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -42,14 +39,15 @@ function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
 		altKey: false,
 		ctrlKey: false,
 		metaKey: false,
+		shiftKey: false,
 		...mods,
 		preventDefault: vi.fn()
 	} as unknown as KeyboardEvent;
 }
 
-/** Seeds the column the way a real vertical run does: through the door, not `capture`. */
-function seedColumn(stickyColumn: StickyColumnState, x: number): void {
-	stickyColumn.noteKey({ key: 'ArrowDown', altKey: false }, () => asEditorX(x));
+/** Sets the column the way a real vertical move does: through `noteKey`, not `captureColumn`. */
+function seedColumn(caretMemory: CaretMemory, x: number): void {
+	caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(x));
 }
 
 describe('handleWholeBlockKeys', () => {
@@ -61,10 +59,10 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).toHaveBeenCalled();
 	});
 
-	it.each(['Backspace', 'Delete'])('%s removes the block', (key) => {
+	it.each(['Backspace', 'Delete'])('%s removes the block, naming its key', (key) => {
 		const { deps, deleteBlock } = makeDeps();
 		handleWholeBlockKeys(press(key), deps);
-		expect(deleteBlock).toHaveBeenCalledWith(2);
+		expect(deleteBlock).toHaveBeenCalledWith(2, key);
 	});
 
 	it('the edit branches gate on reading mode but still consume the key', () => {
@@ -102,8 +100,7 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	// Miss-analysis: this file's own printable case asserted the drop it should have questioned —
-	// every branch was pinned except the key class with no branch at all.
+	// Miss-analysis: the printable case asserted the drop instead of questioning the missing branch.
 	it.each(['a', 'A', ' ', 'é'])('the printable %o mints a paragraph below carrying it', (key) => {
 		const { deps, insertParagraph, splitBlock, moveFocus } = makeDeps();
 		const e = press(key, { shiftKey: key === 'A' });
@@ -114,7 +111,7 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).toHaveBeenCalled();
 	});
 
-	it('the printable mint gates on reading mode but still consumes the key', () => {
+	it('the printable create gates on reading mode but still consumes the key', () => {
 		const { deps, insertParagraph } = makeDeps(() => true);
 		const e = press('a');
 		handleWholeBlockKeys(e, deps);
@@ -150,59 +147,85 @@ describe('handleWholeBlockKeys', () => {
 	});
 });
 
-// With no caret to measure, the surface routes the key through `noteKey` with no
-// measureX. Without it a column outlives a horizontal traversal and, since `capture` is
-// idempotent, the next ArrowDown in the landing block reuses the stale pixel X.
+// With no caret to measure, the block routes the key through `noteKey` with no measureX, or the
+// column outlives a horizontal move and the next ArrowDown reuses the stale pixel x.
 describe('handleWholeBlockKeys: sticky column', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	it.each(['ArrowLeft', 'ArrowRight'])(
 		'%s clears a column left by an earlier vertical run',
 		(key) => {
-			const { deps, stickyColumn } = makeDeps();
-			seedColumn(stickyColumn, 200);
-			expect(stickyColumn.get()).toBe(200);
+			const { deps, caretMemory } = makeDeps();
+			seedColumn(caretMemory, 200);
+			expect(caretMemory.column()).toBe(200);
 			handleWholeBlockKeys(press(key), deps);
-			expect(stickyColumn.get()).toBeNull();
+			expect(caretMemory.column()).toBeNull();
 		}
 	);
 
 	it.each(['ArrowUp', 'ArrowDown'])(
 		'%s preserves the column so the vertical run continues',
 		(key) => {
-			const { deps, stickyColumn } = makeDeps();
-			seedColumn(stickyColumn, 200);
+			const { deps, caretMemory } = makeDeps();
+			seedColumn(caretMemory, 200);
 			handleWholeBlockKeys(press(key), deps);
-			expect(stickyColumn.get()).toBe(200);
+			expect(caretMemory.column()).toBe(200);
 		}
 	);
 
 	it.each(['Enter', 'Backspace', 'Delete', 'a'])('%s clears the column', (key) => {
-		const { deps, stickyColumn } = makeDeps();
-		seedColumn(stickyColumn, 200);
+		const { deps, caretMemory } = makeDeps();
+		seedColumn(caretMemory, 200);
 		handleWholeBlockKeys(press(key), deps);
-		expect(stickyColumn.get()).toBeNull();
+		expect(caretMemory.column()).toBeNull();
 	});
 
 	it('Mod+X clears the column', () => {
 		vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
-		const { deps, stickyColumn } = makeDeps();
-		seedColumn(stickyColumn, 200);
+		const { deps, caretMemory } = makeDeps();
+		seedColumn(caretMemory, 200);
 		handleWholeBlockKeys(press('x', { ctrlKey: true }), deps);
-		expect(stickyColumn.get()).toBeNull();
+		expect(caretMemory.column()).toBeNull();
 	});
 
-	// Belt-and-suspenders: both callers consume the reorder chord before the shared tail,
-	// but the door declines it anyway.
+	// Both callers consume the reorder chord first, but the shared key handling still declines it.
 	it('Alt+ArrowUp (the reorder chord) neither clears nor recaptures', () => {
-		const { deps, stickyColumn } = makeDeps();
-		seedColumn(stickyColumn, 200);
+		const { deps, caretMemory } = makeDeps();
+		seedColumn(caretMemory, 200);
 		handleWholeBlockKeys(press('ArrowUp', { altKey: true }), deps);
-		expect(stickyColumn.get()).toBe(200);
+		expect(caretMemory.column()).toBe(200);
 	});
 });
 
-describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
+// The whole-block path asks the keymap what a chord does, so a rebound reorder moves with it.
+// Miss-analysis: both classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
+describe('handleWholeBlockKeys: the reorder chord follows a rebinding', () => {
+	const REBOUND: KeybindingOverride[] = [
+		{ chord: 'Alt+ArrowUp', command: null, kind: 'thematicBreak' },
+		{ chord: 'Mod+Shift+ArrowUp', command: 'block.moveUp', kind: 'thematicBreak' }
+	];
+
+	it('the freed Alt+ArrowUp classifies as an arrow and drops the pending marks', () => {
+		const { deps, caretMemory } = makeDeps(() => false, REBOUND);
+		seedColumn(caretMemory, 200);
+		caretMemory.pendingMarks.toggle('strong');
+		handleWholeBlockKeys(press('ArrowUp', { altKey: true }), deps);
+		expect(caretMemory.side()).toBe('far');
+		expect(caretMemory.pendingMarks.get()).toBeNull();
+	});
+
+	it('the new reorder chord keeps the column, the side and the marks', () => {
+		const { deps, caretMemory } = makeDeps(() => false, REBOUND);
+		seedColumn(caretMemory, 200);
+		caretMemory.pendingMarks.toggle('strong');
+		handleWholeBlockKeys(press('ArrowUp', { ctrlKey: true, shiftKey: true }), deps);
+		expect(caretMemory.column()).toBe(200);
+		expect(caretMemory.side()).toBe('near');
+		expect([...(caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
+	});
+});
+
+describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 	let writeText: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
@@ -230,7 +253,7 @@ describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
 		handleWholeBlockKeys(e, deps);
 		expect(e.preventDefault).toHaveBeenCalled();
 		expect(writeText).toHaveBeenCalledWith('---');
-		await vi.waitFor(() => expect(deleteBlock).toHaveBeenCalledWith(2));
+		await vi.waitFor(() => expect(deleteBlock).toHaveBeenCalledWith(2, 'cut'));
 	});
 
 	it('Mod+X in reading mode still copies but deletes nothing', async () => {

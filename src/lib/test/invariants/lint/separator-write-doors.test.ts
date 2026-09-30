@@ -1,9 +1,8 @@
 /**
- * Every splice settles its separators through the funnel, so no module writes a sibling's
- * `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure mode is silent: byte
- * round-trip stays green while the document reloads to a different block count. Name-level set
- * equality with a reason per exemption, so splice site N+1 fails at birth rather than at the
- * next audit.
+ * Every splice recomputes its blank-line separators through the one shared function, so no module
+ * writes a sibling's `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure is
+ * silent: byte round-trip stays green while the document reloads to a different block count, so
+ * each exemption states a reason and the next splice site fails the moment it is written.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,13 +10,13 @@ import {
 	balancedBlock,
 	collectEditorSources,
 	readEditorFile,
-	stripComments,
 	type SourceFile
 } from './scan-source';
+import { probeFile } from './file-rule';
 
 /**
- * Files that may assign an existing node's `leadingTrivia`. A mint's own `leadingTrivia:`
- * property is a fresh node, not a separator anybody was relying on, and is not a write.
+ * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
+ * being created is a fresh node, not a separator anybody relied on, so it is not a write.
  */
 const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/settle.ts': 'the settle doors and the two funnel entries live here',
@@ -28,12 +27,10 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/node-primitives.ts': 'the same carry, for a replacement built elsewhere',
 	'src/lib/tree-operations/reorder.ts':
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
-	'src/lib/tree-operations/blockquote.ts':
-		'head normalization inside a built subtree: a body head separates from nothing',
 	'src/lib/tree-operations/container-lift.ts':
-		'same head normalization, plus the line that stood between the two lifted halves inside the container moving out with them',
+		'head normalization inside a built subtree (a body head separates from nothing), plus the line that stood between the two lifted halves inside the container moving out with them',
 	'src/lib/tree-operations/list/list-builders.ts':
-		'same head normalization, per assembled half and per split-built trailing half',
+		'head normalization inside a built subtree, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/item-partition.ts':
@@ -45,10 +42,12 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',
-	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half'
+	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half',
+	'src/lib/tree-operations/chain-rebuild.ts':
+		'a node whose bytes read as several blocks carries its line onto the first of them'
 };
 
-/** Files that may name a settle door rather than reaching it through the funnel. */
+/** Files that may name one of those functions directly rather than the shared one. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/settle.ts': 'defines them, and the funnel entries beside them',
 	'src/lib/tree-operations/reorder.ts':
@@ -66,12 +65,11 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
 
-const writesTrivia = (file: SourceFile): boolean =>
-	/\.leadingTrivia\s*\+?=(?!=)/.test(stripComments(file.text));
+const writesTrivia = (file: SourceFile): boolean => /\.leadingTrivia\s*\+?=(?!=)/.test(file.code);
 
 const namesHandSettle = (file: SourceFile): boolean =>
 	/(?<![\w'"])(clearRedundantSeparator|dropDoubledSeparator|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSeparatorOnBlank|settleSublistSeparator)\b/.test(
-		stripComments(file.text)
+		file.code
 	);
 
 function census(
@@ -87,21 +85,21 @@ function census(
 	).toEqual(Object.keys(allowed).sort());
 }
 
-describe('separator-write-door census', () => {
+describe('separator-write entry-point census', () => {
 	const sources = collectEditorSources();
 
 	it('the files writing a sibling leadingTrivia are the declared ones', () => {
 		census(sources, writesTrivia, TRIVIA_WRITERS);
 	});
 
-	it('the files calling a settle door by hand are the declared ones', () => {
+	it('the files calling a settle entry point by hand are the declared ones', () => {
 		census(sources, namesHandSettle, HAND_SETTLE_CALLERS);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the trivia matcher sees both write forms and skips mints, reads and comments', () => {
-		const probe = (text: string) => writesTrivia({ relPath: 'x', text, code: '' });
+	it('the blank-line matcher sees both write forms and skips creates, reads and comments', () => {
+		const probe = (text: string) => writesTrivia(probeFile({ relPath: 'x', code: text }));
 		expect(probe("node.leadingTrivia = '';")).toBe(true);
 		expect(probe('children[i].leadingTrivia += lineEnding;')).toBe(true);
 		expect(probe("{ kind: 'paragraph', leadingTrivia: '', raw }")).toBe(false);
@@ -110,38 +108,34 @@ describe('separator-write-door census', () => {
 	});
 
 	it('the hand-settle matcher sees a call and an import, and skips prose', () => {
-		const probe = (text: string) => namesHandSettle({ relPath: 'x', text, code: '' });
+		const probe = (text: string) => namesHandSettle(probeFile({ relPath: 'x', code: text }));
 		expect(probe('restoreSeparatorOnFill(parent, i + 1, sharing);')).toBe(true);
 		expect(probe("import { dropDoubledSeparator } from '../tree-operations';")).toBe(true);
 		expect(probe('// dropDoubledSeparator is the run-level twin')).toBe(false);
 	});
 
 	it('an undeclared file writing leadingTrivia fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/tree-operations/rogue.ts',
-			text: "children[at].leadingTrivia = '\\n';",
-			code: ''
-		};
+			code: "children[at].leadingTrivia = '\\n';"
+		});
 		const writers = [...sources, rogue].filter(writesTrivia).map((f) => f.relPath);
 		expect(writers.sort()).not.toEqual(Object.keys(TRIVIA_WRITERS).sort());
 	});
 });
 
-// ── The retire parity, inside the doors’ own file ─────────────────────────
+// ── The span drop, inside those functions’ own file ───────────────────────
 
-/**
- * A settle door rewrites bytes the owner's child spans describe, so it retires them
- * (`schema/child-spans.ts`). The censuses above fix which FILES may write a separator; this one
- * fixes which FUNCTIONS may, and every one of them answers for the retire. Door N+1 is born
- * failing this rather than waiting for a sweep case to reach it.
- */
+/** A function writing a separator rewrites bytes the owner's child spans describe, so it must drop
+ *  those spans (`schema/child-spans.ts`); the lists above fix the files, this one the functions. */
 const DOORS_FILE = 'tree-operations/settle.ts';
 
-/** The files that inherited node-ops’ other separator carries, held to the same parity. */
+/** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
 	'tree-operations/node-ops.ts',
 	'tree-operations/content-write.ts',
-	'tree-operations/node-primitives.ts'
+	'tree-operations/node-primitives.ts',
+	'tree-operations/chain-rebuild.ts'
 ];
 
 /** Every `function name(` body in `code`, braces balanced. */
@@ -157,18 +151,16 @@ function functionBodies(code: string): { name: string; body: string }[] {
 	return out;
 }
 
-/** A write to a sibling’s separating line, or to a wrap slot the spans do not cover. */
+/** A write to a sibling’s separating line, or to a wrap field the spans do not cover. */
 const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix))\s*\+?=(?!=)/;
 
-describe('every separator door retires the child spans it invalidates', () => {
+describe('every separator entry point retires the child spans it invalidates', () => {
 	const doors = [DOORS_FILE, ...CARRY_FILES]
 		.flatMap((file) => functionBodies(readEditorFile(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/**
-	 * Every settle door by name: each retires FIRST, before its own guards. A retire that has
-	 * slid below an early return is a door that stops retiring on the paths that take it.
-	 */
+	/** The separator writers in the shared file, each of which drops the spans first, since a drop
+	 *  below an early return is skipped on the paths that take it. */
 	const DOORS = [
 		'clearRedundantSeparator',
 		'dropDoubledSeparator',
@@ -180,7 +172,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 		'handDownVacatedSeparator'
 	];
 
-	it('every named door retires the spans first, one red per door', () => {
+	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
 			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
 		);
@@ -189,12 +181,12 @@ describe('every separator door retires the child spans it invalidates', () => {
 		);
 		expect(
 			forgot,
-			'a settle door stopped retiring the child spans it invalidates, or retires past a guard'
+			'a settle entry point stopped retiring the child spans it invalidates, or retires past a guard'
 		).toEqual([]);
 		expect(DOORS.filter((name) => !bodies.has(name))).toEqual([]);
 	});
 
-	it('found the doors (not vacuous)', () => {
+	it('found the entry points (not vacuous)', () => {
 		expect(doors.map((fn) => fn.name).sort()).toEqual(
 			expect.arrayContaining([
 				'clearRedundantSeparator',
@@ -205,20 +197,19 @@ describe('every separator door retires the child spans it invalidates', () => {
 		);
 	});
 
-	/**
-	 * Writers that answer for the spans some other way, each with the reason. Two are reached
-	 * only from doors that retire before dispatching; the rest write a MINT’s own line, or write
-	 * one inside a splice that moves the child count, which refuses the next region rewrite.
-	 */
+	/** Writers that account for the spans some other way, each with its reason: a caller drops them
+	 *  first, the node is new, or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
-		mintSeparator: 'reached only from the three doors that retire first',
+		mintSeparator:
+			'reached only from the three entry points and separateTableFollower, which all retire first',
 		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',
 		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
 		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
-		reclassifyContainer: 'carries the line onto the replacement, byte for byte',
+		installReplacement: 'carries the line onto the replacement, byte for byte',
+		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
 
@@ -229,7 +220,7 @@ describe('every separator door retires the child spans it invalidates', () => {
 			.map((fn) => fn.name);
 		expect(
 			missing,
-			'a settle door writes separator bytes without retiring the spans that describe them'
+			'a settle entry point writes separator bytes without retiring the spans that describe them'
 		).toEqual([]);
 	});
 

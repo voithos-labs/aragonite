@@ -1,34 +1,39 @@
-# Feature: Opening a diagram's source keeps the reader's place
+# Feature: Opening a diagram's source keeps the user's place
 
-A rendered diagram is tall and its source card is short, so opening the source removes height
-from the document. At the document's END the scrollport is already at its maximum, and the
-removal necessarily scrolls it up by exactly what was removed, but by no more than that. The
+A rendered diagram is tall and its source card is short, so opening the source takes height out
+of the document. At the end of the document the scroll container is already at its maximum, so
+the removal necessarily scrolls it up by exactly what was removed, and by no more than that. The
 card the user just asked for stays fully in view.
 
 Fixture (loaded per test): forty filler paragraphs, then the showcase's own `xychart-beta`
-diagram as the last block, scrolled to the bottom and focused. The fixture is load-bearing: a
-diagram whose SOURCE is long enough to leave the card below the fold does NOT reproduce, because
-`focus()` on the textarea then scrolls it into view and rescues the position by accident. The
-defect is invisible in exactly the geometries where the card is large.
+diagram as the last block, scrolled to the bottom and focused. The fixture matters: the defect is
+invisible where the source card is large, since the card then fills the space the swap freed.
+The textarea's focus scrolls nothing either way; where the card opens is the kept position's job.
 
 ## Happy paths
 
-- Clicking the toolbar Edit control scrolls the port up by exactly the height the swap removed,
-  leaving it at its new maximum. The card's fitted height is the document's, not the height the
-  textarea passes through on its way there
-- The source card is fully inside the scrollport afterwards: top at or below the port's top,
-  bottom at or above the port's bottom
+- Clicking the toolbar's Edit control scrolls the container up by exactly the height the swap
+  removed, leaving it at its new maximum. The height it settles at is the document's, not a
+  height the textarea passes through on its way there
+- The source card is fully inside the scroll container afterwards: its top at or below the
+  container's top, its bottom at or above the container's bottom
+- A diagram in the middle of a longer document, its lower half past the bottom edge: opening the
+  source leaves the scroll position exactly where it was. Miss-analysis: every source-open test
+  sat at the document's end, so nothing pinned that the textarea's focus after the kept position
+  moves nothing
 
 ## Edge cases
 
-- The precondition each test asserts before acting: the port really is at its maximum, the
-  rendered diagram really is taller than a third of the port, and the swap really did shrink the
-  document, so a fixture that stopped being tall or stopped being at the end fails loudly
-  instead of passing vacuously
+- Each test asserts its preconditions before acting: the container really is at its maximum, the
+  rendered diagram really is taller than a third of it, and the swap really did shrink the
+  document, so a fixture that stops being tall or stops being at the end fails loudly instead of
+  passing for want of anything happening
 
 ## Miss-analysis
 
 - 2026-09 (#325): every mermaid spec loaded a three-block document that fits in the viewport, so
-  no test ever opened a source under a scrollport that had somewhere to fall. The generalized
-  gap: a render-primary block's view swap was only ever driven with the scroll position out of
-  play, so the transient layout between mount and fitted height was invisible to the suite.
+  no test ever opened a source under a scroll container with somewhere to fall. The general gap
+  is that a render-primary block's view swap was only ever driven with the scroll position out
+  of play, so the layout in between the mount and the final height was invisible to the suite.
+- 2026-09: the forty paragraphs above sit under the size where windowing turns on, so this file
+  never saw the long-document case; `view-swap-end-scroll.md` covers it

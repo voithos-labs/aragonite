@@ -1,7 +1,7 @@
 /**
- * Composer for container nestedActions bundles. HistoryActions is deliberately
- * absent: containers never override history, and Svelte context delivers the
- * document-level HISTORY_KEY to any descendant.
+ * Builds a container's action bundle. HistoryActions is left out on purpose: containers
+ * never override history, and Svelte context delivers the document-level HISTORY_KEY to
+ * every descendant.
  */
 
 import { setContext } from 'svelte';
@@ -12,22 +12,16 @@ import type {
 	ListContext
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { GrammarView } from '../../schema/block-openers';
-import {
-	BLOCK_EDIT_KEY,
-	CONTAINER_EDIT_KEY,
-	FOCUS_KEY,
-	HISTORY_KEY,
-	type PresentationModeGetter
-} from '../../editor-keys';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { ChildList } from '../../reactivity/child-list';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';
-import type { InlineResolverRef } from '../../schema/inline-construct-policy';
+import type { Reading } from '../../schema/reading';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -36,33 +30,31 @@ export interface NestedActionsBundle {
 }
 
 /**
- * The three container coordinates every nested factory reads live. A component mints
- * ONE of these and passes it BY REFERENCE to each factory it wires — never spread,
- * which invokes the getters and captures stale values.
+ * The three container coordinates every nested factory reads live. A component creates one
+ * of these and passes it by reference to each factory it wires, never spread: spreading
+ * calls the getters and captures stale values.
  */
 export interface NodeScope {
 	get index(): number;
 	get node(): NodeView;
-	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
+	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	get path(): number[];
 }
 
 export interface NestedActionsDeps {
 	index: number;
 	node: NodeView;
-	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
+	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
-	stickyColumn: StickyColumnState;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
-	 *  nested block re-parses. Absent = the global grammar. */
-	grammar?: GrammarView;
-	/** Live EFFECTIVE mode, for interior mutations whose bytes depend on what the mode paints
-	 *  (the split rebalance). Nullable rather than optional so each container answers. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, required-nullable beside the mode. */
-	linkRef: InlineResolverRef | undefined;
-	/** Enclosing list's context, when this container is a list nested in one. */
+	caretMemory: Pick<CaretMemory, 'column' | 'forget' | 'noteExtreme'>;
+	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
+	 *  switched on and a split's rebalance knows what its mode shows. */
+	reading: Reading;
+	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
+	/** This container's children as a descent reads them, so a move onto a windowed-out child
+	 *  mounts it. A headless suite omits it: with no render window, every stored ref is mounted. */
+	childList?: () => ChildList;
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
@@ -71,14 +63,14 @@ export interface NestedActionsDeps {
 }
 
 /**
- * `createStandardNestedActions`'s public input: the shared `NodeScope` by reference
- * plus the static config `NestedActionsDeps` carries.
+ * `createStandardNestedActions`'s input: the shared `NodeScope` by reference plus the static
+ * configuration `NestedActionsDeps` carries.
  */
 export type NestedActionsInput = Omit<NestedActionsDeps, 'index' | 'node' | 'path'> & {
 	scope: NodeScope;
 };
 
-/** Receives stable default bundle references; chain via `defaults.blockEdit.foo(...)`. */
+/** Receives the stable default bundle; chain through `defaults.blockEdit.foo(...)`. */
 export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 	blockEdit?: Partial<BlockEditActions>;
 	focus?: Partial<FocusActions>;
@@ -90,8 +82,8 @@ export function createStandardNestedActions(
 	input: NestedActionsInput,
 	overrideFactory?: NestedActionsOverrideFactory
 ): NestedActionsBundle {
-	// Adapt `scope` to the inline shape the sub-factories read, once at the choke point
-	// rather than at every call site. Getters stay live; destructuring would snapshot.
+	// Adapt `scope` to the shape the sub-factories read, once here rather than at every call
+	// site. Getters stay live; destructuring would snapshot.
 	const deps: NestedActionsDeps = {
 		get index() {
 			return input.scope.index;
@@ -102,31 +94,38 @@ export function createStandardNestedActions(
 		get path() {
 			return input.scope.path;
 		},
-		stickyColumn: input.stickyColumn,
-		grammar: input.grammar,
-		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef,
+		caretMemory: input.caretMemory,
+		reading: input.reading,
 		parentListContext: input.parentListContext,
+		childList: input.childList,
 		parent: input.parent
 	};
 	const blockEdit = createNestedBlockEdit(state, deps);
 	const focus = createNestedFocus(state, deps);
-	// Commit coordinates are doc-absolute at their mint point (block-edit-scope), so
+	// Commit paths are document-absolute where they are made (block-edit-scope), so
 	// intermediate containers have nothing to remap and this passes straight through.
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
-	// Above the override spread, so a container replacing `splitBlock` keeps the completion arm
-	// its subtree owes. `defaults` stays undecorated: an override chaining back into it is
-	// already past the consult, and re-entering would spend one press on two.
+	// Above the override spread, so a container replacing `splitBlock` keeps its Enter completion;
+	// `defaults` stays unwrapped, or an override chaining into it would run the check twice.
 	const childAt = (index: number) => deps.node.children?.[index];
+	const getLineEnding = () => containerEdit.lineEnding();
 	if (!overrideFactory) {
-		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt) };
+		return {
+			...defaults,
+			blockEdit: withEnterCompletion(blockEdit, childAt, deps.reading.grammar, getLineEnding)
+		};
 	}
 
 	const overrides = overrideFactory(defaults);
 	return {
-		blockEdit: withEnterCompletion({ ...blockEdit, ...(overrides.blockEdit ?? {}) }, childAt),
+		blockEdit: withEnterCompletion(
+			{ ...blockEdit, ...(overrides.blockEdit ?? {}) },
+			childAt,
+			deps.reading.grammar,
+			getLineEnding
+		),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
 	};

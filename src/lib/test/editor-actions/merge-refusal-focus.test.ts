@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
-// GH #166. Miss-analysis: no case drove Delete/Backspace across a boundary whose joined bytes
-// read as two blocks, so the doors' behaviour there was only ever the sinks' — and both sinks
-// answered wrong in silence.
+// Miss-analysis (GH #166): no case joined across a boundary whose joined bytes read as two blocks.
 
 /** Caret at the heading's end, Delete; caret at the paragraph's start, Backspace. */
 const HEADING_OVER_TWO_LINES = '# h\ntext\nmore\n';
@@ -14,7 +12,7 @@ function makeTop(source: string) {
 	const harness = makeTopHarness(source);
 	const focuses = harness.deps.doc.children.map(() => vi.fn());
 	focuses.forEach((focus, i) => {
-		harness.getBlockRefs()[i] = mockRef({ focus });
+		harness.getBlockRefs()[i] = stubBlockComponent({ focus });
 	});
 	return { ...harness, focuses };
 }
@@ -39,7 +37,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		expect(h.focuses[0]).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	it('mints no undo entry for either refusal', async () => {
+	it('creates no undo entry for either refusal', async () => {
 		const h = makeTop(HEADING_OVER_TWO_LINES);
 
 		await h.actions.mergeWithNext(0);
@@ -48,8 +46,8 @@ describe('a refused join moves the caret instead of merging', () => {
 		expect(h.deps.undoManager.canUndo).toBe(false);
 	});
 
-	// Non-vacuity: the ordinary join still merges and still seats the caret at the seam.
-	it('an ordinary forward join still merges and lands at the seam', async () => {
+	// Control: the ordinary join still merges and still puts the caret at the join.
+	it('an ordinary forward join still merges and lands at the join', async () => {
 		const h = makeTop('alpha\n\nbeta\n');
 
 		await h.actions.mergeWithNext(0);

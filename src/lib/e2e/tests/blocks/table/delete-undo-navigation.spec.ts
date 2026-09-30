@@ -23,9 +23,9 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 	test('after delete-table-then-undo, ArrowDown from above can enter the table', async ({
 		page
 	}) => {
-		// Three Ctrl+A presses: cell, table (cross-block intra-table), document.
-		// Two presses gets us the table-coverage selection that Backspace deletes.
-		await page.locator('[role="cell"]').nth(4).click();
+		// Ctrl+A steps from cell to table to document; the second gives the table-wide selection
+		// that Backspace deletes.
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
@@ -42,8 +42,8 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 		await page.keyboard.type('X');
 
 		const after = await editor.bridge.getSource();
-		// X must land somewhere inside the table — header or body. ArrowDown from
-		// above with sticky-X lands at row 0 (header) per `focusAtColumn`.
+		// X must land somewhere inside the table, header or body. ArrowDown from
+		// above with a sticky x lands at row 0, the header, per `focusAtColumn`.
 		const cells = ['A', 'B', 'C', '1', '2', '3', '4', '5', '6'];
 		const hitTable = cells.some((c) => after.includes(`| X${c}`) || after.includes(`| ${c}X`));
 		expect(hitTable, `Expected X in some table cell. Got source:\n${after}`).toBe(true);

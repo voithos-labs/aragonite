@@ -1,16 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodePaste } from '$lib/components/blocks/code/code-paste';
+import { pasteThroughWrite as paste } from './paste-through-write';
 
-type PasteArgs = Parameters<typeof computeCodePaste>[0];
+// ── code paste: no fence bump ─────────────────────────────────────────
 
-/** A closed 3-backtick fence; each case names only the fence facts it varies. */
-const paste = (
-	args: Omit<PasteArgs, 'fenceMarker' | 'fenceLength' | 'closed'> & Partial<PasteArgs>
-) => computeCodePaste({ fenceMarker: '`', fenceLength: 3, closed: true, ...args });
-
-// ── computeCodePaste: no fence bump ─────────────────────────────────────────
-
-describe('computeCodePaste — non-bumping paste', () => {
+describe('code paste: non-bumping paste', () => {
 	it('inserts plain text at a collapsed cursor', () => {
 		const result = paste({
 			display: '```\nfoo\n```',
@@ -45,17 +38,16 @@ describe('computeCodePaste — non-bumping paste', () => {
 		const result = paste({
 			display: '````\nfoo\n````',
 			selection: { start: 5, end: 5 },
-			pasted: '``',
-			fenceLength: 4
+			pasted: '``'
 		});
 		expect(result.text).toBe('````\n``foo\n````');
 		expect(result.cursor).toBe(7);
 	});
 });
 
-// ── computeCodePaste: fence bump ────────────────────────────────────────────
+// ── code paste: fence bump ────────────────────────────────────────────
 
-describe('computeCodePaste — fence bump', () => {
+describe('code paste: fence bump', () => {
 	it('bumps closed fence when the paste contains a run equal to the outer fence', () => {
 		const result = paste({ display: '```\n\n```', selection: { start: 4, end: 4 }, pasted: '```' });
 		expect(result.text).toBe('````\n```\n````');
@@ -76,15 +68,14 @@ describe('computeCodePaste — fence bump', () => {
 		const result = paste({
 			display: '```\nfoo\n',
 			selection: { start: 8, end: 8 },
-			pasted: '```',
-			closed: false
+			pasted: '```'
 		});
 		expect(result.text).toBe('````\nfoo\n```');
 		expect(result.cursor).toBe(12);
 	});
 
-	// The rule reads the LINES the paste leaves behind, not the run inside it: a run landing
-	// mid-line threatens nothing, one formed at the splice seam threatens everything.
+	// The rule reads the lines the paste leaves behind, not the run inside it: a run landing
+	// mid-line threatens nothing, one formed where the splice joins threatens everything.
 	it('leaves the fence alone when the pasted run lands mid-line', () => {
 		const result = paste({
 			display: '```\nfoo\n```',
@@ -94,7 +85,7 @@ describe('computeCodePaste — fence bump', () => {
 		expect(result.text).toBe('```\nfoo```\n```');
 	});
 
-	it('bumps for a closer run the splice FORMS against the bytes already there', () => {
+	it('bumps for a closer run the splice forms against the bytes already there', () => {
 		const result = paste({ display: '```\n`\n```', selection: { start: 4, end: 4 }, pasted: '``' });
 		expect(result.text).toBe('````\n```\n````');
 	});
@@ -112,8 +103,7 @@ describe('computeCodePaste — fence bump', () => {
 		const result = paste({
 			display: '~~~\n\n~~~',
 			selection: { start: 4, end: 4 },
-			pasted: '~~~',
-			fenceMarker: '~'
+			pasted: '~~~'
 		});
 		expect(result.text).toBe('~~~~\n~~~\n~~~~');
 	});

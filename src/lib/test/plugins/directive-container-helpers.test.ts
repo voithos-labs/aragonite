@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { chromeChild, declaredPluginKind } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw,
@@ -14,12 +13,11 @@ import {
 
 describe('createDirectiveRebuild threads the authored line ending', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 
-	// The guard the factory exists for: a hand-written copy that forgot `lineEnding`
-	// normalizes the synthesized opener and closer to `\n`.
+	// What the factory exists to prevent: a hand-written copy that forgot `lineEnding`
+	// rewrites the opener and closer it builds to `\n`.
 	it('reproduces CRLF on the opener and closer when a child edit rebuilds', () => {
 		const callout = parse(':::callout My Title\r\nBody\r\n:::\r\n').children[0];
 		callout.children![1].raw = 'edited\r\n';
@@ -49,7 +47,6 @@ describe('createDirectiveRebuild threads the authored line ending', () => {
 
 describe('chromeChild builds the reserved child-0 node', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 

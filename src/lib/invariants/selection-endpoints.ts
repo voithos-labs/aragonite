@@ -1,19 +1,19 @@
 /**
- * G1.29 — a cross-block endpoint's offset means what its block's coordinate space says: a cell
- * index on a table (a char offset there corrupts the grid through rangeDelete's generic branch),
- * a char offset inside [0, displayLength(raw)] elsewhere, and one of those two ends inside a
- * kind with no character positions (an interior one slices an opaque unit in half). Same-path
- * pairs are exempt (an intra-table rectangle's focus is unflagged by convention).
+ * G1.29: a stored endpoint's offset is read in its own block's coordinates. On a block that counts
+ * cells (a table) it is a flagged cell index inside the grid, a rectangle's corners included.
+ * Elsewhere it's a character offset inside `[0, displayLength(raw)]`, and inside a kind with no
+ * character positions one of those two ends, because anything between them cuts an opaque block.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
+import { countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { InvariantViolation } from '../assert';
 
 /**
- * Structural, NOT `selection/`'s `SelectionPoint`: no `invariants/` predicate takes a
- * dependency — runtime or type — on the selection model.
+ * A plain structural point, not `selection/`'s `SelectionPoint`: no check in `invariants/` depends
+ * on the selection model, at runtime or in its types.
  */
 export interface EndpointCoordinate {
 	readonly path: readonly number[];
@@ -31,16 +31,11 @@ function resolve(doc: DocumentView, path: readonly number[]): NodeView | null {
 	return parent === doc ? null : (parent as NodeView);
 }
 
-function samePath(a: readonly number[], b: readonly number[]): boolean {
-	return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
 export function checkCrossBlockEndpointCoordinates(
 	doc: DocumentView,
 	anchor: EndpointCoordinate,
 	focus: EndpointCoordinate
 ): InvariantViolation | null {
-	if (samePath(anchor.path, focus.path)) return null;
 	for (const [role, point] of [
 		['anchor', anchor],
 		['focus', focus]
@@ -55,14 +50,21 @@ export function checkCrossBlockEndpointCoordinates(
 	return null;
 }
 
-/** The flag's other direction: a cell index against a block with no cells reads as a character
- *  offset downstream, so the same corruption arrives from the opposite producer. */
+/** The same mistake the other way round: a cell index on a block with no cells is read further
+ *  down as a character offset, so the corruption arrives from the opposite side. */
 function checkCellCoordinate(
 	role: 'anchor' | 'focus',
 	point: EndpointCoordinate,
 	node: NodeView
 ): InvariantViolation | null {
-	if (node.kind === 'table') return null;
+	if (countsCells(node)) {
+		if (point.offset >= 0 && point.offset < tableCellCount(node)) return null;
+		return {
+			code: 'endpoint-cell-index-out-of-range',
+			message: `cross-block ${role} [${point.path.join(',')}] carries cell index ${point.offset}, outside the table's 0..${tableCellCount(node) - 1}`,
+			detail: { role, path: [...point.path], offset: point.offset }
+		};
+	}
 	return {
 		code: 'endpoint-cell-coordinate-off-table',
 		message: `cross-block ${role} [${point.path.join(',')}] carries a cell index (${point.offset}) against a "${node.kind}", which has no cells`,
@@ -77,7 +79,7 @@ function checkCharOffset(
 ): InvariantViolation | null {
 	const detail = { role, path: [...point.path], offset: point.offset };
 	const at = `cross-block ${role} [${point.path.join(',')}]`;
-	if (node.kind === 'table') {
+	if (countsCells(node)) {
 		return {
 			code: 'endpoint-cell-coordinate',
 			message: `${at} addresses a table but carries a character offset (${point.offset})`,
@@ -95,7 +97,7 @@ function checkCharOffset(
 	if (isWholeBlockUnit(node) && point.offset !== 0 && point.offset !== end) {
 		return {
 			code: 'endpoint-whole-block-offset',
-			message: `${at} carries offset ${point.offset} inside "${node.kind}", which has no character positions — only 0 and ${end} address it`,
+			message: `${at} carries offset ${point.offset} inside "${node.kind}", which has no character positions: only 0 and ${end} address it`,
 			detail
 		};
 	}

@@ -1,9 +1,8 @@
 /**
- * G1.35 — a sink holding exactly one slot installs exactly one node. Bytes that reparse to
- * several blocks are refused before the write, never truncated to the first (a line vanishes from
- * the document) and never written whole into the surviving slot (the tree stops agreeing with its
- * own reload). Arriving plural is legal; installing plural is not, and this is asked at the
- * install so a sink that forgets the refusal answers for what it actually wrote.
+ * G1.35: a write target that holds one block installs exactly one node. Bytes that reparse to
+ * several blocks are refused before the write, never cut to the first (a line would vanish) nor
+ * written whole into one position (the tree would disagree with its own reload). The check runs
+ * at the write, so the caller that skipped the refusal is the one named.
  */
 
 import type { InvariantViolation } from '../assert';

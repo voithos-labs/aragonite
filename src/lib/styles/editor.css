@@ -1,12 +1,12 @@
 /**
- * Editor structural styles: painting rules for DOM the renderers build imperatively,
- * which can't live in component <style> blocks. Every rule is wrapped in :where(.editor)
- * for zero added specificity and full namespacing. Token VALUES live in editor-theme.css;
- * host --color-* tokens are read with fallbacks here, never declared.
+ * Structural editor styles: the painting rules for DOM the renderers build in JavaScript, which
+ * cannot live in a component's <style> block. Every rule is wrapped in :where(.editor), which adds
+ * no specificity and keeps the names to the editor. The token values live in editor-theme.css;
+ * a host's --color-* tokens are read here with fallbacks, never declared.
  */
 
-/* Classes applied by code-renderer.ts; unknown ones fall through to --code-tok-unknown
- * (inherit), preserving the textContent invariant without forcing a color choice. */
+/* Classes applied by code-renderer.ts; an unknown one falls through to --code-tok-unknown
+ * (inherit), so highlighting never changes the text and never forces a color. */
 :where(.editor) .code-tok-keyword {
 	color: var(--code-tok-keyword);
 	font-weight: 600;
@@ -72,13 +72,14 @@
 	color: var(--code-tok-unknown);
 }
 
-/* Uniform selection color: single-block (native) matches cross-block (overlay) */
+/* One selection color: a selection inside one block, painted by the browser, matches one across
+   blocks, painted by the overlay. */
 :where(.editor) ::selection {
 	background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 }
 
-/* Suppress native painting so it doesn't double up with SelectionOverlay's highlights. Scoped
-   to `.block-list` because the find/replace bar is a sibling that must keep painting its own. */
+/* The browser's selection paint goes so it does not double SelectionOverlay's highlights, and only
+   in `.block-list`, since the find and replace bar beside it keeps painting its own. */
 :where(.editor)[data-cross-block] .block-list ::selection {
 	background: transparent;
 }
@@ -87,9 +88,8 @@
 	caret-color: transparent;
 }
 
-/* The whole-block editing host: invisible, but a REAL box — Chromium fires no `beforeinput` on a
-   zero-height editing host, which would silently cost it every keystroke. Click-through, so it
-   never steals a pointer from the surface it stands over; in-flight IME text paints here. */
+/* Invisible but a real box: Chromium fires no `beforeinput` on a zero-height editing element.
+   Clicks pass through, so it never takes a pointer from the block it stands over. */
 :where(.editor) .whole-block-input {
 	position: absolute;
 	top: 0;
@@ -115,7 +115,7 @@
 	cursor: pointer;
 }
 
-/* Search's marks ride the base rule above. */
+/* Search matches build on the rule above. */
 :where(.editor) .match-overlay {
 	background: var(--search-match-bg);
 }
@@ -123,26 +123,65 @@
 	background: var(--search-match-active-bg);
 }
 
-/* Non-editable chrome prepended to the host; the consumer positions it. */
+/* A non-editable badge put in front of the block; the consumer positions it. */
 :where(.editor) .decoration-badge {
 	user-select: none;
 }
 
-/* Atomic non-editable inline chrome; the source's class layers styling on top. */
+/* A list item's box is a flex row; with a badge it stacks its children instead, so the badge
+   sits above the marker and the text, as a block host's badge does, and moves neither. */
+:where(.editor) .list-item-block:has(> .decoration-badge) {
+	flex-direction: column;
+}
+/* Set per child: the item's own align-items would tie with a rule on the box. */
+:where(.editor) .list-item-block:has(> .decoration-badge) > .decoration-badge,
+:where(.editor) .list-item-block:has(> .decoration-badge) > .list-item-content {
+	align-self: stretch;
+}
+
+/* A typed kind change names the new kind at the block's corner until the fade ends. The empty
+   alternative text keeps it out of the accessibility tree, since the editor's announcer says it. */
+:where(.editor) .block-host[data-kind-cue]::after {
+	content: attr(data-kind-cue);
+	content: attr(data-kind-cue) / '';
+	position: absolute;
+	top: 0;
+	right: 0;
+	font-family: var(--font-ui);
+	font-size: 0.75em;
+	color: var(--md-kind-cue-color);
+	pointer-events: none;
+	user-select: none;
+	animation: kind-cue-fade var(--md-kind-cue-duration) ease-out forwards;
+}
+
+@keyframes kind-cue-fade {
+	0% {
+		opacity: 0;
+	}
+	10%,
+	70% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+/* A non-editable inline widget the caret cannot enter; its own class styles it on top. */
 :where(.editor) .decoration-island {
 	user-select: none;
 }
 
-/* The find bar is editor-level chrome and outranks a block affordance, so a per-block affordance
-   claiming the same top-right band yields it while the bar is open. Without this the pointer hits
-   the bar and the affordance is unreachable until search closes (#145). */
+/* The find bar outranks a per-block control, so a control in the same top-right corner moves
+   down while the bar is open, where the bar would otherwise cover it. */
 .editor:has(> .search-anchor .search-bar) .code-lang-chip {
 	top: 52px;
 }
 
 :where(.editor) .md-image-widget {
 	display: block;
-	/* Shrink-wrap so the widget matches the image, not its line-box. */
+	/* Shrink to fit, so the widget matches the image rather than its line box. */
 	width: fit-content;
 	margin: 0.5em 0;
 	user-select: none;
@@ -176,27 +215,22 @@
 :where(.editor) .md-image-widget.md-image-cropped {
 	overflow: hidden;
 	max-width: 100%;
-	/* The frame clips the picture, so the rounding belongs to it. `clip-path` alongside
-	   `overflow`, because a rounded overflow clip is the one Chromium drops when the picture
-	   inside gets its own compositing layer, and a crop is exactly when that happens. */
+	/* The frame clips the picture, so it owns the rounding. `clip-path` backs up `overflow`, whose
+	   rounded clip Chromium drops once the cropped picture gets its own compositing layer. */
 	border-radius: var(--md-image-radius);
 	clip-path: inset(0 round var(--md-image-radius));
 }
 
-/* The picture keeps its own radius rather than going square inside the frame: at zoom 1 it sits
-   exactly on the frame, so the two corners coincide, and above 1 its corners are outside the
-   frame entirely. Either way the crop cannot come out with harder corners than the plain image. */
+/* The picture keeps its radius inside the frame: at zoom 1 the corners coincide and above 1 they
+   fall outside the frame, so a crop never looks harder-cornered than the plain image. */
 :where(.editor) .md-image-widget.md-image-cropped img {
 	position: absolute;
 	max-width: none;
 	object-fit: cover;
 }
 
-/* Image-bearing list-item / blockquote paragraph: the ambient marker sits at the image's
-   bottom-left, pulled out of flow rather than laid out with `display: flex`, which leaves no
-   caret anchor past a contenteditable=false widget. The widget side of each `:has()` is a
-   descendant match, since a wrapping inline construct puts the widget one level deeper; the
-   marker side stays a child combinator, matching only the structurally-injected prefix. */
+/* An image in a list item or blockquote paragraph: the container's marker sits out of flow at the
+   image's bottom-left, since `display: flex` leaves the caret no place past the widget. */
 :where(.editor)
 	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
 		.md-image-widget
@@ -228,9 +262,8 @@
 	width: fit-content;
 }
 
-/* An image with no pixels (broken, scheme-refused, or deferred by `imageLoadPolicy:
-   'placeholder'`) lays out 0×0 without this floor, unless a `|WxH` hint reserves its own box.
-   Display:block stays inherited: image widgets always force a visual line break. */
+/* An image with no pixels (broken, scheme-refused, or a `'placeholder'` load policy) would lay out
+   0×0 without this floor, unless a `|WxH` hint reserves its box. */
 :where(.editor) .md-image-broken,
 :where(.editor) .md-image-blocked,
 :where(.editor) .md-image-placeholder {
@@ -260,7 +293,7 @@
 	content: '⚠ image failed to load';
 }
 
-/* Tint paints over the widget via ::after — `background-color` on the span
+/* The tint paints over the widget through ::after: `background-color` on the span
    itself is hidden by the opaque <img> child (display:block, max-width:100%). */
 :where(.editor) [data-inline-widget].md-widget-selected::after {
 	content: '';
@@ -271,33 +304,47 @@
 	pointer-events: none;
 }
 
-/* The tint IS the widget's selection paint: native `::selection` on the text inside it (a KaTeX
-   box is text) would stack a second wash on the same pixels. */
+/* The tint is the widget's selection paint: the browser's own `::selection` on the text inside it
+   (a KaTeX box is text) would stack a second tint on the same pixels. */
 :where(.editor) [data-inline-widget].md-widget-selected ::selection {
 	background: transparent;
 }
 
-/* Synthetic caret on the snap-target edge — Chromium doesn't reliably render
-   the live caret adjacent to a contenteditable=false neighbor. */
+/* A drawn caret on the edge the caret snaps to: Chromium does not reliably render
+   the real one next to a contenteditable=false neighbor. */
 :where(.editor) [data-inline-widget].md-snap-after::before,
 :where(.editor) [data-inline-widget].md-snap-before::before {
 	content: '';
 	position: absolute;
-	top: 4px;
-	bottom: 4px;
+	top: 0;
+	bottom: 0;
 	width: 1.5px;
 	background-color: var(--color-text-primary, currentColor);
 	animation: md-snap-caret-blink 1s step-end infinite;
 	pointer-events: none;
 }
 
-/* Clear of the widget's own edge: against a picture, a caret drawn tight to the frame reads as
-   part of the border rather than as a caret waiting for the next character. */
 :where(.editor) [data-inline-widget].md-snap-after::before {
-	right: -4px;
+	right: -1px;
 }
 
 :where(.editor) [data-inline-widget].md-snap-before::before {
+	left: -1px;
+}
+
+/* An image's drawn caret is inset from the frame so it reads as a caret, not part of the border;
+   a text-height widget keeps the full box, where an inset would leave a stub. */
+:where(.editor) .md-image-widget.md-snap-after::before,
+:where(.editor) .md-image-widget.md-snap-before::before {
+	top: 4px;
+	bottom: 4px;
+}
+
+:where(.editor) .md-image-widget.md-snap-after::before {
+	right: -4px;
+}
+
+:where(.editor) .md-image-widget.md-snap-before::before {
 	left: -4px;
 }
 
@@ -307,8 +354,8 @@
 	}
 }
 
-/* The synthetic caret REPLACES the native one: Chromium does sometimes render a caret beside a
-   contenteditable=false island, and two at one position reads as two carets. */
+/* The drawn caret replaces the browser's own: Chromium does sometimes render a caret beside a
+   non-editable inline widget, and two at one position read as two carets. */
 :where(.editor) .md-snap-caret-active {
 	caret-color: transparent;
 }
@@ -320,10 +367,8 @@
 	z-index: 10;
 }
 
-/* A selected image says so with a hairline ring. It rides the overlay, not the widget: a cropped
-   widget clips its own pseudo-elements, and a border on the picture would move the layout. Held
-   just off the edge so it reads as a ring around the picture rather than part of it, over a
-   translucent dark line that keeps it legible against a pale photo. */
+/* A selected image's ring sits on the overlay, since a cropped widget clips its own pseudo-elements
+   and a border would move the layout; the dark shadow keeps it visible on a pale photo. */
 :where(.editor) .md-image-overlay::before {
 	content: '';
 	position: absolute;
@@ -345,9 +390,8 @@
 	text-decoration: underline;
 }
 
-/* A plain click edits; only Ctrl/Cmd+click activates the link (`Editor.svelte` mirrors the
-   modifier onto the root). Stated explicitly so the caret-vs-pointer state is the editor's,
-   not the UA's `<a href>` default. */
+/* A plain click edits and only Ctrl/Cmd+click opens the link (`Editor.svelte` sets
+   `data-mod-active`), so the cursor overrides the browser's default for `<a href>`. */
 :where(.editor) a.md-link-content,
 :where(.editor) .md-autolink {
 	cursor: text;
@@ -360,14 +404,14 @@
 
 /* Blocked-scheme link: inert metadata, kept visually distinct from a clickable one. */
 :where(.editor) .md-link-content.md-link-blocked {
-	color: var(--md-link-blocked-color, var(--color-text-muted, #888));
+	color: var(--md-link-blocked-color, #8f8f89);
 	text-decoration: none;
 	cursor: text;
 }
 
-/* Dimmer than the structural-content `[text]` / `(url)` markers, so it reads as metadata. */
+/* A faded grey and italic, so the label reads as metadata beside the link's own markers. */
 :where(.editor) .md-ref-label {
-	color: var(--md-ref-label-color, rgba(128, 128, 128, 0.45));
+	color: var(--md-ref-label-color, #8f8f89);
 	font-style: italic;
 }
 
@@ -377,35 +421,36 @@
 	text-decoration: none;
 }
 
-/* A background sets image-variant unresolved refs apart from link-variant ones. */
+/* A background tells an unresolved image reference apart from an unresolved link one. */
 :where(.editor) .md-unresolved-ref-image {
 	background: var(--md-unresolved-image-bg, rgba(192, 57, 43, 0.08));
 	padding: 0 2px;
 	border-radius: 2px;
 }
 
-/* linkReferenceDefinition blocks render as metadata rather than content. */
+/* Link reference definitions render as metadata rather than content. The fade stacks on the
+   raw block's own opacity, and 0.8 is the lowest that keeps light-theme text at AA. */
 :where(.editor) .block-host[data-block-kind='linkReferenceDefinition'] {
-	opacity: 0.75;
+	opacity: 0.8;
 	font-size: 0.9em;
 	font-style: italic;
 }
 
 /* Dimmed monospace gives inline raw HTML a code-ish feel without becoming a code span. */
 :where(.editor) .md-raw-html {
-	color: var(--md-raw-html-color, rgba(120, 120, 120, 0.85));
+	color: var(--md-raw-html-color, #8f8f89);
 	font-family: var(--font-code, ui-monospace, monospace);
 	font-size: 0.92em;
 }
 
-/* Off-window placeholder tint (VR-8): a fling can outrun the window recompute and paint a
-   bare spacer for one frame, which without a background tears white. */
+/* Tint for the blocks not mounted yet (VR-8): a fast scroll can outrun the recompute and paint
+   a bare spacer for one frame, which without a background tears white. */
 :where(.editor) .vr-spacer {
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
 }
 
-/* One revealed-source identity for render-primary blocks (math, toc, mermaid): a plugin
-   component adds this class and keeps only its padding/overflow deltas. */
+/* One look for the revealed source of the blocks that render rather than show text (math, toc,
+   mermaid): a plugin component adds this class and keeps only its own padding and overflow. */
 :where(.editor) .md-source-surface {
 	display: block;
 	width: 100%;
@@ -420,10 +465,8 @@
 	border-radius: 4px;
 }
 
-/* ── Semantic syntax-token wiring ─────────────────────────────────────────────
-   Defaults in editor-theme.css are neutral, so these rules change nothing until a consumer
-   overrides a token. Rules whose construct is also colored by a component <style> shorthand
-   carry the extra selector weight to beat the Svelte scoping class. */
+/* ── Semantic syntax tokens ───────────────────────────────────────────────────
+   The editor-theme.css defaults are neutral, so these change nothing until a consumer sets one. */
 
 :where(.editor)
 	.text-editable-block:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
@@ -438,9 +481,8 @@
 	color: var(--syntax-code, currentColor);
 }
 
-/* An inline widget's source while it is revealed for editing (`$x$`, a footnote ref): the
-   inline-code wash, so the span being edited reads as a span, in the prose face so the line
-   does not reflow around it. */
+/* An inline widget's source shown for editing (`$x$`) takes the inline-code tint so it reads as
+   one span, but keeps the prose typeface so the line does not reflow. */
 ::highlight(md-inline-reveal) {
 	background-color: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 }
@@ -454,12 +496,12 @@
 	border-left-color: var(--syntax-quote, var(--color-ui-muted, #a4a4a4));
 }
 
-:where(.editor) .thematic-break-rule[role='separator'] > hr {
+:where(.editor) .thematic-break-block > .thematic-break-rule > hr {
 	border-top-color: var(--syntax-separator, var(--color-border, #3e3e3b));
 }
 
-/* The [contenteditable='false'] qualifier scopes to the structurally-injected ambient
-   prefix, not inline .md-marker spans. */
+/* The [contenteditable='false'] part limits this to the leading marker the renderer injects,
+   not to inline .md-marker spans. */
 :where(.editor) .list-item-block .md-marker[contenteditable='false'] {
 	color: var(--syntax-list, currentColor);
 }
@@ -469,9 +511,7 @@
 }
 
 /* ── Menus ──────────────────────────────────────────────────────────────────
-   One surface for every menu the editor opens (the table's context menu, the code rail's
-   picker and overflow), copied from the host app's context menu value for value and reading
-   the same tokens, so a menu here is indistinguishable from one of the host's. */
+   One look for every editor menu, matching the host app's context menu through the same tokens. */
 :where(.editor) .md-menu {
 	position: fixed;
 	z-index: 2000;
@@ -524,7 +564,7 @@
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
-	color: var(--color-ui-muted, #8f8f89);
+	color: var(--color-ui-muted, #93938d);
 }
 
 :where(.editor) .md-menu-divider {
@@ -533,21 +573,17 @@
 	background: var(--color-border, #3e3e3b);
 }
 
-/* ── Rendered chrome, shared by every marker-hiding mode ──────────────────────
-   Every mode but source hides markers by CSS ONLY, never by omitting them from the render
-   path: the raw-aware offset walk counts every DOM text node regardless of layout, so
-   structural omission would desync the DOM↔raw coordinate space. Keyed on an
-   equal-specificity :is() so the per-mode rules below win by source order. */
+/* ── Rendered markers, shared by every mode that hides them ───────────────────
+   Hidden in CSS alone, since the DOM-to-offset traversal counts every text node in the render. */
 
-/* .md-marker: inline markers and block-own prefixes are pure syntax in normal flow, so
-   dropping them from paint and native copy joins the text up rendered-style; ambient
-   container markers carry layout and keep their box below. */
+/* .md-marker: pure syntax in normal flow, so hiding it joins the text up as it renders; a
+   container's leading marker holds layout and keeps its box (below). */
 /* .md-fence-line: a fence line's `\n` is a bare text node CSS can't reach; the wrapper
    owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
 /* .md-ref-label: resolution metadata, not content; a rendered document shows only the
    link text. */
-/* .directive-marker: the container chrome (border/gutter) is the rendered form of a
-   directive fence; it never reveals, belonging to the container, not the focused leaf. */
+/* .directive-marker: the container's border and gutter are the directive fence's rendered form,
+   so a focused block inside never shows the fence's source. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -557,36 +593,46 @@
 	display: none;
 }
 
-/* Chrome with nothing behind it has nowhere to hide: a construct whose only bytes are its own
-   markers has no caret position, so an editable rung shows them dimmed as source does — but
-   only while the surface holds focus, since the seat is for a caret and a block nobody is in
-   reads as the empty construct it is. Mirrored in `cursor/widget-offset.ts` (same modes, same
-   families); reading keeps its silence. `[contenteditable]` scopes the stamp to the walk
-   containers its JS twin reads, which a decoration on the block host cannot reach. */
+/* A focused construct whose only bytes are its markers shows them dimmed, since it has nothing
+   else to show and no caret position inside; mirrored in `cursor/widget-offset.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	[contenteditable][data-content-empty]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }
 
-/* A code block or table is a box, and prose gives it nothing to stand off from: blocks stack flush,
-   with only a text line's own leading between them. The box brings its own breathing room —
-   about a text line's leading each side, so code-to-code and code-to-prose match. Padding,
-   not margin: the height model measures the host's border box. */
+/* Blocks stack flush, so a code block or table brings its own room, about a line's leading each
+   side; padding, not margin, because block heights are measured from the host's border box. */
 :where(.editor) .block-host:is([data-block-kind='fencedCode'], [data-block-kind='table']) {
 	padding-block: 6px;
 }
 
-/* Room for the add strips (`TableBlock.svelte`) INSIDE the host's box: on the right so a
-   full-width table still leaves the column strip inside the editor's scroll box, and below so
-   the row strip never lies over whatever follows the table (the trailing insert row, a block). */
+/* Room inside the table's box for the add-row and add-column strips (`TableBlock.svelte`), so they
+   stay inside the scroll container and never lie over the block that follows. */
 :where(.editor) .block-host[data-block-kind='table'] {
 	padding-right: 30px;
 	padding-bottom: 24px;
 }
 
-/* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's
-   ch width), so they keep their box: visibility, not display. */
+/* A hard break whose bytes are hidden or blank (trailing spaces) draws a dimmed return glyph, so
+   the line break has a visible cause; generated content adds no text to a copy or screen reader. */
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
+	.md-hard-break::before,
+:where(.editor):not([data-presentation]) .md-hard-break[data-trailing-spaces]::before {
+	content: '↵';
+	content: '↵' / '';
+	opacity: var(--syntax-marker-dim, 0.65);
+}
+
+/* A focused preview block paints the backslash itself, so the glyph would say it twice. */
+:where(.editor)[data-presentation^='preview-']
+	.block-host[data-focused]
+	.md-hard-break:not([data-trailing-spaces])::before {
+	content: none;
+}
+
+/* A list item's leading marker owns the hanging indent (padding and text-indent are keyed to
+   the span's ch width), so it keeps its box: visibility, not display. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -598,7 +644,7 @@
 	opacity: 1;
 }
 
-/* `- ` hides and a rendered bullet paints in its slot, like blockquote's border. */
+/* `- ` hides and a rendered bullet paints in its place, the way a blockquote's border does. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -611,7 +657,7 @@
 	color: var(--syntax-list, currentColor);
 }
 
-/* The ambient text IS the rendered number (`1. `), so it stays visible and undimmed. */
+/* The marker text is itself the rendered number (`1. `), so it stays visible and undimmed. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -622,9 +668,8 @@
 	visibility: visible;
 }
 
-/* GitHub task lists: no bullet, the box at the margin, the text one gap after it. The `- `
-   marker collapses to nothing (its bytes stay for the walk), the `[ ]` span becomes a fixed
-   slot so checked and unchecked are the same width, and the box paints in that slot. */
+/* GitHub task lists: the `- ` collapses, keeping its bytes for the offset traversal, and the
+   `[ ]` span becomes a fixed-width space the box paints in, so checked and unchecked match. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -637,6 +682,27 @@
 	overflow: hidden;
 }
 
+/* Where the box is drawn, the marker sizes off the editor's text rather than a scaled first child
+   (a heading); the component's inline hanging indent reads `--md-task-indent` to match. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task'] {
+	--md-task-indent: calc(2.1 * var(--editor-font-size, 1rem));
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.md-marker[contenteditable='false'] {
+	font-size: var(--editor-font-size, 1rem);
+}
+
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -644,13 +710,14 @@
 	)
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
-	/* Visible inside the hidden ambient marker, its `[ ]` bytes gone by colour: a hidden span
-	   leaves the accessibility tree and the hit-test, and the pseudo-elements draw the box. */
+	/* Visible inside the hidden marker, its `[ ]` bytes hidden by colour: a hidden span drops out
+	   of the accessibility tree and out of hit-testing, and the pseudo-elements draw the box. */
 	visibility: visible;
 	color: transparent;
 	position: relative;
 	display: inline-block;
-	/* Slot + gap; `TASK_HANGING_INDENT` in task-checkbox.ts is these plus the trailing space. */
+	/* The box's width plus its gap; `TASK_HANGING_INDENT` in task-checkbox.ts is these two plus
+	   the trailing space. */
 	width: 1.2em;
 	margin-right: 0.65em;
 	vertical-align: baseline;
@@ -665,9 +732,8 @@
 	.task-checkbox::before {
 	content: '';
 	visibility: visible;
-	/* Centred by layout and sized to whole pixels, never by a translate: a transformed box
-	   rasterises at fractional edges on a scaled desktop and reads shorter than it is wide.
-	   The unrounded pair is the fallback for a browser without `round()`. */
+	/* Centred by layout and whole pixels, not a translate, which rasterises at fractional edges on
+	   a scaled display; the unrounded pair is the fallback for a browser without `round()`. */
 	position: absolute;
 	inset: 0;
 	margin: auto;
@@ -676,13 +742,13 @@
 	width: round(1.2em, 1px);
 	height: round(1.2em, 1px);
 	box-sizing: border-box;
-	border: 1.5px solid var(--color-ui-muted, #8f8f89);
+	border: 1.5px solid var(--color-ui-muted, #93938d);
 	border-radius: 0.28em;
 	background: transparent;
 }
 
-/* Checked: the box fills with the text colour and the tick is cut from it in the page's
-   background — two borders of a rotated box, so it needs no glyph and scales with the type. */
+/* Checked: the box fills with `--syntax-task-checked`, and the tick is two borders of a rotated
+   box in `--syntax-task-checked-tick`, so it needs no glyph and scales with the type. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -690,8 +756,8 @@
 	)
 	.list-item-block[data-task-checked='true']
 	.task-checkbox::before {
-	background: var(--color-text-primary, currentColor);
-	border-color: var(--color-text-primary, currentColor);
+	background: var(--syntax-task-checked, var(--color-text-primary, currentColor));
+	border-color: var(--syntax-task-checked, var(--color-text-primary, currentColor));
 }
 
 :where(.editor):is(
@@ -704,22 +770,20 @@
 	content: '';
 	visibility: visible;
 	position: absolute;
-	/* The slot's centre, nudged up and right: the visible strokes are the L's right and
-	   bottom edges, which rotation swings down and left. */
+	/* The box's centre, nudged up and right: the visible strokes are the L's right and
+	   bottom edges, which the rotation swings down and left. */
 	left: 53%;
 	top: 45%;
 	width: 0.32em;
 	height: 0.6em;
 	box-sizing: border-box;
-	border: solid var(--color-bg, #2c2c2a);
+	border: solid var(--syntax-task-checked-tick, var(--color-bg, #2c2c2a));
 	border-width: 0 0.15em 0.15em 0;
 	transform: translate(-50%, -50%) rotate(45deg);
 }
 
-/* The span is the SLOT, a full line-height tall; the box is the pseudo-element inside it. The
-   hover tint the source modes put on the span (ListItemBlock) would draw a tall rectangle
-   round the square, so in the rendered modes it moves onto the box: an open box fills with
-   the tint, a checked one is already a solid fill and keeps it. */
+/* The span is a full line-height tall, so the rendered modes move its hover tint onto the box
+   inside it; a checked box is already solid and keeps its fill. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -751,11 +815,10 @@
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────
-   The marker-hiding families reading shares with the preview rungs and `live` are in the
-   section above; reading adds only its read-only inertness on top — `live` takes none of it. */
+   Reading adds only read-only inertness to the shared marker hiding above. */
 
-/* pointer-events kills the toggle click at the CSS layer; the toggleTask guard is the JS
-   belt. Toggling would rewrite the document, and reading mode writes no bytes. */
+/* pointer-events stops the toggle click in CSS, and the check in toggleTask stops it in
+   JavaScript: a toggle rewrites the document, and reading mode writes no bytes. */
 :where(.editor)[data-presentation='reading']
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
@@ -773,20 +836,17 @@
 	cursor: pointer;
 }
 
-/* ── Preview rungs (block + inline granularity) ───────────────────────────────
-   `preview-block` renders the focused block as full styled source; `preview-inline` reveals
-   only the constructs at the caret. Markers hide broadly (above) and un-hide INSIDE the
-   focused host: the naive `.block-host:not([data-focused])` would hide a focused leaf's
-   markers through its unfocused container ancestor. */
+/* ── Preview modes (the whole block, or the constructs at the caret) ──────────
+   Markers hide broadly (above) and show again inside the focused block. */
 
-/* All inline spans, so the reveal restores source layout exactly. */
+/* Every inline span, so the revealed source lays out exactly as source mode does. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']) {
 	display: inline;
 }
 
-/* Code fence lines are whole-block markers, so both preview modes reveal them on focus. */
+/* Code fence lines are whole-block markers, so both preview modes show them on focus. */
 :where(.editor)[data-presentation^='preview-'] .block-host[data-focused] .md-fence-line {
 	display: inline;
 }
@@ -800,13 +860,13 @@
 	display: none;
 }
 
-/* Reference labels reveal on the focused block under preview-block. */
+/* Reference labels show on the focused block under preview-block. */
 :where(.editor)[data-presentation='preview-block'] .block-host[data-focused] .md-ref-label {
 	display: inline;
 }
 
-/* preview-inline is excluded on purpose: the ambient marker is chrome the caret can never
-   enter, so at inline granularity it keeps its rendered form. */
+/* preview-inline is left out on purpose: a container's leading marker is syntax the caret can
+   never enter, so with only the constructs at the caret shown it keeps its rendered form. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker[contenteditable='false'] {
@@ -819,10 +879,8 @@
 	content: none;
 }
 
-/* ── Inline-granular reveal (preview-inline's focused block) ──────────────────
-   The render stamps construct markers with data-construct-* and `construct-reveal.ts` flips
-   md-construct-reveal on the chain at the caret. Unstamped markers reveal with block focus as
-   under preview-block, so a table's stampless cells degrade to that behavior. */
+/* ── Showing only the constructs at the caret (preview-inline) ────────────────
+   `construct-reveal.ts` marks the constructs at the caret; unmarked markers show on block focus. */
 :where(.editor)[data-presentation='preview-inline']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']):not([data-construct-start]) {

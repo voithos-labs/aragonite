@@ -1,10 +1,8 @@
 /**
- * G4.35 — marker↔policy parity, in two rungs. STAMP↔REVEALABLE: `tagConstruct` makes a marker
- * span addressable by preview-inline's reveal, `revealable` permits the flip, and a kind with one
- * and not the other reveals nothing or stamps DOM nobody reads. MARKER↔ROW: a kind minting a
- * `markerSpan` at all hides bytes, so it needs a policy ROW — the table is where the typing seat
- * learns whether a byte may land between delimiters. The autolink shipped hideable brackets with
- * no row and the seat let a byte inside them; this rung catches that shape on the day it lands.
+ * Markers and the policy table stay in step (G4.35). A kind whose render marks a construct range
+ * (`tagConstruct`) is `revealable` and the reverse, or it reveals nothing or marks DOM nobody
+ * reads. A kind rendering any `markerSpan` hides bytes, so it needs a policy row, which is where
+ * caret placement learns whether a typed byte may land between delimiters.
  */
 import { describe, it, expect } from 'vitest';
 import { readEditorFile } from './scan-source';
@@ -27,11 +25,8 @@ function topLevelFunctions(code: string): Map<string, string> {
 	return out;
 }
 
-/**
- * The kinds whose `renderNode` arm reaches `helper`, called in the arm itself or through another
- * top-level render helper that calls it. `excludeHelper` drops the helper's own definition from
- * that set, for a helper the arms also call directly.
- */
+/** The kinds whose `renderNode` branch reaches `helper`, directly or through another render helper;
+ *  `excludeHelper` drops the helper's own definition, for a helper the branches call directly. */
 function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<string> {
 	const token = `${helper}(`;
 	const { code } = readEditorFile(RENDER);
@@ -39,17 +34,18 @@ function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<strin
 	const reaching = [...functions]
 		.filter(([name, body]) => name !== excludeHelper && body.includes(token))
 		.map(([name]) => name);
-	expect(
-		reaching.length,
-		`no render helper calls ${helper} — the scan has drifted`
-	).toBeGreaterThan(0);
+	expect(reaching.length, `no render helper calls ${helper}: the scan has drifted`).toBeGreaterThan(
+		0
+	);
 
 	const dispatch = functions.get('renderNode');
 	if (!dispatch) throw new Error('stamp-revealable-parity: renderNode not found');
 	const arms = [
 		...dispatch.matchAll(/case\s+'([A-Za-z]+)'\s*:([\s\S]*?)(?=\n\t\tcase\s+'|\n\t\tdefault:)/g)
 	];
-	expect(arms.length, 'no renderNode case arms parsed — the scan has drifted').toBeGreaterThan(0);
+	expect(arms.length, 'no renderNode case branches parsed: the scan has drifted').toBeGreaterThan(
+		0
+	);
 
 	const kinds = new Set<string>();
 	for (const [, kind, body] of arms) {
@@ -60,10 +56,10 @@ function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<strin
 	return kinds;
 }
 
-/** The inline kinds whose render path stamps a construct range on its marker spans. */
+/** The inline kinds whose render path marks a construct range on its marker spans. */
 const stampedKinds = (): Set<string> => kindsWhoseArmReaches('tagConstruct');
 
-/** The inline kinds whose render path mints a marker span, stamped or not. */
+/** The inline kinds whose render path creates a marker span, marked or not. */
 const markerKinds = (): Set<string> => kindsWhoseArmReaches('markerSpan', 'markerSpan');
 
 function rowedKinds(): Set<string> {
@@ -78,15 +74,15 @@ function revealableKinds(): Set<string> {
 	);
 }
 
-describe('G4.35 stamp↔revealable parity', () => {
-	it('every stamped construct declares revealable, and every revealable one stamps', () => {
+describe('G4.35 mark↔revealable parity', () => {
+	it('every marked construct declares revealable, and every revealable one marks', () => {
 		const stamped = [...stampedKinds()].sort();
 		const revealable = [...revealableKinds()].sort();
 		expect(stamped).toEqual(revealable);
 	});
 
-	// The census itself, pinned: a scan that silently stopped matching would make the
-	// equality above vacuous, and both sides would agree on nothing.
+	// The list itself, pinned: a scan that silently stopped matching would make the equality
+	// above prove nothing, with both sides agreeing on an empty set.
 	it('the census names the constructs whose markers the reveal addresses', () => {
 		expect([...stampedKinds()].sort()).toEqual([
 			'emphasis',
@@ -98,25 +94,25 @@ describe('G4.35 stamp↔revealable parity', () => {
 		]);
 	});
 
-	// The counter-census: kinds that render marker spans WITHOUT a stamp. Their runs hide with
-	// the block in preview-inline rather than by construct proximity, which is the whole
-	// difference `revealable: false` (or no row at all) declares.
+	// Kinds rendering marker spans without marking a construct range hide their runs with the block
+	// in preview-inline, not by caret distance, which is what `revealable: false` or no row declares.
 	it('unstamped marker kinds are not revealable', () => {
 		const stamped = stampedKinds();
 		for (const kind of ['escape', 'hardLineBreak', 'autolink']) {
-			expect(stamped.has(kind), `${kind} unexpectedly stamps`).toBe(false);
-			expect(revealableKinds().has(kind), `${kind} is revealable without a stamp`).toBe(false);
+			expect(stamped.has(kind), `${kind} unexpectedly marks`).toBe(false);
+			expect(revealableKinds().has(kind), `${kind} is revealable without a mark`).toBe(false);
 		}
 	});
 
-	// The positive rung. A counter-census names the kinds it knows about; this one fails for a
-	// kind nobody thought to name, which is the shape the autolink had.
-	it('every kind that mints a marker span declares a policy row', () => {
+	// The other direction: a list names the kinds someone knew about, and this check fails for a
+	// kind nobody thought to name.
+	it('every kind that creates a marker span declares a policy row', () => {
 		const unrowed = [...markerKinds()].filter((kind) => !rowedKinds().has(kind)).sort();
 		expect(
 			unrowed,
-			`marker spans with no policy row — the typing seat, the split and the join all read the ` +
-				`table, so an unrowed kind is invisible to every one of them:\n  ${unrowed.join('\n  ')}`
+			`marker spans with no policy row: where typing lands, the split and the join all read the ` +
+				`table, so an unrowed kind is invisible to every one of them:
+  ${unrowed.join('\n  ')}`
 		).toEqual([]);
 	});
 

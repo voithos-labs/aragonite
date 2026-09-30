@@ -1,9 +1,36 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { clickPastImageRightEdge, waitForFirstImageLoaded } from './helpers';
+import {
+	clickPastImageRightEdge,
+	dropNativeCaret,
+	pointPastImageRightEdge,
+	waitForAllImagesLoaded,
+	waitForFirstImageLoaded
+} from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
+// Two image widgets in two blocks, each ending its own line, with a plain block between them.
+const TWO_IMAGE_DOC =
+	'![a|120x80](/test-fixtures/sample.png)\n\n![b|120x80](/test-fixtures/sample.png)\n\nplain text\n';
+
+const paintedCarets = (page: Page): Promise<string[]> =>
+	page.evaluate(() =>
+		Array.from(document.querySelectorAll('.md-snap-after, .md-snap-before')).map(
+			(el) => el.closest('[data-block-path]')?.getAttribute('data-block-path') ?? '?'
+		)
+	);
+
+/** The dead space past the nth image, inside its own paragraph: the click that snaps there. */
+async function clickPastImage(page: Page, index: number): Promise<void> {
+	const widget = page.locator('[data-image-widget]').nth(index);
+	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
+	const widgetBox = await widget.boundingBox();
+	const paraBox = await para.boundingBox();
+	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
+	const x = Math.min(widgetBox.x + widgetBox.width + 60, paraBox.x + paraBox.width - 20);
+	await page.mouse.click(x, widgetBox.y + widgetBox.height / 2);
+}
 
 const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 	page.evaluate(() => {
@@ -12,9 +39,8 @@ const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 		return getComputedStyle(block).caretColor;
 	});
 
-// The synthetic indicator is the fallback for "native caret can't render": it appears only at a
-// widget boundary AT ELEMENT-LEVEL (no text-node anchor) or when Chromium dropped the caret. Where
-// the native caret renders it stays absent, so the two never compete.
+// The editor draws its own caret marker only where the browser cannot: at a widget boundary with no
+// text node, or after Chromium dropped the caret, so one caret means one position (G1.39).
 test.describe('synthetic caret indicator at widget boundary', () => {
 	let editor: EditorPage;
 
@@ -43,7 +69,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(overlay).not.toBeNull();
 		expect(overlay!.content).not.toBe('none');
 		expect(overlay!.position).toBe('absolute');
-		// width is set to 1.5px; Chromium reports rounded — accept the line being thin.
+		// Width is set to 1.5px and Chromium reports it rounded, so accept any thin line.
 		expect(parseFloat(overlay!.width)).toBeLessThan(4);
 	});
 
@@ -53,10 +79,73 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await clickPastImageRightEdge(page);
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 
-		// The other half of "the two indicators don't compete": at an element-level offset the
-		// editor can't see whether Chromium painted a native caret, so suppressing it is the only
-		// mutual exclusion left.
+		// At an element-level offset the editor cannot see whether Chromium painted a native caret,
+		// so it hides that caret.
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	// Beside an image widget Chromium paints a taller native caret while the button is down, so the
+	// caret is hidden from pointerdown on.
+	test('the native caret is dark from the press, before the click arms the synthetic', async ({
+		page
+	}) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		const point = await pointPastImageRightEdge(page);
+		await page.mouse.move(point.x, point.y);
+		await page.mouse.down();
+
+		await expect.poll(() => caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+
+		await page.mouse.up();
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	test('a press that puts the caret in text keeps the native caret', async ({ page }) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png) trailing words\n');
+		await waitForFirstImageLoaded(page);
+		const para = page
+			.locator('[data-image-widget]')
+			.locator('xpath=ancestor::*[@contenteditable="true"]');
+		const box = (await para.boundingBox())!;
+		await page.mouse.move(box.x + box.width - 30, box.y + box.height - 12);
+		await page.mouse.down();
+		await expect.poll(() => caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+		await page.mouse.up();
+		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+	});
+
+	// One caret is one position. A block clears its own caret marker on the next selection change,
+	// but a block that unmounts with the caret inside never hears that change.
+	test('a second block arming its own caret takes the paint from the first', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+
+		await clickPastImage(page, 1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
+	});
+
+	test('a stale caret left on another block is swept when one arms', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
+
+		// The leftover class a block cannot clear for itself, put on the widget by hand.
+		await page.evaluate(() =>
+			document.querySelectorAll('[data-image-widget]')[0].classList.add('md-snap-after')
+		);
+		expect(await paintedCarets(page)).toEqual(['[0]', '[1]']);
+
+		await editor.clickBlock(2);
+		await clickPastImage(page, 1);
+
+		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
 	});
 
 	test('the native caret comes back when the synthetic clears', async ({ page }) => {
@@ -67,7 +156,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 
 		await page.keyboard.press('a');
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
-		// Non-vacuity: the suppression is scoped to the snap, not a permanent state.
+		// Non-vacuity: the caret is hidden only for the snap, not permanently.
 		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
@@ -143,6 +232,52 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const followingPara = page.locator('[contenteditable="true"]').nth(1);
 		await followingPara.click();
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+	});
+
+	// The marker stands in for a caret the browser will not draw, so the state where the browser
+	// holds no range at all is the one it exists for, not a reason to stop painting.
+	test('synthetic caret survives the browser dropping the caret', async ({ page }) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+
+		await dropNativeCaret(page);
+		expect(await paintedCarets(page)).toEqual(['[0,0,0]']);
+	});
+
+	// While the editor's own range is up, no block may still paint its caret underneath, even when
+	// the range's focus returns to the armed offset and the browser's caret has not moved.
+	test('no synthetic caret is painted while a cross-block range is up', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+		const armed = (await editor.bridge.getSelection())!.focus;
+
+		expect(
+			await editor.bridge.setSelection({ anchor: { path: [2], offset: 0 }, focus: armed })
+		).toBe(true);
+
+		await expect.poll(() => editor.bridge.isCrossBlockSelection()).toBe(true);
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
+	});
+
+	// Pointerdown, which the drag answers before any range exists, kept because it is the gesture a
+	// user makes.
+	test('synthetic caret clears when a press lands in another block', async ({ page }) => {
+		await editor.loadContent(TWO_IMAGE_DOC);
+		await waitForAllImagesLoaded(page);
+		await clickPastImage(page, 0);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0]']);
+
+		const tail = page.locator('[contenteditable="true"]').last();
+		const tb = (await tail.boundingBox())!;
+		await page.mouse.move(tb.x + 40, tb.y + tb.height / 2);
+		await page.mouse.down();
+
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
+		await page.mouse.up();
 	});
 
 	test('synthetic caret clears when arrow keys move the caret away', async ({ page }) => {

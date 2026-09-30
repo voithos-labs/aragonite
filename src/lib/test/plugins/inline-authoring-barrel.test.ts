@@ -5,8 +5,7 @@ import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
-	isInlineKindDeclared,
-	__clearDeclaredPluginInlineKindsForTests
+	isInlineKindDeclared
 } from '$lib/schema/plugin-kind';
 import type {
 	InlineSyntaxRecognizer,
@@ -19,30 +18,28 @@ import type {
 	ImageSyntaxRewriter
 } from '$lib/plugin';
 
-// The inline authoring surface is unstable (pre-freeze). This probe pins the
-// symbols a plugin imports from `@voithos-labs/aragonite/plugin` to their core implementations,
-// so a dropped or mis-wired re-export fails here rather than in a downstream plugin.
+// The inline authoring API is not frozen yet, so the suite pins the symbols a plugin imports
+// from `@voithos-labs/aragonite/plugin` to their core implementations: a dropped or mis-wired
+// re-export fails here rather than in a downstream plugin.
 describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	it('re-exports the inline registration functions from their core modules', () => {
 		expect(pluginBarrel.registerInlineSyntax).toBe(registerInlineSyntax);
 		expect(pluginBarrel.registerInlineWidgetKind).toBe(registerInlineWidgetKind);
 	});
 
-	it('re-exports the inline-kind mint, lookup, and idempotence probe', () => {
+	it('re-exports the inline-kind create, lookup, and idempotence probe', () => {
 		expect(pluginBarrel.declarePluginInlineKind).toBe(declarePluginInlineKind);
 		expect(pluginBarrel.declaredPluginInlineKind).toBe(declaredPluginInlineKind);
 		expect(pluginBarrel.isInlineKindDeclared).toBe(isInlineKindDeclared);
 	});
 
 	it('isInlineKindDeclared probes the declared-set without throwing', () => {
-		__clearDeclaredPluginInlineKindsForTests();
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(false);
 		declarePluginInlineKind('probe-kind');
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(true);
-		__clearDeclaredPluginInlineKindsForTests();
 	});
 
-	it('keeps the internal inline seams off the barrel', () => {
+	it('keeps the internal inline modules off the barrel', () => {
 		for (const seam of [
 			'augmentInlineWidgetKind',
 			'getInlineWidgetEditing',
@@ -54,8 +51,7 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 			'getInlineRungs',
 			'getUnreservedRungs',
 			'getPrefixRungs',
-			'__resetInlineSyntaxForTests',
-			'__resetInlineWidgetsForTests'
+			'__resetSchemaRegistriesForTests'
 		]) {
 			expect(pluginBarrel).not.toHaveProperty(seam);
 		}
@@ -68,8 +64,8 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 		const widgetStartOf = (ctx: InlineWidgetEditingContext) => ctx.widgetStart;
 		const kind: PluginInlineKind | null = null;
 		const node: InlineNode = { kind: 'math' as PluginInlineKind, start: 0, end: 0 };
-		// The rewrite hook a rung minting built-in `image` nodes registers, and the
-		// fields an edit hands it — a plugin cannot write one without both.
+		// The rewrite hook a handler producing built-in `image` nodes registers, and the
+		// fields an edit hands it: a plugin cannot write one without both.
 		const fields: ImageFields = { alt: 'cat', url: 'cat.png', width: 320 };
 		const rewriteImage: ImageSyntaxRewriter = (_source, next) => `![[${next.url}]]`;
 

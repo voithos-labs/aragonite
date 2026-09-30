@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
 	EMOJI_TABLE_PATH,
+	parseInput,
 	emojiTableEntries,
 	loadGemojiDb,
 	renderEmojiTable
@@ -38,11 +39,6 @@ function reportDrift(generated, committed) {
 }
 
 /** @param {string[]} argv */
-function parseInput(argv) {
-	const at = argv.indexOf('--input');
-	return at === -1 ? undefined : argv[at + 1];
-}
-
 const input = parseInput(process.argv.slice(2));
 const committed = await readFile(path.resolve(EMOJI_TABLE_PATH), 'utf8');
 const entries = emojiTableEntries(await loadGemojiDb(input));

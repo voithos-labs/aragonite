@@ -7,7 +7,7 @@ const ranges = (q: string, opts: Partial<Parameters<typeof compileMatcher>[1]> =
 	return r.matcher.findAll(text);
 };
 
-describe('compileMatcher — literal', () => {
+describe('compileMatcher: literal', () => {
 	it('empty query yields no matches', () => {
 		expect(ranges('', {}, 'anything')).toEqual([]);
 	});
@@ -23,8 +23,8 @@ describe('compileMatcher — literal', () => {
 	it('whole-word excludes substrings', () => {
 		expect(ranges('cat', { wholeWord: true }, 'cat category')).toEqual([{ start: 0, end: 3 }]);
 	});
-	// 'İ' (U+0130) lowercases to two code units, shifting every index after it
-	// in the folded haystack; offsets must stay in original-string space.
+	// 'İ' (U+0130) lowercases to two code units, shifting every index after it in the folded
+	// text; the offsets have to stay in the original string's coordinates.
 	it('keeps offsets in original-string space when case folding changes length', () => {
 		const text = 'Iİstanbul cat';
 		const r = ranges('cat', {}, text);
@@ -36,7 +36,7 @@ describe('compileMatcher — literal', () => {
 	});
 });
 
-describe('compileMatcher — regex', () => {
+describe('compileMatcher: regex', () => {
 	it('returns an error for an invalid pattern instead of throwing', () => {
 		const r = compileMatcher('(', { caseSensitive: false, wholeWord: false, regex: true });
 		expect(r.ok).toBe(false);

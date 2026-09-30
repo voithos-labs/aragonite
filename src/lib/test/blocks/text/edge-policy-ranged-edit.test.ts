@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// A plain edit key over a held RANGE. The dispatch reads the range's START as its caret, so the
-// arms that answer for the construct beside a caret would answer for the island a widget-led block
-// opens with. Miss-analysis: every ranged-edit test selected a range starting on prose and every
-// widget-edge test pressed at a collapsed caret, so nothing crossed the two.
+// A plain edit key over a selected range. The dispatch reads the range's start as its caret, so
+// branches that answer for a construct beside a caret would answer for a block's leading widget.
+// Miss-analysis: range tests selected prose, widget tests used a collapsed caret; none did both.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -18,8 +16,8 @@ import {
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
 
-/** The whole surface selected, the shape Ctrl+A and a triple-click both paint: the range starts
- *  at the ELEMENT, so no text node fronts it. */
+/** The whole block selected, the shape Ctrl+A and a triple-click both make: the range starts at
+ *  the element, so no text node comes before it. */
 function selectWholeSurface(el: HTMLElement): void {
 	const range = document.createRange();
 	range.selectNodeContents(el);
@@ -28,11 +26,8 @@ function selectWholeSurface(el: HTMLElement): void {
 	sel.addRange(range);
 }
 
-/**
- * A block whose first inline node is a widget: `&copy;` deletes atomically and steps over,
- * `![a](u)` selects then deletes, the two edge policies a leading island can carry. `ranged`
- * selects from `from` to the end of the display text.
- */
+/** A block led by a widget (`&copy;` steps over, `![a](u)` selects then deletes); `ranged`
+ *  selects from `from` to the end of the displayed text. */
 function mountWidgetLed(
 	source: string,
 	ranged: boolean,
@@ -53,7 +48,7 @@ function mountWidgetLed(
 
 const ENTITY_LED = '&copy; opens\n';
 const IMAGE_LED = '![a](u) opens\n';
-/** `&copy;`'s trailing edge: a range opening there is the widget's OTHER caret-adjacent side. */
+/** `&copy;`'s trailing edge: a range opening there is the widget's other caret-adjacent side. */
 const ENTITY_END = 6;
 
 installEdgeDispatchCleanup();
@@ -82,7 +77,7 @@ describe('a key over a range that opens with a CST widget', () => {
 	});
 
 	// The collapsed counterparts, so the rule above reads as "the range wins" rather than "the
-	// widget arm stopped answering".
+	// widget branch stopped answering".
 	it('still takes the entity whole on Delete at a collapsed caret', () => {
 		const h = mountWidgetLed(ENTITY_LED, false);
 		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
@@ -102,7 +97,7 @@ describe('a key over a range that opens with a CST widget', () => {
 	});
 });
 
-describe('a key over a range that opens with a decoration island', () => {
+describe('a key over a range that opens with a decoration widget', () => {
 	it('replaces the range with the typed character', () => {
 		const { node, el } = mountIslandBlock('hello\n', 0, 0);
 		selectWholeSurface(el);
@@ -114,5 +109,54 @@ describe('a key over a range that opens with a decoration island', () => {
 		expect(h.handleKeydown(e, at(0))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
 		expect(h.edits).toEqual([[0, 'z\n', 0, 1]]);
+	});
+});
+
+/** `[marker][text]`, the shape a list item's prose child renders, with a selection across the
+ *  marker only: non-collapsed to the DOM, empty once clamped into this block's content. */
+function mountMarkerLed(clamped: boolean): EdgeDispatchHarness & { entered: number[] } {
+	const node = parse(ENTITY_LED).children[0];
+	const marker = document.createElement('span');
+	marker.className = 'md-marker';
+	marker.setAttribute('contenteditable', 'false');
+	marker.textContent = '- ';
+	const text = document.createTextNode(trimTrailingLineEnding(node.raw));
+	const el = mountSurface([marker, text]);
+
+	const range = document.createRange();
+	if (clamped) {
+		range.setStart(marker.firstChild!, 0);
+		range.setEnd(marker.firstChild!, 2);
+	} else {
+		range.setStart(text, 0);
+		range.collapse(true);
+	}
+	const sel = window.getSelection()!;
+	sel.removeAllRanges();
+	sel.addRange(range);
+
+	const entered: number[] = [];
+	const harness = makeEdgeDispatch(node, el, {
+		enterWidget: (widget) => entered.push(widget.start),
+		getRawSelection: () => (clamped ? { start: asRawOffset(0), end: asRawOffset(0) } : null)
+	});
+	return { ...harness, entered };
+}
+
+// Miss-analysis: no test put the DOM's and the clamped reading of a range under one selection.
+describe('a range whose ends both clamp into the container marker prefix', () => {
+	it('every branch reads it as a range: the leading entity survives the key', () => {
+		const h = mountMarkerLed(true);
+		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
+		expect(h.entered).toEqual([]);
+		expect(h.edits).toEqual([]);
+	});
+
+	// The collapsed counterpart, so the rule above reads as "the range wins" rather than "the
+	// widget branch stopped answering".
+	it('still takes the entity whole at a collapsed caret in the same block', () => {
+		const h = mountMarkerLed(false);
+		expect(h.handleKeydown(key('Delete'), at(0))).toBe(true);
+		expect(h.edits).toEqual([[0, ' opens\n', 0, 0]]);
 	});
 });

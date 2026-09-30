@@ -1,46 +1,76 @@
 /**
- * The content version is announced, not derived, so a byte-writing door that stays silent serves
- * every whole-document memo a stale answer with nothing failing. Two arms: the announcements are
- * a declared set, and the shape an out-of-ceremony write has — unsharing a spine off the editor's
- * own `deps.doc` — enrolls its file, so door N+1 fails at birth rather than at the next audit.
+ * The content version is announced, not derived, so a function that writes bytes without
+ * announcing serves every whole-document memo a stale answer. Every announcing file is declared,
+ * so is every byte write outside a commit (it copies ancestors off `deps.doc`), and each such
+ * writer checks for reading mode.
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import {
+	callSites,
+	collectEditorSources,
+	enclosingFunction,
+	fileClasses,
+	sourceFile,
+	stripComments,
+	type SourceFile
+} from './scan-source';
+import { probeFile } from './file-rule';
 
-/** Every file naming the announcement, and the door it owns. */
+/** Every file naming the announcement, and the write it owns. */
 const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/deps.ts': 'the declaration',
 	'src/lib/editor-actions/commit/undo-controller.ts':
 		'the ceremony, covering both publish arms and every structural writer under them',
-	'src/lib/editor-actions/block-edit.ts': 'the top-level routine-typing write',
-	'src/lib/editor-actions/container-edit.ts': 'the nested out-of-ceremony write door',
+	'src/lib/editor-actions/leaf-write.ts': 'the keystroke written in place, at every depth',
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
-	'src/lib/components/Editor.svelte': 'the wiring, plus the `source` prop swap',
+	'src/lib/components/Editor.svelte': 'the wiring',
+	'src/lib/components/editor-root-document-swap.ts': 'the `source` prop swap',
 	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
 };
 
-/**
- * Unsharing off `deps.doc` is what an ACTION-layer byte write looks like: inside a commit the
- * spine is reached through the mutate's own scope view instead. Each is the ceremony or announces.
- */
+/** A byte write outside a commit copies ancestors off `deps.doc` (a commit reaches them through its
+ *  own view); each such file is the commit itself or announces the new version. */
 const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': 'the ceremony itself',
-	'src/lib/editor-actions/block-edit.ts': 'announces',
-	'src/lib/editor-actions/container-edit.ts': 'announces'
+	'src/lib/editor-actions/leaf-write.ts': 'announces'
 };
+
+type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
+
+/** Writers that must refuse reading mode, and the functions in each that must ask the check. The
+ *  `source` prop swap is absent: reading mode allows the host to replace the document. */
+const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
+	'src/lib/editor-actions/commit/undo-controller.ts': {
+		admitsWrite: ['__commit'],
+		admitsSnapshot: ['pushCommitSnapshot', 'pushUndoSnapshotDebounced']
+	},
+	'src/lib/editor-actions/leaf-write.ts': { admitsWrite: ['writeLeafInPlace'] },
+	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
+};
+
+/** `check:function` for each named function in `file` that never calls its check. */
+function missingReadingChecks(file: SourceFile, spec: Partial<Record<ReadingCheck, string[]>>) {
+	const { code } = file;
+	const classes = fileClasses(file);
+	return Object.entries(spec).flatMap(([check, functions]) => {
+		const sites = callSites(code, check);
+		const asking = new Set(sites.map((s) => enclosingFunction(code, s.index, classes)));
+		return (functions ?? []).filter((fn) => !asking.has(fn)).map((fn) => `${check}:${fn}`);
+	});
+}
 
 const ANNOUNCES = /\bbumpContentVersion\b|\bcontentVersion\.bump\b/;
 const UNSHARES_ROOT = /\bensureUnsharedPath\s*\(\s*deps\.doc\b/;
 
 function matching(sources: SourceFile[], re: RegExp): string[] {
 	return sources
-		.filter((f) => re.test(stripComments(f.text)))
+		.filter((f) => re.test(f.code))
 		.map((f) => f.relPath)
 		.sort();
 }
 
-describe('content-version door census', () => {
+describe('content-version entry-point census', () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
@@ -50,44 +80,71 @@ describe('content-version door census', () => {
 	it('exactly the declared files announce a byte write', () => {
 		expect(
 			matching(sources, ANNOUNCES),
-			'an announcement was added or dropped: name the door it owns, or the memos over the document go stale'
+			'an announcement was added or dropped: name the entry point it owns, or the memos over the document go stale'
 		).toEqual(Object.keys(ANNOUNCERS).sort());
 	});
 
-	it('exactly the declared files unshare a spine off the editor’s own document', () => {
+	it('exactly the declared files unshare an ancestor chain off the editor’s own document', () => {
 		expect(
 			matching(sources, UNSHARES_ROOT),
-			'a new out-of-ceremony write door: announce the bytes it moves, or route it through the commit ceremony'
+			'a new write entry point outside the commit sequence: announce the bytes it moves, or route it through that sequence'
 		).toEqual(Object.keys(ROOT_UNSHARERS).sort());
 	});
 
-	it('every root unsharer is the ceremony or announces for itself', () => {
+	it('every root unsharer is the commit sequence or announces for itself', () => {
 		const silent = Object.keys(ROOT_UNSHARERS).filter((relPath) => !(relPath in ANNOUNCERS));
 		expect(silent).toEqual([]);
+	});
+
+	it('every root unsharer names the functions that must ask the reading-mode check', () => {
+		const unnamed = Object.keys(ROOT_UNSHARERS).filter((relPath) => !(relPath in READING_CHECKED));
+		expect(unnamed).toEqual([]);
+	});
+
+	it('each of those functions asks the reading-mode check itself', () => {
+		const fileAt = new Map(sources.map((f) => [f.relPath, f]));
+		const missing = Object.entries(READING_CHECKED).flatMap(([relPath, spec]) =>
+			missingReadingChecks(fileAt.get(relPath) ?? sourceFile(relPath, ''), spec).map(
+				(m) => `${relPath} ${m}`
+			)
+		);
+		expect(
+			missing,
+			'a byte writer that skips `admitsWrite`, or an undo push that skips `admitsSnapshot`, writes in reading mode'
+		).toEqual([]);
+	});
+
+	it('the per-function check sees a sibling that asks while the named one does not', () => {
+		const file = sourceFile(
+			'x.ts',
+			'function requestUndo() { swap(); }\nfunction requestRedo() { if (!admitsWrite(r, "redo")) return; }'
+		);
+		expect(missingReadingChecks(file, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
+			'admitsWrite:requestUndo'
+		]);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the announcement matcher sees both spellings and skips prose', () => {
-		const probe = (text: string) => ANNOUNCES.test(stripComments(text));
+		const probe = (text: string) => ANNOUNCES.test(stripComments(text, 'script'));
 		expect(probe('deps.bumpContentVersion();')).toBe(true);
 		expect(probe('contentVersion.bump();')).toBe(true);
 		expect(probe('// bumpContentVersion would announce it')).toBe(false);
 	});
 
 	it('the root-unshare matcher skips a scope-view unshare and a comment', () => {
-		const probe = (text: string) => UNSHARES_ROOT.test(stripComments(text));
+		const probe = (text: string) => UNSHARES_ROOT.test(stripComments(text, 'script'));
 		expect(probe('ensureUnsharedPath(deps.doc, [i], deps.sharing);')).toBe(true);
 		expect(probe('ensureUnsharedPath({ children }, [i], view.sharing);')).toBe(false);
 		expect(probe('// ensureUnsharedPath(deps.doc, path, sharing) is the door')).toBe(false);
 	});
 
-	it('an undeclared door fails the set equality', () => {
-		const rogue: SourceFile = {
+	it('an undeclared entry point fails the set equality', () => {
+		const rogue = probeFile({
 			relPath: 'src/lib/editor-actions/rogue.ts',
-			text: 'ensureUnsharedPath(deps.doc, path, deps.sharing);',
-			code: ''
-		};
+			code: 'ensureUnsharedPath(deps.doc, path, deps.sharing);'
+		});
 		expect(matching([...sources, rogue], UNSHARES_ROOT)).not.toEqual(
 			Object.keys(ROOT_UNSHARERS).sort()
 		);

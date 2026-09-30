@@ -1,21 +1,21 @@
 /**
- * The single DOM Range ↔ raw offset translation point (`docs/design/editor.md`). Atomic
- * inline widgets contribute their raw bytes via data-source-start / data-source-end
- * without contributing to textContent; the walk sums text-node lengths — a leading
- * ambient marker span's text included — plus widget raw lengths, so walk positions are
- * `DomTextOffset` and `ambient/ambient-cursor.ts` owns the ± ambientLength step to raw.
+ * The one place a DOM position is translated to a raw offset and back, and the one place a caret
+ * is written from a raw offset (`docs/design/editor.md`). The walk offset (`DomTextOffset`) sums
+ * text-node lengths, the leading marker prefix's text included, plus each atomic widget's source
+ * length. A raw offset is that minus the prefix length, which this module reads off the DOM.
  */
 
 import {
 	asPresentationMode,
 	hidesMarkers,
-	paintsFocusedMarkers,
+	hidesDelimitersAtCaret,
 	type PresentationMode
 } from '../presentation-mode';
 import { widgetSourceRange } from '../core/inline/inline-widgets';
 import {
 	familyHidesText,
 	familyPaintsAlone,
+	isMarkerPrefixSpan,
 	markerFamilyOf,
 	screenVisibility,
 	type MarkerFamily,
@@ -23,36 +23,238 @@ import {
 } from '../core/inline/visibility';
 import {
 	asDomTextOffset,
+	asRawOffset,
 	toClampedRawOffset,
+	toDomTextOffset,
 	type DomTextOffset,
 	type RawOffset
 } from './coordinate-spaces';
 import { domDescendants } from './dom-walk';
 
-const WIDGET_ATTR = 'data-inline-widget';
+// ── Raw offsets and the caret ────────────────────────────────────────────────
 
-/** The stamp a block surface writes on its walk container while {@link holdsOnlyMarkerChrome}
- *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it.
- *  Written in every mode on purpose: it is a content fact, so a flip never finds it stale. */
-export const CONTENT_EMPTY_ATTR = 'data-content-empty';
+/** Marks the span holding a block's bytes past its content: a setext underline, or an ATX
+ *  heading's closing run. Its value is `after-prefix` when the block also drew a prefix span. */
+export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
 
-/** The class the preview-inline reveal trigger stamps and this walk's hiding rule reads. One home,
- *  so the stamping and classifying sides cannot drift. */
-export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
+/** Marks the span holding a block's own marker before its content, a heading's `# `. */
+export const BLOCK_PREFIX_ATTR = 'data-block-prefix';
+
+/** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
+ *  sit at (never behind a hidden marker run); `exact` writes it as given. */
+export type CaretClamp = 'reachable' | 'exact';
+
+/** A span of a block's raw offsets. */
+export interface RawRange {
+	start: number;
+	end: number;
+}
 
 /**
- * Walk-space offset of a live `(node, offset)` DOM position. A position inside an atomic
- * widget snaps to that widget's own walk boundary (browsers do rebind carets into these
- * contenteditable=false islands); an unreachable one reads as end-of-walk, so callers that
- * must distinguish "not mine" guard containment first.
+ * The container's leading marker prefix span (`- `, `> `), or null. Empty text nodes before it
+ * are skipped, since Chromium leaves them behind and they hold no offset.
  */
+export function markerPrefixOf(container: ParentNode): HTMLElement | null {
+	let first = container.firstChild;
+	while (first?.nodeType === Node.TEXT_NODE && (first.textContent ?? '') === '') {
+		first = first.nextSibling;
+	}
+	return first instanceof HTMLElement && isMarkerPrefixSpan(first) ? first : null;
+}
+
+/** The marker prefix's walk length: what a raw offset adds to become a walk offset. */
+export function markerPrefixLength(container: ParentNode): number {
+	return markerPrefixOf(container)?.textContent?.length ?? 0;
+}
+
+/** The raw offset of a live `(node, offset)` DOM position in `el`; a position inside the marker
+ *  prefix reads as raw 0. */
+export function rawOffsetAt(el: HTMLElement, node: Node, offset: number): RawOffset {
+	return rawOfWalkOffset(el, domTextOffsetAtNode(el, node, offset));
+}
+
+/** A raw offset in `container` as a walk offset. */
+export function walkOffsetOfRaw(container: ParentNode, raw: number): DomTextOffset {
+	return toDomTextOffset(asRawOffset(raw), markerPrefixLength(container));
+}
+
+/** A walk offset in `container` as a raw offset; one inside the marker prefix reads as raw 0. */
+export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): RawOffset {
+	return toClampedRawOffset(walk, markerPrefixLength(container));
+}
+
+/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
+ *  `suffix` is the block's structural suffix as rendered; empty when only that is left. */
+export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): string {
+	const prefix = markerPrefixOf(el);
+	let out = '';
+	let holdsMoreThanSuffix = false;
+	for (const child of Array.from(el.childNodes)) {
+		if (child === prefix) continue;
+		const text = rawTextOfNode(child, raw);
+		if (child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			// A key typed over the whole text lands at the start of the structure span.
+			const typed = text.endsWith(suffix) ? text.slice(0, text.length - suffix.length) : '';
+			out += typed;
+			if (typed) holdsMoreThanSuffix = true;
+			if (suffixOutlivesEdit(el, child)) out += text.slice(typed.length);
+			continue;
+		}
+		out += text;
+		if (text) holdsMoreThanSuffix = true;
+	}
+	// A heading's closing run or a setext underline belongs to the text above it, so a read
+	// holding nothing else is an emptied block.
+	return holdsMoreThanSuffix ? out : '';
+}
+
+// A heading's closing run goes with a hidden `#` marker the browser dropped, since the user saw
+// neither; a shown run stays unless it was selected too.
+function suffixOutlivesEdit(el: HTMLElement, suffix: Element): boolean {
+	if (suffix.getAttribute(BLOCK_SUFFIX_ATTR) !== 'after-prefix') return true;
+	const prefix = el.querySelector(`:scope > [${BLOCK_PREFIX_ATTR}]`);
+	return (prefix?.textContent ?? '') !== '' || !isHiddenMarkerRoot(suffix, el);
+}
+
+/** Raw offset of the live selection's focus inside `el`, or null when there is no selection or
+ *  its focus sits outside `el`. */
+export function rawSelectionFocus(el: HTMLElement): RawOffset | null {
+	const sel = window.getSelection();
+	if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+	return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
+}
+
+/** Put a collapsed caret at raw offset `raw` in `el`, the one caret writer. Raw 0 lands just after
+ *  a marker prefix span, since Chromium bounces a caret placed before it. False when refused. */
+export function placeCaretAtRaw(
+	el: HTMLElement,
+	raw: number,
+	{ clamp }: { clamp: CaretClamp }
+): boolean {
+	const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
+	const point = caretPointAtRaw(el, at);
+	return writeSelection(point, point);
+}
+
+/**
+ * Select raw `[anchor, focus]` in `el`, backward when the focus comes first. An endpoint at raw 0
+ * behind a marker prefix lands after the span, as a caret does.
+ */
+export function selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean {
+	return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus));
+}
+
+/** Move the live selection's focus to raw `raw` in `el`, keeping its anchor. */
+export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
+	const sel = window.getSelection();
+	if (!sel || sel.rangeCount === 0 || sel.anchorNode === null) return false;
+	return writeSelection(
+		{ node: sel.anchorNode, offset: sel.anchorOffset },
+		caretPointAtRaw(el, raw)
+	);
+}
+
+/** Select `el`'s content past its marker prefix and short of a hidden structural suffix (the first
+ *  Ctrl+A, a triple click). With no content, the whole contents, marker included. */
+export function selectSurfaceContent(el: HTMLElement): boolean {
+	const suffix = hiddenSuffixLength(el);
+	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
+	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
+		return selectRawRange(el, 0, contentLength);
+	}
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	return writeSelection(
+		{ node: range.startContainer, offset: range.startOffset },
+		{ node: range.endContainer, offset: range.endOffset }
+	);
+}
+
+/** A DOM Range over raw `[start, end)` for measuring or decorating; caret writes use {@link
+ *  placeCaretAtRaw}. From raw 0 it starts after the marker prefix span, holding whole elements. */
+export function rawRangeToDomRange(
+	container: ParentNode,
+	start: number,
+	end: number
+): Range | null {
+	const range = createRangeAtDomTextOffsets(
+		container,
+		walkOffsetOfRaw(container, start),
+		walkOffsetOfRaw(container, end)
+	);
+	const prefix = markerPrefixOf(container);
+	if (!range || !prefix || start > 0) return range;
+	range.setStartAfter(prefix);
+	if (end <= 0) range.collapse(true);
+	return range;
+}
+
+/** Where a caret at raw `raw` goes in the DOM: the end of an empty container's contents when the
+ *  walk finds no position at all. */
+function caretPointAtRaw(el: HTMLElement, raw: number): DomPosition {
+	const pos = findDomTextOffsetTarget(el, walkOffsetOfRaw(el, Math.max(0, raw)));
+	return pos ?? { node: el, offset: el.childNodes.length };
+}
+
+/**
+ * Raw 0 behind a marker prefix: the first text after the span, which has real rects where the
+ * spot after the span may not, unless that text is a hidden marker run, which paints nothing.
+ */
+function positionAfterPrefix(container: ParentNode, prefix: HTMLElement): DomPosition {
+	const textAfter = firstTextNodeAfter(prefix);
+	const hidden =
+		textAfter !== null &&
+		container instanceof HTMLElement &&
+		isHiddenMarkerText(textAfter, container);
+	if (textAfter && !hidden) return { node: textAfter, offset: 0 };
+	const parent = prefix.parentNode!;
+	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, prefix) + 1 };
+}
+
+function writeSelection(anchor: DomPosition, focus: DomPosition): boolean {
+	const sel = window.getSelection();
+	if (!sel) return false;
+	try {
+		sel.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
+	} catch {
+		return false;
+	}
+	return true;
+}
+
+/** The first non-empty text node after `node` in document order, stopping at an atomic widget,
+ *  whose bytes lie between the two. */
+function firstTextNodeAfter(node: Node): Text | null {
+	for (let sibling = node.nextSibling; sibling; sibling = sibling.nextSibling) {
+		if (isAtomicInlineWidget(sibling)) return null;
+		for (const current of domDescendants(sibling)) {
+			if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
+				return current as Text;
+			}
+		}
+	}
+	return null;
+}
+
+const WIDGET_ATTR = 'data-inline-widget';
+
+/** Written on the editable element while {@link holdsOnlyMarkerChrome} holds, and read by this walk
+ *  and `styles/editor.css`. Written in every mode, so a mode switch never finds it stale. */
+export const CONTENT_EMPTY_ATTR = 'data-content-empty';
+
+/** The class the preview-inline reveal trigger sets and this walk's hiding rule reads, defined
+ *  once so the two sides cannot drift. */
+export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
+
+/** The DOM-walk offset of a live `(node, offset)` position. One inside an atomic widget snaps to its
+ *  boundary; one outside the container reads as the walk's end, so check containment first. */
 export function domTextOffsetAtNode(
 	container: HTMLElement,
 	node: Node,
 	offset: number
 ): DomTextOffset {
-	// No landmark outside the container: document order against a disconnected tree is
-	// implementation-specific, so such a position reads as end-of-walk instead.
+	// Document order against a node outside the container is browser-specific, so such a
+	// position reads as the end of the walk instead.
 	const boundary = container.contains(node) ? positionBoundary(node, offset) : null;
 	const mode = markerHidingMode(container);
 	let total = 0;
@@ -63,15 +265,15 @@ export function domTextOffsetAtNode(
 		}
 		if (segNode === node) {
 			const at = seg.start + offset;
-			// A hidden run is opaque like a widget: its interior positions all paint at one
-			// pixel, so the walk reports the boundary the position leans toward instead.
+			// A run of hidden marker text is opaque like a widget: every position inside it paints
+			// at one pixel, so the walk reports whichever boundary the position leans toward.
 			if (seg.kind === 'text' && seg.hiddenRoot !== null) {
 				return snapOutOfRun(container, at, offset === 0 ? 'before' : 'after', mode);
 			}
 			return asDomTextOffset(at);
 		}
-		// An element-level position resolves to a segment's start, which a coalesced run makes
-		// as interior as a text position — it leans backward, so it snaps that way.
+		// An element-level position resolves to a segment's start, which can sit inside a merged
+		// hidden run just like a text position; it leans backward, so it snaps that way.
 		if (boundary && startsAtOrAfter(segNode, boundary)) {
 			return snapOutOfRun(container, seg.start, 'before', mode);
 		}
@@ -80,60 +282,65 @@ export function domTextOffsetAtNode(
 	return asDomTextOffset(total);
 }
 
-/** Raw offset of the live selection's focus inside `el` through the walk above, or null when
- *  there is no selection or its focus is anchored outside `el`. */
-export function selectionFocusWalkOffset(el: HTMLElement, ambientLength: number): RawOffset | null {
-	const sel = window.getSelection();
-	if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-	return toClampedRawOffset(domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset), ambientLength);
-}
-
 export interface DomPosition {
 	node: Node;
 	offset: number;
 }
 
-/**
- * Walk-space offset → live `(node, offset)` DOM position. The model-layer counterpart is
- * `findNodeAtOffset` in `core/inline-render.ts`. Accepts a detached fragment (island
- * application walks builds in progress) with the same arithmetic as a live block element.
- */
+/** A DOM-walk offset back to a live `(node, offset)` position, the DOM side of `findNodeAtOffset`
+ *  in `core/inline-render.ts`. Works on a detached fragment the same way. */
 export function findDomTextOffsetTarget(
 	container: ParentNode,
 	target: DomTextOffset
 ): DomPosition | null {
-	let last: DomPosition | null = null;
-	for (const seg of landingSegments(container, markerHidingMode(container))) {
-		if (seg.kind === 'text') {
-			if (seg.start + seg.len >= target) return { node: seg.node, offset: target - seg.start };
-			last = { node: seg.node, offset: seg.len };
-			continue;
-		}
-		// An opaque span holds no landable position, so a target at either boundary resolves
-		// beside it. The walk offset is preserved: only the DOM spelling of it changes.
-		if (seg.start === target) {
-			const before = positionBeside(seg.first, 'before');
-			if (before) return before;
-		}
-		const after = positionBeside(seg.last, 'after');
-		if (!after) continue;
-		// Chromium canonicalizes the slot after a HIDDEN run upstream across it, so a byte typed
-		// there lands before the run; text starting at the target is the position that keeps it.
-		if (seg.start + seg.len > target || (seg.start + seg.len === target && !seg.hidden)) {
-			return after;
-		}
-		last = after;
-	}
-	return last;
+	return findDomTextLanding(container, target)?.position ?? null;
 }
 
 /**
- * Atomic inline widgets in `container` intersecting the walk-space range [start, end). A
- * widget adds 0 chars to textContent, so a range inside one yields no client rect and
- * callers that must cover it (search highlight, cross-block selection) take its bounding
- * box. A widget's position is its running walk offset, never a compare of `data-source-*`
- * against the ambient-adjusted argument.
+ * {@link findDomTextOffsetTarget}, also saying whether the position sits in visible text at
+ * `target` itself, whose walk offset is then `target` with no second walk to read it back.
  */
+export function findDomTextLanding(
+	container: ParentNode,
+	target: DomTextOffset
+): { position: DomPosition; inTextAtTarget: boolean } | null {
+	// The marker prefix is read-only and Chromium bounces a caret out in front of it, so every
+	// target up to its far edge resolves past it, where raw 0 sits.
+	const prefix = markerPrefixOf(container);
+	const prefixLength = prefix?.textContent?.length ?? 0;
+	if (prefix && target <= prefixLength) {
+		return { position: positionAfterPrefix(container, prefix), inTextAtTarget: false };
+	}
+	let last: DomPosition | null = null;
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.kind === 'text') {
+			if (seg.start + seg.len >= target) {
+				return { position: { node: seg.node, offset: target - seg.start }, inTextAtTarget: true };
+			}
+			last = { node: seg.node, offset: seg.len };
+			continue;
+		}
+		// The caret cannot sit inside an opaque span, so a target at either boundary resolves to
+		// the position beside it; the walk offset is unchanged, only its DOM spelling differs.
+		if (seg.start === target) {
+			const before = positionBeside(seg.first, 'before');
+			if (before) return { position: before, inTextAtTarget: false };
+		}
+		const after = positionBeside(seg.last, 'after');
+		if (!after) continue;
+		// Chromium moves a caret placed after a hidden run to before it, so a byte typed there
+		// would land before the run; the text node starting at the target is the position that keeps it.
+		if (seg.start + seg.len > target || (seg.start + seg.len === target && !seg.hidden)) {
+			return { position: after, inTextAtTarget: false };
+		}
+		last = after;
+	}
+	if (prefix && last && prefix.contains(last.node)) last = positionAfterPrefix(container, prefix);
+	return last && { position: last, inTextAtTarget: false };
+}
+
+/** The atomic inline widgets intersecting the DOM-walk range [start, end): a widget adds no text,
+ *  so a caller covering it takes its bounding box. Positions are walk offsets, never `data-source-*`. */
 export function widgetsIntersectingRange(
 	container: HTMLElement,
 	start: DomTextOffset,
@@ -149,8 +356,8 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
-/** The walk's text with marker chrome and widget bytes blanked to spaces, at the walk's own
- *  offsets: what a rule reading words (the multi-click ladder) sees as content. */
+/** The walk's text with marker text and widget bytes blanked to spaces, at the walk's own
+ *  offsets: what a rule that reads words (double- and triple-click) sees as content. */
 export function maskedWalkText(container: ParentNode): string {
 	let out = '';
 	for (const seg of walkSegments(container, null)) {
@@ -160,18 +367,24 @@ export function maskedWalkText(container: ParentNode): string {
 	return out;
 }
 
-/** Total walk length of `container` — its one-past-end walk position. */
+/** Whether any visible text in `container` ends past `from`: a caret there has a box of its own,
+ *  which a block of widgets alone never offers. */
+export function holdsTextPast(container: ParentNode, from: DomTextOffset): boolean {
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.kind === 'text' && seg.len > 0 && seg.start + seg.len > from) return true;
+	}
+	return false;
+}
+
+/** Total walk length of `container`: its one-past-end walk position. */
 export function containerDomTextLength(container: ParentNode): DomTextOffset {
 	let count = 0;
 	for (const seg of walkSegments(container, null)) count += seg.len;
 	return asDomTextOffset(count);
 }
 
-/**
- * Walk-space span of the atomic widget strictly containing `offset`, or null when the
- * offset sits in text or exactly on a boundary. Island application snaps replace
- * boundaries outward with this — a text-position range cannot split an atomic widget.
- */
+/** The DOM-walk span of the atomic widget strictly containing `offset`, or null in text or on a
+ *  boundary. A replace decoration snaps outward with it, since a range cannot split a widget. */
 export function widgetSpanContainingOffset(
 	container: ParentNode,
 	offset: DomTextOffset
@@ -253,12 +466,16 @@ export function createRangeAtDomTextOffsets(
 
 // ── Hidden marker runs ───────────────────────────────────────────────────────
 
-/**
- * Whether `node` is text the mode CSS paints nothing for — a marker span's own text under a
- * marker-hiding mode with no reveal on it. Detected structurally against the families in
- * `core/inline/visibility.ts`, never by layout: a `getComputedStyle` per keystroke is not
- * affordable, so that vocabulary and `styles/editor.css` move together.
- */
+/** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
+ *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
+export function hiddenSuffixLength(el: HTMLElement): number {
+	// Not always the last child: a pending hard break's anchors follow a closing run.
+	const text = el.querySelector(`:scope > [${BLOCK_SUFFIX_ATTR}]`)?.firstChild ?? null;
+	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
+}
+
+/** Whether `node` is marker text the mode's CSS paints nothing for, decided from the families in
+ *  `core/inline/visibility.ts`, not layout; that file and `styles/editor.css` change together. */
 export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean {
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
 	const mode = markerHidingMode(container);
@@ -270,33 +487,23 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 	return false;
 }
 
-/**
- * Whether `el`'s OWN text is marker text the container's mode paints nothing for — the
- * element-level form of {@link isHiddenMarkerText}, for a walk that treats such a span as
- * opaque instead of descending into it.
- */
+/** The element form of {@link isHiddenMarkerText}, for a walk that treats such a span as opaque
+ *  instead of descending into it. */
 export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean {
 	if (el === container || !container.contains(el)) return false;
 	const mode = markerHidingMode(container);
 	return mode !== null && hidesOwnText(el, mode, chromeStandsAloneUnder(container, mode));
 }
 
-/**
- * The DOM-reading twin of `paintsFocusedMarkers`: whether this container's mode paints NO marker
- * in the focused block — neither its own structural prefix (`## `, a fence, a setext underline)
- * nor an inline construct's delimiters. An unstamped container is styled source, which paints.
- */
+/** `hidesDelimitersAtCaret` read from the DOM: whether this container's mode paints no marker in
+ *  the focused block. No mode attribute means styled source, which paints. */
 export function revealsNoMarkers(container: ParentNode): boolean {
 	const mode = markerHidingMode(container);
-	return mode !== null && !paintsFocusedMarkers(mode);
+	return mode !== null && hidesDelimitersAtCaret(mode);
 }
 
-/**
- * How this container's bytes read on screen: its mode and its content-empty stamp, resolved here
- * so a rewrite seam needs no marker vocabulary of its own. Chrome standing over no content PAINTS
- * (live-mode.md § 4.1), and a seam holding a license over unseen bytes has nothing to claim there.
- * An unmounted surface reads as source, where nothing hides and no rewrite has a run to move.
- */
+/** How this container's bytes read on screen, its mode plus its content-empty attribute, so a text
+ *  rewrite needs no marker knowledge of its own. An unmounted block reads as source. */
 export function screenVisibilityOf(container: ParentNode | null): VisibilityContext {
 	return screenVisibility(
 		container === null ? 'source' : (markerHidingMode(container) ?? 'source'),
@@ -304,25 +511,16 @@ export function screenVisibilityOf(container: ParentNode | null): VisibilityCont
 	);
 }
 
-/**
- * The stamp's own condition, as `styles/editor.css` states it: the container carries
- * `data-content-empty` AND holds focus. The seat is for a caret, so a stamped block nobody is in
- * keeps its chrome hidden and reads as the empty construct it is. Focus containment rather than
- * `:focus-within`, so a selector engine without that pseudo-class (jsdom's) reads the same answer.
- */
+/** The stylesheet's condition for painting an empty construct's markers: `data-content-empty`
+ *  plus focus inside, read by containment because jsdom lacks `:focus-within`. */
 function chromeStampPaints(container: Element): boolean {
 	if (!container.hasAttribute(CONTENT_EMPTY_ATTR)) return false;
 	const active = container.ownerDocument.activeElement;
 	return active !== null && container.contains(active);
 }
 
-/**
- * The extreme walk offsets a caret can occupy in `container`: a hidden marker run or the leading
- * ambient island holds no landable position, so the bound moves past it. Block-edge gates read
- * these rather than 0 / walk length, which a mode painting no marker makes unreachable — a gate
- * testing an offset no keystroke can produce is a dead key. An ALL-hidden container (an empty
- * fence) has no landable offset and answers `{len, len}`, making every `offset <= start` gate true.
- */
+/** The first and last walk offsets a caret can sit at, past hidden marker runs and the marker
+ *  prefix; the checks at a block's edge read these. All-hidden text answers `{len, len}`. */
 export function landableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
 	end: DomTextOffset;
@@ -334,9 +532,15 @@ export function landableDomTextBounds(container: ParentNode): {
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
 		if (seg.len === 0) continue;
 		const stop = seg.start + seg.len;
-		// An atomic widget and a decoration island are opaque, not unreachable: the caret may not
-		// enter either, but both of their boundaries are positions of their own.
-		if (seg.kind === 'opaque' ? seg.hidden : inAmbientIsland(seg.node, container)) {
+		// An atomic widget and a decoration widget are opaque, not unreachable: the caret may not
+		// enter either, but each of their boundaries is a position of its own.
+		if (seg.kind === 'opaque' && seg.hidden && seg.first.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			// Nothing past a block's trailing structure is text, and an emptied block's caret
+			// sits before that structure.
+			if (!landed) end = start;
+			break;
+		}
+		if (seg.kind === 'opaque' ? seg.hidden : inMarkerPrefix(seg.node, container)) {
 			if (!landed) start = stop;
 			continue;
 		}
@@ -344,13 +548,20 @@ export function landableDomTextBounds(container: ParentNode): {
 		end = stop;
 		lastText = seg.kind === 'text' ? seg.node : null;
 	}
-	// The position after the last landable run's final `\n` is the start of a line nothing
-	// paints: the engine seats no caret there, so an end gate reading it never fires and the
-	// caret is stuck on the empty line. A caret anchor gives that line its paint and keeps it.
+	// The browser puts no caret after the last text's final `\n`, so an end check reading that
+	// position would never fire; a caret anchor paints the line and keeps the position.
 	if (lastText?.textContent?.endsWith('\n') && !followedByCaretAnchor(lastText, container)) {
 		end -= 1;
 	}
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
+}
+
+/** A `<br>` that gives the caret a line nothing else paints, adding no text. `role` tells the walks
+ *  a hidden fence closer line (`closer`) from a pending hard break's line (`break`). */
+export function createCaretAnchor(role: '' | 'closer' | 'break' = ''): HTMLBRElement {
+	const anchor = document.createElement('br');
+	anchor.dataset.caretAnchor = role;
+	return anchor;
 }
 
 /** Whether the next painted node after `text`, at any depth above it, is a caret anchor. */
@@ -366,19 +577,8 @@ function followedByCaretAnchor(text: Node, root: ParentNode): boolean {
 	return false;
 }
 
-/**
- * Whether every byte `container` holds is marker chrome, at least one span of it a family the
- * empty-construct override paints. The stamp condition the render path writes as
- * `data-content-empty` and the walk reads back — computed WITHOUT reading the stamp, or each
- * render would flip the previous one's answer. Membership and paintability are separate
- * questions: a reference label is chrome that stays hidden, so it is not content standing behind
- * the stamp, and it is not the paint the stamp promises either.
- */
-/**
- * The container's bytes outside its marker chrome — what a painted source holds as CONTENT,
- * whatever the mode paints. A fence with an empty body answers whitespace; the leaf reads that
- * as "nothing here a Backspace could mean but the block".
- */
+/** The container's bytes outside its markers, whatever the mode paints. An empty fence body answers
+ *  whitespace: nothing for Backspace to delete but the block itself. */
 export function chromeFreeText(container: ParentNode): string {
 	let text = '';
 	for (const seg of walkSegments(container, null)) {
@@ -389,6 +589,8 @@ export function chromeFreeText(container: ParentNode): string {
 	return text;
 }
 
+/** Whether every byte is marker text, with a span the empty-construct override paints: the
+ *  `data-content-empty` condition, computed without reading the attribute it sets. */
 export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 	let chrome = false;
 	for (const seg of walkSegments(container, null)) {
@@ -399,19 +601,15 @@ export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 			chrome ||= familyPaintsAlone(marker.family);
 			continue;
 		}
-		// The ambient island keeps its box in every mode, so it neither hides the block nor
-		// stands in for content: a `- ` with an empty child is landable and needs no stamp.
-		if (!inAmbientIsland(seg.node, container)) return false;
+		// The container's marker prefix keeps its box in every mode, so it neither hides the block
+		// nor counts as content: a `- ` with an empty child holds a caret and needs no attribute.
+		if (!inMarkerPrefix(seg.node, container)) return false;
 	}
 	return chrome;
 }
 
-/**
- * Whether the mode paints NOTHING landable here: every walk segment is a hidden marker run, so no
- * caret position has a pixel of its own. `invariants/landable-caret.ts` refuses this shape at the
- * focus seam — an empty container (landable at offset 0) and one fronted by the ambient island are
- * not it.
- */
+/** Whether every walk segment is a hidden marker run, so no caret position has a pixel of its own;
+ *  `invariants/landable-caret.ts` refuses this shape when focus lands. */
 export function paintsNoLandableContent(container: ParentNode): boolean {
 	let hidden = false;
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
@@ -422,36 +620,27 @@ export function paintsNoLandableContent(container: ParentNode): boolean {
 	return hidden;
 }
 
-/**
- * {@link landableDomTextBounds} in the caret's own raw space, or null where the mode paints its
- * markers and the whole raw span is reachable. The one home every caret gate and caret DOOR
- * reads: the arrow exits, the cross-block collapse, and the block-entry seat all ask the same
- * question and must not answer it three ways.
- */
-export function landableRawBounds(
-	el: HTMLElement,
-	ambientLength: number
-): { start: number; end: number } | null {
+/** {@link landableDomTextBounds} in raw offsets, or null where the markers paint and all of raw is
+ *  reachable. Every caret check and placement reads this one answer. */
+export function landableRawBounds(el: HTMLElement): RawRange | null {
 	if (!revealsNoMarkers(el)) return null;
 	const bounds = landableDomTextBounds(el);
+	const prefixLength = markerPrefixLength(el);
 	return {
-		start: toClampedRawOffset(bounds.start, ambientLength),
-		end: toClampedRawOffset(bounds.end, ambientLength)
+		start: toClampedRawOffset(bounds.start, prefixLength),
+		end: toClampedRawOffset(bounds.end, prefixLength)
 	};
 }
 
-/** Clamp a caret offset into `el`'s landable range — identity wherever the markers paint. */
-export function clampToLandableRaw(el: HTMLElement, offset: number, ambientLength: number): number {
-	const bounds = landableRawBounds(el, ambientLength);
+/** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */
+export function clampToLandableRaw(el: HTMLElement, offset: number): number {
+	const bounds = landableRawBounds(el);
 	if (!bounds) return offset;
 	return Math.min(Math.max(offset, bounds.start), bounds.end);
 }
 
-/**
- * Whether the first landable position abuts an opaque island (an atomic widget, a decoration
- * island) instead of sitting in text: no text node holds it, so the engine's Home seats the
- * caret past the island and the block's start needs an owned door.
- */
+/** Whether the first caret position abuts an opaque widget rather than sitting in text: no text
+ *  node holds it, so the browser's Home skips the widget and the editor places the caret itself. */
 export function landableStartAbutsIsland(container: ParentNode): boolean {
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
 		if (seg.len === 0) continue;
@@ -459,14 +648,14 @@ export function landableStartAbutsIsland(container: ParentNode): boolean {
 			if (seg.hidden) continue;
 			return true;
 		}
-		if (inAmbientIsland(seg.node, container)) continue;
+		if (inMarkerPrefix(seg.node, container)) continue;
 		return false;
 	}
 	return false;
 }
 
-/** Whether `node` is an atomic inline widget's element — the island every walk treats as opaque.
- *  The attribute rather than the selector: every walk asks this per node. */
+/** Whether `node` is an atomic inline widget's element, which every walk treats as opaque. Checks
+ *  the attribute rather than a selector because every walk asks this per node. */
 export function isAtomicInlineWidget(node: Node): boolean {
 	return node.nodeType === Node.ELEMENT_NODE && (node as Element).hasAttribute(WIDGET_ATTR);
 }
@@ -475,8 +664,8 @@ export function isAtomicInlineWidget(node: Node): boolean {
 
 const FOCUSED_HOST_SELECTOR = '.block-host[data-focused]';
 
-/** The editor root's effective mode when it hides markers; null in source mode, which
- *  stamps no attribute, and for a detached build with no root to read. */
+/** The editor root's mode when it hides markers; null in source mode, which sets no attribute,
+ *  and for a detached build with no root to read. */
 function markerHidingMode(container: ParentNode): PresentationMode | null {
 	if (!(container instanceof Element)) return null;
 	const mode = asPresentationMode(
@@ -485,8 +674,8 @@ function markerHidingMode(container: ParentNode): PresentationMode | null {
 	return hidesMarkers(mode) ? mode : null;
 }
 
-/** Nearest ancestor between `node` and `root` whose own text is marker chrome, with the family
- *  that decides what the stamped-container override does with it. */
+/** The nearest ancestor between `node` and `root` whose own text is a marker, with the family
+ *  that decides what the empty-container override does with it. */
 function markerRootOf(node: Node, root: ParentNode): { el: Element; family: MarkerFamily } | null {
 	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
 		const family = markerFamilyOf(el);
@@ -495,37 +684,34 @@ function markerRootOf(node: Node, root: ParentNode): { el: Element; family: Mark
 	return null;
 }
 
-/** Whether `root` carries the content-empty stamp under a mode that paints it. */
+/** Whether `root` carries the content-empty attribute under a mode that paints its markers. */
 function chromeStandsAloneUnder(root: ParentNode, mode: PresentationMode | null): boolean {
 	if (mode === null || !(root instanceof Element)) return false;
 	return screenVisibility(mode, { chromePaints: chromeStampPaints(root) }).chromePaints;
 }
 
 /**
- * Whether `node` is inside the leading ambient marker island — a container's `- ` / `1. ` prefix,
- * the one inert island whose far side IS raw 0. Every other opaque island (a widget, a
- * decoration) has a real raw offset on each side, so only this one joins the unreachable prefix.
+ * Whether `node` is inside the container's marker prefix, the one inert span whose far side is raw
+ * offset 0. Every other opaque span (a widget, a decoration) has a real raw offset on each side.
  */
-function inAmbientIsland(node: Node, root: ParentNode): boolean {
+function inMarkerPrefix(node: Node, root: ParentNode): boolean {
 	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
-		if (el.classList.contains('md-marker') && el.getAttribute('contenteditable') === 'false') {
-			return true;
-		}
+		if (isMarkerPrefixSpan(el)) return true;
 	}
 	return false;
 }
 
 function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean): boolean {
 	const family = markerFamilyOf(el);
-	// The shared rule first (the stylesheet's `[data-content-empty]` override among it); the
-	// reveal arms below are per-span DOM state, which only this side of the model can see.
+	// The shared rule first (the stylesheet's `[data-content-empty]` override included); the
+	// reveal branches below depend on per-span DOM state that only this side can see.
 	if (family === null || !familyHidesText(family, screenVisibility(mode, { chromePaints })))
 		return false;
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
-	// preview-inline's unstamped-reveal arm is scoped to `.md-marker`, so a ref label reveals
-	// by class alone; fence lines are whole-block markers and reveal with block focus.
+	// preview-inline's reveal rule is scoped to `.md-marker`, so a reference label reveals by
+	// class alone; fence lines are whole-block markers and reveal with block focus.
 	if (el.classList.contains('md-fence-line')) return false;
 	if (el.classList.contains('md-ref-label')) return !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
 	return el.hasAttribute('data-construct-start') && !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
@@ -547,8 +733,8 @@ function snapOutOfRun(
 	return asDomTextOffset(offset);
 }
 
-/** The landable DOM position beside a span the caret may not enter. Prefers an adjacent
- *  text node — Chromium drops beforeinput at element-level offsets between two islands. */
+/** The DOM position beside a span the caret may not enter. Prefers an adjacent text node, since
+ *  Chromium drops beforeinput at element-level offsets between two widgets. */
 function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | null {
 	const parent = el.parentNode;
 	if (!parent) return null;
@@ -557,10 +743,26 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-	// A pending hard break's first anchor (`inline-render.ts`) ends the line the marker sat on;
-	// the seat past the marker is the start of the next one, which is after that anchor.
+	// A pending hard break's first anchor ends the marker's line, so the position past the marker is
+	// the next line's start, after that anchor.
 	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
+	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
+		return { node: parent, offset: idx - 1 };
+	}
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+/** Whether two neighbouring hidden runs are a block's marker span and its trailing structure. */
+function prefixMeetsSuffix(from: Element, to: Element): boolean {
+	return from.hasAttribute(BLOCK_PREFIX_ATTR) && to.hasAttribute(BLOCK_SUFFIX_ATTR);
+}
+
+/** Whether a pending hard break's anchor stands between two sibling spans. */
+function breakAnchorBetween(from: Element, to: Element): boolean {
+	for (let node = from.nextSibling; node && node !== to; node = node.nextSibling) {
+		if (isBreakAnchor(node)) return true;
+	}
+	return false;
 }
 
 function isBreakAnchor(node: Node | null): boolean {
@@ -573,19 +775,14 @@ type WalkSegment =
 	| { kind: 'text'; node: Node; start: number; len: number; hiddenRoot: Element | null }
 	| { kind: 'widget'; el: Element; start: number; len: number };
 
-/**
- * The classification every walk-space consumer shares: a text node contributes its textContent
- * length, an atomic widget its raw source length (never descended), any other element is
- * transparent. Hidden marker text counts exactly like visible text — hiding is CSS-only so the
- * coordinate space survives it — and carries the span that hides it. Offsets stay plain numbers;
- * consumers mint the `DomTextOffset` brand.
- */
+/** The segments every walk reader shares: text counts its length, an atomic widget its raw source
+ *  length, any other element nothing. Hidden marker text counts too, with the span that hides it. */
 function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generator<WalkSegment> {
 	let count = 0;
 	// One read per walk, not one `closest` per element: every caller passes the walk container.
 	const chromePaints = chromeStandsAloneUnder(root, mode);
 	const stack: { node: Node; hiddenRoot: Element | null }[] = [];
-	// Reversed push, so pop order is source order — which `count` advances along.
+	// Pushed in reverse so pop order is source order, which `count` advances along.
 	const pushChildren = (parent: Node, hiddenRoot: Element | null) => {
 		const children = parent.childNodes;
 		for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], hiddenRoot });
@@ -627,26 +824,35 @@ type LandingSegment =
 
 type OpaqueSegment = Extract<LandingSegment, { kind: 'opaque' }>;
 
-/** An opaque span at birth: one element, so it is its own first and last until a run extends it. */
+/** A new opaque span is one element, its own first and last, until a run extends it. */
 function opaqueSegment(el: Element, start: number, len: number, hidden: boolean): OpaqueSegment {
 	return { kind: 'opaque', hidden, first: el, last: el, start, len };
 }
 
-/**
- * The same walk as the caret sees it: landable text, and opaque spans it may not enter —
- * atomic widgets, plus MAXIMAL runs of hidden marker text, coalesced because snapping out of
- * one hidden span into the next would still leave the caret in unpainted text.
- */
+/** The walk as the caret sees it: text it can sit in, and opaque spans it may not enter. Adjacent
+ *  hidden spans merge, since snapping from one into the next still leaves the caret unpainted. */
 function* landingSegments(
 	root: ParentNode,
 	mode: PresentationMode | null
 ): Generator<LandingSegment> {
 	let run: OpaqueSegment | null = null;
 	for (const seg of walkSegments(root, mode)) {
-		// A zero-contribution node cannot end a run: Chromium leaves empty text nodes between
-		// spans, and splitting the run there would mint a landable seam nothing paints.
+		// A node contributing nothing cannot end a run: Chromium leaves empty text nodes between
+		// spans, and splitting the run there would create a caret position nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
+			// A pending hard break's anchors start a line between two hidden runs (the break's
+			// backslash, a setext underline), and the caret sits at that line's start.
+			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
+			// An emptied heading's text sits between its marker and its closing run, where the
+			// caret goes, so the two hidden runs stay apart.
+			if (run && prefixMeetsSuffix(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
 			if (run) {
 				run.len += seg.len;
 				run.last = seg.hiddenRoot;
@@ -665,11 +871,8 @@ function* landingSegments(
 	if (run) yield run;
 }
 
-/**
- * A DOM position re-expressed as a document-order landmark, so a walk can find it without
- * a parallel descent. Text positions need none: every text node under `container` is
- * either a segment of its own or lives inside a widget.
- */
+/** A DOM position as a document-order landmark, so a walk finds it without a parallel descent;
+ *  text positions need none, being segments of their own or inside a widget. */
 type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
 
 function positionBoundary(node: Node, offset: number): PositionBoundary | null {

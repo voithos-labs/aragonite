@@ -1,31 +1,17 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { BRIDGE_INSTALL_TIMEOUT, EditorPage } from '../../editor-page';
+import { EditorPage } from '../../editor-page';
+import { gotoReady } from '../../goto-ready';
+import { widgetAimTarget } from '../../text-runs';
 
-// Shared probe surface for every spec driving the `/test/plugins` harness. Reads go through
-// `window.__test` by path — the chained block locator is too slow at scale.
+// Shared reads for every spec driving the `/test/plugins` harness. They go through `window.__test`
+// by path, because the chained block locator is too slow at this scale.
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
-		await this.page.goto(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: BRIDGE_INSTALL_TIMEOUT
-		});
-		await this.page.evaluate(() => document.fonts.ready);
-		// Armed for every spec, not per-spec: capture is passive, and a `capturedErrors() === []`
-		// assertion against a capture nobody started passes vacuously.
+		await gotoReady(this.page, seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
+		// Started for every spec, not per spec: capturing is passive, and a `capturedErrors() ===
+		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
-	}
-
-	/** Settles on the ATTRIBUTE, not the call: an unapplied mode falls back to source, where
-	 *  most assertions pass anyway and the run reports green without ever entering the rung. */
-	async setPresentationMode(mode: string): Promise<void> {
-		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
-		if (mode === 'source') {
-			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
-			return;
-		}
-		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
 	}
 }
 
@@ -34,8 +20,8 @@ export interface Point {
 	y: number;
 }
 
-/** One HELD drag between two measured points. Interpolated rather than jumped: the editor's
- *  drag seams read pointermove, and a single hop past them lands as a click. */
+/** One held drag between two measured points, moved in steps rather than jumped: the editor's drag
+ *  handling reads pointermove, and a single hop past it lands as a click. */
 export async function dragBetweenPoints(page: Page, from: Point, to: Point): Promise<void> {
 	const steps = 10;
 	await page.mouse.move(from.x, from.y);
@@ -51,7 +37,7 @@ export async function roundTripStable(page: Page): Promise<boolean> {
 	return page.evaluate(() => (window as any).__test.roundTripStable());
 }
 
-// CST path of the block holding the DOM caret — the oracle for "the caret landed".
+// The CST path of the block holding the DOM caret: how a test sees where the caret landed.
 export async function activeBlockPath(page: Page): Promise<number[] | null> {
 	return page.evaluate(() => {
 		const el = document.activeElement?.closest('[data-block-path]');
@@ -65,8 +51,8 @@ export function tocEntry(page: Page, label: string): Locator {
 	return page.locator("[data-block-path='[0]'] .toc-block-item").filter({ hasText: label });
 }
 
-// In-view = the block's box intersects the editor viewport, measured independently of
-// `scrollTo`'s own report so the assertion isn't tautological.
+// In view means the block's box intersects the editor viewport, measured here rather than taken
+// from `scrollTo`'s own report, so the assertion is not circular.
 export function blockView(
 	page: Page,
 	path: number[]
@@ -86,65 +72,30 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
-// Click a widget where a user aims: the VISIBLE math. locator.click()'s default point is the first
-// content quad's center, and with katex.css loaded the clipped 1px `.katex-mathml` half degenerates
-// that point to a corner outside the island, silently missing the reveal hit-test. Target
-// `.katex-html` (the painted glyphs) when present; fall back to the island's border-box center.
+// Click a widget where a user aims, at the visible math: locator.click()'s default point is the
+// center of the first content box, which katex.css's clipped MathML half pulls off the widget.
 export async function clickWidgetCenter(widget: Locator): Promise<void> {
 	await clickWidgetAt(widget, (width) => width / 2);
 }
 
-// A press on a widget seats the caret where it landed, so a spec that wants the caret at the
-// construct's tail aims there rather than relying on the seat a center press happens to give.
+// A click on a widget puts the caret where it landed, so a spec that wants the caret at the
+// construct's end aims there rather than relying on where a click at the center happens to land.
 export async function clickWidgetEnd(widget: Locator): Promise<void> {
 	await clickWidgetAt(widget, (width) => width - 1);
 }
 
 async function clickWidgetAt(widget: Locator, xOf: (width: number) => number): Promise<void> {
-	const visible = widget.locator('.katex-html');
-	const target = (await visible.count()) > 0 ? visible.first() : widget;
+	const target = await widgetAimTarget(widget, '.katex-html');
 	const box = await target.boundingBox();
 	if (!box) throw new Error('widget has no bounding box');
 	await target.click({ position: { x: xOf(box.width), y: box.height / 2 } });
 }
 
-// Reveal a render-primary widget by clicking it and settling on the fold-out: the rendered widget
-// vanishes (count 0) and its source becomes editable text. Block math reveals a distinct
-// `.math-block-source` element, so it settles its own way.
+// Shows a render-first widget's source by clicking it and waiting for the rendered widget to go;
+// block math shows a separate `.math-block-source`, waited for its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
 	await clickWidgetCenter(widget);
 	await expect(widget).toHaveCount(0);
-}
-
-// Aim point for a gesture at a run of characters, which no locator addresses: the center of the
-// first `needle` in a block's rendered text. Measured live, so it reads a revealed source too.
-export async function textRunCenter(
-	page: Page,
-	blockPath: number[],
-	needle: string
-): Promise<Point> {
-	const point = await page.evaluate(
-		({ path, text }) => {
-			const block = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
-			const editable = block?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const at = node.textContent?.indexOf(text) ?? -1;
-				if (at < 0) continue;
-				const range = document.createRange();
-				range.setStart(node, at);
-				range.setEnd(node, at + text.length);
-				const rect = range.getBoundingClientRect();
-				return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-			}
-			return null;
-		},
-		{ path: blockPath, text: needle }
-	);
-	if (!point) throw new Error(`no text run "${needle}" in block ${JSON.stringify(blockPath)}`);
-	return point;
 }
 
 // ── Container read: one container node at a root index + its children ──────
@@ -156,14 +107,13 @@ export interface ContainerState {
 	childKinds: string[];
 	// Leaf raws with trailing newlines stripped, so they read as the visible text.
 	childTexts: string[];
-	// The container node's OWN raw, which its rebuildRaw must regenerate from children after every
-	// edit. childTexts and roundTripStable both stay green on a stale container raw; only this
-	// asserts the rebuild ran.
+	// The container's own raw, which rebuildRaw regenerates after every edit: childTexts and
+	// roundTripStable both pass with a stale container raw, so only this shows the rebuild ran.
 	raw: string;
 }
 
-// Serialized into the page by both the read and the wait, so it must stay CLOSURE-FREE:
-// `toString()` carries the body across, not the scope it was written in.
+// Serialized into the page by both the read and the wait, so it must reference nothing outside
+// itself: `toString()` carries the body across, not the scope it was written in.
 function containerStateInPage(index: number): ContainerState {
 	const doc = (window as any).__test.getDocument();
 	const node = doc.children[index];
@@ -209,7 +159,7 @@ export interface DocState {
 	texts: string[];
 }
 
-// Closure-free for the same reason as `containerStateInPage`.
+// References nothing outside itself, for the same reason as `containerStateInPage`.
 function docStateInPage(): DocState {
 	const children = (window as any).__test.getDocument().children as {
 		kind: string;

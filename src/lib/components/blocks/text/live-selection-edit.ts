@@ -1,35 +1,22 @@
 /**
- * What a native ranged edit writes in live mode. The range it targets can span delimiter runs the
- * user never saw and contenteditable takes those literally, so the edit is re-expressed as a JOIN
- * of what survives on either side and crosses the shared seam (live-mode.md § 4.5). Every editable
- * prose surface routes its `beforeinput` through {@link resolveLiveRangeEdit}, so a gesture family
- * cannot reach the bytes by being absent from a list.
+ * What a browser range edit writes in live mode, read off the `beforeinput` event. The range can
+ * span delimiter runs the user never saw, which contenteditable would take literally, so the edit
+ * goes through `replaceRangeInLeaf` (`docs/design/live-mode.md` § 4.5). Every prose block routes
+ * its `beforeinput` through {@link resolveLiveRangeEdit}.
  */
 
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
-import {
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding
-} from '../../../core/lines';
-import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
+import type { StoredAs } from '../../../schema/stored-as';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 
-export interface SelectionEdit {
-	/** The block's whole bytes after the edit, trailing line ending included. */
-	raw: string;
-	caret: number;
-}
-
-/** The raw-offset readers a native ranged edit needs from its surface. */
+/** The raw-offset lookups a browser range edit needs from the block. */
 export interface LiveEditCursor {
 	rawRangeOf(range: AbstractRange): { start: number; end: number } | null;
 	getRawSelection(): { start: number; end: number } | null;
 }
 
-/** Rewrite the block's bytes, or SWALLOW the press: an input this seam owns whose payload it may
- *  not read writes nothing, since the engine's version would splice the hidden runs literally. */
+/** Rewrite the block's bytes, or consume the key and write nothing: an input handled here whose
+ *  payload cannot be read writes nothing, since the browser would splice the hidden runs. */
 export type LiveRangeEdit = LiveRangeRewrite | { kind: 'swallow' };
 
 export interface LiveRangeRewrite {
@@ -39,169 +26,68 @@ export interface LiveRangeRewrite {
 	caret: number;
 }
 
-/**
- * What a prose surface does with a `beforeinput` in live mode. Null wherever the press is not this
- * seam's or the seam has nothing to clean — there the engine's own edit is already right, and
- * leaving it native keeps its grapheme and IME behavior.
- */
+/** What a prose block does with a `beforeinput` in live mode. Null where there is nothing to clean,
+ *  so the browser keeps its own edit and its grapheme and IME behavior. */
 export function resolveLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
-	ambientPrefix = ''
+	store: StoredAs
 ): LiveRangeEdit | null {
-	if (presentationMode !== 'live' || !rewritesTargetRange(e)) return null;
-	const range = pendingEditRange(e, cursor);
-	if (!range) return null;
+	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
+	const target = pendingEditRange(e, cursor);
+	if (!target) return null;
 	const insert = replacementText(e);
-	if (range.start === range.end) return parkedCaretInsertion(node, cursor, range.start, insert);
-	const edit = resolveSelectionEdit(
-		node,
-		range,
-		insert ?? '',
-		presentationMode,
-		linkRef,
-		ambientPrefix
-	);
-	if (!edit) return null;
+	if (target.start === target.end) {
+		return parkedCaretInsertion(node, cursor, target.start, insert, store);
+	}
+	const edit = replaceRangeInLeaf(node, target, insert ?? '', store);
+	if (edit.matchesBrowserEdit) return null;
 	return insert === null
 		? { kind: 'swallow' }
-		: { kind: 'rewrite', range, raw: edit.raw, caret: edit.caret };
+		: { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
 }
 
-/**
- * A collapsed insertion has no seam to clean, but Chromium inserts at its canonical spelling of
- * the caret's pixel, UPSTREAM across a hidden run, while the DOM caret may sit where a commit
- * parked it, past that run (after a `)` just typed). A target behind the caret is that
- * canonicalization, and the byte belongs where the caret is, the side the keydown seat settled. A
- * target at or past the caret is the engine landing the byte itself, which a split's reopened run
- * relies on: parked at its start, the byte goes inside.
- */
+/** A collapsed insertion Chromium aimed back across a hidden run (just after a typed `)`) goes where
+ *  the caret is. A target at or past the caret stands, since a split's reopened run relies on it. */
 function parkedCaretInsertion(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	engineTarget: number,
-	insert: string | null
+	insert: string | null,
+	store: StoredAs
 ): LiveRangeEdit | null {
 	if (!insert) return null;
 	const selection = window.getSelection();
 	if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
 	const caret = cursor.rawRangeOf(selection.getRangeAt(0))?.start ?? null;
 	if (caret === null || engineTarget >= caret) return null;
-	const display = trimTrailingLineEnding(node.raw);
-	return {
-		kind: 'rewrite',
-		range: { start: caret, end: caret },
-		raw: display.slice(0, caret) + insert + display.slice(caret) + trailingLineEnding(node.raw),
-		caret: caret + insert.length
-	};
+	const edit = replaceRangeInLeaf(node, { start: caret, end: caret }, insert, store);
+	return { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
 }
 
-/**
- * The whole surface arm around {@link resolveLiveRangeEdit}: stand down while a source reveal has
- * outrun the CST, resolve, preventDefault what the seam owns, then swallow or hand the rewrite to
- * the surface's own `commit`. Shared so a new precondition lands on every surface at once.
- */
+/** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition
+ *  reaches every block. Does nothing while a shown source has outrun the CST. */
 export function applyLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
-	ambientPrefix: string,
+	store: StoredAs,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
 ): boolean {
 	if (isRevealing()) return false;
-	const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef, ambientPrefix);
+	const edit = resolveLiveRangeEdit(e, node, cursor, store);
 	if (!edit) return false;
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
 	return true;
 }
 
-/**
- * The bytes replacing `[start, end)` with `typed`, or null when the seam had nothing to clean.
- * Exported for the callers that already hold a range of their own (the composition commit, the
- * gesture fuzzer) rather than an event to read one off.
- */
-export function resolveSelectionEdit(
-	node: NodeView,
-	selection: { start: number; end: number },
-	typed: string,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
-	ambientPrefix = ''
-): SelectionEdit | null {
-	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
-	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
-	const start = snapToScalarBoundary(node.raw, selection.start);
-	const end = snapToScalarBoundary(node.raw, selection.end);
-	if (start >= end) return null;
-	const mergedRaw = node.raw.slice(0, start) + node.raw.slice(end);
-	// `typed` rides the seam rather than being spliced past it: the bytes the cleanup verifies have
-	// to be the bytes this returns, or the flanking it checked is not the flanking that ships.
-	const joined = cleanJoinedRaw(
-		{
-			mergedRaw,
-			seam: start,
-			start: { node, offset: start },
-			end: { node, offset: end },
-			linkRef,
-			typed,
-			ambientPrefix
-		},
-		presentationMode
-	);
-	if (joined.raw === mergedRaw) return null;
-	// The insert lands where the two sides now meet — the paste-at-a-cleaned-seam rule: cleanup
-	// runs in the DELETE half, and the commit's own re-parse settles what the new bytes make of it.
-	return {
-		raw: joined.raw.slice(0, joined.seam) + typed + joined.raw.slice(joined.seam),
-		caret: joined.seam + typed.length
-	};
-}
-
-/** The rewrite of `[start, end)` to `typed` a gesture the surface consumed installs, where a
- *  delete is the empty one. The seam's cleaned bytes where it has them, else the literal display
- *  splice with the caret past the insert: the fallback's one home, so no arm can drift. */
-export function replaceRangeRaw(
-	node: NodeView,
-	range: { start: number; end: number },
-	typed: string,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined,
-	ambientPrefix: string
-): SelectionEdit {
-	const cleaned = resolveSelectionEdit(
-		node,
-		range,
-		typed,
-		presentationMode,
-		linkRef,
-		ambientPrefix
-	);
-	if (cleaned) return cleaned;
-	const display = trimTrailingLineEnding(node.raw);
-	return {
-		raw:
-			display.slice(0, range.start) +
-			typed +
-			display.slice(range.end) +
-			trailingLineEnding(node.raw),
-		caret: range.start + typed.length
-	};
-}
-
 // ── Reading the event ────────────────────────────────────────────────────────
 
-/**
- * The range the pending edit will rewrite. `getTargetRanges()` is the authority — a word or line
- * delete at a COLLAPSED caret reports the run, not the caret — and is feature-detected because
- * jsdom implements no such method.
- */
+/** The range the pending edit will rewrite, from `getTargetRanges()`, since a word delete reports
+ *  the run rather than the caret. Feature-detected because jsdom has no such method. */
 function pendingEditRange(
 	e: InputEvent,
 	cursor: LiveEditCursor
@@ -210,13 +96,8 @@ function pendingEditRange(
 	return targets.length > 0 ? cursor.rawRangeOf(targets[0]) : cursor.getRawSelection();
 }
 
-/**
- * The inputs that rewrite the range they target: every delete family — word, line, drag, cut,
- * forward, backward — plus the two that replace it with text. Paste and composition carry seams of
- * their own; composing is excluded by the NAME and by the flag rather than by listing the two
- * delete types today's engines spell, since `composition-seat.ts` owns that window end to end and a
- * second resolution here writes the block twice.
- */
+/** The inputs that rewrite the range they target. Composition is excluded by name and flag, since
+ *  `composition-seat.ts` handles it start to finish and a second write here would double it. */
 function rewritesTargetRange(e: InputEvent): boolean {
 	if (e.isComposing || /composition/i.test(e.inputType)) return false;
 	return (
@@ -226,9 +107,8 @@ function rewritesTargetRange(e: InputEvent): boolean {
 	);
 }
 
-/** What an input writes over its range, or null for a payload this seam may not read: text riding
- *  a `dataTransfer` would reach the commit's re-parse without the paste transforms (G4.11), and a
- *  swallowed press is sounder than turning a replacement into a delete. */
+/** What an input writes over its range, or null for `dataTransfer` text, which would skip the paste
+ *  transforms (G4.11); consuming the key beats turning a replacement into a delete. */
 function replacementText(e: InputEvent): string | null {
 	return e.inputType.startsWith('delete') ? '' : e.data;
 }

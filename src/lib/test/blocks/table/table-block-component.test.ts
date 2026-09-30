@@ -1,15 +1,14 @@
 // @vitest-environment jsdom
-//
-// TableBlock's BlockComponent surface is a 2D adapter behind a 1D interface, and the seams only
-// exist once rows and cells are mounted: `focus` collapses an offset to a corner cell,
-// `getCursorPosition` reads back through the row refs, and `measurePartialRects` decides between
-// a live intra-table rectangle and the plain cell range its caller asked for. Rect geometry is
-// asserted by COUNT — jsdom boxes are all zero, so only how many were measured is visible.
+// TableBlock adapts the one-dimensional BlockComponent interface to its grid, which only works
+// once rows and cells are mounted: `focus` picks a corner cell, `getCursorPosition` reads through
+// the rows, and `measurePartialRects` prefers a live rectangle over the range asked for.
+// Rectangle geometry is asserted by count, since jsdom boxes are all zero.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { SELECTION_END } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CellSelectionPoint } from '$lib/selection/primitives';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { componentAt } from '$lib/reactivity/child-list';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -32,10 +31,7 @@ function selectionWithRect(tablePath: number[]) {
 	const selection = createSelectionState();
 	selection.enterCrossBlock(
 		{ path: tablePath, offset: 0, cellCoordinate: true } as CellSelectionPoint,
-		{
-			path: tablePath,
-			offset: 3
-		}
+		{ path: tablePath, offset: 3, cellCoordinate: true } as CellSelectionPoint
 	);
 	return selection;
 }
@@ -56,8 +52,8 @@ describe('measurePartialRects answers for this table’s cells only', () => {
 	});
 
 	it('leaves the requested range intact when the rectangle belongs to another table', () => {
-		// Same rectangle, a path this table does not own — the owner check is the
-		// only thing separating these two cases, and both shapes are otherwise equal.
+		// The same rectangle with a path this table does not own: the owner check is the
+		// only thing separating these two cases, which are otherwise identical.
 		mounted = mountTable(GRID, { services: { selection: selectionWithRect([7]) } });
 
 		expect(mounted.block.measurePartialRects(0, 1)).toHaveLength(1);
@@ -89,8 +85,8 @@ describe('the table addresses its own cells for focus and geometry', () => {
 		expect(document.activeElement).toBe(mounted.cell(1, 1));
 	});
 
-	// The two caret verbs reach the same corner cell by DIFFERENT routes — `focus` via the row's
-	// `focusByPath`, `parkCaret` via `getBlockComponentByPath` — so this is what keeps them in step.
+	// `focus` goes through the row's `focusByPath` and `parkCaret` through the cell lookup, so
+	// the two routes can drift apart.
 	it('both caret verbs land in the same corner cell', () => {
 		mounted = mountTable(GRID);
 
@@ -100,7 +96,7 @@ describe('the table addresses its own cells for focus and geometry', () => {
 			mounted.block.focus(offset);
 			expect(document.activeElement).toBe(corner);
 
-			mounted.cell(1, 0).focus(); // move off, so the park has to place it again
+			mounted.cell(1, 0).focus(); // move off, so the caret has to be placed again
 			mounted.block.parkCaret!(offset);
 			expect(document.activeElement).toBe(corner);
 		}
@@ -118,8 +114,8 @@ describe('the table addresses its own cells for focus and geometry', () => {
 	it('resolves a cell component by path and declines an out-of-grid one', () => {
 		mounted = mountTable(GRID);
 
-		expect(mounted.block.getBlockComponentByPath!([1, 1])?.editable).toBe(true);
-		expect(mounted.block.getBlockComponentByPath!([9, 0])).toBeNull();
+		expect(componentAt(mounted.block.childList!(), [1, 1])?.editable).toBe(true);
+		expect(componentAt(mounted.block.childList!(), [9, 0])).toBeNull();
 	});
 
 	it('measures a cell rect in range and declines one outside the grid', () => {

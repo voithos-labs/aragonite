@@ -1,18 +1,16 @@
 /**
  * Byte offsets of each child's rendered region inside its container's own `raw`, so a typing
- * rewrite splices one region instead of re-joining every child (O(1) reads through the `$state`
- * proxy rather than O(children)). Bookkeeping, never bytes: nothing serializes or renders it, and
- * a span the invalidation seams missed fails the region check below and falls back to the full
- * rebuild. A `Uint32Array` on purpose — Svelte proxies plain arrays, and the shift would mint a
- * source per element.
+ * rewrite replaces one region instead of re-joining every child. Bookkeeping only: a span left
+ * stale fails the region check below and falls back to the full rebuild. A `Uint32Array` because
+ * Svelte proxies plain arrays, one reactive source per element.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { makeBlockNode, type CstNode } from '../core/nodes';
 import { assertInvariant } from '../assert';
 import { perfEnabled } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
-import { splitLines } from '../core/lines';
+import { isBlankLine, splitLines } from '../core/lines';
 
 /** The child a rebuild is re-rendering, and the bytes its region currently holds. */
 export interface ChildRawChange {
@@ -20,15 +18,28 @@ export interface ChildRawChange {
 	previousRaw: string;
 }
 
-/** A strip container's per-line transform; `first` marks the container's own opening line. */
-export type LinePrefix = (text: string, first: boolean) => string;
+/**
+ * A strip container's per-line transform. `first` marks the container's own opening line, and
+ * `trailingBlank` a blank line, other than a separator, with nothing but blank lines after it in
+ * the body.
+ */
+export type LinePrefix = (text: string, first: boolean, trailingBlank: boolean) => string;
 
-/** One child's contribution to its container's raw. */
-type RenderChild = (text: string, first: boolean) => string;
+/**
+ * One child's separator lines, then its own bytes. `tailIsBlank` asks whether only blank lines
+ * follow it in the body; a `leaf`'s blank lines are its own, not a nested rebuild's separators.
+ */
+type RenderChild = (
+	trivia: string,
+	raw: string,
+	first: boolean,
+	tailIsBlank: () => boolean,
+	leaf: boolean
+) => string;
 
-/** Drop the spans a children-shape change invalidated; the next full rebuild reseeds them. */
+/** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
-	// Tested, not assigned blind: a bare write would mint the field on every node it passes.
+	// Checked before writing: an unconditional write would add the field to every node passed in.
 	if (node.childSpans) node.childSpans = undefined;
 }
 
@@ -48,7 +59,7 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
 	for (let i = 0; i < children.length; i++) {
-		// One indexed read per child: the array is a `$state` proxy and each one is a trap.
+		// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
 		const child = children[i];
 		spans[i * 2] = out.length;
 		out += child.leadingTrivia + child.raw;
@@ -59,12 +70,20 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 }
 
 /**
- * A container whose raw re-prefixes every line of its body (blockquote, list item). `innerPrefix`
- * is unread: these kinds open their body on their own first line, so no parse fills it (G1.5).
+ * A container whose raw re-prefixes every line of its body (blockquote, list item). Its body opens
+ * on its own first line, so no parse fills `innerPrefix` and it is not read here (G1.5).
  */
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
-	const render: RenderChild = (text, first) => renderPrefixed(text, prefix, first);
+	// A separator line stays bare, as the parser reads it. A blank line that belongs to a leaf and
+	// ends the body keeps the body's indent, or a reload would read it as outside the container.
+	const render: RenderChild = (trivia, raw, first, tailIsBlank, leaf) => {
+		const separators = renderPrefixed(trivia, prefix, first, () => false);
+		return (
+			separators +
+			renderPrefixed(raw, prefix, first && separators === '', () => leaf && tailIsBlank())
+		);
+	};
 	if (
 		changed &&
 		spliceChildRegion(node, children, changed, render) &&
@@ -73,25 +92,39 @@ export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: Chi
 		return;
 	}
 
+	// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
+	const parts = children.map((child) => ({
+		trivia: child.leadingTrivia,
+		raw: child.raw,
+		leaf: child.children === undefined
+	}));
+	const suffix = node.innerSuffix ?? '';
+	// Every child from `blankTail` on, and the suffix, holds whitespace only.
+	let blankTail = parts.length;
+	if (isWhitespaceOnly(suffix)) {
+		while (blankTail > 0 && isWhitespaceOnly(parts[blankTail - 1].raw)) blankTail--;
+	} else {
+		blankTail = parts.length + 1;
+	}
+
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
 	// A child ending mid-line shares that line with whatever follows, so the two would be
 	// prefixed separately: the whole-body rebuild is the only faithful answer for that shape.
 	let openLine = false;
-	for (let i = 0; i < children.length; i++) {
-		const child = children[i];
-		const text = child.leadingTrivia + child.raw;
+	for (let i = 0; i < parts.length; i++) {
+		const { trivia, raw, leaf } = parts[i];
+		const text = trivia + raw;
 		if (openLine && text !== '') return rebuildWholeStrip(node, prefix);
 		spans[i * 2] = out.length;
-		out += render(text, out.length === 0);
+		out += render(trivia, raw, out.length === 0, () => blankTail <= i + 1, leaf);
 		spans[i * 2 + 1] = out.length;
 		if (text !== '') openLine = !text.endsWith('\n');
 	}
 
-	const suffix = node.innerSuffix ?? '';
 	if (suffix !== '') {
 		if (openLine) return rebuildWholeStrip(node, prefix);
-		out += render(suffix, out.length === 0);
+		out += renderPrefixed(suffix, prefix, out.length === 0, () => true);
 	}
 	node.raw = out;
 	node.childSpans = spans;
@@ -102,31 +135,44 @@ function rebuildWholeStrip(node: CstNode, prefix: LinePrefix): void {
 	node.raw = renderPrefixed(
 		concatChildren(node.children!) + (node.innerSuffix ?? ''),
 		prefix,
-		true
+		true,
+		() => true
 	);
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
 
-const renderVerbatim: RenderChild = (text) => text;
+const renderVerbatim: RenderChild = (trivia, raw) => trivia + raw;
 
-function renderPrefixed(text: string, prefix: LinePrefix, first: boolean): string {
+const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
+
+/** `inBlankTail` says whether the blank lines after the text's last content line end the body;
+ *  it is asked only when there are some, since answering can read every later sibling. */
+function renderPrefixed(
+	text: string,
+	prefix: LinePrefix,
+	first: boolean,
+	inBlankTail: () => boolean
+): string {
 	if (text === '') return '';
 	let out = '';
 	const lines = splitLines(text);
+	let lastContent = lines.length - 1;
+	while (lastContent >= 0 && isBlankLine(lines[lastContent].text)) lastContent--;
+	const endsBlank = lastContent < lines.length - 1 && inBlankTail();
 	for (let i = 0; i < lines.length; i++) {
-		out += prefix(lines[i].text, first && i === 0) + lines[i].lineEnding;
+		const line = lines[i];
+		out += prefix(line.text, first && i === 0, endsBlank && i > lastContent) + line.lineEnding;
 	}
 	return out;
 }
 
 /**
- * G1.38: re-derives the whole raw on a scratch and refuses a splice that disagrees, so a sibling's
- * bytes moving under the spans cannot ship. Dev only, and off under the perf instruments, whose
- * numbers would otherwise be measuring this.
+ * A dev-only comparison with a full rebuild on a scratch node, so a sibling's bytes moving under the
+ * spans cannot reach the document (G1.38). Skipped under the perf instruments, which would time it.
  */
 function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
-	if (!DEV || perfEnabled()) return true;
+	if (!isDevChecks() || perfEnabled()) return true;
 	const scratch = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
@@ -149,9 +195,8 @@ function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void
 // ── The splice ───────────────────────────────────────────────────────────────
 
 /**
- * Rewrite one child's region in place, or decline so the caller reseeds. Declines cover every
- * way the spans can have stopped describing `raw`: the region check is what turns a span the
- * invalidation seams missed into a slower rebuild instead of a corruption.
+ * Rewrite one child's region in place, or decline so the caller rebuilds from scratch: a span that
+ * stopped describing `raw` costs a slower rebuild, never corrupted bytes.
  */
 function spliceChildRegion(
 	node: CstNode,
@@ -171,12 +216,22 @@ function spliceChildRegion(
 
 	const first = start === 0;
 	const trivia = child.leadingTrivia;
-	if (raw.slice(start, end) !== render(trivia + changed.previousRaw, first)) return false;
+	// A child turning blank, or back, decides whether the empty blocks before it end the body.
+	if (isWhitespaceOnly(changed.previousRaw) !== isWhitespaceOnly(child.raw)) return false;
+	const tailIsBlank = () =>
+		isWhitespaceOnly(node.innerSuffix ?? '') &&
+		children
+			.slice(changed.index + 1)
+			.every((later) => isWhitespaceOnly(later.leadingTrivia + later.raw));
+	const leaf = child.children === undefined;
+	if (raw.slice(start, end) !== render(trivia, changed.previousRaw, first, tailIsBlank, leaf)) {
+		return false;
+	}
 
-	const rendered = render(trivia + child.raw, first);
+	const rendered = render(trivia, child.raw, first, tailIsBlank, leaf);
 	if (end < raw.length) {
-		// Nothing may reach across the regions that follow: a body running past its own last
-		// line ending would share it, and an emptied opening region hands line 0 to the next child.
+		// Nothing may run into the regions that follow: a child not ending in a line ending would
+		// share its last line, and an emptied first region hands line 0 to the next child.
 		if (rendered !== '' && !rendered.endsWith('\n')) return false;
 		if (first && end > start !== (rendered !== '')) return false;
 	}

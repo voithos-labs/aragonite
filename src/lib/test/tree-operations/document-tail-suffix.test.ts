@@ -6,12 +6,12 @@ import { emptyParagraph } from '../../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #129: the parse folds a document's one trailing blank line into `doc.suffix` only while
-// the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
-// its own empty paragraph, so the settle must materialize it.
-// Miss-analysis: the shape lane's corpus always ends on a block, so no draw ever placed the
-// parse-folded suffix beside a tail a gesture then blanked.
+// The parser keeps a document's one trailing blank line in `doc.suffix` only while the tail block
+// is non-blank, so when a gesture blanks the tail, the fix-up turns that line into a block.
+// Miss-analysis: GH #129, the shape property's corpus always ended on a block.
 
 describe('the folded trailing blank materializes when the tail turns blank (GH #129)', () => {
 	it('emptying the only block appends the suffix line and reports the insert', () => {
@@ -19,7 +19,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children).toHaveLength(1);
 		expect(doc.suffix).toBe('\n');
 
-		const { change } = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.leadingTrivia, c.raw])).toEqual([
 			['', '\n'],
@@ -31,25 +31,25 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'insert', at: 1, count: 1 });
 	});
 
-	it('the CRLF twin materializes its CRLF line', () => {
+	it('the CRLF variant materializes its CRLF line', () => {
 		const doc = parse('foo\r\n\r\n');
 
-		updateNodeContent(doc, 0, '\r\n');
+		updateNodeContent(doc, 0, '\r\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['\r\n', '\r\n']);
 		expect(doc.suffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The structural sinks are handed a slotless body parent, so the mint is the settle's alone
-	// (GH #168): both cases below report the widened window the ceremony publishes.
+	// The structural writes get a body parent with no suffix, so only the fix-up creates the block,
+	// and both cases below report the widened window the commit writes out.
 	it('a split whose blank second half lands at the tail widens its window', () => {
 		const doc = parse('foo*42*_lorem_  \r\n\n');
 		expect(doc.children).toHaveLength(1);
 
 		const change = settled(
 			doc,
-			(body) => splitNode(body, 0, 14, undefined, undefined, undefined).change
+			(body) => splitNode(body, 0, 14, undefined, fixtureReading()).change
 		);
 
 		expect(doc.children).toHaveLength(3);
@@ -63,7 +63,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', '\n', 'b\n']);
 		expect(doc.suffix).toBe('\n');
 
-		const change = settled(doc, (body) => deleteNode(body, 2));
+		const change = settled(doc, (body) => deleteNode(body, 2, defaultGrammarView));
 
 		expect(doc.children).toHaveLength(3);
 		expect(doc.suffix).toBe('');
@@ -71,12 +71,12 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 2, count: 1, newCount: 1 });
 	});
 
-	// The whole document gone: no tail is left for the line to fold against, so it is the one
-	// block the reload reads and the settle must mint it.
+	// The whole document gone: no tail is left for the line to attach to, so it is the one
+	// block the reload reads and the fix-up must create it.
 	it('deleting the only block materializes the folded line rather than emptying the tree', () => {
 		const doc = parse('a\n\n');
 
-		const change = settled(doc, (body) => deleteNode(body, 0));
+		const change = settled(doc, (body) => deleteNode(body, 0, defaultGrammarView));
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['\n']);
 		expect(doc.suffix).toBe('');
@@ -84,14 +84,13 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 1 });
 	});
 
-	// The full-table delete fills the emptied document itself (`range-delete-table-coverage`), so
-	// the settle meets a blank tail the caller already reported — its own mint has to widen that
-	// window rather than land outside it.
-	it('widens a caller-minted filler window when the folded line materializes beside it', () => {
+	// The full-table delete fills the emptied document itself, so the block the fix-up creates
+	// widens the window that caller reported rather than landing outside it.
+	it('widens a caller-created filler window when the folded line materializes beside it', () => {
 		const doc = parse('| H |\n| - |\n\n');
 
 		const change = settled(doc, (body) => {
-			deleteNode(body, 0);
+			deleteNode(body, 0, defaultGrammarView);
 			body.children.push(emptyParagraph('', '\n'));
 			return { op: 'replace', at: 0, count: 1, newCount: 1 };
 		});
@@ -102,8 +101,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2 });
 	});
 
-	// The whole-content range delete's door: `rangeDelete`'s same-block arm writes the blank
-	// and settles through this seam, so the arm must live in the settle for it to inherit.
+	// The whole-content range delete's path: `rangeDelete`'s same-block branch writes the blank
+	// and goes through this fix-up, so the rule must live in the fix-up for it to inherit.
 	it('the settle itself materializes on a document parent', () => {
 		const doc = parse('foo bar\n\n');
 		doc.children[0].raw = '\n';
@@ -119,7 +118,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('a\n\nb\n\n');
 		expect(doc.children).toHaveLength(2);
 
-		const { change } = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n', defaultGrammarView);
 
 		expect(doc.suffix).toBe('\n');
 		expect(change).toEqual({ op: 'noop' });

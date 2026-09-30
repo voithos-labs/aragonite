@@ -3,8 +3,6 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeNestedActionsDeps,
@@ -15,8 +13,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// Forward-Delete at the end of a collapsed summary must exit past the container rather
-// than dead-end on the unmounted body (refAt(i+1) no-op) — a focus move, no mutation.
+// Forward Delete at the end of a collapsed summary must exit past the container rather
+// than stop on the unmounted body (refAt(i+1) does nothing): a focus move, no edit.
 
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n';
@@ -37,8 +35,6 @@ function nestedFor(node: CstNode) {
 
 describe('collapsed container forward-merge exit', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 
@@ -64,8 +60,8 @@ describe('collapsed container forward-merge exit', () => {
 		expect(parent.focus.moveFocus).not.toHaveBeenCalledWith(5, 'start');
 	});
 
-	// Past the document end the root focus action mints an empty paragraph unless
-	// `{ append: false }` stops it. Driven through the REAL action; the stub is position-blind.
+	// Past the document end the root focus action appends an empty paragraph unless
+	// `{ append: false }` stops it. Driven through the real action; the stub ignores position.
 	it('mergeWithNext from a collapsed summary that is the last block appends nothing', async () => {
 		const details = parse(CLOSED_DETAILS).children[0];
 		const harness = makeTopHarness([details]);

@@ -1,9 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { pointInGap } from '../../text-runs';
 
-// The public caret door, driven through the bridge the way a host shell answering a click on
-// its own chrome calls it (requirements/selection/place-caret-at-point.md). No mouse: the
-// point is a number pair the shell read off its own element, which is the whole contract.
+// The public caret-placing method, driven through the bridge the way a host shell answering a
+// click on its own toolbar calls it (`requirements/selection/place-caret-at-point.md`). No
+// mouse: the point is a number pair the shell read off its own element, which is the contract.
 
 interface Box {
 	left: number;
@@ -12,7 +13,7 @@ interface Box {
 	bottom: number;
 }
 
-test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
+test.describe('placeCaretAtPoint is the host shell’s caret entry point', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -38,8 +39,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
 	}
 
-	// Below the editor box entirely — the shell's own territory, a point no click on the
-	// editor could produce, which is what makes this the method's reason to exist.
+	// Below the editor box entirely: the shell's own area, a point no click on the editor
+	// could produce, which is what makes this the method's reason to exist.
 	test('a point below the whole editor lands the caret at the document end', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const root = await rootBox();
@@ -54,10 +55,15 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 	test('a point beside a line lands the caret at the end of that line', async () => {
 		// Long enough to wrap, so "end of that line" and "end of the block" differ.
 		await editor.loadContent(`${'alpha '.repeat(60).trim()}\n`);
-		const root = await rootBox();
 		const para = await blockBox(0);
+		const margin = await pointInGap(
+			editor.editorContainer,
+			editor.page.locator(`[data-block-path='[0]']`),
+			'right',
+			para.top + 6
+		);
 
-		expect(await placeAt(root.right - 5, para.top + 6)).toBe(true);
+		expect(await placeAt(margin.x, margin.y)).toBe(true);
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -65,8 +71,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		expect(source.trim().endsWith('!')).toBe(false);
 	});
 
-	// Not dead-space-only: the shell's decision to call is the gate, so a point over the
-	// text resolves there like any other.
+	// Not dead space only: the shell's decision to call is the only check, so a point over
+	// the text resolves there like any other.
 	test('a point over a block’s own text lands the caret in it', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
 		const para = await blockBox(0);
@@ -76,6 +82,24 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		await editor.bridge.waitForSourceContains('!');
 
 		expect((await editor.bridge.getSource()).trim()).toBe('!first para\n\nsecond para');
+	});
+
+	// The tail is windowed out, so the landing mounts it first; the end it lands at is the outside
+	// of the hidden closer, as an End key there would be.
+	test('live mode: a point below a windowed-out tail lands after a closing marker', async () => {
+		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		const body = Array.from({ length: 200 }, (_, i) => `paragraph ${i}`).join('\n\n');
+		await editor.loadContent(`${body}\n\n**a**\n`);
+		await editor.waitForRenderFlush();
+		await expect(editor.page.locator(`[data-block-path='[200]']`)).toHaveCount(0);
+		const root = await rootBox();
+
+		expect(await placeAt(root.left + 40, root.bottom + 200)).toBe(true);
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceContains('x');
+
+		const source = await editor.bridge.getSource();
+		expect(source.slice(source.lastIndexOf('\n\n'))).toBe('\n\n**a**x\n');
 	});
 
 	// A false answer is what lets the shell do something else with the click.
@@ -94,8 +118,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 		expect(focusedKind).toBe('none');
 	});
 
-	// The G2.12 shape: a caret placed while a cross-block range stays live leaves the range
-	// painted over it, and the next printable key type-replaces the whole document.
+	// Placing a caret while a cross-block range stays live would leave the range painted over
+	// it, and the next printable key would replace the whole document (G2.12).
 	test('the landing ends a live cross-block range', async () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);

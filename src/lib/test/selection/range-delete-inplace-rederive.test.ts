@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { describeConvergence } from '../harness/parse-converged';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// GH #54: the same-block arm writes the joined bytes in place, so parse-owned metadata must
-// re-derive at the write door or the live node drifts from what its bytes parse to.
-// Miss-analysis: every same-block delete pin asserted bytes and caret, never the metadata the
-// convergence oracle reads, so a stale heading level rode green suites until the #45 sweep.
+// The same-block branch writes the joined bytes in place, so parse-owned metadata must re-derive
+// in `writeOwnRaw` or the live node drifts from what its bytes parse to.
+// Miss-analysis: GH #54; same-block delete pins asserted bytes and caret, never derived metadata.
 
 describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 	it('deleting a marker byte from a heading refreshes its level', () => {
@@ -15,12 +16,10 @@ describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 1 },
-			{ path: [0], offset: 2 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 1 }, { path: [0], offset: 2 })),
 			createSharingState(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children[0].raw).toBe('# ab\n');

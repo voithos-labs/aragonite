@@ -7,8 +7,8 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// A plain strip container: the seam wires it end to end. `handleKeydown` stays
-	// unwired on purpose — a blockquote never bubbled kind commands.
+	// A plain container with a left border: `createContainerBlock` wires it end to end.
+	// `handleKeydown` is deliberately left unwired, since a blockquote takes no chords.
 	const { blockListProps, containerApi } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,
@@ -20,7 +20,7 @@
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>
-	<BlockList {...blockListProps} reorderable={true} />
+	<BlockList {...blockListProps} />
 </div>
 
 <style>

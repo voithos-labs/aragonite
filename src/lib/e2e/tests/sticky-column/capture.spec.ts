@@ -37,7 +37,7 @@ test.describe('sticky column: basic capture and cross-block', () => {
 	}
 });
 
-// The column survives however many short blocks the walk clamps through on its way down.
+// The column survives however many short blocks the caret clamps through on its way down.
 const CLAMPING = [
 	{
 		name: 'a short block',

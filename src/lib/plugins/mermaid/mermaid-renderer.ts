@@ -1,16 +1,15 @@
 /**
- * The renderer-adapter seam: this module holds the injected renderer slot and the
- * memo, never the engine, which is confined to the `/renderer` subpath so it never
- * rides the core bundle. The engine travels by module because `MermaidBlock` mounts
- * with standard block props. No default: absent a renderer the code renders statically.
+ * Where the mermaid renderer is plugged in: `mermaidSlot` holds it and its cache, never mermaid
+ * itself, which stays behind the `/renderer` subpath so it never lands in the main bundle.
+ * `MermaidBlock` mounts with the standard block props, so it reads the renderer from here.
  */
 
-import { createBoundedMemo } from '$lib/plugin';
+import { createAsyncRendererSlot, type RenderContext } from '$lib/plugin';
 
 /** What the editor knows at render time that the diagram text does not carry. */
 export interface MermaidRenderContext {
-	/** The engine paints colors into the SVG, so a stylesheet cannot retheme a drawn
-	 *  diagram: the renderer has to draw for the theme. */
+	/** Mermaid paints colors into the SVG, so a stylesheet cannot retheme a drawn diagram:
+	 *  the renderer has to draw for the theme. */
 	theme: string;
 }
 
@@ -26,40 +25,18 @@ export interface MermaidRenderResult {
 	error?: string;
 }
 
-/** Exported so the eviction test derives its churn count from the real bound. */
-export const MERMAID_MEMO_CAP = 256;
+export const mermaidSlot = createAsyncRendererSlot<string, MermaidRenderResult>({
+	key: (code) => code,
+	missing: () => ({ error: 'renderer not configured' }),
+	failed: (_code, error) => ({ error: error instanceof Error ? error.message : String(error) })
+});
 
-const newMemo = () =>
-	createBoundedMemo<string, Promise<MermaidRenderResult>>({ cap: MERMAID_MEMO_CAP });
-
-let activeRenderer: MermaidRenderer | null = null;
-// The primitive owns no reset, so re-instantiation is how a renderer swap clears it.
-let memo = newMemo();
 let renderSeq = 0;
 
-export function setMermaidRenderer(renderer: MermaidRenderer | null): void {
-	activeRenderer = renderer;
-	memo = newMemo();
-}
-
-export function hasMermaidRenderer(): boolean {
-	return activeRenderer !== null;
-}
-
-/**
- * Theme belongs in the memo key rather than in a cache reset, so flipping back is a hit; an
- * SVG string needs no per-caller clone. A parse failure resolves to an `error` and caches
- * like a success. `theme` is required, so a caller cannot forget it and still compile.
- */
-export function renderMermaid(code: string, theme: string): Promise<MermaidRenderResult> {
-	// NUL-joined so no (theme, code) pair can concatenate into another's key.
-	return memo(`${theme}\0${code}`, () => {
-		const renderer = activeRenderer;
-		return renderer
-			? renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then(
-					(svg) => ({ svg }),
-					(reason) => ({ error: reason instanceof Error ? reason.message : String(reason) })
-				)
-			: Promise.resolve({ error: 'renderer not configured' });
-	});
+/** Mermaid needs a fresh element id per render, which the slot's `(code, ctx)` call leaves out. */
+export function adaptMermaidRenderer(
+	renderer: MermaidRenderer
+): (code: string, ctx: RenderContext) => Promise<MermaidRenderResult> {
+	return (code, { theme }) =>
+		renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then((svg) => ({ svg }));
 }

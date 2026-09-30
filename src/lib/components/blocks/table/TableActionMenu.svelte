@@ -13,11 +13,13 @@
 		COLUMN_ALIGNMENT,
 		TABLE_ACTIONS
 	} from '../../../a11y-strings';
-	import MenuIcon, { type MenuIconName } from '../../menu/MenuIcon.svelte';
+	import MenuIcon from '../../menu/MenuIcon.svelte';
+	import type { MenuIconName } from '../../../menu-icons';
 	import { tick, untrack } from 'svelte';
+	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 
-	// The glyph each entry carries, limestone's context-menu convention: an icon slot per row,
-	// the destructive rows in the accent.
+	// Every entry carries an icon, and the destructive ones take the accent colour, as the host
+	// app's context menus do.
 	const ICONS: Record<TableAxisAction | ClipboardAction, MenuIconName> = {
 		insertRowAbove: 'plus',
 		insertRowBelow: 'plus',
@@ -44,28 +46,27 @@
 		onalign,
 		onclose,
 		onescape,
-		anchor
+		anchor,
+		menuPresence
 	}: {
 		items: TableMenuItem[];
 		x: number;
 		y: number;
-		/** Where the open point is NOW, re-read on scroll and resize so the menu stays on it. */
+		/** Where the point the menu opened on is now, re-read on scroll and resize. */
 		anchor?: () => { x: number; y: number } | null;
 		onaction: (action: TableAxisAction, index: number) => void;
 		onclipboard: (action: ClipboardAction) => void;
 		onalign: (alignment: 'left' | 'center' | 'right') => void;
 		onclose: () => void;
 		onescape: () => void;
+		menuPresence: MenuPresence;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
 	/** The open flyout, if any: hover or ArrowRight on its row opens it, ArrowLeft closes it. */
 	let openGroup = $state<'row' | 'column' | null>(null);
 
-	// The open point, viewport coordinates, re-read on scroll and resize so the menu stays on
-	// what it opened on and leaves the viewport with it — never re-clamped into view, which
-	// would float it over unrelated content. The clamp runs once, when the size is first known,
-	// and its shift rides along as a constant offset.
+	// Clamped into the viewport once, when its size is known: re-clamping would float it away.
 	// svelte-ignore state_referenced_locally
 	let at = $state({ x, y });
 	let shift = $state<{ x: number; y: number } | null>(null);
@@ -94,9 +95,8 @@
 	const left = $derived(at.x + (shift?.x ?? 0));
 	const top = $derived(at.y + (shift?.y ?? 0));
 
-	// The first enabled item is the keyboard entry point; disabled items are never stops.
-	// Untracked: `focusStop` reads the open flyout, and a tracked read here would re-run this
-	// mount-time landing every time a flyout opened, pulling focus straight back out of it.
+	// Focus starts on the first enabled item. Untracked, or opening a flyout would re-run this and
+	// pull focus back out of it.
 	$effect(() => {
 		if (menuEl) untrack(() => focusStop(0));
 	});
@@ -125,7 +125,7 @@
 	// ── Roving focus (ARIA menu pattern) ────────────────────────────────────
 	//
 	// Up/Down (and Tab, trapped) step every enabled item and alignment segment; Left/Right
-	// hop within the alignment trio. Enter/Space fall through to native button activation.
+	// hop within the alignment trio. Enter and Space fall through to the button's own activation.
 
 	function focusableStops(): HTMLElement[] {
 		if (!menuEl) return [];
@@ -256,6 +256,7 @@
 	class="md-menu table-action-menu"
 	role="menu"
 	aria-label={TABLE_ACTIONS}
+	{@attach menuPresence.track}
 	tabindex="-1"
 	style:left="{left}px"
 	style:top="{top}px"
@@ -289,6 +290,7 @@
 						role="menu"
 						aria-label={item.label}
 						{@attach keepFlyoutOnScreen}
+						{@attach menuPresence.track}
 					>
 						{#each item.items as sub, j (j)}
 							{#if sub.kind === 'action' || sub.kind === 'clipboard'}
@@ -344,9 +346,8 @@
 {/snippet}
 
 <style>
-	/* The surface, rows, icons and dividers are the shared `.md-menu` family (editor.css); only
-	   the alignment trio is this menu's own — three glyph buttons on one row, the active one
-	   lifted like a hover. */
+	/* The panel and rows are the shared `.md-menu` family (editor.css); the alignment trio is
+	   this menu's own. */
 	.table-action-menu-alignment {
 		display: flex;
 		gap: 2px;
@@ -358,7 +359,7 @@
 	.table-action-menu-group {
 		position: relative;
 	}
-	/* limestone's submenu: a second surface hung off the row's right edge. */
+	/* A submenu: a second panel hung off the row's right edge. */
 	.table-action-menu-flyout {
 		position: absolute;
 		left: 100%;
@@ -376,7 +377,7 @@
 		border: 0;
 		border-radius: 5px;
 		background: transparent;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 	}
 	.alignment-segment:hover,

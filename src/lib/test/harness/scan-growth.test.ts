@@ -1,9 +1,7 @@
 // The growth harness's own calibration: a floor under the small sample, an estimator that reads a
 // linear scan as linear even while interference scales with sample duration, and the power to still
 // call a quadratic scan quadratic.
-//
-// Miss-analysis: the harness had no test of its own — its noise floor was implicit and no case ever
-// sampled it under load, so the duration bias in a best-of only surfaced on a slow CI runner.
+// Miss-analysis: the harness had no test of its own, so its best-of bias surfaced only on slow CI.
 import { describe, it, expect } from 'vitest';
 import {
 	BOUNDED_GROWTH_CEILING,
@@ -39,8 +37,8 @@ function virtualScan(cost: CostMs, stalls: (durationMs: number) => number = () =
 
 const STALL_MS = 4;
 
-/** Stationary interference: every millisecond of work stalls on a coin flip, so a stall-free run
- *  is rarer the longer the run — the asymmetry a best-of estimator reads as growth. */
+/** Steady interference: every millisecond of work stalls on a coin flip, so a stall-free run is
+ *  rarer the longer the run, which is the bias a best-of estimator reads as growth. */
 function stallStream(seed: number) {
 	let state = seed >>> 0;
 	const stalled = () => {
@@ -125,12 +123,12 @@ describe('measureScanGrowth calibration', () => {
 		expect(quadraticGrowth.ratio).toBeCloseTo(16, 0);
 		expect(quadraticGrowth.ratio).toBeGreaterThan(BOUNDED_GROWTH_CEILING);
 		// Re-measurement is what a contended runner earns; a quadratic scan spends every attempt
-		// and the verdict stands.
+		// and the answer stands.
 		expect(quadraticGrowth.attempts).toBe(MAX_ATTEMPTS);
 	});
 
-	// The runner failure this guards: a linear scan priced on a loaded box. Interference lands in
-	// proportion to a sample's length, so the estimator alone has to read 4 — no retry to lean on.
+	// A linear scan priced on a loaded machine, where interference scales with a sample's length:
+	// the estimator alone has to read 4, with no retry to lean on.
 	it('reads a linear scan as linear while interference scales with sample duration', () => {
 		const loaded = virtualScan(linear(CLEARS_FLOOR_AT_32KB), stallStream(2654435761));
 		const growth = measureScanGrowth(loaded.run, 'x', [32, 128], loaded.now);
@@ -140,7 +138,7 @@ describe('measureScanGrowth calibration', () => {
 	});
 
 	// Contention that lands on one size is what a re-measurement is for: the first attempt reads
-	// far over the ceiling, and only a later attempt taken as the verdict brings the shape back.
+	// far over the ceiling, and only a later attempt taken as the answer brings the shape back.
 	it('re-measures a reading over the ceiling and keeps the lowest ratio', () => {
 		const contended = virtualScan(linear(CLEARS_FLOOR_AT_32KB), fadingBurst());
 		const growth = measureScanGrowth(contended.run, 'x', [32, 128], contended.now);

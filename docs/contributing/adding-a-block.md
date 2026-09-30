@@ -29,7 +29,7 @@ flowchart LR
   R --> X["merge · paste · selection<br/>inline · container raw"]
 ```
 
-The **union member** is what makes the rest type-check. The **descriptor** says what your kind _is_ (mergeable? editable? a container?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax, and you skip it entirely if your kind emerges from the paragraph fallback (setext headings and tables do).
+The **union member** is what makes the rest type-check. The **descriptor** says what your kind _is_ (mergeable? editable? a container? prose on the page, or an object you pick up?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax, and you skip it entirely if your kind emerges from the paragraph fallback (setext headings and tables do).
 
 Everything downstream reads the registries (merge rules, BlockHost, the selection overlay, paste, the inline pipeline, container raw rebuild), which is why the inventory is that short. Adding a kind is additive.
 
@@ -85,7 +85,7 @@ export interface BlockMetadataByKind {
 
 ### 1. The descriptor
 
-Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. Here's the thematic break's, the smallest built-in:
+Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name isn't one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`, the word a screen reader and the block menu use for it. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Two more, `pageRole` and `estimateHeight`, are optional for a plugin but not for you. A plugin that skips them gets defaults. A built-in that skipped them would quietly get the same defaults without anyone deciding it should, so a check that runs when an editor mounts (G1.40) fails it. Here's the thematic break's descriptor, the smallest built-in:
 
 ```ts
 // schema/built-in-descriptors.ts
@@ -96,6 +96,8 @@ registerBlockKind('thematicBreak', {
 	blockFocus: 'whole-block',
 	// Leading edge only: its focused Enter already inserts a paragraph below.
 	gapEdges: 'before',
+	pageRole: 'object',
+	estimateHeight: singleLineEstimate,
 	keymap: [
 		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -112,19 +114,23 @@ registerBlockKind('thematicBreak', {
 
 `gapEdges` names the edges of your block that may host a gap caret (a caret parked between two blocks, where neither surface can hold one) because your own surface can't host a sibling-paragraph insertion there: `'before'`, `'after'`, `'both'`, or `'none'`. A boundary only opens when both blocks facing it declare it, and an edge some gesture of yours already covers stays undeclared, which is why the thematic break above says `'before'` and not `'both'`; `docs/design/editor.md` § The gap caret has the semantics. `mergeRole` is one of `prose`, `prose-absorber`, `container`, `self-merge`, `not-mergeable`, and `docs/design/editor.md` § "Merge eligibility: roles, not pairs" says which roles merge with which. The optional fields, every one of them (the pinned inventory, container fields included, is `docs/design/plugin-contract.md` § The descriptor field reference):
 
-| Field                   | For                                                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `keymap`                | Declarative chord → command bindings; see [Commands](#commands)                                                                                   |
-| `conformanceFixture`    | Source that parses to your kind. **The field the conformance kit enrols on** ([Testing](#testing))                                                |
-| `getContentRange`       | Kinds whose editable span is narrower than their raw (a heading's `# `)                                                                           |
-| `contentStartBackspace` | `'demote-first'`: Backspace at the content start drops the kind's own markers before it merges (headings, again)                                  |
-| `blockFocus`            | `'whole-block'`: an opaque childless block joins the focus-then-delete model (arrows stop on it; Backspace focuses it, a second press deletes it) |
-| `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax (a table cell)                                                        |
-| `normalizeRawWrite`     | Make a written raw legal as this kind's own bytes; the fenced code's rule is `schema/fenced-code-raw.ts`                                          |
-| `renderImagesAsWidgets` | `false` opts out of image widgets (a table cell renders the alt text instead)                                                                     |
-| `foreignDragHitTest`    | Custom drop-target geometry: the EXACT hit, declining off-target                                                                                  |
-| `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block: the NEAREST target                                                                          |
-| `estimateHeight`        | An O(1) height guess for windowing, when the default guess is far off for your kind                                                               |
+| Field                   | For                                                                                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keymap`                | Declarative chord → command bindings; see [Commands](#commands)                                                                                                                                   |
+| `conformanceFixture`    | Source that parses to your kind. **The field the conformance kit enrols on** ([Testing](#testing))                                                                                                |
+| `contentStart`          | `{ range, backspace? }`: `range` when the editable span is narrower than raw (a heading's `# `); `backspace: 'demote-first'` drops those markers on Backspace before a merge                      |
+| `blockFocus`            | `'whole-block'`: an opaque childless block joins the focus-then-delete model (arrows stop on it; Backspace focuses, a second press deletes); needs `supportsInline: false`                        |
+| `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax (a table cell)                                                                                                        |
+| `readsFollowingLines`   | Kinds whose syntax can take the next lines as their own (a link definition's title, an HTML block left open), so a same-kind write beside one still checks whether the two blocks now read as one |
+| `rawWrite`              | Make a written raw legal as this kind's own bytes, and map a caret through it; the fenced code's rule is `schema/fenced-code-raw.ts`                                                              |
+| `renderImagesAsWidgets` | `false` opts out of image widgets (a table cell renders the alt text instead)                                                                                                                     |
+| `foreignDragHitTest`    | Custom drop-target geometry: the EXACT hit, declining off-target                                                                                                                                  |
+| `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block: the NEAREST target                                                                                                                          |
+| `dragLabel`             | What the drag ghost calls the block when its text makes a bad label (code shows `Code`, not its first line)                                                                                       |
+
+`pageRole` is how the block reads on the page. A `'prose'` block (a paragraph, a heading, a quote) gets no drag handle, and right-clicking its text opens the clipboard rows. An `'object'` (code, a table, a divider) gets a handle and its own block menu. There's one exception you don't declare: a paragraph holding nothing but images counts as an object whatever its kind says (`src/lib/schema/page-role.ts`).
+
+`estimateHeight` is the block's height guess until windowing (only mounting the blocks near the screen) gets to measure it. You prob don't need to write one. `src/lib/schema/height-estimates.ts` has one per common shape (wrapped prose, a single line, source lines, and `containerEstimate` for anything with children), so pick the closest.
 
 The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
 
@@ -156,12 +162,12 @@ Required, together:
 
 Optional, each earning its place:
 
-- `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`.
+- `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`. Backspace at the title's start always keeps it, so a container with one declares only `unwrapRole.middleChildBackspace`.
 - `containerPaste`: kind-specific paste routing, for a clipboard whose top block is your kind landing inside a same-kind ancestor.
 - `unwrapRole`: the Backspace-at-start strategy; see `editor-actions/unwrap-strategies.ts`.
-- `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then peels the blank line next to the chrome into the wrap instead of into a body block.
+- `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then moves the blank line next to the chrome into the wrap instead of into a body block.
 - `bodyWrite`: for a container with a fixed closing line (`</details>`) that a body edit could accidentally type. `normalize` escapes it out of a child's raw, and `mapOffset` says where the caret lands after the escape.
-- `contentStartSpace: 'complete-marker'`: a space typed at the start of an empty child gets eaten, because the marker your `rebuildRaw` emits already carries it. Only sound when `rebuildRaw` does put that space back.
+- `contentStartSpace: 'complete-marker'`: the first space typed at the start of a child whose marker lacks its space (an empty child, or text right after a bare marker) gets eaten, because the marker your `rebuildRaw` emits already carries it. Only sound when `rebuildRaw` does put that space back.
 - `reorderChildren`: this container's direct children reorder among themselves, by drag or Alt+↑/↓; `{ renumberMarkers: true }` for an ordered list. See `tree-operations/reorder-unit.ts`.
 
 ### 2. The component
@@ -192,7 +198,7 @@ export function runCommand(id: CommandId): boolean { /* ... */ }
 void ({ editable, focusable, focus, parkCaret, getCursorOffset, runCommand } satisfies BlockComponent);
 ```
 
-What each method owes is the plugin guide's territory; it's identical for built-ins.
+What each method must provide is the plugin guide's territory; it's identical for built-ins.
 
 BlockHost looks your component up by kind and hands every block the same props: `node`, `index`, `myPath`, `ambientPrefix`, plus `document` (the root, read-only, so a block at any depth can read the structure above it) and `rects` (measure, reveal, and scroll by path). `extraProps` is a `(node) => Record<string, unknown>` for anything beyond that, like the heading's `blockClass` above. BlockHost `bind:this`-es your component and reads the surface off its exports; you publish it and never hold a handle to it.
 
@@ -220,17 +226,17 @@ registerBlockOpener('thematicBreak', {
 });
 ```
 
-Priority orders the parser's attempts, ascending, and the built-in ladder is single-sourced in `src/lib/schema/opener-priorities.ts` :: `OPENER_PRIORITIES`, so slot yours against that constant (`OPENER_PRIORITIES.heading + 5`, say) rather than a number copied from a doc, this one included. Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
+Priority orders the parser's attempts, ascending, and the built-in order is single-sourced in `src/lib/schema/opener-priorities.ts` :: `OPENER_PRIORITIES`, so slot yours against that constant (`OPENER_PRIORITIES.heading + 5`, say) rather than a number copied from a doc, this one included. Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
 
 ## Commands
 
-A component that declares a `keymap`, or that can be a cross-block focus target, implements `runCommand(id, arg?): boolean`: the block-local bodies the keybinding dispatcher invokes. New ids go in `BLOCK_COMMAND_IDS` (`schema/commands.ts`), and G1.11 fires at bootstrap if a keymap names an unknown command or binds one chord twice. `docs/design/editor.md` § Schema has the dispatch story. The thematic break answers only the two reorder chords, so its body is one line:
+A component whose keymap binds a built-in command other than the two reorder ids, or that can be a cross-block focus target, implements `runCommand(id, arg?): boolean`: the block-local bodies the keybinding dispatcher invokes. New ids go in `BLOCK_COMMAND_IDS` (`schema/commands.ts`), and G1.11 fires at bootstrap if a keymap names an unknown command or binds one chord twice. `docs/design/editor.md` § Schema has the dispatch story.
+
+The two reorder ids are the exception, and you don't write a case for them. `block.moveUp` and `block.moveDown` move whichever block hands the dispatch its path, so a component passes `getPath` with its chord and that's it. The thematic break owns no other command, so it has no `runCommand` at all:
 
 ```ts
 // components/blocks/ThematicBreakBlock.svelte
-export function runCommand(id: CommandId): boolean {
-	return reorderRunCommand(id, reorder, () => myPath);
-}
+if (wiring.dispatchChord(e, { kind: node.kind, getPath: () => myPath })) return;
 ```
 
 A binding can carry an argument, which is how one command serves seven chords:
@@ -247,25 +253,24 @@ A binding can carry an argument, which is how one command serves seven chords:
 Your block pulls what it needs from concern-specific Svelte contexts. Take only the ones you use:
 
 ```ts
-// components/blocks/list/ListBlock.svelte
+// in a block component's script
 const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-const { controller, stickyColumn, selection, registryView } =
-	getContext<EditorServices>(EDITOR_SERVICES_KEY);
+const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 ```
 
 | Context                     | Gives you                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | `BLOCK_EDIT_KEY`            | `BlockEditActions`: split, merge, delete, content/metadata edits, replace         |
-| `FOCUS_KEY`                 | `FocusActions`: `moveFocus`, `revealPath`                                         |
+| `FOCUS_KEY`                 | `FocusActions`: `moveFocus`                                                       |
 | `HISTORY_KEY`               | `HistoryActions`: `requestUndo` / `requestRedo`                                   |
 | `CONTAINER_EDIT_KEY`        | `ContainerEditActions`: the container commit surface (below)                      |
 | `EDITOR_SERVICES_KEY` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
 
-`src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live next door in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
+`src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live beside it in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
 
 - **`descendToBody`** (on `BlockEditActions`) is the Enter gesture out of a title row: it moves the caret from a chrome leaf into the container's first body child. Any container with a title row wants it.
-- **`revealPath`** (on `FocusActions`) mounts an off-window block before you place a caret in it. The editor only mounts the blocks near the viewport, so the block you want to focus may not exist in the DOM yet.
+- **`land`** (on `ContainerEditActions`) puts the caret at a document position for a move that commits nothing. It mounts the block first (the editor only mounts the blocks near the viewport, so the one you want may not exist in the DOM yet) and scrolls it into view if it's off screen. A commit's own caret goes in its `landing`, below.
 
 Sticky-column entry isn't a separate method. It rides on the `FocusPosition` you pass to `moveFocus`:
 
@@ -302,65 +307,60 @@ First, the cheap way out. A container with nothing kind-specific to say can use 
 </div>
 ```
 
-The list and the table assemble the primitives by hand, and that's what the rest of this section is about. A container builds its reactive state and a default action bundle from the `editor-actions/` primitives, then overrides only what genuinely needs kind-specific behavior. That's usually less than you expect going in.
+The list and the table need more than the blockquote, so they call only the half of that factory that builds the child actions, and wire the rest themselves. That's what the rest of this section is about. A container builds its children's reactive state and a default action bundle, then overrides only what genuinely needs kind-specific behavior (usually less than you'd expect going in).
 
-**`createBlockListState(() => node)`** gives you the scope's `innerBlockIds` / `innerBlockRefs` (a scope: one block list and its children, the unit of addressing and windowing).
+**`createContainerActions({ getNode, getIndex, getPath, childList, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. What it does, in order:
 
-Pass the node **as a getter, never by value.** A by-value argument freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering. Nothing throws. This is the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`), and G4.1 scans every call site in the editor for it.
+1. reads the parent's action bundle and the editor's reading (its grammar, link resolver and mode) from context,
+2. builds the children's block-list state,
+3. builds the default `{ blockEdit, focus, containerEdit }` bundle and provides it to the children,
+4. hands you the pieces back: `scope`, `state`, `bundle`, `parent` and `reading`.
 
-**`createStandardNestedActions(state, input, overrideFactory?)`** hands back a complete `{ blockEdit, focus, containerEdit }` bundle. Its methods handle split, merge, delete, content, and replace uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`. `input` is a `NodeScope` (three getters, `index`, `node`, `path`, passed by reference so nothing snapshots them) plus the parent's bundle and a few editor services. The list's wiring:
+The bundle's methods handle split, merge, delete, content, and replace the same way for every container, and Backspace at the start of a child dispatches by the kind's declared `unwrapRole`.
+
+Call it once during component init. It reads the action contexts before it sets them, so if your container needs a context from its own parent (a list reading the enclosing list's context), read that before the call. And pass getters, never the node itself. A by-value node freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering, and nothing throws. That's the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`). The factory's types hold it for you: `getNode` is `() => NodeView`, so passing a node fails `npm run check`. The list's wiring:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
-const scope: NodeScope = {
-	get index() { return index; },
-	get node() { return node; },
-	get path() { return myPath; }
-};
+const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
-const bundle = createStandardNestedActions(
-	listState,
-	{
-		scope,
-		stickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
-		parentListContext,
-		parent: { blockEdit: parentBlockEdit, focus: parentFocus, containerEdit: parentContainerEdit }
-	},
-	createListOverrides({ scope, parentBlockEdit })
-);
-
-setNestedActionsContexts(bundle);
+const { scope, state: listState, parent, reading } = createContainerActions({
+	getNode: () => node,
+	getIndex: () => index,
+	getPath: () => myPath,
+	parentListContext,
+	overrides: ({ scope, parent }) => createListOverrides({ scope, parentBlockEdit: parent.blockEdit }),
+	// Read when a move needs it, so it can name the `childList` const built further down.
+	childList: () => childList
+});
 ```
 
-A container needing custom behavior passes an `overrideFactory`. It receives the fully-built default bundle and returns per-sub-interface partial overrides, which chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
+`childList` is your children as the editor walks down to one: how many there are, their component refs, and the render window that mounts them. You build it once windowing exists (next section), and it's what lets a caret move onto a child the window left out mount it first.
+
+A container needing custom behavior passes `overrides`, a function from the container's scope and its parent's actions to an override factory. The factory gets the fully built default bundle and returns partial overrides, one per sub-interface (`blockEdit`, `focus`, `containerEdit`). Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. Every `blockEdit` member resolves to whether bytes landed. An override that writes nothing resolves `false`. One that passes the edit to someone else (the parent's `blockEdit`, say) returns that call's promise as is, so the caller hears the real answer. The list declining a split and delegating only its last item's forward merge:
 
 ```ts
 // editor-actions/list-overrides.ts
 export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {
-			splitBlock: async (): Promise<void> => {},
-			updateBlockContent: (): void => {},
-			mergeWithNext: async (itemIndex: number): Promise<void> => {
+			splitBlock: async (): Promise<boolean> => false,
+			updateBlockContent: () => refusedWrite(),
+			mergeWithNext: async (itemIndex: number): Promise<boolean> => {
 				const node = deps.scope.node;
-				if (!node.children) return;
-				if (itemIndex >= node.children.length - 1) {
-					await deps.parentBlockEdit.mergeWithNext(deps.scope.index);
-				}
+				if (!node.children || itemIndex < node.children.length - 1) return false;
+				return deps.parentBlockEdit.mergeWithNext(deps.scope.index);
 			}
 		}
 	});
 }
 ```
 
-A trivial container calls `createStandardNestedActions(state, input)` with no overrides and is done. `list-overrides.ts` and `container-exit-overrides.ts` under `editor-actions/` are the two shipped examples.
+A trivial container passes no overrides and is done, as the table and the table row do. `list-overrides.ts` (the list's, and the list item's Enter) and `container-exit-overrides.ts` under `editor-actions/` are the shipped examples.
 
 **`dispatchFocusByPath` / `dispatchFocusAtColumn`** (`editor-actions/focus/focus-dispatch.ts`) are the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to.
 
-**`setNestedActionsContexts(bundle)`** publishes the bundle to nested descendants in one call.
+**`setNestedActionsContexts(bundle)`** is how `createContainerActions` provides the bundle to nested descendants, so you never call it yourself.
 
 Two things containers don't do: they don't set `HISTORY_KEY` (undo/redo walks up to the editor root), and they don't rebuild their own raw. The commit primitives rebuild the unshared spine (the chain of parents from the root down to the edited node, already copied out of sharing) after every structural mutation, invoking the `rebuildRaw` you declared at registration.
 
@@ -392,15 +392,14 @@ await parentContainerEdit.commitContainer({
 		return { op: 'insert', at: insertAt, count: 1 };
 	},
 	op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: extendDocPath(myPath, insertAt) },
-	afterTick: () => {
-		focusCell(insertAt, 0, 'start');
-	}
+	// The new row's first cell, addressed by its path through the table.
+	landing: () => ({ path: docPathFrom([...myPath, insertAt, 0]), offset: CURSOR_START })
 });
 ```
 
-`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, `op` names the operation for the edit event and the operations log, and `afterTick` runs after the DOM has caught up, which is where a caret gets placed. The same rule covers `commitMultiScope`'s per-scope views.
+`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, and `op` names the operation for the edit event and the operations log. `landing` is a function returning where the caret goes, a document path (a container's is fine) and an offset. The commit reads it once the DOM has caught up and puts the caret down for you, mounting a windowed-out row and scrolling included, so never focus anything yourself after a commit. The same rules cover `commitMultiScope`'s per-scope views.
 
-`ContainerEditActions` also carries the entries for writes _outside_ a commit: `withUnsharedSpine` (copy-path-on-write for raw sync after routine typing) and `pushDebouncedCheckpoint` / `nudgeReactivity` (bracket the typing mutation, then publish it to Svelte). Prefer `commitContainer`, or `commitMultiScope` for cross-container ops, unless you have a real reason to mutate raw yourself.
+`ContainerEditActions` also carries the two things a keystroke needs the root for: `typeInLeaf` (groups it with its typing burst) and `writeLeafInPlace` (the write that keeps the leaf in place), both built in `src/lib/editor-actions/leaf-write.ts`. Your container gets them for free through the shared `updateBlockContent`, so there's nothing to wire. A typed character joins its burst's undo entry, then either commits or writes in place. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers.
 
 ### Virtual rendering
 
@@ -411,37 +410,48 @@ A container renders a windowed slice of its children and wires one hook, `useCon
 ```ts
 // components/blocks/list/ListBlock.svelte
 const windowing = useContainerWindowing({
-	getIndex: () => index,
 	getParentPath: () => myPath,
 	getChildren: () => node.children ?? [],
 	getChildIds: () => listState.innerBlockIds,
-	getListEl: () => boxEl ?? null,
-	getOwnEl: () => boxEl?.closest('.block-host') ?? null,
-	provideLeafChannel: false
+	getListEl: () => boxEl ?? null
 });
 ```
 
 | Getter                        | Supplies                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------------ |
-| `getIndex` / `getParentPath`  | This scope's slot in its parent, and its own path                                    |
+| `getParentPath`               | This scope's own path                                                                |
 | `getChildren` / `getChildIds` | The live child nodes and their ids                                                   |
 | `getListEl`                   | The content-origin element that scrolls with the children, not the viewport          |
-| `getOwnEl`                    | The element the parent measures for this scope's height (omit at the root)           |
-| `provideLeafChannel`          | `true` when direct children are BlockHosts; `false` for direct-`{#each}` scopes      |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and feed `revealChild` / `isInWindow` into `createContainerBlockComponent` so an off-window focus or reveal resolves a mounted child:
+You don't report the container's own height anywhere. The list above measures your block's box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/reactivity/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check, G1.47, catches that one).
+
+```ts
+// components/blocks/list/ListItemBlock.svelte
+useMeasuredChild({
+	getId: () => id,
+	getPath: () => myPath,
+	getEl: () => boxEl ?? null,
+	getRaw: () => node.raw
+});
+```
+
+The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and make it the window of your `childList`. One `childList` const feeds both calls, the `createContainerActions` getter above and `createContainerBlockComponent` here:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
+const childList: ChildList = {
+	count: () => node.children?.length ?? 0,
+	refs: listState.refSlots,
+	windowing
+};
+
 export const containerApi = createContainerBlockComponent({
 	selection,
+	reading,
 	get innerBlockRefs() { return listState.innerBlockRefs; },
-	refSlots: listState.refSlots,
-	get nodeChildrenLength() { return node.children?.length ?? 0; },
-	get node() { return node; },
-	revealChild: windowing.revealChild,
-	isInWindow: windowing.isInWindow
+	childList,
+	get node() { return node; }
 });
 ```
 
@@ -452,7 +462,7 @@ Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing
 A container's `ambientPrefix` (the read-only marker a container lends its first child, like a list's `- `) is either inert text, the default, or carries interactive character ranges, meaning clickable regions inside the read-only prefix. The shape is `AmbientPrefix` in `src/lib/block-component.ts`, and the contract is `docs/design/editor.md` § Ambient markers.
 
 - **Inert:** return a string, the list item's `- `. (The blockquote passes no prefix at all; its `> ` markers render as border-only chrome.)
-- **Interactive:** return the object form: `text` plus one or more ranges, each a character span, a class name, an optional role and ARIA state, and a click handler.
+- **Interactive:** return the object form: `text` plus one or more ranges, each a character span, a class name and a click handler, plus optionally a role and ARIA state, an accessible name, a tab stop, and an Enter/Space handler.
 
 Keep the component thin: a pure `buildXAmbient(metadata, onAction)` helper beside it, called from the prefix getter. The task checkbox is the shipped example, and the list item hands it to its `BlockList` as `ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}`:
 
@@ -467,6 +477,7 @@ return {
 			className: 'task-checkbox',
 			role: 'checkbox',
 			ariaChecked: isTaskMarkerChecked(metadata.taskMarker),
+			dragAnchor: true,
 			onClick: onToggle
 		}
 	]
@@ -479,30 +490,31 @@ The helper is unit-testable without mounting anything, and the dev warning for m
 
 Every editable block, prose or code, participates in the pixel-X sticky column, so a caret walking up a ragged column doesn't drift left. Nobody praises this when it works and everybody notices the moment it doesn't.
 
-The good news: if your block routes its keydown through `handleSharedKeydown` (`selection/shared-keydown.ts`) and builds its surface with `createEditableSurface` (`components/blocks/editable-surface.ts`), you already participate and there's nothing to write. The shared handler feeds every keydown to the sticky column:
+The good news: if your block routes its keydown through `handleSharedKeydown` (`selection/shared-keydown.ts`) and builds its surface with `createEditableSurface` (`components/blocks/editable-surface.ts`), you already participate and there's nothing to write. The shared handler feeds every keydown to the caret memory, which holds the sticky column:
 
 ```ts
 // selection/shared-keydown.ts
-ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
+ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorRelativeX(el));
 ```
 
 `noteKey`'s pure key matrix decides whether the press captures the column, resets it, or preserves it, and the editable surface owns the resets a keydown can't see (an input commit, composition included, plus copy, cut, and paste) along with `focusAtColumn` itself. `TextEditableBlock.svelte` and `components/blocks/code/CodeBlock.svelte` share this shape, so reference either.
 
 A hand-rolled surface takes on both halves itself:
 
-1. **Feed every keydown to `noteKey`**, as above. It's the one entry a keydown handler may use (`cursor/sticky-column.ts` says so in its header); pass the live-caret measure as the second argument so a capture key has an X to record. `reset()` stays public only for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line. The editable surface's version, which also keeps the scan out of the marker region:
+1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the only caret-memory call a keydown handler may make (G2.10 scans for that). Pass the live caret's measure as the third argument, so a capture key has an X to record. `forget()` is for callers with no key to classify (lifecycle, commit, undo, paste).
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
 
 ```ts
 // components/blocks/editable-surface.ts
 function focusAtColumn(x: number, from: StickyColumnDirection): void {
 	const el = deps.getEl();
 	if (!el) return;
-	el.focus();
-	const ambientLength = deps.getAmbientLength();
-	const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
-	const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
-	deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
+	el.focus({ preventScroll: true });
+	const within = deps.columnWindow?.();
+	const min = walkOffsetOfRaw(el, within?.start ?? 0);
+	const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
+	const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
+	deps.backend.setRaw(rawOfWalkOffset(el, walkOffset), { clamp: 'exact' });
 }
 ```
 
@@ -516,10 +528,10 @@ Not a new block kind, but this is where everyone looks for it, so it lands here.
 import rust from 'highlight.js/lib/languages/rust';
 
 // ...inside bootstrapCodeLanguages()
-registerLanguage('rust', rust, ['rs']);
+registerBuiltinLanguage('rust', rust, ['rs']);
 ```
 
-One import from `highlight.js/lib/languages/<name>`, one `registerLanguage('<name>', <grammar>, [aliases])` call. Nothing else changes; the language is live on the next editor mount.
+One import from `highlight.js/lib/languages/<name>`, one `registerBuiltinLanguage('<name>', <grammar>, [aliases])` call. The built-in form is what keeps your language through the test reset. A host's own languages go through the public `registerLanguage`. Nothing else changes; the language is live on the next editor mount.
 
 ## Testing
 
@@ -527,9 +539,9 @@ One import from `highlight.js/lib/languages/<name>`, one `registerLanguage('<nam
 
 Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requirements/blocks/` and a spec in `src/lib/e2e/tests/blocks/`, one-to-one. Simple blocks are covered by the feature-level suites. See `docs/contributing/testing.md`.
 
-**A `conformanceFixture` enrols your kind in the conformance kit.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind (`'---\n'` for the thematic break), or the kit never sees your kind and nothing warns you. That's the trap. With it declared, the live registry is the enrolment list, and the cells derive from your closure block's columns: the headless cells run at the unit gate, the mounted-DOM cells in the browser sweep. A cell you declared `implemented` but didn't is caught here, because the closure block's promises get executed rather than merely asserted. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
+**A `conformanceFixture` enrols your kind in the conformance kit.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind (`'---\n'` for the thematic break), or the kit never sees your kind and nothing warns you. That's the trap. With it declared, the live registry is the enrolment list, and the cells derive from your closure block's columns: the headless cells run at the unit gate, the mounted-DOM cells in the browser sweep. A cell you declared `implemented` but didn't is caught here, because the kit runs the closure block's promises instead of taking them on faith. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
 
-**A built-in container owes a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
+**A built-in container needs a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
 
 ```ts
 // src/lib/test/invariants/builtin-container-profiles.ts
@@ -551,3 +563,5 @@ blockquote: {
 	terminatorCollision: STRIP_TERMINATOR_EXEMPT
 },
 ```
+
+Two cells can't run on the kit alone: a grid's `localIndex`, and `multiScope` (one edit that spans two nesting levels). The kit has no generic way to drive either, so a built-in that asserts one hands it a function that does, under the profile's `drivers`. The table's and the list's are in `src/lib/test/invariants/builtin-container-drivers.ts`. Assert one without a driver and the cell fails, telling you to declare it `boundary`.

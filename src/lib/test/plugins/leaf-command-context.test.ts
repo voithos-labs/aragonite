@@ -1,27 +1,19 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-	dispatchKeyCommand,
-	registerBlockCommand,
-	__resetBlockCommandsForTests
-} from '$lib/schema/block-commands';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	recordPluginKindOwner,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
+import { commandContextWith } from '$lib/test/support/command-context';
 
-// Branded plugin kinds, declared once at module scope (the reset clears commands,
-// not kind declarations; a per-test declare would double-throw).
-const leaf = declarePluginKind('demoLeaf');
-const leafAlt = declarePluginKind('demoLeafAlt');
+let leaf: PluginBlockKind;
+let leafAlt: PluginBlockKind;
+beforeEach(() => {
+	leaf = declarePluginKind('demoLeaf');
+	leafAlt = declarePluginKind('demoLeafAlt');
+});
 
 const leafNode = (kind: AnyBlockKind = leaf): CstNode =>
 	({ kind, leadingTrivia: '', raw: '' }) as CstNode;
@@ -39,22 +31,13 @@ function bindKindChord(
 	};
 }
 
-const GATES = {
-	history: { requestUndo() {}, requestRedo() {} },
-	activation: everyInstalledPlugin,
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-};
-
 type BuildArgs = Parameters<typeof buildLeafCommandContext>;
 type CtxOverrides = Partial<Omit<BuildArgs[0], 'getIndex'> & BuildArgs[1]> & {
 	index?: number;
-	pluginEditor?: BuildArgs[2];
 };
 
-// getNode stays a thunk through the builder: the dispatch re-reads it, so capturing what
-// it returned would hide the node swap the liveness case below relies on.
+// `getNode` stays a function through the builder: the dispatch re-reads it, so capturing what
+// it returned would hide the node swap the case below relies on.
 function buildCtx(over: CtxOverrides = {}) {
 	const {
 		getNode = () => leafNode(),
@@ -64,16 +47,9 @@ function buildCtx(over: CtxOverrides = {}) {
 	} = over;
 	return buildLeafCommandContext(
 		{ getNode, getIndex: () => index, commandHooks },
-		{ updateBlockMetadata },
-		over.pluginEditor
+		{ updateBlockMetadata }
 	);
 }
-
-afterEach(() => {
-	__resetCommandWarningsForTests();
-	__resetBlockCommandsForTests();
-	__resetInstalledPluginsForTests();
-});
 
 describe('editable-leaf command context', () => {
 	it('routes updateMetadata to blockEdit.updateBlockMetadata at the live index', () => {
@@ -99,23 +75,9 @@ describe('editable-leaf command context', () => {
 		expect(build().node.kind).toBe(leafAlt);
 	});
 
-	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
-		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		recordPluginKindOwner(leaf, 'admonitions');
-		const pluginEditor = vi.fn((name: string) =>
-			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
-		);
-
-		const ctx = buildCtx({ pluginEditor });
-
-		expect(ctx.editor).toBe(fakeEditorContext);
-		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
-	});
-
-	// The leaf tier reaches a minted handler through the same dispatch seam as the
-	// container tier: a chord on the focused leaf resolves the registered command
-	// and hands it the leaf's command context, hooks included.
-	it('dispatches a minted command on the leaf path with hooks reaching the handler', () => {
+	// A key combination on a focused leaf resolves the registered command through the same
+	// dispatch a container uses, and hands it the block's command context, hooks included.
+	it('dispatches a created command on the leaf path with hooks reaching the handler', () => {
 		const hooks = { openFocusView: vi.fn() };
 		const handler = vi.fn((ctx: { hooks?: unknown }) => {
 			(ctx.hooks as { openFocusView(): void } | undefined)?.openFocusView();
@@ -130,7 +92,7 @@ describe('editable-leaf command context', () => {
 			getCommandContext: () => buildCtx({ getNode: () => node, commandHooks: () => hooks })
 		};
 
-		const handled = dispatchKeyCommand('Mod+Shift+K', target, GATES, overrides);
+		const handled = dispatchKeyCommand('Mod+Shift+K', target, commandContextWith(overrides));
 		expect(handled).toBe(true);
 		expect(hooks.openFocusView).toHaveBeenCalledTimes(1);
 	});

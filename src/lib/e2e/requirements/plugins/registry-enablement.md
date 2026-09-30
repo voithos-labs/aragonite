@@ -1,18 +1,16 @@
 # Feature: per-instance registry enablement
 
-Kind definitions are process-global (register-once), but each editor instance
-resolves them through a registry view. Two editors sharing one process-global
-memo registration render the same document differently when one disables the
-memo kind — the instance-resolution seam (architecture concern #1).
+Kind definitions are global to the process and registered once, but each editor instance
+resolves them through its own view of the registry. Two editors sharing one process-wide memo
+registration render the same document differently when one of them disables the memo kind, which
+is where an instance resolves its kinds (architecture concern #1).
 
-The disabled instance parses the memo syntax to the memo CST node (the initial
-parse uses the global grammar), but resolves NO component for it, so the block
-degrades to the raw-editable fallback (the unknown-kind rule). The enabled
-instance renders the plugin component. Built-ins are never disableable.
+The editor with it disabled parses the seed in its own grammar, where the memo opener is not,
+so it reads the memo syntax as a paragraph. The editor with it enabled renders the plugin
+component. Built-in kinds can never be disabled.
 
 ## Happy paths
 
-- both instances hold the memo node: each editor's `%% memo text` seed parses to a `[data-block-kind="memo"]` block (global grammar at load)
-- disabled instance degrades to raw-editable: the disabled editor's memo block renders the `.raw-block` fallback surface, not the memo component
-- enabled instance renders the component: the enabled editor's memo block renders `.memo-block` and no `.raw-block` fallback
-- built-ins survive: both editors render their plain paragraphs normally — disabling a plugin kind never touches built-in blocks
+- the editor with it disabled holds no memo node: its `%% memo text` line parses into a paragraph, from its own grammar at load
+- the editor with it enabled renders the component: its memo block renders `.memo-block` and no `.raw-block` fallback
+- built-ins survive: both editors render their plain paragraphs as usual, since disabling a plugin kind never touches built-in blocks

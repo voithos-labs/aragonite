@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
+import { parse } from '$lib/core/parser';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// Guards the root pointerdown listener's lifecycle: the unmount-mid-session leak class
-// e2e cannot reach. The per-drag document listeners are covered by the Escape/no-op e2e.
-describe('installReorderDrag — root listener lifecycle', () => {
+// Checks the root pointerdown listener's lifecycle: the unmount-mid-drag leak e2e cannot
+// reach. The per-drag document listeners are covered by the Escape and no-op e2e.
+describe('installReorderDrag: root listener lifecycle', () => {
 	let editorRoot: HTMLElement;
 	let added: number;
 	let removed: number;
@@ -32,8 +37,10 @@ describe('installReorderDrag — root listener lifecycle', () => {
 		return {
 			editorRoot,
 			getScrollHost: () => editorRoot,
-			moveReorderUnit: async () => {},
+			moveReorderUnit: async () => true,
 			overlay: { setGhost: () => {}, setLine: () => {} },
+			getDoc: () => parse(''),
+			reading: fixtureReading(),
 			lifetimeSignal: signal
 		};
 	}
@@ -66,5 +73,82 @@ describe('installReorderDrag — root listener lifecycle', () => {
 		handle.dispose();
 		expect(() => handle.dispose()).not.toThrow();
 		expect(removed).toBe(1);
+	});
+});
+
+// A block with a designed ghost label reads that name, and anything else reads its first words.
+// Miss-analysis: only the table's label had a test, so renaming the rest never went red.
+describe('the drag ghost names what it carries', () => {
+	beforeEach(() => {
+		registerMathBlock();
+		registerMermaidKind();
+		registerDetailsKind();
+	});
+
+	function ghostFor(source: string, text: string, rows = 0): string | undefined {
+		const doc = parse(source);
+		const root = document.createElement('div');
+		const list = document.createElement('div');
+		const host = document.createElement('div');
+		host.className = 'block-host reorder-host';
+		host.dataset.blockPath = '[0]';
+		host.dataset.blockKind = doc.children[0].kind;
+		host.append(text);
+		for (let r = 0; r < rows; r++) {
+			const row = document.createElement('div');
+			row.className = 'table-row';
+			row.append(document.createElement('div'), document.createElement('div'));
+			host.append(row);
+		}
+		const handle = document.createElement('span');
+		handle.className = 'block-drag-handle';
+		host.append(handle);
+		list.append(host);
+		root.append(list);
+		document.body.append(root);
+		let label: string | undefined;
+		const drag = installReorderDrag({
+			editorRoot: root,
+			getScrollHost: () => null,
+			moveReorderUnit: async () => true,
+			overlay: { setGhost: (g) => void (label = g?.label ?? label), setLine: () => {} },
+			getDoc: () => doc,
+			reading: fixtureReading()
+		});
+		handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+		drag.dispose();
+		root.remove();
+		return label;
+	}
+
+	it.each([
+		['```ts\nx = 1\n```\n', 'x = 1', 'Code'],
+		['$$\nx^2\n$$\n', 'x2', 'Equation'],
+		['```mermaid\ngraph TD\n```\n', 'graph TD', 'Diagram'],
+		['---\n', '', 'Divider'],
+		['<details>\n<summary>Sum</summary>\n\nbody\n\n</details>\n', 'Sum body', 'Details']
+	])('an object Finn named keeps his label: %j', (source, text, label) => {
+		expect(ghostFor(source, text)).toBe(label);
+	});
+
+	it('a table reads its shape', () => {
+		expect(ghostFor('| a | b |\n| - | - |\n| 1 | 2 |\n', 'a b 1 2', 2)).toBe('Table · 2 × 2');
+	});
+
+	it.each([
+		['<div>\nhtml here\n</div>\n', '<div> html here </div>'],
+		['[ref]: /url\n', '[ref]: /url'],
+		['plain words\n', 'plain words']
+	])('anything else reads its first words: %j', (source, text) => {
+		expect(ghostFor(source, text)).toBe(text);
+	});
+
+	// A linked picture in source mode shows its link's bytes as text, which is no label at all.
+	it.each([
+		['![a](x)\n', ''],
+		['[![a](x)](https://example.com)\n', '[](https://example.com)']
+	])('a paragraph of pictures reads Image: %j', (source, text) => {
+		expect(ghostFor(source, text)).toBe('Image');
 	});
 });

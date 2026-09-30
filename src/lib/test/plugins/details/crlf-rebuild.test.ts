@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerDetailsKind,
 	rebuildDetailsRaw,
@@ -9,19 +8,14 @@ import {
 } from '$lib/plugins/details/details-kind';
 
 // Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
-// is at risk: the three chrome lines it SYNTHESIZES have to reproduce the authored line
-// ending rather than normalize CRLF to `\n`. Mirrors `serializeDirective`'s threading.
-
-function resetAndRegister(): void {
-	resetPluginPlatformForTests();
-	registerDetailsKind();
-}
+// is at risk: the three tag lines it builds have to reproduce the authored line ending rather
+// than rewrite CRLF to `\n`. The same rule `serializeDirective` follows.
 
 const CRLF_SRC = '<details>\r\n<summary>T</summary>\r\n\r\nbody\r\n\r\n</details>\r\n';
 const LF_SRC = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 describe('details rebuild preserves CRLF chrome line endings', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerDetailsKind);
 
 	it('captures the authored line ending at parse time', () => {
 		const meta = getPluginMetadata<DetailsMetadata>(parse(CRLF_SRC).children[0]);

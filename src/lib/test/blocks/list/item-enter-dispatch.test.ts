@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-//
-// ListItemBlock's `splitBlock` override routes Enter inside a list: it reads the item's shape
-// and picks one of three ListContext members. The helpers are unit tested; the ROUTING is not,
-// and `exitListAtItem` has no coverage at any level. Each branch lands different bytes, so the
-// real keystroke tells them apart without a spy — the routing is asserted by the document.
+// ListItemBlock's `splitBlock` override reads the item's shape to pick which `ListContext` call
+// Enter makes. The calls have their own tests; each writes different bytes, so a real keystroke
+// tells the choice apart without a spy.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
@@ -34,8 +32,8 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- al\n- pha\n- beta\n');
 	});
 
-	// The empty-item arm, and the only route into `exitListAtItem`. An empty item that can hold a
-	// caret only exists after the append above, so the two presses are the real user gesture.
+	// The empty-item branch, and the only way into `exitListAtItem`. An empty item that can hold
+	// a caret only exists after the append above, so the two keystrokes are the real gesture.
 	it('exits the list on a second Enter in the item the first one appended', async () => {
 		mounted = mountEditor({ source: '- alpha\n' });
 
@@ -45,7 +43,7 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- alpha\n\n\n');
 	});
 
-	// `isAtEnd` needs BOTH the last inner child and the end of its text: an item carrying a nested
+	// `isAtEnd` needs both the last inner child and the end of its text: an item carrying a nested
 	// sub-list has the caret in child 0 with a child 1 behind it.
 	it('splits rather than appends at the end of a non-final child', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - nested\n' });
@@ -56,9 +54,7 @@ describe('list item Enter routing', () => {
 	});
 });
 
-// Miss-analysis: the Enter-completion suite asserted the top-level and blockquote seams only, and
-// the routing suite above asserted the item's three arms only, so nothing asserted the item as an
-// Enter path that owes the completion consult — the sibling-parity class, one entry path short.
+// Miss-analysis: Enter completion was tested at the top level and in a quote, never in an item.
 describe('list item Enter completion (#146)', () => {
 	it('completes a header row typed in an item instead of appending a sibling', async () => {
 		mounted = mountEditor({ source: '- | a | b |\n' });
@@ -71,13 +67,32 @@ describe('list item Enter completion (#146)', () => {
 		]);
 	});
 
-	// Complete-wins takes only the claimed line: an item whose text no completer claims still
-	// reaches the three arms above, which is what keeps Enter in a list a list gesture.
-	it('leaves an unclaimed line to the item’s own arms', async () => {
+	// A completion only takes a line a completer answers for, so any other item text still
+	// reaches the item's own Enter branches.
+	it('leaves an unclaimed line to the item’s own branches', async () => {
 		mounted = mountEditor({ source: '- | a |\n' });
 
 		await pressKeyAt(mounted, [0, 0, 0], 7, ENTER);
 
 		expect(mounted.source()).toBe('- | a |\n- \n');
 	});
+});
+
+// Miss-analysis: only an unchecked ordered item's Enter had a unit test, never a checked one.
+describe('list item Enter: the new item’s task marker', () => {
+	const ROWS: Array<[name: string, source: string, contentEnd: number, expected: string]> = [
+		['a checked to-do starts an unchecked one', '- [x] done\n', 4, '- [x] done\n- [ ] \n'],
+		['an unchecked to-do starts an unchecked one', '- [ ] pending\n', 7, '- [ ] pending\n- [ ] \n'],
+		['a plain item stays plain', '- plain\n', 5, '- plain\n- \n']
+	];
+
+	for (const [name, source, contentEnd, expected] of ROWS) {
+		it(name, async () => {
+			mounted = mountEditor({ source });
+
+			await pressKeyAt(mounted, [0, 0, 0], contentEnd, ENTER);
+
+			expect(mounted.source()).toBe(expected);
+		});
+	}
 });

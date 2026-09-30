@@ -1,7 +1,7 @@
 /**
- * Cumulative block-height model for one BlockList: a Fenwick tree giving O(log n)
- * prefix-sum, offset→index lookup, and per-index update. Virtual rendering maps scrollTop
- * to a window range through it without laying off-screen blocks out.
+ * The table of block heights for one BlockList: a Fenwick tree giving O(log n) prefix sums,
+ * offset-to-index lookup, and per-index update. Virtual rendering maps scrollTop to a mounted
+ * range through it without laying out off-screen blocks.
  */
 export class HeightModel {
 	private tree: number[]; // 1-indexed Fenwick sums
@@ -26,7 +26,7 @@ export class HeightModel {
 
 	/** Pixel offset of the top of index `i` (sum of heights[0..i)); `offsetOf(count)` == total. */
 	offsetOf(i: number): number {
-		// prefix(i) past `count` reads off the Fenwick array → NaN into every spacer.
+		// prefix(i) past `count` reads off the end of the Fenwick array and puts NaN into every spacer.
 		return this.prefix(Math.max(0, Math.min(i, this.count)));
 	}
 
@@ -37,7 +37,7 @@ export class HeightModel {
 
 	/** Set index `i` to `height` in O(log n). No-op when unchanged or out of range. */
 	setHeight(i: number, height: number): void {
-		// Out of range corrupts the model: i >= count poisons heights[] with no tree update,
+		// Out of range corrupts the table: i >= count poisons heights[] with no tree update,
 		// and i < 0 makes bump's `p += p & -p` stall at p=0 forever.
 		if (i < 0 || i >= this.count) return;
 		const delta = height - this.heights[i];

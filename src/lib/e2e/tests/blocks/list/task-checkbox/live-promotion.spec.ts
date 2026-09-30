@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('task checkbox — live promotion from typing', () => {
+test.describe('task checkbox: live promotion from typing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

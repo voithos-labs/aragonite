@@ -1,9 +1,8 @@
 /**
- * Copy-path-on-write for structural-sharing undo: unshare the root→target spine before
- * any in-place write — undo entries still reference shared nodes. Copies are SHALLOW, so
- * unshare deeper wherever you write. Write-then-re-read: after assigning a copy into the
- * live tree, re-read it through the tree — the `$state` proxy wrapper is canonical, not
- * the copy you held. Also the one sanctioned view→mutable door (`core/node-views.ts`).
+ * Copy before write: undo entries reference the live tree's nodes, so every node from the root
+ * down to the target is copied before an in-place write, and the functions here are the only way
+ * from a read-only view to a writable node. Copies are shallow, so copy deeper wherever you write,
+ * and re-read a copy through the tree after assigning it, since the `$state` proxy is the node.
  */
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
@@ -13,7 +12,7 @@ import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import type { ChildRawChange } from '../schema/child-spans';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, isGridDescriptor } from '../schema/block-kind-descriptor';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
@@ -31,9 +30,8 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 }
 
 /**
- * The copy-on-write spine walk, returning the owned chain outermost-first. `assertInRange`
- * fires G1.22 for the strict `ensureUnsharedPath` caller and stays silent for tolerant rebuild
- * passes, which legitimately hand short paths; the walk stops at the first gap either way.
+ * The copy-on-write walk down `path`, outermost first. `assertInRange` fails an index off the end
+ * (G1.22); rebuild passes turn it off because they hand in short paths on purpose.
  */
 export function walkUnsharing(
 	root: NodeParentView,
@@ -42,7 +40,8 @@ export function walkUnsharing(
 	assertInRange: boolean
 ): CstNode[] {
 	const chain: CstNode[] = [];
-	// Root is the live document or a ceremony-owned array — writable by contract (file header).
+	// The root is the live document or an array the commit sequence owns, writable by contract
+	// (file header).
 	let parentChildren = root.children as CstNode[];
 	for (const index of path) {
 		let node = parentChildren[index];
@@ -54,7 +53,7 @@ export function walkUnsharing(
 		if (!node) break;
 		if (sharing.isShared(node)) {
 			parentChildren[index] = copyNode(node, sharing);
-			// Write-then-re-read (file header).
+			// Write, then re-read through the tree (file header).
 			node = parentChildren[index];
 		}
 		chain.push(node);
@@ -65,7 +64,7 @@ export function walkUnsharing(
 
 /**
  * Unshare every node along `path` from `root`; returns the chain outermost-first. The caller
- * owns `root.children` (live document, or a commit ceremony's array copy).
+ * owns `root.children` (the live document, or a commit sequence's array copy).
  */
 export function ensureUnsharedPath(
 	root: NodeParentView,
@@ -82,20 +81,20 @@ export function ensureUnsharedChild(
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
-	// G1.22: an index off the end is a caller bug, failed here rather than epoch-dependently
-	// inside `isShared`.
+	// An index off the end is a caller bug (G1.22), failed here rather than inside `isShared`,
+	// where it would depend on the generation counter.
 	assertInvariant('unshare-path-in-range', () =>
 		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
 	);
 	if (!child || !sharing.isShared(child)) return child;
 	parent.children![index] = copyNode(child, sharing);
-	// Write-then-re-read (file header).
+	// Write, then re-read through the tree (file header).
 	return parent.children![index];
 }
 
 /**
- * Standalone copy for a node being MOVED out of a parent the snapshot keeps: the caller attaches
- * the copy, the original stays put. An unshared input passes through as live-tree-owned.
+ * A standalone copy of a node moving out of a parent the snapshot keeps, for the caller to attach;
+ * a node no snapshot shares passes through as it is.
  */
 export function ensureUnsharedNode(node: NodeView, sharing: SharingState): CstNode {
 	return sharing.isShared(node) ? copyNode(node, sharing) : (node as CstNode);
@@ -117,16 +116,14 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 
 // ── Sharing-aware raw rebuild ───────────────────────────────────────────────
 
-/**
- * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a grid's
- * children are unshared first, keyed off `containerContract` rather than a `table` kind test.
- */
+/** Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a grid's
+ *  children are unshared first. */
 export function rebuildOwnedContainer(
 	node: CstNode,
 	sharing: SharingState,
 	changed?: ChildRawChange
 ): void {
-	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
+	if (isGridDescriptor(getBlockKindDescriptor(node.kind))) {
 		ensureUnsharedChildren(node, sharing);
 	}
 	rebuildContainerRawIfContainer(node, changed);

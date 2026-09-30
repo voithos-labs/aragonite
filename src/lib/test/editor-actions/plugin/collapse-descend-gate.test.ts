@@ -9,7 +9,7 @@ const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = [
 	makeCommitScopeStub(children, { refs });
 
 describe('gateDescendOnCollapse (M3)', () => {
-	it('collapsed: consumes the key without minting a body or committing', async () => {
+	it('collapsed: consumes the key without creating a body or committing', async () => {
 		const { scope, commits, children } = stubScope([leaf('Title\n')]);
 		const core = createBlockEditCore(scope);
 		const gated = gateDescendOnCollapse(() => true, core.descendToBody);
@@ -20,7 +20,7 @@ describe('gateDescendOnCollapse (M3)', () => {
 		expect(commits).toHaveLength(0);
 	});
 
-	it('expanded: delegates to descend, minting and committing when the chrome is childless', async () => {
+	it('expanded: delegates to descend, creating and committing when the chrome is childless', async () => {
 		const { scope, commits, children } = stubScope([leaf('Title\n')]);
 		const core = createBlockEditCore(scope);
 		const gated = gateDescendOnCollapse(() => false, core.descendToBody);

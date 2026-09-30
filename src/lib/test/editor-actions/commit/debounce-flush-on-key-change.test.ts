@@ -39,8 +39,8 @@ describe('debounce flush on batch-key change', () => {
 		try {
 			const { controller, inputEvents } = makeSetup();
 
-			// The arm is the keystroke's other half — the edit actions pair them, so a driver
-			// spending the controller directly owes both or no window ever opens.
+			// Starting the pause timer is the keystroke's other half; the edit actions pair
+			// them, so a driver calling the controller directly must do both or no timer starts.
 			for (const [path, offset] of [
 				[[0], 0],
 				[[0], 1],

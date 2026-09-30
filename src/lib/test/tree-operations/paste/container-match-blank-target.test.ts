@@ -9,16 +9,13 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// GH #73, the fifth seam: the container-match gate runs FIRST and its empty-target arm replaces
-// the child wholesale, while a blockquote body block can be blank.
-// Miss-analysis: the empty-target cases stand a post-delete stub (raw emptied by hand) in for the
-// target, and a stub is not a blank LINE — it separated nothing, so no case could observe the
-// separator a real blank block carries. The case ran against a hand-rolled commit double until
-// the settle moved into the ceremony, where only the real controller crosses it.
+// Replacing a blank blockquote body block wholesale must keep the separator it carried.
+// Miss-analysis: GH #73, the empty-target cases used a hand-emptied stub, which separates nothing.
 
 describe('container-matching paste over a blank body block', () => {
 	it('separates both the spliced head and the block below it', async () => {
@@ -37,12 +34,11 @@ describe('container-matching paste over a blank body block', () => {
 
 		await pasteDispatch(
 			{ pastedText: '> X\n>\n> Y\n', targetPath: [0, 1], offset: 0 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(controller, deps.revealPath),
-				undoEntry: 'own'
-			}
+				controller: createPasteCoordinator(deps, controller)
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('> a\n>\n> X\n>\n> Y\n>\n> b\n');

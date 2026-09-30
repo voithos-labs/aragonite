@@ -1,21 +1,26 @@
 // @vitest-environment jsdom
-//
-// A cell's raw is joined verbatim into its row, so an unescaped `|` reaching `cell.raw` reparses
-// the row wider than the delimiter's column count and the parser truncates the last column,
-// silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
-// menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
-// measuring at the component's own call would only prove the gesture escaped its own bytes. The
-// toggle refuses to splice inside the escape at all, so Mod+B is pinned on both sides of that.
+// Mod+B, Shift+Enter and the menu Cut compute their own cell bytes, and an unescaped `|` in
+// `cell.raw` reparses the row too wide, silently dropping the last column. Each committed text
+// is read after the kind's escaping has run, not at the component's own call.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor } from '$lib/test/harness/settle';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a marker span and
-// the `|` as text, so both bytes are in textContent and the caret can sit between them.
+/** A children array as the body parent a write reads, owned by nothing, in an LF document. */
+const asBody = (parent: { children?: CstNode[] }) => ({
+	children: parent.children!,
+	owner: undefined,
+	lineEnding: '\n' as const
+});
+
+// The cell holds `a\|b`, an escaped pipe. The renderer emits the backslash as a marker span and
+// the `|` as text, so both bytes are in the text content and the caret can sit between them.
 const ESCAPED = 'a\\|b';
 
 /** The raw the gesture committed for this cell. */
@@ -25,13 +30,13 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 	return calls[calls.length - 1][1];
 }
 
-// The before-input handler awaits the shared prelude before committing, so the
+// The beforeinput handler awaits `handleSharedBeforeInput` before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
-	await settleTicks(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
+	await settleEditor(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
 
-/** Cells the row reparses into once the sink has written the gesture's text. */
+/** Cells the row reparses into once the write has stored the gesture's text. */
 function reparsedCells(committed: string): string[] {
 	const row: CstNode = {
 		kind: 'tableRow',
@@ -43,7 +48,7 @@ function reparsedCells(committed: string): string[] {
 			{ kind: 'tableCell', leadingTrivia: '', raw: 'keep' }
 		]
 	};
-	updateNodeContent(row as never, 0, committed);
+	updateNodeContent(asBody(row), 0, committed, defaultGrammarView);
 	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }
@@ -66,8 +71,8 @@ describe('table cell write paths escape the pipes they free', () => {
 		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['a**\\|**b', 'keep']);
 	});
 
-	// Splicing between the backslash and the pipe would free the pipe, so the toggle declines: the
-	// sink's escape is the second line of defence here, not the first.
+	// Splicing between the backslash and the pipe would free the pipe, so the toggle refuses: the
+	// escaping on write is the second line of defence here, not the first.
 	it('Mod+B cutting into the escape writes nothing at all', () => {
 		mounted = mountCell(ESCAPED);
 		const { el, blockEdit } = mounted;

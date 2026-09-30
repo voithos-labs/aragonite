@@ -3,7 +3,7 @@ import { EditorPage } from '../../../../editor-page';
 
 // Shift+Enter inside a list item is a hard break, not a new item: the bytes gain the `\`
 // line break and the item paints a second line the next keys land on.
-// Requirements: e2e/requirements/blocks/list/enter/shift-enter.md.
+// Requirements: `e2e/requirements/blocks/list/enter/shift-enter.md`.
 
 /** How many distinct lines the element's text paints on. */
 async function paintedLines(editor: EditorPage, selector: string): Promise<number> {

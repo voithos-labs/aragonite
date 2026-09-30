@@ -1,17 +1,16 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { gotoReady, type RouteUrl } from '../../goto-ready';
 
-// Shared probes for the virtual-rendering e2e suites. Fixtures here clear the editor's
-// height watermark so the off-window reveal path runs for real; `UNWINDOWED_PROSE` is the
-// deliberate exception. Honest assertions only — a reveal that doesn't land the caret is a
-// VR bug to report, not an assertion to soften.
+// Shared checks for the windowing specs. The fixtures are tall enough to pass the editor's height
+// threshold, so scrolling to an unmounted block really happens; `UNWINDOWED_PROSE` is the
+// exception. A scroll that fails to land the caret is a bug to report, not a check to loosen.
 
 export const FIXTURE_BYTES = 2_000_000;
 
 /**
- * Scrolls but does NOT window: under the activation watermark, so no measure pass recurs
- * after the first. That is what separates two writers of one scrollTop — with windowing
- * active the anchor re-asserts every pass, making re-place and compensate indistinguishable.
+ * Below the windowing threshold, so no measure pass runs after the first: with windowing on, the
+ * scroll re-asserts every pass and re-placing looks like correcting.
  */
 export const UNWINDOWED_PROSE = Array.from(
 	{ length: 60 },
@@ -24,16 +23,15 @@ export function cstBlockCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.getDocument().children.length);
 }
 
-/** Spacers the window emits, document-wide or inside one scope. `scope` is a selector PREFIX,
- *  so `'.table-block >'` counts a grid's own and `'.blockquote-block'` its descendants' too —
- *  the "container windowing is active in this scope" precondition, named. */
+/** `scope` starts a selector, so `'.table-block >'` counts a grid's own spacers and
+ *  `'.blockquote-block'` its descendants' too: how a test says windowing runs in that list. */
 export function spacerCount(page: Page, scope = ''): Promise<number> {
 	return page.evaluate((s) => document.querySelectorAll(`${s} .vr-spacer`.trim()).length, scope);
 }
 
 // ── Geometry & scroll ───────────────────────────────────────────────
 
-/** Two frames: the write lands in one, the measure pass it schedules runs in the next. */
+/** Two frames: the write happens in one, the measure pass it causes runs in the next. */
 export function settleFrames(page: Page): Promise<void> {
 	return page.evaluate(
 		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
@@ -45,10 +43,8 @@ export function editorScrollHeight(page: Page): Promise<number> {
 }
 
 /**
- * The nested analog of a non-uniform flat doc: one blockquote whose `<br>`-heavy children the
- * char estimator under-models ~30×. Blockquote, not list — its paragraph children are
- * BlockHosts enrolled in the scope's `correctAnchor`-wrapped measure pass, whereas list items
- * report through the deliberately-uncorrected subtotal channel.
+ * A blockquote of `<br>`-heavy paragraphs the estimate makes about 30 times too short. Its
+ * paragraphs are block hosts in the corrected measure pass; list items report through totals.
  */
 const NESTED_NON_UNIFORM_CHILDREN = 1000;
 export function buildNonUniformBlockquoteDoc(): string {
@@ -60,22 +56,20 @@ export function buildNonUniformBlockquoteDoc(): string {
 
 // ── Mounted-set coverage floor ──────────────────────────────────────
 
-/** Share of the scrollport either edge may go unmounted before the window has a hole. */
+/** How much of the viewport either edge may leave unmounted before the window has a hole. */
 export const MAX_UNMOUNTED_EDGE_FRACTION = 0.15;
 
 export interface ViewportSpan {
-	/** Unmounted band between the scrollport's top edge and the first mounted box. */
+	/** The unmounted stretch between the viewport's top edge and the first mounted block. */
 	topGapPx: number;
-	/** Unmounted band between the last mounted box and the scrollport's bottom edge. */
+	/** The unmounted stretch between the last mounted block and the viewport's bottom edge. */
 	bottomGapPx: number;
 	viewportHeight: number;
 }
 
 /**
- * How far the mounted band reaches toward each edge of the editor's scrollport. Every
- * mounted-set CEILING pairs with this floor: a ceiling alone is satisfied by mounting
- * NOTHING, so only the span proves the slice is a window rather than a gap. Extent, not
- * covered area — inter-block margins are honest holes and would sink an area metric.
+ * Pairs with every ceiling on mounted blocks, since a ceiling alone is met by mounting nothing.
+ * Reach rather than area, because the margins between blocks are real gaps.
  */
 export function mountedViewportSpan(page: Page, selector: string): Promise<ViewportSpan> {
 	return page.evaluate((sel) => {
@@ -97,8 +91,8 @@ export function mountedViewportSpan(page: Page, selector: string): Promise<Viewp
 export type VisibleHost = { ref: string | null; top: number };
 
 /**
- * The first windowed host whose box clears the editor's viewport top. `cell` measures the
- * row's own `.table-cell`, since a `display:contents` row has no box of its own.
+ * The first mounted block whose box is below the editor's viewport top. `cell` measures the
+ * row's own `.table-cell`, since a `display: contents` row has no box of its own.
  */
 export function topVisibleHostTop(
 	page: Page,
@@ -121,30 +115,24 @@ export function topVisibleHostTop(
 
 // ── Page-scrolled host embedding (`/test/page-scroll`) ──────────────
 
-/** The host shape where the scroll-host walk finds nothing scrollable and the window's own
- *  viewport is the scrollport. `blocks` sizes the entry across the windowing watermark. */
+/** The layout where the search for a scrolling ancestor finds none and the window's own
+ *  viewport does the scrolling. `blocks` sizes the editor either side of the threshold. */
 export async function gotoPageScroll(page: Page, blocks?: number): Promise<void> {
-	await page.goto(
-		blocks === undefined ? '/test/page-scroll' : `/test/page-scroll?blocks=${blocks}`
-	);
-	await page.waitForFunction(
-		() => (window as any).__test !== undefined && (window as any).__pageScroll !== undefined,
-		null,
-		{ timeout: 10_000 }
-	);
+	const url: RouteUrl =
+		blocks === undefined ? '/test/page-scroll' : `/test/page-scroll?blocks=${blocks}`;
+	await gotoReady(page, url);
 }
 
-/** The host shape where several editor entries share one ancestor scroller. */
+/** The layout where several editors share one scrolling ancestor. */
 export async function gotoFlow(page: Page): Promise<void> {
-	await page.goto('/test/flow');
-	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
+	await gotoReady(page, '/test/flow');
 }
 
-/** Below the activation watermark, yet tall enough that a scroll can put nothing but entry
- *  content in the viewport — the same embedding, rendered whole. */
+/** Below the height at which windowing starts, yet tall enough that a scroll can fill the
+ *  viewport with nothing but this editor: the same layout, rendered whole. */
 export const UNWINDOWED_ENTRY_BLOCKS = 60;
 
-/** Top-level hosts only — a nested path carries a comma. */
+/** Top-level blocks only, since a nested path carries a comma. */
 export const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 
 export function mountedTopLevelCount(page: Page): Promise<number> {
@@ -159,8 +147,8 @@ export async function scrollPageTo(page: Page, top: number): Promise<void> {
 	await settleFrames(page);
 }
 
-/** Measured against the WINDOW viewport, unlike `topVisibleHostTop`: in host mode the
- *  editor's own scrollport starts far above it, so that probe always answers block 0. */
+/** Measured against the window's viewport, unlike `topVisibleHostTop`: when the app scrolls, the
+ *  editor's own box starts far above it, so that one always answers block 0. */
 export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | null> {
 	return page.evaluate(() => {
 		const hosts = Array.from(
@@ -175,9 +163,8 @@ export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | nul
 }
 
 /**
- * Steps to `target` so the window mounts and measures every block it passes over: a direct
- * jump leaves them at estimate, where a rebuild's reseed is unobservable. Callers add their
- * own trailing flush.
+ * Steps down so every block passed over mounts and is measured, since a jump leaves them at their
+ * estimates. Callers add their own flush at the end.
  */
 export async function progressiveScrollTo(editor: EditorPage, target: number): Promise<void> {
 	const viewport = await editor.page.evaluate(
@@ -187,4 +174,43 @@ export async function progressiveScrollTo(editor: EditorPage, target: number): P
 		await editor.scrollEditorTo(top);
 	}
 	await editor.scrollEditorTo(target);
+}
+
+// ── Host mount counting ─────────────────────────────────────────────
+
+export interface HostChanges {
+	added: number;
+	removed: number;
+}
+
+/** Counts block hosts added or removed from here on, nested ones and ones torn down within a flush
+ *  included. The returned function stops counting and reads the totals. */
+export async function startCountingHostChanges(page: Page): Promise<() => Promise<HostChanges>> {
+	await page.evaluate(() => {
+		const w = window as any;
+		w.__hostChanges = { added: 0, removed: 0 };
+		const hostsIn = (node: Node) =>
+			node instanceof Element
+				? Number(node.matches('[data-block-path]')) +
+					node.querySelectorAll('[data-block-path]').length
+				: 0;
+		w.__countHostChanges = (records: MutationRecord[]) => {
+			for (const record of records) {
+				for (const node of record.addedNodes) w.__hostChanges.added += hostsIn(node);
+				for (const node of record.removedNodes) w.__hostChanges.removed += hostsIn(node);
+			}
+		};
+		w.__hostChangeObserver = new MutationObserver(w.__countHostChanges);
+		w.__hostChangeObserver.observe(document.querySelector('.editor')!, {
+			childList: true,
+			subtree: true
+		});
+	});
+	return () =>
+		page.evaluate(() => {
+			const w = window as any;
+			w.__countHostChanges(w.__hostChangeObserver.takeRecords());
+			w.__hostChangeObserver.disconnect();
+			return w.__hostChanges as { added: number; removed: number };
+		});
 }

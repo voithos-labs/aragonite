@@ -90,9 +90,8 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		const source = await editor.bridge.getSource();
 		expect(source.split('quoted text').length - 1).toBeGreaterThanOrEqual(2);
 		expect(source.split('outside').length - 1).toBeGreaterThanOrEqual(2);
-		// Discriminator: paste must land in the destination block, not the
-		// 'outside' block above it. If focus had drifted, block [1] would have
-		// absorbed the clipboard's first line instead of staying intact.
+		// The paste must land in the destination block, not the 'outside' block above it: had focus
+		// drifted, block [1] would have taken the clipboard's first line.
 		expect((await editor.getBlockText(1)).trim()).toBe('outside');
 	});
 

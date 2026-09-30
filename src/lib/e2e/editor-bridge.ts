@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { GapCaretPosition } from '../selection/gap-caret';
 import type { EditorSelection } from '../selection/primitives';
 
@@ -17,12 +17,14 @@ export class EditorBridge {
 		return this.page.evaluate((i) => (window as any).__test.getBlockKind(i), index);
 	}
 
-	// ── Settling Predicates ─────────────────────────────────────────────
-	// Use these instead of waitForTimeout to wait for editor state to
-	// reach a specific shape. Predicates poll the source/block bridge so
-	// tests stop the moment the assertion would pass. Each reads the bridge through a
-	// guard: Playwright rejects a wait whose predicate THROWS, so a page that has not
-	// installed its probes yet must read as "not settled" rather than dereference undefined.
+	/** How many entries the undo stack holds. */
+	async getUndoDepth(): Promise<number> {
+		return this.page.evaluate(() => (window as any).__test.undoDepth());
+	}
+
+	// ── Waits on editor state ───────────────────────────────────────────
+	// Every read is guarded because Playwright rejects a wait whose predicate throws, so a page
+	// that has not installed `window.__test` yet reads as not ready.
 
 	async waitForSourceContains(expected: string, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith((source, arg) => source.includes(arg), expected, timeout);
@@ -52,16 +54,21 @@ export class EditorBridge {
 		);
 	}
 
+	/** The predicate runs in the test process, not the page, so it may read any variable in scope. */
 	async waitForSource(predicate: (source: string) => boolean, timeout = 5000): Promise<void> {
-		await this.page.waitForFunction(
-			(predSrc) => {
-				const source = (window as any).__test?.getSource() as string | undefined;
-				if (source === undefined) return false;
-				return new Function('source', `return (${predSrc})(source);`)(source);
-			},
-			predicate.toString(),
-			{ timeout, polling: 16 }
-		);
+		let last: string | undefined;
+		const settled = async () => {
+			last = await this.page.evaluate(
+				() => (window as any).__test?.getSource() as string | undefined
+			);
+			return last !== undefined && predicate(last);
+		};
+		try {
+			await expect.poll(settled, { timeout, intervals: [16] }).toBe(true);
+		} catch (err) {
+			// A timeout says what the editor held, so a red on another machine explains itself.
+			throw new Error(`waitForSource: the source was ${JSON.stringify(last)}`, { cause: err });
+		}
 	}
 
 	async waitForSourceWith<T>(
@@ -81,26 +88,24 @@ export class EditorBridge {
 		);
 	}
 
-	// Answers from SelectionState via the probe. The `[data-cross-block]` attribute
-	// is a deferred mirror of that state, so a DOM read can report `false` while the
-	// selection is already cross-block — the exact direction most specs assert.
+	// Reads SelectionState, not the DOM: `[data-cross-block]` follows that state a render later,
+	// so a DOM read can say `false` while the selection is already cross-block.
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());
 	}
 
-	// Narrower than isCrossBlockActive: an intra-table rectangle activates that mode while
-	// both endpoints keep the table's own path, which this still reports false for.
+	// Narrower than isCrossBlockActive: a rectangle inside one table turns that mode on while
+	// both endpoints keep the table's own path, and this still reports false for it.
 	async isCrossBlockSelection(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockSelection());
 	}
 
-	// The third selection mode, same state-not-DOM rule as above: the gap's own surface
-	// mounts a render later than the state write.
+	// Reads state, not the DOM: the gap's caret element mounts a render after the state is written.
 	async getGapCaret(): Promise<GapCaretPosition | null> {
 		return this.page.evaluate(() => (window as any).__test.getGapCaret());
 	}
 
-	/** Settles on the gap an arrival gesture parks; `null` waits for one to end. */
+	/** Waits for the caret to sit in the given gap; `null` waits for it to leave one. */
 	async waitForGapCaret(expected: GapCaretPosition | null, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(want) => {
@@ -131,8 +136,8 @@ export class EditorBridge {
 		});
 	}
 
-	// The snapshot/restore pair, full fidelity — getSelectionPaths above projects
-	// away the endpoint union's `cellCoordinate`, which a restore must carry back.
+	// The snapshot/restore pair: getSelectionPaths above drops each endpoint's `cellCoordinate`,
+	// which a restore has to put back.
 
 	async getSelection(): Promise<EditorSelection | null> {
 		return this.page.evaluate(() => (window as any).__test.getSelection());

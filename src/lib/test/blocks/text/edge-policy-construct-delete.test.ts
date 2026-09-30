@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's destructive arm at an inline construct. A mode that paints no marker
-// puts delimiter bytes beside the caret that no reader can aim at, so the press is intercepted and
-// the CONTENT character goes instead — and with it the pair the cut empties, in the same commit.
-// Miss-analysis: the pure rewrite can be exercised anywhere, but nothing pinned WHICH presses the
-// dispatch hands it, and the mode gate is the whole difference between live and every other rung.
+// The caret-edge dispatch's destructive branch at an inline construct. Where no marker is drawn,
+// the key takes the content character instead, and any pair the cut empties, in one commit.
+// Miss-analysis: the pure rewrite had tests, but none pinned which keys and modes reach it.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -46,7 +43,7 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 		expect(h.edits).toEqual([[0, '**old** x\n', 0, 0]]);
 	});
 
-	// Away from every hidden run the engine is right and owns the press, grapheme and IME
+	// Away from every hidden run the browser is right and keeps the key, grapheme and IME
 	// behavior included.
 	it('leaves an ordinary content byte to native', () => {
 		const h = mount('Some **bold** text\n', 'live');
@@ -54,9 +51,8 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// No sound rewrite exists for `**a **` (a closing run after a space is not right-flanking), and
-	// the engine's version of that press destroys both constructs and paints the stars. The arm
-	// takes the key and writes nothing — the same shape as the hidden-suffix guard.
+	// No rewrite of `**a **` parses back, and the browser's own delete wrecks both constructs and
+	// shows the stars, so the destructive branch takes the key and writes nothing.
 	it('takes the press and writes nothing where no rewrite parses back', () => {
 		const h = mount('**a *b*** z\n', 'live');
 		const e = key('Backspace');
@@ -65,8 +61,8 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The bytes past the content range are the block's own, so this arm writes nothing there
-	// however the block-edge path answers the press.
+	// The bytes past the content range are the block's own, so this branch writes nothing there,
+	// however the block-edge path answers the key.
 	it('writes nothing at a heading’s content start', () => {
 		const h = mount('## **b** x\n', 'live');
 		h.handleKeydown(key('Backspace'), at(3));
@@ -74,14 +70,14 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 	});
 });
 
-describe('the arm claims a press only where the markers are unpainted', () => {
+describe('the branch claims a press only where the markers are unpainted', () => {
 	it('declines in source mode, which paints every delimiter', () => {
 		const h = mount('Some **bold** text\n', undefined);
 		expect(h.handleKeydown(key('Backspace'), at(13))).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The preview rungs reveal the focused construct, so its delimiters are editable bytes.
+	// The preview modes show the focused construct, so its delimiters are editable bytes.
 	for (const mode of ['preview-block', 'preview-inline']) {
 		it(`declines in ${mode}`, () => {
 			const h = mount('Some **bold** text\n', mode);
@@ -89,7 +85,7 @@ describe('the arm claims a press only where the markers are unpainted', () => {
 		});
 	}
 
-	// A chord is a word-scoped platform command; the arm owns only the plain press.
+	// A chord is a word-scoped platform command; this branch takes only the plain key.
 	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }])(
 		'declines %o+Backspace',
 		(mods) => {

@@ -1,7 +1,7 @@
 # Feature: Image popover commit
 
 The popover is a toolbar (limestone's cover actions): Alt text, Crop image, Remove image, as
-26px surface buttons beside the image. The alt button opens its field on demand; a plain click
+26px buttons beside the image. The alt button opens its field on demand; a plain click
 on the image opens nothing but the toolbar. There is no URL field: retargeting an image is a
 source-mode edit.
 
@@ -9,14 +9,26 @@ source-mode edit.
 
 - Toolbar appears when widget is selected
 - Toolbar disappears when widget is deselected
-- The alt button opens an alt field with a "Describe the image" placeholder; blur or Enter
-  commits into source, Enter also closes the field and the toolbar stays
+- The alt button opens an alt field with a "Describe the image" placeholder; clicking away or
+  Enter commits into source, and Enter also closes the field while the toolbar stays
 - The alt commit lands for an image inside a list item (nested-paragraph commit)
 - The title has no field; an existing `"title"` survives URL and alt commits byte-for-byte
 - The remove button deletes the image span from the paragraph
 
 ## Edge cases
 
-- Blur with no field changes does NOT add an undo entry (no-op short-circuit)
-- Switching the popover from one image to another never writes the previous popover's local field state onto the new target. Each popover is bound to the image identity (`paragraphPath` + `sourceStart`) at mount; commits route to that captured target regardless of the live widget selection.
+- Clicking away with no change to a field does not add an undo entry
+- Switching the popover from one image to another never writes the previous popover's local field state onto the new target. Each popover is bound to the image identity (`paragraphPath` + `sourceStart`) at mount; commits go to that captured target whatever the live widget selection is.
 - Pending alt edits commit on image-switch (not just on outside-click), targeting the original image. Escape discards pending edits without committing.
+- An undo taken while the popover is open closes it, since an undo's caret ends the selected image
+  (#673). The close commits nothing, so the source holds exactly the undone bytes, and the alt
+  field, opened again on the reselected image, reads the undone alt.
+- A replace from the find bar, done by keys with the image selected, rewrites the image's alt while
+  the toolbar stays open: the alt field then reads the new alt, and an edit to it keeps the
+  replacement rather than putting the old alt back
+  - Miss-analysis: once an undo closed the toolbar, the undo spec was the only write under it, so
+    nothing wrote while the toolbar stayed open
+- Clicking away after a switch leaves no uncaught error: the popover's effects read the last
+  image it showed, not a selection that is already gone.
+  - Miss-analysis: the switch case threw on every run, but the shared fixture only failed on
+    tagged console lines, and an uncaught page error carries no tag.

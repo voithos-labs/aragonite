@@ -1,38 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests
-} from '$lib/schema/plugin-install';
+	activationFor,
+	everyInstalledPlugin,
+	type PluginActivation
+} from '$lib/schema/plugin-activation';
+import { registerInsertEntry } from '$lib/schema/insert-catalogue';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
+import type { InlineMenuRegistry } from '$lib/inline-menu/types';
+import { noopInlineMenus, noopRects, pluginContextDeps } from '../support/plugin-context-deps';
 
-const fakeEvents = { on: () => () => {} } as never;
-const noopDecorations: DecorationRegistry = {
-	addSource: () => ({ invalidate() {}, dispose() {} })
-};
-const noopRects: EditorRects = {
-	blockRect: () => null,
-	rangeRects: () => [],
-	caretRect: () => null,
-	reveal: async () => false,
-	scrollTo: async () => false,
-	navigateTo: async () => false
-};
 const deps = (doc: { children: unknown[] }) => ({
-	editorId: 'ed-1',
-	getDoc: () => doc as never,
-	events: fakeEvents,
-	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
-	decorations: noopDecorations,
-	rects: noopRects,
-	getPresentationMode: () => 'source' as const,
-	getTheme: () => 'dark',
-	activation: everyInstalledPlugin
+	...pluginContextDeps(doc),
+	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined)
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */
@@ -49,15 +33,20 @@ function installPair(attached: string[]) {
 	]);
 }
 
-beforeEach(() => __resetInstalledPluginsForTests());
+/** Plugins with nothing to set up, so an editor's context for each name resolves. */
+function installNamed(...names: string[]): void {
+	installPlugins(names.map((name) => definePlugin({ name, setup: () => {} })));
+}
 
 describe('createEditorPluginContexts', () => {
+	beforeEach(() => installNamed('opts', 'other', 'p'));
+
 	it('get() returns one stable identity per plugin, with per-plugin options', () => {
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
 		const a = ctxs.get('opts')!;
 		expect(a).toBe(ctxs.get('opts'));
 		expect(a.options).toEqual({ max: 3 });
-		expect(ctxs.get('other')!.options).toBeUndefined();
+		expect(ctxs.get('other')!.options).toEqual({});
 		expect(a.editorId).toBe('ed-1');
 	});
 
@@ -67,6 +56,66 @@ describe('createEditorPluginContexts', () => {
 		const ctx = ctxs.get('p')!;
 		doc = { children: [1] };
 		expect((ctx.document as never as { children: unknown[] }).children).toHaveLength(1);
+	});
+
+	it('documentGeneration is a live getter, not a snapshot', () => {
+		let generation = 0;
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			getDocumentGeneration: () => generation
+		});
+		const ctx = ctxs.get('p')!;
+		expect(ctx.documentGeneration).toBe(0);
+		generation = 2;
+		expect(ctx.documentGeneration).toBe(2);
+	});
+
+	// Miss-analysis: no test asked the plugin context to reach the editor instance.
+	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
+		const inserted: unknown[][] = [];
+		const ran: unknown[][] = [];
+		let answer = true;
+		const ctx = createEditorPluginContexts({
+			...deps({ children: [] }),
+			insertMarkdown: async (...args) => (inserted.push(args), answer),
+			runCommand: (...args) => (ran.push(args), answer)
+		}).get('p')!;
+
+		expect(await ctx.insertMarkdown('> ', { placement: 'below' })).toBe(true);
+		expect(ctx.runCommand('heading.cycle', 2)).toBe(true);
+		answer = false;
+		expect(await ctx.insertMarkdown('x')).toBe(false);
+		expect(ctx.runCommand('nope')).toBe(false);
+		expect(inserted).toEqual([
+			['> ', { placement: 'below' }],
+			['x', undefined]
+		]);
+		expect(ran).toEqual([
+			['heading.cycle', 2],
+			['nope', undefined]
+		]);
+	});
+
+	it('insertCatalogue lists a plugin block only where this editor activated its plugin', () => {
+		installPlugins([
+			definePlugin({
+				name: 'blocky',
+				setup: () =>
+					registerInsertEntry({
+						id: 'blocky',
+						label: 'Blocky',
+						icon: 'plus',
+						keywords: [],
+						markdown: ':::blocky\n\n:::\n'
+					})
+			})
+		]);
+		const listed = (activation: PluginActivation) =>
+			createEditorPluginContexts({ ...deps({ children: [] }), activation })
+				.get('')!
+				.insertCatalogue.map((e) => e.id);
+		expect(listed(everyInstalledPlugin)).toContain('blocky');
+		expect(listed(activationFor([]))).not.toContain('blocky');
 	});
 
 	it('presentationMode is a live getter, not a snapshot', () => {
@@ -97,8 +146,8 @@ describe('createEditorPluginContexts', () => {
 		]);
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
 		ctxs.attachAll(() => {});
-		// toBe, not toEqual: the "one context object" litmus is an IDENTITY claim —
-		// a structurally-equal duplicate context must fail this test.
+		// toBe, not toEqual: "one context object" is a claim about identity, so a duplicate with
+		// the same shape must fail this test.
 		expect(seen).toHaveLength(1);
 		expect(seen[0]).toBe(ctxs.get('watcher'));
 		ctxs.dispose();
@@ -132,13 +181,13 @@ describe('createEditorPluginContexts', () => {
 		expect(fired).toEqual(['good']);
 	});
 
-	it('threads editor.decorations: addSource fills the engine, the disposer runs, and a throwing source surfaces as origin decoration', () => {
+	it('threads editor.decorations: addSource fills the state, the disposer runs, and a throwing source surfaces as origin decoration', () => {
 		const doc = { children: [] as unknown[] };
 		const events = createEditorEvents();
 		const errorEvents: EditorError[] = [];
 		events.on('error', (e) => errorEvents.push(e));
-		// Mirror Editor.svelte's wiring: the engine's onSourceError routes to the events
-		// surface as an origin: 'decoration' error naming the offending source.
+		// Mirrors Editor.svelte's wiring: onSourceError reports to the editor's events as an
+		// origin: 'decoration' error naming the source at fault.
 		const engine = createDecorationEngine({
 			getDoc: () => doc as never,
 			onSourceError: (source, error) =>
@@ -199,9 +248,31 @@ describe('createEditorPluginContexts', () => {
 		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), rects });
 		ctxs.attachAll(() => {});
 
-		// Identity, not shape: a per-context copy would break the "one door" contract.
+		// Identity, not shape: a copy per context would break the contract that there is one.
 		expect(received).toBe(rects);
 		expect(ctxs.get('measurer')!.rects).toBe(rects);
+	});
+});
+
+describe('inline menus reach a plugin through its context', () => {
+	it('threads editor.inlineMenus: the same registry instance reaches every context', () => {
+		const inlineMenus: InlineMenuRegistry = { ...noopInlineMenus };
+		let received: InlineMenuRegistry | undefined;
+		installPlugins([
+			definePlugin({
+				name: 'suggester',
+				setup(ctx) {
+					ctx.onEditor((editor) => {
+						received = editor.inlineMenus;
+					});
+				}
+			})
+		]);
+		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), inlineMenus });
+		ctxs.attachAll(() => {});
+
+		expect(received).toBe(inlineMenus);
+		expect(ctxs.get('suggester')!.inlineMenus).toBe(inlineMenus);
 	});
 });
 
@@ -233,7 +304,7 @@ describe('activation scopes an instance to the plugins it listed', () => {
 		});
 		expect(ctxs.get('alpha')).toBeDefined();
 		expect(ctxs.get('beta')).toBeUndefined();
-		// The empty name is the instance's own base context, never a plugin, so it survives.
+		// The empty name is the editor's own base context, never a plugin, so it survives.
 		expect(ctxs.get('')).toBeDefined();
 	});
 });

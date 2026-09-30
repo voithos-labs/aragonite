@@ -1,41 +1,45 @@
 /**
- * Svelte context-key symbols shared across the editor tree: three named facets
- * (services, policies, document) plus the per-key survivors whose granularity is
- * load-bearing — the action triple a container re-provides, HISTORY (G1.4's
- * single-provider subject), the scope-provided channels. Internal wiring, not a plugin
- * extension point; a facet object is not itself reactive, the getters it carries are.
+ * Svelte context-key symbols shared across the editor tree: three named facets (services,
+ * policies, document) plus the keys that stay separate: the action triple a container re-provides,
+ * the history key only the root provides (G1.4), and the channels a block list gives its children.
+ * Internal wiring, not a plugin extension point; a facet object is not reactive, its getters are.
  */
 
+import type { MenuPresence } from './components/menu/menu-presence.svelte';
 import type { Document } from './core/nodes';
-import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
-import type { Scrollport } from './cursor/scrollport';
+import type { ScrollportReader } from './cursor/scrollport';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { Reading } from './schema/reading';
 import type { PluginActivation } from './schema/plugin-activation';
-import type { CrossBlockCommandRouter } from './schema/block-commands';
+import type { CommandDispatchContext } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
+import type { CaretLanding } from './selection/caret-landing';
+import type { SelectedWidgetHandle } from './selection/primitives';
+import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
-import type { StickyColumnState } from './cursor/sticky-column';
-import type { EdgeAffinityState } from './cursor/edge-affinity';
-import type { PendingMarksState } from './cursor/pending-marks';
-import type { RevealAnchorState } from './cursor/reveal-anchor';
+import type { CaretMemory } from './cursor/caret-memory';
+import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
+import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
+import type { ListTree } from './reactivity/list-tree';
+import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
+import type { KindCue } from './components/kind-cue.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
-export type ReorderAnnounce = (message: string) => void;
 export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 export type ResolveImageUrl = (rawUrl: string) => string;
 export type ResolveLinkUrl = (rawUrl: string) => string;
@@ -52,20 +56,22 @@ export interface PastedImage {
  *  to skip that image. Called once per image file, in clipboard order. */
 export type PasteImageHook = (image: PastedImage) => Promise<string | null>;
 
-/** What a code block hands its host when the run affordance is pressed. */
+/** What a code block hands its host when the run button is pressed. */
 export interface CodeRunRequest {
-	/** The fence body alone — opener and closer lines excluded. */
+	/** The fence body alone; the opener and closer lines are left out. */
 	code: string;
 	/** The opener's full info string, untrimmed of trailing attributes (`py {1-3}`). */
 	info: string;
+	/** The info string's first word (`py`), shown as the code block's language; empty for none. */
+	language: string;
 	/** Child indices from the document root to this block. */
 	path: number[];
 }
 
 /**
  * Host hook for executing a code block. The editor runs nothing itself: installing this is
- * what puts the run affordance on the block's rail, and the host owns everything after —
- * the engine, the result, and where output goes. Absent, no run affordance renders.
+ * what puts the run button in the block's side gutter, and the host owns everything after,
+ * the runtime, the result, and where output goes. Absent, no run button renders.
  */
 export type RunCodeHook = (request: CodeRunRequest) => void;
 
@@ -80,7 +86,7 @@ export interface CodeMenuItem {
 
 /**
  * Host hook for the code block's overflow menu, consulted each time the menu opens so the
- * items can read live state. Absent — or returning nothing — renders no overflow affordance:
+ * items can read live state. Absent, or returning nothing, renders no overflow button:
  * the editor has no app-level actions of its own to put there.
  */
 export type CodeMenuItemsHook = (request: CodeRunRequest) => readonly CodeMenuItem[];
@@ -96,98 +102,82 @@ export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
 export type VersionGetter = () => number;
 
-/** Resolver ref read by inline parsers in block components. Wrapped in a `{ current }`
- *  accessor so the shell can rebuild it after each commit without invalidating
- *  descendants' getContext bindings. `epoch` is the compact stamp render memos key on
- *  instead of concatenating the whole (~MB-scale) `signature` every keystroke. */
-export type LinkReferenceResolverRef = {
-	current?: LinkReferenceResolver;
-	signature?: string;
-	epoch?: number;
-};
-
 // ── Action triple (per-key: containers re-provide these three) ───────────────
 
 export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
-/** G1.4's subject: only the editor root provides history, so undo/redo resolve to one
- *  stack. Folding it into a facet a container could re-provide is the exact violation. */
+/** Only the editor root provides history, so undo and redo resolve to one stack (G1.4).
+ *  Putting it in a facet a container could re-provide is exactly the violation. */
 export const HISTORY_KEY = Symbol('history-actions');
 
-// ── Scope-provided channels (per-key: scope provision IS their mechanism) ────
+// ── Channels a block list provides to its children ───────────────────────────
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
-/**
- * @internal A hosted block enrolls itself in its scope's batched measure pass.
- * `register` no-ops when the path isn't a direct child of the scope's depth (nested
- * hosts route to their own channel); `readHeight` is called inside the scope's
- * read-all-then-write batch, never inline. `measureOnResize` carries the observer's
- * border-box height so the scope can O(1)-gate and skip the no-op mount resize.
- */
-export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
-export type BlockMeasureChannel = {
-	register: (path: number[], index: number, id: string, readHeight: () => number) => () => void;
-	measureNow: (id: string) => void;
-	measureOnResize: (id: string, observedHeight: number) => void;
-};
-
-/**
- * @internal A child reports up to its parent scope: a nested CONTAINER pushes its box
- * subtotal by index, while a `display:contents` ROW (no box of its own) enrolls in the
- * batched measure pass instead, so a windowed table measures like every other scope.
- */
-export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
-export type ParentScopeSink = {
-	setChildSubtotal: (index: number, total: number) => void;
-	registerRow: (
-		id: string,
-		readHeight: () => number,
-		applyHeight: (h: number) => void
-	) => () => void;
-	measureRowNow: (id: string) => void;
-};
+/** @internal How a windowed child's height reaches its own block list's height table. */
+export const CHILD_MEASURE_KEY = Symbol('child-measure');
+/** Only `useMeasuredChild` calls it; `path` is the child's own, so its last index is its place. */
+export interface ChildMeasureChannel {
+	register(path: readonly number[], id: string, readHeight: () => number): () => void;
+	measureNow(id: string): void;
+	measureOnResize(id: string, observedHeight: number): void;
+	/** Every child's size is watched by one observer per editor; its callback only records heights. */
+	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+}
 
 // ── Facets ───────────────────────────────────────────────────────────────────
 
-/** Cross-cutting editor services: event seam, view-state stores, and the
- *  cross-scope commit/reorder primitives. Root-provided once. */
+/** Cross-cutting editor services: the event dispatcher, the view-state stores, and the
+ *  commit and reorder calls that work across block lists. Provided once by the root. */
 export const EDITOR_SERVICES_KEY = Symbol('editor-services');
 export interface EditorServices {
 	events: EditorEvents;
 	decorations: DecorationEngine;
 	selection: SelectionState;
+	/** What the live range covers, read once per selection change so every overlay paints the
+	 *  answer the delete and the copy read; null with no range. */
+	rangeCoverage: () => RangeCoverage | null;
 	search: SearchState;
-	stickyColumn: StickyColumnState;
-	/** Which side of an adjacent hidden marker run the caret means; the write seams read
-	 *  it and keep their own default when it answers null. */
-	edgeAffinity: EdgeAffinityState;
-	/** The constructs a collapsed-caret toggle promised the next insertion. Invalidated with
-	 *  the affinity, spent by the typing and composition seats. */
-	pendingMarks: PendingMarksState;
-	revealAnchor: RevealAnchorState;
+	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
+	 *  pending marks, kept and dropped as one. */
+	caretMemory: CaretMemory;
+	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
+	 *  or deletes; each typing block takes its own view of it. */
+	autoPairs: AutoPairRecord;
+	/** The one writer of the scroll position; every scroll a module wants goes through it. */
+	scrollOwner: ScrollOwner;
 	widgetSelection: WidgetSelectionState;
-	/** The live-mode link card's target slot; `link.openCard` enters it from a kind's keymap. */
+	/** The image `widgetSelection` holds, as a raw span read from the live document. */
+	selectedWidget: SelectedWidgetHandle;
+	/** Which link the live-mode card is editing; `link.openCard` opens it from a kind's keymap. */
 	linkCard: LinkCardState;
+	/** What the editable at `path` says about the inline menu's list while one shows in it, or
+	 *  null. The block renders the attributes itself, rather than the list reaching in. */
+	inlineMenuCombobox: (path: readonly number[]) => InlineMenuCombobox | null;
 	controller: UndoController;
+	/** Where the caret is put down after an edit, and the mount a cross-block key lands through. */
+	caretLanding: CaretLanding;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
-	reorderAnnounce: ReorderAnnounce;
-	/** The instance's resolution over the global block definitions, so a per-instance
-	 *  enablement filter reaches the render path. */
+	/** This instance's view of the global block definitions, so a per-instance list of
+	 *  enabled kinds reaches the render path. */
 	registryView: RegistryView;
-	/** The plugins this instance activated, so a paste site scopes the transform pipeline
-	 *  the way `registryView` scopes the kinds. */
+	/** The plugins this instance activated, so a paste narrows the transform pipeline the
+	 *  way `registryView` narrows the kinds. */
 	activePlugins: PluginActivation;
-	/** The instance's rect surface, delivered to every block component as a prop
-	 *  so a block can measure/reveal/scroll by path through the one seam. */
+	/** The instance's `EditorRects`, handed to every block component as a prop so a block can
+	 *  measure, scroll into view, or scroll to a path through one entry point. */
 	rects: EditorRects;
-	/** The arm a format command takes while a cross-block range is painted, threaded into every
-	 *  dispatch site's gates so the chord, the leaf rebind and the `runCommand` door share one. */
-	crossBlockCommands: CrossBlockCommandRouter;
+	/** What every chord and `runCommand` in this editor dispatches against: one history, one set
+	 *  of overrides, one error channel. */
+	commands: CommandDispatchContext;
+	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
+	menuPresence: MenuPresence;
+	/** The label a typed kind change leaves on its block for a moment (`kind-cue.svelte.ts`). */
+	kindCue: KindCue;
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state
@@ -197,8 +187,8 @@ export interface EditorPolicies {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	imageLoadPolicy: () => ImageLoadPolicy;
-	/** Getter-wrapped set-once flag: render the mouse-only hover affordances, the block drag
-	 *  handle and the table grips. False renders neither; the keyboard routes stay regardless. */
+	/** Read live, so a prop change reaches built blocks: render the mouse-only hover controls,
+	 *  the block drag handle and the table's handles. False renders neither; keyboard stays. */
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored
@@ -206,15 +196,14 @@ export interface EditorPolicies {
 	theme: ThemeGetter;
 	keybindingOverrides: KeybindingOverridesGetter;
 	/** Set-once host import hook for image-bearing pastes. Required-nullable: a mount must
-	 *  answer, and `undefined` deliberately leaves the paste on the text/plain path. */
+	 *  answer, and `undefined` deliberately leaves the paste on the plain-text path. */
 	onPasteImage: PasteImageHook | undefined;
-	/** Set-once host execution hook; its presence is what renders the run affordance. */
+	/** Set-once host execution hook; its presence is what renders the run button. */
 	onRunCode: RunCodeHook | undefined;
-	/** Set-once host menu hook; its presence is what renders the overflow affordance. */
+	/** Set-once host menu hook; its presence is what renders the overflow button. */
 	codeMenuItems: CodeMenuItemsHook | undefined;
-	/** Resolved image URLs that failed to load this session. One Set per instance, so a
-	 *  failed load never suppresses another editor's broken-state recompute
-	 *  (`components/image/widget-dom.ts`). */
+	/** Resolved image URLs that failed to load this session, one Set per instance so a failure never
+	 *  suppresses another editor's broken-state recompute. */
 	brokenImageUrls: Set<string>;
 }
 
@@ -222,39 +211,36 @@ export interface EditorPolicies {
 export const EDITOR_DOC_KEY = Symbol('editor-doc');
 export interface EditorDoc {
 	doc: DocumentGetter;
-	/** Changes whenever the document's bytes change — the only sound memo key over a
+	/** Changes whenever the document's bytes change: the only sound memo key over a
 	 *  document whose `$state` proxy is mutated in place and never changes identity. */
 	contentVersion: () => number;
-	linkRef: LinkReferenceResolverRef;
-	/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
-	 *  callbacks, global-command handlers, and BlockCommandContext.editor share. */
+	/** How this editor reads its bytes: grammar, link definitions, mode. */
+	reading: Reading;
+	/** Resolves a plugin's per-instance `EditorContext`: the one object `onEditor` callbacks,
+	 *  global-command handlers and `BlockCommandContext.editor` all share. */
 	pluginEditor: PluginEditorLookup;
 	/** AbortSignal tied to the editor's mount lifetime; document-level listeners
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;
 	editorRoot: () => HTMLElement | null;
-	/** What a drag autoscrolls to reach more of this editor: the root in self mode, the
-	 *  nearest USER-scrollable ancestor in host mode, null when the page's own viewport
-	 *  scrolls. What BOUNDS the visible region is a separate answer held by the rect
-	 *  surface — see `cursor/scroll-ancestors`. */
+	/** What a drag autoscrolls: the editor root in self mode, the nearest scrollable ancestor in host
+	 *  mode, null when the page scrolls. `EditorRects` answers what bounds the visible region. */
 	scrollHost: () => UserScrollport | null;
-	/** The same scroller as `scrollHost`, in the shape windowing measures and writes it
-	 *  through. Null only before the root mounts. */
-	scrollport: () => Scrollport | null;
+	/** The same scroller as `scrollHost`, read-only, in the shape windowing measures it through.
+	 *  Null only before the root mounts; `EditorServices.scrollOwner` writes it. */
+	scrollport: () => ScrollportReader | null;
 	blockElLookup: BlockElLookup;
-	/** Live getter for the focused block's full path; drives per-level VR pins. */
+	/** Live getter for the focused block's full path; it decides which block each level of
+	 *  windowing holds in place. */
 	focusedPath: FocusedPathGetter;
-	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
+	/** Per-kind height estimator, built by the root and read by nested block lists. */
 	heightOracle: HeightOracle;
-	/** True while the editor holds the reader's place through a height mutation rather than
-	 *  leaving it to the host's native scroll anchoring. The `overflow-anchor` opt-out keys
-	 *  off the same fact, so the two can never both write one scroll position. */
-	correctsScroll: () => boolean;
-	/** Monotonic width-change counter the root bumps on an editor width resize, so
-	 *  every windowing scope rebuilds its model and re-measures at the new width. */
+	/** Every mounted block list, which the scroll owner reads the document's heights through. */
+	listTree: ListTree;
+	/** Counter the root bumps on an editor width resize, so every block list rebuilds its
+	 *  height table and re-measures at the new width. */
 	widthVersion: VersionGetter;
-	/** Monotonic counter the root bumps when the SCROLLPORT's height changes. Its own
-	 *  signal, never `widthVersion`: a height resize re-wraps no prose, so bumping the
-	 *  width counter would drop every measured height for nothing. */
+	/** Bumped when the scroll container's height changes, apart from `widthVersion`: a height change
+	 *  re-wraps no prose, so it must not drop every measured height. */
 	viewportHeightVersion: VersionGetter;
 }

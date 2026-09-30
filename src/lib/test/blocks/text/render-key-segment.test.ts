@@ -4,8 +4,8 @@ import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 
-// A renderKey is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, mode
-// '' in source. These pin the decomposition directly, off the recorder path (never an assertion).
+// A render key is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, with
+// mode '' in source. These test the split directly, off the recorder path, which never asserts.
 function key(parts: {
 	ambient?: string;
 	raw: string;
@@ -56,17 +56,17 @@ describe('renderKeySegmentDiff', () => {
 		);
 	});
 
-	it('names islands when the island part appears', () => {
+	it('names widgets when the widget part appears', () => {
 		const before = key({ raw: 'x' });
 		const after = key({ raw: 'x', islands: islandRenderKeyPart([island(1)]) });
 		expect(renderKeySegmentDiff(before, after)).toBe('islands');
 	});
 
-	it('names mode on a presentation flip, independent of islands', () => {
+	it('names mode on a presentation flip, independent of widgets', () => {
 		expect(renderKeySegmentDiff(key({ raw: 'x' }), key({ raw: 'x', mode: 'reading' }))).toBe(
 			'mode'
 		);
-		// The trailing island part must not be mis-attributed when mode is set.
+		// The trailing decoration part must not be attributed elsewhere when mode is set.
 		const islands = islandRenderKeyPart([island(1)]);
 		expect(
 			renderKeySegmentDiff(key({ raw: 'x', islands }), key({ raw: 'x', mode: 'reading', islands }))

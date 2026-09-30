@@ -1,25 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
-// latexPlugin requires an injected renderer; block parsing never renders, so a
-// no-op stub satisfies the required option without pulling a math engine in.
-const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
-
-// The block opener and the inline `$` trigger register through independent registries, and
-// the platform reset clears both — a schema-only reset would leave inline live and the
-// gating test would pass for the wrong reason.
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
-
-// Recognition is gated on the opener registering — with no extension loaded a
-// `$$` fence is ordinary GFM text (a paragraph), byte-identical to bare GFM.
+// Recognition starts only once the opener registers: with the plugin absent a `$$` fence is
+// ordinary GFM text (a paragraph), byte-identical to plain GFM.
 describe('block math is dormant until registered', () => {
 	it('leaves a $$…$$ fence as a paragraph with nothing registered', () => {
 		const src = '$$\nx^2\n$$\n';
@@ -28,10 +17,8 @@ describe('block math is dormant until registered', () => {
 	});
 });
 
-// Grammar: the opener sits at column 0. A closed single line (`$$…$$`, length
-// ≥ 4) is a one-line block; a bare `$$` opens a multi-line block that a later
-// bare `$$` closes. Anything else starting with `$$` (e.g. `$$ x` unclosed)
-// declines to a paragraph, as does an unterminated bare fence.
+// A closed single line (`$$…$$`) at column 0 is a one-line block, and a bare `$$` opens one a
+// later bare `$$` closes; any other `$$` line, or an unterminated fence, stays a paragraph.
 describe('block math recognition', () => {
 	beforeEach(registerMathBlock);
 
@@ -89,36 +76,21 @@ describe('block math round-trip', () => {
 
 describe('latexPlugin wires the block opener', () => {
 	it('makes a $$…$$ fence parse as a mathBlock through the installed plugin', () => {
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 	});
 });
 
-// The renderer is REQUIRED (no baked-in engine, unlike mermaid's optional one), and the
-// contract lives at the type level — so the `@ts-expect-error` directives below are the
-// assertions: a regression to an optional renderer fails `npm run check`.
-describe('latexPlugin requires an injected renderer', () => {
-	it('rejects a missing or empty renderer option at compile time', () => {
-		// @ts-expect-error - renderer is required; a bare call omits it
-		const noArg = () => latexPlugin();
-		// @ts-expect-error - renderer is required; empty options omit it
-		const noRenderer = () => latexPlugin({});
-		expect(noArg).toBeTypeOf('function');
-		expect(noRenderer).toBeTypeOf('function');
-	});
-});
-
-// A schema reset clears the block registry but leaves the inline registries live, so a
-// reinstall must re-register the block kind yet NOT the inline one. The inline guard is
-// keyed on the surviving declared kind; mis-key it and the re-register throws.
+// A schema reset leaves the inline registries live, so a reinstall re-registers only the block
+// kind; an inline check keyed on anything but the surviving kind would throw on reinstall.
 describe('latexPlugin reinstall after a platform reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineRungs('$').length).toBeGreaterThan(0);
 
 		resetPluginPlatformForTests();
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineRungs('$').length).toBeGreaterThan(0);

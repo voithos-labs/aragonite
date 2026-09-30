@@ -4,15 +4,16 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// The gap caret's mint, byte-oracled: a paragraph minted at a boundary must serialize to the
-// document the user would have typed, with the separators GFM needs to reload the same tree.
+// The paragraph the gap caret creates, checked by its bytes: a paragraph inserted at a
+// boundary must serialize to the document the user would have typed, with the separators
+// GFM needs to reload the same tree.
 
 const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
 const FENCE = '```\ncode\n```\n';
-/** paragraph, table, fencedCode, paragraph — the eligible boundary is 2. */
+/** paragraph, table, fencedCode, paragraph: the eligible boundary is 2. */
 const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 
-describe('a paragraph minted at a boundary round-trips', () => {
+describe('a paragraph created at a boundary round-trips', () => {
 	it('carries its text between a table and a fence', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
@@ -29,9 +30,9 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		]);
 	});
 
-	// G2.13: a blank block IS a blank line, so it shares the follower's separator rather than
-	// stacking a second one that would reload as an extra empty paragraph.
-	it('is empty when Enter mints it, and shares its follower separator', async () => {
+	// A blank block is itself a blank line, so it shares the follower's separator rather than
+	// stacking a second one that would reload as an extra empty paragraph (G2.13).
+	it('is empty when Enter creates it, and shares its follower separator', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
 		await h.actions.insertParagraph(2, '');
@@ -41,19 +42,20 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		expect(h.doc.children).toHaveLength(5);
 	});
 
-	// GH #73: the head's own fill correctly declines a separator at bodyStart, so the block the
-	// mint displaced is the one owed the line — in SOURCE only, which no byte round-trip sees.
-	it('hands the displaced head its own separator once the mint is typed into', async () => {
+	// The first block's fill declines a separator at bodyStart, so the displaced block must supply
+	// the line itself; a missing one shows in the bytes, never in a round-trip.
+	it('hands the displaced head its own separator once the new block is typed into', async () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);
 
 		await h.actions.insertParagraph(0, '');
-		await h.actions.updateBlockContent(0, 'q\n');
+		await h.actions.updateBlockContent(0, 'q\n', 'authored', 0);
 
 		expect(serialize(h.doc)).toBe(`q\n\n${TABLE}\n${FENCE}`);
 		expectParseConverged(h.doc);
 	});
 
-	// The head slot owns no separator, so the mint takes the old head's and hands one back.
+	// The first index owns no separator, so the new paragraph takes the displaced block's and
+	// hands one back.
 	it('at the scope head pushes the separator down to the block it displaced', async () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);
 
@@ -63,7 +65,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		expect(serialize(parse(serialize(h.doc)))).toBe(serialize(h.doc));
 	});
 
-	// G4.20: the separator and the paragraph's own ending both come off a neighbour.
+	// The separator and the paragraph's own ending both come off a neighbour (G4.20).
 	it('takes a CRLF document its own line endings', async () => {
 		const crlf = TABLE_THEN_FENCE.replace(/\n/g, '\r\n');
 		const h = makeTopHarness(crlf);
@@ -74,7 +76,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		expect(serialize(h.doc)).not.toContain('\n\n');
 	});
 
-	it('emits insertBlock at the minted block, not at the boundary neighbour', async () => {
+	it('emits insertBlock at the created block, not at the boundary neighbour', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
 		await h.actions.insertParagraph(2, 'x');
@@ -84,7 +86,7 @@ describe('a paragraph minted at a boundary round-trips', () => {
 	});
 });
 
-describe('a paragraph minted inside a container', () => {
+describe('a paragraph created inside a container', () => {
 	// The scope-end boundary containers own: index === children.length, which the root excludes.
 	it('lands inside the quote at the scope-end boundary', async () => {
 		const h = makeNestedHarness(`> para\n>\n> \`\`\`\n> code\n> \`\`\`\n`, { index: 0 });

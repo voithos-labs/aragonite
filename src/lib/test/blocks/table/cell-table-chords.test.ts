@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-//
-// The table's structural keyboard vocabulary end to end: a real keystroke on a real cell, and
-// the document that came out. These chords are `tableCell` keymap bindings, so the planner can
-// only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to be pinned
-// where it happens. Editor mount, because every arm commits and replaces the node.
+// The table's structural keys end to end, a real keystroke on a cell in a full Editor mount and
+// the document that came out. These chords are `tableCell` keymap bindings, so the keydown
+// planner only declines them and the behaviour has to be covered here.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);
@@ -100,8 +102,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// Contrapositive: the reorder target declines at the boundary, so the chord must
-	// neither displace the header nor push an undo entry.
+	// The reorder refuses at the header boundary, so the chord must neither move the header nor
+	// push an undo entry.
 	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
 		mounted = mountEditor({ source: GRID });
 
@@ -110,8 +112,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		expect(mounted.source()).toBe(GRID);
 	});
 
-	// The caret's own cell, not row 0 / column 0: a chord indexed off the wrong coordinate hides
-	// whenever the caret happens to be in the first cell.
+	// The caret's own cell, not row 0 or column 0: a chord indexed off the wrong coordinate
+	// looks correct whenever the caret happens to be in the first cell.
 	it('indexes the mutation off the caret’s own cell, not the first one', async () => {
 		mounted = mountEditor({ source: GRID });
 

@@ -1,14 +1,12 @@
 /**
- * Bundled-plugin import boundary: a file under `src/lib/plugins/**` may import only the
- * public authoring barrel, relative paths inside its own plugin, and `svelte`. This is
- * the dogfood proof that the barrel is complete — a bundled plugin reaching into `$lib`
- * deep paths means the public surface is missing something, so fix the barrel, not the
- * import. One exception: a `renderer.ts` may import its declared rendering engine, an
- * adapter split that keeps the heavy dependency off the plugin's core.
+ * A file under `src/lib/plugins/**` imports only the public authoring barrel, relative paths
+ * inside its own plugin, and `svelte`, which proves the barrel is complete: a deep `$lib` import
+ * means the barrel is missing something, so fix the barrel, not the import. A `renderer.ts` may
+ * also import its declared rendering engine, keeping the heavy dependency off the plugin's core.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources } from './scan-source';
+import { collectEditorSources, importSpecifiers } from './scan-source';
 
 const PLUGIN_ROOT = 'src/lib/plugins';
 
@@ -18,22 +16,6 @@ const PLUGIN_ENGINES: Record<string, RegExp> = {
 	latex: /^katex(\/.*)?$/,
 	mermaid: /^mermaid(\/.*)?$/
 };
-
-// Line-anchored so a CSS `@import` inside a <style> block can't read as a JS
-// side-effect import.
-const FROM_IMPORT = /^\s*(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
-const SIDE_EFFECT_IMPORT = /^\s*import\s+['"]([^'"]+)['"]/gm;
-const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]/g;
-
-function importSpecifiers(code: string): string[] {
-	const specs: string[] = [];
-	for (const source of [FROM_IMPORT, SIDE_EFFECT_IMPORT, DYNAMIC_IMPORT]) {
-		const re = new RegExp(source.source, source.flags);
-		let match: RegExpExecArray | null;
-		while ((match = re.exec(code)) !== null) specs.push(match[1]);
-	}
-	return specs;
-}
 
 function pluginOf(relPath: string): { name: string; dir: string } | null {
 	if (!relPath.startsWith(`${PLUGIN_ROOT}/`)) return null;
@@ -63,7 +45,7 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 
 // ── The boundary scan ────────────────────────────────────────────────────────
 
-describe('plugin import boundary — bundled plugins import only the public barrel', () => {
+describe('plugin import boundary: bundled plugins import only the public barrel', () => {
 	const sources = collectEditorSources(path.resolve(PLUGIN_ROOT));
 
 	it('collected the bundled plugin source files', () => {
@@ -73,7 +55,7 @@ describe('plugin import boundary — bundled plugins import only the public barr
 	it('no file imports outside $lib/plugin, its own dir, svelte, or its declared engine', () => {
 		const offenders: string[] = [];
 		for (const file of sources) {
-			for (const specifier of importSpecifiers(file.code)) {
+			for (const { specifier } of importSpecifiers(file.code)) {
 				if (!isAllowedSpecifier(file.relPath, specifier)) {
 					offenders.push(`${file.relPath}: ${specifier}`);
 				}
@@ -88,7 +70,7 @@ describe('plugin import boundary — bundled plugins import only the public barr
 
 // ── Classifier self-tests (non-vacuity) ──────────────────────────────────────
 
-describe('plugin import boundary — classifier non-vacuity', () => {
+describe('plugin import boundary: classifier non-vacuity', () => {
 	const file = 'src/lib/plugins/details/register.ts';
 
 	it('allows the public authoring barrel and svelte', () => {
@@ -119,26 +101,5 @@ describe('plugin import boundary — classifier non-vacuity', () => {
 		expect(isAllowedSpecifier('src/lib/plugins/latex/latex-kind.ts', 'katex')).toBe(false);
 		// renderer.ts, wrong engine for its plugin → denied.
 		expect(isAllowedSpecifier('src/lib/plugins/mermaid/renderer.ts', 'katex')).toBe(false);
-	});
-});
-
-describe('plugin import boundary — specifier extraction', () => {
-	it('extracts single-line, multi-line, side-effect, and dynamic specifiers', () => {
-		const code = [
-			"import { a } from '$lib/plugin';",
-			'import {',
-			'\tb,',
-			'\tc',
-			"} from './local';",
-			"import 'katex/dist/katex.min.css';",
-			"const m = await import('mermaid');"
-		].join('\n');
-		expect(importSpecifiers(code).sort()).toEqual(
-			['$lib/plugin', './local', 'katex/dist/katex.min.css', 'mermaid'].sort()
-		);
-	});
-
-	it('ignores a CSS @import in a style block', () => {
-		expect(importSpecifiers("\t@import 'reset.css';")).toEqual([]);
 	});
 });

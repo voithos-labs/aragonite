@@ -1,9 +1,9 @@
 import { type SimContext } from '../invariants';
 import { arrowRightToOffset } from './caret-walk';
 
-// Decoded-entity atomic-widget gestures. The widget contributes its GLYPH, not its raw, so
-// the tracker's end-of-doc append rule can predict neither a mid-prose insert nor the
-// whole-reference atomic delete — both settle on the widget swap and resync.
+// Gestures for the decoded-entity widget. It shows the character, not the reference it came
+// from, so the expected answer's "typed at the end" rule can predict neither an insert in the
+// middle of a sentence nor a delete of the whole reference: both wait for the widget and resync.
 
 const ENTITY = '.md-entity-widget';
 
@@ -19,10 +19,8 @@ async function entitySpan(ctx: SimContext, blockIndex: number): Promise<{ end: n
 	return span;
 }
 
-/**
- * The caret is placed with the Selection API for SETUP only; the reference itself is typed
- * per-key, so the widget appears on the closing `;`.
- */
+/** The caret is placed programmatically for setup only; the reference is typed key by key, so
+ *  the widget appears on the closing `;`. */
 export async function typeEntityWidget(
 	ctx: SimContext,
 	blockIndex: number,
@@ -42,10 +40,8 @@ export async function typeEntityWidget(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * `deleteGranularity: 'atomic'` removes the whole reference in one press and one undo entry.
- * The caret reaches the trailing edge with REAL arrows so the press lands on that branch.
- */
+/** `deleteGranularity: 'atomic'` removes the whole reference in one keypress and one undo entry;
+ *  the caret reaches its trailing edge by arrow keys, the path a user takes. */
 export async function atomicDeleteEntityWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await entitySpan(ctx, blockIndex);

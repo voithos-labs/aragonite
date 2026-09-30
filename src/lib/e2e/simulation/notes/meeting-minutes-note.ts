@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The meeting-minutes note. All HOLD, so end-state equality stays a primary oracle. The
- * nested action item uses the empty-item cadence, putting a task and its sub-action one level
- * apart in the equality spine.
+ * The meeting-minutes note, typed so it matches the loaded document. The nested action item uses
+ * the empty-item sequence, putting a task and its sub-action one level apart.
  */
 export const MEETING_MINUTES_NOTE: NoteFixture = {
 	name: 'meeting-minutes-note',
@@ -70,8 +69,8 @@ export const MEETING_MINUTES_NOTE: NoteFixture = {
 		'Priya wires the feature flag',
 		'Notes archived after the sync'
 	],
-	// Enter separates, so a heading typed on its own line stands one blank line above what
-	// follows it — the note is written the way it is typed, which is what the oracle asks.
+	// Enter separates blocks, so a heading typed on its own line stands one blank line above
+	// what follows: the note is written the way it is typed, which is what the check compares.
 	expectedMarkdown:
 		'# Sprint Sync — June 1\n' +
 		'\n' +

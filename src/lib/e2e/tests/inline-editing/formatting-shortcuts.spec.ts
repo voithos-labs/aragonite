@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Each row selects a run by real Shift+ArrowRight presses from a raw offset, then presses one
-// chord: the toggle wraps the run, strips the delimiters already around it, splits the construct
-// a sub-range selection sits inside, or absorbs the same-format runs a wider selection touches.
+// Each row selects a run with Shift+ArrowRight from a raw offset, then applies one chord: the
+// toggle wraps the run, strips the delimiters already around it, splits the construct a sub-range
+// selection sits inside, or absorbs the same-format runs a wider selection touches.
 const TOGGLES = [
 	{
 		chord: 'Ctrl+B',
@@ -73,7 +73,7 @@ const TOGGLES = [
 	}
 ];
 
-test.describe('inline editing — formatting shortcuts', () => {
+test.describe('inline editing, formatting shortcuts', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -104,7 +104,6 @@ test.describe('inline editing — formatting shortcuts', () => {
 		});
 	}
 
-	// Regression: Ctrl+B on the inner word of `**word**` must strip, not reach `****word****`.
 	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
 		await selectAndPress('Hello **world** today\n', 8, 5, 'ControlOrMeta+b');
 

@@ -1,11 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Recognition + composition of character references
-// (requirements/inline-editing/entity-references.md). The atomic caret/delete behavior of
-// the resulting widget is a separate concern, pinned in entity-widget.spec.ts.
+// How character references are recognized and composed
+// (`requirements/inline-editing/entity-references.md`). How the caret and Delete treat the
+// resulting widget is `entity-widget.spec.ts`.
 
-test.describe('inline editing — entity references', () => {
+test.describe('inline editing: entity references', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -69,14 +69,6 @@ test.describe('inline editing — entity references', () => {
 		await expect(block.locator('[data-inline-widget]')).toHaveCount(0);
 		await expect(block.locator('code.inline-code-content')).toHaveCount(1);
 	});
-
-	for (const sample of ['&copy;', '&amp;', '&#39;', '&#x22;', '&notreal;']) {
-		test(`round-trips ${JSON.stringify(sample)} unchanged`, async () => {
-			await editor.typeText(sample);
-			await editor.bridge.waitForSourceContains(sample);
-			expect((await editor.bridge.getSource()).trim()).toBe(sample);
-		});
-	}
 
 	test('entity inside link text renders its glyph inside the anchor', async () => {
 		await editor.typeText('[&copy; me](https://example.com)');

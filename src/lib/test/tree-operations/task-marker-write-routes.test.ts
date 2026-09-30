@@ -1,0 +1,96 @@
+// @vitest-environment jsdom
+// Each write that can put another block in front of a task's paragraph drops the task marker, and
+// each test fails when its own route loses the call; `reconcile-task.test.ts` covers the rule.
+// jsdom, since the paste route's controller reads the mounted block-list state.
+
+import { describe, it, expect } from 'vitest';
+import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
+import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
+import {
+	makeCommitScopeStub,
+	makeContainerHarness,
+	makePasteCommit,
+	registerStubBlockListState
+} from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+
+const TABLE = '| a | b |\n| --- | --- |\n';
+
+/** The first list item of a parsed document, which carries the task metadata. */
+function todoItem(source: string): CstNode {
+	return parse(source).children[0].children![0];
+}
+
+const metaOf = (item: CstNode) => item.metadata as ListItemMetadata;
+
+describe('every write that can replace a to-do’s first block drops the marker with it', () => {
+	it('the content write, where a typed delimiter row makes the paragraph a table', () => {
+		const item = todoItem('- [ ] alpha\n');
+
+		updateNodeContent(
+			{ children: item.children!, owner: item, lineEnding: '\n' },
+			0,
+			TABLE,
+			defaultGrammarView
+		);
+
+		expect(item.children![0].kind).toBe('table');
+		expect(metaOf(item).taskItem).toBe(false);
+		expect(metaOf(item).taskMarker).toBeNull();
+	});
+
+	it('the content write keeps the marker of a to-do whose text starts with `#`', () => {
+		const item = todoItem('- [ ] # alpha\n');
+
+		updateNodeContent(
+			{ children: item.children!, owner: item, lineEnding: '\n' },
+			0,
+			'# alphaX\n',
+			defaultGrammarView
+		);
+
+		expect(metaOf(item).taskItem).toBe(true);
+		expect(metaOf(item).taskMarker).toBe('[ ] ');
+	});
+
+	it('the keystroke inside the to-do, where typing a delimiter row makes a table', async () => {
+		const h = makeContainerHarness('- [ ] | a |\n', [0, 0]);
+
+		await h.bundle.blockEdit.updateBlockContent(0, '| a |\n| - |\n', 'authored', 5, 11);
+
+		expect(serialize(h.deps.doc)).toBe('- | a |\n  | - |\n');
+		expect(h.getNode().children![0].kind).toBe('table');
+		expect(metaOf(h.getNode()).taskItem).toBe(false);
+	});
+
+	it('the block replace, where the Enter completer puts a table in the position', async () => {
+		const item = todoItem('- [ ] alpha\n');
+		const { scope } = makeCommitScopeStub(item.children!, { owner: item });
+
+		await createBlockEditCore(scope).replaceBlock(0, parse(TABLE).children, undefined, {
+			snapshotOffset: 0
+		});
+
+		expect(item.children![0].kind).toBe('table');
+		expect(metaOf(item).taskItem).toBe(false);
+		expect(metaOf(item).taskMarker).toBeNull();
+	});
+
+	it('the paste splice, where the clipboard lands a table over the paragraph', async () => {
+		const { doc, controller } = makePasteCommit('- [ ] alpha\n');
+		registerStubBlockListState(doc.children[0].children![0]);
+
+		await controller.replaceBlock(
+			[0, 0, 0],
+			parse(TABLE).children,
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
+		);
+
+		const item = doc.children[0].children![0];
+		expect(item.children![0].kind).toBe('table');
+		expect(metaOf(item).taskItem).toBe(false);
+		expect(metaOf(item).taskMarker).toBeNull();
+	});
+});

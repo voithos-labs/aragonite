@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
 
-test.describe('clipboard — container boundary scenarios', () => {
+test.describe('clipboard: container boundary scenarios', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

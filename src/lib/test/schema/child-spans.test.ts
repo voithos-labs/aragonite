@@ -6,6 +6,7 @@ import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
 import { reorderChildren } from '$lib/tree-operations/reorder';
+import { enablePerfInstruments, disablePerfInstruments } from '$lib/perf/instruments';
 
 const paragraph = (raw: string, leadingTrivia = ''): CstNode =>
 	makeBlockNode({ kind: 'paragraph', leadingTrivia, raw });
@@ -38,7 +39,7 @@ function rebuild(node: CstNode, changed?: { index: number; previousRaw: string }
 	getBlockKindDescriptor(node.kind).rebuildRaw!(node, changed);
 }
 
-/** Rewrite one child's raw and rebuild through the hint, as the typing door does. */
+/** Rewrite one child's raw and rebuild through the hint, the way the typing path does. */
 function rewriteChild(node: CstNode, index: number, raw: string): void {
 	const previousRaw = node.children![index].raw;
 	node.children![index].raw = raw;
@@ -112,7 +113,7 @@ describe('the rebuild refuses a splice it cannot place', () => {
 
 	// A reorder mutates a bare children array, which has no owner to drop spans on: the region
 	// check is the whole defense, and without it the moved child's region is written twice.
-	it('re-derives after a reorder no seam could invalidate for it', () => {
+	it('re-derives after a reorder no join could invalidate for it', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('bbbb\n')]);
 		expect(node.raw).toBe('> a\n> bbbb\n');
 		reorderChildren(node.children!, 1, 0);
@@ -121,13 +122,13 @@ describe('the rebuild refuses a splice it cannot place', () => {
 	});
 });
 
-// G1.38's own arm. The region check reads the NAMED child only, so a sibling's bytes moving
-// underneath it is the one shape that reaches the belt: no door ran, and no count moved.
+// Only the dev-mode check catches a sibling's bytes moving under the spans (G1.38): the region
+// check reads just the rewritten child, and nothing dropped the spans or changed the count.
 describe('the dev belt behind a splice', () => {
 	it('fires and re-derives when a sibling moved under the spans', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
 		expect(node.raw).toBe('> a\n> b\n');
-		// Hand-written, the way a reorder writes: past every door, so nothing retires the spans.
+		// Hand-written, the way a reorder writes: past every entry point, so nothing drops the spans.
 		node.children![1].leadingTrivia = '\n';
 
 		rewriteChild(node, 0, 'aa\n');
@@ -138,11 +139,11 @@ describe('the dev belt behind a splice', () => {
 	});
 });
 
-describe('the children doors drop the spans they invalidate', () => {
+describe('the children entry points drop the spans they invalidate', () => {
 	it('drops on a splice and on a push', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
-		// Typed, not a plain array: Svelte proxies those, and the shift would mint a source per
-		// element — the O(children) cost the spans exist to remove (`schema/child-spans.ts`).
+		// A typed array, not a plain one: Svelte proxies plain arrays, and the shift would create a
+		// reactive source per element, the per-child cost the spans exist to remove.
 		expect(node.childSpans).toBeInstanceOf(Uint32Array);
 		expect(spans(node)).toEqual([0, 4, 4, 8]);
 		spliceChildren(node, 1, 1, [paragraph('c\n')]);
@@ -152,5 +153,31 @@ describe('the children doors drop the spans they invalidate', () => {
 		expect(node.childSpans).toBeUndefined();
 		rebuild(node);
 		expect(node.raw).toBe('> a\n> c\n> d\n');
+	});
+});
+
+// Miss: only the perf gate saw a keystroke in a big quote's first child read every later sibling;
+// no unit test counted what a one-child splice reads.
+describe('a one-child splice reads only the child it rewrites', () => {
+	it('never reads a later sibling for text that does not end blank', () => {
+		const children = Array.from({ length: 2000 }, (_, i) => paragraph(`p${i}\n`, i ? '\n' : ''));
+		const node = container('blockquote', children);
+		// Counts indexed reads the way the editor's `$state` array pays for them, one trap each.
+		let siblingReads = 0;
+		node.children = new Proxy(children, {
+			get(target, key, receiver) {
+				if (typeof key === 'string' && Number(key) > 0) siblingReads++;
+				return Reflect.get(target, key, receiver);
+			}
+		});
+		// The perf instruments skip the dev belt's full rebuild, as they do in the perf gate.
+		enablePerfInstruments();
+		try {
+			rewriteChild(node, 0, 'p0x\n');
+		} finally {
+			disablePerfInstruments();
+		}
+		expect(node.raw.startsWith('> p0x\n>\n> p1\n')).toBe(true);
+		expect(siblingReads).toBe(0);
 	});
 });

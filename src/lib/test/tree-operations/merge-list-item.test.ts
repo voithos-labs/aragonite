@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '../../tree-operations';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
 // in e2e/requirements/blocks/list/backspace/m1-merge.md.
@@ -26,8 +25,7 @@ describe('mergeListItemIntoPrevious', () => {
 			children,
 			currentIndex,
 			undefined,
-			undefined,
-			undefined
+			fixtureReading()
 		);
 		if (!result) throw new Error('expected a merge target');
 		return result;
@@ -77,7 +75,7 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(mergePoint.offset).toBe('AA'.length);
 	});
 
-	it('row 4: deep target (depth 2) — E stays at depth 1 (preserve-absolute-indent)', () => {
+	it('row 4: deep target (depth 2); E stays at depth 1 (preserve-absolute-indent)', () => {
 		// E must keep its original absolute depth, not deepen to match the merge target's.
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
@@ -108,9 +106,8 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(mergePoint.offset).toBe('A'.length);
 	});
 
-	it('row 5b: target item is loose — trailing paragraph index is not 0', () => {
-		// A loose target lands findDeepestVisibleTextTarget on A.children[1]; a path-slice bug
-		// cascaded focus to A.children[0].
+	it('row 5b: target item is loose, trailing paragraph index is not 0', () => {
+		// A loose target puts `findDeepestVisibleTextTarget` on A.children[1], not A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
 		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
@@ -139,7 +136,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base is preserved across the merge', () => {
 		const list = parseList('3. First\n4. Second\n5. Third\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading());
 
 		expect(list.children?.length).toBe(2);
 		const markers = list.children!.map((i) => (i.metadata as { marker: string }).marker);
@@ -150,7 +147,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base survives a 2-into-1 collapse', () => {
 		const list = parseList('3. First\n4. Second\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading());
 
 		expect(list.children?.length).toBe(1);
 		const soleMarker = (list.children?.[0].metadata as { marker: string }).marker;
@@ -161,18 +158,18 @@ describe('mergeListItemIntoPrevious', () => {
 		const list = parseList('- A\n- B\n');
 
 		expect(() =>
-			mergeListItemIntoPrevious(list, list.children!.slice(), 0, undefined, undefined, undefined)
+			mergeListItemIntoPrevious(list, list.children!.slice(), 0, undefined, fixtureReading())
 		).toThrow();
 	});
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
-		// A not-mergeable previous item leaves the walker no text-bearing leaf: M1 must report
-		// no-target for the caller's focus-move fallback, not throw inside the ceremony.
+		// A not-mergeable previous item leaves the walker no text-bearing leaf, so the merge reports
+		// no target for the caller's focus-move fallback rather than throwing inside the commit.
 		const list = parseList('- ```\n  code\n  ```\n- text\n');
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
+		const result = mergeListItemIntoPrevious(list, children, 1, undefined, fixtureReading());
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);
@@ -180,17 +177,15 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 });
 
-// Isolated because the walker's collapse probe needs the details kind registered to read
-// the summary chrome as opaque.
-describe('mergeListItemIntoPrevious — collapsed container as previous leaf', () => {
+// Isolated because the walker's collapse check needs the details kind registered to read
+// the summary child as opaque.
+describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 
 	it('previous item ends in a collapsed <details>: returns null without mutating', () => {
-		// The collapsed details' only reachable leaf is its opaque summary chrome, so this
+		// The collapsed details' only reachable leaf is its opaque summary child, so this
 		// reaches the same no-target fallback as the fenced-code case.
 		const list = parse(
 			'- <details>\n  <summary>Sum</summary>\n\n  Hidden\n\n  </details>\n- text\n'
@@ -199,7 +194,7 @@ describe('mergeListItemIntoPrevious — collapsed container as previous leaf', (
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
+		const result = mergeListItemIntoPrevious(list, children, 1, undefined, fixtureReading());
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);

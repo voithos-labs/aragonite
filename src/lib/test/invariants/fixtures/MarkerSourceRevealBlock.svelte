@@ -1,7 +1,7 @@
 <script lang="ts">
-	// A render-primary leaf whose revealed source paints its bytes as marker chrome: the
-	// single-text-node sync leaves it alone (the textContent already matches), so the reveal
-	// path seats a caret where the mode paints nothing.
+	// A render-primary leaf whose revealed source paints its bytes as markers: the single-text-node
+	// sync leaves it alone, since the textContent already matches, so the reveal path puts a caret
+	// where the mode paints nothing.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

@@ -3,17 +3,17 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Decoration island editing (requirements/decorations/island-editing.md). Islands are atomic
- * widgets carrying (replace) or standing in for zero (widget) raw bytes: arrows step over
- * them, destructive keys select-then-delete a replace island whole, and a widget island is
- * transparent to Backspace — never corrupting the hidden bytes or splitting the undo entry.
+ * Editing around decoration widgets (`requirements/decorations/island-editing.md`). Both kinds
+ * are atomic: a replace decoration covers raw bytes, a widget decoration stands in for none.
+ * Arrows step over them, destructive keys select a replace decoration then delete it whole,
+ * and Backspace passes straight through a widget decoration, never corrupting the hidden
+ * bytes or splitting the undo entry.
  */
 
 const ISLAND = '[data-decoration-island]';
 
-// Both sources place their island at a FIXED offset — that is what pins the offset
-// convention across marker shapes — but decline once the block no longer holds the bytes,
-// because a source is a pure function of the document it is handed.
+// Both sources place their widget at a fixed offset, checking the offset convention across marker
+// shapes, and decline once the block lacks the bytes, since a source is a pure function.
 async function addReplaceIsland(page: Page, path: number[], start: number, end: number) {
 	await page.evaluate(
 		({ path, start, end }) => {
@@ -56,9 +56,8 @@ async function addWidgetIsland(page: Page, path: number[], offset: number) {
 	);
 }
 
-/** Collapse the caret immediately before/after an island element — the DOM anchor a real
- *  step-over or edge Backspace lands on, which a raw-offset text walk can't address once a
- *  replace island has removed its bytes from textContent. Setup only; the keys are real. */
+/** The DOM position a real step-over or edge Backspace lands on, which a raw offset cannot address
+ *  once a replace decoration takes its bytes out of textContent. Setup only; the keys are real. */
 async function placeCaretAtIsland(page: Page, sourceStart: number, side: 'before' | 'after') {
 	await page.evaluate(
 		({ sourceStart, side }) => {
@@ -66,7 +65,7 @@ async function placeCaretAtIsland(page: Page, sourceStart: number, side: 'before
 				`[data-decoration-island][data-source-start='${sourceStart}']`
 			);
 			const block = island?.closest('[contenteditable]') as HTMLElement | null;
-			if (!block || !island) throw new Error('island not rendered');
+			if (!block || !island) throw new Error('widget not rendered');
 			block.focus();
 			const range = document.createRange();
 			if (side === 'before') range.setStartBefore(island);
@@ -84,7 +83,7 @@ async function cursorOffset(page: Page): Promise<number | null> {
 	return page.evaluate(() => (window as any).__test.getBlockCursorSurface([0]).cursorOffset);
 }
 
-test.describe('decoration island editing', () => {
+test.describe('decoration widget editing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -92,7 +91,7 @@ test.describe('decoration island editing', () => {
 		await editor.goto();
 	});
 
-	test('arrows step over a replace island to its far edge, never selecting it', async ({
+	test('arrows step over a replace decoration to its far edge, never selecting it', async ({
 		page
 	}) => {
 		await editor.loadContent('abHIDDENcd\n');
@@ -112,7 +111,7 @@ test.describe('decoration island editing', () => {
 	});
 
 	test.describe('the two-press delete', () => {
-		test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
+		test('Backspace against a replace decoration selects it whole, then deletes it in one undo', async ({
 			page
 		}) => {
 			await editor.loadContent('abHIDDENcd\n');
@@ -134,7 +133,7 @@ test.describe('decoration island editing', () => {
 			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 		});
 
-		test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
+		test('Delete against a replace decoration leading edge selects then deletes the hidden range', async ({
 			page
 		}) => {
 			await editor.loadContent('abHIDDENcd\n');
@@ -151,7 +150,7 @@ test.describe('decoration island editing', () => {
 			expect(await editor.bridge.getSource()).toBe('abcd\n');
 		});
 
-		test('the two-press delete works on a heading island whose offsets include the marker', async ({
+		test('the two-press delete works on a heading widget whose offsets include the marker', async ({
 			page
 		}) => {
 			await editor.loadContent('## abHIDDEN\n');
@@ -186,7 +185,7 @@ test.describe('decoration island editing', () => {
 		});
 	});
 
-	test('a widget island is transparent to Backspace, deleting the adjacent real byte', async ({
+	test('a widget decoration is transparent to Backspace, deleting the adjacent real byte', async ({
 		page
 	}) => {
 		await editor.loadContent('hello\n');
@@ -199,12 +198,11 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('helo\n');
 	});
 
-	test('a widget island at a block start lets Backspace fall through to block merge', async ({
+	test('a widget decoration at a block start lets Backspace fall through to block merge', async ({
 		page
 	}) => {
-		// The island stands in for zero bytes at offset 0, so there is no adjacent
-		// real byte to eat — Backspace at the block boundary must fall through to the
-		// normal previous-block merge, not no-op on the island DOM.
+		// The widget stands in for no bytes at offset 0, so Backspace at the block boundary must fall
+		// through to the ordinary merge with the previous block.
 		await editor.loadContent('alpha\n\nbeta\n');
 		await addWidgetIsland(page, [1], 0);
 		await expect(page.locator(ISLAND)).toHaveCount(1);
@@ -215,7 +213,9 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('alphabeta\n');
 	});
 
-	test('typing at a widget island boundary inserts into raw at its offset', async ({ page }) => {
+	test('typing at a widget decoration boundary inserts into raw at its offset', async ({
+		page
+	}) => {
 		await editor.loadContent('hello\n');
 		await addWidgetIsland(page, [0], 3);
 		await expect(page.locator(ISLAND)).toHaveCount(1);
@@ -226,7 +226,7 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('helzlo\n');
 	});
 
-	test('copy over a range spanning a widget island yields the byte-identical raw slice', async ({
+	test('copy over a range spanning a widget decoration yields the byte-identical raw slice', async ({
 		page
 	}) => {
 		await editor.loadContent('hello\n');

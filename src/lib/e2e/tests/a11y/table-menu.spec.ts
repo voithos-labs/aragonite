@@ -15,7 +15,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	test('Shift+F10 opens the menu at the focused cell and focuses an enabled item', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 
 		await expect(page.getByRole('menu')).toBeVisible();
@@ -24,7 +24,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('the ContextMenu key opens the menu at the focused cell', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('ContextMenu');
 
 		await expect(page.getByRole('menu')).toBeVisible();
@@ -34,7 +34,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	test('arrow keys move between items and Enter invokes; the menu closes after', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 		// Paste (the first enabled stop) → Row → Column → Delete row.
 		await page.keyboard.press('ArrowDown');
@@ -46,7 +46,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('Escape closes the menu and returns focus to the cell', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 		await expect(page.getByRole('menu')).toBeVisible();
 
@@ -58,7 +58,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('Tab keeps focus within the open menu', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 
 		await page.keyboard.press('Tab');
@@ -67,7 +67,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('Shift+Tab keeps focus within the open menu', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 
 		await page.keyboard.press('Shift+Tab');
@@ -76,7 +76,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('ArrowUp from the first item wraps to the last stop', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 
 		// Roving focus opens on the first enabled item; ArrowUp wraps to the last
@@ -88,7 +88,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	test('Row flyout opens with Right, skips a disabled item, closes with Left', async ({ page }) => {
 		// First body row: "Move row up" is disabled (a body row can't cross the fixed
 		// header) yet sits between two enabled items, so arrow nav must step over it.
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Shift+F10');
 
 		const focused = page.locator('[role="menu"] :focus');
@@ -107,7 +107,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('Left/Right arrows move focus within the alignment trio', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(3).click({ button: 'right' }); // body cell, column B
+		await page.locator('.table-cell').nth(3).click({ button: 'right' }); // body cell, column B
 		await expect(page.getByRole('menu')).toBeVisible();
 
 		const focused = page.locator('[role="menu"] :focus');
@@ -122,14 +122,14 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('inserting a column announces it in the live region', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+Shift+ArrowRight');
 
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/insert/i);
 	});
 
 	test('a Row flyout move announces the new position in the live region', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // first body row
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // first body row
 		await page.getByRole('menuitem', { name: 'Row', exact: true }).hover();
 		await page.getByRole('menuitem', { name: 'Move row down' }).click();
 
@@ -139,7 +139,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('deleting a row announces it in the live region', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click(); // first body row
+		await page.locator('.table-cell').nth(2).click(); // first body row
 		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/delet/i);

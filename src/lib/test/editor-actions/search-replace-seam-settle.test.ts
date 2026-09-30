@@ -6,14 +6,12 @@ import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #183: search's replace committed a bare splice, so bytes that stopped interrupting the block
-// above them left the live tree diverging from its own reload with nothing at the door noticing.
-// The ask now lives beside the settle every commit crosses, so this door inherits it.
-// Miss-analysis: the replace suites assert bytes and events; convergence was never read after a
-// replace, and no fixture put a replaced block under a neighbour that could absorb it.
+// A replace whose bytes stop interrupting the block above must leave a tree that matches its
+// own reload; the blank-line fix-up every commit runs covers the replace path too.
+// Miss-analysis (GH #183): no replace test read convergence under a neighbour that could absorb.
 
 describe('a replace whose result the block above absorbs', () => {
-	it('settles the seam the splice disturbed', async () => {
+	it('settles the join the splice disturbed', async () => {
 		const { deps } = makeEditorActionsDeps(parse('- a\n\nxx\n'));
 		const sr = createSearchReplace(deps, createUndoController(deps));
 

@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the sink read only `devWarn`, so Svelte's own runtime warnings — which print
-// through `console.warn` and nowhere else — were unobservable to every unit test.
+// Miss-analysis: the gate read only `devWarn`, so Svelte's `console.warn` warnings went unseen.
 
 import { describe, it, expect } from 'vitest';
 import { takeDevWarns, allowDevWarns } from './support/warn-gate';
@@ -24,7 +22,7 @@ describe('warn-gate svelte channel', () => {
 		expect(fires[0].message).toContain('different identities');
 	});
 
-	it('claims a svelte code through the same door every dev-warn tag takes', () => {
+	it('claims a svelte code through the same entry point every dev-warn tag takes', () => {
 		emitSvelteWarn('derived_inert');
 		expect(allowDevWarns(['svelte:derived_inert'])).toHaveLength(1);
 		expect(takeDevWarns()).toEqual([]);

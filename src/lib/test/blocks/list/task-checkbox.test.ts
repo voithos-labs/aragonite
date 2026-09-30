@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildTaskItemAmbient } from '$lib/components/blocks/list/task-checkbox';
+import {
+	buildTaskItemAmbient,
+	TASK_HANGING_INDENT
+} from '$lib/components/blocks/list/task-checkbox';
 import type { ListItemMetadata } from '$lib/core/nodes';
 import { takeDevWarns } from '../../support/warn-gate';
 
@@ -48,7 +51,7 @@ describe('buildTaskItemAmbient', () => {
 				},
 				{ start: 0, end: 2, className: 'task-list-marker', onClick: expect.any(Function) }
 			],
-			indent: '2.1em'
+			indent: TASK_HANGING_INDENT
 		});
 	});
 
@@ -93,7 +96,8 @@ describe('buildTaskItemAmbient', () => {
 		expect(result.interactive?.[0].ariaChecked).toBe(expected);
 	});
 
-	// Desync-proofing: ariaChecked follows the keyed marker, never the parallel taskChecked field.
+	// `ariaChecked` follows the marker bytes, never the parallel `taskChecked` field, so the two
+	// cannot drift apart on screen.
 	it('ignores a stale taskChecked when the marker says checked', () => {
 		const result = buildTaskItemAmbient(
 			taskMeta({ taskMarker: '[x] ', taskChecked: false }),

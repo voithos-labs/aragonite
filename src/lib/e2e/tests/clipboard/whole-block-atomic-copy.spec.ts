@@ -3,14 +3,14 @@ import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
 
 // Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
-// (requirements/clipboard/whole-block-atomic-copy.md). Mod+C writes via
+// (`requirements/clipboard/whole-block-atomic-copy.md`). Mod+C writes via
 // `navigator.clipboard.writeText` with no ClipboardEvent on the keydown path, so the
 // clipboard content is the only observable signal for copy.
 
 const DOC = 'above\n\n---\n\nbelow\n';
 const BREAK_MD = '---';
 
-test.describe('whole-block atomic copy/cut — thematic break', () => {
+test.describe('whole-block atomic copy/cut: thematic break', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
-		// The whole-block input proxy is the focus target here, not an editable surface.
+		// The whole-block input proxy is the focus target here, not an editable element.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

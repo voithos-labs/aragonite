@@ -13,6 +13,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { EditEvent } from '$lib/editor-events';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -21,12 +22,9 @@ function makeEnv(source: string) {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: harness.deps.revealPath,
+		revealPath: (path) => harness.deps.caretLanding.mount(path),
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	};
 	return {
 		...harness,
@@ -40,7 +38,7 @@ function selectAcross(env: ReturnType<typeof makeEnv>, anchor: number[], focus: 
 	env.deps.selectionState.enterCrossBlock({ path: anchor, offset: 1 }, { path: focus, offset: 2 });
 }
 
-describe('performCrossBlockDeleteSync — commit-primitive convergence', () => {
+describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
 	it('keeps blockIds in lockstep with doc.children synchronously after the call', () => {
 		const env = makeEnv('# A\n\npara B\n\npara C\n');
 		selectAcross(env, [0], [2]);
@@ -93,9 +91,8 @@ describe('performCrossBlockDeleteSync — commit-primitive convergence', () => {
 	});
 });
 
-// GH #129 at the cross-block door: a delete that blanks the tail block exposes the
-// document's folded trailing line, so both commit paths must let the settle materialize
-// it AND report the grown tail to the ids sync.
+// A delete that blanks the tail block exposes the document's trailing blank line, so both commit
+// paths must let the fix-up write it and report the grown tail to the id sync.
 describe('cross-block delete beside the folded trailing blank (GH #129)', () => {
 	it('pure top-level: the whole-content delete materializes the fold in step', async () => {
 		const env = makeEnv('alpha\n\nbeta\n\n');
@@ -127,7 +124,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		expect(env.doc.children).toHaveLength(2);
 		expect(env.doc.suffix).toBe('');
 		expect(env.getBlockIds()).toHaveLength(2);
-		// The quote died; its slot now holds the materialized blank, which must not keep its id.
+		// The quote is gone; its position now holds the new blank, which must not keep its id.
 		expect(env.getBlockIds()[1]).not.toBe(idsBefore[1]);
 		expectParseConverged(env.deps.doc);
 	});

@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// Guards widgetExtensionTarget's widget filter: Shift+Arrow extension must target ANY atomic
-// inline widget, not only images. A raw-HTML <br> renders as a live widget, so a caret at its edge
-// plus Shift+ArrowRight must extend across it. Chromium straddles the contenteditable=false island
-// natively (so e2e cannot discriminate); jsdom does not, so this catches a regression to
-// `kind !== 'image'`.
+// `widgetExtensionTarget` must let Shift+Arrow extend across any atomic inline widget, such as a
+// raw-HTML `<br>`, not only images. Chromium extends across a contenteditable=false element on its
+// own, so e2e cannot tell; jsdom does not, so this catches a filter narrowed to images.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getInlineContent } from '$lib/core/inline/inline-cache';
@@ -15,8 +13,9 @@ import {
 } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode } from '$lib/core/nodes';
 import { placeCaretAt } from './math-widget-fixture';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
-describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
+describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
 	let tA: Text;
 	let tB: Text;
@@ -24,9 +23,9 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	let node: CstNode;
 
 	beforeEach(() => {
-		// `a<br>b` — text "a" [0,1), rawHtml <br> [1,5), text "b" [5,6).
+		// `a<br>b`: text "a" [0,1), rawHtml `<br>` [1,5), text "b" [5,6).
 		node = parse('a<br>b\n').children[0];
-		const inlines = getInlineContent(node);
+		const inlines = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		const br = inlines.find((n) => n.kind === 'rawHtml');
 		if (!br || br.start !== 1 || br.end !== 5) {
 			throw new Error(`expected rawHtml widget at [1,5), got ${JSON.stringify(br)}`);
@@ -47,8 +46,8 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	});
 
 	function makeInteraction() {
-		// Only node / getEl / getAmbientLength / linkRef are read on this path; the rest stay throwing
-		// stubs so any accidental coupling introduced later surfaces.
+		// Only `node`, `getEl` and `linkRef` are read on this path; the rest
+		// stay throwing stubs, so any new dependency added later shows up at once.
 		const trap = () => {
 			throw new Error('unexpected dep access on the shift-arrow extension path');
 		};
@@ -63,7 +62,6 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 				return [0];
 			},
 			getEl: () => el,
-			getAmbientLength: () => 0,
 			getEditorContentWidth: trap,
 			cursor: new Proxy({}, { get: trap }),
 			widgetSelection: new Proxy({}, { get: trap }),
@@ -71,8 +69,9 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 			focusActions: new Proxy({}, { get: trap }),
 			setSnapTarget: trap,
 			setPendingCursor: trap,
-			get linkRef() {
-				return undefined;
+			grammar: defaultGrammarView,
+			get reading() {
+				return fixtureReading();
 			}
 		} as unknown as WidgetInteractionDeps;
 		return createWidgetInteraction(deps);
@@ -86,11 +85,11 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 
 		const consumed = interaction.handleShiftArrowIntoWidget(evt);
 
-		// Primary discriminator: reverting the filter to `kind !== 'image'` skips the rawHtml node (no
-		// image present), the handler returns false, and this assertion fails.
+		// The key assertion: narrowing the filter to `kind !== 'image'` skips the rawHtml node,
+		// since there is no image, the handler returns false, and this fails.
 		expect(consumed).toBe(true);
-		// Secondary: the native selection now spans the widget — focus moved to the
-		// far (trailing) edge, raw offset 5 == text "b" offset 0.
+		// And the browser selection now spans the widget: focus moved to the far
+		// (trailing) edge, raw offset 5 == text "b" offset 0.
 		expect(sel.isCollapsed).toBe(false);
 		expect(sel.focusNode).toBe(tB);
 		expect(sel.focusOffset).toBe(0);
@@ -98,7 +97,7 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 
 	it('does not consume when no widget sits at the caret edge', () => {
 		const interaction = makeInteraction();
-		// Caret at text "b" offset 1 == raw offset 6 — past the widget, plain text.
+		// Caret at text "b" offset 1 == raw offset 6: past the widget, in plain text.
 		placeCaretAt(tB, 1);
 		const evt = new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true });
 

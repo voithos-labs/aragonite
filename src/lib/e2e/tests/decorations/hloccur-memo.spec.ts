@@ -5,8 +5,8 @@ import { freezeInPageClock, PAST_TYPING_PAUSE_MS } from '../../page-probes';
 
 /**
  * highlight-occurrences hardening (requirements/decorations/hloccur-memo.md). The seed wraps
- * the shipped source to publish its index-rebuild count, so "a caret move does not re-scan"
- * is a real COUNTER assertion rather than a timing guess.
+ * the shipped source so it reports its index-rebuild count, making "a caret move does not
+ * re-scan" a real count assertion rather than a timing guess.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
@@ -54,20 +54,20 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 		const afterClick = await scanCount(page);
 
-		// Move the caret to 'beta' — a pure selection change. The mark set changes, but
-		// no edit happened, so the memo must not rebuild the index.
+		// Move the caret to 'beta', a selection change and nothing more: the mark set changes,
+		// but no edit happened, so the memo must not rebuild the index.
 		await editor.clickBlockAtPath([0], 6);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
 		expect(await scanCount(page)).toBe(afterClick);
 
-		// The epoch bumps once per keystroke, not once per typing pause, so a three-character
-		// burst rebuilds three times — the positive control that the memo is not frozen.
+		// The edit counter bumps once per keystroke, not once per typing pause, so a
+		// three-character burst rebuilds three times: the control proving the memo is not frozen.
 		const tokenizedBefore = await tokenizedCount(page);
 		await editor.typeSlowly('XYZ');
 		await expect.poll(() => scanCount(page)).toBe(afterClick + 3);
 
 		// Each of those rebuilds re-tokenized only the leaf the keystroke changed; the seed's
-		// other four prose leaves came back off the carried token cache.
+		// other four prose leaves came back from the token cache kept across rebuilds.
 		expect(await tokenizedCount(page)).toBe(tokenizedBefore + 3);
 	});
 
@@ -75,8 +75,8 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		await editor.clickBlockAtPath([0], 6); // caret on 'beta', its single occurrence
 		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
 
-		// Frozen AFTER the click: the harness's render-flush waits ride rAF, and the typing
-		// pause must not elapse until this spec advances it.
+		// The clock is frozen after the click, not before: the harness's render-flush waits run
+		// on rAF, and the typing pause must not elapse until this spec advances the clock.
 		await freezeInPageClock(page);
 		await editor.typeSlowly('XYZ');
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
@@ -85,7 +85,7 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		await expect(page.locator(OCCURRENCE)).toHaveCount(1); // 'XYZbeta', its single occurrence
 	});
 
-	// Live-preview modes keep the caret, so the selection-driven marks stay painted —
+	// The live-preview modes keep the caret, so the marks the selection drives stay painted:
 	// decorations are view-only and paint outside `source` mode.
 	for (const mode of ['preview-block', 'preview-inline'] as const) {
 		test(`marks stay painted in ${mode} mode`, async ({ page }) => {
@@ -97,8 +97,8 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		});
 	}
 
-	// Reading clears the caret, and occurrence highlighting FOLLOWS the selection. The paint
-	// path itself still works in reading — a static source paints there (mark-overlay owns it).
+	// Reading mode clears the caret, and occurrence highlighting follows the selection. Painting
+	// itself still works there: a static source paints in reading mode (see mark-overlay).
 	test('reading mode clears the caret-driven highlight (inert surface)', async ({ page }) => {
 		await editor.clickBlockAtPath([0], 0);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);

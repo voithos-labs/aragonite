@@ -1,4 +1,8 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+// A container parse costs its whole raw, so a keystroke pays one only when an outer line moved
+// and something can follow from it: the opener line's answer changed (a new kind), or an opaque
+// container's metadata may have (any outer line but a title row's). That keeps a keystroke off
+// the container-size axis: typing into a list's first item or a directive's title parses nothing.
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
@@ -11,11 +15,77 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '$lib/perf/instruments';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { documentLineEnding } from '$lib/core/lines';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createLeafTyping } from '$lib/editor-actions/leaf-write';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { CstNode, Document } from '$lib/core/nodes';
+import {
+	chromeChild,
+	declarePluginKind,
+	OPENER_PRIORITIES,
+	parseContainerBody,
+	registerBlockOpener,
+	registerChromeLeaf,
+	serializeChildren as concatChildren,
+	setPluginMetadata,
+	trimTrailingLineEnding
+} from '$lib/plugin';
+import { describeConvergence } from '$lib/testing/parse-convergence';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
-// Kind re-derivation costs a `parse` of the container's WHOLE raw, so it is gated on
-// the first line having changed AND that line's opener verdict having moved. The
-// second gate is what keeps keystroke cost off the container-size axis: typing into a
-// list's first item rewrites the opener line without moving any verdict.
+// ── A fence that prints its body's size on the opener line ──────────────────
+// `==[5] Title` … `==[end Title]`: a body keystroke moves only the opener, and the size in
+// metadata comes from that line, so these kinds pin each half of the title-row skip.
+
+interface TallyMetadata {
+	size: number;
+}
+
+function registerTally(name: string, titled: boolean): void {
+	const rebuild = (node: CstNode): void => {
+		const children = node.children ?? [];
+		const title = titled ? ` ${trimTrailingLineEnding(children[0].raw)}` : '';
+		const body = concatChildren(titled ? children.slice(1) : children);
+		node.raw = `==[${body.length}]${title}\n${body}==[end${title}]\n`;
+	};
+	const chrome = titled ? declarePluginKind(`${name}-title`) : undefined;
+	if (chrome) registerChromeLeaf(chrome);
+	const kind = chrome
+		? testContainer(name, { rebuildRaw: rebuild, reservedChrome: { kind: chrome } })
+		: testContainer(name, { rebuildRaw: rebuild });
+	registerBlockOpener(kind, {
+		priority: OPENER_PRIORITIES.fencedCode - (titled ? 8 : 9),
+		interruptsParagraph: false,
+		tryOpen(ctx) {
+			const open = /^==\[(\d+)\](?: (.*))?$/.exec(ctx.line.text);
+			if (!open || (open[2] !== undefined) !== titled) return null;
+			let close = ctx.index + 1;
+			while (close < ctx.end && !ctx.lines[close].text.startsWith('==[end')) close++;
+			// The titled kind opens on a lone line too, so its kind check never parses and only the
+			// metadata re-read can.
+			const closed = close < ctx.end;
+			if (!closed && !titled) return null;
+			const lines = ctx.lines.slice(ctx.index, closed ? close + 1 : ctx.end);
+			const bodyText = lines
+				.slice(1, closed ? -1 : undefined)
+				.map((l) => l.raw)
+				.join('');
+			const body = parseContainerBody(bodyText, {}, { scope: 'fragment', grammar: ctx.grammar });
+			const node: CstNode = {
+				kind,
+				leadingTrivia: ctx.leadingTrivia,
+				raw: lines.map((l) => l.raw).join(''),
+				children: chrome ? [chromeChild(chrome, open[2]), ...body.children] : body.children
+			};
+			setPluginMetadata<TallyMetadata>(node, { size: Number(open[1]) });
+			return { node, consumed: lines.length };
+		}
+	});
+}
 
 const KEYSTROKES = 20;
 
@@ -28,14 +98,34 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 		text += 'x';
 		const chain = ensureUnsharedPath(doc, leafPath, sharing);
 		chain[chain.length - 1].raw = `${text}\n`;
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 	}
 }
 
+/** Write each of `raws` into child `index` of the top-level container through the keystroke's
+ *  in-place route, which names the changed child to the rebuild. */
+function typeInPlace(source: string, index: number, raws: string[]): Document {
+	const { deps } = makeEditorActionsDeps(source);
+	const typing = createLeafTyping(deps, createUndoController(deps));
+	for (const raw of raws) {
+		const owner = deps.doc.children[0];
+		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
+		const write = legalizeWrite(body, index, raw, 'authored');
+		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
+	}
+	return deps.doc;
+}
+
+/** `count` growing lines, `base` plus one more `x` each time. */
+const growing = (base: string, count: number): string[] =>
+	Array.from({ length: count }, (_, i) => `${base}${'x'.repeat(i + 1)}\n`);
+
 const reparses = () => perfSnapshot().containerKindReparses;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
+	registerTally('tally', false);
+	registerTally('titled-tally', true);
 });
 
 beforeEach(() => {
@@ -52,9 +142,8 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// First gate passes, second holds: each of these rewrites the container's opener
-	// line on every keystroke while its verdict stays put. The rows that put the cost
-	// on the container-size axis when only the first gate exists.
+	// Each of these rewrites the container's opener line on every keystroke without changing the
+	// opener's answer, so only the second condition keeps them from reparsing.
 	it.each([
 		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
 		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
@@ -64,18 +153,54 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// A directive's opener declines a one-line probe (it wants its `:::` closer), so
-	// the second gate can never confirm it and only the FIRST gate holds here. Costs
-	// nothing by typing: that line carries only the directive name.
+	// A directive's opener declines a lone line (it wants its `:::` closer), so only the first
+	// condition applies, and typing in the body never touches the line with the directive name.
 	it('reparses nothing while typing into a directive container body', () => {
 		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
 
 		expect(reparses()).toBe(0);
 	});
 
-	// Only the keystroke that closes the marker moves the verdict. The trailing `x`
-	// keeps a post-formation keystroke in the stream, so a latched-open gate
-	// over-counts here.
+	// The metadata an opaque container keeps never comes from its title row, and its body sits
+	// between the fence lines; only a moved closer, a lengthened fence, pays a parse.
+	it('reparses nothing while typing into a titled directive title', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 0, growing('Title', KEYSTROKES));
+
+		expect(reparses()).toBe(0);
+	});
+
+	it('reparses nothing while typing into a titled directive body', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 1, growing('body', KEYSTROKES));
+
+		expect(reparses()).toBe(0);
+	});
+
+	it('reparses once for the keystroke that lengthens a titled directive fence', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 1, ['body\n:::\n']);
+
+		expect(reparses()).toBe(1);
+	});
+
+	// Each keystroke below moves an outer line the metadata does come from, so dropping any one
+	// half of the title-row skip leaves a stale size or a missing parse.
+	it.each([
+		['a title keystroke that also moves the closer', '==[5] T\nbody\n==[end T]\n', 0, 'Tx\n'],
+		['a body keystroke in a titled container', '==[5] T\nbody\n==[end T]\n', 1, 'bodyx\n'],
+		[
+			'a keystroke in child 0 of a container with no title row',
+			'==[5]\nbody\n==[end]\n',
+			0,
+			'bodyx\n'
+		]
+	])('reparses once for %s', (_label, source, index, raw) => {
+		const doc = typeInPlace(source, index, [raw]);
+
+		expect(reparses()).toBe(1);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one
+	// keystroke after that in the run, so a check that stayed open once opened over-counts here.
 	it('reparses only on the keystroke that moves the opener verdict', () => {
 		const doc = parse('> [!TI\n');
 		const sharing = createSharingState();
@@ -84,7 +209,7 @@ describe('container kind re-derivation gate', () => {
 			text += char;
 			const chain = ensureUnsharedPath(doc, [0, 0], sharing);
 			chain[chain.length - 1].raw = `${text}\n`;
-			rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+			rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		}
 
 		expect(doc.children[0].kind).toBe('githubAlert');

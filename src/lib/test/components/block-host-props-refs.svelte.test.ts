@@ -1,21 +1,18 @@
 // @vitest-environment jsdom
-//
-// The two things BlockHost hands its child that nothing else can: the props it reads
-// from editor context, and the ref slot every container's focus, reveal and clipboard
-// walk resolves through. Only the registered-component branch answers behaviorally —
-// the fallback accepts `document` for parity and never binds it, so both branches stay
-// pinned by the source scan in invariants/lint/block-host-prop-thread.
+// The two things BlockHost hands its child that nothing else can: the props it reads from editor
+// context, and the child-ref entry every container's descent goes through. Only the registered
+// component is checked here; `invariants/lint/block-host-prop-thread` covers the fallback.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { EditorServices } from '$lib/editor-keys';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import { declareComponentlessKind, mountBlockHost } from './mount-host';
+import { mountBlockHost } from './mount-host';
 import type { HostProps, MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 beforeAll(installEditorDomStubsForTests);
 
@@ -23,7 +20,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 type Recorder = BlockComponent & {
@@ -33,7 +29,7 @@ type Recorder = BlockComponent & {
 /** A document whose block at `index` renders through the recording fixture. */
 function recordingDoc(source: string, index = 0) {
 	const doc = parse(source);
-	const kind = declareComponentlessKind('host-recording');
+	const kind = testLeaf('host-recording');
 	registerBlockComponent(
 		kind,
 		defineBlockComponent(RecordingBlock, () => ({ badge: 'from-extra-props' }))
@@ -68,8 +64,8 @@ describe('BlockHost delivers its context-read props to the component it dispatch
 });
 
 describe('BlockHost publishes its component into the caller’s ref slot', () => {
-	// The slot index is the claim, not the document shape, so the node is named
-	// explicitly and the index moved around it. A `$state` props object stays live.
+	// The index of the ref entry is what is being checked, not the document's shape, so
+	// the node is named explicitly and the index moved around it. `$state` keeps it live.
 	function mountAtSlot(props: HostProps): MountedHost {
 		const doc = recordingDoc('recorded\n');
 		props.node = doc.children[0];
@@ -84,8 +80,8 @@ describe('BlockHost publishes its component into the caller’s ref slot', () =>
 	});
 
 	it('moves the ref to the new slot when its index shifts, clearing the old one', () => {
-		// A reorder or a sibling splice re-indexes a live host; the slot must follow
-		// or the container's focus walk resolves the wrong block (publish-ref.svelte).
+		// A reorder or an inserted sibling re-indexes a live host; the ref entry must follow, or
+		// the container's focus descent finds the wrong block.
 		const props: HostProps = $state({ index: 1 });
 		mounted = mountAtSlot(props);
 		expect(mounted.refs[1]).toBeDefined();

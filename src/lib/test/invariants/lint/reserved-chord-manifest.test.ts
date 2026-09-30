@@ -1,9 +1,8 @@
 /**
- * G4.29 — the hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library
- * file that reads a KeyboardEvent modifier flag, and each entry's key evidence still matches
- * the file. The scan is structural on both axes: a branch cannot claim a chord without
- * reading a modifier flag (file axis) or without comparing a key (evidence axis), so a new
- * claim fails the gate until the manifest names it.
+ * The hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library file that
+ * reads a KeyboardEvent modifier flag, and each entry's key evidence still matches the file
+ * (G4.29). A branch cannot claim a chord without reading a modifier flag and comparing a key, so
+ * a new claim fails the gate until the manifest names it.
  */
 import { describe, it, expect } from 'vitest';
 import { collectReservedChords, HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
@@ -14,18 +13,18 @@ import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
-// `ctrlOrMeta` is the projected flag the table cell's pure plan takes instead of the event.
-const MODIFIER_READ = /\.(?:ctrlKey|metaKey|altKey|shiftKey)\b|\bctrlOrMeta\b/;
+const MODIFIER_READ = /\.(?:ctrlKey|metaKey|altKey|shiftKey)\b/;
 
 const KEY_EQUALITY = /\bkey\s*===\s*'([^']*)'/g;
+// `if (e.key !== 'X') return;` consumes X on the branch below it as surely as an equality does.
+const KEY_INEQUALITY = /\bkey\s*!==\s*'([^']*)'/g;
 const KEY_PREFIX = /\bkey\.startsWith\('([^']*)'\)/g;
 const CASE_LABEL = /\bcase\s*'([^']*)'\s*:/g;
+// A whole chord compared against `eventToChord`'s result (`chord === 'Mod+A'`) compares its key.
+const CHORD_COMPARISON = /[!=]==\s*'(?:(?:Mod|Alt|Shift)\+)+([^'+]+)'/g;
 
-/**
- * Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so
- * the filter admits extra non-key strings but can never drop a key — the safe direction for
- * a gate whose failure mode is a silent miss.
- */
+/** Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so the
+ *  filter may admit extra strings but never drops a key, the safe side for a gate. */
 function isKeyName(literal: string): boolean {
 	return literal.length === 1 || /^[A-Z][A-Za-z0-9]*$/.test(literal);
 }
@@ -34,8 +33,11 @@ function isKeyName(literal: string): boolean {
 export function harvestKeys(code: string): string[] {
 	const keys = new Set<string>();
 	for (const [, literal] of code.matchAll(KEY_EQUALITY)) if (isKeyName(literal)) keys.add(literal);
+	for (const [, literal] of code.matchAll(KEY_INEQUALITY))
+		if (isKeyName(literal)) keys.add(literal);
 	for (const [, literal] of code.matchAll(CASE_LABEL)) if (isKeyName(literal)) keys.add(literal);
 	for (const [, prefix] of code.matchAll(KEY_PREFIX)) if (isKeyName(prefix)) keys.add(`${prefix}*`);
+	for (const [, key] of code.matchAll(CHORD_COMPARISON)) if (isKeyName(key)) keys.add(key);
 	return [...keys].sort();
 }
 
@@ -54,7 +56,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		const unnamed = modifierReaders.map(relToLib).filter((path) => !manifested.has(path));
 		expect(
 			unnamed,
-			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES — add an entry naming the chords each claims (or none, with the reason): ${unnamed.join(', ')}`
+			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry naming the chords each claims (or none, with the reason): ${unnamed.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -69,7 +71,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		expect(file, `${site.file} does not exist`).toBeDefined();
 		expect(
 			harvestKeys(file!.code),
-			`${site.file} compares a different key set than the manifest records — re-derive its chords, then update \`keys\``
+			`${site.file} compares a different key set than the manifest records: re-derive its chords, then update \`keys\``
 		).toEqual([...site.keys].sort());
 	});
 
@@ -89,8 +91,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// An over-escaped pattern that matches nothing lets every assertion above pass on an
-// empty set, which is the failure this rule exists to prevent.
+// An over-escaped pattern that matches nothing would pass every assertion above on an empty set.
 
 describe('G4.29 scan non-vacuity', () => {
 	it('finds the modifier readers it is meant to find', () => {
@@ -103,9 +104,8 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});
 
-	// The link card's ENTRY chord rides the kind keymaps, so `collectReservedChords` enumerates it
-	// from the registry. A card HOST that started reading a modifier flag would be a second,
-	// unenumerated claim on the same chord; the card's own field swallow is manifested instead.
+	// The link card's entry chord rides the kind keymaps, so `collectReservedChords` finds it in the
+	// registry; a card host reading a modifier flag would be a second, unlisted claim on the chord.
 	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
 		registerBuiltInDescriptors();
 		expect(
@@ -119,9 +119,9 @@ describe('G4.29 scan non-vacuity', () => {
 	it('rejects a file that reads no modifier flag', () => {
 		expect(MODIFIER_READ.test('const chord = eventToChord(e);')).toBe(false);
 		expect(MODIFIER_READ.test('if (e.shiftKey) return;')).toBe(true);
-		expect(MODIFIER_READ.test('if (e.ctrlOrMeta) return;')).toBe(true);
 	});
 
+	// Miss-analysis: the harvest's own cases used only `===` and `case`, never a `!==` guard.
 	it('harvests each key-comparison shape and drops non-key literals', () => {
 		expect(
 			harvestKeys(`
@@ -129,9 +129,11 @@ describe('G4.29 scan non-vacuity', () => {
 				switch (e.key) { case 'F10': break; }
 				if (e.key.startsWith('Arrow')) {}
 				if (key === 'a') {}
+				if (e.key !== 'Tab') return;
 				switch (plan.kind) { case 'select-all-step': break; }
+				return eventToChord(e) === 'Mod+Shift+Z';
 			`)
-		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'a']);
+		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'Tab', 'Z', 'a']);
 	});
 
 	it('the evidence assertion can fail', () => {

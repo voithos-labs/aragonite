@@ -1,12 +1,12 @@
 /**
- * Built-in block component registrations, applied by an explicit `registerBuiltInBlocks()` call:
- * the `sideEffects` allowlist names dist paths and so never covers the src specifiers this
- * library imports from itself, leaving a bare side-effect import here droppable. Lives in
- * `components/` rather than `schema/` so the schema layer keeps no downstream imports.
+ * Built-in block component registrations, run by an explicit `registerBuiltInBlocks()` call: a
+ * side-effect import could be dropped by a bundler, since `sideEffects` names only dist paths.
+ * Lives in `components/` so `schema/` imports nothing downstream.
  */
 
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
+import { shownKind } from '../core/parsers/heading';
 import {
 	defineBlockComponent,
 	registerBlockComponent,
@@ -34,6 +34,7 @@ import { tableCaretAtPoint } from './blocks/table/table-caret-at-point';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
 function headingExtraProps(node: NodeView): Record<string, unknown> {
+	if (shownKind(node) === 'paragraph') return { blockClass: 'paragraph-block' };
 	const level = metadataOf(node, 'heading')?.level ?? 1;
 	return { blockClass: `heading-${level}` };
 }
@@ -42,15 +43,15 @@ const textAsRawBlock: BlockComponentEntry = defineBlockComponent(TextEditableBlo
 	blockClass: 'raw-block'
 }));
 
-// Idempotence guard, not a registry bypass: a dev-server re-eval resets it so
-// the register-once dev valve still replaces.
+// Stops a second call doing the work twice, without bypassing the registry: a
+// dev-server re-evaluation resets it, so re-registering in dev still replaces.
 let registered = false;
 
 export function registerBuiltInBlocks(): void {
 	if (registered) return;
 	registered = true;
 
-	// Descriptors first — augmentBuiltin('table') below needs `table` registered.
+	// Descriptors first: augmentBuiltin('table') below needs `table` registered.
 	registerBuiltInDescriptors();
 
 	registerBlockComponent(
@@ -68,8 +69,8 @@ export function registerBuiltInBlocks(): void {
 	registerBlockComponent('list', defineBlockComponent(ListBlock));
 	registerBlockComponent('table', defineBlockComponent(TableBlock));
 
-	// Raw-editable fallback for kinds with no rendered surface. tableRow/tableCell
-	// render inside TableBlock; these catch only orphans that reach BlockHost directly.
+	// Plain editable fallback for kinds with no rendered component. tableRow and tableCell
+	// render inside TableBlock; these catch only strays that reach BlockHost directly.
 	registerBlockComponent('indentedCode', textAsRawBlock);
 	registerBlockComponent('htmlBlock', textAsRawBlock);
 	registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
@@ -77,14 +78,12 @@ export function registerBuiltInBlocks(): void {
 	registerBlockComponent('tableCell', textAsRawBlock);
 	registerBlockComponent('unrecognized', textAsRawBlock);
 
-	// tableCell is the one supportsInline kind with bespoke paste semantics, so it
-	// registers here and the default loop in paste/hooks.ts skips it — running both
-	// would let ordering silently revert cell paste to the plain inline default.
+	// The default loop in `paste/hooks.ts` skips `tableCell`, so registration order cannot
+	// revert cell paste to the plain inline default.
 	registerPasteSurface(tableCellPasteSurface);
 
-	// Table owns cell addressing, so it registers both point→cell hooks through the
-	// descriptor registry rather than the selection layer importing the component.
-	// Two hooks: a drag needs the exact hit and its decline, a caret the nearest cell.
+	// Table owns cell addressing: a drag needs the exact hit or a refusal, a caret the nearest
+	// cell, and the selection code reaches both through the descriptor.
 	augmentBuiltin('table', {
 		foreignDragHitTest: tableDragHitTest,
 		caretTargetAtPoint: tableCaretAtPoint
@@ -94,9 +93,8 @@ export function registerBuiltInBlocks(): void {
 	// and gains its selected-key handler here, where the render layer is reachable.
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
 
-	// The split rebalancer and the join-seam cleaner need the inline parser and the render path,
-	// neither of which `tree-operations` may import, so the policy table holds the slots and this
-	// layer fills them.
+	// These need the inline parser and render path, which `tree-operations` may not import, so
+	// they are filled in here.
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 }

@@ -28,7 +28,7 @@ function shiftArrow(key: 'ArrowLeft' | 'ArrowRight'): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key, shiftKey: true });
 }
 
-describe('imageWidgetOnSelectedKey — Shift+Arrow keyboard resize', () => {
+describe('imageWidgetOnSelectedKey: Shift+Arrow keyboard resize', () => {
 	it('grows an unsized image by one step from the fallback width', () => {
 		const { ctx, commit } = contextFor('![a](x)', {
 			kind: 'image',

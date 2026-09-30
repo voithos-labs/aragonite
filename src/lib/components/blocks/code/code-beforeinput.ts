@@ -9,7 +9,7 @@ export interface AutoPairInput {
 	text: string;
 	selection: { start: number; end: number };
 	typed: string;
-	/** True when the host block is an unclosed backtick fence — backticks would extend it. */
+	/** True when the block is an unclosed backtick fence, where backticks would extend it. */
 	unclosedBacktickFence?: boolean;
 }
 

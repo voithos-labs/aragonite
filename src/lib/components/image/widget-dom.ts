@@ -1,6 +1,6 @@
-// The widget contributes its raw bytes via data-source-start/end, which
-// `cursor/widget-offset.ts` reads; textContent stays empty so prose
-// `textContent === ambientPrefix + raw` still holds.
+// The widget reports its raw bytes through data-source-start and data-source-end, which
+// `cursor/widget-offset.ts` reads; its textContent stays empty so a prose block's
+// `textContent === marker prefix + raw` still holds.
 
 import type { InlineNode } from '../../core/nodes';
 import type { ImageLoadPolicy } from '../../core/inline-render';
@@ -12,9 +12,8 @@ import { applyCropToWidget } from './image-crop';
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	imageLoadPolicy?: ImageLoadPolicy;
-	/** Resolved URLs that failed to load this session, per editor instance. Inline
-	 *  rebuild creates a fresh <img> per keystroke, which without this renders
-	 *  unbroken until the async `error` re-fires — a flicker on every keystroke. */
+	/** URLs that failed to load this session, so a rebuilt <img> renders broken at once instead
+	 *  of flickering until its `error` fires again. */
 	brokenUrlCache: Set<string>;
 }
 
@@ -25,27 +24,24 @@ export function buildImageWidget(
 ): HTMLSpanElement {
 	const widget = document.createElement('span');
 	widget.className = 'md-image-widget';
-	// `data-inline-widget` is the shared atomic-widget marker read by the cursor
-	// walker, selection painter and raw reader; `data-image-widget` is image-specific.
+	// `data-inline-widget` marks any widget the caret cannot enter, and is read by the
+	// caret code, the selection painter and the raw reader; `data-image-widget` is this one.
 	widget.dataset.inlineWidget = '';
 	widget.dataset.imageWidget = '';
 	widget.dataset.sourceStart = String(node.start);
 	widget.dataset.sourceEnd = String(node.end);
 	widget.setAttribute('contenteditable', 'false');
 
-	// Select on `click`, never `pointerdown`: a pointerdown listener hijacks a gesture
-	// STARTING on the image, so no cross-block drag could originate here. Shift-click
-	// is a cross-block extension the block owns, so decline it.
+	// On `click`, not `pointerdown`, so a drag can still start on the image; a Shift-click
+	// extends the block's own selection.
 	widget.addEventListener('click', (e) => {
 		if (e.shiftKey) return;
-		// Resolve the path live rather than baking it at build time: content inserted
-		// above shifts the block's path without touching its `raw`, so the render memo
-		// skips a rebuild and a baked path resolves the wrong CST node. The SURFACE door:
-		// inside a cell the block path stops at the table, whose offsets are cell indices.
+		// Resolved at the click: content inserted above moves the block's path without a
+		// rebuild of this widget, so a path stored at build time would go stale.
 		const paragraphPath = findSurfacePathForElement(widget);
 		if (!paragraphPath) return;
-		// Match TextEditableBlock.snapClickToWidgetEdge, which lands the caret at the
-		// widget's right edge, so Ctrl+Z restores the click's visual landing.
+		// Match TextEditableBlock.snapClickToWidgetEdge, which puts the caret at the
+		// widget's right edge, so Ctrl+Z restores the caret where the click left it.
 		const event = new CustomEvent('image-widget-select', {
 			bubbles: true,
 			detail: {
@@ -74,9 +70,8 @@ export function buildImageWidget(
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
-	// A declared `|WxH` box belongs to the author, so it both reserves space before the bytes
-	// arrive and survives the decode: the attribute pair alone loses to the natural ratio the
-	// moment `height: auto` has one to read. With a crop the box is a frame the image pans in.
+	// A `|WxH` box reserves space before the bytes arrive and survives the decode, where the
+	// attributes alone lose to the natural ratio; with a crop it is the frame.
 	if (node.width !== undefined && node.height !== undefined) {
 		img.style.aspectRatio = `${node.width} / ${node.height}`;
 		if (node.crop) {
@@ -87,18 +82,17 @@ export function buildImageWidget(
 		opts.brokenUrlCache.add(resolvedUrl);
 		widget.classList.add('md-image-broken');
 	};
-	// Broken means the request finished and produced nothing to lay out, so each site
-	// establishes completion itself: `complete` here, by definition in the load listener.
+	// Broken means the request finished and produced nothing to lay out, so each place
+	// below checks that it finished: `complete` here, and the load event itself below.
 	const hasNoIntrinsicSize = (): boolean => img.naturalWidth === 0;
-	// Only a loaded image can be broken: a blocked/placeholder widget leaves src unset,
-	// and an unset <img> reports complete && naturalWidth === 0 in a real browser.
+	// Only a loaded image can be broken: a blocked or placeholder widget leaves src unset,
+	// and an unset <img> reports complete with naturalWidth 0 in a real browser.
 	if (img.src && (opts.brokenUrlCache.has(resolvedUrl) || (img.complete && hasNoIntrinsicSize()))) {
 		markBroken();
 	}
 	img.addEventListener('error', markBroken);
-	// A load event is not proof of success: a 200 the decoder cannot size (truncated
-	// body, an SVG with no intrinsic dimensions) fires `load` with naturalWidth 0, and
-	// deferring that to the next rebuild leaves the placeholder a render behind.
+	// `load` can fire with no size (a truncated body, an SVG without dimensions), so it is
+	// checked here rather than a render later.
 	img.addEventListener('load', () => {
 		if (hasNoIntrinsicSize()) {
 			markBroken();

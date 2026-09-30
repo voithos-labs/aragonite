@@ -13,10 +13,8 @@ const ROW = (prefix: string) =>
 	'| ' + Array.from({ length: COLS }, (_, i) => `${prefix}${i + 1}`).join(' | ') + ' |\n';
 const WIDE_TABLE = HEAD + SEP + ROW('a') + ROW('b');
 
-// Cell index map (header stripped of the alignment row by the parser):
-//   header cells: 0..11   (Col1..Col12)
-//   body row 0:   12..23  (a1..a12)
-//   body row 1:   24..35  (b1..b12)
+// Cell indices (the parser drops the alignment row): header 0..11 (Col1..Col12), body row 0 12..23
+// (a1..a12), body row 1 24..35 (b1..b12).
 
 test.describe('table block: wide-table horizontal scroll', () => {
 	let editor: EditorPage;
@@ -40,7 +38,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 	test('columns respect the 80px min-width floor', async ({ page }) => {
 		await editor.loadContent(WIDE_TABLE);
 		const cellWidths = await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.evaluateAll((cells) => cells.map((c) => (c as HTMLElement).getBoundingClientRect().width));
 		// 80px floor; sub-pixel rounding tolerance.
 		for (const w of cellWidths) expect(w).toBeGreaterThanOrEqual(79);
@@ -49,10 +47,10 @@ test.describe('table block: wide-table horizontal scroll', () => {
 	test('selection overlay tracks horizontal table scroll', async ({ page }) => {
 		await editor.loadContent(WIDE_TABLE);
 
-		// Drag-select cells a1..a3 (body row 0, cols 0..2) — three intra-table cells.
+		// Drag-select cells a1..a3 (body row 0, cols 0..2): three cells inside the table.
 		const tableEl = page.locator('[role="table"]').first();
-		const a1 = await page.locator('[role="cell"]').nth(12).boundingBox();
-		const a3 = await page.locator('[role="cell"]').nth(14).boundingBox();
+		const a1 = await page.locator('.table-cell').nth(12).boundingBox();
+		const a3 = await page.locator('.table-cell').nth(14).boundingBox();
 		if (!a1 || !a3) throw new Error('cells not laid out');
 		await page.mouse.move(a1.x + a1.width / 2, a1.y + a1.height / 2);
 		await page.mouse.down();
@@ -82,7 +80,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		const tableBox = await tableEl.boundingBox();
 		if (!tableBox) throw new Error('table not laid out');
 
-		const firstCell = page.locator('[role="cell"]').nth(12);
+		const firstCell = page.locator('.table-cell').nth(12);
 		const firstBox = await firstCell.boundingBox();
 		if (!firstBox) throw new Error('first cell not laid out');
 
@@ -109,7 +107,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		// Body row 1 col 3 = cells[24+3] = cells[27] = "b4". Last body row, so
 		// ArrowDown exits the table to the paragraph below.
 		const b4Center = await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.nth(27)
 			.evaluate((el) => {
 				const r = el.getBoundingClientRect();
@@ -117,9 +115,8 @@ test.describe('table block: wide-table horizontal scroll', () => {
 			});
 		await page.mouse.click(b4Center.x, b4Center.y);
 
-		// ArrowDown exits the table capturing the sticky X at b4's cursor; ArrowUp re-enters the
-		// last body row at that column. No typing in between — input events would reset the sticky
-		// column.
+		// ArrowDown exits the table capturing the sticky x at b4's caret; ArrowUp re-enters the
+		// last body row at that column. No typing in between: input events reset the sticky column.
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('ArrowUp');
 		await editor.typeSlowly('Z');
@@ -128,8 +125,35 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		// Z lands at offset 0 of the target cell (focusCell uses 'start') in body row 1, the bottom
 		// row; allow ±1 column of tolerance for sub-pixel boundary crossings.
 		expect(after).toMatch(/\| Zb[345] \|/);
-		// Z must NOT land in the header or in body row 0 (a*).
+		// Z must not land in the header or in body row 0 (a*).
 		expect(after).not.toMatch(/\| ZHeader-Col-\d+ \|/);
 		expect(after).not.toMatch(/\| Za\d+ \|/);
+	});
+
+	// The undo restore walks down to the cell, and the row's step is what scrolls the grid.
+	test('undo into a far column scrolls the grid back so the caret is visible', async ({ page }) => {
+		await editor.loadContent(WIDE_TABLE);
+		const tableEl = page.locator('[role="table"]').first();
+		const a12 = page.locator('.table-cell').nth(23);
+
+		await editor.focusBlockAtPath([0, 1, 11], 3);
+		await editor.typeSlowly('xy');
+		await editor.bridge.waitForSourceContains('| a12xy |');
+		await editor.waitForUndoBatchFlush();
+		for (let i = 0; i < COLS - 1; i++) await page.keyboard.press('Shift+Tab');
+		await expect.poll(() => tableEl.evaluate((el) => el.scrollLeft)).toBeLessThan(5);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| a12 |');
+		// The caret's cell sits inside the grid's own visible box, not scrolled off its right edge.
+		await expect
+			.poll(async () => {
+				const grid = await tableEl.boundingBox();
+				const cell = await a12.boundingBox();
+				return !!grid && !!cell && cell.x + cell.width <= grid.x + grid.width + 1;
+			})
+			.toBe(true);
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('| a12Z |');
 	});
 });

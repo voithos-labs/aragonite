@@ -1,7 +1,8 @@
 /**
  * The live-mode gesture fuzzer: a seeded stream of typing and destructive gestures at hidden-edge
- * positions, each checked against live-mode.md § 2's license. Every oracle is per gesture and, where
- * the byte-literal edit already diverges, differential against a twin run of the same gesture.
+ * positions, each checked against what live-mode.md § 2 allows. Every check runs per gesture and,
+ * where the byte-literal edit already differs, compares live against a second run of the same
+ * gesture with live mode off.
  */
 
 import fc from 'fast-check';
@@ -29,13 +30,14 @@ import {
 	gestureTargets,
 	resetSurfaces,
 	scalarInteriors,
+	startsUnderListMarker,
 	type Applied,
 	type Gesture,
 	type GestureKind
 } from './live-gesture-seams';
 
-/** The characters that can delimit the drawn construct: its rowed run's, plus `_`, the
- *  emphasis-family twin spelling no row names — a strip reads the author's own run off the parse. */
+/** The drawn construct's delimiter bytes plus `_`, the other emphasis spelling no policy row names,
+ *  so stripping covers whichever spelling the author wrote. */
 function markAlphabet(entry: ReturnType<typeof drawnMark>): Set<string> {
 	const chars = new Set(entry.mark.markerBytes);
 	if (chars.has('*')) chars.add('_');
@@ -44,11 +46,8 @@ function markAlphabet(entry: ReturnType<typeof drawnMark>): Set<string> {
 
 // ── What a run reports ───────────────────────────────────────────────────────
 
-/**
- * `seam` is live diverging where the byte-literal twin holds: a defect, and what the sweep gates on,
- * plus the one absolute claim (well-formedness) that gates on either arm. `ambiguous` is both arms
- * failing the same claim — markdown's own rebinding, or a byte-literal fallback § 4.4 declares.
- */
+/** `seam`: live mode failed a check the run with live mode off passed, a defect the sweep fails on.
+ *  `ambiguous`: both runs failed it, from markdown re-pairing or the fallback § 4.4 allows. */
 export type ViolationCategory = 'seam' | 'ambiguous';
 
 export interface Violation {
@@ -63,6 +62,8 @@ export interface FuzzStats {
 	applied: number;
 	claimed: number;
 	rewrote: Record<GestureKind, number>;
+	/** Join rewrites that started in a list item's first block, where the marker stands in front. */
+	rewroteUnderListMarker: number;
 	/** Gestures whose drawn offset landed inside a surrogate pair, per kind. */
 	midScalar: Record<GestureKind, number>;
 	violations: Violation[];
@@ -92,12 +93,11 @@ const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 
 const INERT_CHARS = ['a', 'Z', '1', ' ', '.', '汉', '😀'];
 
-/** Block-grammar minting bytes: a pipe opens a row, `#` a heading, `>` a quote, `:` a directive
- *  fence. No registry carries them, unlike the inline delimiters {@link typedVocabulary} reads. */
+/** Bytes that open a block. No registry lists them, unlike the inline delimiters
+ *  {@link typedVocabulary} reads. */
 const BLOCK_MINTING_CHARS = ['|', '#', '>', ':'];
 
-/** Off the mark table for the same reason the `mark` draw is: a delimiter registered tomorrow is
- *  typed tomorrow, rather than frozen into whatever was rowed when this was written. */
+/** Read from the mark table, so a delimiter registered later is typed too. */
 function typedVocabulary(): string[] {
 	const heads = new Set(listInlineMarks().map(({ mark }) => mark.markerBytes[0]));
 	return [...INERT_CHARS, ...BLOCK_MINTING_CHARS, ...heads];
@@ -105,12 +105,12 @@ function typedVocabulary(): string[] {
 
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
-/** Both toggle gestures answer to the same two oracles: one block's span or a range of them. */
+/** Both toggle gestures answer to the same two checks: one block's span, or a range of blocks. */
 const isFormatToggle = (kind: GestureKind): boolean =>
 	kind === 'format-toggle' || kind === 'cross-format-toggle';
 
-/** Hidden-edge biased, because a uniform draw meets a zero-width run only by accident — and the
- *  same for a surrogate seam, which is two units wide in a document that is mostly ASCII. */
+/** Biased toward hidden edges, because an even draw meets a zero-width run only by accident. The
+ *  same goes for the inside of a surrogate pair, two units wide in a mostly ASCII document. */
 function drawOffset(rng: Rng, node: CstNode | undefined): number {
 	if (!node) return 0;
 	const { start, end } = getContentRange(node);
@@ -134,24 +134,19 @@ function drawGesture(rng: Rng, doc: Document): Gesture {
 		endOffset: drawOffset(rng, targets[endLeaf]?.node),
 		char: rng.pick(typedVocabulary()),
 		affinity: rng.pick(AFFINITIES),
-		// Off the table, so a newly rowed mark is drawn the day it registers rather than wrapping
-		// back into the four that were there when this was written.
+		// Read from the table, so a mark registered later is drawn too.
 		mark: rng.int(0, listInlineMarks().length)
 	};
 }
 
-// ── The oracles ──────────────────────────────────────────────────────────────
+// ── The checks ───────────────────────────────────────────────────────────────
 
-/**
- * The screen shows what the gesture claimed: an insertion adds exactly what was typed, a split adds
- * exactly one line break, and a destructive press may only take glyphs away. Read as the content
- * behind every marker family, which is the before/after conservation diff § 2 names: chrome folds the
- * moment content arrives, and a screen-side reading would report that fold as bytes lost.
- */
+/** The screen shows what the gesture claimed, read as the content behind every marker: a block's
+ *  markers stop painting once content arrives, which a screen diff would call bytes lost. */
 function screenClaimHolds(gesture: Gesture, before: string, after: string): boolean {
 	if (gesture.kind === 'type') return insertsSomewhere(before, after, gesture.char);
-	// A compound sequence has no single-glyph delta to claim: its seeding write mints a sibling
-	// before the drawn one lands. The shape, round-trip and dev-warn oracles are what judge it.
+	// A two-step gesture has no single-glyph change to claim: its first write adds a sibling before
+	// the drawn one lands. The shape, round-trip and dev-warning checks judge it instead.
 	if (gesture.kind === 'type-in-container' || gesture.kind === 'blank-in-container') return true;
 	if (gesture.kind === 'enter') return insertsSomewhere(before, after, '\n');
 	// A toggle changes formatting and nothing else, so its claim is the strictest of the family:
@@ -170,7 +165,7 @@ function screenClaimHolds(gesture: Gesture, before: string, after: string): bool
 }
 
 /** Whether `after` reads as `before` with `inserted` added at one position, once both are read the
- *  way the screen paints them — inserting into a terminal run changes no glyph at all. */
+ *  way the screen paints them: inserting into trailing whitespace changes no glyph at all. */
 function insertsSomewhere(before: string, after: string, inserted: string): boolean {
 	const target = normalizeScreen(after);
 	for (let at = 0; at <= before.length; at++) {
@@ -188,51 +183,43 @@ const removals = (text: string, run: string): string[] => [
 
 const escapeRegExp = (run: string): string => run.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Delimiter bytes a construct can paint. `_` stays out: underscore emphasis is intraword-restricted,
- *  so a byte against `__x__` kills the pair from either side whatever a seam answers. */
+/** Delimiter bytes a construct can paint. `_` stays out: underscore emphasis only pairs at a word
+ *  boundary, so a byte against `__x__` kills the pair from either side whatever live mode does. */
 const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) ?? []).length;
 
-/** What the gesture asked to appear on screen, which the delimiter oracle owes it. */
+/** What the gesture asked to appear on screen, which the delimiter check has to allow it. */
 const typedRun = (gesture: Gesture): string =>
 	gesture.kind === 'type' || gesture.kind === 'type-over' ? gesture.char : '';
 
-/**
- * The § 2 license over bytes, per gesture family. Typing loses nothing; a split keeps every byte but
- * a line ending; a destructive press only removes. The two range gestures cut a span the byte-literal
- * twin cuts identically, so there the twin is the upper bound — but a caret-edge press deliberately
- * takes a DIFFERENT character than native (§ 4.4), which makes the twin no bound at all.
- */
+/** What live-mode.md § 2 allows over bytes, per gesture family. The range gestures cut the same
+ *  span in both runs, so there the run with live mode off is the upper bound. */
 function bytesConserved(gesture: Gesture, before: string, live: string, literal: string): boolean {
 	if (gesture.kind === 'type') return isSubsequence(inked(before), inked(live));
 	if (gesture.kind === 'enter') return keepsEveryByte(before, live);
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return isSubsequence(inked(live), inked(before));
 	}
-	// The coverage model splits and absorbs: one press may strip, move and mint the toggled
-	// construct's own delimiters at once, so direction says nothing. The claim is exact instead:
-	// outside that construct's delimiter alphabet, live is before, byte for byte.
+	// One toggle may strip, move and add its construct's delimiters at once, so the check is exact:
+	// outside those delimiter characters, live matches before byte for byte.
 	if (isFormatToggle(gesture.kind)) {
 		const alphabet = markAlphabet(drawnMark(gesture));
 		const scrub = (bytes: string) => [...inked(bytes)].filter((ch) => !alphabet.has(ch)).join('');
 		return scrub(live) === scrub(before);
 	}
-	// The swallow: an arm that owns a press but has no sound rewrite writes nothing (§ 4.4).
+	// A branch that owns a keypress but has no sound rewrite writes nothing (live-mode.md § 4.4).
 	return live === before || isSubsequence(inked(live), inked(literal));
 }
 
-/**
- * Whitespace out. A structural edit mints and drops line endings by design (a split adds one, an
- * emptied block gains a separator) and a join REORDERS the run around its seam, both of which an
- * ordered containment check reads as bytes lost. The narrowing is stated rather than hidden: no arm
- * that takes this reading sees a dropped mid-line space. Only `enter` still does, through
- * `keepsEveryByte`; the destructive and typing families do not, and #106 makes only TERMINAL
- * whitespace a declared drop.
- */
+/** Whitespace out, since structural edits add, drop and reorder line endings by design. The cost:
+ *  a dropped mid-line space goes unseen, except by `enter` through `keepsEveryByte`. */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
-/** Off the weight table, so a gesture added there is counted the day it is drawn. */
+/** The gestures whose cleanup is a join, read back where the joined bytes are stored. */
+const JOINS = new Set<GestureKind>(['range-delete', 'type-over', 'word-delete']);
+
+/** Read from the weight table, so a gesture added there is counted as soon as it is drawn. */
 const perKind = (): Record<GestureKind, number> =>
 	Object.fromEntries(KIND_WEIGHTS.map(({ value }) => [value, 0])) as Record<GestureKind, number>;
 
@@ -244,6 +231,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 		applied: 0,
 		claimed: 0,
 		rewrote: perKind(),
+		rewroteUnderListMarker: 0,
 		midScalar: perKind(),
 		violations: []
 	};
@@ -265,11 +253,15 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			if (!live || !literal) continue;
 			stats.applied++;
 			if (live.claimed) stats.claimed++;
-			if (live.bytes !== literal.bytes) stats.rewrote[gesture.kind]++;
+			if (live.bytes !== literal.bytes) {
+				stats.rewrote[gesture.kind]++;
+				if (JOINS.has(gesture.kind) && startsUnderListMarker(before, gesture)) {
+					stats.rewroteUnderListMarker++;
+				}
+			}
 			const found = judgeGesture(gesture, { bytes: current, doc: before }, live, literal);
-			// A dev guard that fired is a finding in its own right: the fuzzer is the caller that
-			// provoked it. An `invariant:` fire is a contract that should never fire in EITHER arm, so
-			// the twin excuses nothing there; for the rest, which arm provoked it is the usual question.
+			// A dev-mode warning is a finding. An `invariant:` one should fire in neither run,
+			// so the run with live mode off excuses only the other warnings.
 			if (liveWarns.length > 0) {
 				const guarded = liveWarns.some((w) => w.tag.startsWith('invariant:'));
 				found.push({
@@ -292,7 +284,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 	return stats;
 }
 
-/** Every violation one applied gesture reports; exported so a pin can replay one draw's verdict. */
+/** Every violation one applied gesture reports; exported so a pin can replay one draw's result. */
 export function judgeGesture(
 	gesture: Gesture,
 	origin: { bytes: string; doc: Document },
@@ -318,10 +310,8 @@ export function judgeGesture(
 	if (!roundTrips(live.bytes) && roundTrips(literal.bytes)) {
 		say('round-trip', 'seam', 'live bytes do not reparse to themselves');
 	}
-	// The one absolute claim in the set: half a scalar is bytes no UTF-8 boundary round-trips and no
-	// inverse gesture restores, so no rebinding excuses it and the twin is no defense either. Held
-	// against the input because only an ill-formed draw could hand a gesture one to keep, and
-	// `invariants/corpus-coverage.test.ts` pins that the corpus draws none.
+	// Half a character is the one absolute check: nothing restores it, so the run with live mode
+	// off excuses nothing. Held against the input, since only an ill-formed draw could supply one.
 	if (!live.bytes.isWellFormed() && before.isWellFormed()) {
 		const alsoLiteral = !literal.bytes.isWellFormed();
 		say('well-formed', 'seam', `${alsoLiteral ? 'both arms' : 'live'} minted a lone surrogate`);
@@ -340,12 +330,8 @@ export function judgeGesture(
 			`screen went ${JSON.stringify(screenBefore)} → ${JSON.stringify(liveScreen)}`
 		);
 	}
-	// One-sided, as it is in the seat's own net: whatever the parse rebinds, a rewrite may never put
-	// more delimiters on screen than the document already showed PLUS the ones the gesture typed —
-	// a `*` the user types is a glyph they asked for, and a seat that keeps it visible where the
-	// literal insert buried it inside a URL is the honest answer. Stated against BEFORE rather than
-	// against the twin, because the byte-literal edit can FORM a construct by accident and hide runs
-	// live correctly kept. A press live SWALLOWED wrote nothing, so it makes no claim at all (§ 4.4).
+	// A rewrite may never show more delimiters than the document showed plus the typed ones
+	// (§ 4.2), measured before the gesture, since the literal edit can hide runs by accident.
 	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(typedRun(gesture));
 	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
@@ -359,11 +345,11 @@ export function judgeGesture(
 	if (!bytesConserved(gesture, before, live.bytes, literal.bytes)) {
 		say('bytes', 'seam', 'live wrote bytes its gesture family may not write');
 	}
-	// Against the document the gesture STARTED from: § 4.1 forbids writing residue, and a twin that
-	// happened to destroy a pre-existing run would otherwise read as live having minted one.
+	// Live may never write a delimiter pair enclosing nothing (live-mode.md § 4.1). Compared with
+	// the start, so a literal run that destroyed an existing pair doesn't make live look guilty.
 	const liveResidue = unpaintedResidue(live.doc);
 	if (liveResidue > unpaintedResidue(start)) {
-		// And against the twin: residue the byte-literal edit leaves too is nothing live minted.
+		// And against the other run: residue the byte-literal edit leaves too is not live's doing.
 		const minted = liveResidue > unpaintedResidue(literal.doc);
 		say('residue', minted ? 'seam' : 'ambiguous', 'live minted a delimiter pair enclosing nothing');
 	}

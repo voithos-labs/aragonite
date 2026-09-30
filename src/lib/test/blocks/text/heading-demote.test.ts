@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
+	cycleHeading,
 	demoteEmptyAtxHeading,
-	demoteToParagraph,
-	dropStructuralSuffix
+	demoteToParagraph
 } from '$lib/components/blocks/text/text-keydown';
+import { getContentRange } from '$lib/core/inline';
+import { parse } from '$lib/core/parser';
 
-// Backspace at a live heading's content start drops the block's own structural bytes before it
-// merges anything. Which bytes those are is the kind's content range talking: a prefix for ATX, a
-// suffix for setext — the same declaration, read from both ends.
+// Backspace at a live heading's content start drops every byte outside the kind's content range
+// before it merges anything.
 
 describe('demoteToParagraph', () => {
 	it('drops an ATX prefix and lands the caret where the content now starts', () => {
@@ -17,9 +18,8 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
-	// The gate is the kind's content range, which skips up to three leading spaces; a prefix
-	// rewrite that reads the `#`s with its own regex writes the block back unchanged there, and
-	// the press disappears — no demote, and the merge cascade never sees it either.
+	// The kind's content range skips up to three leading spaces, where a `#`-anchored rewrite
+	// would write the block back unchanged and the key would do nothing at all.
 	it('drops an indented ATX prefix, which no `#`-anchored regex reaches', () => {
 		expect(demoteToParagraph('  ## Indented\n', { start: 5, end: 13 }, 5)).toEqual({
 			newRaw: 'Indented\n',
@@ -34,16 +34,39 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
-	// A kind whose content IS its whole display has nothing structural to give up, so the press
-	// belongs to the merge cascade rather than to a rewrite that would change no bytes.
+	// A kind whose content is its whole displayed text has nothing structural to give up, so the
+	// key belongs to the merge rather than to a rewrite that would change no bytes.
 	it('declines when the content covers the whole display', () => {
 		expect(demoteToParagraph('Title\n', { start: 0, end: 5 }, 0)).toBeNull();
 	});
 });
 
-describe('dropStructuralSuffix', () => {
+// Miss-analysis: no case had bytes past an ATX heading's content, so a closing run never demoted.
+describe('demoteToParagraph: an ATX closing run', () => {
+	function demoteHeading(raw: string, offset: number) {
+		return demoteToParagraph(raw, getContentRange(parse(raw).children[0]), offset);
+	}
+
+	it('drops the closing run with the prefix and keeps the block’s own line ending', () => {
+		expect(demoteHeading('## Title ##\r\n', 3)).toEqual({ newRaw: 'Title\r\n', caretOffset: 0 });
+	});
+
+	it('clamps a caret inside the closing run to the content end', () => {
+		expect(demoteHeading('# Hi #\n', 6)).toEqual({ newRaw: 'Hi\n', caretOffset: 2 });
+	});
+
+	// Miss-analysis: no case ended the document's last line in a lone `\r`.
+	it('keeps a lone `\r` ending the document’s last line, demoted or re-marked', () => {
+		const raw = '# Hi #\r';
+		const content = getContentRange(parse(raw).children[0]);
+		expect(demoteToParagraph(raw, content, 2)?.newRaw).toBe('Hi\r');
+		expect(cycleHeading(raw, content, 2, 2)?.newRaw).toBe('## Hi\r');
+	});
+});
+
+describe('demoteToParagraph: a setext underline', () => {
 	it('keeps the block’s own trailing line ending', () => {
-		expect(dropStructuralSuffix('Title\r\n===\r\n', 5, 0)).toEqual({
+		expect(demoteToParagraph('Title\r\n===\r\n', { start: 0, end: 5 }, 0)).toEqual({
 			newRaw: 'Title\r\n',
 			caretOffset: 0
 		});
@@ -52,19 +75,27 @@ describe('dropStructuralSuffix', () => {
 	// The suffix is entirely past the caret, so an offset inside the content survives untouched;
 	// one somehow past it clamps rather than pointing into bytes that no longer exist.
 	it('clamps a caret past the content end', () => {
-		expect(dropStructuralSuffix('Title\n===\n', 5, 8)).toEqual({
+		expect(demoteToParagraph('Title\n===\n', { start: 0, end: 5 }, 8)).toEqual({
 			newRaw: 'Title\n',
 			caretOffset: 5
 		});
 	});
 });
 
-// The blur rule: an ATX heading with no text becomes the empty paragraph it looks like, and
-// nothing else does — a heading with text keeps its marker, and a setext heading has no prefix
-// standing over nothing.
+// On blur, only an ATX heading with no text becomes the empty paragraph it looks like; a setext
+// heading has no prefix standing over nothing.
 describe('demoteEmptyAtxHeading', () => {
 	it('drops the marker of a heading left with no text', () => {
 		expect(demoteEmptyAtxHeading('## \n', { start: 3, end: 3 })).toEqual({
+			newRaw: '\n',
+			caretOffset: 0
+		});
+	});
+
+	// Dropping only the prefix of an empty heading with a closing run leaves `#`, a heading again.
+	it('drops the closing run of an empty heading too', () => {
+		const raw = '# #\n';
+		expect(demoteEmptyAtxHeading(raw, getContentRange(parse(raw).children[0]))).toEqual({
 			newRaw: '\n',
 			caretOffset: 0
 		});

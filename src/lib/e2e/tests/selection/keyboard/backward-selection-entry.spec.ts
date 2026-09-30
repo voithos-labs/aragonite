@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('selection — keyboard: backward-selection cross-block entry (E-F2)', () => {
+test.describe('selection: keyboard: backward-selection cross-block entry (E-F2)', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -9,9 +9,9 @@ test.describe('selection — keyboard: backward-selection cross-block entry (E-F
 		await editor.goto();
 	});
 
-	// A backward native selection (anchor after focus) puts the focus at the
-	// range start; capturing range.start as the cross-block anchor grabs the wrong
-	// end and drops the highlighted span. Entry must capture the true anchor.
+	// A backward native selection (anchor after focus) puts the focus at the range start, so
+	// taking `range.start` as the cross-block anchor grabs the wrong end and loses the
+	// highlighted span. Entry must capture the real anchor.
 	test('captures the real anchor when entering cross-block from a backward selection', async () => {
 		await editor.loadContent('first\n\nHello world\n');
 		await editor.focusBlock(1, 5);

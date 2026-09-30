@@ -2,18 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import type { EditEvent, EditorError } from '$lib/editor-events';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
-// The subtree rebuild dispatches into plugin `rebuildRaw` outside any commit and after
-// the batch's single undo snapshot was pushed, so an unattributed throw leaves the
-// snapshot pushed, the redo stack cleared, and the `error` channel silent.
+// The subtree rebuild calls plugin `rebuildRaw` outside any commit and after the batch's
+// single undo snapshot was pushed, so an unreported throw leaves the snapshot pushed, the
+// redo stack cleared, and the `error` event silent.
 
 function scanRaw(raw: string, needle: string, path: number[]) {
 	const at = raw.indexOf(needle);
@@ -34,7 +32,7 @@ describe('replaceOne reports the subtree it operated on', () => {
 		expect(edits[0]).toMatchObject({ op: 'replaceBlock', path: [2], detail: { count: 1 } });
 	});
 
-	// Several subtrees genuinely have no single operated node, so the empty path stays.
+	// Several subtrees genuinely have no single edited node, so the empty path stays.
 	it('replaceAll across two subtrees keeps the empty path', async () => {
 		const doc = parse('a cat\n\nanother cat\n');
 		const { deps, events } = makeEditorActionsDeps(doc.children);
@@ -55,14 +53,7 @@ describe('replaceOne reports the subtree it operated on', () => {
 describe('a plugin rebuildRaw throw during the subtree rebuild is contained', () => {
 	let hostileKind: ReturnType<typeof declarePluginKind>;
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		hostileKind = declarePluginKind('replace-hostile');
-		registerBlockKind(hostileKind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		hostileKind = testLeaf('replace-hostile', {
 			container: {
 				contract: 'strip',
 				rebuildRaw: () => {
@@ -122,14 +113,7 @@ describe('a plugin rebuildRaw throw during the subtree rebuild is contained', ()
 
 describe('the hostile-kind fixture is real', () => {
 	it('a well-behaved container of the same shape does replace', async () => {
-		__resetSchemaRegistriesForTests();
-		const kind = declarePluginKind('replace-friendly');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('replace-friendly', {
 			container: { contract: 'strip', rebuildRaw: vi.fn() }
 		});
 		const child: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'the cat sat\n' };

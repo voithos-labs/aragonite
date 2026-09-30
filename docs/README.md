@@ -6,18 +6,18 @@ New here? Run it with the root [`README.md`](../README.md) (which also argues wh
 
 ## Start here
 
-| If you want to…                     | Read                                                                                                                               |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                                             |
-| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                                               |
-| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages |
-| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/rules.md`](contributing/rules.md)                                  |
+| If you want to…                     | Read                                                                                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                                                 |
+| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                                                   |
+| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages     |
+| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) to set up, then [`contributing/first-hour.md`](contributing/first-hour.md) for what to read |
 
 Everything else hangs off those four. The folders are split by **audience**, not by topic, so don't be surprised when the same subsystem shows up in two of them wearing different hats.
 
 ## `design/`: how it works
 
-One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all eight up front is a great way to feel productive without becoming useful; let the other seven be somebody else's afternoon.
+One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all nine up front is a great way to feel productive without becoming useful; let the other eight be somebody else's afternoon.
 
 | Doc                                                          | Scope                                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
@@ -26,6 +26,7 @@ One spec per subsystem, for anyone changing the editor's insides. Start with `ed
 | [`design/inline-parsing.md`](design/inline-parsing.md)       | How the text inside a block (`**bold**` and friends) becomes styled spans, markers still visible                   |
 | [`design/virtual-rendering.md`](design/virtual-rendering.md) | Why a 10 MB document types like a small one: only the blocks on screen are rendered                                |
 | [`design/live-mode.md`](design/live-mode.md)                 | The fully rendered mode that stays editable: the rules for editing around markers nobody can see                   |
+| [`design/caret-placement.md`](design/caret-placement.md)     | How a click becomes a caret, and what the caret does on the next key: nine stages, one file each                   |
 | [`design/invariants.md`](design/invariants.md)               | The rules that would cost someone their file, each numbered and each with a check that fails when it breaks        |
 | [`design/plugin-contract.md`](design/plugin-contract.md)     | What the plugin API promises: the shapes already settled, the ones still moving before 1.0, what was left out      |
 | [`design/performance.md`](design/performance.md)             | Why typing cost does not grow with document size, the exceptions, and the checks that enforce the numbers          |
@@ -49,6 +50,8 @@ The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs l
 
 | Doc                                                                          | Scope                                                                                                                                       |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`contributing/first-hour.md`](contributing/first-hour.md)                   | What to read in your first hour, in order, and the file behind each of the five things a first change touches                               |
+| [`contributing/glossary.md`](contributing/glossary.md)                       | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here                                |
 | [`contributing/rules.md`](contributing/rules.md)                             | Five rules, each one paid for by a real bug: **read before your first edit**                                                                |
 | [`contributing/casebook.md`](contributing/casebook.md)                       | The eight incidents behind the rules: read before your first structural change                                                              |
 | [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One real feature traced from first design decision to ship, for the shape of a change here                                                  |

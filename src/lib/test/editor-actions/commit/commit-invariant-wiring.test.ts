@@ -1,7 +1,6 @@
-// The invariant predicates are exhaustively unit-tested as pure functions, but nothing
-// proved the COMMIT ceremony invokes them over the nodes it touched — a collapsed
-// `touchedNodes` thunk and a deleted `assertCommittedNodes` call both stayed green.
-// Each commit family carries the wiring separately, so each gets its own control.
+// The commit must run the invariant predicates over the nodes it touched. Each commit family
+// wires them separately, so each gets its own case.
+// Miss-analysis: the predicates were tested only as pure functions, never through a commit.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -17,8 +16,8 @@ function firesStaleRaw(): boolean {
 	return takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
 }
 
-// The ceremony rebuilds the OUTER spine but never re-derives the nested child, so a
-// staleness planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
+// The commit rebuilds the outer ancestors but never the nested child, so a stale raw
+// planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
 const NESTED_BQ = '> outer\n>\n> > nested one\n> > nested two\n';
 
 function corruptNestedBlockquote(outer: CstNode): void {
@@ -27,7 +26,7 @@ function corruptNestedBlockquote(outer: CstNode): void {
 	nested.raw = '> DESYNCED\n';
 }
 
-describe('commit ceremony fires the node invariants over its touched nodes', () => {
+describe('commit sequence fires the node invariants over its touched nodes', () => {
 	// ── Family 1: multi-scope container branch (the `touchedNodes` thunk) ────────
 	it('a container-branch commit that leaves a nested raw stale fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
@@ -52,8 +51,7 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 	});
 
 	// ── Family 2: top-level metadata-noop document branch (explicit touchedNodes) ─
-	// `op: 'noop'` leaves the ceremony unable to infer the resynced node, so this branch
-	// must name it explicitly or the node sits unvalidated.
+	// `op: 'noop'` names no changed node, so this branch must name it or the node goes unchecked.
 	it('a top-level updateBlockMetadata over a stale nested raw fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
 		const controller = createUndoController(deps);
@@ -64,5 +62,31 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 		await blockEdit.updateBlockMetadata(0, { quoteDepth: 1 });
 
 		expect(firesStaleRaw(), 'expected an invariant:stale-raw fire').toBe(true);
+	});
+
+	// ── The keyed-container ids at every depth below a touched node ──────────────
+	it('a commit that leaves a nested container’s ids out of step fires child-id-parity', async () => {
+		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
+		const controller = createUndoController(deps);
+		const outer = () => deps.doc.children[0];
+		const scopes: MultiScopeTarget[] = [
+			{ node: outer(), state: makeBlockListState(outer), path: [0] }
+		];
+
+		drainDevWarns();
+		await controller.commitMultiScope({
+			scopes,
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			mutate: (views) => {
+				const nested = (views[0].node as CstNode).children?.find((c) => c.kind === 'blockquote');
+				if (!nested) throw new Error('fixture has no nested blockquote');
+				nested.childIds = [];
+				return [{ op: 'noop' }];
+			},
+			op: { kind: 'metadataUpdate', eventPath: asDocPath([0]), detail: { fields: ['quoteDepth'] } }
+		});
+
+		const fired = takeDevWarns().some((fire) => fire.tag === 'invariant:child-id-parity');
+		expect(fired, 'expected an invariant:child-id-parity fire').toBe(true);
 	});
 });

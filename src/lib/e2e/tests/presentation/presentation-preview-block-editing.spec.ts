@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// preview-block is an EDITING mode: no edit path is gated, and the focus mark follows the
+// preview-block is an editing mode: no edit path is blocked, and the focus mark follows the
 // caret through structural edits. Rendering lives in presentation-preview-block.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-block-editing.md.
 
@@ -21,7 +21,7 @@ const toggleReading = (page: Page) => page.getByTestId('presentation-toggle').cl
 const hostAt = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='${JSON.stringify(path)}']`);
 
-test.describe('preview-block — editing stays live', () => {
+test.describe('preview-block, editing stays live', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -50,7 +50,7 @@ test.describe('preview-block — editing stays live', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	test('task checkbox stays live — clicking it toggles', async ({ page }) => {
+	test('task checkbox stays live, clicking it toggles', async ({ page }) => {
 		await page.locator('.task-checkbox').first().click();
 		await ep.bridge.waitForSourceContains('[x]');
 	});
@@ -61,7 +61,7 @@ test.describe('preview-block — editing stays live', () => {
 		await page.keyboard.press('End');
 		await expect(para).toBeVisible();
 
-		// Enter splits: a new empty block takes focus, the old block hides its markers.
+		// Enter splits: the new empty block takes focus and the one it split from hides its markers.
 		await page.keyboard.press('Enter');
 		await ep.waitForRenderFlush();
 		await expect(para).toBeHidden();
@@ -75,7 +75,7 @@ test.describe('preview-block — editing stays live', () => {
 	});
 });
 
-test.describe('preview-block — selection, search, mode flips', () => {
+test.describe('preview-block: selection, search, mode flips', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -125,9 +125,8 @@ test.describe('preview-block — selection, search, mode flips', () => {
 	});
 
 	test('flipping the prop into preview-block marks the already-focused block', async ({ page }) => {
-		// The header toggles blur the editor, so they clear the mark via focusout,
-		// never through the mode reconcile. A consumer flipping the prop keeps focus —
-		// this drives that path directly (revert the reconcile effect and it fails).
+		// The header toggles blur the editor, clearing the mark through focusout; a consumer setting
+		// the prop keeps focus, and this test drives that path directly.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
 		await ep.clickBlock(1);
 		await expect(hostAt(page, [1])).not.toHaveAttribute('data-focused');

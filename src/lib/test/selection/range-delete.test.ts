@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -12,17 +14,15 @@ function run(
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
-describe('rangeDelete — same-container cases', () => {
+describe('rangeDelete: same-container cases', () => {
 	it('deletes a range within a single paragraph', () => {
 		const { source, caret } = run('abcdef\n', { path: [0], offset: 1 }, { path: [0], offset: 4 });
 		expect(source).toBe('aef\n');
@@ -49,7 +49,7 @@ describe('rangeDelete — same-container cases', () => {
 	});
 });
 
-describe('rangeDelete — cross-container start-wins', () => {
+describe('rangeDelete: cross-container start-wins', () => {
 	it('start outside container, end inside blockquote: merges at top level, blockquote cleans up', () => {
 		const { source, caret } = run(
 			'before paragraph\n\n> quote line 1\n> quote line 2\n',
@@ -80,7 +80,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 	});
 
 	it('rangeDelete across two list items collapses to a single empty item', () => {
-		// The other list cases all keep content; this pins the fully-emptied-item boundary.
+		// Every other list case keeps content; only here does an item empty fully.
 		const { source, caret } = run(
 			'1. one\n2. two\n',
 			{ path: [0, 0, 0], offset: 0 },
@@ -91,7 +91,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 	});
 });
 
-describe('rangeDelete — end-container post-end siblings preservation', () => {
+describe('rangeDelete: end-container post-end siblings preservation', () => {
 	it('end inside first item of unordered list preserves later items', () => {
 		const src =
 			'## Unordered Lists\n\n- Unordered one\n- Unordered two\n  - Nested item\n- Unordered three\n';
@@ -130,7 +130,7 @@ describe('rangeDelete — end-container post-end siblings preservation', () => {
 	});
 });
 
-describe('rangeDelete — boundary offsets', () => {
+describe('rangeDelete: boundary offsets', () => {
 	it('start.offset = 0 keeps empty head, re-parses as paragraph from endTail', () => {
 		const { source } = run(
 			'# heading text\n\nfollow paragraph\n',
@@ -146,13 +146,12 @@ describe('rangeDelete — boundary offsets', () => {
 	});
 });
 
-describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
-	// Cascade and delete share one identity check: an iteration whose path resolves to a different
-	// node (a survivor slid into the slot via a deeper cascade) must skip both the splice AND the
-	// ancestor walk. The asymmetry was the original bug — cascade ran on stale paths.
+describe('rangeDelete: cascade identity discipline (Tier 2 G2)', () => {
+	// Cleanup and delete share one identity check: a path that resolves to a different node (a
+	// survivor that slid into the position) must skip both the splice and the ancestor walk.
 
 	it('post-end top-level survivor that slides into a vacated outer slot is preserved', () => {
-		// The delete chain removes inner_bq [1, 0] and outer_bq [1], so the slot path [1] now resolves
+		// The delete chain removes inner_bq [1, 0] and outer_bq [1], so the path [1] now resolves
 		// to the post-end paragraph. The identity check fires here; cascade must not walk the survivor.
 		const src = 'start\n\n> > A\n\nend\n\npost-end\n';
 		const { source } = run(src, { path: [0], offset: 5 }, { path: [2], offset: 3 });
@@ -161,7 +160,7 @@ describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
 
 	it('post-end nested survivor that slides through cascade levels is preserved', () => {
 		// outer_bq holds two inner blockquotes: the first wraps the deletion target A, the second is
-		// post-end and slides into [1, 0]'s slot after A's delete + cascade.
+		// post-end and slides into [1, 0]'s position after A's delete and cleanup.
 		const src = 'start\n\n> > A\n>\n> > B\n';
 		// end at the end of the "A\n" line, offset = displayLength("A\n") = 2. walkBetween adds only
 		// the end path — the two blockquotes are ancestors of end, excluded by isPathSubtreeBetween.

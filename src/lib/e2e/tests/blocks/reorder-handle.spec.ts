@@ -1,11 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunRect } from '../../text-runs';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 
-// The handle is a mouse-only affordance: one per reorder unit that is an OBJECT (code, table,
-// picture, equation, list item, divider) rather than prose, kept out of the SR/tab flow. Reveal is
-// opacity-only and the handle is always in the DOM, so toBeVisible() would pass even with a broken
-// hover rule — assert the opacity directly.
+// The handle is for the mouse alone: one per block that is an object (code, table, picture,
+// equation, list item, divider) rather than prose, and out of the screen-reader and tab order. It
+// is always in the DOM and only fades in, so `toBeVisible()` passes even with a broken hover rule
+// and these assert the opacity directly.
 test.describe('reorder hover handle', () => {
 	let editor: EditorPage;
 
@@ -14,7 +15,7 @@ test.describe('reorder hover handle', () => {
 		await editor.goto();
 	});
 
-	/** Signed distance from the grip's centre to the centre of `anchor`'s box, in px. */
+	/** Signed distance from the handle's center to the center of `anchor`'s box, in px. */
 	async function gripOffset(host: import('@playwright/test').Locator, anchor: string) {
 		return host.evaluate((el, sel) => {
 			const grip = el.querySelector(':scope > .block-drag-handle .grip')!.getBoundingClientRect();
@@ -34,9 +35,8 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
-	// Reachability: the earlier tests hover the block CENTER and pass even when the handle is
-	// unreachable. If the margin between block and handle is not in the hover region, the handle
-	// hides mid-move and, being pointer-events:none once hidden, can never re-catch the pointer.
+	// If the margin between block and handle is outside the hover region, the handle hides mid-move
+	// and, with `pointer-events: none`, can never catch the pointer.
 	test('the revealed handle stays reachable as the pointer moves onto it', async ({ page }) => {
 		await editor.loadContent('```js\nplain code here\n```\n\nsecond block\n');
 		const top = page.locator('.block-host[data-block-kind="fencedCode"]').last();
@@ -50,7 +50,7 @@ test.describe('reorder hover handle', () => {
 		const cy = box.y + box.height / 2;
 		const blockBox = (await top.boundingBox())!;
 
-		// Start over the block body, then glide LEFT onto the handle, continuously.
+		// Start over the block body, then glide left onto the handle, without lifting.
 		await page.mouse.move(blockBox.x + 100, cy);
 		await page.mouse.move(cx, cy, { steps: 15 });
 
@@ -59,7 +59,7 @@ test.describe('reorder hover handle', () => {
 			([x, y]) => !!document.elementFromPoint(x, y)?.closest('.block-drag-handle'),
 			[cx, cy]
 		);
-		expect(hitsHandle, 'pointer over the handle must resolve TO the handle (hittable)').toBe(true);
+		expect(hitsHandle, 'pointer over the handle must resolve to the handle (hittable)').toBe(true);
 	});
 
 	// On an unindented top-level block the only left margin is the editor's own padding, so the
@@ -84,9 +84,8 @@ test.describe('reorder hover handle', () => {
 		);
 	});
 
-	// The handle hit area must span the block's full height: approaching a tall block at mid-height
-	// otherwise leaves the block, hides the handle, and strands it — the axis the earlier test does
-	// not isolate.
+	// The handle's hit area must span the block's full height, or approaching a tall block at
+	// mid-height hides the handle and strands the pointer.
 	test('a tall block handle is reachable when approached at mid-height', async ({ page }) => {
 		await editor.loadContent('```js\nline one\nline two\nline three\nline four\n```\n\ntail\n');
 		const code = page.locator('.block-host[data-block-kind="fencedCode"]').first();
@@ -110,9 +109,9 @@ test.describe('reorder hover handle', () => {
 		expect(hits, 'handle must be hittable in the gutter at mid-height').toBe(true);
 	});
 
-	// The seat is the card's own first line-height, NOT its first line of text: a card pads above
-	// that text, and a grip level with the first code line hangs below the card's shoulder.
-	test('the handle grip sits in the top band of a code card, above its first line', async ({
+	// The handle sits at the card's own first line height, not at its first line of text: a card
+	// pads above that text, so a handle level with the first code line hangs below its shoulder.
+	test('the drag handle sits in the top band of a code card, above its first line', async ({
 		page
 	}) => {
 		await editor.goto('?presentationMode=live');
@@ -121,23 +120,14 @@ test.describe('reorder hover handle', () => {
 		await code.hover();
 		await expect(code.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
 
-		const seat = await code.evaluate((host) => {
+		const firstLineTop = (await textRunRect(page, 'first', { path: [0] })).top;
+		const seat = await code.evaluate((host, lineTop) => {
 			const grip = host.querySelector('.grip')!.getBoundingClientRect();
 			const card = host.getBoundingClientRect();
-			const body = host.querySelector('.code-block')!;
-			const tw = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
-			let firstLineTop = NaN;
-			for (let t = tw.nextNode(); t; t = tw.nextNode()) {
-				if (!t.textContent?.includes('first')) continue;
-				const range = document.createRange();
-				range.selectNodeContents(t);
-				firstLineTop = range.getClientRects()[0].top;
-				break;
-			}
 			const centre = grip.top + grip.height / 2;
 			const line = parseFloat(getComputedStyle(host).lineHeight) || 20;
-			return { fromCardTop: centre - card.top, aboveFirstLine: firstLineTop - centre, line };
-		});
+			return { fromCardTop: centre - card.top, aboveFirstLine: lineTop - centre, line };
+		}, firstLineTop);
 		expect(seat.fromCardTop, 'inside the card, not on its edge').toBeGreaterThan(4);
 		expect(seat.fromCardTop, 'within the first line-height of the card').toBeLessThanOrEqual(
 			seat.line
@@ -145,9 +135,9 @@ test.describe('reorder hover handle', () => {
 		expect(seat.aboveFirstLine, 'above the first code line').toBeGreaterThan(0);
 	});
 
-	// A one-line block centres on its ROW, checkbox or bullet alike: level with the row is where
-	// the eye puts it, and the checkbox sits a little below that centre.
-	test('the handle grip centres on a one-line list row', async ({ page }) => {
+	// A one-line block centers on its row, checkbox or bullet alike: level with the row is where
+	// the eye puts it, and the checkbox sits a little below that center.
+	test('the drag handle centres on a one-line list row', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('- [ ] open task\n- plain bullet\n\ntail\n');
 		for (const text of ['open task', 'plain bullet']) {
@@ -159,7 +149,7 @@ test.describe('reorder hover handle', () => {
 		}
 	});
 
-	test('the handle grip centres on a divider', async ({ page }) => {
+	test('the drag handle centres on a divider', async ({ page }) => {
 		await editor.loadContent('# head\n\n---\n\ntail\n');
 		const hr = page.locator('.block-host[data-block-kind="thematicBreak"]').first();
 		await hr.hover();
@@ -168,15 +158,17 @@ test.describe('reorder hover handle', () => {
 		expect(Math.abs(delta), `off the rule centre by ${delta}px`).toBeLessThanOrEqual(2);
 	});
 
-	test('the grip is the lucide grip-vertical glyph, six dots', async ({ page }) => {
+	test('the drag handle is the lucide grip-vertical glyph, six dots', async ({ page }) => {
 		await editor.loadContent('```js\ncode\n```\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		await expect(card.locator('.block-drag-handle .grip svg path')).toHaveCount(6);
 	});
 
-	// The grip is reachable WITHOUT first hovering the block it belongs to: a grip you can only
-	// reach by traversing the block is a flyout hanging off it.
-	test('approaching the grip through the gutter alone reveals it and hits it', async ({ page }) => {
+	// The handle is reachable without first hovering the block it belongs to: one you can only
+	// reach by crossing the block is a flyout hanging off it.
+	test('approaching the drag handle through the gutter alone reveals it and hits it', async ({
+		page
+	}) => {
 		await editor.loadContent('```js\nfirst line\nsecond line\nthird line\n```\n\ntail\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		const handle = card.locator('.block-drag-handle');
@@ -196,7 +188,7 @@ test.describe('reorder hover handle', () => {
 		expect(hits, 'the glyph must be the hit target, not the block behind it').toBe(true);
 	});
 
-	test('the grip clears the block content by a few px', async ({ page }) => {
+	test('the drag handle clears the block content by a few px', async ({ page }) => {
 		await editor.loadContent('```js\ncode\n```\n');
 		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
 		await card.hover();
@@ -207,7 +199,7 @@ test.describe('reorder hover handle', () => {
 		expect(gap, 'the glyph must not touch the content').toBeGreaterThanOrEqual(3);
 	});
 
-	// A picture is not prose: the paragraph holding it is the thing a reader reaches to move.
+	// A picture is not prose: the paragraph holding it is what a user reaches for to move it.
 	test('an image-only paragraph carries a handle; an image beside words does not', async () => {
 		await editor.loadContent(
 			'![cat|200](/test-fixtures/sample.png)\n\n![cat|200](/test-fixtures/sample.png) beside words\n'
@@ -218,13 +210,13 @@ test.describe('reorder hover handle', () => {
 		await expect(mixed.locator(':scope > .block-drag-handle')).toHaveCount(0);
 	});
 
-	// A picture has no text line to sit on, and its own top edge puts the grip in the corner.
-	test('the grip on an image paragraph sits a line into the picture, not on its edge', async ({
+	// A picture has no text line to sit on, and its own top edge puts the handle in the corner.
+	test('the drag handle on an image paragraph sits a line into the picture, not on its edge', async ({
 		page
 	}) => {
 		await editor.loadContent('# head\n\n![cat|300](/test-fixtures/sample.png)\n');
 		const host = page.locator('.block-host[data-block-path="[1]"]');
-		// The seat is measured, so the picture must have laid out before the hover reads it.
+		// The position is measured, so the picture must have laid out before the hover reads it.
 		await expect
 			.poll(() => host.locator('img').evaluate((img) => img.getBoundingClientRect().height))
 			.toBeGreaterThan(40);
@@ -236,7 +228,7 @@ test.describe('reorder hover handle', () => {
 			const img = el.querySelector('img')!.getBoundingClientRect();
 			return grip.top + grip.height / 2 - img.top;
 		});
-		expect(inset, 'grip must sit inside the picture').toBeGreaterThan(4);
+		expect(inset, 'drag handle must sit inside the picture').toBeGreaterThan(4);
 		expect(inset, 'and within its first line, not adrift down it').toBeLessThan(40);
 	});
 
@@ -256,8 +248,8 @@ test.describe('reorder hover handle', () => {
 		await expect(item.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
 	});
 
-	// The grip reorders within the list and nowhere else, so on a lone item it could only ever
-	// drop the item back where it was. Adding a sibling brings it back.
+	// The handle reorders within the list and nowhere else, so on a lone item it could only drop
+	// the item back where it was. Adding a sibling brings it back.
 	test('the only item of a list carries no handle until a sibling joins it', async ({ page }) => {
 		await editor.loadContent('- [ ] lone task\n\nplain\n');
 		const item = page.locator('.list-item-block', { hasText: 'lone task' });
@@ -269,8 +261,8 @@ test.describe('reorder hover handle', () => {
 		await expect(page.locator('.list-item-block > .block-drag-handle')).toHaveCount(2);
 	});
 
-	// The shell's grip landed in the gutter on top of the first item's and, being its own hit
-	// target, took the pointer: aiming at row one lit a grip that moved the whole list.
+	// A handle on the list itself would land in the gutter on top of the first item's and, being
+	// its own hit target, take the pointer: aiming at row one would move the whole list.
 	test('the list shell carries no handle of its own, so row one owns its gutter', async ({
 		page
 	}) => {
@@ -279,7 +271,7 @@ test.describe('reorder hover handle', () => {
 			page.locator('.block-host[data-block-kind="list"] > .block-drag-handle')
 		).toHaveCount(0);
 
-		// Come in from far away, straight onto the FIRST row's glyph: that row lights, alone.
+		// Come in from far away, straight onto the first row's glyph: that row lights, alone.
 		const rows = page.locator('.list-item-block > .block-drag-handle');
 		await page.mouse.move(450, 60);
 		const glyph = await rows.first().locator('svg').boundingBox();
@@ -289,7 +281,7 @@ test.describe('reorder hover handle', () => {
 		await expect(rows.nth(2)).toHaveCSS('opacity', '0');
 	});
 
-	// Prose carries no grip, and a quote is prose holding prose: neither the quote nor the
+	// Prose carries no handle, and a quote is prose holding prose: neither the quote nor the
 	// paragraphs inside it get one.
 	test('a blockquote and its prose children carry no handle', async () => {
 		await editor.loadContent('> a\n>\n> b\n');
@@ -322,7 +314,7 @@ test.describe('reorder hover handle', () => {
 		await expectNoNewA11yViolations(page, 'reorder-handle');
 	});
 
-	// Dragging a picture is the only pointer road to move one, so its grip is not an opt-in.
+	// Dragging is the only way to move a picture with the pointer, so its handle is not optional.
 	test('an image paragraph keeps its handle with blockDragHandles=false', async () => {
 		await editor.goto('?dragHandles=false');
 		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n\nplain\n');

@@ -14,19 +14,16 @@ import {
 	arbRawString
 } from './arbitraries';
 
-// A generator that cannot draw a shape proves nothing about it, and the shapes below were
-// missing from lanes whose properties are entirely about them: three structural lanes drew pure
-// ASCII, two never drew CRLF. The floors are the audit's own measurement kept as a gate —
-// counted by shape — so a weight tweak that quietly starves one fails here rather than at the
-// next audit. Fixed seed on purpose: a coverage floor that flakes is not a floor, which is also
-// why this suite stays off the fresh lane.
+// A generator that cannot draw a shape proves nothing about it, so each generator's reach is
+// counted per shape against a minimum, and a weight change that quietly starves one fails here.
+// Fixed seed on purpose: a coverage floor that flakes is not a floor, which is also why this suite
+// does not run on fresh seeds.
 
 const DRAWS = 400;
 const SEED = 20260814;
 
-/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, the cluster whose base
- *  and mark a boundary can land between, and the two-byte line ending every offset either counts as
- *  one boundary or corrupts. */
+/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, a cluster a boundary can
+ *  split, and the two-byte line ending an offset either counts as one boundary or corrupts. */
 const SHAPES = {
 	'non-ASCII': (source: string) => [...source].some((char) => char.charCodeAt(0) > 0x7f),
 	'accented Latin': (source: string) => /[À-ɏ]/u.test(source),
@@ -39,21 +36,18 @@ const SHAPES = {
 
 type Shape = keyof typeof SHAPES;
 
-/**
- * A lane's per-shape floor: a count, or the reason the lane's own purpose puts the shape out of
- * reach. A reason keeps a missing shape declared rather than absent — the same visible-not-silent
- * vocabulary the conformance kits use, and the alternative (a floor of zero) reads as measured.
- */
+/** A generator's minimum per shape: a count, or the reason its purpose puts the shape out of
+ *  reach, so a missing shape stays declared rather than reading as a measured zero. */
 interface Lane {
 	name: string;
 	arbitrary: fc.Arbitrary<string>;
-	/** Draws per lane. The scale lane costs ~100KB a draw, so it samples far fewer. */
+	/** Draws per generator. The scale one costs about 100KB a draw, so it samples far fewer. */
 	draws?: number;
 	floors: Record<Shape, number | string>;
 }
 
-/** Well under every measured rate: the claim is that the shape is REACHED, not that its weight
- *  never moves. Astral pairs sit lowest, being one word of one vocabulary. */
+/** Well under every measured rate: the claim is that the shape is reached, not that its weight
+ *  never moves. Astral pairs sit lowest, being one word out of one alphabet. */
 const DOC_FLOOR: Record<Shape, number> = {
 	'non-ASCII': 100,
 	'accented Latin': 20,
@@ -64,14 +58,14 @@ const DOC_FLOOR: Record<Shape, number> = {
 	LF: 100
 };
 
-/** An inline-fragment lane's only line ending is a HARD BREAK, one fragment among many rather than
- *  a separator every block carries, so its endings floor reads that rate and not a document's. */
+/** An inline-fragment generator's only line ending is a hard break, one fragment among many rather
+ *  than a separator every block carries, so its minimum reads that rate, not a document's. */
 const INLINE_FLOOR: Record<Shape, number> = { ...DOC_FLOOR, CRLF: 10, LF: 10 };
 
 const NO_LINE = 'a rung-token lane draws no line ending at all: every token is one line';
 
-/** The composed plugin lanes draw a built-in arm too, so their non-ASCII and line-ending shapes
- *  can be met without one plugin byte carrying either — the construct-only lanes are what bind. */
+/** The composed plugin generators draw built-in content too, so their non-ASCII and line-ending
+ *  shapes can be met with no plugin byte carrying either; the construct-only ones are what bind. */
 const PLUGIN_CONSTRUCT_FLOOR: Record<Shape, number | string> = DOC_FLOOR;
 
 const LANES: Lane[] = [
@@ -91,7 +85,7 @@ const LANES: Lane[] = [
 	{
 		name: 'arbLargeDoc',
 		arbitrary: arbLargeDoc,
-		// Each draw is ~100KB, so the lane samples for reach rather than density.
+		// Each draw is about 100KB, so this one samples for reach rather than density.
 		draws: 100,
 		floors: {
 			'non-ASCII': 10,
@@ -130,18 +124,16 @@ describe.each(LANES.map((lane) => [lane.name, lane] as const))(
 			expect(ascii / bytes.length).toBeGreaterThan(0.9);
 		});
 
-		// Lone surrogates are the one shape the corpus deliberately excludes: no UTF-8 boundary
-		// round-trips one, so no document holding one can reach the editor through any documented
-		// door. The gesture fuzzer's well-formedness oracle reads that as its precondition.
+		// Lone surrogates are excluded on purpose: no UTF-8 boundary round-trips one, so no document
+		// reaching the editor holds one, and the gesture fuzzer relies on that.
 		it('draws no ill-formed source', () => {
 			expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
 		});
 	}
 );
 
-// The byte shapes above say nothing about CONSTRUCTS, and the inline lane is the one whose whole
-// job is their adjacency. Two rows are the typing seat's: an asterisk nest, whose shared run serves
-// both pairs, and a run enclosing a BARE autolink, whose URL scanner swallows the closer beside it.
+// The byte shapes above say nothing about constructs, and the inline generator's whole job is
+// their adjacency, so each construct it must reach gets a floor of its own.
 describe('arbInlineSource draws the construct adjacencies its properties are about', () => {
 	const draws = fc.sample(arbInlineSource, { numRuns: DRAWS, seed: SEED });
 
@@ -164,7 +156,7 @@ describe('arbInlineSource draws the construct adjacencies its properties are abo
 	});
 });
 
-// The garbage lane carries the shape the structured ones cannot: a control character no markdown
+// The garbage generator carries the shape the structured ones cannot: a control character no markdown
 // grammar mentions, which a byte-preserving parser has to hand back untouched anyway.
 describe('arbRawString', () => {
 	const draws = fc.sample(arbRawString, { numRuns: DRAWS, seed: SEED });

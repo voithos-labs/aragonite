@@ -1,10 +1,10 @@
-import { afterEach, describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 import { latexPlugin, MATH_INLINE } from '$lib/plugins/latex';
@@ -20,9 +20,9 @@ import {
 	assertConstructCoverage
 } from '../core/inline/scan/scan-test-helpers';
 
-// G2.11: every byte of [start, end) lands in exactly one top-level node range, construct
-// children tile their parent minus its markers, and every kind is in the vocabulary. No
-// conformance diff can judge this — commonmark carries no offsets.
+// Every byte of [start, end) lands in exactly one top-level node range, construct children cover
+// their parent minus its markers, and every kind is one the editor knows (G2.11). A conformance
+// comparison cannot judge this, because CommonMark carries no offsets.
 
 // `satisfies` keeps this runtime mirror exhaustive: a union change without a matching
 // edit here is a type error.
@@ -44,11 +44,8 @@ const KIND_VOCABULARY = {
 
 const KNOWN_KINDS: ReadonlySet<string> = new Set(Object.keys(KIND_VOCABULARY));
 
-/**
- * The VOCABULARY half: every kind is a built-in, or one an installed plugin declared.
- * Split from the contract half because a registered rung emits its own declared kind, so
- * asserting the union alone throws on vocabulary before it can test tiling.
- */
+/** The kind-name half, split from tiling because a registered inline handler emits its own
+ *  declared kind, which the built-in union alone would reject before tiling is tested. */
 function assertKindVocabulary(nodes: InlineNode[]): void {
 	for (const node of nodes) {
 		if (!KNOWN_KINDS.has(node.kind) && !isInlineKindDeclared(node.kind)) {
@@ -58,19 +55,15 @@ function assertKindVocabulary(nodes: InlineNode[]): void {
 	}
 }
 
-/** The CONTRACT half: every byte tiled once, constructs tile their parent. */
+/** The tiling half: every byte covered once, constructs covering their parent. */
 function assertScanContract(raw: string, start: number, end: number): void {
-	const nodes = scanInline(raw, start, end);
+	const nodes = scanInline(raw, start, end, undefined, defaultGrammarView);
 	assertTotalCoverage(nodes, start, end);
 	assertConstructCoverage(nodes);
 	assertKindVocabulary(nodes);
 }
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
-
-// The rungs-installed lane registers into process-global registries, so the bare-grammar
-// lanes in this worker need the reset to stay bare.
-afterEach(() => resetPluginPlatformForTests());
 
 describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', () => {
 	it('holds over adversarial inline sources', () => {
@@ -92,20 +85,14 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		);
 	});
 
-	it('holds with the bundled inline rungs installed', () => {
-		// Registries are register-once, so the rungs install ONCE for the whole property;
+	it('holds with the bundled inline syntax handlers installed', () => {
+		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
-		resetPluginPlatformForTests();
-		// The scan never renders, so a no-op renderer satisfies latex's required option.
-		installPlugins([
-			footnotesPlugin(),
-			emojiPlugin(),
-			latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
-		]);
-		// Without this a failed setup leaves the bare grammar running and the lane passes
+		installPlugins([footnotesPlugin(), emojiPlugin(), latexPlugin()]);
+		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {
-			expect(isInlineKindDeclared(kind), `rung not installed: ${kind}`).toBe(true);
+			expect(isInlineKindDeclared(kind), `inline syntax handler not installed: ${kind}`).toBe(true);
 		}
 
 		fc.assert(
@@ -116,7 +103,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		);
 	});
 
-	// The size tier: a boundary error appearing only past some index (a quadratic decline's
+	// The large sizes: a boundary error appearing only past some index (a quadratic decline's
 	// bail-out, an offset overflowing a scan window) is unreachable at a few hundred bytes.
 	it('holds over ~60KB single-line inputs', () => {
 		fc.assert(

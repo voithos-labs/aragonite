@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
-//
-// Modifier parity on the caret-edge dispatch's CST-widget arm. The contract is "one PLAIN key at
-// a caret edge routes here"; the island arm enforces it (edge-policy-islands.test.ts) and this arm
-// read only shiftKey, so Ctrl+ArrowLeft entered the widget instead of moving the caret — modal for
-// an image, so the next printable key replaced the construct's bytes. Pinned at the dispatch's own
-// decision (declined, entry seam untouched) rather than through the modal state it would open.
+// The caret-edge dispatch's CST-widget branch takes only a plain key at a caret edge. Reading only
+// shiftKey would let Ctrl+ArrowLeft enter an image widget, which is modal, so the next printable
+// key would replace its bytes. The tests check the dispatch's own decision, entry untouched.
 import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import { mountWidgetBlock } from './math-widget-fixture';
 import { installEdgeDispatchCleanup, key, makeEdgeDispatch } from './edge-policy-fixture';
 
-/** Mount [prose][atomic island][prose] around `source`'s first widget of `kind` and
- *  wire the dispatch with a recording entry seam. */
+/** Mount [prose][atomic widget][prose] around `source`'s first widget of `kind` and
+ *  wire the dispatch with a recording entry callback. */
 function mount(source: string, kind: string) {
 	const { node, el, inlineWidgets } = mountWidgetBlock(source, kind);
 	const entered: { start: number; fromTrailingEdge: boolean }[] = [];
@@ -26,7 +23,7 @@ installEdgeDispatchCleanup();
 describe('a modifier chord at a widget edge is not a widget entry', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { metaKey: true }, { altKey: true }];
 
-	// Both entry directions and both key families the arm claims: navigation (word-step) and
+	// Both entry directions and both key families this branch takes: navigation (word-step) and
 	// destructive (word-delete). Each is a platform chord meaning "act on a word".
 	for (const [label, keyName, side] of [
 		['ArrowLeft at the trailing edge', 'ArrowLeft', 'end'],
@@ -46,8 +43,7 @@ describe('a modifier chord at a widget edge is not a widget entry', () => {
 		});
 	}
 
-	// Non-vacuity: the same key without the chord is still the widget entry, so the
-	// guard narrows the arm rather than disabling it.
+	// Without this case, the chord check could pass by disabling the whole branch.
 	it('the same key with no chord still enters the widget', () => {
 		const b = mount('hello ![a](u) world', 'image');
 		const e = key('ArrowLeft');
@@ -57,9 +53,9 @@ describe('a modifier chord at a widget edge is not a widget entry', () => {
 		expect(e.defaultPrevented).toBe(true);
 	});
 
-	// Shift is the separate, older rule: a shift-arrow extends a selection into the
-	// widget through widget-interaction, so the edge arm has always declined it.
-	it('Shift+ArrowLeft still declines, leaving the extend seam to own it', () => {
+	// Shift is a separate rule: a shift-arrow extends a selection into the widget
+	// through widget-interaction, so the edge branch declines it.
+	it('Shift+ArrowLeft still declines, leaving the extend path to own it', () => {
 		const b = mount('hello ![a](u) world', 'image');
 
 		expect(

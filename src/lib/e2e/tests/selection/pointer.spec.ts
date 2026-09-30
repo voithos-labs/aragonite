@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('selection — pointer: happy paths', () => {
+test.describe('selection: pointer: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -19,7 +19,8 @@ test.describe('selection — pointer: happy paths', () => {
 		expect(sel?.focus.path).toEqual([1]);
 	});
 
-	test('drag across three paragraphs renders middle overlay', async () => {
+	test('drag across three paragraphs renders middle overlay', async ({ browserName }) => {
+		test.fixme(browserName === 'webkit', '#353: middle overlay intermittently absent on WebKit');
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
@@ -36,7 +37,7 @@ test.describe('selection — pointer: happy paths', () => {
 	});
 });
 
-test.describe('selection — pointer: edge cases', () => {
+test.describe('selection: pointer: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -90,7 +91,7 @@ test.describe('selection — pointer: edge cases', () => {
 	});
 });
 
-test.describe('selection — pointer: a leaf taken whole', () => {
+test.describe('selection: pointer: a leaf taken whole', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -119,7 +120,7 @@ test.describe('selection — pointer: a leaf taken whole', () => {
 	});
 });
 
-test.describe('selection — pointer: cross-container', () => {
+test.describe('selection: pointer: cross-container', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

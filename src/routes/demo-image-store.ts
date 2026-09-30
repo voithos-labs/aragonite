@@ -1,8 +1,8 @@
 /**
- * The showcase's image-paste host: what an embedder supplies through `onPasteImage` and
- * `resolveImageUrl`. Pasted bytes stay in memory under a short app-internal URL, so the
- * Markdown carries `![alt](https://demo.aragonite/pasted/1.png)` rather than a data URI,
- * and the resolver maps that URL back to the bytes at render time. Page-lifetime only.
+ * The showcase's side of image pasting: what an embedder supplies through `onPasteImage` and
+ * `resolveImageUrl`. Pasted bytes stay in memory under a short app-internal URL, so the Markdown
+ * holds `![alt](https://demo.aragonite/pasted/1.png)` rather than a data URI, and the resolver
+ * maps that URL back to the bytes at render time. Page-lifetime only.
  */
 
 import type { PastedImage } from '$lib';

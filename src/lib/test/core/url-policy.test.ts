@@ -7,12 +7,13 @@ import {
 	defaultLinkActivation
 } from '../../core/url-policy';
 
-describe('url-policy — href allowlist', () => {
+describe('url-policy: href allowlist', () => {
 	it.each([
 		['https://example.com', true],
 		['http://example.com', true],
 		['mailto:foo@bar.com', true],
 		['tel:+15551234', true],
+		['xmpp:foo@bar.com/home', true],
 		['/relative/path', true],
 		['#fragment', true],
 		['./rel.md', true],
@@ -41,7 +42,7 @@ describe('url-policy — href allowlist', () => {
 	});
 });
 
-describe('url-policy — defaultLinkActivation', () => {
+describe('url-policy: defaultLinkActivation', () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	it('opens allowed http(s) links in a noopener tab', () => {
@@ -50,9 +51,7 @@ describe('url-policy — defaultLinkActivation', () => {
 		expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
 	});
 
-	// Miss-analysis: the blocked arm was pinned through a console spy — the one reader the warn
-	// gate cannot see — so a bare production `console.warn` read as covered while escaping the
-	// sentinel funnel, and no case asked what a HOST learns when a link is refused.
+	// Miss-analysis: the blocked branch was checked through a console spy the warn gate cannot see.
 	it('refuses disallowed schemes (incl. control-byte obfuscation) and reports each one', () => {
 		const open = vi.spyOn(window, 'open').mockReturnValue(null);
 		const blocked: string[] = [];
@@ -65,7 +64,7 @@ describe('url-policy — defaultLinkActivation', () => {
 	});
 });
 
-describe('url-policy — image src allowlist', () => {
+describe('url-policy: image src allowlist', () => {
 	it.each([
 		['https://example.com/a.png', true],
 		['http://example.com/a.png', true],

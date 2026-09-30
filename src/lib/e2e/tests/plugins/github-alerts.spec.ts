@@ -11,7 +11,7 @@ import {
 /**
  * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with its bytes
  * untouched, editable in the body, kind-stable across edits. On `/test/plugins?seed=admonitions`
- * the seed's native alert is a `caution` (block 5); the callout dogfood owns `note`/`warning`, so a
+ * the seeded native alert is a `caution` (block 5); the callout plugin owns `note`/`warning`, so a
  * typed alert uses `tip`.
  */
 
@@ -28,13 +28,13 @@ test.describe('plugin github alerts', () => {
 		await expect(box).toHaveCount(1);
 		await expect(box).toHaveAttribute('data-title-empty', 'true');
 
-		// The badge stands in for the marker: a CSS ::after, not editable title bytes.
+		// The badge stands in for the marker: a CSS ::after, not editable title text.
 		const badge = await box
 			.locator('.admonition-title')
 			.evaluate((el) => getComputedStyle(el, '::after').content);
 		expect(badge).toContain('Caution');
 
-		// The alert block keeps its verbatim GitHub bytes — never rewritten to `:::caution`.
+		// The alert block keeps its GitHub bytes verbatim, never rewritten to `:::caution`.
 		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
 		expect((await readContainer(page, 5)).raw).toBe('> [!CAUTION]\n> Still a blockquote alert.\n');
 	});
@@ -64,8 +64,8 @@ test.describe('plugin github alerts', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
 
-		// The body block lifts out and the marker drops: no alert remains, the content is
-		// a plain block, and the bytes are never rewritten to `:::`.
+		// The body block lifts out and the marker goes: no alert remains, the content is a plain
+		// block, and the bytes are never rewritten to `:::`.
 		await waitForDoc(page, (s) => !s.kinds.includes('githubAlert'));
 		const doc = await readDoc(page);
 		expect(doc.kinds).not.toContain('githubAlert');
@@ -83,9 +83,8 @@ test.describe('plugin github alerts', () => {
 		await editor.focusBlockAtPath([0, 1], 0); // start of the second body paragraph
 		await page.keyboard.press('Backspace');
 
-		// The middle child folds into the previous body block (default-merge). The alert stays one
-		// githubAlert root with its marker intact — the merge is contained, never lifting the block
-		// out or dropping the marker.
+		// The middle child merges into the previous body block the ordinary way; the alert stays one
+		// `githubAlert` with its marker, never lifting the block out.
 		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
 		expect(alert.rootCount).toBe(1);
 		expect(alert.kind).toBe('githubAlert');
@@ -112,7 +111,7 @@ test.describe('plugin github alerts', () => {
 		expect(alert.childTexts[0]).toContain('second');
 		expect(alert.childTexts[1]).toContain('first');
 		expect(alert.raw).toContain('[!TIP]'); // the marker survived the rebuild
-		// No teleport: the surrounding document siblings keep their positions.
+		// Nothing moved: the surrounding blocks keep their positions.
 		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'githubAlert', 'paragraph']);
 		expect(await roundTripStable(page)).toBe(true);
 
@@ -124,10 +123,8 @@ test.describe('plugin github alerts', () => {
 		await editor.loadContent('Start here.\n');
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('Enter');
-		// Per keystroke, so the editor crosses the blockquote promotion at `>`, the inline
-		// recognizer's `[` rung, and the alert reclassification at `]` as distinct input events.
-		// Completing the marker forms an empty alert with the caret in its body, so the body is
-		// typed straight on — no second Enter, which would exit the quote.
+		// Typed key by key, so blockquote, inline handler and alert arrive as separate input events at
+		// `>`, `[` and `]`; the completed marker leaves the caret in the body.
 		await editor.typeSlowly('>');
 		await waitForDoc(page, (s) => s.kinds[1] === 'blockquote');
 		await editor.typeSlowly('[!TIP]');

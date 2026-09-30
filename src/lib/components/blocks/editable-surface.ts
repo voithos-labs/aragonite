@@ -1,45 +1,35 @@
 /**
- * Shared editable-surface plumbing for the core contenteditable blocks (TextEditableBlock,
- * CodeBlock, TableCellBlock) and the `editable-leaf` seam: cross-block wiring, the
- * SharedKeydownContext, the BlockComponent surface methods, the input/composition + clipboard
- * skeletons. Each consumer supplies a CursorBackend for its own coordinate system plus the input
- * commit; mutable block state crosses the seam as live thunks, never as snapshots.
+ * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring,
+ * the shared keydown context, the BlockComponent caret methods, input, composition and clipboard
+ * handling. Each block supplies a CursorBackend for its own offsets plus its input commit; state
+ * that changes is passed as functions, never as captured values.
  */
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
+import type { CaretLanding } from '../../selection/caret-landing';
 import {
 	CURSOR_EXACT_START,
 	CURSOR_START,
 	type StickyColumnDirection
 } from '../../block-component';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type {
-	BlockElLookup,
-	DocumentGetter,
-	PasteImageHook,
-	PluginEditorLookup,
-	LinkReferenceResolverRef,
-	PresentationModeGetter
-} from '../../editor-keys';
+import type { ScrollOwner } from '../../cursor/scroll-owner';
+import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
-import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
-import type { GrammarView } from '../../schema/block-openers';
+import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
+import type { NodeView } from '../../core/node-views';
+import { blockAccessibleName } from '../../a11y-strings';
+import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../cursor/edge-affinity';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import { placeCaret } from '../../selection/caret-doors';
-import {
-	asEditorX,
-	asRawOffset,
-	toClampedRawOffset,
-	toDomTextOffset,
-	type RawOffset
-} from '../../cursor/coordinate-spaces';
+import type { SelectedWidgetHandle } from '../../selection/primitives';
+import { placeCaret, selectInBlock } from '../../selection/caret-doors';
+import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
+import type { CursorBackend } from '../../cursor/surface-backend';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import { normalizeLineEndings } from '../../core/lines';
@@ -49,7 +39,13 @@ import {
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
-import { clampToLandableRaw, revealsNoMarkers } from '../../cursor/widget-offset';
+import {
+	rawOfWalkOffset,
+	revealsNoMarkers,
+	selectRawRange,
+	walkOffsetOfRaw,
+	type RawRange
+} from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import {
 	isInteractionTraceEnabled,
@@ -59,14 +55,12 @@ import {
 } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
+import type { Reading } from '../../schema/reading';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
-/**
- * Binds a surface's keydown handler so the interaction trace records ONE verdict per event,
- * after the handler's own await chain settles. That record is the e2e harness's only positive
- * signal that a gesture which must change nothing has finished. Disabled, one boolean read.
- */
+/** Records one trace decision per keydown once the handler's awaits finish: the e2e harness's
+ *  only sign that a gesture which must change nothing is done. Disabled, one boolean read. */
 export function withKeydownVerdict(
 	handle: (e: KeyboardEvent) => Promise<void>
 ): (e: KeyboardEvent) => void {
@@ -79,21 +73,37 @@ export function withKeydownVerdict(
 	};
 }
 
-/**
- * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
- * `buildRange` maps a raw-offset span to a DOM Range for selection writes.
- */
-export interface CursorBackend {
-	getRaw(): RawOffset | null;
-	setRaw(offset: RawOffset): void;
-	buildRange(start: RawOffset, end: RawOffset): Range | null;
+// ── Accessibility attributes ────────────────────────────────────────────────
+
+/** What an editable block tells assistive tech: its name, and the inline menu's list while
+ *  one shows in it. */
+export interface EditableSurfaceAttributes {
+	role: 'textbox' | 'combobox';
+	'aria-label': string;
+	'aria-expanded'?: 'true';
+	'aria-controls'?: string;
+	'aria-activedescendant'?: string;
+	'aria-autocomplete'?: 'list';
 }
 
-/**
- * Guarded pending-caret restore. Applies only while `el` still holds focus, so a blur
- * between arming the restore and the render drops it instead of yanking the global
- * selection back. Callers clear their pending field unconditionally regardless.
- */
+/** The role is `combobox` only while inline menu rows show: `textbox` carries no
+ *  `aria-expanded`, so a screen reader would hear nothing about the list. */
+export function editableSurfaceAttributes(
+	node: NodeView,
+	combobox: InlineMenuCombobox | null
+): EditableSurfaceAttributes {
+	return {
+		role: combobox ? 'combobox' : 'textbox',
+		'aria-label': blockAccessibleName(node),
+		'aria-expanded': combobox ? 'true' : undefined,
+		'aria-controls': combobox?.listboxId,
+		'aria-activedescendant': combobox?.activeOptionId,
+		'aria-autocomplete': combobox ? 'list' : undefined
+	};
+}
+
+/** Applies `pending` only while `el` still holds focus, so a blur before the render drops it
+ *  rather than pulling the selection back. The caller clears its pending field either way. */
 export function consumePendingRestore<T>(
 	el: HTMLElement | null,
 	pending: T | null,
@@ -107,20 +117,22 @@ export function consumePendingRestore<T>(
 
 export interface EditableSurfaceDeps {
 	getEl: () => HTMLElement | null;
-	/** Ambient marker length in raw units — 0 for code/cell, prose marker width for text. */
-	getAmbientLength: () => number;
 	backend: CursorBackend;
+	/** The raw range `focusAtColumn` searches, for a block whose first or last visual line takes
+	 *  no caret (a code fence); the whole block when omitted. */
+	columnWindow?: () => RawRange;
+	/** What an offset handed to `focus` or `parkCaret` becomes before it lands. It receives the
+	 *  `CURSOR_START`, `CURSOR_END` and `CURSOR_EXACT_START` values as they are. */
+	clampLanding?: (offset: number) => number;
 	/** True while an ephemeral edit (inline-math source reveal) owns the DOM: the block
 	 *  commits on exit, so keyboard input and IME compositionend both skip the commit. */
 	isInputSuppressed?: () => boolean;
 
-	// ── Live block state (thunks — never snapshot) ────────────────────────────
+	// ── Live block state (functions, never captured values) ───────────────────
 	getMyPath: () => number[];
 	getIndex: () => number;
 	getComposing: () => boolean;
 	setComposing: (value: boolean) => void;
-	getPreEditOffset: () => number;
-	setPreEditOffset: (offset: number) => void;
 	setPendingCursor: (offset: number | null) => void;
 
 	// ── Cross-block context ───────────────────────────────────────────────────
@@ -128,62 +140,53 @@ export interface EditableSurfaceDeps {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
+	/** Where a cross-block key's caret goes: a collapse, an extend's parked caret, a command's block. */
+	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
-	/** What scrolls this editor — the root in self mode, the host's scroller (or the
-	 *  window) in host mode; threaded to the cross-block drag-select autoscroll. */
+	/** What scrolls this editor (the root in self mode; the host's scroller or the window in
+	 *  host mode), for the cross-block drag-select autoscroll. */
 	getScrollHost: () => UserScrollport | null;
+	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
+	scrollOwner: Pick<ScrollOwner, 'place'>;
 	getEditorLifetime: () => AbortSignal | null;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
-	// Per-instance plugin context + command-error sink for the cross-block dispatch tier.
-	// Required (undefinable value) so a surface can't skip the thread and silently
-	// contain plugin throws.
-	pluginEditor: PluginEditorLookup | undefined;
-	/** The effective presentation mode, threaded to the cross-block reading gate — a
-	 *  sibling to `pluginEditor`, never smuggled through it. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, forwarded to the cross-block join seam. */
-	linkRef: LinkReferenceResolverRef | undefined;
-	onCommandError: CommandErrorSink | undefined;
-	/** The arm a range command routes to; forwarded to the cross-block composer. */
-	crossBlockCommands: CrossBlockCommandRouter;
-	getKeybindingOverrides: () => KeybindingOverrideMap;
+	/** How this editor reads its bytes, for the cross-block join rules, the join-paste reparse and
+	 *  the reading-mode check. */
+	reading: Reading;
+	/** The editor's command dispatch, which the keydown and cross-block handlers read. */
+	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
-	 *  Required-nullable: a surface must answer, and `undefined` means the global one. */
-	grammar: GrammarView | undefined;
 	/** The plugins this instance activated, forwarded to the paste-transform pipeline. */
 	activePlugins: PluginActivation;
-	/** The instance event surface, forwarded to the cross-block tier's clipboard
-	 *  error channel — the same `EditorServices.events` the clipboard seam takes. */
+	/** This editor's events, for the cross-block clipboard's error reports. */
 	events: EditorEvents;
+	/** The image selected whole, passed to the shift-press that grows a range from it. */
+	selectedWidget: SelectedWidgetHandle;
 
-	// ── SharedKeydownContext per-surface readers ──────────────────────────────
-	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
+	// ── The per-block reads `SharedKeydownContext` needs ──────────────────────
+	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
 	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
 
-	// ── Input skeleton (per-surface) ──────────────────────────────────────────
+	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as raw text for the input commit. */
 	readText: () => string;
-	/** Live mode's typing seat for a COMPOSITION: an IME inserts at the DOM caret and its
-	 *  beforeinput is not cancelable, so the byte relocation a keystroke takes at keydown is
-	 *  taken on this commit instead. Null keeps the read verbatim. */
+	/** Where live mode puts a composed run: an IME's beforeinput is not cancelable, so the byte
+	 *  move a keystroke gets at keydown happens at this commit. Null keeps the text as read. */
 	relocateComposedText?: (
 		after: string,
 		composedAt: number
 	) => { raw: string; caret: number } | null;
-	/**
-	 * Commit the read text to the CST. Returns the caret offset to restore when the
-	 * committed bytes differ from the DOM (a cell escaping a typed `|` to `\|`); void
-	 * keeps the DOM caret.
-	 */
-	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | void;
-	/** Extra input prelude before the shared body (text resets snap target + keystroke mark). */
+	/** Commits the read text; returns the caret to restore (a cell escapes a typed `|` to `\|`),
+	 *  void to keep the DOM caret, or null for a refused write, which puts no caret back. */
+	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | null | void;
+	/** Runs before the shared input commit (the text block resets its snap target here). */
 	inputPrelude?: () => void;
+	/** The block's own beforeinput handling, run after the surface records the pre-edit caret. */
+	handleBeforeInput?: (e: InputEvent) => unknown;
 }
 
 export interface EditableSurface {
@@ -191,20 +194,23 @@ export interface EditableSurface {
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
 	caret: ClipboardCaretIO;
-	/**
-	 * True while this surface's element is out of the document — a torn-down host, and equally a
-	 * render-primary leaf whose source is folded. Svelte's delegated walk does not await a keydown
-	 * handler, so a container above it (a list item's Tab) claims the press and unmounts the block
-	 * while a step is suspended; every awaited step asks this before reading on.
-	 */
+	/** True once this block's element has left the document. Svelte does not await a keydown
+	 *  handler, so a container can unmount the block mid-await; each awaited step checks this. */
 	isDetached(): boolean;
+	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
+	 *  caret the undo entry restores is read here. */
+	onBeforeInput: (e: InputEvent) => void;
 	onInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
+	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
+	getPreEditOffset(): number;
+	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
+	notePreEditOffset(offset: number): void;
 }
 
 /**
- * The caret door the clipboard seam borrows from its surface. `getEl` is a liveness
+ * The caret calls the shared clipboard code borrows from a block. `getEl` is a liveness
  * test: a host import hook can outlive the block that started the paste.
  */
 export interface ClipboardCaretIO {
@@ -217,7 +223,7 @@ export interface ClipboardCaretIO {
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
 	/** Required here, optional on `BlockComponent`: an editable surface is what the
-	 *  cross-block extend paths park into, so every one of them owes the door. */
+	 *  cross-block extend paths leave a caret in, so all of them go through here. */
 	parkCaret(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;
 	getCursorOffset(): number | null;
@@ -230,30 +236,24 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
-		getIndex: deps.getIndex,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
-		revealPath: deps.focusActions.revealPath,
+		caretLanding: deps.caretLanding,
+		revealPath: (path) => deps.caretLanding.mount(path),
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
+		scrollOwner: deps.scrollOwner,
 		getEditorLifetime: deps.getEditorLifetime,
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
-		history: deps.history,
-		pluginEditor: deps.pluginEditor,
-		getPresentationMode: deps.getPresentationMode,
-		linkRef: deps.linkRef,
-		onCommandError: deps.onCommandError,
-		crossBlockCommands: deps.crossBlockCommands,
-		getKeybindingOverrides: deps.getKeybindingOverrides,
+		reading: deps.reading,
+		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
-		grammar: deps.grammar,
 		activePlugins: deps.activePlugins,
 		events: deps.events,
-		getCursorOffset: () => deps.backend.getRaw(),
+		selectedWidget: deps.selectedWidget,
 		afterReactivity: () => tick()
 	});
 
@@ -262,55 +262,54 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
-		getAmbientLength: deps.getAmbientLength,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,
 		selection: deps.selection,
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		history: deps.history,
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
-		getBlockElByPath: deps.getBlockElByPath,
-		activePlugins: deps.activePlugins
+		scrollOwner: deps.scrollOwner,
+		commands: deps.commands,
+		reading: deps.reading
 	};
 
-	// ── BlockComponent surface ────────────────────────────────────────────────
+	// ── BlockComponent methods ────────────────────────────────────────────────
 
-	/**
-	 * Every caret door lands here, so every offset — sentinel or numeric — clamps into the landable
-	 * range: a seat behind a hidden marker run is a position no arrow walk produces, where the next
-	 * byte joins a construct the arrival was outside of (live-mode.md § 4.2). Where the markers
-	 * paint, the clamp is identity; CURSOR_EXACT_START is the one exception.
-	 */
+	/** Every caret placement from outside the block comes here, so offsets clamp to where a caret
+	 *  can sit (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge). */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
-		// `preventScroll`: seating a caret must not move the page — the reveal path scrolls when a
-		// target is off-screen; an implicit focus scroll jumped the document on every table edit.
+		// Placing a caret never scrolls; the caller that brings an off-screen target into view
+		// does that itself.
 		el.focus({ preventScroll: true });
-		if (offset === CURSOR_EXACT_START) {
-			deps.backend.setRaw(asRawOffset(0));
+		const landed = deps.clampLanding?.(offset) ?? offset;
+		if (landed === CURSOR_EXACT_START) {
+			deps.backend.setRaw(asRawOffset(0), { clamp: 'exact' });
 			return;
 		}
-		const requested = offset === CURSOR_START ? 0 : Math.max(0, offset);
-		deps.backend.setRaw(asRawOffset(clampToLandableRaw(el, requested, deps.getAmbientLength())));
+		const requested = landed === CURSOR_START ? 0 : Math.max(0, landed);
+		deps.backend.setRaw(asRawOffset(requested), { clamp: 'reachable' });
 	}
 
 	const focus = placeCaret(deps.selection, parkCaret);
 
-	// The vertical door resolves by PIXEL and reaches `setRaw` on its own path, so it does NOT
-	// inherit parkCaret's sentinel rule: a column landing already stops on a painted glyph.
+	// A column placement stops on a painted glyph by measuring, so it writes its offset exact.
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus({ preventScroll: true });
-		const ambientLength = deps.getAmbientLength();
-		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
-		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
-		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
-		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
+		const within = deps.columnWindow?.();
+		// The default floor of raw 0 keeps the scan out of the container's marker prefix.
+		const min = walkOffsetOfRaw(el, within?.start ?? 0);
+		const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
+		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
+		deps.backend.setRaw(rawOfWalkOffset(el, walkOffset), { clamp: 'exact' });
+		// Announced like every other placement, but without `placeCaret`'s range clear: the
+		// vertical move that gets here has already collapsed whatever range it left.
+		deps.selection.announceSelection();
 	}
 
 	function getCursorOffset(): number | null {
@@ -325,22 +324,17 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function setSelection(start: number, end: number): void {
-		if (!deps.getEl()) return;
-		const range = deps.backend.buildRange(asRawOffset(start), asRawOffset(end));
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
+		const el = deps.getEl();
+		if (el) selectInBlock(deps.selection, () => selectRawRange(el, start, end));
 	}
 
 	function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		const el = deps.getEl();
 		if (!el) return [];
-		const ambientLength = deps.getAmbientLength();
 		return measurePartialRectsInContentEditable(
 			el,
-			toDomTextOffset(asRawOffset(startOffset), ambientLength),
-			toDomTextOffset(asRawOffset(endOffset), ambientLength)
+			walkOffsetOfRaw(el, startOffset),
+			walkOffsetOfRaw(el, endOffset)
 		);
 	}
 
@@ -354,7 +348,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		measurePartialRects
 	};
 
-	// ── Input / composition skeleton ──────────────────────────────────────────
+	// ── Input and composition ─────────────────────────────────────────────────
+
+	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
+	// its start: Chromium fires the composition's own beforeinput events after that.
+	let preEditOffset = 0;
+
+	function onBeforeInput(e: InputEvent): void {
+		if (!deps.getComposing() && !e.isComposing) preEditOffset = deps.backend.getRaw() ?? 0;
+		void deps.handleBeforeInput?.(e);
+	}
 
 	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
 	 *  parameter here would be the InputEvent. */
@@ -365,39 +368,36 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function commitDomRead(fromComposition: boolean): void {
 		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
-		deps.stickyColumn.reset();
-		// The committed bytes belong to the content, whatever arrival seated the caret.
-		deps.edgeAffinity.noteTyping();
+		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
 		if (deps.getComposing() || !el) return;
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
-		// Same mode gate as the keydown seat's dispatch arms: a surface painting its delimiters
-		// keeps the read verbatim — the caret sat beside a byte the user could see.
+		// The same mode check the keydown branches make: a block that draws its delimiters
+		// keeps the reading verbatim, since the caret sat beside a byte the user could see.
 		const seated =
 			fromComposition && revealsNoMarkers(el)
-				? (deps.relocateComposedText?.(text, deps.getPreEditOffset()) ?? null)
+				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
 				: null;
 		const caret = seated?.caret ?? savedOffset;
 		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
 		// block. A commit that rewrites bytes reports the post-rewrite caret.
-		const committedCaret = deps.commitInput(seated?.raw ?? text, deps.getPreEditOffset(), caret);
-		deps.setPendingCursor(committedCaret ?? caret);
+		const committedCaret = deps.commitInput(seated?.raw ?? text, preEditOffset, caret);
+		if (committedCaret !== null) deps.setPendingCursor(committedCaret ?? caret);
 	}
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
 		traceCompositionStart();
-		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
-		deps.setPreEditOffset(deps.backend.getRaw() ?? 0);
+		// Capture before `crossBlock.handleCompositionStart()`, whose delete moves the caret.
+		preEditOffset = deps.backend.getRaw() ?? 0;
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
 	}
 
 	function onCompositionEnd(): void {
-		// onCompositionStart always arms the flag, so an unpaired end means a consumer
+		// `onCompositionStart` always sets the flag, so an unpaired end means a consumer
 		// wired compositionend without compositionstart (G1.27).
-		// TODO(#37): relax to once-per-focus if Safari's duplicate compositionend fires reach here.
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
@@ -416,60 +416,63 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		surface,
 		caret,
 		isDetached,
+		onBeforeInput,
 		onInput,
 		onCompositionStart,
-		onCompositionEnd
+		onCompositionEnd,
+		getPreEditOffset: () => preEditOffset,
+		notePreEditOffset: (offset) => {
+			preEditOffset = offset;
+		}
 	};
 }
 
-// ── Reveal fold ─────────────────────────────────────────────────────────────
+// ── Hiding a shown source ───────────────────────────────────────────────────
 
 /**
- * What folding a live source reveal hands the mutation that triggered it. A fold that
- * changes the block's KIND takes the structural path, whose completion is a promise —
- * so a mutation seam waits on `settled`, not on a tick that happens to outlast it.
+ * What hiding a shown source hands back to the edit that triggered it. A commit that changes
+ * the block's kind takes the structural path, whose completion is a promise, so an edit waits
+ * on `settled` rather than on a tick that happens to outlast it.
  */
 export interface RevealFold {
-	/** Committed caret offset — where the folded edit left the caret. */
+	/** The committed caret offset: where the edit left the caret. */
 	caret: number;
-	/** Resolves once the fold's write has landed and its render has flushed. */
+	/** Resolves once that write has landed and its render has flushed. */
 	settled: Promise<void>;
 }
 
-// ── Clipboard skeleton ──────────────────────────────────────────────────────
+// ── Clipboard ───────────────────────────────────────────────────────────────
 
 /**
- * The ordered copy / cut / paste skeleton shared by the four editable surfaces, owning the arms
- * that must stay in lockstep (reading gate, cross-block write, reveal fold, image arm) so no
- * surface can skip or resequence one. Paste prevents before its first await, or native paste fires
- * while the fold settles. Reads and writes go through the event's synchronous `clipboardData`;
- * `navigator.clipboard` is permission-gated and unreliable in Tauri's wry webview.
+ * The copy, cut and paste steps every editable block shares, in one order no block can
+ * skip or reshuffle. Paste prevents the default before its first await, or the native paste runs
+ * while a shown source hides. Everything goes through the event's synchronous `clipboardData`;
+ * `navigator.clipboard` is permission-gated and unreliable in Tauri's webview.
  */
 export interface ClipboardSurfaceDeps {
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
 	/** Reading mode: copy/cut write the visible selection string, paste is inert. */
 	isReadOnly: () => boolean;
-	/** The surface's caret door, borrowed by the image arm to anchor its insertion. */
+	/** The block's caret calls, borrowed by the image branch to anchor its insertion. */
 	caret: ClipboardCaretIO;
-	/** The instance event surface — the image arm's only channel for a host hook that
-	 *  rejects. Non-nullable so a surface cannot silently swallow a failed import. */
+	/** This editor's events: the image branch's only way to report a host hook that
+	 *  rejects. Required so a block cannot silently swallow a failed import. */
 	events: EditorEvents;
 	/** Host image-import hook from the policies context. Undefined leaves an
-	 *  image-bearing paste on the text/plain path, exactly as before the hook. */
+	 *  image-bearing paste on the text/plain path. */
 	onPasteImage: PasteImageHook | undefined;
-	/** Fold a live inline-source reveal before a cut/paste mutates, so the mutation runs
-	 *  against a CST consistent with the swapped DOM. Omit on a surface with no reveal. */
+	/** Hides a shown inline source before a cut or paste mutates, so the mutation runs against a
+	 *  CST that matches the DOM. Omit on a block that never shows source. */
 	foldReveal?: () => RevealFold | null;
-	/** Pre-cross-block copy arm (selected-widget slice, intra-table rect). True when it
+	/** The copy step before cross-block handling (a selected widget, a table rectangle). True when it
 	 *  wrote the payload and the handler should stop; owns its own preventDefault. */
 	copyPreHook?: (e: ClipboardEvent) => boolean;
-	/** Pre-cross-block cut arm (selected-widget splice, intra-table rect cut). */
+	/** The cut step before cross-block handling (a selected widget, a table rectangle). */
 	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
-	/** Pre-cross-block paste arm, handed the normalized text while a live rectangle is still
+	/** The paste step before cross-block handling, given the normalised text while a rectangle is
 	 *  readable (a grid into a table's cells). True when it consumed the paste. */
 	pastePreHook?: (text: string) => boolean | Promise<boolean>;
 	/** The intra-block copy payload; owns its preventDefault. Omit to write the
@@ -477,8 +480,8 @@ export interface ClipboardSurfaceDeps {
 	copyTail?: (e: ClipboardEvent) => void;
 	/** The intra-block cut: a synchronous clipboardData write, then the CST delete. */
 	cutTail: (e: ClipboardEvent) => void | Promise<void>;
-	/** The intra-block paste after normalize: the surface's splice/dispatch, handed
-	 *  the normalized text and the reveal-fold landing caret. */
+	/** The intra-block paste, handed the normalized text and the caret left by hiding a shown
+	 *  source. */
 	pasteTail: (pastedText: string, foldedCaret: number | null) => void | Promise<void>;
 }
 
@@ -486,12 +489,9 @@ export interface ClipboardHandlers {
 	onCopy(e: ClipboardEvent): void;
 	onCut(e: ClipboardEvent): Promise<void>;
 	onPaste(e: ClipboardEvent): Promise<void>;
-	/**
-	 * Insert `md` exactly as pasting it here would, minus the clipboard — the surface half of
-	 * `EditorInstance.insertMarkdown`. True means the pipeline took the text, not that its
-	 * commit has flushed; the synchronous declines are reading mode and an empty payload.
-	 */
-	insertMarkdown(md: string): boolean;
+	/** Insert `md` as pasting it here would, for `EditorInstance.insertMarkdown`. Resolves once
+	 *  the paste lands; false in reading mode or for an empty payload. */
+	insertMarkdown(md: string): Promise<boolean>;
 }
 
 export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
@@ -502,15 +502,14 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		crossBlock: deps.crossBlock
 	});
 
-	// Reading mode / plain-text surfaces copy what the reader sees — the native
-	// selection string, which drops the CSS-hidden markers — not a raw slice.
+	// Reading mode and plain-text blocks copy what the user sees, which is the browser's
+	// selection string with the CSS-hidden markers dropped, not a slice of the raw.
 	const writeVisibleSelection = (e: ClipboardEvent): void => {
 		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 	};
 
 	function onCopy(e: ClipboardEvent): void {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		if (deps.isReadOnly()) {
 			e.preventDefault();
 			writeVisibleSelection(e);
@@ -527,8 +526,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		e.preventDefault();
 		if (deps.isReadOnly()) {
 			onCopy(e);
@@ -543,7 +541,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function onPaste(e: ClipboardEvent): Promise<void> {
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
-		// Both reads stay above the fold's settle — see the discipline above.
+		// Read `clipboardData` before the first await, while the event still holds it.
 		const images = imageArm.filesOf(e.clipboardData);
 		if (images.length === 0) {
 			await insertPastedText(normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? ''), e);
@@ -551,46 +549,37 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		}
 		const fold = deps.foldReveal?.() ?? null;
 		await fold?.settled;
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
 	}
 
-	/**
-	 * Everything a paste does once its payload is plain text, so the gesture and the
-	 * programmatic door carry the fold, the cross-block replace and the surface splice from
-	 * one place. `e` is null when there is no gesture to consume.
-	 */
+	/** Everything a plain-text paste does, shared by the gesture and the API call; `e` is null
+	 *  when there is no gesture to consume. */
 	async function insertPastedText(text: string, e: ClipboardEvent | null): Promise<void> {
 		const fold = deps.foldReveal?.() ?? null;
 		await fold?.settled;
 		if (text && deps.pastePreHook && (await deps.pastePreHook(text))) return;
 		if (await deps.crossBlock.handlePaste(e, text)) return;
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		if (!text) return;
 		await deps.pasteTail(text, fold?.caret ?? null);
 	}
 
-	function insertMarkdown(md: string): boolean {
+	async function insertMarkdown(md: string): Promise<boolean> {
 		if (deps.isReadOnly()) return false;
 		const text = normalizeLineEndings(md);
 		if (!text) return false;
-		void insertPastedText(text, null);
+		await insertPastedText(text, null);
 		return true;
 	}
 
 	return { onCopy, onCut, onPaste, insertMarkdown };
 }
 
-// ── Image-paste arm ─────────────────────────────────────────────────────────
+// ── Pasting an image ────────────────────────────────────────────────────────
 
-/**
- * The surface's half of the image arm — what the shared seam
- * (`components/paste-image-arm.ts`) cannot do, because it needs a caret. The anchor is
- * captured before the first await, so a slow import cannot follow a caret the user
- * moved meanwhile.
- */
+/** The part of an image paste that needs a caret. The anchor is read before the first await, so
+ *  a slow import cannot follow a caret the user moved meanwhile. */
 async function pasteImages(
 	deps: ClipboardSurfaceDeps,
 	imageArm: ImagePasteArm,
@@ -602,16 +591,15 @@ async function pasteImages(
 	const text = await imageArm.run(e, images);
 	if (text === null) return;
 	// A hook slow enough to outlive its block leaves nothing to insert into, and the
-	// surface tails would fall back to offset 0. Decline, loudly.
+	// paste tails would fall back to offset 0. Decline, loudly.
 	if (!deps.caret.getEl()) {
 		emitClipboardError(deps.events, {
 			error: new Error('onPasteImage resolved after its block was gone; insertion declined')
 		});
 		return;
 	}
-	// Re-seat ONLY when the caret actually drifted: seating collapses the DOM range that
-	// every surface tail derives its replaced span from, so seating unconditionally would
-	// make this the one paste route that doesn't replace the selection it landed on.
+	// Move the caret only if it drifted: placing one collapses the DOM range the block reads its
+	// replaced span from, and this paste would stop replacing the selection.
 	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
 	await deps.pasteTail(text, foldedCaret);
 }

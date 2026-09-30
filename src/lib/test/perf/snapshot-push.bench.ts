@@ -1,8 +1,8 @@
-// Pins that a push costs O(top-level children), not O(all nodes), over the real
-// controller path. Vitest sets DEV so every push also computes the integrity digest
-// that production skips; the digestDoc rows isolate it (production ≈ push − digest).
-// The stack saturates at MAX_UNDO during sampling, so means report steady-state
-// long-session behavior rather than first-push behavior.
+// Checks that a push costs O(top-level children), not O(all nodes), over the real controller
+// path. Vitest sets `DEV`, so every push also computes the integrity digest production skips;
+// the `digestDoc` rows separate it out (production is about push minus digest).
+// The stack fills to `MAX_UNDO` during sampling, so the means report what a long session
+// costs rather than what the first push costs.
 import { describe, test } from 'vitest';
 import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { parse } from '../../core/parser';
@@ -26,11 +26,13 @@ for (const shape of SHAPES) {
 		return { label, opts, doc: harness.doc, controller: createUndoController(harness.deps) };
 	});
 
-	describe(`pushUndoSnapshot ${shape}`, () => {
+	describe(`snapshot push ${shape}`, () => {
 		for (const { label, opts, controller } of cells) {
 			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 				await bench(label, () => {
-					controller.pushUndoSnapshot(0, 0);
+					// The typing push, flushed so the next keystroke pushes again.
+					controller.pushUndoSnapshotDebounced([0], 0);
+					controller.flushDebouncedCheckpoint();
 				}).run({ warmupIterations: 1, ...opts });
 			});
 		}

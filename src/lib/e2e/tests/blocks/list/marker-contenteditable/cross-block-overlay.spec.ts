@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — cross-block selection overlay edge', () => {
+test.describe('list marker: cross-block selection overlay edge', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe('list marker — cross-block selection overlay edge', () => {
 		await editor.goto();
 	});
 
-	test('C1: cross-block selection ending in list item — overlay starts at content edge, not marker edge', async () => {
+	test('C1: cross-block selection ending in list item; overlay starts at content edge, not marker edge', async () => {
 		await editor.loadContent('Before.\n\n- Hello\n');
 		const before = editor.page.locator('[contenteditable="true"]', { hasText: 'Before' });
 		await before.click();
@@ -32,9 +32,8 @@ test.describe('list marker — cross-block selection overlay edge', () => {
 		const overlayCount = await overlays.count();
 		expect(overlayCount).toBeGreaterThan(0);
 
-		// No overlay rect may bleed left of the marker's right edge: measurePartialRects(0, n)
-		// emitted DOM offset 0 and painted over the marker before raw offset 0 translated to DOM
-		// offset = ambientLength.
+		// No overlay rect may spill left of the marker: raw offset 0 must translate to the DOM
+		// offset past it, or `measurePartialRects(0, n)` paints over the marker.
 		for (let i = 0; i < overlayCount; i++) {
 			const box = await overlays.nth(i).boundingBox();
 			if (!box) continue;

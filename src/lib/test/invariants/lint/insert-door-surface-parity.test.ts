@@ -1,18 +1,16 @@
 /**
- * G4.38 — every editable surface publishes the programmatic insertion door. The shared
- * clipboard skeleton mints `insertMarkdown` for all of them, but Svelte 5 instance exports
- * have no spread, so the last hop is hand-written per component and `BlockComponent` declares
- * it optional — surface N+1 would compile fine and silently decline every `editor.insertMarkdown`.
- * Two channels deliver it, and the census reads whichever one the component actually uses: an
- * instance export, or the surface literal it hands `publishRefSlot` (GH #148).
+ * Every editable block publishes `insertMarkdown` (G4.38). Svelte 5 instance exports cannot be
+ * spread and `BlockComponent` declares the member optional, so a block missing it would compile
+ * and quietly ignore every `editor.insertMarkdown`. The scan reads whichever route the component
+ * uses: an instance export, or the object it hands `publishRefSlot`.
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 
-/** A component owning an editable surface: the two factories that mint one. */
+/** A component owning an editable element: the two factories that create one. */
 const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
 
-/** The exported hop — an instance export, not a mention. */
+/** The exported step: an instance export, not a mention. */
 const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+insertMarkdown\b/;
 
 const RULE =
@@ -26,39 +24,24 @@ function surfaceComponents(): Array<{ relPath: string; code: string }> {
 		.sort((a, b) => a.relPath.localeCompare(b.relPath));
 }
 
-// ── The published-literal channel ────────────────────────────────────────
+// ── The published-object route ───────────────────────────────────────────
 
-/**
- * Members of the surface literal a component hands `publishRefSlot`, or null where it publishes
- * no such literal. Tied to the published argument by NAME: a literal nothing publishes is the
- * decoy an instance export with no reader already was.
- */
+/** Members of the object a component hands `publishRefSlot`, or null where it publishes none.
+ *  Matched to the published argument by name, since an object nothing publishes doesn't count. */
 function publishedSurfaceMembers(code: string): string[] | null {
-	const at = code.search(/\bsatisfies\s+BlockComponent\b/);
-	if (at < 0) return null;
-	const close = code.lastIndexOf('}', at);
-	if (close < 0) return null;
-
-	let depth = 0;
-	let open = -1;
-	for (let i = close; i >= 0; i--) {
-		if (code[i] === '}') depth += 1;
-		else if (code[i] === '{' && --depth === 0) {
-			open = i;
-			break;
-		}
+	for (const declared of code.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)) {
+		const open = declared.index + declared[0].length - 1;
+		const literal = balancedRegion(code, open);
+		if (literal === null) continue;
+		if (!/^\s*satisfies\s+BlockComponent\b/.test(code.slice(open + literal.length))) continue;
+		const name = new RegExp(String.raw`\b${declared[1]}\b`);
+		if (!callsTo(code, 'publishRefSlot').some((args) => name.test(args))) return null;
+		return callArguments(literal.slice(1, -1)).flatMap((member) => {
+			const key = /^([A-Za-z_$][\w$]*)\s*(?::|\(|$)/.exec(member);
+			return key ? [key[1]] : [];
+		});
 	}
-	if (open < 0) return null;
-
-	const declared = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, open));
-	if (!declared) return null;
-	if (!new RegExp(String.raw`publishRefSlot\s*\([^)]*\b${declared[1]}\b`).test(code)) return null;
-
-	return code
-		.slice(open + 1, close)
-		.split(/[,\n]/)
-		.map((entry) => entry.split(':')[0].trim())
-		.filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+	return null;
 }
 
 function publishesDoor(code: string): boolean {
@@ -66,7 +49,7 @@ function publishesDoor(code: string): boolean {
 	return published ? published.includes('insertMarkdown') : PUBLISHES_DOOR_RE.test(code);
 }
 
-describe('G4.38 insertion-door surface parity', () => {
+describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
 
 	it('found the editable-surface components to inspect', () => {
@@ -78,8 +61,8 @@ describe('G4.38 insertion-door surface parity', () => {
 		expect(silent, RULE).toEqual([]);
 	});
 
-	// The cell is the whole literal-channel population, and the arm that would go vacuous first:
-	// losing it leaves the census scanning exports only, which is the blind spot #148 named.
+	// The cell is the only component on the published-object route, so losing it would leave this
+	// scan reading instance exports alone.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
 		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();
@@ -120,6 +103,14 @@ describe('G4.38 insertion-door surface parity', () => {
 			'measurePartialRects',
 			'insertMarkdown'
 		]);
+	});
+
+	it('the literal reader reads past a brace inside a string member', () => {
+		const src = [
+			"const self = { label: '}', focus, insertMarkdown } satisfies BlockComponent;",
+			'return publishRefSlot(slots, index, self);'
+		].join('\n');
+		expect(publishedSurfaceMembers(src)).toEqual(['label', 'focus', 'insertMarkdown']);
 	});
 
 	it('a literal nothing publishes is not a channel', () => {

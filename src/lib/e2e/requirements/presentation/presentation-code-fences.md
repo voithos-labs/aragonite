@@ -1,10 +1,10 @@
 # Feature: fenced-code fence lines across presentation modes
 
 The code renderer wraps each fence line (opener, closer) in a `.md-fence-line`
-element so presentation modes collapse the whole line — the marker span AND its
-line's `\n` — with `display: none`. Without the wrapper the marker spans hide but
-their bare `\n` text nodes stay in flow, painting a blank line at the code box's
-top and bottom. Bytes are hidden, never omitted: the fence text stays in the
+element so presentation modes collapse the whole line, both the marker span and
+its line's `\n`, with `display: none`. Without the wrapper the marker spans hide
+but their bare `\n` text nodes stay in flow, painting a blank line at the code
+box's top and bottom. Bytes are hidden, never omitted: the fence text stays in the
 block's textContent (the coordinate-space contract). Driven on `/test/editor` via
 the header presentation toggles (real clicks); heights are read from the rendered
 `.code-block` box.
@@ -15,10 +15,10 @@ the header presentation toggles (real clicks); heights are read from the rendere
   line-heights versus source (opener + closer gone), leaving no blank line at the
   box's top or bottom
 - both `.md-fence-line` wrappers compute `display: none` in reading mode
-- preview-block: an unfocused code block hides its fence lines; focusing it
-  reveals them and the box grows back
-- preview-inline: code fences are whole-block markers, so focusing reveals them
-  exactly as preview-block (and the box grows)
+- preview-block: an unfocused code block hides its fence lines; focusing it shows
+  them and the box grows back
+- preview-inline: code fences are whole-block markers, so focusing shows them
+  exactly as preview-block does (and the box grows)
 
 ## Edge cases
 
@@ -27,8 +27,9 @@ the header presentation toggles (real clicks); heights are read from the rendere
 - blurring the code block (focusing another block) hides the fence lines again and
   the box shrinks back
 - an all-blank body (only blank lines) keeps every blank line in reading mode: its
-  box is as tall as an equal-count content body, N blank lines rendering as N — the
-  closer wrapper steals no separator when the body has no content line
+  box is as tall as a body with the same number of content lines, N blank lines
+  rendering as N, because the closing fence's wrapper steals no separator when the
+  body has no content line
 
 ## Error cases
 

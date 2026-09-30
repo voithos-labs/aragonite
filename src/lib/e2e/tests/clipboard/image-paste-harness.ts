@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 
 /**
  * A real image cannot be written to the system clipboard from a spec, so these dispatch a
- * synthetic `paste` carrying real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
+ * synthetic `paste` carrying real `File`s: the same `onPaste` entry a user's Ctrl+V reaches.
  * Caret placement, selection, undo and typing stay real user actions.
  */
 
@@ -44,7 +44,7 @@ export async function gotoWithHook(page: Page): Promise<EditorPage> {
 
 /**
  * `at` picks the landing element: `'focused'` is the ordinary Ctrl+V, `'body'` stands in for
- * Chromium's retarget when the cross-block focus endpoint hosts no caret to park in.
+ * Chromium's retarget when the cross-block focus endpoint has nowhere to put a caret.
  */
 export async function pasteFiles(
 	page: Page,

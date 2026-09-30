@@ -3,10 +3,9 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, extendTo, landAt } from './helpers';
 
-// A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
-// paints: a caret can land on it and a typed byte seats after it. A destructive key at the block's
-// own structure follows the mode; one at an inline construct follows the paint. The oracles are
-// the source bytes (which side a typed byte landed on) and the marker's computed display.
+// A block whose only bytes are its own markers has no content to stand behind them, so they paint:
+// a caret can land on them and a typed byte goes after them. A destructive key at the block's own
+// structure follows the mode; one at an inline construct follows what is painted.
 // Requirements: e2e/requirements/presentation/presentation-live-opener-typing.md.
 
 const OPENER = 0;
@@ -18,23 +17,23 @@ const LOADED = ['#', '', '```', '```', '', 'para'].join('\n') + '\n';
 /** The empty fence alone at the top, the shape the language-chip spec drives the same way. */
 const EMPTY_FENCE_FIRST = ['```', '```', '', 'para'].join('\n') + '\n';
 
-/** A link with no text: five painted bytes, none of which any rung may treat as unseen. */
+/** A link with no text: five painted bytes, which no mode may treat as unseen. */
 const EMPTY_LINK = '[](u)\n';
 
-/** The same five bytes above a plain paragraph, so the join has a seam to cross. */
+/** The same five bytes above a plain paragraph, so the join has a boundary to cross. */
 const PAINTED_LINK_DOC = ['[](u)', '', 'para'].join('\n') + '\n';
 
-/** Between `]` and `(` — inside the painted chrome, where each rewrite has a claim to decline. */
+/** Between `]` and `(`, inside the painted markers, where each rewrite could decline. */
 const MID_CHROME = 2;
 
-/** The same chrome inside a construct the two cut seams DO open. All nine bytes paint, and the
- *  caret reaches offset 2 only because they do. */
+/** The same markers inside a construct that both cut paths do open. All nine bytes paint, and
+ *  the caret reaches offset 2 only because they do. */
 const WRAPPED_DOC = ['**[](u)**', '', 'para'].join('\n') + '\n';
 
 /** Between the outer pair and the inner one. */
 const INSIDE_PAIR = 2;
 
-/** An empty paragraph below a settled one, minted by the gesture that mints it in use. */
+/** An empty paragraph below an existing one, made by the gesture that makes it in real use. */
 async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Promise<EditorPage> {
 	const ep = await enterPresentationMode(page, mode, 'lorem\n');
 	await clickBlockSettled(ep, OPENER);
@@ -45,7 +44,7 @@ async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Pro
 	return ep;
 }
 
-/** Settle on the typed bytes having landed — WHERE they landed is the assertion. */
+/** Wait for the typed bytes to land; where they landed is the assertion. */
 async function typeSettled(ep: EditorPage, page: Page, text: string): Promise<void> {
 	for (const ch of text) {
 		const before = await ep.bridge.getSource();
@@ -58,14 +57,17 @@ async function typeSettled(ep: EditorPage, page: Page, text: string): Promise<vo
 const markerOf = (ep: EditorPage, index: number) =>
 	ep.getBlock(index).locator('.md-marker').first();
 
-test.describe('live mode — a typed block opener paints until it has content', () => {
-	test('typing `#` paints the marker the keystroke just minted', async ({ page }) => {
+test.describe('live mode: a typed block opener paints until it has content', () => {
+	test('typing `#` paints the marker the keystroke just created', async ({ page }) => {
 		const ep = await emptyBlockBelow(page, 'live');
 
 		await typeSettled(ep, page, '#');
 
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+		// The h1 type waits for the space, since `#` also starts `#tag`, and a line jumping to h1 size
+		// for one keystroke reads as the editor fighting the tag.
+		await expect(ep.getBlock(TYPED)).toHaveClass(/paragraph-block/);
 	});
 
 	test('the next letter lands after the painted marker, not in front of it', async ({ page }) => {
@@ -88,6 +90,7 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		expect(await ep.bridge.getSource()).toContain('# ');
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+		await expect(ep.getBlock(TYPED)).toHaveClass(/heading-1/);
 
 		await typeSettled(ep, page, 'a');
 		expect(await ep.bridge.getSource()).toContain('# a');
@@ -100,16 +103,15 @@ test.describe('live mode — a typed block opener paints until it has content', 
 	}) => {
 		const ep = await emptyBlockBelow(page, 'live');
 
-		// Not `typeSettled`: the second backtick steps over the twin the first one closed itself
-		// with (delimiter-autopair), so that keystroke changes no byte to settle on.
+		// Not `typeSettled`: the second backtick steps over the one auto-pairing added after the
+		// first, so that keystroke changes no byte to wait on.
 		await page.keyboard.type('```');
 		await ep.bridge.waitForSourceContains('```');
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('fencedCode');
 
-		// The completed fence offers its language picker; Enter writes the info string and
-		// returns the caret to the body. A fence with a body line to sit on keeps its
-		// backticks hidden, so the typed byte is the proof of where the caret went.
+		// The completed fence offers its language picker; Enter writes the info string and returns the
+		// caret to the body, whose hidden backticks leave the typed byte as the proof.
 		const picker = page.locator('.code-lang-picker input');
 		await expect(picker).toBeVisible();
 		await page.keyboard.type('js');
@@ -120,8 +122,8 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		await ep.bridge.waitForSourceContains('```js\nX');
 	});
 
-	// The demote arm reads the walk's landable bound, so painting the chrome makes the press
-	// the marker-byte delete source mode has always performed.
+	// The demote reads the first offset the caret can reach, so painting the markers turns this
+	// key into the marker-byte delete that source mode performs.
 	test('Backspace inside a painted `# ` takes the marker byte and does not demote', async ({
 		page
 	}) => {
@@ -136,9 +138,8 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
 	});
 
-	// The other end of the same press: raw 0 is reachable once the chrome paints, and there one
-	// press drops the construct rather than merging upward — a live-only outcome, since source
-	// mode at raw 0 is a dead key today.
+	// Raw 0 is reachable once the markers paint, and one Backspace there drops the construct rather
+	// than merging upward; live only, since source mode does nothing at raw 0.
 	test('Backspace at the start of a painted `# ` drops the construct in one press', async ({
 		page
 	}) => {
@@ -158,10 +159,32 @@ test.describe('live mode — a typed block opener paints until it has content', 
 	});
 });
 
-test.describe('loaded openers — the paint half needs no typing', () => {
-	// A content-empty opener is silent until the caret arrives: an unfocused bare `#` or empty
-	// fence shows nothing. Focusing the heading paints its marker; focusing the empty fence
-	// completes it with a body line and offers the language picker instead of painting.
+// A focused empty heading paints its markers, so a key typed on them lands where the caret is,
+// the way source mode writes it.
+test.describe('live mode: a key typed on a painted empty heading lands at the caret', () => {
+	for (const [source, path, keys, key, written] of [
+		['# \n\nnext\n', [0], ['Home'], '#', '## \n\nnext\n'],
+		['> ## \n\nnext\n', [0, 0], ['Home'], '#', '> ### \n\nnext\n'],
+		['#  #\n\nnext\n', [0], ['Home'], '#', '##  #\n\nnext\n'],
+		['#\n\nnext\n', [0], ['Home'], 'a', 'a#\n\nnext\n'],
+		['# \n\nnext\n', [0], ['End', 'ArrowLeft'], 'x', '#x \n\nnext\n']
+	] as const) {
+		test(`${JSON.stringify(source)}, ${keys.join(' ')}, then ${JSON.stringify(key)}`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.focusBlockAtPath([...path], 0);
+			for (const k of keys) await page.keyboard.press(k);
+			await ep.waitForRenderFlush();
+			await page.keyboard.type(key);
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+});
+
+test.describe('loaded openers: the paint half needs no typing', () => {
+	// An unfocused bare `#` or empty fence shows nothing. Focusing the heading paints its marker;
+	// focusing the empty fence completes it with a body line and offers the language picker.
 	test('live paints a bare heading and an empty fence once the caret arrives', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', LOADED);
 
@@ -173,8 +196,8 @@ test.describe('loaded openers — the paint half needs no typing', () => {
 		await ep.clickBlock(OPENER);
 		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
 
-		// The empty fence stands first in its own document, where its collapsed box is what
-		// the pointer reaches: the rail mounts on hover, and the click completes the fence.
+		// The empty fence stands first in its own document, where its collapsed box is what the
+		// pointer reaches: the side gutter mounts on hover, and the click completes the fence.
 		const fence = await enterPresentationMode(page, 'live', EMPTY_FENCE_FIRST);
 		await fence.getBlock(0).hover();
 		await fence.clickBlock(0);
@@ -205,11 +228,10 @@ test.describe('loaded openers — the paint half needs no typing', () => {
 	});
 });
 
-// The two rungs run the same three gestures: where every byte is on screen, live owes source
-// parity, and the assertion is the whole source rather than a substring — `[](u` sits inside
-// `[](u)`, so only equality distinguishes one byte gone from none.
+// Where every byte is on screen live must match source, compared on the whole source: `[](u`
+// sits inside `[](u)`, and only equality tells one byte gone from none.
 for (const mode of ['live', 'source'] as const) {
-	test.describe(`painted inline chrome — ${mode} takes what the reader aimed at`, () => {
+	test.describe(`painted inline chrome: ${mode} takes what the reader aimed at`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -250,12 +272,11 @@ for (const mode of ['live', 'source'] as const) {
 	});
 }
 
-// The other four live rewrites reach the same block. Each is correct today only because the
-// oracle's answer cancels against its own check, so these pin the outcomes rather than the
-// reasoning: a rewrite that starts reading painted bytes as unseen moves one of them.
+// The other four live rewrites reach the same block, each correct only because its answer cancels
+// its own check, so these check the outcomes: reading painted bytes as unseen moves one.
 const CARD = '[data-link-card]';
 
-test.describe('painted inline chrome — the live rewrites leave what the reader sees alone', () => {
+test.describe('painted inline chrome: the live rewrites leave what the reader sees alone', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -291,9 +312,9 @@ test.describe('painted inline chrome — the live rewrites leave what the reader
 	});
 });
 
-// A construct WRAPPING content-empty chrome paints its own delimiters too, so the two seams that
-// rewrite across a cut meet a painted pair where they are used to a hidden one.
-test.describe('painted chrome inside a construct the cut seams open', () => {
+// A construct wrapping empty markers paints its own delimiters too, so the two paths that
+// rewrite across a cut meet a painted pair where they usually meet a hidden one.
+test.describe('painted chrome inside a construct the cut leaves open', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

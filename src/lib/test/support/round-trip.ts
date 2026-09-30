@@ -22,7 +22,7 @@ export function roundTripCases(cases: RoundTripCase[]): void {
 	}
 }
 
-/** `roundTripCases` in its own `describe(title)` — the drop-in for a loop that owns one. */
+/** `roundTripCases` in its own `describe(title)`: the drop-in for a loop that owns one. */
 export function describeRoundTrips(title: string, cases: RoundTripCase[]): void {
 	describe(title, () => {
 		roundTripCases(cases);

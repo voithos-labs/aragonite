@@ -1,6 +1,6 @@
 <script lang="ts">
-	// Plain-mode editable leaf: every editing behavior lives in `createEditableLeaf`, and
-	// spreading `leaf.surfaceProps` wires the whole source surface.
+	// A plain-mode editable leaf: every editing behavior lives in `createEditableLeaf`, and
+	// spreading `leaf.surfaceProps` sets up the whole editable element.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -27,8 +27,8 @@
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
+	export const afterSourceCommit = leaf.afterSourceCommit;
 
 	void ({
 		editable,
@@ -40,12 +40,12 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		runCommand,
-		insertMarkdown
+		insertMarkdown,
+		afterSourceCommit
 	} satisfies BlockComponent);
 </script>
 
-<!-- The leaf-tier reference wiring: one spread carries every handler, attribute, and
+<!-- The reference wiring for a leaf: one spread supplies every handler, attribute and
 	attachment a plain leaf's always-mounted source needs. -->
 <div bind:this={el} {...leaf.surfaceProps} class="memo-block" aria-label="Memo"></div>
 

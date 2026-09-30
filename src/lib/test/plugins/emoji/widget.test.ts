@@ -1,18 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { InlineNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
 
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
-
-// The decoded-entity mold: a `[data-inline-widget]` island whose text is the glyph
-// and whose source bytes ride `data-source-*`, so the raw-aware walk reads `:smile:`
-// back while the DOM shows 😄.
-describe('buildEmojiWidget — atomic island shell', () => {
-	it('stamps the widget marker, source span, and the glyph', () => {
+// Shaped like a decoded entity: the glyph as text and the source bytes on `data-source-*`, so
+// the DOM-to-offset traversal reads `:smile:` back while the DOM shows 😄.
+describe('buildEmojiWidget: atomic widget shell', () => {
+	it('marks the widget marker, source span, and the glyph', () => {
 		const node: InlineNode = {
 			kind: EMOJI_KIND as InlineNode['kind'],
 			start: 2,
@@ -31,10 +27,10 @@ describe('buildEmojiWidget — atomic island shell', () => {
 describe('emoji widget registration', () => {
 	beforeEach(() => registerEmoji());
 
-	// Atomic delete + step-over is what makes a caret-adjacent Backspace remove the
-	// whole reference in one press and a plain arrow walk across it like a character.
+	// Atomic delete plus step-over is what makes a Backspace beside it remove the whole
+	// shortcode at once and a plain arrow move across it as if it were one character.
 	it('registers the atomic, step-over editing policy', () => {
-		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'])).toEqual({
+		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'], defaultGrammarView)).toEqual({
 			deleteGranularity: 'atomic',
 			onEdge: 'step-over'
 		});

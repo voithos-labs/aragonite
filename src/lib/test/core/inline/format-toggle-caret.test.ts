@@ -24,6 +24,12 @@ describe.each(MARK_FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (for
 		expect(at('word', 4).newDisplay).toBe(`word${markers}${markers}`);
 	});
 
+	// The editor has no word-boundary rule anywhere, so a caret inside a word marks nothing
+	// around it.
+	it('inserts at a mid-word caret rather than marking the word around it', () => {
+		expect(at('wordy', 2).newDisplay).toBe(`wo${markers}${markers}rdy`);
+	});
+
 	it('removes the empty pair on a second press, restoring the caret', () => {
 		const first = at('ab', 1);
 		const second = at(first.newDisplay, first.newSelStart);
@@ -64,9 +70,8 @@ describe('toggleInlineFormat at a collapsed caret', () => {
 		expect(r.newSelStart).toBe(5);
 	});
 
-	// The removal is the exact inverse of this seam's own insert, so the pair has to be a run of its
-	// own. A marker character abutting it means these bytes are something the user wrote, and every
-	// mode this arm is reachable from paints them — live forks to pending marks before it.
+	// The removal is the exact inverse of the toggle's own insert, so the pair has to stand alone:
+	// a marker character next to it means the user wrote these bytes.
 	it('declines the pair removal when a shorter delimiter sits inside a longer run', () => {
 		const raw = 'a****b';
 		const r = toggleFormat(

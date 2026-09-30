@@ -1,22 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from '../invariants/lint/scan-source';
 
 // Drift guard: every export of the two published author barrels must appear in the docs pack,
 // so a new export can't ship undocumented. Names match in backtick form, so incidental prose
-// cannot stand in for an entry. Each section is keyed by its heading, which makes the heading
-// load-bearing: rename it in both.
+// cannot stand in for an entry. Each section is found by its heading, so the heading matters:
+// rename it in both.
 const CATALOG_DOC = 'docs/guide/plugin-api.md';
 const CATALOG_HEADING = '\n## API reference';
-// `@voithos-labs/aragonite/testing` has no catalog table of its own — its section IS the catalog, and only
-// its callables are enrolled; the kits' report types are read off the calls that return them.
+// `@voithos-labs/aragonite/testing` has no catalog table: its section is the catalog, only its
+// callables are enrolled, and the kits' report types are read off the calls that return them.
 const TESTING_DOC = 'docs/guide/plugin-testing.md';
 const TESTING_HEADING = '\n## Verifying your plugin';
 
 function barrelExports(relPath: string, valuesOnly = false): string[] {
-	const src = readFileSync(path.resolve(relPath), 'utf8')
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/\/\/.*$/gm, '');
+	const src = readSource(relPath).code;
 	const names = new Set<string>();
 	for (const [, typeKeyword, body] of src.matchAll(/export\s+(type\s+)?\{([^}]*)\}/g)) {
 		if (valuesOnly && typeKeyword) continue;
@@ -46,11 +45,8 @@ function guideSection(doc: string, heading: string): string {
 	return text.split(heading)[1]?.split('\n## ')[0] ?? '';
 }
 
-/**
- * A catalog cell names an export bare (`` `foo` ``); the prose-shaped testing section also
- * accepts a call (`` `foo(text)` ``). The catalog arm keeps the strict form, which is what
- * stops incidental prose from standing in for a table row.
- */
+/** A catalog cell names an export bare (`` `foo` ``), which keeps incidental prose from standing
+ *  in for a row; the prose-shaped testing section also accepts a call (`` `foo(text)` ``). */
 const undocumented = (names: string[], text: string, allowCallForm = false) =>
 	names.filter((n) => !text.includes(`\`${n}\``) && !(allowCallForm && text.includes(`\`${n}(`)));
 
@@ -70,7 +66,7 @@ describe('plugin-api § API reference catalogs the whole aragonite/plugin surfac
 		expect(undocumented(exportNames, section)).toEqual([]);
 	});
 
-	it('is not vacuous — a dropped catalog entry is detected', () => {
+	it('is not vacuous: a dropped catalog entry is detected', () => {
 		const withoutOne = section.replaceAll('`createContainerBlock`', '`__dropped__`');
 		expect(undocumented(exportNames, withoutOne)).toEqual(['createContainerBlock']);
 	});
@@ -92,7 +88,7 @@ describe('plugin-testing § Verifying your plugin names every aragonite/testing 
 		expect(undocumented(exportNames, section, true)).toEqual([]);
 	});
 
-	it('is not vacuous — a dropped mention is detected', () => {
+	it('is not vacuous: a dropped mention is detected', () => {
 		const withoutOne = section.replaceAll('applyPasteTransforms', '__dropped__');
 		expect(undocumented(exportNames, withoutOne, true)).toEqual(['applyPasteTransforms']);
 	});

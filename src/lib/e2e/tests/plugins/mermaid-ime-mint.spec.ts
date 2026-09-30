@@ -3,7 +3,7 @@ import { readDoc, waitForDoc } from './helpers';
 import { attachIme } from '../../simulation/ime';
 import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
-// Requirements: e2e/requirements/plugins/mermaid-ime-mint.md.
+// Requirements: `e2e/requirements/plugins/mermaid-ime-mint.md`.
 
 class MermaidImePage extends MermaidPage {
 	async focusDiagram(): Promise<void> {
@@ -12,7 +12,7 @@ class MermaidImePage extends MermaidPage {
 	}
 }
 
-test.describe('mermaid whole-block focus — AltGr and IME input', () => {
+test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 	let editor: MermaidImePage;
 
 	test.beforeEach(async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
-	test('an AltGr-shaped insert of `€` mints a paragraph below, leaving the diagram intact', async ({
+	test('an AltGr-shaped insert of `€` creates a paragraph below, leaving the diagram intact', async ({
 		page
 	}) => {
 		await editor.focusDiagram();
@@ -35,7 +35,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect(doc.texts[1]).toContain('graph TD');
 	});
 
-	test('a committed composition mints the composed text below', async ({ page }) => {
+	test('a committed composition creates the composed text below', async ({ page }) => {
 		await editor.focusDiagram();
 		const ime = await attachIme(page);
 
@@ -46,9 +46,9 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('日本');
 	});
 
-	// The declared surface is replaced on every redraw, which is why the host lives in the box:
-	// anything mounted in the viewport would die here.
-	test('the host survives a redraw and still mints', async ({ page }) => {
+	// The element the plugin declares is replaced on every redraw, which is why the element that
+	// takes focus sits in the frame: anything mounted inside the diagram would be lost here.
+	test('the host survives a redraw and still creates', async ({ page }) => {
 		await editor.viewport.dblclick();
 		await expect(editor.page.getByTestId('mermaid-source')).toBeFocused();
 		await page.keyboard.press('End');
@@ -66,10 +66,8 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('日本');
 	});
 
-	// The redraw hands focus back to the surface it replaced, and the hand-off declines an arrival
-	// whose relatedTarget is the host — so a recovery scoped wider than that surface parks focus on
-	// the viewport, where the next AltGr or composition is dropped. Only the SETTLED state shows
-	// it: the assertion above runs while the recovery is still in flight.
+	// The redraw hands focus back only for an arrival not from the outer element; a broader hand-off
+	// leaves focus on the diagram, where the next AltGr or composition drops, seen only here.
 	test('focus settles on the host after the redraw, not on the new viewport', async ({ page }) => {
 		await editor.viewport.dblclick();
 		await expect(editor.page.getByTestId('mermaid-source')).toBeFocused();
@@ -88,9 +86,8 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('€');
 	});
 
-	// A toolbar click is a focus arrival from INSIDE the box, and a hand-off that exempts those
-	// leaves the next click on the diagram sitting on the declared surface — where IME is dropped
-	// exactly as before the fix, with the keydown mint still working so nothing else reds.
+	// A toolbar click is focus arriving from inside the frame; a hand-off that skipped it would leave
+	// the next click on the declared element, where only IME composition breaks.
 	test('a click after a toolbar button still reaches the editing host', async ({ page }) => {
 		await editor.block.hover();
 		await editor.block.getByTestId('mermaid-reset').click();
@@ -104,9 +101,8 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('€');
 	});
 
-	// The one declared surface that owns its caret: the host must not take focus from it, or
-	// every keystroke of an edit session mints a paragraph instead of editing the draft. Typed
-	// rather than composed — the CDP driver settles on `textContent`, which a textarea has none of.
+	// The outer element must not take focus from the textarea, or each keystroke makes a paragraph;
+	// typed, since the CDP driver waits on `textContent`, which a textarea lacks.
 	test('the edit textarea keeps its own caret', async ({ page }) => {
 		const before = await editor.bridge.getSource();
 		await editor.viewport.dblclick();
@@ -117,6 +113,6 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 
 		await expect(textarea).toBeFocused();
 		await expect(textarea).toHaveValue(/X/);
-		expect(await editor.bridge.getSource()).toBe(before); // uncommitted draft, no mint
+		expect(await editor.bridge.getSource()).toBe(before); // an uncommitted draft writes nothing
 	});
 });

@@ -1,11 +1,12 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode, focusOffset, focusPath, press } from './helpers';
+import { enterPresentationMode, focusOffset, focusPath, press } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Live-mode caret edges: no caret reports from inside a hidden marker run, and the block's
-// exits and destructive keys read its content bounds. jsdom cannot see where Chromium drops
-// an element-level caret, so the selection bridge is the oracle for every offset here.
+// exits and destructive keys read its content bounds. jsdom cannot see where Chromium drops an
+// element-level caret, so the selection bridge is the reference for every offset here.
 // Requirements: e2e/requirements/presentation/presentation-live-affinity.md.
 
 const DOC = [
@@ -33,7 +34,7 @@ const CODE = 3;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live mode — the caret never reports from inside a hidden run', () => {
+test.describe('live mode: the caret never reports from inside a hidden run', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -55,7 +56,7 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 	});
 
 	// `Some **bold** text`: strong is [5,13), `bold` is [7,11). From raw 14 (before `t`) one
-	// press crosses the space AND the whole closing `**`, stopping on `bold`'s last byte.
+	// keypress crosses the space and the whole closing `**`, stopping on `bold`'s last byte.
 	test('ArrowLeft crosses a whole hidden run in one press, stopping at the content edge', async ({
 		page
 	}) => {
@@ -66,8 +67,8 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 		expect(await press(ep, page, 'ArrowLeft')).toBe(10);
 	});
 
-	// 6 and 12 are the runs' interiors; 7 and 13 their far sides, which the canonicalizing
-	// read never chooses either. The walk must still reach the block end.
+	// 6 and 12 are inside the marker runs; 7 and 13 are their far sides, which the canonical read
+	// never picks either. Stepping right must still reach the block end.
 	test('a rightward walk skips both marker runs whole and reaches the block end', async ({
 		page
 	}) => {
@@ -98,10 +99,9 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 	});
 });
 
-// Where the block's own start IS raw 0 the bound is the ordinary one, and the press is the merge
-// it has always been. The kinds whose start moved — the ones that demote instead — are pinned in
-// `presentation-live-demote.spec.ts`.
-test.describe('live mode — a destructive key reads the block’s content bounds', () => {
+// Where a block's own start is raw 0 Backspace merges as usual; kinds whose content starts later
+// demote instead, in `presentation-live-demote.spec.ts`.
+test.describe('live mode: a destructive key reads the block’s content bounds', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -119,7 +119,7 @@ test.describe('live mode — a destructive key reads the block’s content bound
 	});
 });
 
-test.describe('live mode — hidden runs a caret must not be able to type into', () => {
+test.describe('live mode: hidden runs a caret must not be able to type into', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -142,7 +142,7 @@ test.describe('live mode — hidden runs a caret must not be able to type into',
 	test('clicking into a code block body types there and leaves both fences intact', async ({
 		page
 	}) => {
-		const point = await centerOfWord(page, 'const');
+		const point = await textRunCenter(page, 'const');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		expect(await focusPath(ep)).toEqual([CODE]);
@@ -151,9 +151,8 @@ test.describe('live mode — hidden runs a caret must not be able to type into',
 		await ep.bridge.waitForSourceMatches(/```js\n[^`]*Y[^`]*\n```/);
 	});
 
-	// `[text][ref]` in a cell: `[`, `]` and the whole `[ref]` label are unpainted, so the
-	// only reachable offsets are inside `text`. A link never extends, so the byte lands past
-	// the label rather than inside the link text — the typing seat, pinned next door.
+	// `[text][ref]` in a cell: only offsets inside `text` are reachable, and a link never extends, so
+	// the byte lands past the label; where typed bytes go has its own spec.
 	test('a table cell’s reference label is unreachable and untypeable', async ({ page }) => {
 		const cell = page
 			.locator("[role='table'] [contenteditable='true']")

@@ -1,0 +1,146 @@
+// @vitest-environment jsdom
+// Miss-analysis: no plugin test ran in an editor whose `plugins` prop left something out.
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
+import { parse, type DocumentView } from '$lib';
+import { installPlugins } from '$lib/schema/plugin-install';
+import { activationFor } from '$lib/schema/plugin-activation';
+import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
+import { latexPlugin } from '$lib/plugins/latex';
+import { footnotesPlugin } from '$lib/plugins/footnotes';
+import {
+	assignFootnoteNumbers,
+	collectFootnoteReferences,
+	footnoteNumbersFor
+} from '$lib/plugins/footnotes/footnote-numbering';
+import { tocPlugin } from '$lib/plugins/toc';
+import { collectHeadings } from '$lib/plugins/toc/heading-outline';
+import type { EditorContext } from '$lib/plugin';
+import { inlineReaderFor } from '$lib/core/inline';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+import type { GrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
+import { kitReading } from '$lib/testing/kit-reading';
+import { pluginContextDeps } from '../../support/plugin-context-deps';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '$lib/perf/instruments';
+import { grammarListing } from './grammar-listing';
+
+beforeEach(() => {
+	installPlugins([
+		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
+		footnotesPlugin(),
+		tocPlugin()
+	]);
+});
+afterEach(disablePerfInstruments);
+
+/** A reading in `grammar` with no link reference definitions. */
+const readingIn = (grammar: GrammarView): Reading => ({ ...kitReading(), grammar });
+
+/** One editor listing `names`, its document parsed in its grammar, and one plugin's context. */
+function editorListing(names: string[], source: string, plugin: string) {
+	const grammar = grammarListing(names);
+	const doc = parse(source, { grammar }) as DocumentView;
+	const contexts = createEditorPluginContexts({
+		...pluginContextDeps(doc),
+		activation: activationFor(names),
+		reading: readingIn(grammar)
+	});
+	return { doc, editor: contexts.get(plugin) as EditorContext };
+}
+
+describe('footnote numbering reads its editor’s inline syntax', () => {
+	const SOURCE = 'a $[^x]$ b\n\n[^x]: note\n';
+
+	it('numbers a reference inside dollars the editor draws as text', () => {
+		const { doc, editor } = editorListing(['footnotes'], SOURCE, 'footnotes');
+		expect(assignFootnoteNumbers(doc, editor.computeInlineContent).get('x')).toBe(1);
+	});
+
+	it('skips it where the editor reads the dollars as math', () => {
+		const { doc, editor } = editorListing(['footnotes', 'latex'], SOURCE, 'footnotes');
+		expect(assignFootnoteNumbers(doc, editor.computeInlineContent).has('x')).toBe(false);
+	});
+});
+
+describe('toc labels read their editor’s inline syntax', () => {
+	const SOURCE = '# Title $*x*$\n\n[[toc]]\n';
+	const labelIn = (names: string[]) => {
+		const { doc, editor } = editorListing(names, SOURCE, 'toc');
+		return collectHeadings(doc, 6, editor.computeInlineContent)[0].label;
+	};
+
+	it('drops the emphasis markers where latex is left out', () => {
+		expect(labelIn(['toc'])).toBe('Title $x$');
+	});
+
+	it('keeps the math source where latex is listed', () => {
+		expect(labelIn(['toc', 'latex'])).toBe('Title $*x*$');
+	});
+});
+
+describe('the numbering cache keeps each editor’s answer apart', () => {
+	it('answers two editors over one document with their own numbering', () => {
+		const doc = parse('a $[^x]$ b\n', { grammar: grammarListing(['footnotes']) }) as DocumentView;
+		const withoutLatex = inlineReaderFor(readingIn(grammarListing(['footnotes'])));
+		const withLatex = inlineReaderFor(readingIn(grammarListing(['footnotes', 'latex'])));
+		expect(assignFootnoteNumbers(doc, withoutLatex).has('x')).toBe(true);
+		expect(assignFootnoteNumbers(doc, withLatex).has('x')).toBe(false);
+	});
+
+	// Each block's widget pool asks for its own reader, so the cache hits only if one reading
+	// always hands back the same function.
+	it('shares one numbering across the readers one reading hands out', () => {
+		const reading = readingIn(grammarListing(['footnotes']));
+		const blocks = Array.from({ length: 10 }, (_, i) => `Paragraph ${i} [^r${i}].`);
+		const doc = parse(blocks.join('\n\n') + '\n', { grammar: reading.grammar });
+		footnoteNumbersFor(doc, 1, inlineReaderFor(reading));
+
+		resetPerfInstruments();
+		enablePerfInstruments();
+		expect(footnoteNumbersFor(doc, 1, inlineReaderFor(reading)).get('r9')).toBe(10);
+		doc.children[3].raw = 'Paragraph 3 [^r3] [^extra].';
+		expect(footnoteNumbersFor(doc, 2, inlineReaderFor(reading)).get('extra')).toBe(5);
+		expect(perfSnapshot().inlineComputeCount).toBe(1);
+	});
+});
+
+// Miss-analysis: every context test handed in a reader built once, so none changed the
+// definitions under a context and read its reader again.
+describe('an editor context’s reader follows the document’s definitions', () => {
+	it('hands out a new reader once they change, so a cached walk reads them', () => {
+		const grammar = grammarListing(['footnotes']);
+		const doc = parse('a [t [^x]][q] b [^y]\n', { grammar }) as DocumentView;
+		const definitions = [
+			buildLinkReferenceMap([]),
+			buildLinkReferenceMap(parse('[q]: /z\n', { grammar }).children)
+		];
+		let epoch = 0;
+		const reading: Reading = {
+			...readingIn(grammar),
+			get resolver() {
+				return definitions[epoch].resolve;
+			},
+			get resolverEpoch() {
+				return epoch;
+			}
+		};
+		const contexts = createEditorPluginContexts({
+			...pluginContextDeps(doc),
+			activation: activationFor(['footnotes']),
+			reading
+		});
+		const editor = contexts.get('footnotes') as EditorContext;
+		const labels = () =>
+			collectFootnoteReferences(doc, editor.computeInlineContent).map((ref) => ref.label);
+		expect(labels()).toEqual(['y']);
+
+		epoch = 1;
+
+		expect(labels()).toEqual(['x', 'y']);
+	});
+});

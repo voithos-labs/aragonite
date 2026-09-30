@@ -9,10 +9,12 @@ import { katexRenderer } from '$lib/plugins/latex/renderer';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
+import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
+import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
-// One mint site for every demo route: definitions are process-global and install first-wins, so a
-// route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.
-// Exported unit by unit as well as in a set, because a route may install a subset.
+// The one place the demo routes create their plugins: definitions are process-global and the
+// first install wins, so a route that wants different options passes `{ plugin, options }` rather
+// than its own array. Exported one by one as well as in a set, since a route may install a few.
 export const DEMO_ADMONITIONS = admonitionsPlugin();
 export const DEMO_DETAILS = detailsPlugin();
 export const DEMO_TOC = tocPlugin();
@@ -22,6 +24,11 @@ export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
 export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
+// Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.
+export const DEMO_SLASH_COMMANDS = slashCommandsPlugin();
+// Tags as mark decorations over plain text, so a tag keeps every text gesture. Kept out of
+// `DEMO_PLUGINS`, the tour of the bundled plugins; the showcase installs it on its own.
+export const DEMO_TAGS = tagMarksPlugin();
 
 export const DEMO_PLUGINS = [
 	DEMO_ADMONITIONS,
@@ -32,5 +39,6 @@ export const DEMO_PLUGINS = [
 	DEMO_HIGHLIGHT_OCCURRENCES,
 	DEMO_LATEX,
 	DEMO_MERMAID,
-	DEMO_PARROT
+	DEMO_PARROT,
+	DEMO_SLASH_COMMANDS
 ];

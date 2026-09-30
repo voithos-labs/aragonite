@@ -9,15 +9,15 @@ import {
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-// Fixture: paragraph "a $x^2$ b" whose $…$ math renders as one atomic widget. BLOCK-source
-// offsets (marker prefix excluded): "a " = [0,2); widget "$x^2$" = [2,7); " b" = [7,9).
+// The paragraph "a $x^2$ b", whose math renders as one widget the caret cannot enter. Source
+// offsets, marker prefix excluded: "a " = [0,2), the widget = [2,7), " b" = [7,9).
 const BLOCK_RAW = 'a $x^2$ b';
 const SRC_START = 2;
 const SRC_END = 7;
 const SOURCE = BLOCK_RAW.slice(SRC_START, SRC_END); // "$x^2$"
 
-// Inner textContent is deliberately one char against a 5-byte source range, so a walker reading
-// textContent instead of data-source-* would diverge (mirrors widget-offset.test.ts).
+// One character of `textContent` against a 5-byte source range, so a traversal reading
+// `textContent` instead of `data-source-*` would disagree.
 function renderedWidget(): HTMLElement {
 	const w = document.createElement('span');
 	w.setAttribute('data-inline-widget', '');
@@ -30,8 +30,8 @@ function renderedWidget(): HTMLElement {
 	return w;
 }
 
-// `ambientPrefix` models a container block's marker span (list item "- ", blockquote "> "): real
-// leading text the DOM walk counts but block source excludes. Empty prefix = plain paragraph.
+// `ambientPrefix` stands in for a container's marker span: leading text the DOM traversal counts
+// but the block's source excludes.
 function mountBlock(ambientPrefix = ''): HTMLElement {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -48,9 +48,9 @@ function mountBlock(ambientPrefix = ''): HTMLElement {
 	return el;
 }
 
-// The swap is injected the way the inline consumer does it: `showSource` replaces the widget with
-// a text node, `showRendered` rebuilds it, and the captured node is the revealed-state flag.
-function depsFor(el: HTMLElement, ambientPrefix = '') {
+// Swaps the way the inline code does: `showSource` replaces the widget with a text node and
+// `showRendered` rebuilds it; the captured node tells a test which state it is in.
+function depsFor(el: HTMLElement) {
 	let sourceNode: Text | null = null;
 	return {
 		get container() {
@@ -65,7 +65,6 @@ function depsFor(el: HTMLElement, ambientPrefix = '') {
 		get source() {
 			return SOURCE;
 		},
-		getAmbientLength: () => ambientPrefix.length,
 		isRevealed: () => sourceNode !== null,
 		showSource: () => {
 			const widget = el.querySelector<HTMLElement>(
@@ -83,13 +82,14 @@ function depsFor(el: HTMLElement, ambientPrefix = '') {
 	};
 }
 
-/** Raw offset of the live collapsed caret, in ambient-included walk space. */
+/** Raw offset of the live collapsed caret, counted as the traversal counts it, marker prefix
+ *  included. */
 function caretRaw(el: HTMLElement): number {
 	const range = window.getSelection()!.getRangeAt(0);
 	return domTextOffsetAtNode(el, range.startContainer, range.startOffset);
 }
 
-describe('source-reveal — caret-landing model (ambient = 0)', () => {
+describe('source-reveal: caret-landing model (ambient = 0)', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -101,9 +101,9 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('an opaque widget cannot address an interior source offset — it snaps to an edge', () => {
-		// The justification for reveal: with the widget rendered, an interior source offset (start+2)
-		// resolves to the trailing EDGE — an atomic widget yields only raw SRC_START or SRC_END.
+	it('an opaque widget cannot address an interior source offset: it snaps to an edge', () => {
+		// With the widget rendered, an offset inside its source resolves to the trailing edge,
+		// since a widget the caret cannot enter answers only `SRC_START` or `SRC_END`.
 		const pos = findDomTextOffsetTarget(el, asDomTextOffset(SRC_START + 2));
 		expect(pos).not.toBeNull();
 		expect(domTextOffsetAtNode(el, pos!.node, pos!.offset)).toBe(SRC_END);
@@ -114,10 +114,10 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 		await reveal.reveal(2);
 
 		expect(reveal.isRevealed()).toBe(true);
-		// Opaque widget gone; its source bytes are now real, addressable text.
+		// The widget is gone; its source bytes are now real text the caret can address.
 		expect(el.querySelector('[data-inline-widget]')).toBeNull();
 		expect(el.textContent).toContain('$x^2$');
-		// The interior offset the rendered widget could not reach (contrast above).
+		// The offset inside the source that the rendered widget could not reach (see above).
 		expect(caretRaw(el)).toBe(SRC_START + 2);
 	});
 
@@ -174,9 +174,9 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 	});
 });
 
-describe('source-reveal — ambient-included offsets (list-item / blockquote math)', () => {
-	// A 2-char marker prefix the DOM walk counts but block source excludes: every caret must land at
-	// `ambientLength + blockSourceOffset`, and feeding the bare block offset mis-lands by `ambient`.
+describe('source-reveal: ambient-included offsets (list-item / blockquote math)', () => {
+	// The DOM traversal counts the marker prefix and the block's source excludes it, so every caret
+	// lands at `ambientLength + blockSourceOffset`.
 	const AMBIENT = '- ';
 	let el: HTMLElement;
 
@@ -190,26 +190,26 @@ describe('source-reveal — ambient-included offsets (list-item / blockquote mat
 	});
 
 	it('reveal(offset) lands the caret at ambientLength + sourceStart + offset', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal(2);
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_START + 2);
 	});
 
 	it('reveal() defaults to the leading edge in ambient-included space', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal();
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_START);
 	});
 
 	it('commit() lands the caret at ambientLength + sourceEnd', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal(2);
 		await reveal.commit();
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_END);
 	});
 });
 
-describe('source-reveal — highest-risk edges', () => {
+describe('source-reveal: highest-risk edges', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -221,11 +221,11 @@ describe('source-reveal — highest-risk edges', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('a selection anchored outside crosses INTO revealed source', async () => {
+	it('a selection anchored outside crosses into revealed source', async () => {
 		const reveal = createSourceReveal(depsFor(el));
 
-		// Rendered, a selection reaching from the outside text toward an interior source glyph can only
-		// reach the widget's trailing EDGE — the opaque island has no interior to land in.
+		// While rendered, a selection reaching from the surrounding text toward a glyph inside the
+		// source can only reach the widget's trailing edge, since it has no inside to land in.
 		const rendered = createRangeAtDomTextOffsets(
 			el,
 			asDomTextOffset(0),
@@ -234,8 +234,8 @@ describe('source-reveal — highest-risk edges', () => {
 		expect(domTextOffsetAtNode(el, rendered.startContainer, rendered.startOffset)).toBe(0);
 		expect(domTextOffsetAtNode(el, rendered.endContainer, rendered.endOffset)).toBe(SRC_END);
 
-		// Revealed, the same cross-boundary selection reaches the interior glyph with its start still
-		// in the outside text — one shared offset walk, not a second coordinate space.
+		// With the source shown, the same selection reaches that glyph with its start still in the
+		// surrounding text: one shared offset traversal, not a second coordinate space.
 		await reveal.reveal();
 		const across = createRangeAtDomTextOffsets(
 			el,
@@ -250,9 +250,9 @@ describe('source-reveal — highest-risk edges', () => {
 		expect(rawTextOfNode(el, BLOCK_RAW).slice(0, SRC_START + 2)).toBe('a $x');
 	});
 
-	it('reveal→commit with no edit is a CST-free view toggle — nothing for undo to span', async () => {
-		// Unit scope: the primitive mutates only transient DOM, so a no-edit cycle is byte-identical
-		// and produces no undo entry — Ctrl+Z across a reveal→commit is the LaTeX e2e's subject.
+	it('reveal→commit with no edit is a CST-free view toggle, nothing for undo to span', async () => {
+		// The call changes only temporary DOM, so a cycle with no edit adds no undo entry; undo
+		// across a source edit is the LaTeX e2e's subject.
 		const reveal = createSourceReveal(depsFor(el));
 		const before = el.querySelector('[data-inline-widget]')!;
 		const stamp = (w: Element) =>

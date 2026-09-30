@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getPluginMetadata } from '$lib/core/nodes';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
@@ -9,9 +9,9 @@ import {
 } from '$lib/core/directive/kinds';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
-// edit re-synthesizes the chrome lines, which must not normalize CRLF to `\n`.
+// edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.
 
-beforeAll(() => activateDirectiveGrammar());
+beforeEach(() => activateDirectiveGrammar());
 
 describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it('captures the authored line ending at parse time', () => {
@@ -37,8 +37,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
 
-	// EACH chrome line keeps its own ending: a `closerNewline` that records only presence
-	// re-emits the closer with the opener's ending.
+	// Each fence line keeps its own ending, so the closer is not re-emitted with the opener's.
 	it("keeps the closer's own ending when it differs from the opener", () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];
 

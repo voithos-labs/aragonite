@@ -31,8 +31,8 @@ export function generateFixture(shape: FixtureShape, targetBytes: number, seed =
 	return chunks.join('');
 }
 
-/** Independent knobs: blockCount at fixed wordsPerBlock isolates mounted-block count,
- *  wordsPerBlock at fixed blockCount isolates per-block content size. */
+/** Two independent knobs: `blockCount` at a fixed `wordsPerBlock` varies how many blocks
+ *  mount, `wordsPerBlock` at a fixed `blockCount` varies how big each block is. */
 export function generateUniformBlocks(
 	blockCount: number,
 	wordsPerBlock: number,
@@ -44,14 +44,8 @@ export function generateUniformBlocks(
 	return out.join('\n\n') + '\n';
 }
 
-/**
- * A deep container spine where EVERY level carries `bytesPerLevel` of sibling content
- * beside the descent, so an ancestry rebuild pays Σ over levels — the combined
- * depth × bytes axis `FIXTURE_SHAPES`' single `targetBytes` knob cannot express.
- * Wraps inside-out with the serializer's own prefix transform, so the result
- * round-trips by construction; a list level adds TWO containers to the rebuild chain,
- * making the walked chain ~1.5× the wrap depth.
- */
+/** A deep chain of containers, each level holding `bytesPerLevel` of siblings beside the one that
+ *  continues down, so an ancestor rebuild costs the sum over levels; round-trips by design. */
 export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 42): string {
 	const rand = mulberry32(seed);
 	const wordsPerLevel = Math.max(1, Math.round(bytesPerLevel / BYTES_PER_WORD));
@@ -66,14 +60,8 @@ export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 
 export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as const;
 export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
 
-/**
- * Prose dense in one INLINE TRIGGER, for the report-only rows measuring an installed
- * rung's cost. Outside `FIXTURE_SHAPES`: those sweep into every gated row, and a rung's
- * cost is a plugin's business, not a ceiling the editor owes. Each corpus isolates its
- * rung's dominant cost: `colon` mostly DECLINES, `dollar` is shell prose (#27) with one
- * real span, and `bracket-footnote` is definition-free so the control route parses the
- * same document, though its row includes the reference's whole-document renumber walk.
- */
+/** Prose dense in one inline trigger character, for report-only rows timing a plugin's inline
+ *  handler; kept out of the gated `FIXTURE_SHAPES`, since a plugin's cost is not the editor's. */
 export function generateTriggerDense(
 	kind: TriggerDenseKind,
 	targetBytes: number,
@@ -91,9 +79,8 @@ export function generateTriggerDense(
 	return chunks.join('');
 }
 
-/** Path to the deepest (typeable) leaf of a `generateDeepNested` doc. A blockquote's
- *  spine child is its second (the sibling is first); a list's lives one hop deeper,
- *  inside the lone listItem. */
+/** In a blockquote the child that continues down comes second, after the sibling; in a list it
+ *  sits one level deeper, inside the single `listItem`. */
 export function deepNestedLeafPath(depth: number): number[] {
 	const path = [0];
 	for (let level = 1; level <= depth; level++) {
@@ -103,8 +90,8 @@ export function deepNestedLeafPath(depth: number): number[] {
 	return path;
 }
 
-// `words()` yields ~6.1 B/token, so rounding the divisor up to 7 makes `bytesPerLevel`
-// a NOMINAL target the fixtures under-fill by ~12% — conservative, never inflating.
+// `words()` yields about 6.1 bytes per token, so rounding the divisor up to 7 makes
+// `bytesPerLevel` a nominal target the fixtures under-fill by about 12%, never over-fill.
 const BYTES_PER_WORD = 7;
 
 function wrapBlockquote(inner: string): string {
@@ -206,16 +193,16 @@ const BUILDERS: Record<FixtureShape, (rand: () => number, i: number) => string> 
 		return t + '\n';
 	},
 
-	// One tight-list item per chunk, no blank line between -> a single `list` node
-	// with thousands of `listItem` children.
+	// One tight list item per chunk with no blank line between them, giving one `list` node with
+	// thousands of `listItem` children.
 	'giant-single-list': (rand) => `- ${words(rand, 6)}\n`,
 
-	// One quoted paragraph per chunk; the bare `>` lazy-continuation line keeps
-	// them inside ONE `blockquote` node with many paragraph children.
+	// One quoted paragraph per chunk; the bare `>` continuation line keeps them inside one
+	// `blockquote` node with many paragraph children.
 	'giant-single-blockquote': (rand) => `> ${words(rand, 8)}\n>\n`,
 
-	// No blank line between chunks -> one `table` node with thousands of `tableRow`
-	// children, rendered by TableBlock's own {#each} rather than through BlockList.
+	// No blank line between chunks, giving one `table` node with thousands of `tableRow`
+	// children, rendered by TableBlock's own `{#each}` rather than through BlockList.
 	'giant-single-table': (rand, i) => {
 		const row = () => `| ${words(rand, 2)} | ${words(rand, 2)} | ${words(rand, 2)} |\n`;
 		return i === 0 ? row() + '| --- | --- | --- |\n' + row() : row();

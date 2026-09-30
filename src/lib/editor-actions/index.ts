@@ -1,6 +1,6 @@
 /**
- * Editor-root action bundle factory. Composes the undo controller plus four
- * sub-interface bundles for Editor.svelte to wire into Svelte context.
+ * The editor root's action bundle: the undo controller plus the four action groups
+ * Editor.svelte puts into Svelte context.
  */
 
 import type {
@@ -24,8 +24,12 @@ export interface EditorActionsBundle {
 	controller: UndoController;
 }
 
-export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundle {
-	const controller = createUndoController(deps);
+/** `announceEdit` goes to the undo controller alone (`createUndoController`). */
+export function createEditorActions(
+	deps: EditorActionsDeps,
+	announceEdit: (message: string) => void
+): EditorActionsBundle {
+	const controller = createUndoController(deps, announceEdit);
 	return {
 		blockEdit: createBlockEditActions(deps, controller),
 		focus: createFocusActions(deps, controller),

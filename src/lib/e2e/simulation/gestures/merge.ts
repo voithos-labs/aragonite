@@ -1,11 +1,9 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * The merge-rules subsystem the corruption oracle otherwise never drives. Which of merge or
- * container-exit unwrap fires depends on the block kinds, so the gesture stays AGNOSTIC and
- * asserts only that a real structural change happened; the document's first block has no
- * predecessor, so targeting it fails loudly rather than recording a stale tree. `targetPath`
- * resolves to the first editable in its subtree, where the exit-delegation Backspace belongs.
+ * The merge rules, which nothing else in the simulation drives. Whether the block merges or leaves
+ * its container depends on the kinds, so this only checks that the structure changed. Aiming at
+ * the document's first block throws, since nothing sits above it.
  */
 export async function mergeBackspaceAtStart(ctx: SimContext, targetPath: number[]): Promise<void> {
 	const { editor, tracker } = ctx;
@@ -19,7 +17,8 @@ export async function mergeBackspaceAtStart(ctx: SimContext, targetPath: number[
 		.catch(() => {
 			throw new Error(
 				`[${ctx.label}] merge Backspace at start of ${JSON.stringify(targetPath)} left the ` +
-					`source unchanged — no predecessor to merge into, or the key fell through.\n` +
+					`source unchanged: no predecessor to merge into, or the key fell through.
+` +
 					`SOURCE: ${JSON.stringify(before)}`
 			);
 		});

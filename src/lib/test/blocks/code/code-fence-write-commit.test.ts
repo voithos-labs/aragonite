@@ -1,30 +1,33 @@
 // @vitest-environment jsdom
-//
-// The write seam at the surface's own commit path. A native keystroke mutates the
-// contenteditable and the CST hears about it through `input` — so what this layer
-// proves, and neither the pure seam nor an e2e can, is that BOTH commit routes into
-// that path (a keystroke and an IME composition end) reconcile the bytes before they
-// reach the CST, rather than committing whatever the browser left in the DOM.
+// The fence rule on the code block's own commit path: both commit paths, a keystroke and an IME
+// composition end, hand the write what the browser left as typed bytes, and the write's fence
+// rule reconciles them.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { setCursorOffset } from '$lib/cursor/content-offsets';
+import { placeCaretAtRaw } from '$lib/cursor/widget-offset';
+import { parse } from '$lib/core/parser';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { mountCode, type MountedCode } from './mount-code';
 
 const SOURCE = '```js\nconst x = 1\n```\n';
 
 let mounted: MountedCode;
 
-/** What the browser leaves behind after a native edit: new text, caret in it. */
+/** What the browser leaves behind after its own edit: new text, with the caret in it. */
 function nativeEdit(display: string, caret: number): void {
 	mounted.el.textContent = display;
 	mounted.el.focus();
-	setCursorOffset(mounted.el, asDomTextOffset(caret));
+	placeCaretAtRaw(mounted.el, caret, { clamp: 'exact' });
 }
 
+/** The bytes the write stores for the one commit the block made. */
 function committed(): string {
 	const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
 	expect(calls.length).toBe(1);
-	return (calls[0][1] as string).replace(/\n$/, '');
+	const [index, text, mode] = calls[0];
+	expect(mode).toBe('authored');
+	const target = { children: parse(SOURCE).children, owner: undefined, lineEnding: '\n' as const };
+	return trimTrailingLineEnding(legalizeWrite(target, index, text, mode).text);
 }
 
 beforeEach(() => {
@@ -35,7 +38,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — the write seam on commit', () => {
+describe('CodeBlock: the write path on commit', () => {
 	// Parser-verified: the typed run closes the block early and the tail becomes a
 	// fence that swallows every following block.
 	it('grows both fence runs when typing lands a closer on a body line', () => {
@@ -52,8 +55,8 @@ describe('CodeBlock — the write seam on commit', () => {
 		expect(committed()).toBe('```js\nconst x = 1\n```');
 	});
 
-	// The IME route ends at the same funnel — compositionend calls the surface's own
-	// input handler — so a composed backtick is dropped like a typed one.
+	// The IME path ends at the same commit, since `compositionend` calls the block's own
+	// input handler, so a composed backtick is dropped like a typed one.
 	it('reconciles what an IME composition leaves behind', () => {
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		nativeEdit('```j`s\nconst x = 1\n```', 5);

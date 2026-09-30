@@ -1,25 +1,27 @@
 /**
- * Dev-mode performance counters for the profiling harness. A leaf module, so the seams that
- * record into it can depend on it from anywhere. Recording stays off until a runtime switch
- * that only arms in dev/Vitest, leaving production one boolean check per record call.
- * Internal — never exported from the editor barrel.
+ * Dev-mode performance counters for the profiling harness. It depends only on the build flags,
+ * so anything that records into it can import it. Recording stays off until a runtime switch that
+ * turns on only in a dev build or a test run, leaving production one boolean check per record
+ * call. Internal: never exported from the editor barrel.
  */
-import { DEV } from 'esm-env';
+import { editorEnv, isDevChecks } from '../env';
 import type { DocumentView } from '../core/node-views';
-
-declare const process: { env?: Record<string, string | undefined> } | undefined;
 
 export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
-	/** Container reparses the kind re-derivation gate let through (see rebuildUnsharedChain). */
+	/** Parses of a rebuilt container's own bytes, to re-derive its kind or metadata
+	 *  (`schema/container-raw.ts :: parseContainerRaw`), and the bytes they read. */
 	containerKindReparses: number;
+	containerReparseBytes: number;
+	/** Reads of a rebuilt container's first line alone, to re-derive its kind or metadata. */
+	openerLineReads: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
 	inlineComputeCount: number;
-	/** Inline-format coverage reads that actually parsed — the pressed-state read's cost. */
+	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
@@ -31,6 +33,11 @@ export interface PerfSnapshot {
 	decorationRuns: number;
 	islandRebuilds: number;
 	islandKeyScans: number;
+	/** One entry per windowing height table built: the list's path and the width it estimated at. */
+	heightTableBuilds: { path: string; width: number }[];
+	/** Checks of whether a change moved the focused block past a neighbour, which only a rebuilt
+	 *  height table pays for. */
+	neighbourPasses: number;
 }
 
 let enabled = false;
@@ -43,6 +50,8 @@ function emptySnapshot(): PerfSnapshot {
 		snapshotCloneBytes: 0,
 		rebuildDepths: {},
 		containerKindReparses: 0,
+		containerReparseBytes: 0,
+		openerLineReads: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
@@ -57,16 +66,16 @@ function emptySnapshot(): PerfSnapshot {
 		mountedBlockCount: 0,
 		decorationRuns: 0,
 		islandRebuilds: 0,
-		islandKeyScans: 0
+		islandKeyScans: 0,
+		heightTableBuilds: [],
+		neighbourPasses: 0
 	};
 }
 
 // ── Switch and readout ──────────────────────────────────────────────────────
 
 export function enablePerfInstruments(): void {
-	if (DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
-		enabled = true;
-	}
+	if (isDevChecks() || editorEnv.isTest) enabled = true;
 }
 
 export function disablePerfInstruments(): void {
@@ -87,7 +96,8 @@ export function perfSnapshot(): PerfSnapshot {
 		...counters,
 		rebuildDepths: { ...counters.rebuildDepths },
 		keystrokeInPageMs: [...counters.keystrokeInPageMs],
-		blockRenderPaths: [...counters.blockRenderPaths]
+		blockRenderPaths: [...counters.blockRenderPaths],
+		heightTableBuilds: [...counters.heightTableBuilds]
 	};
 }
 
@@ -104,9 +114,15 @@ export function recordRebuildDepth(depth: number): void {
 	counters.rebuildDepths[depth] = (counters.rebuildDepths[depth] ?? 0) + 1;
 }
 
-export function recordContainerKindReparse(): void {
+export function recordContainerKindReparse(bytes: number): void {
 	if (!enabled) return;
 	counters.containerKindReparses++;
+	counters.containerReparseBytes += bytes;
+}
+
+export function recordOpenerLineRead(): void {
+	if (!enabled) return;
+	counters.openerLineReads++;
 }
 
 export function recordParse(ms: number, blockCount: number): void {
@@ -139,8 +155,8 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
-// notifyEdit runs every source, so a typing pass records keystrokes × sources — the
-// ceiling that catches a per-block cascade.
+// `notifyEdit` runs every source, so a typing pass records keystrokes × sources, the ceiling
+// that catches one block's change cascading into the rest.
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;
@@ -151,10 +167,20 @@ export function recordIslandRebuild(): void {
 	counters.islandRebuilds++;
 }
 
-// One querySelectorAll per destructive/printable keystroke, even when the block holds none.
+// One `querySelectorAll` per delete or printable keystroke, even when the block has none.
 export function recordIslandKeyScan(): void {
 	if (!enabled) return;
 	counters.islandKeyScans++;
+}
+
+export function recordHeightTableBuild(path: readonly number[], width: number): void {
+	if (!enabled) return;
+	counters.heightTableBuilds.push({ path: path.join(','), width });
+}
+
+export function recordNeighbourPass(): void {
+	if (!enabled) return;
+	counters.neighbourPasses++;
 }
 
 export function incMountedBlocks(): void {
@@ -179,8 +205,8 @@ export function markKeystrokeSettle(): void {
 }
 
 /**
- * Serialized-byte proxy without building the string. Counts UTF-16 code units: exact
- * against `serialize().length`, approximate against on-disk bytes for non-ASCII.
+ * A stand-in for the serialized byte count that never builds the string. Counts UTF-16 code
+ * units: exact against `serialize().length`, approximate against on-disk bytes for non-ASCII.
  */
 export function docByteLength(doc: DocumentView): number {
 	let length = doc.prefix.length + doc.suffix.length;

@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The README note: a getting-started doc genre. All HOLD, so end-state equality stays
- * primary; the ordered steps, the fenced code body (via `softEnter`) and the inline links
- * each land in the equality spine.
+ * The README note, in the style of a getting-started page, typed so it matches the loaded document:
+ * numbered steps, a fenced code body (typed with `softEnter`) and inline links.
  */
 export const README_NOTE: NoteFixture = {
 	name: 'readme-note',

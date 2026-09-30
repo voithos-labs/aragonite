@@ -2,7 +2,7 @@
 
 When the clipboard's top block is a list whose ordered-flag matches the nearest list ancestor of the target, pasting inside a list item splices the pasted items as siblings of the target in the enclosing list, then renumbers (for ordered lists). Complements `list-paste-mismatched-breaks-out` (which handles the type-mismatched case) and `list-paste-flattens-into-matching-list` (which handles the empty-target and cross-block cases via container-match).
 
-Design reason: the user copied a list of the same type; flattening preserves the "items are siblings at the same level" intent. Three separate lists (the old break-out result for same-type) produced confusing duplicated markers like `1. alpha / 1. x / 2. y / 2. beta`. Nesting as a sub-list under the target (the pre-0.6.1.4 behavior) was also surprising — users didn't type a Tab to indent. Flat absorption matches Obsidian and Google Docs.
+Design reason: the user copied a list of the same type; flattening preserves the "items are siblings at the same level" intent. Three separate lists (the old break-out result for same-type) produced confusing duplicated markers like `1. alpha / 1. x / 2. y / 2. beta`. Nesting as a sub-list under the target was also surprising: users did not type a Tab to indent. Flat absorption matches Obsidian and Google Docs.
 
 ## Happy paths
 

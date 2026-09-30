@@ -2,40 +2,41 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #96 through the delete doors: a selection covering a block's whole text leaves the block
-// blank, and a blank block IS the separating line of the one below it — so the line it carried
-// and the line below it both stand, and the reload reads the second as an empty paragraph. The
-// same-block arm writes raw in place with no settle at all; the cross-block install settled the
-// PAIR, which misses a run whose second line sits further down.
-// Miss-analysis: every emptied-block case drove the typing door (`updateNodeContent`), and the
-// delete cases all deleted whole blocks rather than emptying one, so no case reached either arm.
+// A selection covering a block's whole text leaves it blank, and a blank block is the separating
+// line of the one below it, so both delete branches must fix up the blank-line run or the reload
+// reads the second line as an empty paragraph.
+// Miss-analysis: GH #96; emptied-block cases only typed, and delete cases removed whole blocks.
 
 /** Select a block's whole text and delete it — the Backspace-over-a-selection gesture. */
 function emptyBlock(doc: Document, index: number): void {
 	const end = doc.children[index].raw.length - 1;
 	rangeDelete(
 		doc,
-		{ path: [index], offset: 0 },
-		{ path: [index], offset: end },
+		rangeCoverage(
+			doc,
+			coverRange(doc, { path: [index], offset: 0 }, { path: [index], offset: end })
+		),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
 }
 
 /** [Hello, x('\n'), blank(''), Second('\n')] — the split shape, whose run line sits two below. */
 function splitShape(): Document {
 	const doc = parse('Hello\n\nSecond\n');
-	splitNode(doc, 0, 5, undefined, undefined, undefined);
-	splitNode(doc, 1, 0, undefined, undefined, undefined);
-	updateNodeContent(doc, 1, 'x\n');
+	splitNode(doc, 0, 5, undefined, fixtureReading());
+	splitNode(doc, 1, 0, undefined, fixtureReading());
+	updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
 	return doc;
 }
 
@@ -68,19 +69,17 @@ describe('a delete that empties a block settles the run it joins', () => {
 		expectParseConverged(doc);
 	});
 
-	// The endpoint install is the cross-block twin of the arm above: the start block survives as a
-	// truncation, and an empty one joins the same run.
+	// The endpoint install is the cross-block counterpart of the branch above: the start block
+	// survives as a truncation, and an empty one joins the same run.
 	it('settles a cross-block delete whose surviving start block is empty', () => {
 		const doc = splitShape();
 
 		rangeDelete(
 			doc,
-			{ path: [1], offset: 0 },
-			{ path: [2], offset: 0 },
+			rangeCoverage(doc, coverRange(doc, { path: [1], offset: 0 }, { path: [2], offset: 0 })),
 			createSharingState(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['Hello\n', '\n', 'Second\n']);

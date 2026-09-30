@@ -1,11 +1,12 @@
 /**
- * G4.59 — the VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/`
- * are one set, both directions. Scanned over RAW text, comments included: a citation is almost
- * always a comment, so the house comment-stripping lexer would erase the population it counts.
+ * The VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/` are
+ * one set, both directions (G4.59). Scanned over raw text, comments included: a citation is almost
+ * always a comment, so the shared comment-stripping lexer would erase the population it counts.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { collectFiles } from './scan-source';
 
 const ROOT = path.resolve('.');
 const CATALOG = 'docs/design/virtual-rendering.md';
@@ -20,17 +21,6 @@ const TAG = /\bVR-[A-Z0-9]+\b/g;
 
 // ── The citations ────────────────────────────────────────────────────────────
 
-function citingFiles(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) citingFiles(full, out);
-		else if (CITING_EXTENSIONS.some((ext) => entry.name.endsWith(ext))) {
-			out.push(path.relative(ROOT, full).split(path.sep).join('/'));
-		}
-	}
-	return out;
-}
-
 /** Each cited tag, mapped to the files citing it, so a failure names somewhere to look. */
 function citations(relPaths: string[]): Map<string, string[]> {
 	const found = new Map<string, string[]>();
@@ -43,7 +33,7 @@ function citations(relPaths: string[]): Map<string, string[]> {
 }
 
 /** Stops at `src/`: the catalog's own prose names its retired numbers (VR-7, VR-10, VR-13). */
-const scanned = citingFiles(path.join(ROOT, 'src'));
+const scanned = collectFiles('src', { extensions: CITING_EXTENSIONS });
 const cited = citations(scanned.filter((rel) => rel !== SELF));
 
 // ── The catalog ──────────────────────────────────────────────────────────────
@@ -68,7 +58,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 		const uncatalogued = [...cited.keys()].filter((tag) => !catalogued.includes(tag)).sort();
 		expect(
 			uncatalogued,
-			`cited with no row in ${CATALOG} — add one saying what the hazard is and what stays true: ${uncatalogued
+			`cited with no row in ${CATALOG}: add one saying what the hazard is and what stays true: ${uncatalogued
 				.map((tag) => `${tag} (${cited.get(tag)?.[0]})`)
 				.join(', ')}`
 		).toEqual([]);
@@ -78,7 +68,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 		const orphaned = catalogued.filter((tag) => !cited.has(tag));
 		expect(
 			orphaned,
-			`catalogued but cited nowhere — the catalog says to delete such a row: ${orphaned.join(', ')}`
+			`catalogued but cited nowhere: the catalog says to delete such a row: ${orphaned.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -89,8 +79,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// An empty corpus or an empty catalog lets both directions pass on nothing, which is the
-// failure this census exists to prevent.
+// An empty corpus or an empty catalog would pass both directions on nothing.
 
 describe('G4.59 scan non-vacuity', () => {
 	it('reaches every file kind a tag is cited from', () => {

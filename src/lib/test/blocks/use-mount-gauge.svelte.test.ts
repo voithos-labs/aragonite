@@ -15,8 +15,7 @@ describe('useMountGauge', () => {
 		resetPerfInstruments();
 	});
 
-	// The gauge's inc/dec are unit-tested directly elsewhere; what only the wrapper
-	// can regress is dropping the cleanup, so this pins mount-up / teardown-down.
+	// The gauge's counting has its own tests; what only the wrapper can break is its cleanup.
 	it('counts the component into the gauge on mount and back out on teardown', () => {
 		const dispose = $effect.root(() => {
 			useMountGauge();
@@ -28,9 +27,9 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 
-	// The gauge is a net balance, so arm and disarm are decided ONCE per mount. Re-reading
-	// `perfEnabled()` at teardown let a flip decrement a mount that was never counted.
-	it('does not decrement a mount it never counted when perf arms mid-life', () => {
+	// The gauge is a running balance, so whether a mount counts is decided once, at mount, and
+	// teardown does not read `perfEnabled()` again.
+	it('does not decrement a mount it never counted when perf branches mid-life', () => {
 		disablePerfInstruments();
 		const dispose = $effect.root(() => {
 			useMountGauge();
@@ -43,9 +42,9 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 
-	// The other direction (disarm mid-life) is held by the counters' own gate: with the instrument
-	// off there is nothing to balance, and re-arming goes through resetPerfInstruments.
-	it('never reads negative across an arm flip on many mounts', () => {
+	// Disabling perf mid-life needs no test here: a disabled gauge counts nothing, and enabling it
+	// again goes through `resetPerfInstruments`.
+	it('never reads negative across a branch flip on many mounts', () => {
 		disablePerfInstruments();
 		const disposers = [0, 1, 2].map(() => $effect.root(() => useMountGauge()));
 		flushSync();

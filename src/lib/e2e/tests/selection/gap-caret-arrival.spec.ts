@@ -12,12 +12,12 @@ import {
 	loadThenArrive
 } from './gap-caret-fixtures';
 
-// Arrival at a between-blocks caret and the pure exits back out
-// (requirements/selection/gap-caret-arrival.md). Blocks are addressed by CST path through the
+// Arrival at a between-blocks caret and the plain exits back out
+// (`requirements/selection/gap-caret-arrival.md`). Blocks are addressed by CST path through the
 // bridge: the chained block locator costs minutes on the windowed fixture below.
 
-// Root blocks tile flush, so the one band-less strip a click can reach is the editor's
-// leading padding — the document's own start boundary.
+// Root blocks sit flush against each other, so the one strip with no block band that a click
+// can reach is the editor's leading padding: the document's own start boundary.
 async function leadingPaddingPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
 	return editor.page.evaluate(() => {
 		const root = document.querySelector('.editor')!.getBoundingClientRect();
@@ -32,9 +32,8 @@ test.describe('gap caret arrival', () => {
 	const proxyHoldsFocus = () =>
 		editor.page.evaluate(() => !!document.activeElement?.closest('[data-gap-caret]'));
 
-	/** How many visual lines a fence opener occupies is an ENGINE fact, not an editor contract, so
-	 *  the walk is bounded rather than counted. Four is twice the deepest reading this fixture
-	 *  allows: one press onto the opener's own line, one more to leave the block. */
+	/** How many visual lines a fence opener takes is up to the browser, so the loop is bounded: four
+	 *  is twice what this fixture can need. */
 	const pressUpToBoundary = async () => {
 		for (let press = 0; press < 4; press++) {
 			await editor.page.keyboard.press('ArrowUp');
@@ -65,9 +64,9 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getBlockKind(2)).toBe('table');
 	});
 
-	test('ArrowDown out of the last table cell parks at the boundary, and again enters the fence', async () => {
+	test('ArrowDown out of the last table cell puts the caret at the boundary, and again enters the fence', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
@@ -79,7 +78,7 @@ test.describe('gap caret arrival', () => {
 		await editor.bridge.waitForSourceContains('Xcode');
 	});
 
-	test('ArrowUp from the fence body parks at the same boundary, and again enters the table', async () => {
+	test('ArrowUp from the fence body puts the caret at the same boundary, and again enters the table', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockAtPath([2], 4);
 
@@ -92,7 +91,7 @@ test.describe('gap caret arrival', () => {
 		await editor.bridge.waitForSourceContains('| c | dX |');
 	});
 
-	test('Backspace at fence offset 0 parks at the boundary above it', async () => {
+	test('Backspace at fence offset 0 puts the caret at the boundary above it', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockAtPath([2], 0);
 
@@ -102,8 +101,8 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);
 	});
 
-	// The sibling case that keeps the old fallback honest: a paragraph declares no edge,
-	// so the boundary is ineligible and focus enters it exactly as it always did.
+	// The sibling case that keeps the fallback honest: a paragraph declares no edge, so the
+	// boundary is not eligible and focus enters the paragraph as usual.
 	test('Backspace at fence offset 0 below a paragraph still enters the paragraph', async () => {
 		await editor.loadContent(`para\n\n${FENCE}`);
 		await editor.focusBlockAtPath([1], 0);
@@ -115,7 +114,7 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
 
-	test('Delete at the fence closer parks at the boundary below it', async () => {
+	test('Delete at the fence closer puts the caret at the boundary below it', async () => {
 		await editor.loadContent(FENCE_THEN_TABLE);
 		await editor.focusBlockAtPath([1], CLOSER_BOUNDARY);
 
@@ -125,7 +124,7 @@ test.describe('gap caret arrival', () => {
 		expect(await editor.bridge.getSource()).toBe(FENCE_THEN_TABLE);
 	});
 
-	test('a click above a leading table parks at the document start', async () => {
+	test('a click above a leading table puts the caret at the document start', async () => {
 		await editor.loadContent(LEADING_TABLE);
 		const point = await leadingPaddingPoint(editor);
 
@@ -136,7 +135,7 @@ test.describe('gap caret arrival', () => {
 	});
 
 	// At index 0 there is no block above, so the backward exits keep the gap rather than
-	// dropping the caret out of the document; Escape takes the forward arm instead.
+	// dropping the caret out of the document; Escape takes the forward branch instead.
 	test('the document-start gap keeps the caret on a backward exit and yields to Escape', async () => {
 		await editor.loadContent(LEADING_TABLE);
 		await editor.page.mouse.click(
@@ -162,17 +161,17 @@ test.describe('gap caret arrival', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 
-		// The band walk clamps into block 0's box, so the offset is the click's own x —
-		// what this pins is the block it landed in, not where inside it.
+		// The band search clamps into block 0's box, so the offset is the click's own x: this checks
+		// the block it landed in, not where inside it.
 		expect((await editor.bridge.getSource()).split('\n')[0]).toContain('X');
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
 
-	// G2.12: a caret placement ends a live cross-block range, and the gap is a caret.
+	// A caret placement ends a live cross-block range, and the gap is a caret (G2.12).
 	test('a gap-landing click ends a live cross-block range in the same gesture', async () => {
 		await editor.loadContent(LEADING_TABLE);
-		// From the trailing paragraph: a select-all seeded in a table CELL leaves a live
-		// native range behind, which the walk's drag guard declines before any of this.
+		// From the trailing paragraph: a select-all started in a table cell leaves a live
+		// native range behind, which the click's drag guard declines before any of this.
 		await editor.focusBlockStart(2);
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.keyboard.press('ControlOrMeta+a');
@@ -195,7 +194,7 @@ test.describe('gap caret keys', () => {
 		await editor.goto();
 	});
 
-	// Escape dismisses to the block above, the same arm ArrowUp takes.
+	// Escape dismisses to the block above, the same branch ArrowUp takes.
 	const EXITS = [
 		{ key: 'ArrowDown', lands: 'the fence', typed: 'Xcode' },
 		{ key: 'ArrowRight', lands: 'the fence', typed: 'Xcode' },
@@ -228,9 +227,9 @@ test.describe('gap caret in reading mode', () => {
 		await editor.loadContent(LEADING_TABLE);
 	});
 
-	// The click is the discriminating arm here: reading mode focuses no block, so no
-	// traversal runs to gate. That arm is unit-pinned (editor-actions/focus).
-	test('a click in an eligible band parks nothing', async () => {
+	// Reading mode focuses no block, so no traversal runs and the click tells the cases apart; that
+	// branch has a unit test (`editor-actions/focus`).
+	test('a click in an eligible band puts the caret nothing', async () => {
 		const point = await leadingPaddingPoint(editor);
 
 		await editor.page.mouse.click(point.x, point.y);

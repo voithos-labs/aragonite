@@ -10,12 +10,11 @@ import {
 } from '../../perf/instruments';
 import { generateFixture } from './fixtures/generate';
 
-// Ceiling: the engine's per-edit cost is O(sources), independent of document size, so
-// a per-block cascade scales decorationRuns with the fixture's block count instead.
-// Render-key parity is pinned separately in blocks/text/render-islands.test.ts.
+// The cost per edit scales with the number of decoration sources, not document size, so one
+// block's change cascading into the rest would scale `decorationRuns` with the block count.
 
-// A ~1MB flat document, so a count tracking blocks rather than edits is off by three
-// orders of magnitude.
+// A flat document of about 1MB, so a count that tracks blocks rather than edits is off by
+// three orders of magnitude.
 const bigDoc = parse(generateFixture('flat-prose', 1_000_000));
 const EDITS = 20;
 

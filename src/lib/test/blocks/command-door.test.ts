@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // `editor.runCommand` driven through a real mount, so the assertions are on committed bytes and
 // the real undo stack rather than a stubbed action bundle: a toolbar button must land the same
 // single entry the chord does.
@@ -13,7 +12,7 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from './editor-mount';
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(() => installLayoutStubs());
 
@@ -37,8 +36,8 @@ function selectInFirstBlock(start: number, end: number): void {
 	selectRange(surfaceAt(mounted!, [0]), start, end);
 }
 
-describe('the runCommand door over a selection', () => {
-	it('a toggle writes the same bytes as the chord and lands ONE undo entry', async () => {
+describe('the runCommand entry point over a selection', () => {
+	it('a toggle writes the same bytes as the chord and lands one undo entry', async () => {
 		mounted = mountEditor({ source: SOURCE });
 		selectInFirstBlock(0, 5);
 
@@ -67,7 +66,7 @@ describe('the runCommand door over a selection', () => {
 		selectInFirstBlock(0, 5);
 
 		expect(mounted.instance.runCommand('format.toggleRainbow')).toBe(false);
-		// The seam dev-warns an id no tier resolves; the decline, not the warn, is the subject.
+		// A dev warning fires for an id nothing resolves; the refusal, not the warning, is the point.
 		allowDevWarns(['commands']);
 		await mounted.settle();
 
@@ -75,7 +74,7 @@ describe('the runCommand door over a selection', () => {
 		expect(undoStack()).toHaveLength(0);
 	});
 
-	it('a block-local id declines with focus outside the editor; undo still reaches the seam', async () => {
+	it('a block-local id declines with focus outside the editor; undo still reaches the dispatch', async () => {
 		mounted = mountEditor({ source: SOURCE });
 		selectInFirstBlock(0, 5);
 		expect(mounted.instance.runCommand(TOOLBAR_COMMANDS.toggleStrong)).toBe(true);

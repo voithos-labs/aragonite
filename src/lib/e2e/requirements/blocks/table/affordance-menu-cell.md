@@ -1,8 +1,8 @@
-# Feature: Table block — cell right-click menu
+# Feature: Table block, cell right-click menu
 
-Right-clicking a cell is the only pointer road into the table's affordance popover, and a
+Right-clicking a cell is the only way the pointer reaches the table's action popover, and a
 cell knows both axes, so the menu carries the row group and the column group together. The
-insert and move actions of each axis fold behind a "Row" / "Column" flyout; the two deletes
+insert and move actions of each axis sit behind a "Row" / "Column" flyout; the two deletes
 and the column alignment stay top-level. The clipboard items that also live in this menu are
 covered by `right-click-clipboard.md`.
 
@@ -15,13 +15,13 @@ covered by `right-click-clipboard.md`.
 - Column flyout → "Insert column right" adds an empty column directly right of the clicked cell's column.
 - Row flyout → "Move row down" swaps the clicked row past the next one.
 - Column flyout → "Move column right" swaps the clicked column past the next one (header and body together).
-- The alignment trio rewrites the delimiter row for the clicked cell's column only — the sibling columns keep their own alignment.
+- The three alignment buttons rewrite the delimiter row for the clicked cell's column only, so the other columns keep their own alignment.
 
 ## Edge cases
 
-- Right-clicking outside the table (e.g. a paragraph) does not open the affordance menu — the contextmenu handler is scoped to the table grid, and only suppresses the native menu when the pointer is over a cell.
-- Right-clicking a cell inside an active intra-table rectangle selection opens the menu WITHOUT collapsing the rectangle — the pointerdown clear + drag-install are skipped for the secondary button, so the menu's Cut/Copy still see the rectangle.
-- The moves are disabled at the near end of each axis: "Move row up" on the first body row, "Move column left" on the first column — and both stay enabled in the other direction.
+- Right-clicking outside the table (a paragraph, say) does not open the menu: the contextmenu handler covers the table grid only, and it suppresses the browser's own menu only when the pointer is over a cell.
+- Right-clicking a cell inside an active intra-table rectangle selection opens the menu without collapsing the rectangle: the pointerdown clear and the drag install are skipped for the secondary button, so the menu's Cut/Copy still see the rectangle.
+- The moves are disabled at the near end of each axis, "Move row up" on the first body row and "Move column left" on the first column, and both stay enabled in the other direction.
 - Both deletes are disabled when the table is down to one body row and one column, and a forced click on a disabled row commits nothing.
-- Hovering the sibling group row swaps which flyout is showing — only one is open at a time.
-- Keyboard-driven alignment (roving focus into the trio, Enter) returns focus to a cell and announces the new alignment in the live region.
+- Hovering the sibling group row swaps which flyout is showing: only one is open at a time.
+- Keyboard-driven alignment (roving focus into the three buttons, Enter) returns focus to a cell and announces the new alignment in the live region.

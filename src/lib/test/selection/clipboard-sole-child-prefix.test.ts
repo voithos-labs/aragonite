@@ -1,14 +1,15 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A partial mid-leaf slice from the SOLE child of a strip container must keep the container's
-// per-line marker prefix, or it reparses as bare text. Eligibility is the descriptor's `strip`
-// contract (raw is a per-line marker around serialize(children)), not a hardcoded kind list.
+// A partial slice from the sole child of a strip container (a list item, a blockquote) must keep
+// the container's marker prefix, or it reparses as bare text. Eligibility is the descriptor's
+// `strip` contract, not a hard-coded kind list.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
@@ -31,16 +32,15 @@ const cases: PrefixCase[] = [
 	{ name: 'footnote-def', src: '[^a]: alpha\n\nafter\n', leaf: [0, 0], prefix: '[^a]: ' }
 ];
 
-describe('collectCrossBlockText — sole-child strip-container prefix recovery', () => {
+describe('collectCrossBlockText: sole-child strip-container prefix recovery', () => {
 	for (const c of cases) {
 		it(`${c.name}: a partial mid-leaf slice keeps the ${JSON.stringify(c.prefix)} wrapper`, () => {
 			const doc = parse(c.src);
 			const text = collectCrossBlockText(
 				doc,
-				{ path: c.leaf, offset: 2 },
-				{ path: [1], offset: 3 }
+				rangeCoverage(doc, coverRange(doc, { path: c.leaf, offset: 2 }, { path: [1], offset: 3 }))
 			);
-			// The wrapper is the load-bearing half: a null marker recovery leaves the slice
+			// The prefix is the half that matters: a null marker recovery leaves the slice
 			// starting at "pha…" with nothing in front of it.
 			expect(text.startsWith(c.prefix + 'pha')).toBe(true);
 		});

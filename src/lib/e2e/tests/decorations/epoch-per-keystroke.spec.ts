@@ -4,65 +4,41 @@ import { PluginsPage } from '../plugins/helpers';
 import { freezeInPageClock, PAST_TYPING_PAUSE_MS } from '../../page-probes';
 
 /**
- * The edit epoch follows the keystroke (requirements/decorations/epoch-per-keystroke.md).
+ * The edit counter bumps once per keystroke (requirements/decorations/epoch-per-keystroke.md).
  * The clock is frozen after setup, so the typing batch's pause elapses only when the spec
- * advances it: the marks step aside on the keystroke and the advance is what returns them.
+ * advances it: the marks step aside on the keystroke and the advance is what brings them back.
  */
 
 const WORD = 'alpha';
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 
 interface Probe {
-	/** Occurrences of the word in block [0] whose live Range rect an overlay covers. */
+	/** Occurrences of the word in block [0] whose painted text an overlay covers. */
 	aligned: number;
-	/** Overlays painted in block [0] — a stale mark measures into extra fragments. */
+	/** Overlays painted in block [0]: a stale mark measures into extra fragments. */
 	painted: number;
 	words: number;
-	/** Left edge of each occurrence, the liveness half of the oracle. */
+	/** Left edge of each occurrence, the liveness half of the reference check. */
 	wordLefts: number[];
 }
 
-/** Measures each painted overlay against the word's OWN rect, so the oracle is the
+/** Measures each painted overlay against that word's current rect, so the reference is the
  *  document's live geometry rather than a remembered pixel. */
 function probe(page: Page): Promise<Probe> {
 	return page.evaluate((word) => {
 		const block = document.querySelector("[data-block-path='[0]']");
-		const editable = block?.querySelector('[contenteditable]') as HTMLElement | null;
-		if (!editable) throw new Error('probe: no editable in block [0]');
+		if (!block) throw new Error('probe: no block [0]');
 
-		// Ambient marker spans contribute to textContent but not to raw, and the marks
-		// address raw — the same reject `pointForOffset` applies.
-		const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
-			acceptNode: (n) =>
-				(n as Text).parentElement?.closest('.md-marker[contenteditable="false"]')
-					? NodeFilter.FILTER_REJECT
-					: NodeFilter.FILTER_ACCEPT
-		});
-		const runs: { node: Node; at: number }[] = [];
-		let text = '';
-		for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-			runs.push({ node: n, at: text.length });
-			text += n.textContent ?? '';
-		}
-		const locate = (index: number) => {
-			let run = runs[0];
-			for (const candidate of runs) if (candidate.at <= index) run = candidate;
-			return { node: run.node, offset: index - run.at };
-		};
-
-		const wordRects: DOMRect[] = [];
-		for (let i = text.indexOf(word); i !== -1; i = text.indexOf(word, i + word.length)) {
-			const range = document.createRange();
-			const start = locate(i);
-			const end = locate(i + word.length);
-			range.setStart(start.node, start.offset);
-			range.setEnd(end.node, end.offset);
-			wordRects.push(range.getBoundingClientRect());
-		}
-		const overlays = [...block!.querySelectorAll('.decoration-overlay.hl-occurrence')].map((el) =>
+		// Measured off the painted text, never through the raw-to-DOM mapping the overlay itself
+		// paints with, so an overlay drawn off its word cannot agree with its own reference.
+		const wordRects: { left: number; right: number }[] = (window as any).__test.textRunRects(
+			word,
+			[0]
+		);
+		const overlays = [...block.querySelectorAll('.decoration-overlay.hl-occurrence')].map((el) =>
 			el.getBoundingClientRect()
 		);
-		const covers = (o: DOMRect, w: DOMRect) =>
+		const covers = (o: DOMRect, w: { left: number; right: number }) =>
 			Math.abs(o.left - w.left) < 1.5 && Math.abs(o.right - w.right) < 1.5;
 		return {
 			aligned: wordRects.filter((w) => overlays.some((o) => covers(o, w))).length,

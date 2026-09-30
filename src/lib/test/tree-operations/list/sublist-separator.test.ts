@@ -5,13 +5,9 @@ import { settleSublistSeparator } from '$lib/tree-operations/list/sublist-separa
 import { rebuildListItemRaw } from '$lib/schema/container-rebuilders';
 import type { CstNode } from '$lib/core/nodes';
 
-// The predicate behind the Enter+Tab mint, at its own level: the gesture pin
-// (`blocks/list/nested-mint-separator.test.ts`) reaches one shape, and the class is every
-// sublist first line a paragraph above it would swallow.
-//
-// Miss-analysis: this rule had no home at all before the mint owed it one; the parser's
-// interrupt predicate was tested against source bytes only, never against a tree being
-// written toward those bytes.
+// The blank line a sublist needs wherever a paragraph above would swallow its first line, across
+// every such line rather than the one shape the Enter+Tab test reaches.
+// Miss-analysis: the parser's interrupt check was tested on source bytes, never on a written tree.
 
 /** `[paragraph(text), sublist]` inside one item, as a nesting splice leaves it. */
 function itemWithSublist(text: string, sublistSource: string): CstNode {
@@ -29,7 +25,7 @@ function itemWithSublist(text: string, sublistSource: string): CstNode {
 const separatorOf = (item: CstNode) => item.children![1].leadingTrivia;
 
 describe('settleSublistSeparator', () => {
-	it('mints a line for a sublist whose marker carries no content', () => {
+	it('creates a line for a sublist whose marker carries no content', () => {
 		const item = itemWithSublist('x\n', '- \n');
 		settleSublistSeparator(item.children!, 1);
 		expect(separatorOf(item)).toBe('\n');
@@ -44,7 +40,7 @@ describe('settleSublistSeparator', () => {
 		expect(separatorOf(item)).toBe('');
 	});
 
-	it('mints a line for every marker glyph, ordered included', () => {
+	it('creates a line for every marker glyph, ordered included', () => {
 		for (const sublist of ['* \n', '+ \n', '1. \n', '3) \n']) {
 			const item = itemWithSublist('x\n', sublist);
 			settleSublistSeparator(item.children!, 1);
@@ -52,8 +48,8 @@ describe('settleSublistSeparator', () => {
 		}
 	});
 
-	// The seam absorb owns a content-bearing list that stopped interrupting (GH #176): its text
-	// survives the fold, so the two rules split on emptiness rather than racing.
+	// A sublist with content that can't interrupt is left to the neighbour merge, which keeps its
+	// text, so the two rules split on emptiness rather than racing.
 	it('declines for an ordered sublist that carries content', () => {
 		const item = itemWithSublist('x\n', '2. y\n');
 		settleSublistSeparator(item.children!, 1);
@@ -85,7 +81,7 @@ describe('settleSublistSeparator', () => {
 		expect(separatorOf(item)).toBe('\n');
 	});
 
-	// The settled bytes are what the reload reads back: the item holds a paragraph and a
+	// The fixed-up bytes are what the reload reads back: the item holds a paragraph and a
 	// one-item sublist, not the setext heading the unseparated bytes spell.
 	it('leaves bytes that reparse to the tree they were written from', () => {
 		const item = itemWithSublist('x\n', '- \n');

@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
@@ -32,8 +31,8 @@ function scanForLiteral(doc: Document, needle: string) {
 	return out;
 }
 
-describe('replaceAll — per-top-level-subtree, one undo entry', () => {
-	it('two matches in two children of one blockquote, both splitting, commit as ONE undo entry', async () => {
+describe('replaceAll: per-top-level-subtree, one undo entry', () => {
+	it('two matches in two children of one blockquote, both splitting, commit as one undo entry', async () => {
 		const { deps, sr } = makeSearchReplace('> aXa\n>\n> bXb\n');
 
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), '\n\n');
@@ -94,7 +93,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	it('seeds the undo snapshot with the deep match path for a nested replacement', async () => {
 		const { deps, sr } = makeSearchReplace('- itemX\n');
 		const match = scanForLiteral(deps.doc, 'X')[0];
-		expect(match.path.length).toBeGreaterThan(1); // nested, so RED ≠ GREEN
+		expect(match.path.length).toBeGreaterThan(1); // nested, so the case can fail
 
 		await sr.replaceOne(match, 'Y');
 
@@ -120,7 +119,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 
 		const matches = scanForLiteral(deps.doc, 'needle');
 		expect(matches.length).toBeGreaterThan(0);
-		// RED ≠ GREEN: one child cannot collide.
+		// So the case can fail: one child cannot collide.
 		expect(deps.doc.children[0].children![0].children!.length).toBeGreaterThanOrEqual(2);
 
 		await sr.replaceAll(matches, 'love');
@@ -139,7 +138,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 });
 
-describe('replaceOne — single-subtree case', () => {
+describe('replaceOne: single-subtree case', () => {
 	it('replaces a single match and keeps one undo entry', async () => {
 		const { deps, sr } = makeSearchReplace('the cat sat\n');
 		await sr.replaceOne({ path: [0], start: 4, end: 7 }, 'dog');
@@ -154,27 +153,20 @@ describe('replaceOne — single-subtree case', () => {
 	});
 
 	// Parity with the top-level content commit: the reparse honors the instance grammar.
-	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
+	it('honors the instance grammar: a disabled heading marker stays paragraph', async () => {
 		const { deps, sr } = makeSearchReplace('title\n');
-		deps.grammar = createGrammarView((kind) => kind !== 'heading');
+		deps.reading = fixtureReading({ grammar: createGrammarView((kind) => kind !== 'heading') });
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});
 });
 
-describe('replace — matches on childless opaque containers are skipped', () => {
-	// The real scanner: only it produces the container matches these pin.
+describe('replace: matches on childless opaque containers are skipped', () => {
+	// The real scanner: only it produces the container matches these test.
 	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
 	let diagramNode: CstNode;
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		const diagram = declarePluginKind('replace-diagram');
-		registerBlockKind(diagram, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const diagram = testLeaf('replace-diagram', {
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		diagramNode = { kind: diagram, leadingTrivia: '\n', raw: DIAGRAM_RAW, children: [] };
@@ -185,7 +177,7 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 		const { deps, sr } = makeSearchReplace([para, diagramNode]);
 
 		const matches = scanCompiled(deps.doc, 'cat');
-		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so RED ≠ GREEN
+		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so the case can fail
 
 		const replaced = await sr.replaceAll(matches, 'dog');
 
@@ -210,24 +202,12 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 	});
 });
 
-describe('replace — a batch that applies nothing leaves no undo entry', () => {
-	// Miss-analysis: the undo assertions all counted entries after a SUCCESSFUL batch, and the
-	// throw arm was pinned on its error event alone — so the snapshot pushed before the loop, the
-	// one register no commit ceremony covers, had no case looking at it on the failing path.
+describe('replace: a batch that applies nothing leaves no undo entry', () => {
+	// Miss-analysis: the throw case asserted its error event only, never the snapshot pushed first.
 	it('restores the stacks when the first subtree throws in its rebuild', async () => {
-		__resetSchemaRegistriesForTests();
-		const brittle = declarePluginKind('replace-brittle');
-		registerBlockKind(brittle, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: {
-				contract: 'opaque',
-				rebuildRaw: () => {
-					throw new Error('rebuild refused');
-				}
+		const brittle = testContainer('replace-brittle', {
+			rebuildRaw: () => {
+				throw new Error('rebuild refused');
 			}
 		});
 		const child: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'prose cat\n' };
@@ -249,13 +229,9 @@ describe('replace — a batch that applies nothing leaves no undo entry', () => 
 	});
 });
 
-describe('replace — a childless opaque container reparses its own bytes', () => {
-	// Miss-analysis (#41): the container arm was pinned only by its DECLINE, with a fixture kind
-	// whose opener was never registered — so the decline read as "containers are excluded" when
-	// the real rule is kind stability, and the reachable half (a registered kind that survives the
-	// substitution) had no case at all.
+describe('replace: a childless opaque container reparses its own bytes', () => {
+	// Miss-analysis (GH #41): containers were tested only by a decline of an unregistered opener.
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerMermaidKind();
 	});
 

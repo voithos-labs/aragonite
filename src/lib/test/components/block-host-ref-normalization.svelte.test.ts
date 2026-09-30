@@ -1,24 +1,22 @@
 // @vitest-environment jsdom
-//
-// BlockHost is the one place that knows a container publishes its whole
-// `BlockComponent` surface under a single `containerApi` export (Svelte 5 instance
-// exports have no spread, so hand-redeclaring the members drops doors one at a time).
-// A slot left holding the raw instance is a block whose caret never lands, and it
-// fails nowhere near here — so the resolution is asserted at the slot, over a REAL
-// container.
+// BlockHost unwraps the `containerApi` export a container hands over its whole interface under.
+// A ref entry left holding the raw instance is a block the caret can never reach, failing far from
+// here, so the result is asserted at the ref entry over a real container.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
 import { takeDevWarns } from '../support/warn-gate';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
-import { declareComponentlessKind, mountBlockHost, type MountedHost } from './mount-host';
+import { mountBlockHost, type MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
+import { makeShimChildList } from '$lib/test/harness/editor-actions';
+import { componentAt } from '$lib/reactivity/child-list';
 
-// The vitest setup registers built-in DESCRIPTORS only, but the container assertions
-// need BlockHost to dispatch a real blockquote.
+// The vitest setup registers the built-in descriptors only, but the container
+// assertions need BlockHost to dispatch a real blockquote.
 beforeAll(() => {
 	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
@@ -28,28 +26,26 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 describe('resolveBlockSurface', () => {
 	const leaf = { focus() {}, getCursorOffset: () => null, editable: true, focusable: true };
-	// Container-GRADE, not merely present: the union's container arm requires the
-	// descent verbs, so a leaf-shaped `containerApi` does not type-check here either.
+	// A full container, not merely present: the union's container half requires the
+	// descent methods, so a block-shaped `containerApi` does not type-check here either.
 	const container: ContainerBlockComponent = {
 		...leaf,
 		parkCaret: () => {},
 		getCursorPosition: () => null,
 		focusByPath: () => {},
-		getBlockComponentByPath: () => null,
-		revealByPath: async () => null,
+		childList: () => makeShimChildList([]),
 		focusAtColumn: () => {},
 		isVerticallyTransparent: () => false,
 		enterEdgeWidget: () => false
 	};
 
 	it('unwraps a container instance to the surface it published', () => {
-		// By identity, not by shape: `publishRefSlot` clears a slot only while it still
-		// holds the ref it wrote, so a wrapper minted per read would stomp a neighbour's.
+		// By identity, not by shape: `publishRefSlot` clears an entry only while it still
+		// holds the ref it wrote, so a wrapper built per read would clear a neighbour's.
 		expect(resolveBlockSurface({ containerApi: container })).toBe(container);
 	});
 
@@ -68,24 +64,23 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 
 		mounted = mountBlockHost(doc, { index: 0 });
 
-		// The container-only verbs: an instance published as `{ containerApi }` carries
-		// none of them, and the parent's focus walk would find a ref with no doors.
+		// The container-only methods: an instance handed over as `{ containerApi }` has
+		// none of them, so the parent's focus descent would find a ref it cannot use.
 		const ref = mounted.refs[0];
 		expect(typeof ref?.focus).toBe('function');
 		expect(typeof ref?.parkCaret).toBe('function');
 		expect(typeof ref?.focusByPath).toBe('function');
-		expect(typeof ref?.getBlockComponentByPath).toBe('function');
-		expect(typeof ref?.revealByPath).toBe('function');
+		expect(typeof ref?.childList).toBe('function');
 		expect((ref as { containerApi?: unknown }).containerApi).toBeUndefined();
 	});
 
 	it('resolves a nested container the same way, one level down', () => {
-		// The nested walk is the ref chain proper: the outer container's own slot must
-		// hold a surface whose descent reaches the inner container's surface.
+		// Nesting is the ref chain proper: the outer container's own entry must hold
+		// something whose descent reaches the inner container's own interface.
 		const doc = parse('> - item\n');
 
 		mounted = mountBlockHost(doc, { index: 0 });
-		const inner = mounted.refs[0]?.getBlockComponentByPath?.([0]);
+		const inner = componentAt(mounted.refs[0]!.childList!(), [0]);
 
 		expect(typeof inner?.focusByPath).toBe('function');
 		expect((inner as { containerApi?: unknown } | null)?.containerApi).toBeUndefined();
@@ -99,7 +94,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 
 	it('dev-warns when a component publishes neither surface shape', () => {
 		const doc = parse('surfaceless\n');
-		const kind = declareComponentlessKind('host-surfaceless');
+		const kind = testLeaf('host-surfaceless');
 		// The cast is the point: `defineBlockComponent` rejects this component, so the
 		// only way here is the escape hatch, and this warn is what covers it.
 		registerBlockComponent(kind, {

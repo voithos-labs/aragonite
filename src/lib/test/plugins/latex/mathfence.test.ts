@@ -1,15 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/latex/latex-kind';
 
-// GitHub's third math form: a fence whose info string opens with `math`. Priced below
-// `fencedCode`, whose superset matcher would otherwise claim every fence.
+// GitHub's third math form: a fence whose info string starts with `math`. Registered below
+// `fencedCode`, which would otherwise take every fence.
 
 describe('math fence claims and declines', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -62,12 +60,10 @@ describe('math fence claims and declines', () => {
 	}
 });
 
-// Unterminated declines to the built-in fencedCode (matching the sibling `$$`
-// block's decline path, not mermaid's consume-to-EOF), so it becomes a plain
-// `math` code block — byte-identical either way.
+// An unterminated fence falls through to the built-in fencedCode, as the `$$` block does and
+// mermaid does not, becoming a plain `math` code block with identical bytes.
 describe('unterminated math fence declines to fencedCode', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -85,7 +81,6 @@ describe('unterminated math fence declines to fencedCode', () => {
 // CRLF threading: the closer line and its ending survive verbatim through raw.
 describe('math fence round-trip', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -99,8 +94,6 @@ describe('math fence round-trip', () => {
 });
 
 describe('math fence with the plugin uninstalled', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('parses as plain fencedCode and serializes byte-identically', () => {
 		const src = '```math\nx^2\n```\n';
 		const doc = parse(src);
@@ -109,8 +102,8 @@ describe('math fence with the plugin uninstalled', () => {
 	});
 });
 
-// The render component reads the inner LaTeX from stored source, whichever wrapper
-// the source carries — the same helper serves the `$$` block and the fence.
+// The inner LaTeX comes from the stored source, whichever wrapper (`$$` or a fence) it uses.
+// Miss-analysis: every case padded with ASCII, never a non-breaking space KaTeX would paint.
 describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 	const cases: Array<[label: string, source: string, inner: string]> = [
 		['bare $$ multi-line', '$$\nx^2\n$$', 'x^2'],
@@ -120,7 +113,9 @@ describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 		['fence with info suffix', '```math linenums\nx^2\n```\n', 'x^2'],
 		['fence keeps an interior blank line', '```math\nx\n\ny\n```\n', 'x\n\ny'],
 		['~~~math fence', '~~~math\n\\alpha\n~~~\n', '\\alpha'],
-		['CRLF fence', '```math\r\nx^2\r\n```\r\n', 'x^2']
+		['CRLF fence', '```math\r\nx^2\r\n```\r\n', 'x^2'],
+		// KaTeX paints a non-breaking space, so the padding trim leaves it in.
+		['$$ with a non-breaking space', '$$\u00a0x^2 $$', '\u00a0x^2']
 	];
 	for (const [label, source, inner] of cases) {
 		it(label, () => {

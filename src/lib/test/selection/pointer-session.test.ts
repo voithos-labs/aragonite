@@ -2,9 +2,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createPointerDragSession } from '../../selection/pointer-session';
 
-// The coalescing contract every drag lifecycle inherits: a release flushes the last pending move
-// exactly once (a fast flick's final position is not dropped) and never replays a move the frame
-// already processed, which would double-commit.
+// The coalescing contract every drag inherits: a release flushes the last pending move exactly
+// once, so a fast flick keeps its final position and no processed move commits twice.
 
 function pointer(
 	type: string,
@@ -16,7 +15,7 @@ function pointer(
 	return event as unknown as PointerEvent;
 }
 
-describe('createPointerDragSession — move coalescing', () => {
+describe('createPointerDragSession: move coalescing', () => {
 	const realRaf = globalThis.requestAnimationFrame;
 	const realCancel = globalThis.cancelAnimationFrame;
 	afterEach(() => {
@@ -59,7 +58,7 @@ describe('createPointerDragSession — move coalescing', () => {
 			}
 		);
 
-		// Two moves inside one frame: the rAF is armed once and has not run.
+		// Two moves inside one frame: one frame callback is pending and has not run.
 		document.dispatchEvent(pointer('pointermove', 1, { clientX: 5, clientY: 0 }));
 		document.dispatchEvent(pointer('pointermove', 1, { clientX: 9, clientY: 0 }));
 		expect(seen).toEqual([]);

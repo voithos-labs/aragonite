@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
-//
-// The cell's plain-typing commit funnel, end to end. A cell's raw is joined verbatim into its
-// row, so a `|` reaching `cell.raw` unescaped reparses the row wider than the delimiter's column
-// count and the parser truncates — the last column's content is deleted, silently. The three
-// gestures computing their own bytes are cell-write-escape.test.ts's; the funnel every keystroke
-// uses (`commitInput`, the one allowlisted caller in G4.20) had no test until this one.
+// Every typed character in a cell goes through `commitInput`. A cell's raw is joined verbatim
+// into its row, so an unescaped `|` in `cell.raw` reparses the row too wide and the parser
+// silently drops the last column. Gestures that write their own bytes are in
+// `cell-write-escape.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);
@@ -47,8 +49,7 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 	});
 
 	it('leaves text with no free pipe exactly as typed', async () => {
-		// Non-vacuity: the sink is not a blanket rewrite, so ordinary typing must
-		// arrive byte-for-byte.
+		// The escaping is not a blanket rewrite, so ordinary typing must arrive byte for byte.
 		mounted = mountEditor({ source: GRID });
 
 		await typeInto(1, 0, 'plain text');
@@ -75,7 +76,7 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 		expect(reparsedColumns()).toBe(2);
 	});
 
-	it('commits a header cell through the same door', async () => {
+	it('commits a header cell through the same entry point', async () => {
 		// The header row is the one whose cell count the delimiter must match, so a
 		// leak there truncates the whole table rather than one row.
 		mounted = mountEditor({ source: GRID });
@@ -97,7 +98,7 @@ describe('a composed (IME) cell edit commits once, through the same escape', () 
 		el.textContent = 'x|y';
 		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await mounted.settle();
-		// Mid-composition the document is untouched — the funnel is suppressed.
+		// While a composition runs the document is untouched: the commit is suppressed.
 		expect(mounted.source()).toBe(GRID);
 
 		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));

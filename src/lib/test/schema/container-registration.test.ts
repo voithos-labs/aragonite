@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	augmentBlockKind,
 	getBlockKindDescriptor,
 	registerBlockKind,
 	tryGetBlockKindDescriptor,
+	type BlockKindAugmentation,
 	type BlockKindRegistration
 } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
@@ -23,11 +23,9 @@ const UNWRAP = {
 	middleChildBackspace: 'default-merge'
 } as const;
 
-afterEach(() => __resetSchemaRegistriesForTests());
-
 // ── Compile-time pins ───────────────────────────────────────────────────────
-// Never invoked — `npm run check` is the gate. An "unused '@ts-expect-error'"
-// error on any pin means an illegal registration shape compiled again.
+// Never called: `npm run check` is the gate. An "unused '@ts-expect-error'"
+// error on any of these means an illegal registration shape compiled again.
 const typePins = (): void => {
 	const kind = declarePluginKind('shape-pin');
 	// @ts-expect-error rebuildRaw lives in the container group, not at top level
@@ -73,11 +71,11 @@ describe('registerBlockKind normalizes the container group', () => {
 		expect(tryGetBlockKindDescriptor(kind)?.isContainer).toBe(false);
 	});
 
-	// Excess-property checks bite only fresh literals, so the widened calls below compile
-	// with no cast — the runtime strip is the only defense left to pin.
+	// A widened value escapes excess-property checks, so what the code strips at runtime is the
+	// only protection to test; the casts here stand in for a JS caller.
 	it('a widened flat descriptor cannot smuggle container-only fields past the group', () => {
 		const kind = declarePluginKind('norm-widened');
-		registerBlockKind(kind, getBlockKindDescriptor('blockquote'));
+		registerBlockKind(kind, getBlockKindDescriptor('blockquote') as BlockKindRegistration);
 
 		const d = tryGetBlockKindDescriptor(kind)!;
 		expect(d.isContainer).toBe(false);
@@ -91,7 +89,9 @@ describe('registerBlockKind normalizes the container group', () => {
 	it('a widened flat descriptor cannot smuggle container-only fields through augment', () => {
 		const kind = declarePluginKind('aug-widened');
 		registerBlockKind(kind, leaf);
-		augmentBlockKind(kind, getBlockKindDescriptor('blockquote'));
+		// A fixed field would throw before the strip, so the widened value drops blockquote's one.
+		const { supportsInline: _fixed, ...widened } = getBlockKindDescriptor('blockquote');
+		augmentBlockKind(kind, widened as unknown as BlockKindAugmentation);
 
 		const d = tryGetBlockKindDescriptor(kind)!;
 		expect(d.isContainer).toBe(false);
@@ -116,10 +116,11 @@ describe('augment merges a partial container group', () => {
 
 	it('adds a group field while preserving the rest of the group', () => {
 		const { kind, rebuildRaw } = registerContainer('aug-partial');
-		augmentBlockKind(kind, { container: { unwrapRole: UNWRAP } });
+		const reorderChildren = { renumberMarkers: true } as const;
+		augmentBlockKind(kind, { container: { reorderChildren } });
 
 		const d = tryGetBlockKindDescriptor(kind)!;
-		expect(d.unwrapRole).toEqual(UNWRAP);
+		expect(d.reorderChildren).toEqual(reorderChildren);
 		expect(d.rebuildRaw).toBe(rebuildRaw);
 		expect(d.containerContract).toBe('opaque');
 	});

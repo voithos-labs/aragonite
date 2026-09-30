@@ -9,7 +9,7 @@ it('nodes without ownerEpoch are shared once any snapshot exists', () => {
 	expect(sharing.isShared(doc.children[0])).toBe(true);
 });
 
-it('a freshly stamped node is not shared until the next snapshot', () => {
+it('a freshly marked node is not shared until the next snapshot', () => {
 	const sharing = createSharingState();
 	const doc = parse('hello\n');
 	sharing.markSnapshotTaken();

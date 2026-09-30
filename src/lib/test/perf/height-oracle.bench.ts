@@ -1,6 +1,7 @@
-// The height model seeds one estimate per child of a mounted scope, so loading 400,000 blocks
-// pays this 400,000 times before a single one paints. Nodes are synthesized rather than parsed:
-// the estimate reads kind, raw and child count only, and a 20MB parse would dominate the setup.
+// The height table starts from one estimate per child of a mounted list, so loading 400,000
+// blocks pays this 400,000 times before a single one paints. The nodes are built rather than
+// parsed: the estimate reads only kind, raw and child count, and a 20MB parse would dominate
+// the setup.
 import { describe, test } from 'vitest';
 import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '../../core/nodes';
@@ -21,7 +22,7 @@ const leaf = (kind: string, raw: string, metadata?: BlockMetadata): CstNode =>
 
 const paragraph = (i: number): CstNode => leaf('paragraph', `block ${i} of ordinary prose text\n`);
 
-/** The kinds a real document mixes, including the image arm the prose estimate branches on. */
+/** The kinds a real document mixes, including the image case the prose estimate branches on. */
 function mixed(i: number): CstNode {
 	switch (i % 6) {
 		case 1:
@@ -59,7 +60,7 @@ function build(shape: (i: number) => CstNode): { nodes: CstNode[]; ids: string[]
 	return { nodes, ids };
 }
 
-/** `buildModel`'s own loop (`reactivity/list-windowing.svelte.ts`), minus the reactive scope. */
+/** `buildModel`'s own loop (`reactivity/list-windowing.svelte.ts`), without the reactivity. */
 function seed(oracle: HeightOracle, nodes: CstNode[], ids: string[]): number[] {
 	const heights = new Array<number>(nodes.length);
 	for (let i = 0; i < nodes.length; i++)

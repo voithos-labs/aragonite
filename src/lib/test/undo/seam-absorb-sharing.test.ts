@@ -8,11 +8,9 @@ import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createReorderAction } from '../../editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// A seam absorb splices a window whose HEAD is a pre-existing neighbour, so under an outstanding
-// snapshot the fold reaches nodes an entry still shares — the G1.9 case every earlier absorb pin
-// missed by starting from a fresh sharing state.
-// Miss-analysis: the fold pins all built their own `createSharingState()`, so the copy-on-write
-// branch of the splice was never taken and the integrity oracle never saw these paths.
+// Absorbing at the join between two blocks splices a range starting at an existing neighbour, so
+// with an undo entry outstanding the collapse writes nodes that entry still shares (G1.9).
+// Miss-analysis: every test built a fresh `createSharingState()`, so no copy-before-write ran.
 
 const TIGHT_JOIN = 'a\n# h\nb\n';
 const UNDERLINE_BELOW = '# [t](u)\n===\n\nafter\n';
@@ -33,12 +31,12 @@ function harness(source = TIGHT_JOIN) {
 	};
 }
 
-describe('a seam absorb under an outstanding snapshot', () => {
+describe('a join absorb under an outstanding snapshot', () => {
 	it('leaves the demotion fold’s shared predecessor byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
-		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(h.doc.children).toHaveLength(1);
 		expect(h.snapshotBytes()).toBe(TIGHT_JOIN);
@@ -52,7 +50,7 @@ describe('a seam absorb under an outstanding snapshot', () => {
 
 	it('leaves the reorder fold’s shared window byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
 		await h.reorder.moveReorderUnit([1], 2);
 
@@ -66,14 +64,12 @@ describe('a seam absorb under an outstanding snapshot', () => {
 		expect(h.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading', 'paragraph']);
 	});
 
-	// GH #255: the fold splices out the underline the entry still shares, and promotes the head
-	// past the kind its own bytes carry alone.
-	// Miss-analysis: no split pin put a combination-only structural line under the second half,
-	// so the fold that changes the head's kind never ran with an entry outstanding.
+	// The split's collapse splices out the setext underline the undo entry still shares.
+	// Miss-analysis: GH #255; no split test left an underline beneath the second half's text.
 	it('splices the shared underline into the promoted head, and undo restores it', async () => {
 		const h = harness(UNDERLINE_BELOW);
 
-		// Inside the heading's content: a cut at its head moves the whole heading down instead.
+		// Inside the heading's content: a cut at its start moves the whole heading down instead.
 		await h.actions.splitBlock(0, 3);
 
 		expect(h.doc.children.map((c) => [c.kind, c.raw])).toEqual([

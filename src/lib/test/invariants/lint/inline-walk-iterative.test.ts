@@ -1,9 +1,8 @@
 /**
- * G4.56 — every walk over an inline tree or its rendered DOM is iterative. Inline nesting depth is
- * input-controlled, so a per-level call frame overflows the stack and strands the block in the
- * fallback it cannot heal: the renderer knew that and four walks one call later did not (#200).
- * Scope is `core/inline/`, `cursor/`, `ambient/` and the live gesture seams under
- * `components/blocks/text/`, whose join-seam rebuild routes through the same pre-order (#226).
+ * Every traversal over an inline tree or its rendered DOM is iterative (G4.56): inline nesting
+ * depth comes from the input, so one call frame per level overflows the stack and strands the
+ * block in a fallback it cannot recover from. The scan covers `core/inline/`, `cursor/`, `ambient/`
+ * and the live gesture code in `components/blocks/text/`, whose join rebuild walks the same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -12,10 +11,11 @@ import {
 	balancedCall,
 	callsAnywhere,
 	collectEditorSources,
-	EDITOR_SRC
+	EDITOR_SRC,
+	walkCode
 } from './scan-source';
 
-/** Library-internal: the rule binds the walks over aragonite's own tree, which no plugin owns. */
+/** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
 const SCOPE = [
 	'src/lib/core/inline/',
 	'src/lib/cursor/',
@@ -23,9 +23,8 @@ const SCOPE = [
 	'src/lib/components/blocks/text/'
 ];
 
-/** Keyed by the `path :: name` a hit reads as, which addresses ONE walk because the assertion
- *  below fails a scoped file that spells two walkers alike. A walk that recurses is a stack
- *  overflow waiting for a deep enough document: empty by design, and an entry states one. */
+/** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
+ *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */
 const EXCEPTIONS: Record<string, string> = {};
 
 const TOUCHES_CHILDREN = /\.(children|childNodes)\b/;
@@ -42,8 +41,7 @@ interface Declaration {
 function bodyAfterParams(code: string, parenIndex: number): string | null {
 	const params = balancedCall(code, parenIndex + 1);
 	if (params === null) return null;
-	let at = parenIndex + 1 + params.length;
-	while (at < code.length && code[at] !== '{' && code[at] !== ';') at++;
+	const at = walkCode(code, parenIndex + 1 + params.length, (ch) => ch === '{' || ch === ';');
 	return code[at] === '{' ? balancedBlock(code, at + 1) : null;
 }
 
@@ -60,11 +58,8 @@ function walkerDeclarations(code: string): Declaration[] {
 	return out;
 }
 
-/**
- * Declarations on a call cycle — a self-call is the one-cycle, so both shapes fall out of one
- * pass. Reachability is per DECLARATION and a call reaches EVERY declaration bearing the name:
- * which one the source means is not decidable here, and over-flagging is the safe direction.
- */
+/** Declarations on a call cycle, a self-call being a cycle of one. A call reaches every declaration
+ *  with its name, since which one the source means cannot be decided here. */
 function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 	const reach = declarations.map(
 		(declaration) =>
@@ -94,9 +89,8 @@ function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 const recursiveWalkNames = (code: string): string[] =>
 	recursiveDeclarations(walkerDeclarations(code)).map((declaration) => declaration.name);
 
-/** Walker names a file spells more than once. An EXCEPTIONS key is a path and a name, so a repeat
- *  would exempt a walk nobody stated — and a detector keyed by name would hide one behind the
- *  other. */
+/** Walker names a file spells more than once: an `EXCEPTIONS` key is a path and a name, so a
+ *  repeat would exempt a traversal nobody stated. */
 function repeatedWalkerNames(code: string): string[] {
 	const seen = new Set<string>();
 	const repeats = new Set<string>();
@@ -108,7 +102,7 @@ function repeatedWalkerNames(code: string): string[] {
 }
 
 /** A recursive walker and an iterative one under one name, the shape `components/blocks/text/`
- *  spells as `visit`: the guard must report the first and leave the second alone. */
+ *  spells as `visit`: the check reports the first and leaves the second alone. */
 const TWO_WALKERS_ALIKE = `
 function visit(nodes) {
 	for (const node of nodes) if (node.children) visit(node.children);
@@ -133,7 +127,7 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 		}
 	});
 
-	it('reads both walk seams out of the scoped sources', () => {
+	it('reads both walk boundaries out of the scoped sources', () => {
 		const seams = [
 			['src/lib/core/inline/walk.ts', 'inlineDescendants'],
 			['src/lib/cursor/dom-walk.ts', 'domDescendants']

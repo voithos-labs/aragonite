@@ -4,9 +4,9 @@ import { EditorPage } from '../../../editor-page';
 import { clickWordSettled } from '../../presentation/helpers';
 import { waitForFirstImageLoaded } from './helpers';
 
-// Home before a line-leading image: the position before the widget is landable, but no text
-// node holds it, so the engine seats the caret past the image and typing there was unreachable.
-// Requirements: e2e/requirements/blocks/image/home-leading-image.md.
+// Home before an image at the start of a line: the caret can sit before the widget, but no text
+// node holds that position, so the browser puts the caret past the image and typing there is
+// unreachable. Requirements: `e2e/requirements/blocks/image/home-leading-image.md`.
 
 const IMAGE = '![pic](/test-fixtures/sample.png)';
 
@@ -24,7 +24,7 @@ async function homeThenType(ep: EditorPage, page: Page): Promise<void> {
 }
 
 for (const mode of ['source', 'live'] as const) {
-	test(`${mode}: Home seats before the leading image, and a typed byte lands ahead of its bytes`, async ({
+	test(`${mode}: Home puts the caret before the leading image, and a typed byte lands ahead of its bytes`, async ({
 		page
 	}) => {
 		const ep = new EditorPage(page);
@@ -39,7 +39,7 @@ for (const mode of ['source', 'live'] as const) {
 	});
 }
 
-// The ambient arm's sentinel (GH #110) and the leading-island door land the same way.
+// The branch for a container's marker prefix and the one for a leading widget agree.
 test('a list item opening with an image lands Home before the image too', async ({ page }) => {
 	const ep = new EditorPage(page);
 	await ep.goto();

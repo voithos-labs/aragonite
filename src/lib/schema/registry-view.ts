@@ -1,10 +1,8 @@
 /**
- * Per-instance resolution over the process-global block definitions (docs/design/plugin-contract.md
- * § Schema registries). The default view resolves every kind VERBATIM, so an editorless `parse()`
- * and every bare component mount stay byte-identical. An `isEnabled` view resolves no component
- * for a disabled plugin kind and drops its opener; the DESCRIPTOR is never filtered, since a
- * disabled kind still needs it to degrade rather than throw. The `plugins` prop sources the
- * predicate: `plugin-activation.ts` turns an instance's listed set into one.
+ * Per-editor resolution over the process-wide definitions
+ * (`docs/design/plugin-contract.md` § Per-instance enablement). The default view resolves every
+ * installed plugin, as a bare `parse()` does; `plugins` leaves out an unlisted plugin's entries
+ * and `syntax` a switched-off syntax. The descriptor is never filtered: a disabled kind needs it.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
@@ -14,45 +12,70 @@ import {
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { defaultGrammarView, createGrammarView, type GrammarView } from './block-openers';
+import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
+import { pluginKindOwner } from './plugin-kind';
 
-/** `false` disables a PLUGIN kind for one instance; built-ins are never disableable. */
+/** `false` disables a plugin kind for one editor; built-ins are switched only by `syntax`. */
 export type KindEnablement = (kind: AnyBlockKind) => boolean;
 
+/** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
+export interface SyntaxOptions {
+	/** A line indented four columns (or by a tab) opens a code block. */
+	indentedCode?: boolean;
+	/** A `===` or `---` line under paragraph text makes it a heading. */
+	setextHeading?: boolean;
+}
+
 export interface RegistryView {
-	/** The kind's component, or `undefined` when unregistered OR disabled for this instance. */
+	/** The kind's component, or `undefined` when it is unregistered or disabled for this editor. */
 	component(kind: AnyBlockKind): BlockComponentEntry | undefined;
-	/** The kind's descriptor — never filtered (required infrastructure); throws when absent. */
+	/** The kind's descriptor, never filtered because every kind needs one; throws when absent. */
 	descriptor(kind: AnyBlockKind): BlockKindDescriptor;
 	tryDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined;
-	/** The block grammar this instance parses through (`parse(source, { grammar })`). */
+	/** The block grammar this editor parses through (`parse(source, { grammar })`). */
 	grammar: GrammarView;
 }
 
-/** Both predicates must admit the kind, so a second filter can only narrow the first.
- *  An absent side admits everything. */
-export function bothEnable(
-	a: KindEnablement | undefined,
-	b: KindEnablement | undefined
-): KindEnablement | undefined {
-	if (!a) return b;
-	if (!b) return a;
-	return (kind) => a(kind) && b(kind);
+/**
+ * A kind whose plugin this editor did not activate, or whose setup threw, resolves no component
+ * and drops its opener; a kind no plugin owns, built-ins included, is never filtered.
+ */
+export function kindEnablementFor(activation: PluginActivation): KindEnablement {
+	return (kind) => resolvesIn(activation, pluginKindOwner(kind));
 }
 
-export function createRegistryView(opts?: { isEnabled?: KindEnablement }): RegistryView {
-	const filter = opts?.isEnabled;
-	if (!filter) return defaultRegistryView;
-	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || filter(kind);
+export function createRegistryView(opts?: {
+	/** The plugins this editor lists; absent activates every installed plugin. */
+	plugins?: PluginActivation;
+	/** A further kind filter, narrowing what `plugins` allows. */
+	isEnabled?: KindEnablement;
+	syntax?: SyntaxOptions;
+}): RegistryView {
+	const plugins = opts?.plugins;
+	const indentedCode = opts?.syntax?.indentedCode ?? true;
+	const setextHeading = opts?.syntax?.setextHeading ?? true;
+	if (!plugins && !opts?.isEnabled && indentedCode && setextHeading) return defaultRegistryView;
+	const activation = plugins ?? everyInstalledPlugin;
+	const resolves = kindEnablementFor(activation);
+	const narrowed = opts?.isEnabled;
+	const enabled: KindEnablement = (kind) =>
+		isBuiltinBlockKind(kind) || (resolves(kind) && (!narrowed || narrowed(kind)));
+	// A switched-off syntax leaves the grammar only: a block of that kind still renders.
+	const opens: KindEnablement = (kind) =>
+		enabled(kind) && (indentedCode || kind !== 'indentedCode');
 	return {
-		component: (kind) => (enabled(kind) ? getBlockComponent(kind) : undefined),
+		component: (kind) => (enabled(kind) ? getBlockComponent(kind, activation) : undefined),
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind),
-		grammar: createGrammarView(enabled)
+		grammar: createGrammarView(opens, { setextHeading, activation })
 	};
 }
 
+const everyInstalledKind = kindEnablementFor(everyInstalledPlugin);
+
 export const defaultRegistryView: RegistryView = {
-	component: (kind) => getBlockComponent(kind),
+	component: (kind) =>
+		everyInstalledKind(kind) ? getBlockComponent(kind, everyInstalledPlugin) : undefined,
 	descriptor: (kind) => getBlockKindDescriptor(kind),
 	tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind),
 	grammar: defaultGrammarView

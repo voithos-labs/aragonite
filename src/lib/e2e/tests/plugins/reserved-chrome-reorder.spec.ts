@@ -2,21 +2,20 @@ import { test, expect } from '../../fixtures';
 import { type Locator, type Page } from '@playwright/test';
 import { PluginsPage, readContainer, readDoc } from './helpers';
 
-// Opaque plugin containers (admonition, <details>, callout) decline nested reorder at their
-// boundary: the resolver returns no unit, so drag/keyboard reorder inside them is a no-op and the
-// inner BlockList renders no drag handle on the reserved chrome row OR the body rows. The container
-// itself stays a top-level reorder unit. Handles are existence-gated on being a reorder unit
-// (opacity only reveals on hover), so handle COUNT is the affordance oracle.
+// Opaque plugin containers (admonition, <details>, callout) refuse reordering inside them: the
+// resolver returns nothing to move, so dragging or the keyboard does nothing there and the inner
+// BlockList draws no drag handle on the title row or on any body row. The container itself is
+// still a top-level thing to reorder. A handle exists only where something can be reordered,
+// since hover only changes its opacity, so counting handles is what the tests read.
 
-// The handle is a direct child of the block-host wrapper; the `>` combinator isolates a row's OWN
-// handle from any nested descendants'.
+// The handle is a direct child of the block-host wrapper, and the `>` combinator keeps a row's own
+// handle apart from any nested one.
 function ownHandle(page: Page, path: number[]): Locator {
 	return page.locator(`[data-block-path='${JSON.stringify(path)}'] > .block-drag-handle`);
 }
 
-// Reveal + real-pointer drag of a top-level container's OWN handle to a drop target. Hovering
-// anywhere in the container reveals its own grip once no inner row is a reorder unit (the
-// `:not(:has(.reorder-host:hover))` rule), which is exactly the post-fix state.
+// Hovering anywhere in the container brings up its own handle once no inner row can be reordered
+// (the `:not(:has(.reorder-host:hover))` rule), then a real pointer drags it to a drop target.
 async function dragContainerHandle(
 	page: Page,
 	containerKind: string,
@@ -25,12 +24,12 @@ async function dragContainerHandle(
 ): Promise<void> {
 	const host = page.locator(`.block-host[data-block-kind="${containerKind}"]`).first();
 	await host.hover();
-	// The glyph, not the middle of the full-height strip: that is where a hand goes, and the
-	// strip's middle on a tall container is a long way from anything the user can see.
+	// The glyph, not the middle of the full-height strip: that is where a hand goes, and on a tall
+	// container the strip's middle is a long way from anything the user can see.
 	const hb = await host.locator(':scope > .block-drag-handle svg').boundingBox();
 	if (!hb) throw new Error(`no own handle for ${containerKind}`);
-	// `.last()`: an HTML container's host reports the raw text of the region it opened, tail
-	// included, so `.first()` picks the container being dragged instead of the block below it.
+	// `.last()`: an HTML container's host reports the raw text of the region it opened, its end
+	// included, so `.first()` would pick the container being dragged instead of the block below.
 	const db = await page.locator('.block-host', { hasText: dstText }).last().boundingBox();
 	if (!db) throw new Error('missing drop-target box');
 	await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
@@ -42,9 +41,8 @@ async function dragContainerHandle(
 }
 
 const ADMONITION = ':::tip Pro tip\nBody one\n\nBody two\n:::\n';
-// Siblings ABOVE and below so a mis-scoped reorder would teleport the container to a different
-// document index — a lone container clamps to a no-op and would hide the teleport. Admonition sits
-// at doc index 1, body one at [1, 1].
+// Siblings on both sides, so a reorder aimed at the wrong list changes the container's index,
+// where a lone container would hide it. The admonition is block 1, its body one at [1, 1].
 const ADMONITION_SIBLINGS = 'TOP\n\n:::tip Pro tip\nBody one\n\nBody two\n:::\n\nTAIL\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nDetails body\n\n</details>\n';
 
@@ -56,12 +54,10 @@ test.describe('opaque containers decline nested reorder', () => {
 		await editor.gotoPlugins();
 	});
 
-	// ── Bug 2 — no drag affordance on chrome or body rows ─────────────────────
+	// ── Bug 2: no drag handle on the title row or the body rows ───────────────
 
-	// A note is prose, so it carries no grip of its own either (`components/drag-handle.ts`);
-	// what this pins is that nothing INSIDE it becomes a reorder unit. The `<details>` case
-	// below is the container that does keep a grip, so the two together still separate
-	// "declines nested reorder" from "has no grip at all".
+	// A note is prose, so it has no handle of its own (its descriptor's `pageRole`); the `<details>`
+	// case below keeps one, separating "refuses reordering inside" from "has no handle at all".
 	test('an admonition renders no handle on its chrome, its body rows, or itself', async ({
 		page
 	}) => {
@@ -76,7 +72,9 @@ test.describe('opaque containers decline nested reorder', () => {
 		await expect(ownHandle(page, [0])).toHaveCount(0); // and the note itself: prose
 	});
 
-	test('the <details> summary chrome row renders no handle', async ({ page }) => {
+	test('the <details> summary row renders no handle, and the details keeps its own', async ({
+		page
+	}) => {
 		await editor.loadContent(DETAILS);
 		const details = await readContainer(page, 0);
 		expect(details.kind).toBe('details');
@@ -86,7 +84,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await expect(ownHandle(page, [0])).toHaveCount(1);
 	});
 
-	// ── Bug 1 — the shared resolver declines, so keyboard reorder is a no-op ───
+	// ── Bug 1: the shared resolver declines, so the keyboard does nothing ─────
 
 	test('Alt+ArrowUp / Alt+ArrowDown on an admonition body paragraph is a byte-exact no-op', async ({
 		page
@@ -102,7 +100,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 
-		// The container never teleported to another document index: order is preserved.
+		// The container never moved to another document index: the order is preserved.
 		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'admonition', 'paragraph']);
 	});
 
@@ -123,10 +121,10 @@ test.describe('opaque containers decline nested reorder', () => {
 		expect(await editor.bridge.getSource()).not.toContain('Body oneX');
 	});
 
-	// ── Regression — the container itself still reorders at document level ─────
+	// ── The container itself still reorders at document level ─────────────────
 
-	// `<details>` rather than the admonition: a note carries no grip, and this is the half that
-	// needs one — the container is still a top-level unit its own handle drags.
+	// `<details>` rather than the admonition: a note has no handle, and this is the half that
+	// needs one, since the container is still something its own handle drags.
 	test('dragging the details own handle still reorders it past a sibling', async ({ page }) => {
 		await editor.loadContent(`${DETAILS}\nTAIL\n`); // [0]=details, [1]=TAIL
 		await dragContainerHandle(page, 'details', 'TAIL', true);

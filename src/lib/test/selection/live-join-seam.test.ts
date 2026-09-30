@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -10,10 +11,10 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// `rangeDelete`'s mode arm, the seam every cross-block delete, cut, type-over and paste's delete
-// half crosses. The registration is the production one — a stub here would pin the wiring and
-// nothing else. The mode is the only difference between the two halves of each pair below.
+// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and paste
+// goes through, run with the production cleaner; each pair below differs only in mode.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -25,14 +26,21 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, mode, undefined);
+	rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading({}, mode),
+		'keyless'
+	);
 	return serialize(doc);
 }
 
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
 describe('a selection running out of one construct and into another', () => {
-	// § 5's row: the reader never saw either run, so the joined TEXT is what survives.
+	// The live-mode.md § 4.5 case: the user never saw either run, so the joined text is what
+	// survives.
 	it('bold to italic leaves no delimiter on screen', () => {
 		expect(deleteRange('**bold** and *italic*\n', at(0, 4), at(0, 16), 'live')).toBe('boalic\n');
 	});
@@ -56,15 +64,15 @@ describe('a selection running out of one construct and into another', () => {
 	});
 
 	// The same construct on both sides survives the cut: its opener and closer meet across the
-	// seam, so the literal join already says what the reader saw and nothing is dropped.
+	// join, so the literal join already says what the user saw and nothing is dropped.
 	it('cutting inside one construct keeps it whole', () => {
 		expect(deleteRange('**bold**\n', at(0, 3), at(0, 5), 'live')).toBe('**bd**\n');
 	});
 });
 
 describe('a selection that closes a construct against the one below it', () => {
-	// The delete's own inverse of the split: what is left of the two blocks meets closer-to-opener.
-	it('the pair enclosing nothing at the seam goes', () => {
+	// The delete's own inverse of the split: what is left of the two blocks meets closer to opener.
+	it('the pair enclosing nothing at the join goes', () => {
 		expect(deleteRange('Some **bo**\n\nX**ld** text\n', at(0, 11), at(1, 1), 'live')).toBe(
 			'Some **bold** text\n'
 		);
@@ -77,7 +85,7 @@ describe('a selection that closes a construct against the one below it', () => {
 	});
 });
 
-describe('joins the seam has no business touching', () => {
+describe('joins the cleanup has no business touching', () => {
 	it('leaves an ordinary paragraph merge alone', () => {
 		expect(deleteRange('hello world\n\nfoo bar\n', at(0, 6), at(1, 4), 'live')).toBe('hello bar\n');
 	});

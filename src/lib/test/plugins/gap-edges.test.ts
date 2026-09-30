@@ -1,11 +1,10 @@
-// The bundled plugin kinds' `gapEdges` declarations, read through the eligibility door
-// rather than off the descriptor: what a declaration is FOR is the boundary it opens, and a
-// field assertion would survive the door forgetting to consult it. Deleting any bundled
-// declaration reds a row here; the strip rows pin the tier that stays undeclared (#93).
+// The bundled plugin kinds' `gapEdges` declarations, read through the eligibility check
+// rather than off the descriptor: what a declaration is for is the boundary it opens, and
+// asserting the field would survive the check forgetting to consult it. Deleting any bundled
+// declaration fails a row here; the strip rows pin the kinds that stay undeclared.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
@@ -26,10 +25,9 @@ const QUOTE = '> quoted\n';
 const ALERT = '> [!NOTE]\n> alert body\n';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerBuiltInBlocks();
-	// One install teaches both math forms; admonitions co-registers githubAlert and
-	// activates the directive grammar, which registers the generic container.
+	// One install adds both math forms; admonitions also registers githubAlert and turns
+	// on the directive grammar, which registers the generic container.
 	registerMathBlock();
 	registerMermaidKind();
 	registerAdmonitions();
@@ -75,16 +73,15 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 		expect(eligibleBetween(MERMAID, TABLE)).toBe(false);
 	});
 
-	// `'none'` is the written-down no: it reads exactly as the omission it replaced.
+	// `'none'` is a written-down no, and it behaves exactly like declaring nothing.
 	it('keeps a boundary closed against a kind declaring none', () => {
 		expect(tryGetBlockKindDescriptor('paragraph')?.gapEdges).toBe('none');
 		expect(eligibleBetween(TABLE, 'prose\n')).toBe(false);
 		expect(eligibleBetween('prose\n', TABLE)).toBe(false);
 	});
 
-	// The toc is a render-primary leaf like the math forms, and its folded view leaves a caret
-	// no textual landing at either edge. Miss-analysis: the declared set was pinned kind by
-	// kind, so a kind that never declared had no row to red — an omission looked like a decision.
+	// The toc's rendered view gives the caret nowhere to sit at either edge, like the math forms.
+	// Miss-analysis: the declared set was pinned kind by kind, so an undeclared kind had no row.
 	it('opens the toc boundary against another trapped kind in either order', () => {
 		expect(eligibleBetween(MATH_BLOCK, TOC)).toBe(true);
 		expect(eligibleBetween(TOC, MATH_BLOCK)).toBe(true);
@@ -92,7 +89,7 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 	});
 });
 
-describe('gapEdges on the opaque-container tier (#93)', () => {
+describe('gapEdges on the opaque-container level (#93)', () => {
 	// Mixed pairs in both orders cover 'both' on each of the three kinds.
 	it('opens the callout|details boundary in either order', () => {
 		expect(eligibleBetween(CALLOUT, DETAILS)).toBe(true);
@@ -104,7 +101,7 @@ describe('gapEdges on the opaque-container tier (#93)', () => {
 		expect(eligibleBetween(CALLOUT, GENERIC_DIRECTIVE)).toBe(true);
 	});
 
-	// Strip containers keep their unwrap/exit gestures instead — decided, not omitted.
+	// Strip containers keep their unwrap and exit keys instead: decided, not forgotten.
 	it('keeps blockquote, githubAlert, and list boundaries gap-free', () => {
 		expect(eligibleBetween(QUOTE, QUOTE)).toBe(false);
 		expect(eligibleBetween(ALERT, ALERT)).toBe(false);

@@ -1,20 +1,21 @@
 /**
- * Commit-in-progress flag. The ceremony (editor-actions) brackets its synchronous body; the
- * decoration engine (reactivity) reads it to keep a source off a half-applied tree. A leaf,
- * so both read it downward — a flag in editor-actions would close a cycle. Never behind a
- * build flag: the deferral is production behavior (G4.61).
+ * Says whether a commit is running. The commit steps in `editor-actions` bracket their synchronous
+ * body with it, and `reactivity` reads it so decorations never read a half-applied tree. It lives
+ * here because both sides import downward, and it ships in production because the deferral it
+ * drives is production behavior (G4.61).
  */
 
-let inCommit = false;
+// A depth, not a boolean: a commit started from an `edit` handler must not end the outer one.
+let depth = 0;
 
 export function beginCommit(): void {
-	inCommit = true;
+	depth++;
 }
 
 export function endCommit(): void {
-	inCommit = false;
+	depth--;
 }
 
 export function isCommitInProgress(): boolean {
-	return inCommit;
+	return depth > 0;
 }

@@ -1,9 +1,8 @@
 /**
- * Resolve the reorderable unit a path points into: the nearest ancestor slot whose parent
- * reorders its children among themselves. Membership is the parent's declared
- * `reorderChildren` capability, never a kind name, so a plugin container opts in as the
- * built-ins do. An opaque container is a hard boundary — reorder DECLINES there rather
- * than walking past to the document and teleporting the container to a top-level index.
+ * Resolve the reorderable unit a path points into: the nearest position whose parent declares
+ * `reorderChildren`, a capability rather than a kind name, so a plugin container opts in as the
+ * built-ins do. An opaque container is a hard boundary: reorder declines there rather than move
+ * the whole container to a top-level index.
  */
 
 import type { Document } from '../core/nodes';
@@ -22,7 +21,7 @@ export interface ReorderUnit {
 export function resolveReorderUnit(doc: Document, path: number[]): ReorderUnit | null {
 	for (let depth = path.length; depth >= 1; depth--) {
 		const parentPath = path.slice(0, depth - 1);
-		// The root is identified structurally, never by kind: a plugin may mint 'document'
+		// The root is identified structurally, never by kind: a plugin may register 'document'
 		// as a block kind, and such a node is just another container.
 		if (parentPath.length === 0) {
 			return { parentPath, index: path[depth - 1], scope: 'document', renumberMarkers: false };

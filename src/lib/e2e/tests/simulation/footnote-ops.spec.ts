@@ -3,22 +3,19 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Ungated footnote-ops oracle, spanning two tiers the oracle stack had never seen under a
-// state-accumulating watcher: the `[^label]: ` strip-container definition (whose Enter-in-body
-// split rides the shared blockquote override) and the `[^label]` inline reference widget.
-//
-// The reference NUMBER is derived display state the tracker never models —
-// `footnotes-reference.spec.ts` is the oracle for the live renumber; this session pins only
-// the structural integrity the tier's inserts, reveals, edits, splits and undos preserve.
+// Footnotes, run in the default gate: the `[^label]: ` definition block, whose body splits like a
+// blockquote's, and the `[^label]` inline reference widget. The number a reference shows is never
+// modelled here (`footnotes-reference.spec.ts` checks it); this checks that the structure survives
+// the inserts, edits, splits and undos.
 
 const FOOTNOTE_DOC =
-	'Intro paragraph here.\n\n' + // [0] — a fresh reference is typed here
-	'Body cites [^a] mid-sentence.\n\n' + // [1] — a seeded reference to reveal
-	'[^a]: The first note body.\n\n' + // [2] — the seeded definition
-	'Draft line for a new note.\n'; // [3] — a blank-line-separated slot a new definition forms in
+	'Intro paragraph here.\n\n' + // [0]: a new reference is typed here
+	'Body cites [^a] mid-sentence.\n\n' + // [1]: a reference already there, to open
+	'[^a]: The first note body.\n\n' + // [2]: the definition already there
+	'Draft line for a new note.\n'; // [3]: where a new definition forms
 
 test.describe('footnote-ops simulation', () => {
 	let editor: PluginsPage;
@@ -42,75 +39,70 @@ test.describe('footnote-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'footnote-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string) => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
-		// ── Reference tier: type a fresh reference, reveal, edit its label, delete ──
+		// ── References: type a new one, open it, edit its label, delete it ─────────
 		await editor.focusBlockEnd(0);
 		await page.keyboard.type(' ');
 		await g.typeFootnoteReference('z');
-		// Document order is now [^z] (block 0), [^a] (block 1).
+		// Document order is [^z] (block 0), [^a] (block 1).
 		await expect(page.locator('.footnote-ref')).toHaveCount(2);
-		await checkOracles('reference-typed');
+		await assertCheckpoint(ctx, 'reference-typed');
 
-		// Reveal the seeded [^a] (doc-order index 1) and fold it back onto block 0 — a
-		// pure view toggle, byte-identical across the round trip.
+		// Open the existing [^a] (index 1 in document order) and close it again by clicking
+		// block 0: only the view changes, and the bytes must come back identical.
 		await g.revealFootnoteReference(1, 0);
-		await checkOracles('reference-revealed');
+		await assertCheckpoint(ctx, 'reference-revealed');
 
-		// Edit [^z]'s label (doc-order index 0) to [^qz] through the reveal→commit cycle.
+		// Edit [^z]'s label (index 0 in document order) to [^qz] by opening and committing it.
 		await g.editFootnoteLabel(0, 'q', 1);
 		expect(await editor.bridge.getSource()).toContain('[^qz]');
-		await checkOracles('reference-edited');
+		await assertCheckpoint(ctx, 'reference-edited');
 
-		// Degrade [^qz] (doc-order index 0) to literal text: reveal, delete the opening `[`,
-		// commit. The reference is gone; its remaining bytes stay.
+		// Turn [^qz] (index 0 in document order) into plain text: open it, delete the opening
+		// `[`, commit. The reference is gone and its remaining bytes stay.
 		await g.deleteFootnoteReference(0, 1);
 		await expect(page.locator('.footnote-ref')).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('^qz]');
 		expect(await editor.bridge.getSource()).not.toContain('[^qz]');
-		await checkOracles('reference-deleted');
+		await assertCheckpoint(ctx, 'reference-deleted');
 
-		// ── Definition tier: form one from scratch, split its body, edit, exit ──────
+		// ── Definitions: build one, split its body, edit it, leave it ──────────────
 		const defIndex = (await editor.bridge.getBlockCount()) - 1;
 		await g.typeFootnoteDefinition(defIndex, 'b', 'A second note.');
 		expect(await editor.bridge.getBlockKind(defIndex)).toBe('footnote-def');
 		await expect(page.locator('.footnote-def')).toHaveCount(2);
-		await checkOracles('definition-typed');
+		await assertCheckpoint(ctx, 'definition-typed');
 
-		// Enter mid-body splits the child into two body children — the split must grow the
-		// container's children, never the document root (the Task 2 boundary; the gesture
-		// asserts root-stability internally and throws on an escape).
+		// Enter in the middle of the body splits that child in two: the split must add a child
+		// to the container, never to the document root, which the gesture checks itself.
 		await g.splitFootnoteDefinitionBody([defIndex, 0]);
-		await checkOracles('definition-body-split');
+		await assertCheckpoint(ctx, 'definition-body-split');
 
-		// Edit the split continuation child; the container rebuilds its own raw around it.
+		// Edit the second half of the split; the container rebuilds its raw text around it.
 		await g.editContainerBody([defIndex, 1], 'Continued note.');
 		expect(await editor.bridge.getSource()).toContain('Continued note.');
-		await checkOracles('definition-body-continued');
+		await assertCheckpoint(ctx, 'definition-body-continued');
 
-		// Backspace at the definition's first body child start lifts that child out as the
-		// paragraph before the marker; the continuation stays under the marker.
+		// Backspace at the start of the definition's first child lifts it out as the paragraph
+		// before the marker, and the rest of the body stays under the marker.
 		const beforeExit = await editor.bridge.getSource();
 		await g.footnoteDefinitionExitBackspace([defIndex, 0]);
-		await checkOracles('definition-exit-backspace');
+		await assertCheckpoint(ctx, 'definition-exit-backspace');
 
-		// ── Undo unwind across the definition edits and the reference delete ────────
+		// ── Undo back across the definition edits and the deleted reference ─────────
 		await g.pause();
 		await g.undo();
 		expect(await editor.bridge.getSource()).toBe(beforeExit);
-		await checkOracles('undo-exit-backspace');
+		await assertCheckpoint(ctx, 'undo-exit-backspace');
 
 		await g.undo();
-		await checkOracles('undo-continuation');
+		await assertCheckpoint(ctx, 'undo-continuation');
 
 		await g.undo();
-		await checkOracles('undo-split');
+		await assertCheckpoint(ctx, 'undo-split');
 
 		await g.undo();
-		await checkOracles('undo-definition');
+		await assertCheckpoint(ctx, 'undo-definition');
 	});
 });

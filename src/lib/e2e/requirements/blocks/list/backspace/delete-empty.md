@@ -1,4 +1,4 @@
-# Block: List — Backspace (delete empty item)
+# Block: List, Backspace (delete empty item)
 
 Backspace at the start of an empty list item deletes the item; if it's the only item, the entire list is removed.
 
@@ -8,3 +8,5 @@ Backspace at the start of an empty list item deletes the item; if it's the only 
 - Backspace at start of empty non-first item: delete the item, focus previous item
 - Backspace at start of empty only item: delete the entire list, focus the block before it
 - Backspace on empty only item when list is the first block: delete the list and focus the next block
+- Live mode, Backspace on an empty item below `- **a**`: the caret lands after the item above's hidden `**`, so typing `x` gives `- **a**x`, the same as at the top level
+  - Miss-analysis: only an arrow key's own move told the caret which side of a hidden closer it meant, and no test typed after an edit that landed at an item's end.

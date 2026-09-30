@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — hanging-indent style scoped by ambient length', () => {
+test.describe('list marker, hanging-indent style scoped by ambient length', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -21,10 +21,28 @@ test.describe('list marker — hanging-indent style scoped by ambient length', (
 		);
 
 		expect(styles).toEqual([
-			{ textIndent: '-2ch', paddingLeft: '2ch' },
-			{ textIndent: '-3ch', paddingLeft: '3ch' },
-			{ textIndent: '-4ch', paddingLeft: '4ch' }
+			{ textIndent: 'calc(-2ch)', paddingLeft: '2ch' },
+			{ textIndent: 'calc(-3ch)', paddingLeft: '3ch' },
+			{ textIndent: 'calc(-4ch)', paddingLeft: '4ch' }
 		]);
+	});
+
+	// Source mode shows the bytes, so the indent a to-do reserves has to cover the `- [ ] ` drawn
+	// there, or wrapped lines land inside the marker.
+	test('a to-do reserves an indent as wide as source mode draws its marker', async () => {
+		await editor.loadContent('- [ ] # note\n');
+		const marker = await editor.page
+			.locator('.list-item-block .md-marker[contenteditable="false"]')
+			.first()
+			.boundingBox();
+		const paddingLeft = await editor.page.evaluate(() => {
+			const el = document.querySelector('.list-item-block [contenteditable="true"]');
+			return parseFloat(getComputedStyle(el as HTMLElement).paddingLeft);
+		});
+
+		// The indent is a fixed em width fitted to the editor's font; another font can draw the
+		// marker a fraction of a pixel wider, which no user sees.
+		expect(paddingLeft).toBeGreaterThanOrEqual(marker!.width - 1);
 	});
 
 	test('non-first paragraph in a loose list item has no hanging-indent style', async () => {
@@ -37,7 +55,7 @@ test.describe('list marker — hanging-indent style scoped by ambient length', (
 			}))
 		);
 
-		expect(styles[0]).toEqual({ textIndent: '-2ch', paddingLeft: '2ch' });
+		expect(styles[0]).toEqual({ textIndent: 'calc(-2ch)', paddingLeft: '2ch' });
 		expect(styles[1]).toEqual({ textIndent: '', paddingLeft: '' });
 	});
 });

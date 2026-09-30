@@ -1,13 +1,14 @@
 /**
- * Per-container-kind raw rebuilders. Separate from container-raw.ts (the ancestry dispatch) so
- * the built-in registrations can declare rebuildRaw directly: this file reaches no registry,
- * while the dispatch must import one, and same-file would cycle. The strip and concat shapes
- * live in child-spans.ts; each kind here contributes only its own per-line syntax.
+ * Per-container-kind raw rebuilders. Kept apart from `container-raw.ts`, which walks a node's
+ * ancestors, so the built-in registrations can declare `rebuildRaw` directly: this file imports
+ * no registry, that walk must, and one file holding both would cycle. The two shared rebuild
+ * shapes live in `child-spans.ts`; each kind here adds only its own per-line syntax.
  */
 
 import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import { trailingLineEnding } from '../core/lines';
+import type { NodeView } from '../core/node-views';
+import { firstLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { rebuildConcatRaw, rebuildStripRaw, type ChildRawChange } from './child-spans';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
@@ -23,8 +24,8 @@ const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Blank
- * lines stay unindented — GFM loose-list form.
+ * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Separator
+ * lines stay bare, but a blank line at the body's end is indented to stay in the item.
  */
 export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;
@@ -36,9 +37,9 @@ export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): voi
 
 	rebuildStripRaw(
 		node,
-		(text, first) => {
+		(text, first, trailingBlank) => {
 			if (first) return marker + taskMarker + text;
-			return text === '' ? '' : indent + text;
+			return text === '' && !trailingBlank ? '' : indent + text;
 		},
 		changed
 	);
@@ -51,39 +52,47 @@ export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-/** `| c0 | c1 | ... |` plus the row's own ending (single-space padding). */
+/** `| c0 | c1 | ... |` plus the row's own ending (single-space padding). The table's rebuild,
+ *  which writes the table's bytes, gives every row the table's ending. */
 export function rebuildTableRowRaw(node: CstNode): void {
-	writeTableRow(node, trailingLineEnding(node.raw));
+	writeTableRow(node, ownTrailingLineEnding(node.raw));
+}
+
+/** The ending a table's lines take: a table spans its header and delimiter lines at least, so its
+ *  bytes hold the document's ending. */
+export function tableLineEnding(table: NodeView): LineEnding {
+	return firstLineEnding(table.raw) ?? '\n';
 }
 
 /**
- * The same bytes under an ending the row does not own: a row minted by a structural op has no
- * authored one, so the TABLE dictates it. Split from the descriptor-shaped rebuilder above
- * because `rebuildRaw`'s second parameter is the changed-child hint.
+ * The row's bytes with the table's line ending, since a row a structural edit created has none of
+ * its own. The surplus cells, which GFM does not render, follow the rendered ones.
  */
 export function writeTableRow(node: CstNode, lineEnding: string): void {
 	if (!node.children) return;
-	const cells = node.children.map((c) => c.raw);
+	const surplus = node.metadata ? (metadataOf(node, 'tableRow').surplusCells ?? []) : [];
+	const cells = [...node.children.map((c) => c.raw), ...surplus];
 	node.raw = '| ' + cells.join(' | ') + ' |' + lineEnding;
 }
 
 /**
- * Header + synthesized canonical delimiter + body rows. Every row is rebuilt before assembly, so
- * the whole table normalizes to canonical padding on first structural mutation rather than
- * landing half-padded. The table's own ending drives every emitted line (G4.20): a row minted by
- * a structural op has no authored ending, so per-row detection would strand it on LF in a CRLF
- * table.
+ * Every row is rebuilt, so the first structural edit normalizes the whole table's padding. The last
+ * line of a table that ends the document with no line ending stays open, whichever row holds it.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = metadataOf(node, 'table');
-	const lineEnding = trailingLineEnding(node.raw);
+	const lineEnding = tableLineEnding(node);
+	const openTail = ownTrailingLineEnding(node.raw) === '';
 	for (const row of node.children) writeTableRow(row, lineEnding);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);
+	const lastBodyRow = bodyRows.at(-1);
+	if (openTail && lastBodyRow) writeTableRow(lastBodyRow, '');
 
 	const delimiterCells = meta.alignments.map(formatAlignmentCell).join(' | ');
-	const delimiterLine = '| ' + delimiterCells + ' |' + lineEnding;
+	const delimiterEnding = openTail && !lastBodyRow ? '' : lineEnding;
+	const delimiterLine = '| ' + delimiterCells + ' |' + delimiterEnding;
 
 	let raw = (headerRow?.raw ?? '') + delimiterLine;
 	for (const r of bodyRows) raw += r.raw;

@@ -1,13 +1,13 @@
 /**
- * G4.10 — every directory under `src/lib/plugins/` must surface in package.json
- * `exports`, which verify-pack derives the tarball's manifest from; a dir absent from it
- * is silently unshippable. Subset, not equality: a plugin may publish extra subpaths. The
- * sideEffects sub-check flags one detectable hazard, an unlisted top-level CSS import.
+ * Every directory under `src/lib/plugins/` surfaces in package.json `exports`, which verify-pack
+ * derives the tarball's manifest from, or it silently never ships (G4.10). Subset, not equality:
+ * a plugin may publish extra subpaths. The sideEffects sub-check flags one detectable hazard, an
+ * unlisted top-level CSS import.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { collectEditorSources } from './scan-source';
+import { bundledPluginDirs, collectEditorSources } from './scan-source';
 import { requiredPackPaths } from '../../../../../scripts/pack-manifest.mjs';
 
 const PLUGIN_SRC = path.resolve('src/lib/plugins');
@@ -20,14 +20,6 @@ interface PackageManifest {
 function readPackage(): PackageManifest {
 	const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8'));
 	return { exports: pkg.exports ?? {}, sideEffects: pkg.sideEffects ?? [] };
-}
-
-/** Bundled plugin directory names (README.md and other files are not dirs). */
-function pluginDirs(): string[] {
-	return readdirSync(PLUGIN_SRC, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
-		.map((e) => e.name)
-		.sort();
 }
 
 /** A top-level side-effect CSS import (`import 'x.css';`), the latex renderer shape. */
@@ -51,7 +43,7 @@ function cssImportingModules(): Array<{ plugin: string; file: string }> {
 		});
 }
 
-// ── Parity checkers (pure — driven by both the live scan and the self-tests) ──
+// ── Parity checkers (pure: driven by both the live scan and the self-tests) ──
 
 function missingExports(names: string[], exportKeys: Set<string>): string[] {
 	return names.filter((n) => !exportKeys.has(`./plugins/${n}`));
@@ -76,7 +68,7 @@ function missingSideEffects(
 // ── The parity scan ──────────────────────────────────────────────────────────
 
 describe('G4.10 plugin package/pack parity', () => {
-	const names = pluginDirs();
+	const names = bundledPluginDirs();
 	const pkg = readPackage();
 	const exportKeys = new Set(Object.keys(pkg.exports));
 	const distPaths = new Set(requiredPackPaths());
@@ -95,7 +87,7 @@ describe('G4.10 plugin package/pack parity', () => {
 		const missing = missingVerifyPack(names, distPaths);
 		expect(
 			missing,
-			`plugins absent (or half-listed) in the exports-derived REQUIRED manifest: ${missing.join(', ')}`
+			`plugins absent (or half-listed) in the exports-derived required manifest: ${missing.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -111,7 +103,7 @@ describe('G4.10 plugin package/pack parity', () => {
 
 // ── Non-vacuity: the manifests parsed to real, populated sets ─────────────────
 
-describe('G4.10 plugin package/pack parity — non-vacuity', () => {
+describe('G4.10 plugin package/pack parity: non-vacuity', () => {
 	const pkg = readPackage();
 
 	it('parsed a real export surface, derived pack manifest, and sideEffects list', () => {
@@ -134,7 +126,7 @@ describe('G4.10 plugin package/pack parity — non-vacuity', () => {
 
 // ── Matcher self-tests (synthetic positives + benign negatives) ───────────────
 
-describe('G4.10 plugin package/pack parity — matcher self-tests', () => {
+describe('G4.10 plugin package/pack parity: matcher self-tests', () => {
 	it('a plugin dir absent from a manifest is flagged, present ones are not', () => {
 		expect(missingExports(['ghost'], new Set(['./plugins/latex']))).toEqual(['ghost']);
 		expect(missingExports(['latex'], new Set(['./plugins/latex']))).toEqual([]);

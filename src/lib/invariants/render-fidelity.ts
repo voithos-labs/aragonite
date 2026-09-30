@@ -1,8 +1,8 @@
 /**
- * G1.28 — rendered text fidelity. A renderer round-tripping bytes through an HTML parser
- * inherits engine-defined normalizations (U+0000, line endings, surrogates), and a gesture
- * that reads `textContent` back would commit the loss away. jsdom preserves all of them,
- * so this runtime belt is the only thing that can catch it — a unit suite cannot.
+ * G1.28: the text a block renders still matches its raw bytes. A renderer that passes bytes
+ * through an HTML parser inherits whatever that browser normalizes (U+0000, line endings,
+ * surrogates), and a gesture that reads `textContent` back would commit the loss. jsdom preserves
+ * all of them, so only this runtime check can catch it, never a unit test.
  */
 
 import type { InvariantViolation } from '../assert';
@@ -26,7 +26,7 @@ export function checkRenderedTextFidelity(
 	const window = (text: string) => text.slice(Math.max(0, at - context), at + context);
 	return {
 		code: 'rendered-text-fidelity',
-		message: `rendered text diverges from the block's raw at index ${at} — the HTML parser normalized a byte the CST still holds`,
+		message: `rendered text diverges from the block's raw at index ${at}: the HTML parser normalized a byte the CST still holds`,
 		detail: {
 			at,
 			renderedLength: rendered.length,

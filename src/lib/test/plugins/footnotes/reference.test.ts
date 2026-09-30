@@ -1,21 +1,18 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { getInlineWidgetComponent, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
 
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
-
 const isRef = (n: InlineNode) => n.kind === FOOTNOTE_REF_KIND;
 const refsIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isRef);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 
-// Recognition is gated on registration: with nothing registered the `[` scanner
-// runs its built-in bracket handling, so a document authored with footnotes opens
-// byte-identically in an editor that lacks the plugin.
+// With nothing registered the `[` scanner runs its built-in bracket handling, so a document
+// authored with footnotes opens byte-identically in an editor that lacks the plugin.
 describe('footnote reference is dormant until registered', () => {
 	it('leaves [^1] to the built-in bracket reading with nothing registered', () => {
 		const clean = scan('see [^1] here');
@@ -55,9 +52,8 @@ describe('[^label] recognizer grammar', () => {
 		});
 	}
 
-	// Label chars exclude `]` but not `[`, so the first `]` closes: the inner `[^x`
-	// is label content, and the claim ends at the first bracket. The trailing `]`
-	// rescans as its own literal.
+	// Label chars exclude `]` but not `[`, so the inner `[^x` is label content, the first `]`
+	// closes, and the trailing `]` rescans as its own literal.
 	it('reads [^nested[^x]] as label "nested[^x", closing at the first bracket', () => {
 		const nodes = scan('[^nested[^x]]');
 		expect(nodes[0]).toMatchObject({
@@ -69,8 +65,8 @@ describe('[^label] recognizer grammar', () => {
 		expect(nodes[nodes.length - 1]).toMatchObject({ kind: 'text', text: ']' });
 	});
 
-	// A trailing `(...)` is not part of the reference — the ref is atomic and the
-	// following bytes rescan as ordinary inline content (GFM footnote, not a link).
+	// A trailing `(...)` is not part of the reference: it is atomic and the following
+	// bytes rescan as ordinary inline content (a GFM footnote, not a link).
 	it('does not consume a trailing (...) after the reference', () => {
 		const nodes = scan('[^1](x)');
 		expect(nodes[0]).toMatchObject({ kind: FOOTNOTE_REF_KIND, start: 0, end: 4, label: '1' });
@@ -82,10 +78,14 @@ describe('footnote reference widget registration', () => {
 	beforeEach(() => registerFootnoteReference());
 
 	it('registers a component widget that reveals its source and claims the activation click', () => {
-		expect(getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'])).toBeDefined();
-		// Both fields, exhaustively: the reveal is the plain-click behavior and the claim is
-		// what stands it down for the jump gesture, so a dropped claim reveals under the click.
-		expect(getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'])).toEqual({
+		expect(
+			getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'], defaultGrammarView)
+		).toBeDefined();
+		// Both fields: `revealSource` is what a plain click does, and `claimsActivationClick`
+		// turns that off so the click jumps instead. Drop it and the source opens on a click.
+		expect(
+			getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'], defaultGrammarView)
+		).toEqual({
 			revealSource: true,
 			claimsActivationClick: true
 		});

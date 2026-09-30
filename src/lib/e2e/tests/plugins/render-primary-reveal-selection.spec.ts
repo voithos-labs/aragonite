@@ -1,11 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
-// A reveal click is a caret-placing gesture
-// (requirements/plugins/render-primary-reveal-selection.md). It reached the reveal without the
-// pointerdown reset every other caret-placing gesture runs, so a live cross-block range stayed
-// painted over the caret it had just landed elsewhere — and the next Backspace deleted the range
-// instead of a character.
+// A click that opens a block's source is a caret-placing gesture
+// (requirements/plugins/render-primary-reveal-selection.md), so it must end a live cross-block
+// range like any other, or the next Backspace deletes the range instead of a character.
 
 const DOC = 'lead para\n\n$$x^2$$\n\ntail para\n';
 
@@ -28,8 +26,8 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 		await clickWidgetCenter(math());
 		await editor.waitForCrossBlock(false);
 
-		// What Backspace does to the revealed source is the reveal's business; what it
-		// must not do is consume the range — that collapses the whole document to "\n".
+		// What Backspace does to the open source is that block's business; what it must not do is
+		// take the range, which would collapse the whole document to "\n".
 		await editor.pressDeclined('Backspace');
 
 		const source = await editor.bridge.getSource();

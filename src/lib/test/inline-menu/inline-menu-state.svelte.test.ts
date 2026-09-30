@@ -1,0 +1,774 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
+import { parse } from '$lib/core/parser';
+import type { DocumentView } from '$lib/core/node-views';
+import { createEditorEvents, type EditEvent } from '$lib/editor-events';
+import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
+import type { InlineMenuItem, InlineMenuSource } from '$lib/inline-menu/types';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
+import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { grammarListing } from '../plugins/activation/grammar-listing';
+
+// `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
+const masker = definePlugin({
+	name: 'masker',
+	setup() {
+		const kind = declarePluginInlineKind('masked');
+		registerInlineSyntax('%', (raw, pos, end) => {
+			const close = raw[pos + 1] === '%' ? raw.indexOf('%%', pos + 2) : -1;
+			return close >= 0 && close + 2 <= end ? { kind, start: pos, end: close + 2 } : null;
+		});
+	}
+});
+beforeEach(() => installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]));
+const MASKED = '%%a `b` c%%';
+const scopedLinkRef = fixtureReading({ grammar: grammarListing(['listed']) });
+const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
+
+const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
+
+const typedEdit = (path: number[]): EditEvent =>
+	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
+
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. `writeFails`
+ *  makes the range splice throw; `writeDeclines` makes it write nothing, as reading mode does. */
+function harness(
+	initial: string,
+	{ arrive = true, writeFails = false, writeDeclines = false, reading = fixtureReading() } = {}
+) {
+	let doc = parse(initial) as unknown as DocumentView;
+	let block = 0;
+	let caret: number | null = initial.length;
+	let mode: PresentationMode = 'source';
+	const events = createEditorEvents();
+	const errors: unknown[] = [];
+	events.on('error', (e) => errors.push(e.error));
+	const landed: number[] = [];
+	/** Each range splice, one undo entry apiece. */
+	const commits: string[] = [];
+	/** How deep the undo join is, and whether each splice ran inside one. */
+	let joinDepth = 0;
+	const splicesInJoin: boolean[] = [];
+
+	/** Put `raw` in one block, reparsing the document the way an edit there would. */
+	function write(index: number, raw: string): void {
+		const raws = doc.children.map((child, i) => (i === index ? raw : child.raw));
+		doc = parse(raws.join('\n')) as unknown as DocumentView;
+	}
+
+	const menu = createInlineMenuState({
+		getDoc: () => doc,
+		getSelection: () =>
+			caret === null
+				? null
+				: { anchor: { path: [block], offset: caret }, focus: { path: [block], offset: caret } },
+		getMode: () => mode,
+		events,
+		editorId: 'editor-test',
+		reading,
+		// A pick's write raises the same events a keystroke does, so the read they schedule is
+		// the one the state has to hold off; the caret then lands where the commit says.
+		commitRange: async (path, start, end, bytes, caretAfter) => {
+			if (writeFails) throw new Error('write refused');
+			if (writeDeclines) return false;
+			commits.push(bytes);
+			splicesInJoin.push(joinDepth > 0);
+			const raw = doc.children[path[0]].raw;
+			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
+			events.emit('edit', typedEdit(path));
+			await tick();
+			caret = caretAfter;
+			landed.push(caretAfter);
+			events.emit('selectionChange', null);
+			await tick();
+			return true;
+		},
+		undoStep: async (_path, _offset, run) => {
+			joinDepth++;
+			try {
+				await run();
+			} finally {
+				joinDepth--;
+			}
+		}
+	});
+
+	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
+	// waits for the first gesture, so the test's source is registered by then, as a plugin's is.
+	let arrived = !arrive;
+	async function settle(): Promise<void> {
+		if (!arrived) {
+			arrived = true;
+			events.emit('selectionChange', null);
+		}
+		await tick();
+	}
+
+	return {
+		menu,
+		errors,
+		landed,
+		commits,
+		splicesInJoin,
+		insideJoin: () => joinDepth > 0,
+		raw: (index = 0) => doc.children[index].raw,
+		setMode: (next: PresentationMode) => (mode = next),
+		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
+		async type(text: string) {
+			await settle();
+			for (const ch of text) {
+				const raw = doc.children[block]?.raw ?? '';
+				const at = caret ?? raw.length;
+				write(block, raw.slice(0, at) + ch + raw.slice(at));
+				caret = at + 1;
+				events.emit('edit', typedEdit([block]));
+				await tick();
+			}
+		},
+		/** Keys whose bytes have landed but whose read has not run: the `edit` is out and its read
+		 *  waits a tick, or the `edit` itself is still deferred. */
+		typeUnread(text: string, { notified = true } = {}) {
+			const raw = doc.children[block]?.raw ?? '';
+			const at = caret ?? raw.length;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			caret = at + text.length;
+			if (notified) events.emit('edit', typedEdit([block]));
+		},
+		/** A burst the editor reports as a single change: fast typing, an IME commit. */
+		async burst(text: string) {
+			await settle();
+			const raw = doc.children[block]?.raw ?? '';
+			const at = caret ?? raw.length;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			caret = at + text.length;
+			events.emit('edit', typedEdit([block]));
+			await tick();
+		},
+		/** The caret reaches a block no read has seen and its first byte lands in the same read:
+		 *  the line Enter just made, typed on before the split's own change is read. */
+		async arriveAndType(index: number, text: string) {
+			await settle();
+			block = index;
+			caret = 0;
+			events.emit('edit', typedEdit([index]));
+			write(index, text + doc.children[index].raw);
+			caret = text.length;
+			events.emit('edit', typedEdit([index]));
+			await tick();
+		},
+		/** The bytes land a read ahead of the caret that typed them. */
+		async typeWithLateCaret(text: string) {
+			await settle();
+			const raw = doc.children[block].raw;
+			const at = caret ?? raw.length;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			events.emit('edit', typedEdit([block]));
+			await tick();
+			caret = at + text.length;
+			events.emit('selectionChange', null);
+			await tick();
+		},
+		/** Bytes changing under a caret that does not follow them: an undo, a remote rewrite. */
+		async rewrite(raw: string) {
+			await settle();
+			write(block, raw);
+			events.emit('edit', typedEdit([block]));
+			await tick();
+		},
+		/** Move the caret with no edit: an arrow key, a click. */
+		async moveTo(offset: number | null) {
+			arrived = true;
+			caret = offset;
+			events.emit('selectionChange', null);
+			await tick();
+		}
+	};
+}
+
+const tags = (over: Partial<InlineMenuSource> = {}): InlineMenuSource => ({
+	name: 'tags',
+	trigger: '#',
+	opensAt: (raw, pos) => pos === 0 || /\s/.test(raw[pos - 1]),
+	accepts: (query) => /^\w*$/.test(query),
+	items: ({ query }) =>
+		['work', 'world', 'home'].filter((t) => t.startsWith(query)).map((t) => item(t, `#${t}`)),
+	...over
+});
+
+describe('a typed trigger opens its source', () => {
+	it('opens on the trigger and narrows as the query grows', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 5, query: '' });
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['work', 'world', 'home']);
+		expect(h.menu.registry.isOpen).toBe(true);
+
+		await h.type('wo');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['work', 'world']);
+	});
+
+	it('opens on a burst that carries the query in with the trigger', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		await h.burst('#wo');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['work', 'world']);
+	});
+
+	it('opens when the caret catches up with its bytes a read late', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		await h.typeWithLateCaret('#');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 5, query: '' });
+	});
+
+	it('adopts a change no caret explains, so later typing still opens', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		await h.rewrite('well, see ');
+		// Held back once, adopted on the next read, whatever prompts it.
+		await h.moveTo(10);
+		await h.type('#');
+		expect(h.menu.getOpen()).toMatchObject({ start: 10 });
+	});
+
+	it('opens on the first keystroke in a leaf no read had seen, given the baseline taken before it', async () => {
+		// No arrival read: the state has never looked at this leaf.
+		const h = harness('see ', { arrive: false });
+		h.menu.registry.addSource(tags());
+		h.menu.primeBaseline();
+		await h.burst('#');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, query: '' });
+
+		const unprimed = harness('see ', { arrive: false });
+		unprimed.menu.registry.addSource(tags());
+		await unprimed.burst('#');
+		expect(unprimed.menu.getOpen()).toBeNull();
+	});
+
+	// Miss-analysis: no test let a new leaf's arrival and first byte land as one change.
+	it('opens where a new leaf’s arrival and its first byte are one read', async () => {
+		const h = harness('see\n\n\n');
+		h.menu.registry.addSource(tags());
+		await h.moveTo(3);
+
+		await h.arriveAndType(1, '#');
+		expect(h.menu.getOpen()).toMatchObject({ path: [1], start: 0, query: '' });
+	});
+
+	it('never advances a standing baseline at keydown, which a burst depends on', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		await h.moveTo(4);
+		// keydown `#`, its byte, keydown `w`, its byte: two keypresses, one reported change.
+		h.menu.primeBaseline();
+		h.menu.primeBaseline();
+		await h.burst('#w');
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, query: 'w' });
+	});
+
+	it('does not open for a caret that merely arrives beside an existing trigger', async () => {
+		const h = harness('see #');
+		h.menu.registry.addSource(tags());
+		await h.moveTo(5);
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('does not open where the source declines the position', async () => {
+		const h = harness('C');
+		h.menu.registry.addSource(tags());
+		await h.type('#');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('does not open inside inline code, where the trigger is not syntax', async () => {
+		const h = harness('`a b`');
+		h.menu.registry.addSource(tags());
+		await h.moveTo(3);
+		await h.type('#');
+		expect(h.raw()).toBe('`a #b`');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('does not open in a link destination the author is still typing', async () => {
+		// `see [text](` is plain text until the `)` lands, so the inline tree holds no link here.
+		const h = harness('see [text](');
+		h.menu.registry.addSource(tags({ opensAt: (raw, pos) => /[\s(]/.test(raw[pos - 1]) }));
+		await h.type('#');
+		expect(h.raw()).toBe('see [text](#');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	// Miss-analysis: no harness handed the menu an editor's ref, so the prose check ran without one.
+	it.each([
+		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ resolver: toR }), false],
+		['an unresolved reference link’s label', '[t][r]', 5, fixtureReading(), true],
+		['a code span inside an unlisted plugin’s construct', MASKED, 6, scopedLinkRef, false],
+		['the same code span where every plugin is on', MASKED, 6, fixtureReading(), true]
+	])('reads the editor’s ref for %s', async (_, source, at, reading, opens) => {
+		const h = harness(source, { reading });
+		h.menu.registry.addSource(tags({ opensAt: () => true }));
+		await h.moveTo(at);
+		await h.type('#');
+		expect(h.raw()).toBe(source.slice(0, at) + '#' + source.slice(at));
+		expect(h.menu.getOpen() !== null).toBe(opens);
+	});
+
+	it('does not open in reading mode', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags());
+		h.setMode('reading');
+		await h.type('#');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+});
+
+describe('an open session follows the caret', () => {
+	it('closes on a query the source does not accept, and leaves the bytes', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags());
+		await h.type('#wo');
+		expect(h.menu.getOpen()).not.toBeNull();
+		await h.type(' ');
+		expect(h.menu.getOpen()).toBeNull();
+		expect(h.raw()).toBe('a #wo ');
+	});
+
+	it('closes when the caret leaves the query, and when the selection is lost', async () => {
+		const h = harness('ab ');
+		h.menu.registry.addSource(tags());
+		await h.type('#wo');
+		expect(h.menu.getOpen()).not.toBeNull();
+		await h.moveTo(1);
+		expect(h.menu.getOpen()).toBeNull();
+
+		await h.moveTo(6);
+		await h.type('r');
+		// Dismissed for this trigger: more typing after it reopens nothing.
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('holds no keys over an empty list, while the session stays alive', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags());
+		await h.type('#z');
+		expect(h.menu.getOpen()).toMatchObject({ query: 'z', items: [] });
+		expect(h.menu.registry.isOpen).toBe(false);
+		expect(h.menu.commit()).toBe(false);
+	});
+
+	it('closes when its source is disposed', async () => {
+		const h = harness('a ');
+		const handle = h.menu.registry.addSource(tags());
+		await h.type('#');
+		handle.dispose();
+		expect(h.menu.getOpen()).toBeNull();
+	});
+});
+
+describe('the list a source lands', () => {
+	// Miss-analysis: every test source gave unique ids, so no list held two rows under one id.
+	it('keeps the first of two rows sharing an id, and reports the source', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(
+			tags({ items: () => [item('one', '#one'), item('one', '#uno'), item('two', '#two')] })
+		);
+		await h.type('#');
+
+		expect(h.menu.getOpen()!.items.map((i) => i.insert)).toEqual(['#one', '#two']);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/tags/);
+	});
+});
+
+describe('what the editable says about the list', () => {
+	it('names the active row by that row’s own id, so a narrowing list renames it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		const first = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(first).toContain('work');
+
+		await h.type('h');
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['home']);
+		expect(h.menu.comboboxFor([0])!.activeOptionId).toContain('home');
+		expect(h.menu.comboboxFor([0])!.activeOptionId).not.toBe(first);
+	});
+
+	it('takes a row id a source spells with a space and gives back one token', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('Meeting notes')] }));
+
+		await h.type('#');
+		const id = h.menu.comboboxFor([0])!.activeOptionId;
+		expect(id).not.toMatch(/\s/);
+		expect(id).toBe(h.menu.optionId('Meeting notes'));
+	});
+
+	it('says nothing about a block the list is not open in, or about an empty list', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+
+		await h.type('#');
+		expect(h.menu.comboboxFor([0])).not.toBeNull();
+		expect(h.menu.comboboxFor([1])).toBeNull();
+
+		await h.type('zz');
+		expect(h.menu.comboboxFor([0])).toBeNull();
+	});
+});
+
+describe('navigation and commit', () => {
+	it('steps the active row with wrap, and resets it when the query moves', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags());
+		await h.type('#');
+		h.menu.move(-1);
+		expect(h.menu.getOpen()!.activeIndex).toBe(2);
+		h.menu.move(1);
+		expect(h.menu.getOpen()!.activeIndex).toBe(0);
+		h.menu.move(1);
+		await h.type('w');
+		expect(h.menu.getOpen()!.activeIndex).toBe(0);
+	});
+
+	it('replaces the trigger and the query with the pick, and lands the caret after it', async () => {
+		const onCommit = vi.fn();
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+		h.menu.move(1);
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+
+		expect(h.raw()).toBe('see #world');
+		expect(h.landed).toEqual([10]);
+		expect(h.menu.getOpen()).toBeNull();
+		expect(onCommit.mock.calls[0][0]).toMatchObject({ id: 'world' });
+		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
+	});
+
+	// Miss-analysis: every pick here came after the last key's read had run, never ahead of it.
+	it.each([
+		['its read is pending', true],
+		['its edit is still deferred', false]
+	])(
+		'replaces the whole typed query when the pick comes before the last key: %s',
+		async (_, notified) => {
+			const onCommit = vi.fn();
+			const h = harness('see ');
+			h.menu.registry.addSource(tags({ onCommit }));
+			await h.type('#wo');
+			h.typeUnread('r', { notified });
+
+			expect(h.menu.commit()).toBe(true);
+			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+
+			expect(h.raw()).toBe('see #work');
+			expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wor', path: [0], start: 4, end: 8 });
+		}
+	);
+
+	// Miss-analysis: no test asked whether the block onCommit inserts shares the pick's undo entry.
+	it('runs the splice and an awaited onCommit inside one undo join', async () => {
+		const h = harness('see ');
+		let release!: () => void;
+		const onCommit = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+
+		h.menu.commit();
+		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+		await tick();
+		expect(h.splicesInJoin).toEqual([true]);
+		expect(h.insideJoin()).toBe(true);
+		release();
+		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
+	});
+
+	// Miss-analysis: every commit test used a one-line insert, never bytes a paragraph cannot hold.
+	it('refuses a pick whose insert holds a line break, and reports it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('bad', 'a\n\nb')] }));
+		await h.type('#');
+
+		expect(h.menu.commit()).toBe(true);
+		await tick();
+		await tick();
+		expect(h.raw()).toBe('see #');
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/tags/);
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('takes an empty insert, which removes the trigger and the query', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags({ items: () => [item('blank', '')] }));
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(h.landed).toEqual([4]));
+		expect(h.raw()).toBe('see ');
+		expect(h.errors).toEqual([]);
+	});
+
+	// Miss-analysis: every commit test gave the state a write that resolves, never one that throws.
+	it('reports a pick whose write fails, and leaves the typed bytes alone', async () => {
+		const h = harness('see ', { writeFails: true });
+		h.menu.registry.addSource(tags());
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.raw()).toBe('see #wo');
+	});
+
+	// Miss-analysis: the refusal cases threw, so none let the splice resolve having written nothing.
+	it('a pick whose write is declined lands no caret and runs no onCommit', async () => {
+		const onCommit = vi.fn();
+		const h = harness('see ', { writeDeclines: true });
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await tick();
+		await tick();
+		await tick();
+
+		expect(h.raw()).toBe('see #wo');
+		expect(h.landed).toEqual([]);
+		expect(onCommit).not.toHaveBeenCalled();
+	});
+
+	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags({ items: () => [item('odd', '#odd #')] }));
+		await h.type('#');
+		h.menu.commit();
+		await vi.waitFor(() => expect(h.landed).toEqual([8]));
+		await tick();
+		await tick();
+		expect(h.raw()).toBe('a #odd #');
+		expect(h.menu.getOpen()).toBeNull();
+	});
+});
+
+describe('asynchronous sources', () => {
+	it('drops a slow answer a later keystroke superseded, and aborts its signal', async () => {
+		const pending: {
+			query: string;
+			resolve: (items: InlineMenuItem[]) => void;
+			signal: AbortSignal;
+		}[] = [];
+		const h = harness('a ');
+		h.menu.registry.addSource(
+			tags({
+				items: ({ query, signal }) =>
+					new Promise((resolve) => pending.push({ query, resolve, signal }))
+			})
+		);
+		await h.type('#');
+		await h.type('w');
+		expect(pending.map((p) => p.query)).toEqual(['', 'w']);
+		expect(pending[0].signal.aborted).toBe(true);
+
+		pending[1].resolve([item('work')]);
+		await tick();
+		pending[0].resolve([item('stale')]);
+		await tick();
+		expect(h.menu.getOpen()!.items.map((i) => i.id)).toEqual(['work']);
+	});
+
+	it('reads a rejected list as empty and reports it', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags({ items: () => Promise.reject(new Error('index offline')) }));
+		await h.type('#');
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(h.menu.getOpen()).toMatchObject({ items: [] });
+	});
+
+	it('reports a source that throws', async () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(
+			tags({
+				items: () => {
+					throw new Error('boom');
+				}
+			})
+		);
+		await h.type('#');
+		expect(h.errors).toHaveLength(1);
+	});
+});
+
+describe('open(name): opening by name, a shortcut or a button', () => {
+	it('types the trigger at the caret and opens there, position rule or not', async () => {
+		const h = harness('mid');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags')).toBe(true);
+		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
+		expect(h.raw()).toBe('mid#');
+		expect(h.menu.getOpen()).toMatchObject({ start: 3, end: 4, query: '' });
+	});
+
+	// Miss-analysis: no test let the trigger write from `open` fail, only a source that throws.
+	it('reports a failed trigger write, and opens nothing', async () => {
+		const h = harness('mid', { writeFails: true });
+		h.menu.registry.addSource(tags());
+
+		expect(h.menu.registry.open('tags')).toBe(true);
+		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+		expect(String(h.errors[0])).toMatch(/write refused/);
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('types a given query after the trigger in the same write, and opens over it', async () => {
+		const h = harness('see ');
+		const writes: string[] = [];
+		h.menu.registry.addSource(
+			tags({ onCommit: () => {}, items: ({ query }) => (writes.push(query), [item(query)]) })
+		);
+		expect(h.menu.registry.open('tags', { query: 'wo' })).toBe(true);
+		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
+		expect(h.raw()).toBe('see #wo');
+		expect(h.commits).toEqual(['#wo']);
+		expect(h.landed).toEqual([7]);
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(writes).toEqual(['wo']);
+	});
+
+	it('writes a query the source does not accept, and opens nothing over it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'two words' })).toBe(true);
+		await vi.waitFor(() => expect(h.raw()).toBe('see #two words'));
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('refuses a query holding a line break, writing nothing', () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'a\nb' })).toBe(false);
+		expect(h.raw()).toBe('see ');
+	});
+
+	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {
+		const h = harness('x');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('nope')).toBe(false);
+		h.setMode('reading');
+		expect(h.menu.registry.open('tags')).toBe(false);
+		h.setMode('source');
+		await h.moveTo(null);
+		expect(h.menu.registry.open('tags')).toBe(false);
+		expect(h.raw()).toBe('x');
+	});
+});
+
+describe('the registry', () => {
+	it('refuses a second source under one name', () => {
+		const h = harness('a ');
+		h.menu.registry.addSource(tags());
+		expect(() => h.menu.registry.addSource(tags())).toThrow(/already exists/);
+	});
+
+	// Miss-analysis: every registry test added its source first, so `seen` never outlived one.
+	it('starts a source added again from a fresh baseline', async () => {
+		const h = harness('see ');
+		const handle = h.menu.registry.addSource(tags());
+		await h.type('a');
+		handle.dispose();
+		// Typed while no source was listening, so the `#` here is text, not a trigger.
+		await h.type(' #x');
+		h.menu.registry.addSource(tags({ name: 'tags2' }));
+		await h.type('y');
+		expect(h.menu.getOpen()).toBeNull();
+
+		await h.type(' #');
+		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
+	});
+
+	// Miss-analysis: every registry test ran against a live editor, never one already unmounted.
+	it('refuses a source added after the editor is gone', () => {
+		const h = harness('a ');
+		h.menu.dispose();
+		expect(() => h.menu.registry.addSource(tags())).toThrow(/tags/);
+	});
+
+	// An empty trigger would open on every keystroke and one with a line break could never be
+	// typed, so both are refused when the source is added.
+	it('refuses a trigger that is empty or holds a line break', () => {
+		const h = harness('a ');
+		expect(() => h.menu.registry.addSource(tags({ trigger: '' }))).toThrow(/trigger/);
+		expect(() => h.menu.registry.addSource(tags({ name: 'nl', trigger: '#\n' }))).toThrow(
+			/trigger/
+		);
+	});
+});
+
+// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell.
+describe('a table cell', () => {
+	const CELL = [0, 1, 1];
+
+	/** A caret in the empty cell of a two-row table, typed into a byte at a time. */
+	function cellHarness() {
+		const doc = parse('| a | b |\n| --- | --- |\n| c |  |\n') as unknown as DocumentView;
+		const cell = doc.children[0].children![1].children![1] as { raw: string };
+		let caret = 0;
+		const commits: string[] = [];
+		const events = createEditorEvents();
+		const menu = createInlineMenuState({
+			getDoc: () => doc,
+			getSelection: () => ({
+				anchor: { path: CELL, offset: caret },
+				focus: { path: CELL, offset: caret }
+			}),
+			getMode: () => 'source',
+			events,
+			editorId: 'editor-cell',
+			reading: fixtureReading(),
+			commitRange: async (_path, _start, _end, bytes) => {
+				commits.push(bytes);
+				return true;
+			},
+			undoStep: async (_path, _offset, run) => void (await run())
+		});
+		menu.registry.addSource(tags());
+		return {
+			menu,
+			commits,
+			async type(text: string) {
+				events.emit('selectionChange', null);
+				await tick();
+				for (const ch of text) {
+					cell.raw = cell.raw.slice(0, caret) + ch + cell.raw.slice(caret);
+					caret += 1;
+					events.emit('edit', typedEdit(CELL));
+					await tick();
+				}
+			}
+		};
+	}
+
+	it('a trigger typed in a cell stays text and opens nothing', async () => {
+		const h = cellHarness();
+		await h.type('#wo');
+		expect(h.menu.getOpen()).toBeNull();
+		expect(h.menu.registry.isOpen).toBe(false);
+	});
+
+	it('open(name) with the caret in a cell declines, writing nothing', () => {
+		const h = cellHarness();
+		expect(h.menu.registry.open('tags')).toBe(false);
+		expect(h.commits).toEqual([]);
+	});
+});

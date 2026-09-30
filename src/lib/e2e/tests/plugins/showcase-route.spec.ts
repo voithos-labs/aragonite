@@ -1,34 +1,33 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { capturePageErrors, waitForEditorHydrated } from '../../page-probes';
+import { capturePageErrors } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { SHOWCASE_MD, scanShowcase } from '../../showcase-document';
 
-// The `/` showcase mounts <Editor> with every bundled plugin installed the consumer way
-// (subpath imports, injected latex/mermaid engines) and exposes no `window.__test` bridge, so
-// this smoke asserts through rendered DOM only. It derives what it expects from the demo
-// document's bytes rather than from its prose: the owner rewrites the document by hand, and a
-// pinned sentence reds on the rewrite while saying nothing about whether the surface still
-// works. Requirements: e2e/requirements/plugins/showcase-route.md.
+// The `/` showcase mounts <Editor> with every bundled plugin the way a consumer would, with no
+// `window.__test` bridge, so this smoke test reads the rendered DOM. Expectations come from the
+// demo document's bytes rather than its prose, which is rewritten by hand. Requirements:
+// e2e/requirements/plugins/showcase-route.md.
 
 const scan = scanShowcase();
 const MATH_HOST = '[data-block-kind="mathBlock"], [data-block-kind="mathFence"]';
 const MERMAID_HOST = '[data-block-kind="mermaid"]';
 
-/** What one pass down the document saw. Windowing unmounts a block that scrolls away, so no
- *  single snapshot can count the whole tour — every count here is a union over the pass. */
+/** What one pass down the document saw. A block that scrolls away is unmounted, so no single
+ *  snapshot can count the whole tour, and every count here is the union over the pass. */
 interface Sweep {
 	/** Top-level block indices that mounted at some point. */
 	topLevel: number[];
-	/** Those still mounted at the bottom of the scrollport, where the pass ended. */
+	/** Those still mounted at the bottom of the scroll container, where the pass ended. */
 	atBottom: number[];
 	/** False when the pass ran out of steps rather than out of document. */
 	reachedEnd: boolean;
-	/** Block paths that rendered the raw-editable fallback or the render-error surface. */
+	/** Block paths that rendered the editable-raw fallback or the render-error box. */
 	degraded: string[];
-	/** Per math block path: whether its island mounted, and whether KaTeX painted inside it. */
+	/** Per math block path: whether its widget mounted, and whether KaTeX painted inside it. */
 	math: Record<string, { island: boolean; engine: boolean }>;
-	/** Per mermaid block path: whether its island mounted. The engine renders async through a
-	 *  dynamic import, so its SVG is left to the mermaid specs rather than pinned on a sweep. */
+	/** Per mermaid block path: whether its widget mounted; its async SVG is left to the mermaid
+	 *  specs. */
 	mermaid: Record<string, { island: boolean }>;
 }
 
@@ -45,8 +44,8 @@ async function sweepShowcase(page: Page): Promise<Sweep> {
 	const seenTopLevel = new Set<number>();
 	const seenDegraded = new Set<string>();
 
-	// A step under one viewport cannot skip a block: windowing mounts a buffer around the
-	// visible band, and the height oracle only ever grows scrollHeight under us.
+	// A step shorter than one viewport cannot skip a block: windowing mounts a margin around what
+	// is visible, and the height estimates only ever make scrollHeight grow.
 	for (let step = 0; step < 200; step++) {
 		const seen = await page.evaluate(
 			({ mathSelector, mermaidSelector }) => {
@@ -72,8 +71,8 @@ async function sweepShowcase(page: Page): Promise<Sweep> {
 		);
 		for (const index of seen.topLevel) seenTopLevel.add(index);
 		for (const path of seen.degraded) seenDegraded.add(path);
-		// The loop always collects before it scrolls, so the snapshot taken on the pass that
-		// finds the scrollport immovable is the one taken at its end.
+		// The loop always collects before it scrolls, so the snapshot taken on the pass that finds
+		// the scroll container immovable is the one taken at its end.
 		sweep.atBottom = seen.topLevel;
 		for (const { path, island, engine } of seen.math) {
 			sweep.math[path] = {
@@ -90,8 +89,8 @@ async function sweepShowcase(page: Page): Promise<Sweep> {
 			el.scrollTop = before + el.clientHeight * 0.8;
 			return el.scrollTop <= before;
 		});
-		// Islands paint from an effect, so a step that only just mounted one needs a tick
-		// before the next read; the union above forgives a miss, this makes it rare.
+		// Widgets paint from an effect, so a step that only just mounted one needs a tick before
+		// the next read; the union above forgives a miss, and this makes one rare.
 		await page.waitForTimeout(60);
 		if (atEnd) {
 			sweep.reachedEnd = true;
@@ -108,11 +107,10 @@ test.describe('/ showcase route', () => {
 	let pageErrors: string[];
 
 	test.beforeEach(async ({ page }) => {
-		// Armed before the navigation: a plugin that throws on install throws during hydration,
+		// Set up before the navigation: a plugin that throws on install throws during hydration,
 		// which a listener attached afterwards never sees.
 		pageErrors = capturePageErrors(page);
-		await page.goto('/');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test.afterEach(() => {
@@ -127,24 +125,20 @@ test.describe('/ showcase route', () => {
 	test('mounts every block, none of them on the raw-editable fallback', async ({ page }) => {
 		const sweep = await sweepShowcase(page);
 
-		// The premise: the tour demonstrates no kind that renders raw. A plugin that failed to
-		// install leaves the parser producing `htmlBlock` for the bytes it would have claimed,
-		// and that is what shows up here.
+		// The tour shows no kind that renders as raw text: a plugin that failed to install leaves its
+		// bytes as `htmlBlock`.
 		expect(sweep.degraded, 'blocks that degraded to raw or to the render-error surface').toEqual(
 			[]
 		);
-		// Windowing sanity: the pass ran out of document rather than out of steps, the document's
-		// last block is one of those mounted at the bottom, and the indices in between form an
-		// unbroken run from the first — no block skipped on the way down.
+		// The pass ran out of document rather than steps, the last block is mounted at the bottom, and
+		// the indices run unbroken from the first, so no block was skipped.
 		expect(sweep.reachedEnd, 'the pass never reached the end of the scrollport').toBe(true);
 		expect(sweep.atBottom).toContain(Math.max(...sweep.topLevel));
 		expect(sweep.topLevel).toEqual(sweep.topLevel.map((_, index) => index));
 		expect(sweep.topLevel.length).toBeGreaterThan(10);
 	});
 
-	test('renders an island for every math and mermaid block the document holds', async ({
-		page
-	}) => {
+	test('renders a widget for every math and mermaid block the document holds', async ({ page }) => {
 		const sweep = await sweepShowcase(page);
 
 		expect(
@@ -152,7 +146,7 @@ test.describe('/ showcase route', () => {
 			'mounted math blocks vs `$$` displays in the document'
 		).toHaveLength(scan.blockMath + scan.fences.filter((info) => info === 'math').length);
 		expect(Object.entries(sweep.math).filter(([, seen]) => !seen.island)).toEqual([]);
-		// KaTeX output proves the injected engine ran, not merely that the island mounted.
+		// KaTeX output shows the injected renderer ran, not just that the widget mounted.
 		expect(Object.entries(sweep.math).filter(([, seen]) => !seen.engine)).toEqual([]);
 
 		expect(Object.keys(sweep.mermaid), 'mounted mermaid blocks vs ```mermaid fences').toHaveLength(
@@ -168,9 +162,8 @@ test.describe('/ showcase route', () => {
 			return;
 		}
 		await expect(entries.first()).toBeVisible();
-		// One entry per heading, so the outline walked the document rather than rendering a
-		// placeholder. A mismatch here is the fs scanner disagreeing with the parser, not the
-		// outline going missing — the visibility line above owns that.
+		// One entry per heading; a mismatch means the file scan disagrees with the parser, since the
+		// visibility check above covers a missing outline.
 		await expect(entries).toHaveCount(scan.headings.length);
 	});
 

@@ -1,10 +1,7 @@
 import type { InvariantViolation } from '../assert';
 
-/**
- * G1.4 — a container's provided context keys must not include the editor's
- * HISTORY_KEY. Containers re-provide nested action contexts to descendants but
- * must let history flow from the root; shadowing it would split the undo stack.
- */
+/** G1.4: a container may not provide `HISTORY_KEY` to its descendants: history reaches nested
+ *  action contexts from the root, and shadowing the key would split the undo stack. */
 export function checkNoContainerHistoryKey(
 	setKeys: symbol[],
 	historyKey: symbol
@@ -12,7 +9,7 @@ export function checkNoContainerHistoryKey(
 	if (setKeys.includes(historyKey)) {
 		return {
 			code: 'container-sets-history-key',
-			message: 'container provides HISTORY_KEY to descendants — undo stack would split'
+			message: 'container provides HISTORY_KEY to descendants: undo stack would split'
 		};
 	}
 	return null;

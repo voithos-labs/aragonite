@@ -1,11 +1,11 @@
-import { settleTypedSource, undoStackDepth, type SimContext } from '../invariants';
+import { actThenResync, settleTypedSource, type SimContext } from '../invariants';
+import { textRunCenter } from '../../text-runs';
 
 /**
- * Live-mode editing gestures. Each enters live through the header toggle, drives one live-only
- * rule with real keys, and undoes it — in the single press the rule is contracted to cost, or by
- * the entries a typed run spent — so each is net-identity and a note fixture can fire it
- * mid-session. The source is the oracle throughout: live paints no delimiter, so the bytes are
- * the only witness that the rule fired on runs the reader never saw.
+ * Live-mode editing gestures. Each switches into live mode through the header toggle, drives one
+ * live-only rule with real keys, and undoes it, so the bytes end up as they were and a note can run
+ * it mid-session. Live mode shows no delimiters, so the source is the one witness that the rule
+ * fired.
  */
 
 const CARD = '[data-link-card]';
@@ -26,12 +26,12 @@ const FORMAT_DELIMITER: Record<LiveFormat, string> = {
 
 // ── The mode envelope ───────────────────────────────────────────────────────
 
-/** Enter live, run, leave. The toggle is a real click both ways and the source must come back
- *  byte-identical, which is the flip family's contract with live's rules in between. */
+/** Switch into live mode, run, switch back. The toggle is a real click both ways, and the source
+ *  must come back byte for byte the same, whatever the rule in between did. */
 async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<void> {
 	const { page, editor, tracker } = ctx;
-	// Fences the gesture's own edit into a fresh undo batch, so the single undo it closes with
-	// reverses exactly it rather than overshooting into whatever typed before.
+	// Gives this gesture's edit its own undo entry, so the single undo it closes with reverses
+	// exactly that rather than reaching back into whatever was typed before.
 	await editor.waitForUndoBatchFlush();
 	const before = await editor.bridge.getSource();
 	const toggle = page.getByTestId('live-toggle');
@@ -50,8 +50,8 @@ async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<vo
 
 // ── Gestures ────────────────────────────────────────────────────────────────
 
-/** Select `word` and toggle a mark over the selection: bytes land immediately, as their own
- *  undo entry — the collapsed-caret half of the same chord pends instead and writes nothing. */
+/** Select `word` and toggle a mark over it: the bytes are written at once, as their own undo
+ *  entry. The same shortcut with no selection waits instead and writes nothing. */
 export async function liveToggleFormat(
 	ctx: SimContext,
 	blockIndex: number,
@@ -77,8 +77,8 @@ export async function liveToggleFormat(
 	});
 }
 
-/** Backspace at a construct's trailing CONTENT edge takes the character the reader sees, never
- *  the delimiter behind it — the byte native editing would have taken there. */
+/** Backspace at the end of a construct's text takes the character the user sees, never the
+ *  delimiter behind it, which is the byte the browser's own editing would have taken. */
 export async function liveEdgeBackspace(
 	ctx: SimContext,
 	blockIndex: number,
@@ -95,8 +95,10 @@ export async function liveEdgeBackspace(
 		const after = await ctx.editor.bridge.getSource();
 		if (!after.includes(shortened) || after.includes(content)) {
 			throw new Error(
-				`[${ctx.label}] live edge Backspace did not take the last CONTENT character.\n` +
-					`EXPECTED ${JSON.stringify(content)} to become ${JSON.stringify(shortened)}\n` +
+				`[${ctx.label}] live edge Backspace did not take the last content character.
+` +
+					`EXPECTED ${JSON.stringify(content)} to become ${JSON.stringify(shortened)}
+` +
 					`ACTUAL: ${JSON.stringify(after)}`
 			);
 		}
@@ -104,8 +106,8 @@ export async function liveEdgeBackspace(
 	});
 }
 
-/** Backspace at a heading's content start gives up the prefix the mode paints nothing for,
- *  before any merge — the demote-first policy, reachable only where `# ` is unpainted. */
+/** Backspace at the start of a heading's text drops the `# ` prefix, which live mode does not
+ *  show, before merging anything: demoting comes first, and only where the prefix is hidden. */
 export async function liveDemoteHeading(ctx: SimContext, blockIndex: number): Promise<void> {
 	await inLiveMode(ctx, async () => {
 		const before = await ctx.editor.bridge.getSource();
@@ -129,8 +131,8 @@ export async function liveDemoteHeading(ctx: SimContext, blockIndex: number): Pr
 	});
 }
 
-/** Enter inside the strong pair `content` sits in closes and reopens it, so both halves stand
- *  balanced — the split the other modes take byte-literally. */
+/** Enter inside the `**` pair that `content` sits in closes it and opens it again, so both
+ *  halves are balanced; the other modes split the line byte for byte instead. */
 export async function liveSplitInsideConstruct(
 	ctx: SimContext,
 	blockIndex: number,
@@ -140,9 +142,8 @@ export async function liveSplitInsideConstruct(
 		const { page, editor } = ctx;
 		const before = await editor.bridge.getSource();
 		const raw = await blockRaw(ctx, blockIndex);
-		// Cut inside the opening WORD: a half that begins or ends with a space is not emphasis
-		// at all (the flanking rule), so the rebalancer moves the space out and the halves the
-		// assertion below names would never be the ones it wrote.
+		// Cut inside the first word: a half that starts or ends with a space is not emphasis, so the
+		// editor would move the space out and write different halves than the ones checked below.
 		const cut = 2;
 		if (content.length < 4 || /\s/.test(content.slice(0, cut + 1))) {
 			throw new Error(`[${ctx.label}] split content must open with a word of 3+ characters`);
@@ -168,9 +169,8 @@ export async function liveSplitInsideConstruct(
 }
 
 /**
- * A heading opener typed onto a fresh line: the `#` mints chrome standing over nothing, which
- * flips the block's kind, so that keystroke resyncs — and everything behind it is a plain append
- * the tracker predicts byte for byte, marker paint or none.
+ * The `#` creates a marker and changes the block's kind, so that keystroke resyncs; the text
+ * after it is appended and predicted byte for byte.
  */
 export async function liveTypeHeadingOpener(
 	ctx: SimContext,
@@ -187,9 +187,8 @@ export async function liveTypeHeadingOpener(
 }
 
 /**
- * A fence opener typed onto a fresh line, with its info string. The mint seats the caret on the
- * fence line ahead of the closer it opens, which the tracker's document-end model cannot predict,
- * so the info string settles on the line it forms and resyncs.
+ * Creating the fence puts the caret before the closing line it opens, which the expected answer
+ * cannot predict, so the info string waits for its line and resyncs.
  */
 export async function liveTypeFenceOpener(
 	ctx: SimContext,
@@ -197,11 +196,9 @@ export async function liveTypeFenceOpener(
 	info: string
 ): Promise<void> {
 	await typedOpener(ctx, blockIndex, async () => {
-		const before = await ctx.editor.bridge.getSource();
-		await ctx.editor.typeSlowly('```');
-		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
-		// The completed fence offers its language picker, which holds the keys until Enter
-		// writes the info string and returns the caret to the body.
+		await actThenResync(ctx, () => ctx.editor.typeSlowly('```'));
+		// The completed fence opens its language picker, which keeps the keys until Enter writes
+		// the info string and puts the caret back in the body.
 		await ctx.page.locator('.code-lang-picker input').waitFor({ state: 'visible' });
 		await ctx.page.keyboard.type(info);
 		await ctx.page.keyboard.press('Enter');
@@ -212,8 +209,8 @@ export async function liveTypeFenceOpener(
 }
 
 /**
- * A table header row typed onto a fresh line, completed by Enter. No keystroke in the row mints
- * anything, so the tracker predicts every byte of it; the Enter is the mint, and the only resync.
+ * A table header row typed onto a new line, completed by Enter. No keystroke in the row creates
+ * anything, so every byte of it is predicted; the Enter builds the table, and is the one resync.
  */
 export async function liveTypeTableOpener(
 	ctx: SimContext,
@@ -225,16 +222,13 @@ export async function liveTypeTableOpener(
 			await ctx.editor.typeSlowly(ch);
 			await settleTypedSource(ctx, ctx.tracker.appendChar(ch));
 		}
-		const before = await ctx.editor.bridge.getSource();
-		await ctx.page.keyboard.press('Enter');
-		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		await actThenResync(ctx, () => ctx.page.keyboard.press('Enter'));
 		await settleMint(ctx, 'table', 'completing a header row');
 	});
 }
 
-/** A merge landing rides the caret funnel: Backspace at a block's start joins it into its
- *  predecessor, the door seats the join offset, and the next byte lands at the seam (G2.12).
- *  `seamBefore`/`seamAfter` are the bytes the caller knows stand on either side of it. */
+/** Backspace at a block's start puts the caret at the join, where the next typed byte lands
+ *  (G2.12); `seamBefore` and `seamAfter` are the bytes the caller knows sit on either side. */
 export async function liveMergeLanding(
 	ctx: SimContext,
 	blockIndex: number,
@@ -261,9 +255,8 @@ export async function liveMergeLanding(
 	});
 }
 
-/** Home in a list item routes through the sentinel door — the ambient arm's raw-0 DOM write
- *  was the bypass (GH #110) — so the caret seats at the item's landable start and the next
- *  byte opens the line. `itemText` must start the item's content. */
+/** Home in a list item goes through the editor's own caret placement, landing at the item's first
+ *  allowed offset. `itemText` must be the start of the item's content. */
 export async function liveListHomeSeat(ctx: SimContext, itemText: string): Promise<void> {
 	await inLiveMode(ctx, async () => {
 		const { page, editor } = ctx;
@@ -275,7 +268,7 @@ export async function liveListHomeSeat(ctx: SimContext, itemText: string): Promi
 		await editor.waitForRenderFlush();
 		const at = await caretOffset(ctx);
 		if (at !== 0) {
-			throw new Error(`[${ctx.label}] Home in the list item seated at ${at}, not the start`);
+			throw new Error(`[${ctx.label}] Home in the list item placed at ${at}, not the start`);
 		}
 
 		await editor.typeSlowly('Q');
@@ -284,9 +277,8 @@ export async function liveListHomeSeat(ctx: SimContext, itemText: string): Promi
 	});
 }
 
-/** The cross-block extend's cell arm: extending into a table reveals the endpoint cell and
- *  parks the START sentinel in it (G2.12). Byte-free — the extend and its collapse move
- *  nothing, which is itself the assertion. */
+/** Extending a selection into a table opens the cell it ends in and puts the caret there (G2.12);
+ *  the extend and its collapse move no bytes. */
 export async function liveExtendIntoTablePark(ctx: SimContext): Promise<void> {
 	await inLiveMode(ctx, async () => {
 		const { page, editor } = ctx;
@@ -318,7 +310,7 @@ export async function liveExtendIntoTablePark(ctx: SimContext): Promise<void> {
 	});
 }
 
-/** The first table block and the prose leaf directly above it, or a loud miss. */
+/** The first table and the prose block directly above it, or a loud failure. */
 async function proseAboveTable(
 	ctx: SimContext
 ): Promise<{ proseIndex: number; tableIndex: number }> {
@@ -334,8 +326,8 @@ async function proseAboveTable(
 	return { proseIndex: found.tableIndex - 1, tableIndex: found.tableIndex };
 }
 
-/** A click on a rendered link opens the card — the only surface live gives a destination — and
- *  Enter in its field rewrites those bytes as one entry. */
+/** A click on a rendered link opens its card, the only way live mode shows a destination, and
+ *  Enter in the field rewrites those bytes as one undo entry. */
 export async function liveLinkCardEdit(
 	ctx: SimContext,
 	linkText: string,
@@ -361,9 +353,8 @@ export async function liveLinkCardEdit(
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * The envelope both typed openers share: a fresh empty line below `blockIndex` to type onto, and
- * an unwind by the entries the run actually spent — a typed run batches on wall-clock time, so
- * the press count is measured rather than assumed, and `inLiveMode` asserts the bytes came back.
+ * Typing batches on elapsed time, so the number of undo entries the typing spent is measured
+ * rather than assumed.
  */
 async function typedOpener(
 	ctx: SimContext,
@@ -372,7 +363,7 @@ async function typedOpener(
 ): Promise<void> {
 	await inLiveMode(ctx, async () => {
 		const { page, editor, tracker } = ctx;
-		const depth = await undoStackDepth(ctx);
+		const depth = await ctx.editor.bridge.getUndoDepth();
 		await editor.clickBlock(blockIndex);
 		await page.keyboard.press('End');
 		await editor.waitForRenderFlush();
@@ -383,23 +374,21 @@ async function typedOpener(
 
 		await run();
 
-		for (let spent = (await undoStackDepth(ctx)) - depth; spent > 0; spent--) {
+		for (let spent = (await ctx.editor.bridge.getUndoDepth()) - depth; spent > 0; spent--) {
 			await editor.undo();
 			await editor.waitForRenderFlush();
 		}
 	});
 }
 
-/** The keystrokes that mint a block's own chrome. */
+/** The keystrokes that create a block's own markers. */
 async function mintOpener(ctx: SimContext, opener: string, kind: string): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
-	await ctx.editor.typeSlowly(opener);
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await actThenResync(ctx, () => ctx.editor.typeSlowly(opener));
 	await settleMint(ctx, kind, `typing ${JSON.stringify(opener)}`);
 }
 
-/** The tail every mint shares: the kind flip is auto-behavior, so this settles on it, asserts the
- *  flip the keystroke just paid for, and resyncs instead of predicting. */
+/** The change of kind is the editor's own, so this waits for it, checks the keystroke caused it,
+ *  and resyncs instead of predicting. */
 async function settleMint(ctx: SimContext, kind: string, what: string): Promise<void> {
 	const { editor, tracker } = ctx;
 	await editor.waitForRenderFlush();
@@ -407,15 +396,15 @@ async function settleMint(ctx: SimContext, kind: string, what: string): Promise<
 	const minted = at < 0 ? null : await editor.bridge.getBlockKind(at);
 	if (minted !== kind) {
 		throw new Error(
-			`[${ctx.label}] ${what} minted ${minted}, not ${kind}.\n` +
-				`SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
+			`[${ctx.label}] ${what} created ${minted}, not ${kind}.
+` + `SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
 		);
 	}
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/** The § 5 contract every gesture here closes on: the rule wrote ONE undo entry, so one press
- *  is both the assertion and the return to identity. */
+/** The rule wrote one undo entry (`docs/design/live-mode.md` § 5. What does not change), so one
+ *  undo both checks that and puts the bytes back. */
 async function undoOnceTo(ctx: SimContext, before: string, what: string): Promise<void> {
 	await ctx.editor.undo();
 	try {
@@ -449,9 +438,8 @@ async function caretOffset(ctx: SimContext): Promise<number> {
 }
 
 /**
- * A real click lands the caret near the target, then arrows walk it exactly onto it: in live
- * a hidden run has no box, so the click's pixel→offset mapping is approximate by construction
- * while the arrow walk is the caret contract itself.
+ * A click lands near the target and arrow keys walk the caret exactly onto it: a hidden run has
+ * no box on screen, so a pixel maps to an offset only approximately.
  */
 async function seatCaret(ctx: SimContext, blockIndex: number, offset: number): Promise<void> {
 	await ctx.editor.clickBlockAtPath([blockIndex], offset);
@@ -462,13 +450,12 @@ async function seatCaret(ctx: SimContext, blockIndex: number, offset: number): P
 		await ctx.editor.waitForRenderFlush();
 	}
 	throw new Error(
-		`[${ctx.label}] could not seat the caret at ${offset} in block ${blockIndex} ` +
+		`[${ctx.label}] could not put the caret at ${offset} in block ${blockIndex} ` +
 			`(stopped at ${await caretOffset(ctx)})`
 	);
 }
 
-/** Seat at the word's first byte, then Shift+ArrowRight over it — every byte of a plain word
- *  is painted, so one press per character is exact. */
+/** Every byte of a plain word is on screen, so one Shift+ArrowRight per character is exact. */
 async function selectWord(ctx: SimContext, blockIndex: number, word: string): Promise<void> {
 	const raw = await blockRaw(ctx, blockIndex);
 	await seatCaret(ctx, blockIndex, indexOfIn(ctx, raw, word));
@@ -476,25 +463,10 @@ async function selectWord(ctx: SimContext, blockIndex: number, word: string): Pr
 	await ctx.editor.waitForRenderFlush();
 }
 
-/** Click the middle of a rendered phrase. Text-node geometry, not a raw-offset walk: a hidden
- *  run measures to nothing, so an offset-derived pixel would miss. */
+/** Click the middle of a painted phrase, found in the text the mode shows rather than worked out
+ *  from a raw offset: a hidden run of text measures to nothing, so that pixel would miss. */
 async function clickText(ctx: SimContext, phrase: string): Promise<void> {
-	const point = await ctx.page.evaluate((needle) => {
-		const root = document.querySelector('.editor')!;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const at = node.textContent?.indexOf(needle) ?? -1;
-			if (at < 0) continue;
-			const range = document.createRange();
-			range.setStart(node, at);
-			range.setEnd(node, at + needle.length);
-			const rect = range.getBoundingClientRect();
-			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-		}
-		return null;
-	}, phrase);
-	if (!point) throw new Error(`[${ctx.label}] no rendered text matching ${JSON.stringify(phrase)}`);
+	const point = await textRunCenter(ctx.page, phrase);
 	await ctx.page.mouse.click(point.x, point.y);
 	await ctx.editor.waitForRenderFlush();
 }

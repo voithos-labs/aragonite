@@ -1,28 +1,19 @@
 // @vitest-environment jsdom
-// Miss-analysis: the cell render path was tested against raw, references and islands but never
-// against the mode, so nothing asked whether the surface carried the terms its prose sibling does.
+// Miss-analysis: the cell render was tested against raw, references and decorations, never mode.
 import { afterEach, describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { createCellRender, type CellRender } from '$lib/components/blocks/table/cell-render';
-import {
-	registerInlineSyntax,
-	__resetInlineSyntaxForTests
-} from '$lib/core/inline/scan/plugin-syntax';
-import {
-	registerInlineWidgetKind,
-	__resetInlineWidgetsForTests
-} from '$lib/core/inline/inline-widgets';
-import {
-	declarePluginInlineKind,
-	__clearDeclaredPluginInlineKindsForTests
-} from '$lib/schema/plugin-kind';
+import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
+import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import type { CstNode } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const WIDGET_SOURCE = '%%w%%';
 
-/** A `%%…%%` rung whose widget component renders the two live terms. */
+/** A `%%…%%` inline handler whose widget renders the presentation mode and theme. */
 function registerModeWidget(): void {
 	const kind = declarePluginInlineKind('modeReadingWidget');
 	registerInlineSyntax('%', (raw, pos, end) => {
@@ -38,16 +29,13 @@ const rendered: CellRender[] = [];
 
 afterEach(() => {
 	for (const render of rendered.splice(0)) render.dispose();
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
 });
 
 function mountCell(raw: string) {
 	const el = document.createElement('div');
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	// $state, because production reads both terms off reactive editor policy: a plain
-	// variable would let a widget's `$derived` cache the first value and pass anyway.
+	// Production reads mode and theme off reactive editor policy; a plain variable would let a
+	// widget's `$derived` cache the first value and pass anyway.
 	let mode = $state<PresentationMode>('source');
 	let theme = $state('light');
 	const render = createCellRender({
@@ -57,15 +45,13 @@ function mountCell(raw: string) {
 		get node() {
 			return node;
 		},
-		get linkRef() {
-			return undefined;
-		},
+		reading: fixtureReading({ mode: () => mode }),
 		resolveLinkUrl: (u) => u,
-		get presentationMode() {
-			return mode;
-		},
 		getTheme: () => theme,
 		getDocument: () => undefined,
+		getContentVersion: () => 0,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		get islands() {
 			return [];
 		}
@@ -93,7 +79,7 @@ describe('cell-render presentation-mode key segment', () => {
 
 		cell.setMode('reading');
 		cell.render.render();
-		// The key gained its mode segment, so the DOM rebuilt; hiding stays CSS-only.
+		// The mode is part of the render key, so the DOM rebuilt; the hiding itself is CSS.
 		expect(cell.el.firstChild).not.toBe(before);
 		expect(cell.el.textContent).toBe('*x*');
 	});
@@ -104,7 +90,7 @@ describe('cell-render presentation-mode key segment', () => {
 		cell.render.render();
 		const first = cell.el.firstChild;
 		cell.render.render();
-		// The keystroke path pays for the term only when the mode actually moves.
+		// A keystroke's render rebuilds for the mode only when the mode actually changes.
 		expect(cell.el.firstChild).toBe(first);
 	});
 });
@@ -133,8 +119,8 @@ describe('cell-render widget mode/theme threading', () => {
 		cell.setTheme('dark');
 		cell.render.render();
 		flushSync();
-		// The theme is NOT a render-key term: the cell's own DOM is CSS-themed, so only the
-		// widget reading the getter changes.
+		// The theme is not part of the render key: the cell's own DOM is themed by CSS, so only
+		// the widget reading the getter changes.
 		expect(cell.el.firstChild).toBe(before);
 		expect(cell.widgetText()).toBe('source/dark');
 	});

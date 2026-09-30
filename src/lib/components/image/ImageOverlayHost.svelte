@@ -1,77 +1,86 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
-	import type { Document } from '../../core/nodes';
-	import type { PresentationMode } from '../../presentation-mode';
-	import type { UndoController } from '../../editor-actions/deps';
-	import type { GrammarView } from '../../schema/block-openers';
+	import { getContext, untrack } from 'svelte';
+	import type { Document, ImageFields } from '../../core/nodes';
+	import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
 	import ImageProperties from './ImageProperties.svelte';
 	import ImageResizeHandles from './ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image-edit-commit';
-	import { imageFieldsFromInline } from './image-source-bytes';
-	import {
-		IMAGE_CHROME_SELECTOR,
-		type WidgetSelectionState
-	} from './widget-selection-state.svelte';
+	import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
+	import { pressLeavesImage, type WidgetSelectionState } from './widget-selection-state.svelte';
+	import type { WidgetTarget } from '../../selection/primitives';
 
 	// Mounted unconditionally by Editor: the effects below must observe
 	// widget-selection changes, so the selected-widget {#if} lives here.
 	let {
 		widgetSelection,
-		controller,
+		inlineRange,
 		events,
 		getDoc,
+		getContentVersion,
 		getEditorEl,
 		getSelectionIsCustomRendered,
-		getPresentationMode,
-		grammar,
-		lifetime
+		lifetime,
+		menuPresence
 	}: {
 		widgetSelection: WidgetSelectionState;
-		controller: UndoController;
+		inlineRange: InlineRangeCommit;
 		events: EditorEvents;
 		getDoc: () => Document;
+		getContentVersion: () => number;
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
-		getPresentationMode: () => PresentationMode;
-		grammar?: GrammarView;
+		menuPresence: MenuPresence;
 		lifetime: AbortSignal;
 	} = $props();
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
-	// The crop session owns the pointer over the image; the resize grip steps aside meanwhile.
+	// While cropping, the pointer over the image belongs to the crop; the resize handle yields.
 	let cropping = $state(false);
 
-	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
+	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
-	// Props are stable for the editor's lifetime, so capturing once is deliberate —
-	// reactive values already cross as getters.
+	// Captured once: props are stable for the editor's lifetime, and reactive ones are getters.
 	// svelte-ignore state_referenced_locally
 	const imageEdit = createImageEditCommitter({
 		getDoc,
 		getEditorEl,
 		widgetSelection,
-		controller,
+		inlineRange,
 		events,
-		linkRef,
-		grammar
+		reading
 	});
 
 	$effect(() => {
 		const root = getEditorEl();
 		if (!root) return;
 		const handlePointerDown = (e: PointerEvent) => {
-			const target = e.target as Element | null;
-			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
-			widgetSelection.clear();
+			if (pressLeavesImage(e, root)) widgetSelection.clear();
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
 		return () => root.removeEventListener('pointerdown', handlePointerDown);
 	});
 
 	$effect(() => imageEdit.attachWidgetSelectListener());
+	// On every document change: an image whose bytes moved follows them, and one whose bytes are
+	// gone stops being selected.
+	$effect(() => {
+		getContentVersion();
+		untrack(imageEdit.clearStaleSelection);
+	});
+
+	// The popover's effects and cleanup can run once more after the selection or its image is
+	// gone, before the branch that mounts it tears down, so they read the last live pair.
+	let lastPopover: { target: WidgetTarget; fields: ImageFields } | null = null;
+	const popover = $derived.by(() => {
+		const target = widgetSelection.getSelected();
+		const image = imageEdit.getSelectedImageFields()?.image;
+		if (target && image) lastPopover = { target, fields: imageFieldsFromInline(image) };
+		return lastPopover;
+	});
 
 	$effect(() => {
 		widgetSelection.getSelected(); // re-run + reposition when the selected widget changes
@@ -90,12 +99,11 @@
 	});
 </script>
 
-<!-- Selecting an image stays available in reading mode; the overlay is edit
-	affordances, so reading mode never mounts it. -->
-{#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
-	{@const sel = widgetSelection.getSelected()!}
+<!-- Selecting an image stays available in reading mode; the overlay is a set of
+	editing controls, so reading mode never mounts it. -->
+{#if widgetSelection.getSelected() && reading.mode() !== 'reading'}
 	{@const ctx = imageEdit.getSelectedImageFields()}
-	{#if ctx?.widgetEl}
+	{#if ctx?.widgetEl && popover}
 		<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
 			{#if !cropping}
 				<ImageResizeHandles
@@ -105,16 +113,17 @@
 					onCommit={imageEdit.commitImageResize}
 				/>
 			{/if}
-			{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
+			{#key `${popover.target.paragraphPath.join(',')}@${popover.target.sourceStart}`}
 				<ImageProperties
-					target={sel}
-					fields={imageFieldsFromInline(ctx.image)}
+					target={popover.target}
+					fields={popover.fields}
 					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
 					buildBytes={imageEdit.buildEditBytes}
 					onCommit={imageEdit.commitImageEdit}
 					onRemove={imageEdit.removeImage}
 					onDismiss={imageEdit.dismissImagePopover}
 					maxFrameWidth={imageEdit.getEditorContentWidth}
+					{menuPresence}
 					bind:cropping
 				/>
 			{/key}

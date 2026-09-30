@@ -1,22 +1,26 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { rebuildUnsharedAncestry } from '$lib/tree-operations/chain-rebuild';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
 /**
- * Rebuild an admonition whose body child holds `bodyRaw`, mimicking the commit
- * ceremony's rebuild of an enclosing container after a content edit.
+ * Rebuild an admonition whose body child holds `bodyRaw` through the chain rebuild a commit runs
+ * after a content edit, which also re-reads the container's metadata.
  */
 function rebuiltWithBody(source: string, bodyRaw: string) {
-	const node = parse(source).children[0];
+	const doc = parse(source);
+	const node = doc.children[0];
 	node.children![1].raw = bodyRaw;
-	getBlockKindDescriptor(node.kind).rebuildRaw!(node);
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, fixtureGrammar);
 	return node;
 }
 
@@ -39,11 +43,11 @@ describe('admonition fence escalation past body colon runs', () => {
 
 	it('leaves G1.12 clean after a colliding body edit', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, fixtureGrammar)).toBeNull();
 	});
 
-	// The escalated length is re-derived from the body on every emit rather than
-	// latched into metadata, so two rebuilds over identical state must still agree.
+	// The lengthened count is read back into metadata, so a second rebuild must emit the same
+	// bytes from it.
 	it('stays deterministic across repeated rebuilds (G1.13)', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
 		expect(checkOpaqueRebuildDeterminism(node)).toBeNull();
@@ -71,7 +75,7 @@ describe('admonition fence escalation past body colon runs', () => {
 
 	it('does not escalate past an indented or trailing-content colon run', () => {
 		// Neither ` :::` nor `::: x` is a closer (`isDirectiveCloser` demands a
-		// whole-line colon run), so escalating past them would be gratuitous churn.
+		// whole-line colon run), so lengthening past them would change bytes for nothing.
 		expect(rebuiltWithBody(':::note T\n\nbody\n\n:::\n', '    :::\n').raw).toBe(
 			':::note T\n\n    :::\n\n:::\n'
 		);

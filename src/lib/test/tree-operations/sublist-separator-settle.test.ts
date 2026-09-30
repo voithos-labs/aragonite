@@ -19,13 +19,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
 
-// The mint is not the only way into `- x\n  - `: emptying the one nested item's paragraph lands
-// the same bytes from the other direction, and the write is two levels below the list that owes
-// the separating line. The chain rebuild every commit runs is where both meet.
-//
-// Miss-analysis: the ancestry rebuild's seam ask only ever FOLDS, so a slot whose reload reads as
-// a different kind than the block above it fell through with no verdict, and nothing asserted that
-// a container's rebuilt opener still means what the tree says it means.
+// Emptying the one nested item reaches Enter+Tab's bytes, so the chain rebuild adds the separator.
+// Miss-analysis: the rebuild's join check only merged, so no case asked it for a separator.
 
 function nodeAt(doc: Document, path: number[]): CstNode {
 	let node = doc.children[path[0]];
@@ -54,7 +49,7 @@ function bundleAt(doc: Document, root: NestedActionsBundle, path: number[]): Nes
 	return bundle;
 }
 
-/** Empty the leaf at `leafPath` through the door a keystroke uses, and report the bytes. */
+/** Empty the leaf at `leafPath` through the path a keystroke uses, and report the bytes. */
 async function emptyLeaf(source: string, leafPath: number[]): Promise<Document> {
 	const { deps } = makeEditorActionsDeps(parse(source));
 	const controller = createUndoController(deps);
@@ -64,12 +59,12 @@ async function emptyLeaf(source: string, leafPath: number[]): Promise<Document> 
 		containerEdit: createContainerEditActions(deps, controller)
 	};
 	const container = bundleAt(deps.doc, rootBundle, leafPath.slice(0, -1));
-	await container.blockEdit.updateBlockContent(leafPath[leafPath.length - 1], '\n', 0);
+	await container.blockEdit.updateBlockContent(leafPath[leafPath.length - 1], '\n', 'authored', 0);
 	return deps.doc;
 }
 
 describe('emptying the only nested item separates the sublist', () => {
-	it('mints the line the emptied marker can no longer do without', async () => {
+	it('creates the line the emptied marker can no longer do without', async () => {
 		const doc = await emptyLeaf('- x\n  - y\n', [0, 0, 1, 0, 0]);
 
 		expect(serialize(doc)).toBe('- x\n\n  - \n');

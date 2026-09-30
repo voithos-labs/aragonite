@@ -11,19 +11,17 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Edits and unmounts AWAY from the fold: an above-fold insert shifts every index below it, a
-// scrolled-away cell drops out of a column's max-content, and a below-fold reorder relocates
-// the block the structural correction would otherwise follow. Each holds the viewport by a
-// different mechanism, and each has its own revert.
+// Edits and unmounts away from what is on screen: an insert above it shifts every index below,
+// a cell scrolled out of view leaves a column's width, and a move below it relocates the block
+// the correction would otherwise follow. Each holds the viewport still in a different way, and
+// each has its own way of being broken.
 
 function scrollTopOf(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
-// F4: a numeric anchor measures a DIFFERENT block's offset after the shift and over-corrects
-// by ~one block height; the fix remaps by stable id. Block-Y IS the discriminator here
-// (unlike the deep-jump suite) because the child set really mutates. Driven programmatically
-// at a nested scope: above-fold blocks are unmounted, so there is no clickable target.
+// A block held by index measures a different block after an insert shifts the indices; held by id
+// it stays put. Driven in code, since the blocks above the viewport are unmounted.
 test('inserting a block above the fold holds the viewport via anchor remap (F4)', async ({
 	page
 }) => {
@@ -31,28 +29,28 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Non-uniform on purpose: in a uniform doc the inserted block matches index N's old
-	// occupant and the numeric delta comes out accidentally correct.
+	// Uneven on purpose: in a document of equal blocks the inserted one matches whatever was at
+	// that index and the correction by index comes out right by accident.
 	await editor.loadContent(buildNonUniformBlockquoteDoc());
 	expect(await cstBlockCount(page)).toBe(1);
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
-	// Progressive: the reseed is only observable where measured heights around the anchor
-	// diverge from the reseed estimate.
+	// Step by step: going back to estimates only shows where the measured heights around the held
+	// block differ from those estimates.
 	await progressiveScrollTo(editor, Math.round((await editorScrollHeight(page)) / 2));
 	await editor.waitForRenderFlush();
 
 	const topHost = await topVisibleHostTop(page, { selector: '[data-block-path*=","]' });
 	expect(topHost).not.toBeNull();
 	const before = { childIndex: (JSON.parse(topHost!.ref!) as number[])[1], y: topHost!.top };
-	expect(before.childIndex).toBeGreaterThan(5); // the insert is far above the fold
+	expect(before.childIndex).toBeGreaterThan(5); // the insert is far above the visible area
 
 	const childCountBefore = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length
 	);
 
-	// Child 0 is well above the viewport, in the unmounted region; `spliceContainerChildren`
-	// keeps `childIds` in lockstep so the rebuild fires with a valid id and no scroll move.
+	// Child 0 is well above the viewport, in the unmounted part; `spliceContainerChildren` keeps
+	// `childIds` in step, so the rebuild runs with a valid id and moves no scroll.
 	await page.evaluate(() => {
 		const tall = `> inserted${'<br>line'.repeat(30)}\n`;
 		(window as any).__test.spliceContainerChildren([0], 0, 0, tall);
@@ -62,8 +60,8 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	).toBe(childCountBefore + 1);
 	await editor.waitForRenderFlush();
 
-	// The anchor child sits at childIndex+1 after the insert; without the id-remap the
-	// numeric correction over-shoots and it jumps by ~one inserted-block height.
+	// The held child sits one index later after the insert; held by index instead of by id, the
+	// correction overshoots by about the inserted block's height.
 	const after = await page.evaluate((childIndex) => {
 		const host = document.querySelector(
 			`[data-block-path='${JSON.stringify([0, childIndex])}']`
@@ -75,14 +73,13 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	console.log(`F4 anchor-remap ${JSON.stringify({ ...before, after, drift })}`);
 
 	expect(after).not.toBeNull();
-	// 40px sits below the inserted block's height (the buggy displacement) and above noise.
+	// 40px is below the inserted block's height, which is how far it would jump, and above noise.
 	expect(drift).toBeLessThan(40);
 	expect(pageErrors).toEqual([]);
 });
 
-// F6: `minmax(80px, max-content)` sizes a track to its currently-MOUNTED cells, so the column
-// reflows mid-scroll once its widest cell unmounts; the fix pins each track to the widest cell
-// seen so far (monotonic-grow floor).
+// `minmax(80px, max-content)` sizes a column to the cells mounted at that moment, so each column
+// is held at the widest cell seen so far, or it reflows mid-scroll once that cell unmounts.
 test('a column does not shrink when its widest cell scrolls out of the window (F6)', async ({
 	page
 }) => {
@@ -90,17 +87,17 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Exactly one wide cell, near the top: column 0's max-content is driven entirely by it,
-	// so a deep scroll that unmounts its row is what collapses the track.
+	// Exactly one wide cell, near the top, so column 0's width comes entirely from it and a
+	// deep scroll that unmounts its row is what collapses the column.
 	const wide = 'wordwordword '.repeat(20).trim();
 	const header = '| a | b | c |\n| --- | --- | --- |\n';
 	const body = Array.from({ length: 800 }, () => `| p | q | r |`).join('\n') + '\n';
 	await editor.loadContent(`${header}| ${wide} | y | z |\n${body}`);
 
-	// Without row windowing the wide cell never unmounts and the test is vacuous.
+	// Without row windowing the wide cell never unmounts and the test proves nothing.
 	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 
-	// Any mounted row reports the shared track width; the wide row is in the initial window.
+	// Any mounted row reports the shared column width; the wide row is mounted at the start.
 	const firstCellWidth = () =>
 		page.evaluate(() => {
 			const cell = document.querySelector(
@@ -110,41 +107,40 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 		});
 	const widthBefore = await firstCellWidth();
 	expect(widthBefore).not.toBeNull();
-	// Sanity: the wide cell really did stretch column 0 well past the 80px floor.
+	// A sanity check: the wide cell really did stretch column 0 past the 80px minimum.
 	expect(widthBefore!).toBeGreaterThan(200);
 
 	await editor.scrollEditorTo(Math.round((await editorScrollHeight(page)) * 0.9));
 	await editor.waitForRenderFlush();
 
-	// If the wide row is still in the DOM the column stays wide for the wrong reason.
+	// If the wide row is still in the DOM, the column stays wide for the wrong reason.
 	expect(await page.evaluate(() => document.querySelector('[data-table-row-idx="1"]'))).toBeNull();
 
 	const widthAfter = await firstCellWidth();
 	console.log(`F6 column-stability ${JSON.stringify({ widthBefore, widthAfter })}`);
 
 	expect(widthAfter).not.toBeNull();
-	// 0.9x tolerates sub-pixel jitter while failing hard on the multi-hundred-px collapse
-	// toward the 80px floor that an unpinned track produces.
+	// 0.9 of the width allows for sub-pixel jitter while failing on the several hundred pixels
+	// a column that is not held at its widest collapses by.
 	expect(widthAfter!).toBeGreaterThan(widthBefore! * 0.9);
 	expect(pageErrors).toEqual([]);
 });
 
-// F7: with no content scrolled above the viewport top (localScrollTop === 0), the list scope's
-// `correctAnchorByStableId` would FOLLOW the relocated block and shift the shared scrollTop.
-// One Alt+Up + Alt+Down is a structural no-op, so scrollTop must return to baseline.
+// With nothing scrolled above the list's top (its localScrollTop is 0), following the moved block
+// would shift the shared scrollTop; one Alt+Up and one Alt+Down must bring scrollTop back.
 test('reordering a list item below the fold does not drift scrollTop (F7)', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Filler both sides so the list can drift either way rather than clamp at a boundary;
-	// ALPHA tall and BETA short so the anchor-follow delta is non-zero and asymmetric.
+	// Filler on both sides, so the list can move either way, with ALPHA tall and BETA short so
+	// following the moved block would shift by an uneven amount.
 	const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
 	const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
 	const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
 	await editor.loadContent(`${pre}\n\n1. ${tall}\n2. ZBETAITEM\n\n${post}\n`);
 
-	// Content offset of the first mounted host containing `text`, or null if not mounted.
+	// Where the first mounted block containing `text` sits, or null when it is not mounted.
 	const offsetOf = (text: string) =>
 		page.evaluate((t) => {
 			const ed = document.querySelector('.editor') as HTMLElement;
@@ -155,8 +151,8 @@ test('reordering a list item below the fold does not drift scrollTop (F7)', asyn
 			return host.getBoundingClientRect().top - ed.getBoundingClientRect().top + ed.scrollTop;
 		}, text);
 
-	// Scroll until the list mounts, then leave its top ~250px below the editor's viewport top,
-	// which is what makes the list scope's localScrollTop 0.
+	// Scroll until the list mounts, then leave its top about 250px below the editor's viewport
+	// top, which is what makes the list's own localScrollTop 0.
 	let alphaOffset: number | null = null;
 	for (let step = 0; step < 80 && alphaOffset === null; step++) {
 		alphaOffset = await offsetOf('ZALPHAITEM');
@@ -171,23 +167,23 @@ test('reordering a list item below the fold does not drift scrollTop (F7)', asyn
 	expect(alphaOffset).not.toBeNull();
 	await editor.scrollEditorTo(Math.round(alphaOffset! - 250));
 
-	// Baseline is taken AFTER the click so any click-induced scroll is absorbed into it.
+	// The baseline is taken after the click, so any scroll the click caused is included in it.
 	await page.locator('[contenteditable="true"]', { hasText: 'ZBETAITEM' }).click();
 	await editor.waitForRenderFlush();
 
 	const listTopRel = (await offsetOf('ZALPHAITEM'))! - (await scrollTopOf(page));
-	// Without this the test cannot reach the buggy branch.
+	// Without this the test never reaches the path it is about.
 	expect(listTopRel, 'list must sit below the viewport top (localScrollTop===0)').toBeGreaterThan(
 		50
 	);
 
 	const baseline = await scrollTopOf(page);
 
-	// Ordered markers renumber, so the reorder is observable through the serialized source.
+	// Ordered list markers renumber, so the move shows up in the serialized source.
 	await page.keyboard.press('Alt+ArrowUp');
 	await editor.bridge.waitForSourceMatches(/ZBETAITEM[\s\S]*ZALPHAITEM/);
 
-	// Alt+Down moves it back — structurally identical to the start.
+	// Alt+Down moves it back, leaving the structure exactly as it started.
 	await page.keyboard.press('Alt+ArrowDown');
 	await editor.bridge.waitForSourceMatches(/ZALPHAITEM[\s\S]*ZBETAITEM/);
 	await editor.waitForRenderFlush();
@@ -199,3 +195,63 @@ test('reordering a list item below the fold does not drift scrollTop (F7)', asyn
 	).toBeLessThan(3);
 	expect(pageErrors).toEqual([]);
 });
+
+// F7 checks only the end of a cycle, where a jump on the way up and its mirror on the way down
+// cancel; one press alone must already leave the scroll where it was.
+for (const [key, item] of [
+	['Alt+ArrowUp', 'ZBETAITEM'],
+	['Alt+ArrowDown', 'ZALPHAITEM']
+] as const) {
+	test(`one ${key} on a list item below the fold leaves scrollTop alone (F7, per step)`, async ({
+		page
+	}) => {
+		const pageErrors = capturePageErrors(page);
+		const editor = new EditorPage(page);
+		await editor.goto();
+		const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
+		const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
+		const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
+		await editor.loadContent(`${pre}\n\n1. ${tall}\n2. ZBETAITEM\n\n${post}\n`);
+
+		const listTop = await revealedOffsetOf(page, editor, 'ZALPHAITEM');
+		await editor.scrollEditorTo(Math.round(listTop - 250));
+		await page.locator('[contenteditable="true"]', { hasText: item }).click();
+		await editor.waitForRenderFlush();
+		expect(
+			listTop - (await scrollTopOf(page)),
+			'the list sits below the viewport top'
+		).toBeGreaterThan(50);
+
+		const baseline = await scrollTopOf(page);
+		await page.keyboard.press(key);
+		await editor.bridge.waitForSourceMatches(/ZBETAITEM[\s\S]*ZALPHAITEM/);
+		await editor.waitForRenderFlush();
+
+		const moved = (await scrollTopOf(page)) - baseline;
+		expect(Math.abs(moved), `scrollTop moved ${moved}px on one ${key}`).toBeLessThan(3);
+		expect(pageErrors).toEqual([]);
+	});
+}
+
+/** Where the first block containing `text` sits in the editor's content, scrolling down a screen
+ *  at a time until it mounts. */
+async function revealedOffsetOf(page: Page, editor: EditorPage, text: string): Promise<number> {
+	for (let step = 0; step < 80; step++) {
+		const offset = await page.evaluate((t) => {
+			const ed = document.querySelector('.editor') as HTMLElement;
+			const host = [...document.querySelectorAll('[data-block-path]')].find((h) =>
+				(h.textContent || '').includes(t)
+			);
+			if (!host) return null;
+			return host.getBoundingClientRect().top - ed.getBoundingClientRect().top + ed.scrollTop;
+		}, text);
+		if (offset !== null) return offset;
+		await editor.scrollEditorTo(
+			await page.evaluate(() => {
+				const ed = document.querySelector('.editor') as HTMLElement;
+				return ed.scrollTop + ed.clientHeight * 0.7;
+			})
+		);
+	}
+	throw new Error(`${text} never mounted`);
+}

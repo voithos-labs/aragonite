@@ -1,12 +1,12 @@
-// One invariant — sticky-column landing-X symmetry on code-block entry — parametrized across
-// code-block shapes, which is why these stay in one file.
+// One rule over several code-block shapes, which is why these stay in one file: entering a code
+// block from above and from below has to land at the same x.
 import { test, expect } from '../../fixtures';
 import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 
 const PIXEL_TOLERANCE = 2;
 
-// Identical bracketing paragraphs isolate any landing-X asymmetry to focusAtColumn.
+// Identical paragraphs above and below, so any difference in landing x comes from `focusAtColumn`.
 const PARAGRAPH_TEXT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CURSOR_COL = 20;
 
@@ -45,13 +45,14 @@ const SHAPES = [
 		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccc\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
 	},
 	{
-		// Opener (```javascript) is wider than closer (```); interior body offsets must still
-		// dominate the nearest-X search.
+		// The opening fence (```javascript) is wider than the closing ```, and the body's own
+		// offsets must still win the nearest-x search.
 		name: 'code block with info string (```javascript)',
 		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript')
 	},
 	{
-		// Guards against rect discontinuity at token-span boundaries in findOffsetNearestX.
+		// Highlighted code splits the line into token spans, whose rects jump at the boundaries
+		// `findOffsetNearestX` searches across.
 		name: 'js-highlighted body (token spans split the line)',
 		doc: fenced('const xxxxxxxxxx = 1234567890 + 9876543210;', 'js')
 	}
@@ -75,6 +76,25 @@ test.describe('sticky column: code block entry symmetry', () => {
 
 			expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
 			expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
+		});
+	}
+
+	for (const from of ['above', 'below'] as const) {
+		test(`entry from ${from} lands in the body, never on a fence line`, async () => {
+			// The opener carries an info string and the closer does not, so a landing on either
+			// fence line is a different column from a landing in the body.
+			await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
+			await captureEntry(editor, 1, from);
+			// The body line is raw [14, 44]: past "```javascript\n", before "\n```".
+			const landed = await editor.bridge.getSelectionPaths();
+			expect(landed?.focus.path).toEqual([1]);
+			expect(landed?.focus.offset).toBeGreaterThanOrEqual(14);
+			expect(landed?.focus.offset).toBeLessThanOrEqual(44);
+			await editor.typeText('X');
+			await editor.bridge.waitForSourceContains('X');
+			const src = await editor.bridge.getSource();
+			expect(src).toContain('```javascript\n');
+			expect(src).toMatch(/\nb+Xb+\n/);
 		});
 	}
 
@@ -126,8 +146,8 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(codeBlockIndex).toBeGreaterThan(0);
 		const landedIn = async () => (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 
-		// The block above is an ordered list, so the line ArrowDown leaves from is its LAST item;
-		// leaving from any other lands in the next item, and a list column is not a code landing.
+		// The block above is an ordered list, so ArrowDown has to leave from its last item:
+		// leaving any other one lands in the next item, and a list column is not a code landing.
 		const aboveLine = editor.page.locator(`[data-block-path='[${codeBlockIndex - 1},2,0]']`);
 		const aboveBox = await aboveLine.boundingBox();
 		expect(aboveBox).not.toBeNull();
@@ -153,26 +173,15 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(await landedIn()).toBe(codeBlockIndex);
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Entry from above and below land on DIFFERENT body lines, where nearest-column
-		// quantization can legitimately disagree by a character cell — so the bound is a measured
-		// cell, not the same-line PIXEL_TOLERANCE the sibling tests use, widened by however far
-		// the two clicks' own captured columns fell apart. A sticky regression lands multiple
-		// cells apart and still fails.
-		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
-			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				if (node.textContent && node.textContent.trim().length > 0) {
-					const range = document.createRange();
-					range.setStart(node, 0);
-					range.setEnd(node, 1);
-					return range.getBoundingClientRect().width;
-				}
-			}
-			return 0;
-		});
+		// The block's first raw character, the fence's opening backtick, measured by the block itself.
+		const cellWidth = await editor.page.evaluate(
+			(index) => (window as any).__test.rects.rangeRects([index], 0, 1)[0]?.width ?? 0,
+			codeBlockIndex
+		);
 		expect(cellWidth).toBeGreaterThan(0);
 
+		// Entry from above and below lands on different body lines, where rounding can differ by one
+		// character cell, so the bound is a measured cell widened by the clicks' own column gap.
 		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
 		expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
 			cellWidth + PIXEL_TOLERANCE + captureDelta

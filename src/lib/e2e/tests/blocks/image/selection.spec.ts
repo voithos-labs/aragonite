@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { documentCaret } from './helpers';
 
 test.describe('image widget selection', () => {
 	let editor: EditorPage;
@@ -9,8 +10,7 @@ test.describe('image widget selection', () => {
 		await editor.goto();
 	});
 
-	// The overlay portal rendered at the widget's bounds is the only externally-observable signal
-	// of widget-selected state.
+	// The overlay rendered at the widget's bounds is the only outward sign that it is selected.
 	const overlay = (page: import('@playwright/test').Page) => page.locator('[data-image-overlay]');
 
 	test('click on widget enters selected state', async ({ page }) => {
@@ -43,6 +43,53 @@ test.describe('image widget selection', () => {
 		await expect(overlay(page)).toHaveCount(0);
 		await editor.typeText('X');
 		expect(await editor.bridge.getSource()).toContain('leadX![cat]');
+	});
+
+	// The paragraph keeps focus while its image is selected, so the browser puts a caret at its
+	// start on the next mouse input of any kind; none may outlive the selected image.
+	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
+	// No native caret, and the editor's read answers the image's end, where the click left it.
+	const imageEnd = { path: [0], offset: 'before ![pic|120x80](/test-fixtures/sample.png)'.length };
+	const onlyTheImageEnd = [0, { anchor: imageEnd, focus: imageEnd }];
+
+	test('moving the mouse off a selected image leaves no native caret', async ({ page }) => {
+		await editor.loadContent(IMAGE_PARAGRAPH);
+		const image = page.locator('[data-image-widget]').first();
+		await image.click();
+		const box = (await image.boundingBox())!;
+		await page.mouse.move(box.x + box.width + 40, box.y + box.height + 40);
+		await expect(overlay(page)).toBeVisible();
+		await expect.poll(() => documentCaret(page)).toEqual(onlyTheImageEnd);
+	});
+
+	const controls = [
+		{ name: 'the resize handle', opensCrop: false, selector: '.md-resize-handle' },
+		{ name: 'the crop frame', opensCrop: true, selector: '.md-image-crop-surface' }
+	];
+	for (const { name, opensCrop, selector } of controls) {
+		test(`a press on ${name} of a selected image leaves no native caret`, async ({ page }) => {
+			await editor.loadContent(IMAGE_PARAGRAPH);
+			const image = page.locator('[data-image-widget]').first();
+			if (opensCrop) await image.dblclick();
+			else await image.click();
+			await page.locator(selector).click();
+			await expect(overlay(page)).toBeVisible();
+			await expect.poll(() => documentCaret(page)).toEqual(onlyTheImageEnd);
+		});
+	}
+
+	test('End while an image is selected deselects it and moves to the line end', async ({
+		page
+	}) => {
+		await editor.loadContent(IMAGE_PARAGRAPH);
+		await page.locator('[data-image-widget]').first().click();
+		await expect(overlay(page)).toBeVisible();
+		await page.keyboard.press('End');
+		await expect(overlay(page)).toHaveCount(0);
+		await editor.typeText('W');
+		expect(await editor.bridge.getSource()).toBe(
+			'before ![pic|120x80](/test-fixtures/sample.png) afterW\n'
+		);
 	});
 
 	test('Escape deselects', async ({ page }) => {

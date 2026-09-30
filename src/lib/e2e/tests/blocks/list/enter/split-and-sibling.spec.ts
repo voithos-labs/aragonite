@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list Enter — sibling creation and mid-item split', () => {
+test.describe('list Enter, sibling creation and mid-item split', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -32,7 +32,7 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		expect(source).toContain('- World');
 	});
 
-	// Regression: mid-item Enter must collapse to one undo snapshot, not two.
+	// Enter in the middle of an item takes one undo snapshot, not two.
 	test('Enter in middle of item: one Ctrl+Z restores original item', async () => {
 		await editor.loadContent('- HelloWorld\n');
 		const before = await editor.bridge.getSource();

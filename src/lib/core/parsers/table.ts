@@ -1,14 +1,18 @@
 import type { CstNode, TableAlignment } from '../nodes';
-import type { ParsedLine } from '../lines';
+import { trimWhitespace, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import { lineStartsOuterBlock, type BlockOpenerResult } from '../../schema/block-openers';
+import {
+	lineStartsOuterBlock,
+	type BlockOpenerResult,
+	type GrammarView
+} from '../../schema/block-openers';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
-// Cell padding is cosmetic. Pre-edit bytes survive in `table.raw`; post-edit,
-// rebuildTableRowRaw emits canonical single-space padding for every row.
+// Cell padding is cosmetic: a rebuilt row writes single spaces. GFM §4.10 trims spaces, so a
+// non-breaking space at a cell's edge is content and survives the rebuild.
 export function splitRowCells(rowText: string): string[] {
-	const trimmed = rowText.trim();
+	const trimmed = trimWhitespace(rowText);
 	const head = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
 	const inner = head.endsWith('|') ? head.slice(0, -1) : head;
 	const cells: string[] = [];
@@ -17,22 +21,19 @@ export function splitRowCells(rowText: string): string[] {
 	for (let i = 0; i < inner.length; i++) {
 		const ch = inner[i];
 		if (ch === '|' && !escaped) {
-			cells.push(current.trim());
+			cells.push(trimWhitespace(current));
 			current = '';
 			continue;
 		}
 		current += ch;
 		escaped = ch === '\\' && !escaped;
 	}
-	cells.push(current.trim());
+	cells.push(trimWhitespace(current));
 	return cells;
 }
 
-/**
- * The cells a line offers as a table header row, or null when it offers none — the one home for
- * the shape, so a row the continuation scan accepts and the Enter completer refuses cannot exist.
- * Arity against the delimiter is the caller's check.
- */
+/** The cells a line offers as a header row, or null: the one definition, so the continuation scan
+ *  and the Enter completer cannot disagree. Arity against the delimiter is the caller's check. */
 export function tableHeaderCells(text: string): string[] | null {
 	if (!text.includes('|')) return null;
 	return splitRowCells(text);
@@ -43,7 +44,7 @@ export function tableHeaderCells(text: string): string[] | null {
 export function matchTableDelimiterRow(
 	text: string
 ): { columnCount: number; alignments: TableAlignment[] } | null {
-	const trimmed = text.trim();
+	const trimmed = trimWhitespace(text);
 	if (!trimmed.includes('|')) return null;
 
 	const inner = trimmed.replace(/^\||\|$/g, '');
@@ -51,7 +52,7 @@ export function matchTableDelimiterRow(
 	const alignments: TableAlignment[] = [];
 
 	for (const cell of cells) {
-		const c = cell.trim();
+		const c = trimWhitespace(cell);
 		if (!/^:?-+:?$/.test(c)) return null;
 		const left = c.startsWith(':');
 		const right = c.endsWith(':');
@@ -66,25 +67,31 @@ export function matchTableDelimiterRow(
 
 // ── Block parser ───────────────────────────────────────────────────────────
 
+/** Whether a table takes `lines[index]` as one more row, pipe or none: GFM ends a table only at a
+ *  blank line or a block start (spec example 201), judged in the editor's grammar. */
+export function tableTakesLine(
+	lines: ParsedLine[],
+	index: number,
+	end: number,
+	grammar: GrammarView
+): boolean {
+	const line = lines[index];
+	return (
+		!isBlankLine(line.text) &&
+		!lineStartsOuterBlock(line, { paragraphOpen: false, grammar, window: { lines, index, end } })
+	);
+}
+
 export function parseTable(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	delimiter: { columnCount: number; alignments: TableAlignment[] }
+	delimiter: { columnCount: number; alignments: TableAlignment[] },
+	grammar: GrammarView
 ): BlockOpenerResult {
-	// GFM: the table breaks at a blank line or the start of another block, so a body row is a
-	// pipe-carrying line no opener claims. No paragraph is open here, so nothing is transparent
-	// but the definition, which is never a block start.
 	let i = startIndex + 2;
-	while (
-		i < endIndex &&
-		!isBlankLine(lines[i].text) &&
-		lines[i].text.includes('|') &&
-		!lineStartsOuterBlock(lines[i], { paragraphOpen: false })
-	) {
-		i++;
-	}
+	while (i < endIndex && tableTakesLine(lines, i, endIndex, grammar)) i++;
 
 	const rows: CstNode[] = [];
 	rows.push(buildRow(lines[startIndex], delimiter.columnCount, true));
@@ -105,12 +112,12 @@ export function parseTable(
 	};
 }
 
-// GFM pads short BODY rows and truncates long ones to the delimiter column count. The header
-// always matches: a mismatch rejects the whole table at recognition (GFM §4.10, paragraph.ts).
+// GFM pads short body rows and renders a long one's first cells, keeping the rest as surplus bytes;
+// a header mismatch rejects the whole table at recognition (paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');
-	if (cellTexts.length > columnCount) cellTexts.length = columnCount;
+	const surplusCells = cellTexts.splice(columnCount);
 	const cells: CstNode[] = cellTexts.map((text) => ({
 		kind: 'tableCell',
 		leadingTrivia: '',
@@ -120,7 +127,7 @@ function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): Cst
 		kind: 'tableRow',
 		leadingTrivia: '',
 		raw: line.raw,
-		metadata: { isHeader },
+		metadata: surplusCells.length > 0 ? { isHeader, surplusCells } : { isHeader },
 		children: cells
 	};
 }

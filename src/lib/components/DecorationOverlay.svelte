@@ -21,8 +21,8 @@
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
-		/** Containers paint nothing — children self-paint — except grids, whose cells
-		 *  aren't BlockHosted and so paint whole-cell marks here. */
+		/** Containers paint nothing, since their children paint themselves, except grids:
+		 *  their cells have no BlockHost of their own, so whole-cell marks paint here. */
 		isContainer?: boolean;
 		/** Decided at BlockHost, which hands the same value to SelectionOverlay. */
 		containerPaintsRects?: boolean;
@@ -30,11 +30,11 @@
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const engine = services?.decorations;
-	// Optional for the same reason `services` is: a bare mount provides no shell.
+	// Optional for the same reason `services` is: a mount without the editor shell has none.
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	/** A mark's `interactive.onClick` is author code on a user gesture, so it routes to
-	 *  the same error seam as every other decoration entry point (editor.md §12). */
+	/** A mark's `interactive.onClick` is plugin code, so its errors go to the `error` event like
+	 *  every other decoration entry point's. */
 	function runInteraction(run: () => void): void {
 		try {
 			run();
@@ -43,8 +43,8 @@
 		}
 	}
 
-	// A grid supplies cellRect, so its descendant cell marks — which get no BlockHost
-	// overlay of their own — paint as whole cells here.
+	// A grid supplies cellRect, so marks on its cells, which have no BlockHost overlay
+	// of their own, paint as whole cells here.
 	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
 
 	interface Painted {
@@ -62,9 +62,8 @@
 		const eng = engine,
 			ref = blockRef,
 			el = blockEl;
-		// Read the bucket up front so this effect registers the reactive decoration set
-		// as a dependency: `sourceCount` is a plain counter, so a source added after
-		// mount would otherwise never re-run it.
+		// Read up front so the effect depends on the decoration set: `sourceCount` is a plain
+		// counter, and a source added after mount would never re-run it.
 		const marks = eng
 			? containerPaintsCells
 				? eng.marksForDescendants(path)

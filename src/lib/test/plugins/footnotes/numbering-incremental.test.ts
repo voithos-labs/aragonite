@@ -1,9 +1,6 @@
-// Miss-analysis: numbering had no cost pin at all — every case asserted the map, and a
-// whole-document walk produces the same map as a per-subtree one, so only counting the
-// inline parses tells them apart.
+// Miss-analysis: every case asserted the map, which a whole-document pass also produces.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, type DocumentView } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import {
@@ -19,6 +16,7 @@ import {
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 const TOP_LEVEL = 40;
 
@@ -29,7 +27,6 @@ function referenceDenseDocument(): ReturnType<typeof parse> {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([footnotesPlugin()]);
 });
 
@@ -42,7 +39,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		const doc = referenceDenseDocument();
 		footnoteNumbersFor(doc, 1);
 
-		// Armed after the cold walk, so the count is the keystroke's alone.
+		// Reset after the first pass, so the count is the keystroke's alone.
 		resetPerfInstruments();
 		enablePerfInstruments();
 		doc.children[3].raw = 'Paragraph 3 with [^r3] and [^extra] inside.';
@@ -54,9 +51,8 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect(parses).toBe(1);
 	});
 
-	// sharing.ts copies only a node the epoch marked shared, and text-batch.ts snapshots once
-	// per typing burst — so every keystroke after a batch's first rewrites the SAME object.
-	// Keying the memo on node identity alone would freeze the numbering for the rest of the burst.
+	// Copy-on-write copies only a shared node and typing snapshots once per burst, so later
+	// keystrokes rewrite the same object; a cache keyed on node identity would freeze numbering.
 	it('renumbers a subtree rewritten in place, node identity unchanged', () => {
 		const doc = parse('Body [^a].\n\nTail [^b].\n');
 		const block = doc.children[0];
@@ -77,8 +73,8 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect(numbers.get('b')).toBe(2);
 	});
 
-	// Both subtrees keep their own bytes, so both memo entries hit; only the concatenation
-	// order moves. A map memoized on "no subtree changed" would hand back the old numbering.
+	// Both subtrees keep their own bytes, so both cache entries hit; only the order changes.
+	// A map cached on "no subtree changed" would hand back the pre-reorder numbering.
 	it('renumbers when a reorder moves a reference into an earlier slot', () => {
 		const doc = parse('First [^a].\n\nSecond [^b].\n');
 		expect(footnoteNumbersFor(doc, 1).get('a')).toBe(1);
@@ -89,8 +85,8 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect(numbers.get('a')).toBe(2);
 	});
 
-	// The undo road: copy-path-on-write leaves the edited block a new node while the entry
-	// keeps the original, and the restore publishes a fresh document over those shared nodes.
+	// The undo path: copying down the path on write leaves the edited block a new node while
+	// the entry keeps the original, and the restore writes a fresh document over those nodes.
 	it('replays the pre-edit numbering when undo restores the shared subtree', () => {
 		const doc = parse('First [^a].\n\nSecond [^b].\n');
 		const shared = [...doc.children];
@@ -104,34 +100,30 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect([...footnoteNumbersFor(restored, 3).keys()]).toEqual(['a', 'b']);
 	});
 
-	// Miss-analysis: every earlier case edits a top-level leaf, so the container contract the
-	// memo leans on (a subtree's raw is its whole byte image) had no test of its own — a nested
-	// edit is invisible to the key until the ancestry rebuild moves the container's raw.
+	// Miss-analysis: every earlier case edited a top-level block, never one nested in a container.
 	it('renumbers a nested edit once the ancestry rebuild moves the container raw', () => {
 		const doc = parse('Head.\n\n> Quote [^q] here.\n');
 		expect([...footnoteNumbersFor(doc, 1).keys()]).toEqual(['q']);
 
 		const quote = doc.children[1];
 		quote.children![0].raw = 'Quote [^q] here and [^nested] too.\n';
-		rebuildAncestryRaw(quote, [0]);
+		rebuildAncestryRaw(quote, [0], fixtureGrammar);
 		expect([...footnoteNumbersFor(doc, 2).keys()]).toEqual(['q', 'nested']);
 	});
 
-	// Miss-analysis: every case above hands the version in as a literal, so the memo was never
-	// asked against the number the editor actually produces — a door that stopped announcing its
-	// write would have left this whole suite green while every mounted widget froze.
+	// Miss-analysis: every case above passed the version as a literal, never the editor's own.
 	it('recomputes after a real keystroke, against the editor’s own version', async () => {
 		const harness = makeEditorActionsDeps(parse('Body [^a].\n\nTail [^b].\n'));
 		const blockEdit = createBlockEditActions(harness.deps, createUndoController(harness.deps));
 		const doc = harness.doc as DocumentView;
 		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['a', 'b']);
 
-		await blockEdit.updateBlockContent(0, 'Body [^z] and [^a].\n', 5, 9);
+		await blockEdit.updateBlockContent(0, 'Body [^z] and [^a].\n', 'authored', 5, 9);
 		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['z', 'a', 'b']);
 	});
 
-	// Memoized paths are subtree-relative; the doc-absolute contract is the caller's rebase,
-	// which must not compound when a second reader hits the same entry.
+	// Cached paths are relative to their subtree; making them document-absolute is the caller's
+	// job, and it must not happen twice when a second caller hits the same entry.
 	it('rebases a memoized subtree path onto its top-level index, once', () => {
 		const doc = parse('Zero.\n\n> A quote with [^q] inside.\n');
 		const first = collectFootnoteReferences(doc);

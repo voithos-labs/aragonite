@@ -33,7 +33,7 @@ export interface AdmonitionMetadata {
 }
 
 /** The marker's type as typed (`NOTE`, `Note`), stored verbatim so `rebuildRaw` re-emits
- *  the source casing; readers lowercase through `coerceAdmonitionName` for display. */
+ *  the source casing; display code lowercases it through `coerceAdmonitionName`. */
 export interface GithubAlertMetadata {
 	alertType: string;
 }

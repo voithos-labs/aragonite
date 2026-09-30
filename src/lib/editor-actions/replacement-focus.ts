@@ -1,81 +1,77 @@
 /**
- * Shared helpers for `updateBlockContent`'s structural arm: the pre-commit reparse
- * probe that picks structural-vs-typing, and the post-commit caret restore.
+ * The keystroke's two helpers around its write: the trial reparse that picks between a commit and
+ * the in-place write, and putting the caret back after a write that moved it.
  */
 
 import { updateNodeContent } from '../tree-operations';
-import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
-import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
+import { makeBlockNode, metadataOf } from '../core/nodes';
+import { documentLineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
+import { followsTaskMarker } from '../tree-operations/list/task-paragraph';
 import { readBlockPath } from '../selection/path-lookup';
-import type { CommitScope } from './block-edit-scope';
+import type { CaretPosition } from '../selection/primitives';
+import type { Relanding } from '../action-contracts';
 
-// ── Reparse probe ────────────────────────────────────────────────────────────
+// ── Trial reparse ────────────────────────────────────────────────────────────
 
 /**
- * Preview the content update on a throwaway single-node probe to pick between the structural
- * commit and the routine typing path; the live tree is untouched. `tailSuffix` is the document's
- * folded trailing line when `node` is the tail block, else `''`: blanking the tail materializes
- * it, which is structural and must route into the ceremony.
+ * Run the content write on a throwaway copy of child `index` to pick a commit or the in-place
+ * write. The last block brings the trailing blank line, since blanking it makes that line a block.
  */
 export function previewContentReparse(
-	node: NodeView,
-	text: string,
-	grammar: Parameters<typeof updateNodeContent>[3],
-	ownerKind: AnyBlockKind | undefined,
-	tailSuffix: string
+	target: WriteTarget,
+	index: number,
+	write: LegalWrite,
+	grammar: Parameters<typeof updateNodeContent>[3]
 ): StructuralChange {
+	const node = target.children[index];
+	const owner = 'owner' in target ? target.owner : undefined;
+	const tailSuffix =
+		index === target.children.length - 1 && 'suffix' in target ? target.suffix : '';
+	const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
 	const probe = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner KIND rides along or the probe answers about different bytes than the commit
-	// writes; the owner node stays out — a probe must not write real wrap slots. The suffix
-	// rides by VALUE for the same reason: the probe's settle may only spend the copy.
+	// The owner and its task marker go along as a copy, so the trial reads the bytes the write will.
+	const taskItem = followsTaskMarker(owner, index) ? owner : undefined;
+	const ownerCopy =
+		owner &&
+		makeBlockNode({
+			kind: owner.kind,
+			leadingTrivia: '',
+			raw: owner.raw,
+			metadata: taskItem ? { ...metadataOf(taskItem, 'listItem') } : undefined,
+			children: [probe]
+		});
 	return updateNodeContent(
-		{ children: [probe], ownerKind, owner: undefined, suffix: tailSuffix },
+		{ children: [probe], owner: ownerCopy, suffix: tailSuffix, lineEnding },
 		0,
-		text,
+		write,
 		grammar
 	).change;
 }
 
-// ── Post-replacement focus ───────────────────────────────────────────────────
+// ── Putting the caret back ───────────────────────────────────────────────────
 
-/**
- * Restore the caret after a structural content commit. A no-op when focus already moved on.
- */
-export function focusAfterContentReplace(
-	scopePath: number[],
-	at: number,
-	settled: SettledContent,
-	focusOffset: number,
-	scope: CommitScope
-): void {
-	const { change } = settled;
-	const count = change.op === 'replace' ? change.newCount : 1;
-	// The settled window, not the slot the gesture named: a fold above moved both.
-	const windowAt = change.op === 'replace' ? change.at : at;
-	if (focusMovedOutsideReplacement(scopePath, windowAt, count)) return;
-	const target = settledCaretTarget(settled, at, focusOffset, scope.children());
-	scope.refAt(target.index)?.focus(target.offset);
+/** `relanding`'s caret, or null when focus already left the blocks the write wrote. */
+export function unlessFocusMoved(relanding: Relanding): CaretPosition | null {
+	const { list, at, count } = relanding.window;
+	return focusMovedOutsideReplacement(list, at, count) ? null : relanding.caret;
 }
 
-/**
- * A typing commit needs the caret restored; a BLUR commit (source folding as focus
- * lands elsewhere) must not yank it back. The discriminator is where focus lives at
- * afterTick time — a `data-block-path` outside the replaced window means it moved on.
- */
+/** Whether focus has left the written blocks, as after a blur commit, where putting the caret
+ *  back would pull it away from where the user went. */
 export function focusMovedOutsideReplacement(
-	scopePath: number[],
+	scopePath: readonly number[],
 	at: number,
 	count: number
 ): boolean {
 	if (typeof document === 'undefined') return false;
 	const host = document.activeElement?.closest?.('[data-block-path]') ?? null;
-	// No locatable path reads as "a remount ate the focused el", so run the restore.
+	// No readable path means a remount removed the focused element, so the caret goes back.
 	const path = readBlockPath(host);
 	if (!path) return false;
 	for (let depth = 0; depth < scopePath.length; depth++) {

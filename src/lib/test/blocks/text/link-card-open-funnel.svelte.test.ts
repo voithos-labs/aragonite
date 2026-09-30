@@ -4,10 +4,8 @@ import { mount, unmount, flushSync } from 'svelte';
 import LinkCard from '$lib/components/link-card/LinkCard.svelte';
 import { resolveHref } from '$lib/core/inline-render';
 
-// The card's Open button is a SINK into the consumer's `onLinkActivate`, and its URL is the one
-// the user just typed rather than a rendered node's. Every other path into that hook is filtered
-// by the render path's funnel (a consumer rewrite, then the scheme allowlist); this one was not,
-// so `javascript:` reached it. The funnel is shared, not copied — parity is the point.
+// The card's Open button hands the consumer's `onLinkActivate` the typed URL through the render's
+// own filter (a consumer rewrite, then the scheme allowlist), so a click and Open give one answer.
 
 function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => u) {
 	const onOpenLink = vi.fn();
@@ -22,17 +20,19 @@ function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => 
 			onCommit: vi.fn(),
 			onOpenLink,
 			onRemove: vi.fn(),
+			opensCard: () => false,
 			resolveHref: (raw: string) => resolveHref({ resolveLinkUrl }, raw)
 		}
 	});
 	flushSync();
+	// An icon button: its name is the accessible label, not text.
 	const button = [...target.querySelectorAll('button')].find((b) =>
-		/open/i.test(b.textContent ?? '')
+		/open/i.test(b.getAttribute('aria-label') ?? '')
 	);
 	return { onOpenLink, button: button as HTMLButtonElement, destroy: () => unmount(app) };
 }
 
-describe('the link card’s Open button rides the render path’s URL funnel', () => {
+describe('the link card’s Open button rides the render path’s one URL check', () => {
 	it('a blocked scheme never reaches the hook, and the button says so', () => {
 		const { onOpenLink, button, destroy } = openCard('javascript:alert(1)');
 		expect(button.disabled).toBe(true);
@@ -51,7 +51,7 @@ describe('the link card’s Open button rides the render path’s URL funnel', (
 		void destroy();
 	});
 
-	// The card deliberately OPENS on a blocked link so the URL can be repaired; only handing it
+	// The card deliberately opens on a blocked link so the URL can be repaired; only handing it
 	// onward is refused.
 	it('the card still renders its field for a blocked link', () => {
 		const { button, destroy } = openCard('javascript:alert(1)');
@@ -59,8 +59,8 @@ describe('the link card’s Open button rides the render path’s URL funnel', (
 		void destroy();
 	});
 
-	// Parity with a document click: that path reads the anchor's href, which the render path set
-	// through the same funnel — so a consumer mapping its own scheme sees ONE resolved URL.
+	// The same answer as a click in the document: that path reads the anchor's href, which the
+	// render set through the same filter, so a consumer mapping its own scheme sees one URL.
 	it('a consumer’s rewrite reaches the hook exactly as it does from a click', () => {
 		const map = (raw: string) =>
 			raw.startsWith('note://') ? `https://notes/${raw.slice(7)}` : raw;
@@ -73,15 +73,14 @@ describe('the link card’s Open button rides the render path’s URL funnel', (
 		void destroy();
 	});
 
-	// Miss: every funnel row carried a non-empty draft; nothing pinned the empty field, whose
-	// '' resolves as a relative URL and kept Open live on a link with nowhere to go.
+	// Miss-analysis: every case carried a non-empty draft, and '' resolves as a relative URL.
 	it('an empty draft disables Open', () => {
 		const { button, destroy } = openCard('');
 		expect(button.disabled).toBe(true);
 		void destroy();
 	});
 
-	// A rewrite that maps INTO a blocked scheme is blocked too: the allowlist runs last.
+	// A rewrite that maps into a blocked scheme is blocked too: the allowlist runs last.
 	it('a rewrite into a blocked scheme is still refused', () => {
 		const { onOpenLink, button, destroy } = openCard('note://x', () => 'javascript:alert(1)');
 		expect(button.disabled).toBe(true);

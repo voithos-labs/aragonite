@@ -2,14 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { findMergeTarget } from '../../schema/merge-rules';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
 
-// The Backspace merge walker must not descend past a collapsed container's chrome: the
-// clamped-out body is invisible, so a merge writing there loses text from view.
+// The Backspace merge walk must not go past a collapsed container's title row: the hidden body
+// is invisible, so a merge writing there puts text out of sight.
 
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n';
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
@@ -21,15 +19,13 @@ function parseBlock(src: string): CstNode {
 	return parse(src).children[0];
 }
 
-function resetAndRegister(): void {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+function registerTitledKinds(): void {
 	registerDetailsKind();
 	registerCalloutKind();
 }
 
 describe('isCollapsedContainer', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerTitledKinds);
 
 	it('reads a closed details as collapsed and an open one as not', () => {
 		expect(isCollapsedContainer(parseBlock(CLOSED_DETAILS))).toBe(true);
@@ -46,7 +42,7 @@ describe('isCollapsedContainer', () => {
 });
 
 describe('findMergeTarget under the collapse probe', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerTitledKinds);
 
 	it('open details: descends to the last body paragraph', () => {
 		const result = findMergeTarget(parseBlock(OPEN_DETAILS));

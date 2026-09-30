@@ -99,9 +99,9 @@ describe('isPathBetween', () => {
 });
 
 describe('DocPath brand', () => {
-	// Assignment-shaped compile pin (runtime-free): the doc-absolute guard demands a minted DocPath,
-	// and an unused @ts-expect-error is itself a check error, so a green gate proves all three mints.
-	it('the commit-path guard rejects an unminted path but accepts every mint', () => {
+	// Checked at compile time only: an unused `@ts-expect-error` is itself an error, so a green
+	// `npm run check` proves the commit-path guard takes all three constructors and no bare path.
+	it('the commit-path guard rejects an unminted path but accepts every create', () => {
 		type GuardPath = Parameters<typeof checkCommitPathAddressable>[1];
 
 		// @ts-expect-error a plain number[] is not a doc-absolute path

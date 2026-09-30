@@ -1,29 +1,30 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_THREE_ROW } from './table-fixtures';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates.
-afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates.
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
+	const doc = parse(source);
 	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, caret: result.collapsedCaret };
+	return { doc: result.newDoc, caret: result.caret(result.newDoc) };
 }
 
-describe('rangeDelete — across two top-level tables (char-addressable caret)', () => {
+describe('rangeDelete: across two top-level tables (char-addressable caret)', () => {
 	it('both tables survive: caret lands in the start table anchor cell with a char offset', () => {
 		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1), focus inclusive cell 2
 		// of B: A's cell (1,1) clears and its last body row drops; B's header row drops.
@@ -102,7 +103,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a preceding blockquote: caret descends to the survivor last leaf', () => {
-		// Blockquote (two paragraphs) [0], tables [1] and [2]. The caret must land at the END of the
+		// Blockquote (two paragraphs) [0], tables [1] and [2]. The caret must land at the end of the
 		// blockquote's deepest leaf: a char offset on the container path names bytes no leaf owns.
 		const { doc, caret } = run(
 			`> alpha\n>\n> bravo\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
@@ -117,8 +118,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a blockquote ending in a fenced code block: caret descends to the code leaf', () => {
-		// The blockquote's deepest leaf is a fenced code block — editable but NOT merge-eligible — so
-		// the survivor caret must descend by focusability rather than merge-eligibility.
+		// The blockquote's deepest leaf is a fenced code block, editable but not mergeable, so the
+		// survivor caret must descend by whether a leaf can take focus, not whether it can merge.
 		const { doc, caret } = run(
 			'> alpha\n>\n> ```\n> code\n> ```\n\n' + `${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [1], offset: 0 },
@@ -148,7 +149,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('start empties across an intervening blockquote: end-table path is not over-shifted', () => {
-		// Table A [0], blockquote [1], table B [2]. A empties → removed; the blockquote AND its inner
+		// Table A [0], blockquote [1], table B [2]. A empties → removed; the blockquote and its inner
 		// paragraph are both deletion paths, and counting the nested one would over-shift B's index.
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n> quoted\n\n${TWO_COL_THREE_ROW}`,
@@ -161,17 +162,14 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
 	});
 
-	it('both empty with no surrounding blocks: caret lands in a materialized empty paragraph', () => {
-		// Doc is only the two tables; clearing both empties the document. Mirror
-		// the prose precedent: materialize one empty paragraph at [0].
+	it('both empty with no surrounding blocks: no block and no caret, for the commit to fill', () => {
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 5 }
 		);
 
-		expect(doc.children).toHaveLength(1);
-		expect(doc.children[0].kind).toBe('paragraph');
-		expect(caret).toEqual({ path: [0], offset: 0 });
+		expect(doc.children).toEqual([]);
+		expect(caret).toBeNull();
 	});
 });

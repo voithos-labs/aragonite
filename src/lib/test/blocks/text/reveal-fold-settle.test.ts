@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The block-command seam folds a live reveal before it mutates, and must not act
-// until that fold's WRITE has landed. A commit that changes the block's kind takes
-// the structural path, whose completion is a promise, not a fixed number of ticks —
-// waiting a tick instead leaves the command spliced against a block the fold's own
-// commit is still replacing.
+// A block command hides a shown source before it writes, and must not act until that write has
+// landed. A commit that changes the block's kind takes the structural path, whose completion is
+// a promise rather than a fixed number of ticks, so waiting one tick instead would leave the
+// command splicing against a block that commit is still replacing.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -12,11 +10,13 @@ import { parse } from '$lib/core/parser';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 installMathInline();
 
-// A whole-block `$x$` paragraph: the reveal swaps the widget for its editable source, so `# `
-// typed at source offset 0 makes the fold's own commit a paragraph→heading flip.
+// A whole-block `$x$` paragraph: showing the source swaps the widget for editable text, so `# `
+// typed at offset 0 makes that commit turn the paragraph into a heading.
 function mountMathParagraph() {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
@@ -28,10 +28,15 @@ function mountMathParagraph() {
 		releaseWrite = resolve;
 	});
 	let writeLanded = false;
-	vi.mocked(blockEdit.updateBlockContent).mockImplementation(async () => {
-		await writeGate;
-		writeLanded = true;
-	});
+	vi.mocked(blockEdit.updateBlockContent).mockImplementation(() =>
+		withStoredCaret(
+			writeGate.then(() => {
+				writeLanded = true;
+				return true;
+			}),
+			0
+		)
+	);
 
 	const instance = mount(TextEditableBlock, {
 		target,
@@ -49,10 +54,6 @@ function mountMathParagraph() {
 	};
 }
 
-// Drains the microtask queue the fold's settle chain runs on, so the assertions
-// read a quiesced state instead of counting ticks.
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 let mounted: ReturnType<typeof mountMathParagraph>;
 afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
@@ -65,10 +66,10 @@ describe('a block command waits for the reveal fold it triggered', () => {
 		const { instance, el, blockEdit } = mounted;
 
 		expect(instance.enterEdgeWidget('start')).toBe(true);
-		await flush();
+		await settleEditor();
 
-		// The reveal's swapped-in source node. `input` is suppressed while revealed, so this stays
-		// ephemeral DOM until the fold reads it back.
+		// The source text node swapped in. `input` is suppressed while it shows, so this lives
+		// only in the DOM until the commit reads it back.
 		const source = Array.from(el.childNodes).find(
 			(child): child is Text => child.nodeType === Node.TEXT_NODE
 		);
@@ -76,13 +77,13 @@ describe('a block command waits for the reveal fold it triggered', () => {
 		source!.textContent = '# $x$';
 
 		expect(instance.runCommand('block.split')).toBe(true);
-		await flush();
+		await settleEditor();
 
 		expect(mounted.writeLanded()).toBe(false);
 		expect(blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		mounted.releaseWrite();
-		await flush();
+		await settleEditor();
 
 		expect(mounted.writeLanded()).toBe(true);
 		expect(blockEdit.splitBlock).toHaveBeenCalledTimes(1);

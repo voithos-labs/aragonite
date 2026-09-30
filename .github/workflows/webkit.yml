@@ -1,11 +1,11 @@
 name: WebKit
-# The second-engine lane, per release rather than per commit (docs/contributing/testing.md
-# § The WebKit run). Its own workflow, not a ci.yml job: every ci.yml job is a required status
-# check (scripts/apply-branch-protection.mjs, held in step by a lint), and this one reports
-# rather than blocks, so a WebKit-only red is visible on the release door without gating it.
+# The second-engine lane (docs/contributing/testing.md § The WebKit lane). Its own workflow, not
+# a ci.yml job, so its browser cache and cancel rule stay its own; the `webkit` check is required
+# on main through scripts/apply-branch-protection.mjs. It runs on PRs to dev too, so a WebKit red
+# surfaces on the commit that caused it rather than at the release door.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:

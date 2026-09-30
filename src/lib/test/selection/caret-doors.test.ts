@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-//
-// The two caret doors a block component exposes. `parkCaret` is each surface's own primitive
-// (exercised through the surfaces' own suites); this pins what `placeCaret` adds on top of it.
+// What `placeCaret` adds on top of `parkCaret`, each block's own caret primitive (tested in the
+// blocks' own suites).
 import { describe, it, expect } from 'vitest';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
@@ -28,7 +27,7 @@ function liveRange() {
 	};
 }
 
-describe('placeCaret — the safe caret door', () => {
+describe('placeCaret: the safe caret entry point', () => {
 	it('ends a live cross-block range and lands the caret', () => {
 		const h = liveRange();
 
@@ -38,9 +37,9 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.landed).toBe(7);
 	});
 
-	// The park primitive is untouched by the split: reaching for it directly with a
-	// range live is what an extend does, and it must still leave the range alone.
-	it('leaves the range live when the park primitive is called directly', () => {
+	// `parkCaret` is untouched: calling it directly with a range live is what a shift-extend
+	// does, and it must still leave the range alone.
+	it('leaves the range live when the put the caret primitive is called directly', () => {
 		const h = liveRange();
 
 		h.park(7);
@@ -50,7 +49,7 @@ describe('placeCaret — the safe caret door', () => {
 	});
 
 	// Subscribers read the editor back on notify, so an emission between the state write
-	// and the DOM landing reports a caret the landing is about to move.
+	// and the DOM update reports a caret that is about to move.
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();
 
@@ -59,19 +58,18 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
 
-	// `clear()` notifies whether or not it changed anything, and most caret placements happen with no
-	// range standing — the guard is what keeps the selection channel quiet.
-	it('emits nothing when no range is live', () => {
-		const emissions: number[] = [];
-		const selection = createSelectionState({ onChange: () => emissions.push(1) });
+	// Most caret placements happen with no range live, where nothing else notifies, so
+	// `placeCaret` is the only thing that tells subscribers where the caret went.
+	it('notifies once with no range live, after the caret has landed', () => {
+		const landings: (number | null)[] = [];
 		let landed: number | null = null;
+		const selection = createSelectionState({ onChange: () => landings.push(landed) });
 
 		placeCaret(selection, (offset) => {
 			landed = offset;
 		})(3);
 
-		expect(landed).toBe(3);
-		expect(emissions).toEqual([]);
+		expect(landings).toEqual([3]);
 	});
 
 	it('clears the native selection too, so a whole-block landing leaves nothing painted', () => {
@@ -85,15 +83,15 @@ describe('placeCaret — the safe caret door', () => {
 		expect(window.getSelection()?.rangeCount).toBe(1);
 
 		const h = liveRange();
-		// A whole-block landing seats no DOM range of its own — the ThematicBreak model.
+		// A whole-block placement sets no DOM range of its own, as a thematic break's does.
 		placeCaret(h.selection, () => {})(0);
 
 		expect(window.getSelection()?.rangeCount).toBe(0);
 		el.remove();
 	});
 
-	// The gap is the other editor-owned caret claim: a mint that left it standing would paint
-	// two carets at once.
+	// The gap caret is the other editor-owned caret: a placement that left it standing would
+	// paint two carets at once.
 	it('ends a live gap caret and lands the caret, in one emission', () => {
 		const h = liveRange();
 		h.selection.clear();
@@ -105,6 +103,22 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.selection.gapCaret).toBeNull();
 		expect(h.landed).toBe(7);
 		expect(h.emissions.length).toBe(1);
+	});
+
+	// Miss-analysis: nothing asked what a flush held, so a placement re-announced a known position.
+	it('reports a plain placement as the only thing in its flush', () => {
+		const flushes: boolean[] = [];
+		const selection = createSelectionState({
+			onChange: ({ placementOnly }) => flushes.push(placementOnly)
+		});
+
+		placeCaret(selection, () => {})(3);
+		selection.batch(() => {
+			selection.enterCrossBlock(at(0, 0), at(2, 4));
+			placeCaret(selection, () => {})(3);
+		});
+
+		expect(flushes).toEqual([true, false]);
 	});
 
 	it('nests inside a caller-owned batch without emitting early', () => {

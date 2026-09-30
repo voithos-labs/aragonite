@@ -6,7 +6,7 @@ import { computedColor, computedDecoration } from './helpers';
 const DONE = '.list-item-block[data-task-checked="true"] .paragraph-block';
 const PENDING = '.list-item-block[data-task-checked="false"] .paragraph-block';
 
-test.describe('task checkbox — rendering', () => {
+test.describe('task checkbox, rendering', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

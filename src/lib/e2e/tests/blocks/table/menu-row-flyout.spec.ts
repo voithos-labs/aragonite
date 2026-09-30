@@ -3,8 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { openFlyout } from './helpers';
 
 // Cells render row-major, header first: 0=A 1=B · 2="1" 3="2" (body row 1) · 4="3" 5="4" (body
-// row 2). The Row flyout is the pointer road for the row actions the chords also reach;
-// requirements/blocks/table/menu-row-flyout.md.
+// row 2). The Row flyout is the pointer path to the row actions the chords also reach;
+// `requirements/blocks/table/menu-row-flyout.md`.
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_1ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -55,7 +55,7 @@ test.describe('table block: the cell menu’s Row flyout', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_1ROW);
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // the sole body row
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // the sole body row
 
 		const deleteRow = page.getByRole('menuitem', { name: /delete row/i });
 		await expect(deleteRow).toBeDisabled();

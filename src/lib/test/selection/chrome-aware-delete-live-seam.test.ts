@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The chrome wall's range delete truncates both endpoints in place — no join — so the runs a
-// cut strands never crossed the live cleaner and painted as literal `**` on screen. Prose
-// truncations are half a join and take the cleaner's unpaired-run half; the chrome child's own
-// raw writes stay byte-literal, the wall excluded from the cleaner's view (GH #133).
-// Miss-analysis: the table branch's fix pinned its own prose truncations, but no pin selected
-// across the chrome wall without a table — the sibling branch that skips the seam identically.
+// A range delete across a title line truncates both endpoints in place with no join, so a
+// delimiter run the cut leaves unpaired must still go through the live-mode cleanup, or it paints
+// as literal `**`. The title line's own bytes stay byte for byte, outside the cleanup.
+// Miss-analysis: GH #133; no case selected across a title line without a table in the range.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -16,9 +13,11 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 beforeEach(() => {
 	registerCalloutForTests();
@@ -31,8 +30,14 @@ const FIXTURE = 'Above\n\n:::callout Title\nSome **bold** text\n:::\n\nBelow\n';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), undefined, mode, undefined);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	const result = rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading({}, mode),
+		'keyless'
+	);
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
 describe('a live chrome-crossing delete drops the runs its truncation stranded', () => {
@@ -63,8 +68,8 @@ describe('a live chrome-crossing delete drops the runs its truncation stranded',
 		expect(source).toContain('ld text\n');
 	});
 
-	// The wall: the chrome child's bytes are the container's own line, so its truncation stays
-	// byte-literal even in live — the cleaner never sees across it.
+	// The title line's bytes are the container's own line, so their truncation stays byte for
+	// byte even in live mode.
 	it('a chrome endpoint keeps its truncation byte-literal in live', () => {
 		const marked = 'Above\n\n:::callout **Ti**tle\nBody\n:::\n\nBelow\n';
 		const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 4 }, 'live');

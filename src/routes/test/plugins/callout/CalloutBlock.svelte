@@ -1,6 +1,6 @@
 <script lang="ts">
-	// A plugin container on the public `@voithos-labs/aragonite/plugin` seam: `createContainerBlock` hides
-	// every editor internal, so this component supplies only chrome around the BlockList props.
+	// A plugin container on the public `@voithos-labs/aragonite/plugin` API: `createContainerBlock`
+	// hides every editor internal, so this component supplies only the box around BlockList.
 	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -23,8 +23,8 @@
 </div>
 
 <style>
-	/* A pseudo-element icon is a style choice, not a requirement: the `:scope > .block-list`
-	   windowing lookup needs BlockList to stay a DIRECT child, not the sole one. */
+	/* A pseudo-element icon is a style choice, not a requirement: windowing's
+	   `:scope > .block-list` lookup needs BlockList to stay a direct child, not the only one. */
 	.callout-block {
 		position: relative;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
@@ -43,8 +43,8 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* The `callout-title` leaf is CSS-promoted to a title row, but stays a real block inside
-	   the sole `.block-list` so selection and windowing treat it as an ordinary child. */
+	/* CSS makes the `callout-title` leaf look like a title row, but it stays a real block inside
+	   the one `.block-list`, so selection and windowing treat it as an ordinary child. */
 	.callout-block :global(.callout-title) {
 		font-weight: 600;
 		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);

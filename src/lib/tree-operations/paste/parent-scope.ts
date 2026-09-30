@@ -1,13 +1,12 @@
 /**
- * The commit scope a paste addresses when it re-mints or splices a block: the block's
- * PARENT container, resolved from the path rather than from whatever `blockEdit` is in
- * scope — a caller holding a nested-bundle blockEdit would misroute through the wrong
- * container.
+ * The commit scope a paste addresses when it splices at a block's parent container, resolved from
+ * the path rather than from whatever `blockEdit` is in scope, since a caller holding a nested
+ * bundle's `blockEdit` would go through the wrong container.
  */
 
 import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { nodeAt } from '../node-primitives';
-import { devWarn } from '../../dev-warn';
 import type { MultiScopeTarget, PasteCommitCoordinator } from './paste-deps';
 
 /** Null when `blockPath`'s parent doesn't resolve to a container. */
@@ -27,21 +26,16 @@ export function resolveParentScope(
 	};
 }
 
-/**
- * A container's mounted `BlockListState`, or a detached stand-in. Never `expectState`:
- * these routes can be a cross-block paste whose range delete ALREADY committed, so a throw
- * would leave the selection deleted and nothing pasted. The ceremony writes ids to the
- * owned node's `childIds`, so only ref alignment is lost on the stand-in.
- */
+/** A container's mounted `BlockListState`, or its ids and no refs: unmounted is normal after a
+ *  gesture's earlier commit, and every caller lands its caret by path, so no ref is missed. */
 export function containerScopeState(
-	controller: PasteCommitCoordinator,
-	node: CstNode
+	controller: Pick<PasteCommitCoordinator, 'resolveState'>,
+	node: NodeView
 ): MultiScopeTarget['state'] {
-	const mounted = controller.resolveState(node);
-	if (mounted) return mounted;
-	devWarn(
-		'paste',
-		`committing at an unmounted ${node.kind} scope — ids realign, component refs do not`
+	return (
+		controller.resolveState(node) ?? {
+			innerBlockIds: [...(node.childIds ?? [])],
+			innerBlockRefs: []
+		}
 	);
-	return { innerBlockIds: [...(node.childIds ?? [])], innerBlockRefs: [] };
 }

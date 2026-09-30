@@ -1,8 +1,8 @@
 /**
- * The single-block plugin unit: declare-and-describe a kind, then bind its component, sparing a
- * one-kind plugin the register/define double-wrap and its setup ordering. A multi-kind plugin
- * stays on `definePlugin` directly. `kind` is the plain declared-kind NAME, branded lazily after
- * `register` runs — `declaredPluginKind` throws for a not-yet-declared name.
+ * The one-block plugin shortcut: declare and describe a kind, then attach its component, so a
+ * single-kind plugin does not have to wrap `definePlugin` itself and get the setup order right. A
+ * plugin with several kinds uses `definePlugin` directly. `kind` is the plain declared name,
+ * branded after `register` runs: `declaredPluginKind` throws for a name not yet declared.
  */
 
 import type { Component } from 'svelte';
@@ -12,15 +12,20 @@ import { registerBlockComponent, defineBlockComponent } from './block-component-
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 
 export function definePluginBlock<
-	P extends Partial<BlockComponentProps> & Record<string, unknown>
+	P extends Partial<BlockComponentProps> & Record<string, unknown>,
+	Options extends object = Record<never, never>
 >(config: {
 	name: string;
 	kind: string;
 	component: Component<P, BlockComponentExports>;
 	register: () => void;
-}): EditorPlugin {
-	return definePlugin({
+	defaults?: Options;
+	parseOptions?(raw: unknown): Partial<Options>;
+}): EditorPlugin<Options> {
+	return definePlugin<Options>({
 		name: config.name,
+		defaults: config.defaults,
+		parseOptions: config.parseOptions,
 		setup() {
 			config.register();
 			registerBlockComponent(

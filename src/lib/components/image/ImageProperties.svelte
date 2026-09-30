@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
-	import { IMAGE_CHROME_SELECTOR, type WidgetTarget } from './widget-selection-state.svelte';
+	import { pressLeavesImage } from './widget-selection-state.svelte';
+	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
 		IMAGE_ALT_PLACEHOLDER,
@@ -12,6 +13,7 @@
 		IMAGE_REMOVE
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
 
 	let {
@@ -23,19 +25,24 @@
 		onRemove,
 		onDismiss,
 		maxFrameWidth,
+		menuPresence,
 		cropping = $bindable(false)
 	}: {
 		target: WidgetTarget;
 		fields: ImageFields;
 		getWidgetEl: () => HTMLElement | null;
-		/** The popover's dirty check is a byte comparison, and the bytes are the write
-		 *  seam's to decide. */
+		/** The popover decides it has changes by comparing bytes, and what those bytes are
+		 *  is the image write path's to decide. */
 		buildBytes: (target: WidgetTarget, fields: ImageFields) => string | null;
-		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
+		/** `fields` goes back with each write, so a draft for an image the document has since
+		 *  replaced is dropped. */
+		onCommit: (target: WidgetTarget, seenFields: ImageFields, newFields: ImageFields) => void;
 		onRemove: (target: WidgetTarget) => void;
 		onDismiss: () => void;
 		/** The column width: the widest frame a corner drag can open. */
 		maxFrameWidth: () => number;
+		/** The alt field is a popover over the document, so it counts as an open menu. */
+		menuPresence: MenuPresence;
 		cropping?: boolean;
 	} = $props();
 
@@ -45,13 +52,12 @@
 	let rootEl: HTMLDivElement | undefined = $state();
 	let fieldInput: HTMLInputElement | undefined = $state();
 
-	// The seed is the BYTES, not the fields object: a rebuild mints a fresh one per render, so
-	// identity says nothing about whether the image moved.
+	// The starting point is the bytes, not the fields object: a rebuild creates a fresh object
+	// every render, so its identity says nothing about whether the image changed.
 	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
 
-	// The surface follows the document while it is open: an undo — or any write landing from
-	// outside this gesture — moves the image past the draft, and the dismiss commit would put the
-	// old bytes back. The in-flight draft is discarded rather than a committed change reverted.
+	// A write from outside the popover while it stays open (a find-bar replace) discards the
+	// draft, or an edit to it would put the earlier bytes back.
 	$effect(() => {
 		const live = buildBytes(target, fields);
 		if (live === seedBytes) return;
@@ -62,17 +68,14 @@
 	$effect(() => {
 		if (!rootEl) return;
 		const handler = (e: PointerEvent) => {
-			const target = e.target as Element | null;
-			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
-			onDismiss();
+			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null)) onDismiss();
 		};
 		document.addEventListener('pointerdown', handler, true);
 		return () => document.removeEventListener('pointerdown', handler, true);
 	});
 
-	// The commit runs in $effect cleanup so dismiss, image-switch (key change) and
-	// programmatic clear all commit through one seam. A crop still open is abandoned, not
-	// committed: only the tick writes one.
+	// In the effect's cleanup, so every way the popover closes commits here; an open crop is
+	// abandoned, since only the tick button writes one.
 	$effect(() => {
 		return () => {
 			if (cropping) cancelCrop();
@@ -87,7 +90,7 @@
 	// ── Alt ────────────────────────────────────────────────────────────────────
 
 	// The title (`![alt](url "title")`) has no field: it is a tooltip nobody reads in an editor,
-	// and an existing one rides through every commit untouched, as do the url, frame and crop.
+	// and an existing one passes through every commit untouched, as do the url, frame and crop.
 	function draftFields(): ImageFields {
 		return {
 			alt,
@@ -103,10 +106,10 @@
 		const next = draftFields();
 		const newBytes = buildBytes(target, next);
 		if (newBytes === seedBytes) return;
-		// Seeded now rather than when the write lands, so a blur and the unmount that follows
+		// Set now rather than when the write lands, so a blur and the unmount that follows
 		// it cannot commit the same draft twice.
 		seedBytes = newBytes;
-		onCommit(target, next);
+		onCommit(target, fields, next);
 	}
 
 	function toggleField() {
@@ -132,9 +135,8 @@
 	}
 
 	// ── Crop ───────────────────────────────────────────────────────────────────
-	// limestone's cover crop: drag pans, the wheel zooms, corner brackets mark the frame, and
-	// the tick writes it. The frame is the box the image has right now, so an unframed image
-	// gains `|WxH` on its first crop.
+	// Drag pans, the wheel zooms, the corners resize the frame, the tick writes it. The frame
+	// starts as the image's current box, so an unframed image gains `|WxH` on its first crop.
 
 	let draft = $state<ImageCrop>(DEFAULT_CROP);
 	let frame: Size = { width: 0, height: 0 };
@@ -200,11 +202,11 @@
 			height: Math.round(frame.height),
 			crop: draft
 		};
-		// The commit rebuilds the widget from the bytes; the preview styles go with the old DOM.
+		// The commit rebuilds the widget from the bytes; the preview styles go with the replaced DOM.
 		snapshot = null;
 		cropping = false;
 		seedBytes = buildBytes(target, next);
-		onCommit(target, next);
+		onCommit(target, fields, next);
 	}
 
 	function onCropPointerDown(e: PointerEvent) {
@@ -231,10 +233,8 @@
 		paintDraft();
 	}
 
-	// The corner brackets resize the frame itself, which is what changes its aspect. The frame
-	// is anchored where the image sits in the flow, so every corner moves the far edges: a
-	// left-hand corner dragged inward shrinks the width the way the right-hand one dragged
-	// inward does.
+	// The frame stays anchored in the flow, so every corner moves the far edges: a left corner
+	// dragged inward shrinks the width as a right one does.
 	type Corner = 'tl' | 'tr' | 'bl' | 'br';
 	const MIN_FRAME = 32;
 	let cornerDrag: { corner: Corner; startX: number; startY: number; start: Size } | null = null;
@@ -266,9 +266,8 @@
 		cornerDrag = null;
 	}
 
-	// A double click on the picture is the crop gesture: the first click selects the image, so
-	// by the second the toolbar (and this listener) is already mounted. On the document, since
-	// each commit rebuilds the widget and a listener bound to one goes stale with it.
+	// A double click on the picture starts a crop. On the document, since each commit rebuilds
+	// the widget and a listener bound to it would go stale.
 	$effect(() => {
 		const onDoubleClick = (e: MouseEvent) => {
 			if (cropping) return;
@@ -301,9 +300,8 @@
 
 	// ── Placement ──────────────────────────────────────────────────────────────
 
-	/** Beside the image, level with its top, when the viewport has room there; otherwise a row
-	 *  inside the image's top-right corner, clamped to the viewport when the image itself runs
-	 *  past it. Re-measured whenever the overlay re-anchors. */
+	/** Beside the image, level with its top, when there is room; otherwise a row inside its
+	 *  top-right corner, clamped to the viewport. Re-measured whenever the overlay moves. */
 	function keepBesideImage(node: HTMLElement): (() => void) | void {
 		const place = () => {
 			node.classList.remove('inside');
@@ -425,7 +423,7 @@
 		</button>
 	{/if}
 	{#if fieldOpen}
-		<label class="md-image-field" {@attach keepFieldOnScreen}>
+		<label class="md-image-field" {@attach keepFieldOnScreen} {@attach menuPresence.track}>
 			<span class="md-image-field-label">Alt</span>
 			<input
 				type="text"
@@ -440,8 +438,8 @@
 </div>
 
 <style>
-	/* limestone's cover actions: a stack of small surface buttons beside the image, level with
-	   its top. `inside` (no room beside) lays them as a row in the image's top-right corner. */
+	/* Small raised buttons beside the image, level with its top; `inside` (no room beside)
+	   lays them as a row in the image's top-right corner. */
 	.md-image-properties {
 		position: absolute;
 		top: 0;
@@ -481,8 +479,7 @@
 		background: var(--color-surface, #2d3033);
 	}
 
-	/* The alt field, hung off the toolbar's far side on the menu surface: a caption over its
-	   input, the way a properties row reads, rather than a label beside a box. */
+	/* The alt field hangs off the toolbar's far side: a caption over its input. */
 	.md-image-field {
 		position: absolute;
 		top: 0;
@@ -515,8 +512,7 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* Underlined, not boxed: one rule under the text reads as a field to fill in and keeps the
-	   surface calm, where a second rounded box inside a rounded card reads as chrome on chrome. */
+	/* Underlined, not boxed: a box inside the rounded panel would read as a frame in a frame. */
 	.md-image-field input {
 		width: 100%;
 		box-sizing: border-box;
@@ -539,7 +535,7 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* The crop session: the whole image is a pan surface, bracketed at the corners. */
+	/* While cropping: the whole image can be dragged to pan, with brackets at the corners. */
 	.md-image-crop-surface {
 		position: absolute;
 		inset: 0;

@@ -4,7 +4,7 @@ import { EditorPage } from '../../../editor-page';
 // Block-exit navigation, keyboard parity, highlighting, paste, and indent live in sibling
 // editing-*.spec.ts files.
 
-test.describe('code block editing — happy paths', () => {
+test.describe('code block editing: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -35,7 +35,8 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
-		// Regression: default browser `insertParagraph` produced <div>/<br> with zero textContent change.
+		// The browser's own `insertParagraph` makes a `<div>`/`<br>` and changes no text, so the
+		// editor has to handle Enter itself.
 		await editor.loadContent('```\nabc\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
@@ -92,7 +93,8 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async () => {
-		// Regression: Chromium routed the next typed character BEFORE the trailing \n in unclosed fences.
+		// In an unclosed fence Chromium routes the next typed character before the trailing `\n`,
+		// which the editor has to correct.
 		await editor.loadContent('```js\nconst x = 1\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await editor.getBlock(0).click();
@@ -117,9 +119,8 @@ test.describe('code block editing — happy paths', () => {
 	test('typing at the body start (opener-line end) lands in the body, not the opener', async ({
 		page
 	}) => {
-		// Chromium under `white-space: pre` mis-routes insertText when the caret sits at the end of
-		// a `\n` nested in a styled span; `.md-fence-line` must not reintroduce it. DOM offset 6 =
-		// body start.
+		// Chromium under `white-space: pre` misroutes insertText at the end of a `\n` inside a
+		// styled span, which `.md-fence-line` must not bring back. DOM offset 6 is the body start.
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');

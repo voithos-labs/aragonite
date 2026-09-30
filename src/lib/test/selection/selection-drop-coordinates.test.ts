@@ -1,4 +1,4 @@
-// The two pure reads the drop ceremony needs between its halves: where the drop lands once the
+// The two pure reads the drop needs between its two writes: where the drop lands once the
 // source range left the block, and where a splice at the source leaves the target's path.
 // Miss-analysis: the browser's own drop resolved both natively, so no unit ever had to.
 import { describe, it, expect } from 'vitest';

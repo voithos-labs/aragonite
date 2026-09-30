@@ -1,20 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
 	collectFootnoteReferences
 } from '$lib/plugins/footnotes';
-// Plugin-internal (see the barrel's note): the shared walk keys on the editor's
+// Plugin-internal (see the barrel's note): the shared numbering pass keys on the editor's
 // content version, so only an editor-mounted widget can call it.
 import { footnoteNumbersFor } from '$lib/plugins/footnotes/footnote-numbering';
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {
 		// Install so `[^label]` parses as a footnote-ref inline node; without the
-		// plugin the walk finds no references at all.
-		resetPluginPlatformForTests();
+		// plugin it finds no references at all.
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -46,8 +44,7 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.size).toBe(0);
 	});
 
-	// Miss-analysis: the back gesture landed at offset 0 because the walk recorded only the
-	// leaf path, and no test read what a caller would need to land beside the citation.
+	// Miss-analysis: the pass kept only the block path, and no test read where a reference ends.
 	it('records where each reference ends, so the way back lands beside the citation', () => {
 		const refs = collectFootnoteReferences(parse('Body has [^a] and [^b] here.\n'));
 		expect(refs.map((r) => r.end)).toEqual([13, 22]);
@@ -61,7 +58,7 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 
 	it('finds a reference nested inside inline emphasis', () => {
-		// The walk recurses into inline children, so a reference inside `*…*` is found.
+		// The pass recurses into inline children, so a reference inside `*…*` is found.
 		const numbers = assignFootnoteNumbers(parse('An *emphasized [^e]* mark.\n'));
 		expect(numbers.get('e')).toBe(1);
 	});
@@ -85,12 +82,10 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 });
 
-// The memo key must include the content version: the editor's document is mutated IN
-// PLACE, so keying on the document alone hits forever and freezes the numbering at
-// whatever the first widget saw.
-describe('footnote numbering — the shared per-version walk', () => {
+// The cache key includes the content version, because the editor changes its document in
+// place and a key on the document alone would freeze the numbering at the first widget's view.
+describe('footnote numbering: the shared per-version walk', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -99,7 +94,7 @@ describe('footnote numbering — the shared per-version walk', () => {
 		expect(footnoteNumbersFor(doc, 7)).toBe(footnoteNumbersFor(doc, 7));
 	});
 
-	it('re-walks the SAME document object once its version moves (the in-place edit)', () => {
+	it('re-walks the same document object once its version moves (the in-place edit)', () => {
 		const doc = parse('Body has [^a].\n');
 		expect(footnoteNumbersFor(doc, 1).get('a')).toBe(1);
 

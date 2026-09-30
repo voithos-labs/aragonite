@@ -2,23 +2,22 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
 
 /**
- * Acceptance-axis coverage for the LaTeX extension, each test labelled with the spec's axis id.
- * These assert what only a real browser can prove: A1 (reveal holds scroll + geometry + caret), A2
- * (one of N equations re-renders alone; memo primitive unit-pinned in math-renderer.test.ts), A7
- * (every multiline environment renders), A5 (invalid math shows a legible message).
+ * Acceptance coverage for the LaTeX extension, each test labelled with the spec's axis id. These
+ * assert what only a real browser can prove: A1, showing the source holds the scroll, the geometry
+ * and the caret; A2, one of several equations re-renders alone, with the memoizing itself pinned
+ * in math-renderer.test.ts; A7, every multiline environment renders; A5, invalid math shows a
+ * readable message.
  */
 
-// A pad tall enough that the block-math fixture scrolls in a default viewport, so the A1 "no
-// view-jump" assertion measures a genuine scroll position, not a constant zero on a doc that never
-// scrolls.
+// Tall enough that the block-math fixture scrolls, so the A1 no-jump check measures a real scroll
+// position rather than a constant zero.
 const PAD_ABOVE = Array.from({ length: 30 }, (_, i) => `Above padding line ${i}.`).join('\n\n');
 const PAD_BELOW = Array.from({ length: 30 }, (_, i) => `Below padding line ${i}.`).join('\n\n');
 const TALL_BLOCK_MATH = `${PAD_ABOVE}\n\n$$x^2$$\n\n${PAD_BELOW}\n`;
 const INLINE_MATH = 'Before $x^2$ after\n\nNext\n';
 
-// Inner LaTeX per multiline environment (A7). `\\` is the row separator; the dedicated "line
-// breaks" row exercises it where it is meaningful (\substack), since a bare `\\` in display mode is
-// inert.
+// The LaTeX inside each multiline environment (A7). The "line breaks" row puts `\` inside
+// \substack, since a bare `\` in display mode does nothing.
 const A7_ENVIRONMENTS: Array<[name: string, inner: string]> = [
 	['aligned', '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}'],
 	['cases', 'f(x) = \\begin{cases}\n1 & x > 0 \\\\\n0 & x \\le 0\n\\end{cases}'],
@@ -46,9 +45,8 @@ class AcceptancePage extends PluginsPage {
 	}
 
 	/**
-	 * Scroll the block-math render to the viewport's vertical middle, so a reveal-driven height
-	 * change cannot push it off-screen (which would force its own scroll-into-view and mask the
-	 * axis under test). Returns the settled scrollTop.
+	 * Centres the block-math render, so a height change from showing the source cannot push it off
+	 * screen and force its own scroll. Returns the scrollTop once it stops moving.
 	 */
 	async centerBlockMathAndReadScroll(): Promise<number> {
 		const scrollTop = await this.page.evaluate(() => {
@@ -66,9 +64,8 @@ class AcceptancePage extends PluginsPage {
 	}
 
 	/**
-	 * A height change reaches scrollTop through the windowing scope's BATCHED measure pass, not
-	 * the render commit, so a fixed two-frame flush reads mid-flight once a loaded machine pushes
-	 * the pass past it. Counted in frames, not milliseconds: a slow host waits proportionally.
+	 * A height change reaches scrollTop through the batched measure pass, which a loaded machine
+	 * pushes past a fixed two-frame wait; counting frames makes a slow machine wait proportionally.
 	 */
 	async waitForScrollSettle(): Promise<void> {
 		await this.page.evaluate(async () => {
@@ -96,8 +93,8 @@ class AcceptancePage extends PluginsPage {
 		return box.y;
 	}
 
-	/** Per-block render oracle (A2): stable `mountId` (no remount) + `count` bumped
-	 *  each time the KaTeX render effect runs (a re-render). In document order. */
+	/** What A2 reads per block: a `mountId` that stays the same, meaning no remount, and a `count`
+	 *  that goes up each time the KaTeX render runs again. In document order. */
 	async renderMarkers(): Promise<Array<{ mountId: string | null; count: string | null }>> {
 		return this.blockRender.evaluateAll((els) =>
 			els.map((el) => ({
@@ -116,9 +113,8 @@ test.describe('latex acceptance axes', () => {
 		await editor.gotoPlugins();
 	});
 
-	// A1 — block reveal transition: revealing then folding the block math must not jump the scroll
-	// position (Obsidian's documented view-jump) and must return the render to its exact prior
-	// geometry. Measured on a scrolling fixture so the scroll assertion is falsifiable.
+	// A1: showing and hiding a block's source must not jump the scroll position and must put the
+	// render back at exactly its previous geometry, measured on a fixture that scrolls.
 	test('A1: block reveal→fold holds scroll position and render geometry', async ({ page }) => {
 		await editor.loadContent(TALL_BLOCK_MATH);
 		await expect(editor.blockRender).toHaveCount(1);
@@ -127,7 +123,7 @@ test.describe('latex acceptance axes', () => {
 		expect(baselineScroll).toBeGreaterThan(GEOMETRY_TOLERANCE);
 		const renderTopBefore = await editor.blockRenderTop();
 
-		// Reveal: the source textbox is a taller affordance, but the scroll must hold.
+		// Showing the source: the source box is taller, but the scroll must hold.
 		await clickWidgetCenter(editor.blockRender);
 		await expect(editor.blockSource).toHaveCount(1);
 		await editor.waitForScrollSettle();
@@ -135,8 +131,8 @@ test.describe('latex acceptance axes', () => {
 			SCROLL_TOLERANCE
 		);
 
-		// Fold back out the bottom edge (pure view toggle, no edit): scroll still held,
-		// and the re-rendered display sits exactly where it started — zero net shift.
+		// Leave past the bottom edge, a view change with no edit: the scroll still holds and the
+		// re-rendered display sits exactly where it started, with no net shift.
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowRight');
 		await expect(editor.blockRender).toHaveCount(1);
@@ -149,9 +145,8 @@ test.describe('latex acceptance axes', () => {
 		);
 	});
 
-	// A1 — inline reveal transition: the caret survives reveal→commit (a char typed after commit
-	// lands past the widget, not at a block edge) and the following block does not shift vertically
-	// across the round-trip.
+	// A1 for an inline formula: after showing the source and committing, a typed character lands past
+	// the widget, and the block below does not move vertically.
 	test('A1: inline reveal→edit→commit preserves the caret with no vertical shift', async ({
 		page
 	}) => {
@@ -159,17 +154,17 @@ test.describe('latex acceptance axes', () => {
 		await expect(editor.inlineWidget).toHaveCount(1);
 		const nextTopBefore = (await editor.getBlock(1).boundingBox())?.y ?? NaN;
 
-		// Pressed at the formula's tail, so the typed byte continues it: the seat follows the
-		// point (`latex-inline-click-caret.md`), and this axis is about the commit, not the seat.
+		// Clicked at the formula's end, so the typed byte continues it: the caret follows the
+		// point (`latex-inline-click-caret.md`), and this test is about the commit, not the caret.
 		await clickWidgetEnd(editor.inlineWidget);
 		await expect(editor.inlineWidget).toHaveCount(0);
 		await page.keyboard.type('z');
-		// A caret escape is the commit gesture; Enter splits the block instead.
+		// Moving the caret out is what commits; Enter splits the block instead.
 		await page.keyboard.press('End');
 		await expect(editor.inlineWidget).toHaveCount(1);
 
-		// Commit landed the caret at the widget's trailing edge — the next char lands
-		// right after it, proving zero caret loss across the reactive re-render.
+		// The commit left the caret at the widget's trailing edge, so the next character lands
+		// right after it, showing the caret survived the re-render.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2z$! after');
 		expect(await editor.bridge.getSource()).toContain('Before $x^2z$! after');
@@ -178,11 +173,8 @@ test.describe('latex acceptance axes', () => {
 		expect(Math.abs(nextTopAfter - nextTopBefore)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE);
 	});
 
-	// A2 — editing one of N live block equations re-renders only that one. The memo primitive is
-	// unit-proven; this binds it to the live document, where the concern is redundant KaTeX work
-	// across untouched blocks. Distinct formulas so a stray cross-block render is unambiguous, and
-	// paragraphs between the equations so blurring the edited one commits to a paragraph rather
-	// than revealing a neighbour.
+	// A2: editing one of several block equations re-renders only that one, tying the unit-tested
+	// memoizing to the live document. Paragraphs between the equations give the blur a target.
 	test('A2: editing one block equation re-renders only that equation', async ({ page }) => {
 		await editor.loadContent(
 			'Para 0.\n\n$$a^2$$\n\nPara 1.\n\n$$b^2$$\n\nPara 2.\n\n$$c^2$$\n\nPara 3.\n'
@@ -193,8 +185,8 @@ test.describe('latex acceptance axes', () => {
 		const before = await editor.renderMarkers();
 		expect(new Set(before.map((m) => m.mountId)).size).toBe(3); // three distinct instances
 
-		// Reveal only the MIDDLE equation, insert inside its fence, commit by blurring
-		// to a paragraph (getBlock(4) is "Para 2.").
+		// Open only the middle equation, insert inside its fence, then commit by blurring to a
+		// paragraph; getBlock(4) is "Para 2.".
 		await clickWidgetCenter(editor.blockRender.nth(1));
 		await expect(editor.blockSource).toHaveCount(1);
 		await page.keyboard.press('Home');
@@ -211,13 +203,13 @@ test.describe('latex acceptance axes', () => {
 		// Untouched equations: same instance, zero extra renders.
 		expect(after[0]).toEqual(before[0]);
 		expect(after[2]).toEqual(before[2]);
-		// Edited equation: same instance (no remount), but it DID re-render.
+		// The edited equation: the same instance, so no remount, but it did re-render.
 		expect(after[1].mountId).toBe(before[1].mountId);
 		expect(Number(after[1].count)).toBeGreaterThan(Number(before[1].count));
 	});
 
-	// A7 — every multiline environment renders KaTeX with no error node. Table-driven
-	// so a KaTeX coverage gap in any single environment fails only its own row.
+	// A7: every multiline environment renders KaTeX with no error node. Table-driven, so a gap in
+	// any one environment fails only its own row.
 	for (const [name, inner] of A7_ENVIRONMENTS) {
 		test(`A7: ${name} renders as display math`, async () => {
 			await editor.loadContent(`$$\n${inner}\n$$\n`);
@@ -228,16 +220,15 @@ test.describe('latex acceptance axes', () => {
 		});
 	}
 
-	// A5 — invalid math renders a legible inline message through the live widget-build path, never
-	// KaTeX's raw `.katex-error` source strip. The adapter swap is unit-proven; this binds it to
-	// the browser render the user actually sees.
+	// A5: invalid math renders a readable inline message through the live widget path, never KaTeX's
+	// raw `.katex-error` strip.
 	test('A5: invalid inline math shows a legible error, not a raw strip', async () => {
 		await editor.loadContent('Before $\\frac{$ after\n');
 		await expect(editor.inlineWidget).toHaveCount(1);
 
 		const errorNode = editor.inlineWidget.locator('.math-error');
 		await expect(errorNode).toHaveCount(1);
-		// The source itself, painted as an error; the parser's message rides the hover title.
+		// The source itself, painted as an error, with the parser's message in the hover title.
 		expect((await errorNode.getAttribute('title'))?.toLowerCase()).toContain('error');
 		await expect(editor.page.locator('.katex-error')).toHaveCount(0);
 	});

@@ -1,23 +1,21 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the cell's destructive edits had unit pins for the escape half only and the e2e
-// cell rows drove paste alone, so every non-paste cut stayed byte-literal in live mode unseen.
-// The seam contract: a live cut through hidden delimiter runs drops what it strands
-// (live-mode.md § 4.5), on
-// every destructive path — event cut, menu cut, and the native type-over/delete of a selection.
+// A live cut through hidden delimiter runs drops what it strands (live-mode.md § 4.5) on every
+// destructive cell path: the event cut, the menu cut, and typing or deleting over a selection.
+// Miss-analysis: cell unit tests covered only escaping, and the cell e2e cases drove only paste.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
-import { mountCell, settleTicks, type MountedCell } from './mount-cell';
+import { mountCell, type MountedCell } from './mount-cell';
+import { settleEditor } from '$lib/test/harness/settle';
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 // Raw `**bold** *it*`: [4, 11) runs from inside the bold out past the italic's opener, so a
-// byte-literal cut strands the `**` opener and the italic's closer.
+// literal cut strands the `**` opener and the italic's closer.
 const MIXED = '**bold** *it*';
 
 let mounted: MountedCell;
@@ -32,10 +30,10 @@ function committedCalls(cell: MountedCell): unknown[][] {
 	return vi.mocked(cell.blockEdit.updateBlockContent).mock.calls;
 }
 
-// The cut/beforeinput handlers await the shared prelude before committing, so the
-// commit lands several microtasks after dispatch.
+// The cut from `createClipboardHandlers` and `handleSharedBeforeInput` both await before
+// committing, so the commit lands several microtasks after dispatch.
 async function settleCommit(cell: MountedCell): Promise<void> {
-	await settleTicks(() => committedCalls(cell).length > 0);
+	await settleEditor(() => committedCalls(cell).length > 0);
 }
 
 function dispatchCut(el: HTMLElement): Map<string, string> {
@@ -57,7 +55,7 @@ function dispatchBeforeInput(el: HTMLElement, inputType: string, data?: string):
 	return e;
 }
 
-describe('live mode: every cell cut crosses the join seam', () => {
+describe('live mode: every cell cut crosses the join', () => {
 	it('the clipboard cut drops the runs it strands and copies the raw slice', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
@@ -67,20 +65,20 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		await settleCommit(mounted);
 
 		expect(clipboard.get('text/plain')).toBe('ld** *i');
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'literal', 4, 2]]);
 	});
 
-	it('the context-menu cut takes the same seam', async () => {
+	it('the context-menu cut takes the same join', async () => {
 		document.execCommand = vi.fn(() => true);
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
 
 		await mounted.ref().applyMenuClipboard!('cut', { start: 4, end: 11 });
 
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'literal', 4, 2]]);
 	});
 
-	it('typing over the selection lands the character at the cleaned seam', async () => {
+	it('typing over the selection lands the character at the cleaned join', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(4, 11);
@@ -89,10 +87,10 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, 'boXt', 4, 3]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'boXt', 'authored', 4, 3]]);
 	});
 
-	it('a native Backspace over the selection takes the same seam', async () => {
+	it('a native Backspace over the selection takes the same join', async () => {
 		mounted = mountCell(MIXED, LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(4, 11);
@@ -101,10 +99,27 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'authored', 4, 2]]);
 	});
 
-	it('an escape ahead of the cut survives the seam', async () => {
+	// Miss-analysis: #523, every cell case started with a delimiter, so none held text a block
+	// reads as a heading or a list, which the cleanup's block reading of the cell refused.
+	it.each(['# ', '- '])(
+		'cell text opening with %j is read as cell text, not as a block',
+		async (lead) => {
+			mounted = mountCell(`${lead}**ab** cd`, LIVE);
+			mounted.el.focus();
+			mounted.instance.setSelection(5, 10);
+
+			const e = dispatchBeforeInput(mounted.el, 'deleteContentBackward');
+			await settleCommit(mounted);
+
+			expect(e.defaultPrevented).toBe(true);
+			expect(committedCalls(mounted)).toEqual([[0, `${lead}ad`, 'authored', 5, 3]]);
+		}
+	);
+
+	it('an escape ahead of the cut survives the join', async () => {
 		mounted = mountCell('a\\|b **bold** *it*', LIVE);
 		mounted.el.focus();
 		mounted.instance.setSelection(9, 16);
@@ -112,7 +127,7 @@ describe('live mode: every cell cut crosses the join seam', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, 'a\\|b bot', 9, 7]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'a\\|b bot', 'literal', 9, 7]]);
 	});
 });
 
@@ -125,7 +140,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 'literal', 4, 4]]);
 	});
 
 	it('type-over stays native, so grapheme and IME behavior are untouched', async () => {
@@ -134,7 +149,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		mounted.instance.setSelection(4, 11);
 
 		const e = dispatchBeforeInput(mounted.el, 'insertText', 'X');
-		await settleTicks();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(committedCalls(mounted)).toEqual([]);

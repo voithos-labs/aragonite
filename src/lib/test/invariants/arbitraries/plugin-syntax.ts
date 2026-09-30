@@ -4,19 +4,16 @@ import { arbGfmDoc, nonAsciiWord } from './gfm';
 import { withDrawnLineEnding } from './line-endings';
 
 /**
- * Source fragments for the grammars the bundled plugins add — no built-in arbitrary can
- * emit any of them, so plugin scanner and opener code is otherwise outside the property
- * suites. Drawn without the matching plugin installed the text parses as prose, which is
- * itself the coexistence case.
+ * Source fragments for the grammars the bundled plugins add. No built-in generator emits any of
+ * them, so plugin scanner and opener code would otherwise sit outside the property suites. Drawn
+ * without the matching plugin installed, the text parses as prose, which is itself the case where
+ * the two have to coexist.
  */
 
-// ── Inline rungs ─────────────────────────────────────────────────────────────
+// ── Inline syntax handlers ───────────────────────────────────────────────────
 
-/**
- * Tokens reaching each rung's claim AND its decline — the bare-trigger paths a
- * well-formed token never takes, and where a rung perturbs a neighbour's scan. The non-ASCII
- * arms are the offset-arithmetic ones: each rung slices its own label out of the raw.
- */
+/** Tokens that reach each handler's match and its decline: the bare-trigger paths a well-formed
+ *  token never takes, and the places where a handler disturbs a neighbour's scan. */
 const asciiRungToken = fc.constantFrom(
 	'[^1]',
 	'[^note]',
@@ -29,8 +26,8 @@ const asciiRungToken = fc.constantFrom(
 	':not-an-emoji:',
 	'$x$',
 	'$a_b$',
-	// A digit body and a price standing ahead of a formula: the shapes where `$` recognition
-	// decides how far a claim reaches, and so where it can overlap the token beside it.
+	// A digit body and a price ahead of a formula: where `$` recognition decides how far a match
+	// reaches, and so where it can overlap the token beside it.
 	'$5$',
 	'$9 and $x$',
 	'$',
@@ -39,14 +36,14 @@ const asciiRungToken = fc.constantFrom(
 	'~~strike~~'
 );
 
-/** The same token shapes carrying a multi-unit label, which is where each rung's own slice of
+/** The same token shapes carrying a multi-unit label, which is where each handler's own slice of
  *  the raw either counts scalars or cuts one in half. */
 const nonAsciiRungToken = nonAsciiWord.chain((word) =>
 	fc.constantFrom(`[^${word}]`, `:${word}:`, `$${word}$`, `~${word}~`)
 );
 
-// The minority arm, at a rate that reaches every rung without spending the lane's bytes on the
-// same offset-arithmetic class: a rung token is short, so a multi-unit label is most of it.
+// The minority case, at a rate that reaches every handler without spending all the bytes on the
+// same offset-arithmetic class: a plugin token is short, so a multi-unit label is most of it.
 const inlineRungToken = fc.oneof(
 	{ arbitrary: asciiRungToken, weight: 6 },
 	{ arbitrary: nonAsciiRungToken, weight: 1 }
@@ -63,10 +60,8 @@ export const arbPluginInlineSource = fc
 	)
 	.map((parts) => parts.join(''));
 
-/**
- * The rung tokens ALONE, no built-in inline content around them. `arbPluginInlineSource` mixes
- * `arbInlineSource` in, so a shape floor read off it can be met entirely by the built-in arm.
- */
+/** The plugin tokens alone, since a minimum read off `arbPluginInlineSource` could be met
+ *  entirely by its built-in half. */
 export const arbPluginInlineToken = fc
 	.array(inlineRungToken, { minLength: 1, maxLength: 6 })
 	.map((parts) => parts.join(''));
@@ -107,11 +102,8 @@ const directive = fc
 		([fence, name, body]) => fence + name + '\n' + body.map((l) => l + '\n').join('') + fence + '\n'
 	);
 
-/**
- * The four plugin block grammars alone, each with its own drawn line ending. The ending is a
- * per-construct draw rather than a document-level one so a CRLF footnote can sit beside an LF
- * math fence, which is the shape a mixed-ending paste produces.
- */
+/** Each plugin block construct draws its own line ending, so a CRLF footnote can sit beside an LF
+ *  math fence, the shape a mixed-ending paste produces. */
 export const arbPluginBlockSource = withDrawnLineEnding(
 	fc.oneof(
 		{ arbitrary: footnoteDefinition, weight: 2 },
@@ -122,9 +114,8 @@ export const arbPluginBlockSource = withDrawnLineEnding(
 );
 
 /**
- * A GFM document with plugin block syntax mixed in. The unterminated and malformed arms
- * carry the weight: an opener that mis-declines still has to leave the refused bytes as
- * authored.
+ * A GFM document with plugin block syntax mixed in. The unterminated and malformed cases carry
+ * the weight: an opener that wrongly declines still has to leave the refused bytes as authored.
  */
 export const arbPluginGfmDoc = fc
 	.array(

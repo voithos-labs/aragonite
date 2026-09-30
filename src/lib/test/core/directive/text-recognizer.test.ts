@@ -1,22 +1,25 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
+import type { InlineNode, PluginInlineKind } from '$lib/core/nodes';
 import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
 import { buildCoreInlineWidget, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-activateDirectiveGrammar(); // before any parse
-
-const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+let kind: PluginInlineKind;
+beforeEach(() => {
+	activateDirectiveGrammar();
+	kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+});
 const recognize = (raw: string, pos: number, end: number) =>
-	recognizeTextDirective(raw, pos, end, kind);
+	recognizeTextDirective(raw, pos, end, kind, defaultGrammarView);
 
-// The recognizer OWNS `:name[label]{attrs}` atomically, so the scanner's bracket stack
+// The recognizer owns `:name[label]{attrs}` atomically, so the scanner's bracket stack
 // never sees the inner `[label]`; everywhere else it stays conservative and declines.
 describe('recognizeTextDirective', () => {
 	const cases: Array<[raw: string, pos: number, end: number, expectedEnd: number | null]> = [
@@ -69,7 +72,7 @@ describe('directiveText atomic widget', () => {
 		const raw = 'see :abbr[HTML]{title="x"} here';
 		const node = { kind, start: 4, end: 26 } as InlineNode;
 
-		const el = buildCoreInlineWidget(node, raw);
+		const el = buildCoreInlineWidget(node, raw, undefined, defaultGrammarView);
 
 		expect(el).not.toBeNull();
 		const shell = el as HTMLElement;
@@ -80,9 +83,9 @@ describe('directiveText atomic widget', () => {
 		expect(shell.textContent).toBe(':abbr[HTML]{title="x"}');
 	});
 
-	// reveal-source is what the widget-interaction layer reads to swap the rendered island
-	// for its editable source, so the text tier stays editable rather than a read-only atom.
+	// `revealSource` is what widget-interaction.ts reads to swap the rendered widget for its
+	// editable source, so a text directive stays editable rather than a read-only block.
 	it('registers the reveal-source editing policy', () => {
-		expect(getInlineWidgetEditing(kind)).toEqual({ revealSource: true });
+		expect(getInlineWidgetEditing(kind, defaultGrammarView)).toEqual({ revealSource: true });
 	});
 });

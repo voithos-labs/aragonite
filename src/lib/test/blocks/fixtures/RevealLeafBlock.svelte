@@ -45,7 +45,7 @@
 	export const getCursorOffset = leaf.getCursorOffset;
 </script>
 
-<!-- The spread sits on a wrapper the fold keeps, the shape the guide documents. -->
+<!-- The spread sits on a wrapper that stays mounted while the source shows, as the guide says. -->
 <div class="reveal-leaf-block" {...leaf.renderProps}>
 	{#if revealed}
 		<div bind:this={sourceEl} {...leaf.surfaceProps} class="reveal-leaf-source"></div>

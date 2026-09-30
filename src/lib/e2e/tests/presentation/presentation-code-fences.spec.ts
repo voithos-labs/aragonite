@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Each fence line is wrapped so reading and preview collapse the whole line — marker AND
-// its `\n` — instead of leaving a bare newline painting a blank line in the code box.
+// Each fence line is wrapped so reading and preview collapse the whole line, marker and its
+// `\n` together, instead of leaving a bare newline painting a blank line in the code box.
 // Requirements: e2e/requirements/presentation/presentation-code-fences.md.
 
 const DOC = ['```js', 'const a = 1;', 'const b = 2;', 'const c = 3;', '```', '', 'text after'].join(
@@ -16,7 +16,7 @@ async function boxHeight(ep: EditorPage): Promise<number> {
 	return box.height;
 }
 
-test.describe('code fences — reading mode collapses the fence lines', () => {
+test.describe('code fences, reading mode collapses the fence lines', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 		await ep.loadContent(DOC);
 	});
 
-	test('the code box loses the two fence lines — no blank top/bottom line', async ({ page }) => {
+	test('the code box loses the two fence lines: no blank top/bottom line', async ({ page }) => {
 		const sourceHeight = await boxHeight(ep);
 		const perLine = sourceHeight / SOURCE_LINES;
 
@@ -33,8 +33,8 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await ep.waitForRenderFlush();
 
-		// Opener + closer gone, body untouched: ≈ 2 line-heights shorter. The band is two-sided so
-		// a half-collapse — only the top or only the bottom line — fails as loudly as none.
+		// Opener and closer gone, body untouched: about 2 line-heights shorter. The band has both
+		// bounds, so collapsing only the top or only the bottom line fails as loudly as neither.
 		const collapsed = sourceHeight - (await boxHeight(ep));
 		expect(collapsed).toBeGreaterThan(perLine * 1.5);
 		expect(collapsed).toBeLessThan(perLine * 2.5);
@@ -54,10 +54,9 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 	});
 });
 
-// An all-blank body has no line the closer can steal a separator from: every line
-// is content. Its reading-mode box must be as tall as an equal-count content body —
-// N blank lines render N blank lines, not N−1.
-test.describe('code fences — an all-blank body keeps its blank lines in reading mode', () => {
+// An all-blank body has no content line the closer can take a separator from, so its reading-mode
+// box must be as tall as a content body with the same line count.
+test.describe('code fences: an all-blank body keeps its blank lines in reading mode', () => {
 	// Block 0: two content lines. Block 1: two blank body lines. Same fence count.
 	const DOC_BLANK = ['```', 'x', 'y', '```', '', '```', '', '', '```', '', 'end'].join('\n');
 
@@ -94,7 +93,7 @@ for (const mode of [
 	{ name: 'preview-block', testid: 'preview-block-toggle', attr: 'preview-block' },
 	{ name: 'preview-inline', testid: 'preview-inline-toggle', attr: 'preview-inline' }
 ] as const) {
-	test.describe(`code fences — ${mode.name} reveals on focus`, () => {
+	test.describe(`code fences: ${mode.name} reveals on focus`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
@@ -119,7 +118,7 @@ for (const mode of [
 			await ep.waitForRenderFlush();
 			expect(await boxHeight(ep)).toBeGreaterThan(unfocusedHeight);
 
-			// Blur back out — the fence lines hide again and the box shrinks.
+			// Blur back out: the fence lines hide again and the box shrinks.
 			await ep.clickBlock(1);
 			await expect(fenceLine).toBeHidden();
 			await ep.waitForRenderFlush();

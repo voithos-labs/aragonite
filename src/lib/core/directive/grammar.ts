@@ -4,6 +4,7 @@
  * the verbatim `info` (leading separator included), the body wrap, and a matched closer exactly.
  */
 
+import { WHITESPACE_CHARS, WHITESPACE_CLASS } from '../lines';
 import { escalateTerminatorRun } from '../terminator-escalation';
 
 // ── Opener / closer ───────────────────────────────────────────────────────────
@@ -20,7 +21,9 @@ export interface DirectiveFence {
 	info: string;
 }
 
-const OPENER = /^(:{2,})([A-Za-z][A-Za-z0-9-]*)(.*)$/;
+// The `s` flag lets the info string run to the line's end over a line separator (U+2028),
+// which the line splitter keeps inside a line.
+const OPENER = /^(:{2,})([A-Za-z][A-Za-z0-9-]*)(.*)$/s;
 
 export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 	const match = OPENER.exec(lineText);
@@ -44,11 +47,8 @@ export function isDirectiveCloser(lineText: string, openColonCount: number): boo
 	return count >= openColonCount && count === lineText.length;
 }
 
-/**
- * The colon count needed to wrap `body`: one past its longest whole-line colon run, never below
- * `minimum`. Without it a body line reproducing the terminator reads as the container's own
- * closer and ejects everything below it on reparse.
- */
+/** The colon count needed to wrap `body`: one past its longest whole-line colon run, never below
+ *  `minimum`, so no body line reads as the container's closer on reparse. */
 export function escalatedColonCount(body: string, minimum: number): number {
 	// A closer line is colons end to end, so its own length IS the run.
 	return escalateTerminatorRun(body, minimum, (text, required) =>
@@ -76,8 +76,8 @@ export function serializeDirective(parts: {
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
 	const inner = `${parts.innerPrefix}${parts.body}${parts.innerSuffix}`;
-	// Re-derived on every emit rather than latched into metadata, so two emits over the same
-	// state always agree (G1.13). `colonCount` is a floor, not a target.
+	// Escalated from the body on every emit, so the fence holds before the editor re-reads the
+	// metadata; `colonCount` is a floor, not a target.
 	const colonCount = escalatedColonCount(inner, parts.colonCount);
 	const opener = ':'.repeat(colonCount);
 	const closer = ':'.repeat(Math.max(colonCount, parts.closerColonCount ?? colonCount));
@@ -94,10 +94,10 @@ export interface DirectiveAttributes {
 	properties: Record<string, string>;
 }
 
-const LABEL = /^\s*\[([^\]]*)\]/;
+const LABEL = new RegExp(`^${WHITESPACE_CLASS}*\\[([^\\]]*)\\]`);
 const BRACES = /\{([^}]*)\}/;
 // Quoted segments fold in, so `title="a b"` stays one token instead of splitting on its space.
-const ATTR_TOKEN = /(?:[^\s"]+|"[^"]*")+/g;
+const ATTR_TOKEN = new RegExp(`(?:[^${WHITESPACE_CHARS}"]+|"[^"]*")+`, 'g');
 
 /**
  * Opt-in `info -> structure` reader for a leading `[label]` and a `{#id .class key=val}` block.

@@ -1,8 +1,8 @@
-# Feature: Table block — rectangular selection
+# Feature: Table block, rectangular selection
 
 ## Happy paths
 
-- Anti-diagonal drag (upper-right to lower-left) over a 3×3 table — once a rectangular intra-table mode is wired, must paint the full bounding rectangle (regression for `b840b18` measurePartialRects fix).
+- Anti-diagonal drag (upper-right to lower-left) over a 3×3 table: once a rectangular intra-table mode is wired, it must paint the full bounding rectangle (a regression test for the `b840b18` measurePartialRects fix).
 
 ## Edge cases
 

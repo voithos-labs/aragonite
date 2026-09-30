@@ -1,6 +1,6 @@
 # Feature: Code Block Typing + Enter
 
-Typing and Enter behavior inside fenced code blocks (contenteditable editing surface).
+Typing and Enter behavior inside fenced code blocks (the contenteditable editing area).
 
 ## Happy paths
 
@@ -14,4 +14,4 @@ Typing and Enter behavior inside fenced code blocks (contenteditable editing sur
 
 ## Edge cases
 
-- typing at the body start (caret at the end of the opener line's `\n`): the char lands in the body, not the opener — pins the Chromium insertText mis-route against the fence-line wrapper (the opener `\n` moved inside `.md-fence-line`)
+- typing at the body start (caret at the end of the opener line's `\n`): the character lands in the body, not the opener, which pins Chromium's insertText against sending it to the wrong place now that the opener's `\n` sits inside `.md-fence-line`

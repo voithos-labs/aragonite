@@ -1,45 +1,41 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW } from './table-fixtures';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
-afterEach(() =>
-	allowDevWarns([
-		'deleteFromProseIntoTable:end',
-		'deleteFromTableIntoProse:start',
-		'deleteAcrossTwoTables:start',
-		'deleteAcrossTwoTables:end'
-	])
-);
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
-// Contract guard for the shared cross-block deletion ceremony (planCrossBlockDeletion →
-// applyPlannedDeletion → rebuildSharedAncestries). Each case routes through the SAME helpers but
-// sequences its endpoint prose-replace on a different side of the delete, and locates its shifted
-// survivor by identity — a between block strictly inside the range shifts that document index.
+// Each case truncates its text endpoint on a different side of the shared cross-block deletion
+// steps, and finds its survivor by node identity, since a delete inside the range shifts it.
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
+	const doc = parse(source);
 	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
-describe('cross-block delete ceremony — per-case ordering survives the shared path', () => {
+describe('cross-block delete commit sequence: per-case ordering survives the shared path', () => {
 	it('Case 1 (prose→table): the between block drops and the start truncates through the shared path', () => {
 		// para[0], mid[1], table[2]. mid is strictly between → deleted, shifting the table [2]→[1]. The
-		// start truncates AFTER the delete; before would shift the between/end deletion paths mid-plan.
+		// start truncates after the delete; before would shift the between/end deletion paths mid-plan.
 		const { doc, source, caret } = run(
 			`head\n\nmid\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 2 },
@@ -57,9 +53,9 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 		expect(source).not.toContain('mid');
 	});
 
-	it('Case 2 (table→prose): end replaces BEFORE the delete; surviving tail resolves its shifted path by identity', () => {
+	it('Case 2 (table→prose): end replaces before the delete; surviving tail resolves its shifted path by identity', () => {
 		// table[0] survives, mid[1], tail[2]. mid deleted → tail [2]→[1]. The end tail is replaced at
-		// its live path first, then re-located by identity — replacing after hits a stale slot.
+		// its live path first, then found again by identity; replacing after would hit a stale position.
 		const { doc, source, caret } = run(
 			`${TWO_COL_FOUR_ROW}\nmid\n\ntail text\n`,
 			{ path: [0], offset: 3 },

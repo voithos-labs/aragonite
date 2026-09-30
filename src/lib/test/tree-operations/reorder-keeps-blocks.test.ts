@@ -1,17 +1,15 @@
-// A reorder must not change what the document CONTAINS. Blank lines are nodes here, and a
-// blank node does not travel with the block a drag moves, so a block could land flush under a
-// paragraph that then read its rows as its own text — a table dissolving into the prose above
-// it, and the same for any block a paragraph can continue into.
+// A reorder must not change what the document contains: a blank-line node doesn't travel with the
+// block a drag moves, so a block landing flush under a paragraph must not become its text.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
+import { documentBody } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The seams that bite: a table and a list under prose (a paragraph continues into both), a
-// quote, a heading, and a fence that cannot be continued into. Blank-line nodes throughout.
-// The doubled blank lines are the point: an extra blank line is a node of its own, and that
-// node does not travel with the block below it.
+// Blocks a paragraph can continue into and blocks it can't, with doubled blank lines, since an
+// extra blank line is a node that doesn't travel with the block below it.
 const DOC = [
 	'Intro prose that runs on.',
 	'',
@@ -46,7 +44,7 @@ function realBlocks(markdown: string): string[] {
 
 function afterMove(from: number, to: number): string[] {
 	const doc = parse(DOC);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), true);
+	reorderChildrenWithTrivia(documentBody(doc), from, to, createSharingState(), defaultGrammarView);
 	return realBlocks(serialize(doc));
 }
 
@@ -76,7 +74,7 @@ describe('a reorder keeps every block it moves past', () => {
 		expect(broken).toEqual([]);
 	});
 
-	// The guard must not pay for itself in noise: a seam that already reads as two blocks is
+	// The rule must not pay for itself in noise: a join that already reads as two blocks is
 	// left exactly as the author wrote it.
 	it('writes no separator where the blocks were already apart', () => {
 		const kinds = parse(DOC).children.map((c) => c.kind);
@@ -85,7 +83,13 @@ describe('a reorder keeps every block it moves past', () => {
 		const doc = parse(DOC);
 		const before = doc.children.length;
 		// A fence and a quote: neither can be continued into, so neither needs a separator.
-		reorderChildrenWithTrivia(doc.children, fence, quote, createSharingState(), true);
+		reorderChildrenWithTrivia(
+			documentBody(doc),
+			fence,
+			quote,
+			createSharingState(),
+			defaultGrammarView
+		);
 		expect(doc.children.length).toBe(before);
 	});
 });

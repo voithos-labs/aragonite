@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 	await editor.goto();
 });
 
-test.describe('one edit event per op — cross-block delete', () => {
+test.describe('one edit event per op: cross-block delete', () => {
 	test('Backspace on cross-block selection spanning two paragraphs emits one edit event', async () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
@@ -41,7 +41,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 	});
 });
 
-test.describe('cross-block delete — list item id identity', () => {
+test.describe('cross-block delete: list item id identity', () => {
 	test('surviving list item keeps start-item id after mixed cross-scope delete', async () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 		const before = await editor.bridge.getSource();
@@ -52,8 +52,8 @@ test.describe('cross-block delete — list item id identity', () => {
 		const alphaId = idsBefore[0];
 		expect(alphaId).toBeTruthy();
 
-		// Two Shift+ArrowDown creates a mixed-scope selection: start descends
-		// into the list, end is the top-level paragraph.
+		// Two Shift+ArrowDown keypresses select across two levels: from inside the list to the
+		// top-level paragraph.
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.keyboard.press('Shift+ArrowDown');

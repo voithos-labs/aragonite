@@ -2,8 +2,8 @@
 
 A focused whole-block-focus block (thematic break here; mermaid pinned separately in
 plugins/mermaid-focus) copies its own markdown on Mod+C and cuts it on Mod+X, the
-atomic-unit twin of the cross-block sweep-and-copy. Copy is a read and never gates;
-cut's delete gates on reading mode.
+whole-block counterpart of the cross-block sweep-and-copy. Copy only reads, so it is
+never blocked; cut's delete is blocked in reading mode.
 
 ## Happy paths
 
@@ -20,9 +20,9 @@ cut's delete gates on reading mode.
 ## User interactions
 
 - Arrow into the break from the paragraph above (End then ArrowDown) to focus it, then
-  Mod+C / Mod+X — real keyboard focus, no programmatic selection.
+  Mod+C / Mod+X: real keyboard focus, no programmatic selection.
 
 ## Error / mode cases
 
 - Reading mode, Mod+C: still copies `---` (copy is a read).
-- Reading mode, Mod+X: copies `---` but deletes nothing (the delete is reading-gated).
+- Reading mode, Mod+X: copies `---` but deletes nothing (the delete is blocked in reading mode).

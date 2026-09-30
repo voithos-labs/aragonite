@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
-//
-// The toolbar's pressed-state read over a range is memoised per (selection, content version), so
-// four buttons cost one decomposition. The memo is only sound while both halves of that key
-// invalidate it, which is what the two invalidation cases below pin.
+// The toolbar's active-marks read over a range is memoised per (selection, content version), so
+// four buttons cost one pass over the spans. The memo is only sound while both halves of that
+// key invalidate it, which is what the two invalidation cases below pin.
 import { describe, it, expect } from 'vitest';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 import { crossBlockActiveFormats } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { makeKeydownEnv } from './keydown-env';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 const MARKS = listInlineMarks();
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
-/** Documents whose spans disagree with each other, so an answer that ignored a block would show.
- *  The last is the one the pairs below DISAGREE on: without it a selection-blind memo agrees
- *  everywhere and the sweep says nothing about the selection half of the key. */
+/** Documents whose spans disagree, so an answer that ignored a block would show. Without the last,
+ *  a selection-blind memo agrees everywhere and the selection half of the key goes untested. */
 const CORPUS = [
 	'**alpha**\n\n**beta**\n',
 	'**alpha**\n\nbeta\n',
@@ -25,8 +25,8 @@ const CORPUS = [
 	'**alpha**\n\n**beta**\n\ngamma\n'
 ];
 
-/** Cross-block pairs only: a range inside one block never reaches this arm — the focused surface
- *  answers its own pressed state. */
+/** Cross-block pairs only: a range inside one block never reaches this code; the focused block
+ *  answers its own active marks. */
 const PAIRS: [SelectionPoint, SelectionPoint][] = [
 	[at([0], 0), at([1], 4)],
 	[at([0], 2), at([1], 2)],
@@ -40,7 +40,11 @@ describe('the memoised pressed-state read answers the unmemoised one', () => {
 			for (const [start, end] of PAIRS) {
 				if (end.path[0] >= env.doc.children.length) continue;
 				env.selection.enterCrossBlock(start, end);
-				const expected = crossBlockActiveFormats(env.doc, start, end);
+				const expected = crossBlockActiveFormats(
+					env.doc,
+					coverRange(env.doc, start, end),
+					fixtureReading()
+				);
 				for (const { kind, mark } of MARKS) {
 					expect(env.crossBlockCommands.isActive(mark.command), `${kind} on ${source}`).toBe(
 						expected.has(kind)
@@ -61,7 +65,7 @@ describe('the memo invalidates', () => {
 		env.selection.enterCrossBlock(at([0], 0), at([1], 8));
 		expect(isStrong(env)).toBe(true);
 
-		// A byte-writing door's two halves, split apart: the write, then the announcement.
+		// A content write's two halves, split apart: the byte write, then the version bump.
 		env.doc.children[1].raw = 'beta\n';
 		expect(isStrong(env)).toBe(true);
 

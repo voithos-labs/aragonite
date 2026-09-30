@@ -5,15 +5,14 @@
 
 import { devWarn } from '../dev-warn';
 
-const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
-// `asset:` is a desktop shell's local-file protocol off Windows, where the same URL arrives as
-// `http://asset.localhost/...`, so omitting it blocks every image on macOS and Linux while
-// passing on a Windows dev box. It carries no script capability: no browser resolves it.
+// `xmpp` hands the address to a chat client the way `mailto` hands it to a mail client.
+const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'xmpp']);
+// `asset:` is a desktop shell's local-file protocol off Windows, needed for images on macOS and
+// Linux; it carries no script capability, since no browser resolves it.
 const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data', 'asset']);
 
-// Matches the WHATWG URL parser's pre-scheme normalization: it strips ASCII tab/newline anywhere
-// and leading C0-control-or-space. `java\tscript:` runs in the browser, so normalizing the same
-// way here is what stops a control byte from trivially bypassing the allowlist.
+// Mirrors the WHATWG URL parser's pre-scheme normalization, or a control byte (`java\tscript:`)
+// would slip past the allowlist.
 function schemeOf(url: string): string | null {
 	const stripped = url.replace(/[\t\n\r]/g, '');
 	let i = 0;
@@ -34,11 +33,8 @@ export function isAllowedImageSrcScheme(url: string): boolean {
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);
 }
 
-/**
- * The default when a consumer supplies no `onLinkActivate`, gated on the href allowlist. A block
- * is a security-relevant signal a production host can act on, so it reports through `onBlocked`
- * (the editor's `error` channel) rather than only reaching a dev console.
- */
+/** The default when a consumer supplies no `onLinkActivate`, gated on the href allowlist. A block
+ *  reports through `onBlocked` (the `error` channel), since a production host may act on it. */
 export function defaultLinkActivation(
 	url: string,
 	_event: MouseEvent,

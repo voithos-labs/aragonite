@@ -1,10 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunRect } from '../../text-runs';
 
 /**
- * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register
- * through the public registry via the e2e bridge, needing no plugin, and the find bar rides
- * this same overlay under source `editor:search`.
+ * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register through
+ * the public registry via the e2e bridge, needing no plugin, and the find bar paints on this
+ * same overlay under the source name `editor:search`.
  */
 
 test.describe('decoration mark overlay', () => {
@@ -15,7 +16,9 @@ test.describe('decoration mark overlay', () => {
 		await editor.goto();
 	});
 
-	test('a mark paints one overlay carrying the source class over its range', async ({ page }) => {
+	test('a mark paints one overlay carrying the source class over its painted word', async ({
+		page
+	}) => {
 		await editor.loadContent('hello world\n');
 		await page.evaluate(() => {
 			(window as any).__test.decorations.addSource({
@@ -26,8 +29,12 @@ test.describe('decoration mark overlay', () => {
 
 		const overlay = page.locator('.decoration-overlay.e2e-mark');
 		await expect(overlay).toHaveCount(1);
-		const box = await overlay.boundingBox();
-		expect(box!.width).toBeGreaterThan(0);
+		const box = (await overlay.boundingBox())!;
+		const word = await textRunRect(page, 'hello', { path: [0] });
+		expect([box.x, box.x + box.width]).toEqual([
+			expect.closeTo(word.left, 0),
+			expect.closeTo(word.right, 0)
+		]);
 	});
 
 	test('a mark spanning a soft-wrapped range paints one rect per visual line', async ({ page }) => {
@@ -126,8 +133,8 @@ test.describe('decoration mark overlay', () => {
 		});
 		await expect(page.locator('.decoration-overlay.e2e-kind')).toHaveCount(1);
 
-		// The re-measured range now crosses the dimmed marker and may split into per-fragment
-		// rects, so SURVIVAL, not fragment count, is what "repaints correctly" means here.
+		// The re-measured range crosses the dimmed marker and may split into one rect per
+		// fragment, so "repaints correctly" means the overlay survives, not that the count matches.
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
 		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {
@@ -151,8 +158,8 @@ test.describe('decoration mark overlay', () => {
 		});
 		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
 
-		// Reading makes the surface inert (no caret), but a view-only decoration is not
-		// caret-driven — it must still paint over its range in the read-only view.
+		// Reading mode makes the text inert, with no caret, but a view-only decoration does not
+		// follow the caret: it must still paint over its range in the read-only view.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
 	});

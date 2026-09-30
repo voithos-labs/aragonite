@@ -1,20 +1,20 @@
 /**
- * Text projections behind the panel's Selection and Inline-tree sections, plus the
- * cross-block predicate that classifies a selection for them. Shared with the
- * `/test/editor` bridge, so panel and probes never describe a selection two ways.
+ * The text behind the panel's Selection and Inline tree sections, plus the check that says
+ * whether a selection crosses blocks. Shared with the `/test/editor` test hooks, so the panel
+ * and the probes never describe a selection two ways.
  */
 
 import type { Editor } from '$lib';
-import { parse } from '$lib/core/parser';
-import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
+import { readBlocks } from '$lib/core/parser';
+import { readInline, getContentRange, isProseKind } from '$lib/core/inline';
 import { dumpInlineTree } from '$lib/debug/inspect';
 import { findBlockPathForElement } from '$lib/selection/path-lookup';
 import { isBlockNode, nodeAt } from '$lib/tree-operations/node-primitives';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// Prefers the range's container over document.activeElement so the path still
-// resolves once focus moved to the panel; the last selection still points into the editor.
+// Prefers the range's container to document.activeElement, so the path still resolves once
+// focus has moved to the panel: the last selection still points into the editor.
 export function getFocusedBlockPath(): number[] | null {
 	if (typeof window === 'undefined') return null;
 	const sel = window.getSelection();
@@ -24,19 +24,21 @@ export function getFocusedBlockPath(): number[] | null {
 	return findBlockPathForElement(el);
 }
 
-export function dumpFocusedInlineTree(source: string): string {
+/** Read in the editor's grammar, so an editor with a syntax off dumps the tree it renders. */
+export function dumpFocusedInlineTree(editor: EditorInstance): string {
 	const path = getFocusedBlockPath();
 	if (!path) return '';
-	const doc = parse(source);
+	const grammar = editor.__test.getGrammar();
+	const doc = readBlocks(editor.getSource(), { grammar, scope: 'document' });
 	const node = nodeAt(doc, path);
 	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
 	const range = getContentRange(node);
-	const inline = parseInline(node.raw, range.start, range.end);
+	const inline = readInline(node.raw, range.start, range.end, undefined, grammar);
 	return dumpInlineTree(inline);
 }
 
-// editor.getSelection()'s cross-block branch only populates while SelectionState is
-// active, so single-block carets fall back to reading the native selection.
+// editor.getSelection() fills in its cross-block half only while SelectionState is active, so
+// a caret inside one block falls back to reading the browser's own selection.
 export function liveSelectionText(editor: EditorInstance | undefined): string {
 	const editorSel = editor?.getSelection();
 	if (editorSel && isCrossBlockSnapshot(editorSel)) {
@@ -58,8 +60,8 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 	const lines = [
 		`mode=single-block${range.collapsed ? ' (caret)' : ' (range)'}`,
 		`anchor=[${startPath.join(',')}] focus=[${endPath.join(',')}]`,
-		// Native Range offsets are child-index counts against startContainer/endContainer,
-		// not raw offsets; the `raw:` line below carries the CST-coordinate values.
+		// A DOM Range's offsets count child nodes of startContainer and endContainer, not raw
+		// offsets; the `raw:` line below gives the values in CST coordinates.
 		`range: startContainer=${describeNode(range.startContainer)} startOffset=${range.startOffset} endContainer=${describeNode(range.endContainer)} endOffset=${range.endOffset}`
 	];
 	if (editorSel) {

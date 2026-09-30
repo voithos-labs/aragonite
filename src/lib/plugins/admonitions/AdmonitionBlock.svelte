@@ -1,11 +1,15 @@
 <!--
-  One alert box for both admonition kinds: the directive admonition (editable title
-  chrome leaf at child 0) and the GitHub alert (no title, a static badge instead).
-  createContainerBlock hides all child-list state, so this owns only its chrome;
-  node/index/path go in as thunks so each is re-read live, never snapshotted.
+  One alert box for both kinds: the directive admonition (an editable title at child 0)
+  and the GitHub alert (no title, a static badge instead).
 -->
 <script lang="ts">
-	import { BlockList, createContainerBlock, getPluginMetadata, type NodeView } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		getPluginMetadata,
+		isBlankText,
+		type NodeView
+	} from '$lib/plugin';
 	import {
 		capitalize,
 		coerceAdmonitionName,
@@ -30,7 +34,7 @@
 			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
 			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
 	);
-	const titleEmpty = $derived(isAlert || (node.children?.[0]?.raw ?? '').trim() === '');
+	const titleEmpty = $derived(isAlert || isBlankText(node.children?.[0]?.raw ?? ''));
 
 	export { containerApi };
 </script>
@@ -54,7 +58,7 @@
 </div>
 
 <style>
-	/* A gutter rail, not a card: a document, not a boxed callout. */
+	/* A line down the left margin, not a card: this reads as a document, not a boxed callout. */
 	.admonition {
 		position: relative;
 		margin: 0.8em 0;
@@ -62,9 +66,8 @@
 		border-left: 3px solid var(--adm-accent);
 	}
 
-	/* One block per kind carries the whole axis: accent, icon glyph, untitled label. Fixed hex,
-	   not theme tokens: GitHub's alert palette is canonically one color per kind, so admonitions
-	   read identically across host themes. */
+	/* One block per kind sets what varies, in fixed hex after GitHub's one-color-per-kind alert
+	   palette, so an admonition looks the same whatever theme the host uses. */
 	.admonition[data-kind='note'] {
 		--adm-accent: #1f6feb;
 		--adm-label: 'Note';
@@ -101,7 +104,7 @@
 		line-height: 1.4em;
 	}
 
-	/* The alert badge is static chrome, never a caret target. */
+	/* The alert badge is decoration, never a caret target. */
 	.admonition[data-alert-source='github'] :global(.admonition-title) {
 		user-select: none;
 		cursor: default;

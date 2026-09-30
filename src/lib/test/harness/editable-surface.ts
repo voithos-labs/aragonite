@@ -1,33 +1,40 @@
-// Shared editable-surface harness for composition/input contract tests.
+// Shared harness for the composition and input contract tests on an editable block.
 
 import {
 	createEditableSurface,
 	type EditableSurfaceDeps
 } from '$lib/components/blocks/editable-surface';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
+import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
+import { fixtureReading } from './fixture-grammar';
+import { stubCaretMemory } from '$lib/testing/headless-actions';
+import type { CaretMemory } from '$lib/cursor/caret-memory';
+import { commandContext } from '../support/command-context';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
 	/** Recorded by the default commitInput; empty when a custom one is passed. */
 	commits: Array<{ text: string; preEdit: number; saved: number }>;
-	/** Every raw offset the surface wrote through `backend.setRaw`, in order. */
+	/** Where each `backend.setRaw` put the caret, read back as a raw offset, in order. */
 	seats: number[];
 	el: HTMLElement;
 	setCaret: (offset: number) => void;
 }
 
 /**
- * A real contenteditable behind the surface skeleton, so `readText` is honest DOM
- * readback: a test simulates the IME by assigning `el.textContent`, exactly what
- * the browser hands the input funnel. The caret is a settable cell because jsdom
- * has none. Only the two context reads the composition path touches are real —
- * the rest is constructed but never invoked. `presentationMode` mounts the block
- * under a mode-stamped root, which is where the landable walk reads the mode.
+ * An editable block over a real contenteditable: a test simulates the IME by assigning
+ * `el.textContent`, as the browser does, and sets the caret by hand because jsdom has none.
  */
 export function makeSurface(
 	commitInput?: EditableSurfaceDeps['commitInput'],
 	relocateComposedText?: EditableSurfaceDeps['relocateComposedText'],
-	options: { presentationMode?: string } = {}
+	options: {
+		presentationMode?: string;
+		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
+		/** Inert by default; pass a real memory to see what an input does to it. */
+		caretMemory?: CaretMemory;
+	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -42,19 +49,19 @@ export function makeSurface(
 
 	let caret = 0;
 	let composing = false;
-	let preEditOffset = 0;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
+	const writer = createSurfaceBackend({ getEl: () => el });
 
 	const deps = {
 		getEl: () => el,
-		getAmbientLength: () => 0,
 		backend: {
 			getRaw: () => asRawOffset(caret),
-			setRaw: (offset: number) => {
-				seats.push(offset);
-			},
-			buildRange: () => null
+			setRaw: (offset: RawOffset, placement: { clamp: CaretClamp }) => {
+				writer.setRaw(offset, placement);
+				const sel = window.getSelection();
+				seats.push(sel?.focusNode ? rawOffsetAt(el, sel.focusNode, sel.focusOffset) : offset);
+			}
 		},
 		getMyPath: () => [0],
 		getIndex: () => 0,
@@ -62,33 +69,29 @@ export function makeSurface(
 		setComposing: (value: boolean) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset: number) => {
-			preEditOffset = offset;
-		},
 		setPendingCursor: () => {},
 		selection: { isCrossBlock: false },
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
-		focusActions: { revealPath: async () => null },
+		caretMemory: options.caretMemory ?? stubCaretMemory(),
+		focusActions: {},
+		caretLanding: { mount: async () => null },
 		getDoc: () => null,
 		getBlockElByPath: () => null,
+		scrollOwner: { place: () => ({ scroll: async () => true }) },
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		containerEdit: {},
 		blockEdit: {},
 		controller: {},
 		history: {},
-		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
-		linkRef: undefined,
-		onCommandError: undefined,
-		getKeybindingOverrides: () => ({}),
+		reading: fixtureReading(),
+		commands: commandContext(),
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
 		relocateComposedText,
+		handleBeforeInput: options.handleBeforeInput,
 		commitInput:
 			commitInput ??
 			((text: string, preEdit: number, saved: number) => {

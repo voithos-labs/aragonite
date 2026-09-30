@@ -1,13 +1,14 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import { scanInline } from '../../../../core/inline/scan';
-import { __resetInlineSyntaxForTests } from '../../../../core/inline/scan/plugin-syntax';
 import {
 	normalizeLinkLabel,
 	type LinkReferenceResolver,
 	type ResolvedReference
 } from '../../../../core/inline/link-reference-resolver';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
 
@@ -59,11 +60,8 @@ function emphasisMarkerLen(node: InlineNode): number | undefined {
 	return openLen;
 }
 
-/**
- * Every emphasis-family, link, and image node tiles as leading marker + children +
- * trailing marker; a link's `](…)` starts where its last child ends, since children
- * cover only the label interior.
- */
+/** Emphasis-family, link and image nodes tile as leading marker + children + trailing marker;
+ *  a link's `](…)` starts where its last child ends, since children cover only the label. */
 export function assertConstructCoverage(nodes: InlineNode[]): void {
 	for (const node of nodes) {
 		const markerLen = emphasisMarkerLen(node);
@@ -196,11 +194,11 @@ export function resolverOf(entries: Record<string, ResolvedReference>): LinkRefe
 // ── Case runner ─────────────────────────────────────────────────────────────
 
 /**
- * The empty-registry reading of `raw` — the byte-identity oracle every plugin-rung
- * decline is measured against. Resets first, so a caller can register after taking it.
+ * The empty-registry reading of `raw`: the reference every plugin-handler decline is
+ * measured against. Resets first, so a caller can register after taking it.
  */
 export function scanClean(raw: string, end = raw.length): InlineNode[] {
-	__resetInlineSyntaxForTests();
+	__resetSchemaRegistriesForTests();
 	return parseInline(raw, 0, end);
 }
 
@@ -215,7 +213,7 @@ export function describeScanCases(
 	describe(family, () => {
 		for (const [name, raw, expected] of cases) {
 			it(name, () => {
-				const nodes = scanInline(raw, 0, raw.length, resolver);
+				const nodes = scanInline(raw, 0, raw.length, resolver, defaultGrammarView);
 				assertTotalCoverage(nodes, 0, raw.length);
 				assertConstructCoverage(nodes);
 				expect(nodes).toEqual(expected);

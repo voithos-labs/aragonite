@@ -1,64 +1,76 @@
 /**
- * Headless editor-actions environment for the published conformance kit. These stubs
- * restate rather than reuse the in-repo `test/harness` mocks, which are `vi.fn()`-based:
- * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so a static runner import
- * would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
+ * The one headless `EditorActionsDeps` builder, behind the published conformance kits and the
+ * in-repo test harness alike. Nothing here may import a test runner, since an author's own suite
+ * imports this subpath; a runner's mock enters through the `spy` option.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import { parse } from '../core/parser';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { EditorActionsDeps } from '../editor-actions/deps';
+import { withStoredCaret } from '../editor-actions/stored-caret';
+import { kitReading } from './kit-reading';
+import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
-import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
+import type { ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
+import {
+	createCaretLanding,
+	type CaretLanding,
+	type LandingOutcome
+} from '../selection/caret-landing';
+import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
-export function stubBlockComponent(): BlockComponent {
+export function stubBlockComponent(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
 		focus: () => {},
 		parkCaret: () => {},
 		getCursorOffset: () => null,
 		editable: true,
-		focusable: true
+		focusable: true,
+		...overrides
 	} as BlockComponent;
 }
 
-export function stubStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: () => {}, capture: () => {}, noteKey: () => {} };
-}
-
-export function stubEdgeAffinity(): EdgeAffinityState {
+export function stubCaretMemory(): CaretMemory {
 	return {
-		get: () => null,
-		reset: () => {},
-		note: () => {},
+		column: () => null,
+		side: () => null,
+		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
+		noteKey: () => {},
 		noteTyping: () => {},
-		noteExtreme: () => {}
+		noteExtreme: () => {},
+		captureColumn: () => {},
+		forget: () => {}
 	};
 }
 
+/** A block list that writes nothing: every edit resolves false, and a content write is admitted
+ *  with its caret where the caller asked. */
 export function stubBlockEdit(): BlockEditActions {
+	const wroteNothing = async () => false;
 	return {
-		splitBlock: () => {},
-		descendToBody: () => {},
-		insertParagraph: () => {},
-		mergeWithPrevious: () => {},
-		mergeWithNext: () => {},
-		deleteBlock: () => {},
-		updateBlockContent: () => {},
-		updateBlockMetadata: () => {},
-		replaceBlock: () => {}
+		splitBlock: wroteNothing,
+		descendToBody: wroteNothing,
+		insertParagraph: wroteNothing,
+		mergeWithPrevious: wroteNothing,
+		mergeWithNext: wroteNothing,
+		deleteBlock: wroteNothing,
+		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
+			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset),
+		updateBlockMetadata: wroteNothing,
+		replaceBlock: wroteNothing
 	};
 }
 
-/** A focus bundle that records what bubbled up to it — the focus-bubble check's oracle. */
+/** A focus bundle that records what bubbled up to it, which is what the focus-bubble check reads. */
 export interface RecordingFocus extends FocusActions {
 	/** Whole argument lists, so a check pins arity as well as values. */
 	readonly moveFocusCalls: readonly unknown[][];
@@ -71,43 +83,62 @@ export function recordingFocus(): RecordingFocus {
 		moveFocus: (...args: unknown[]) => {
 			moveFocusCalls.push(args);
 		},
-		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
-		revealPath: async () => null,
-		// Headless: no rendered boundary to park a gap caret at.
-		tryGapStop: () => false
+		// Headless: nothing is rendered, so there is no boundary to put a gap caret at and nothing
+		// to scroll.
+		tryGapStop: () => false,
+		followArrival: () => {}
 	};
 }
 
-// ── Block-list state ─────────────────────────────────────────────────────────
+// ── Editor-actions environment ───────────────────────────────────────────────
 
-/**
- * A BlockListState seeded with one ref per child (the `$effect` that fills refs never
- * runs headlessly). `getNode` must read the LIVE node: the commit primitives replace the
- * spine's nodes, so a captured reference goes stale after the first commit.
- */
-export function mountBlockListState(getNode: () => CstNode): BlockListState {
-	const state = createBlockListState(() => getNode());
-	replaceRefs(
-		state.innerBlockRefs,
-		(getNode().children ?? []).map(() => stubBlockComponent())
-	);
-	return state;
+export interface HeadlessActionsOptions {
+	/** Wraps each stubbed collaborator (the caret memory, every block ref), so a runner's mock
+	 *  can record the calls. */
+	spy?: <T extends object>(stub: T) => T;
+	/** A construction option because `SelectionState` cannot take one later. */
+	onSelectionChange?: () => void;
+	/** The editor's reading, for a suite whose editor is in another mode or switched a syntax off.
+	 *  Absent, every installed plugin in styled source. */
+	reading?: Reading;
+	bumpContentVersion?: () => void;
 }
 
-// ── Editor-actions environment ───────────────────────────────────────────────
+/** A leaf a caret landing resolved to, and whether a mounted block took the caret. */
+export interface RecordedLanding extends CaretTarget {
+	readonly outcome: LandingOutcome;
+}
 
 export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
+	/** Every caret landing that resolved to a leaf, in order, with what the landing did there. */
+	landings: readonly RecordedLanding[];
+	getBlockIds(): string[];
+	getBlockRefs(): (BlockComponent | undefined)[];
 }
 
-/** An `EditorActionsDeps` over `docChildren`, with every block treated as mounted. */
-export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
-	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
-	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
+/** An `EditorActionsDeps` over `source`, every block treated as mounted. Pass the whole `Document`
+ *  or source text, not its children, which lose the trailing blank line its `suffix` holds. */
+export function createHeadlessActions(
+	source: string | Document | CstNode[],
+	options: HeadlessActionsOptions = {}
+): HeadlessActions {
+	const whole = documentOf(source);
+	const doc: Document = {
+		kind: 'document',
+		prefix: whole.prefix,
+		children: whole.children,
+		suffix: whole.suffix
+	};
+	const spy = options.spy ?? (<T>(stub: T) => stub);
+	let blockIds = doc.children.map((_, i) => `block-${i}`);
+	const blockRefs: (BlockComponent | undefined)[] = doc.children.map(() =>
+		spy(stubBlockComponent())
+	);
 	const events = createEditorEvents();
+	const landings: RecordedLanding[] = [];
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -119,30 +150,86 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 			return blockRefs;
 		},
 		blockRefSlots: refSlotsOver(blockRefs),
-		setDoc: (v: Document) => {
-			Object.assign(doc, v);
+		// In place, so `doc` stays the one live document the caller holds.
+		setDoc: (next: Document) => {
+			Object.assign(doc, next);
 		},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
+		setBlockIds: (next: string[]) => {
+			blockIds = next;
 		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			replaceRefs(blockRefs, v);
+		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
+			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: () => {},
+		bumpContentVersion: options.bumpContentVersion ?? (() => {}),
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
-		stickyColumn: stubStickyColumn(),
-		edgeAffinity: stubEdgeAffinity(),
-		selectionState: createSelectionState(),
+		caretMemory: spy(stubCaretMemory()),
+		// Document-aware, as the editor's own is: without the document a deep table endpoint is
+		// stored raw, and every dispatch sees endpoints the editor never makes.
+		selectionState: createSelectionState({
+			getDoc: () => doc,
+			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
+		}),
 		getBlockElByPath: () => null,
-		revealPath: async (path: number[]) => {
-			if (path.length === 0) return null;
-			const ref = blockRefs[path[0]];
-			if (!ref) return null;
-			if (path.length === 1) return ref;
-			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
+		get caretLanding() {
+			return caretLanding;
 		},
-		events
+		events,
+		// An author's suite runs with no editor, so every installed plugin is in the grammar.
+		reading: options.reading ?? kitReading()
 	};
-	return { deps, doc, events };
+	// No render window: nothing mounts later, so an empty entry counts as out of range.
+	const rootList: ChildList = {
+		count: () => doc.children.length,
+		refs: deps.blockRefSlots,
+		windowing: { revealChild: async () => {}, isInWindow: (i) => blockRefs[i] !== undefined }
+	};
+	const caretLanding = recordingLanding(
+		createCaretLanding({
+			getDoc: () => doc,
+			root: rootList,
+			selectionState: deps.selectionState,
+			// Read live: a suite may swap in its own caret memory after building the deps.
+			caretMemory: {
+				forget: () => deps.caretMemory.forget(),
+				noteExtreme: () => deps.caretMemory.noteExtreme()
+			},
+			getBlockElByPath: (path) => deps.getBlockElByPath(path),
+			getEditorRoot: () => null,
+			scroll: null
+		}),
+		() => doc,
+		landings
+	);
+	return {
+		deps,
+		doc,
+		events,
+		landings,
+		getBlockIds: () => blockIds,
+		getBlockRefs: () => blockRefs
+	};
+}
+
+/** `landing` with each resolved leaf pushed onto `landings` once it has landed. */
+function recordingLanding(
+	landing: CaretLanding,
+	getDoc: () => Document,
+	landings: RecordedLanding[]
+): CaretLanding {
+	return {
+		...landing,
+		async land(pos, opts) {
+			const target = caretTargetFor(getDoc(), pos);
+			const outcome = await landing.land(pos, opts);
+			if (target) landings.push({ ...target, outcome });
+			return outcome;
+		}
+	};
+}
+
+function documentOf(source: string | Document | CstNode[]): Document {
+	if (typeof source === 'string') return parse(source);
+	if (Array.isArray(source)) return { kind: 'document', prefix: '', children: source, suffix: '' };
+	return source;
 }

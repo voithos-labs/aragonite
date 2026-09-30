@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-//
-// The destructive arm: Backspace/Delete over a cross-block range. It consumes the key
-// unconditionally — the range must never reach a per-block handler that deletes one character
-// against stale indices — but MUTATES only when the mode allows edits, so reading mode pulls in
-// two directions. G4.19's lint allowlists this file on the strength of these branches.
+// The destructive branch: Backspace or Delete over a cross-block range. It consumes the key
+// unconditionally (the range must never reach a per-block handler that deletes one character
+// against stale indices) but mutates only when the mode allows edits, so reading mode pulls in
+// two directions.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -13,7 +12,7 @@ function selectFirstTwo(env: ReturnType<typeof makeKeydownEnv>) {
 	env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
 }
 
-describe('cross-block keydown — destructive arm', () => {
+describe('cross-block keydown: destructive branch', () => {
 	for (const key of ['Backspace', 'Delete']) {
 		it(`${key} deletes the range and leaves cross-block mode`, async () => {
 			const env = makeKeydownEnv(SOURCE);
@@ -40,7 +39,7 @@ describe('cross-block keydown — destructive arm', () => {
 		});
 	}
 
-	// Cut and copy are deliberately NOT consumed: the synthetic clipboard event has to reach the
+	// Cut and copy are deliberately not consumed: the synthetic clipboard event has to reach the
 	// block's own handler, which writes synchronously through `e.clipboardData`.
 	for (const key of ['c', 'x']) {
 		it(`Ctrl+${key} passes through to the block clipboard handler`, async () => {
@@ -54,6 +53,41 @@ describe('cross-block keydown — destructive arm', () => {
 			expect(env.source()).toBe(SOURCE);
 		});
 	}
+
+	// Miss-analysis: the rows above read bytes only, so a key that never reached the caret's side
+	// passed them.
+	describe('the key picks the side a whole removal lands on', () => {
+		const SIDES = [
+			{ key: 'Backspace', landsAt: [0] },
+			{ key: 'Delete', landsAt: [1] }
+		];
+		for (const { key, landsAt } of SIDES) {
+			it(`${key} over a rule held whole lands in block ${landsAt}`, async () => {
+				const env = makeKeydownEnv('lead\n\n---\n\ntail\n');
+				const lookup = env.mutCtx.getBlockElByPath;
+				const placed: number[][] = [];
+				env.mutCtx.getBlockElByPath = (path) => (placed.push(path.slice()), lookup(path));
+				const whole = { path: [1], wholeBlock: true as const };
+				env.selection.enterCrossBlock(whole, whole);
+
+				await env.keydown.handleKeyDown(press(key));
+
+				expect(env.source()).toBe('lead\n\ntail\n');
+				expect(placed.at(-1)).toEqual(landsAt);
+			});
+
+			it(`${key} over a whole table lands in block ${landsAt}`, async () => {
+				const env = makeKeydownEnv('lead\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntail\n');
+				const whole = { path: [1], wholeBlock: true as const };
+				env.selection.enterCrossBlock(whole, whole);
+
+				await env.keydown.handleKeyDown(press(key));
+
+				expect(env.source()).toBe('lead\n\ntail\n');
+				expect(env.landings.at(-1)?.leafPath).toEqual(landsAt);
+			});
+		}
+	});
 
 	it('leaves Backspace alone when no cross-block range is active', async () => {
 		const env = makeKeydownEnv(SOURCE);

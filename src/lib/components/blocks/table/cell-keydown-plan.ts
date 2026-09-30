@@ -1,17 +1,12 @@
 /**
- * Pure keydown → plan for a table cell's caret-dependent navigation: cell hop at a text boundary,
- * row hop, table exit, the row-appending end of Tab/Enter. The branches ignore Alt and Mod, which
- * the command dispatcher claims first: an unclaimed modified arrow must still navigate, and
- * `native` hands it to the prose prelude, which moves among siblings by index.
+ * Turns a keydown into a plan for a table cell's caret-dependent navigation: move to the next cell
+ * at a text boundary, move a row, leave the table, and the row-appending end of Tab and Enter. The
+ * branches ignore Alt and Mod, which the command dispatcher takes first: a modified arrow nothing
+ * took must still navigate, and `native` hands it to the shared prose handling, which moves
+ * between siblings by index.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
-
-export interface CellKeyInput {
-	key: string;
-	ctrlOrMeta: boolean;
-	shiftKey: boolean;
-	altKey: boolean;
-}
+import { isSelectAllChord, type ChordKeys } from '../../../schema/keybindings';
 
 export interface CellKeyState {
 	rowIdx: number;
@@ -19,8 +14,8 @@ export interface CellKeyState {
 	columnCount: number;
 	rowCount: number;
 	offset: number;
-	/** The cell's landable extremes. A mode that paints no marker puts a leading or trailing
-	 *  run out of the caret's reach, and a hop testing raw 0 / raw length never fires. */
+	/** The first and last offsets the caret can sit at in the cell. A mode that draws no marker
+	 *  puts a leading or trailing run out of reach, so a test of raw 0 or the length never fires. */
 	contentStart: number;
 	contentEnd: number;
 	collapsed: boolean;
@@ -40,18 +35,11 @@ export type CellKeyPlan =
 	| { kind: 'insert-row-below' }
 	| { kind: 'exit'; direction: 'up' | 'down' };
 
-// CapsLock reports the letter uppercased, so the select-all chord tests for both
-// spellings rather than against a single literal.
-function isLetterA(key: string): boolean {
-	return key === 'a' || key === 'A';
-}
-
-export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
+export function cellKeydownPlan(e: ChordKeys, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
-	// Two stages, like every other block: the cell's own text natively, then the document. A
-	// table stage in between was this editor's alone; Docs and friends go straight to the page.
-	if (e.ctrlOrMeta && isLetterA(e.key) && !e.shiftKey && !e.altKey) {
+	// Two stages, like every other block: the cell's own text first, then the document.
+	if (isSelectAllChord(e)) {
 		return {
 			kind: 'select-all-step',
 			step: s.selectAllCount === 0 ? 'native' : 'document'

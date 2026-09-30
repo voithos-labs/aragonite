@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// A table-crossing delete truncates its prose endpoint in place — no join — so the runs the cut
-// strands never crossed the live cleaner and painted as literal `**` on screen. The truncation
-// is half a join and takes the cleaner's unpaired-run half; source mode stays byte-literal.
-// Miss-analysis: the live-join pins all crossed prose→prose merges, where cleanJoinedRaw runs;
-// no pin selected across the table wall, the one branch that skips the seam.
+// A table-crossing delete truncates its text endpoint in place with no join, so a delimiter run
+// the cut leaves unpaired must still go through the live-mode cleanup, or it paints as literal
+// `**`; source mode stays byte for byte.
+// Miss-analysis: the live-join cases only crossed text-to-text merges, never the table branch.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -14,9 +12,11 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
-import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -32,8 +32,14 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = tableAwareRangeDelete(doc, start, end, createSharingState(), undefined, mode);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	const result = rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading({}, mode),
+		'keyless'
+	);
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
 describe('a live table-crossing delete drops the runs its truncation stranded', () => {

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // When the selection channel notifies, and what the editor looks like at that
 // moment. Subscribers read the editor back on notify (`getSelection()`), so an
 // emission that escapes mid-restore reports a caret the restore is about to move.
@@ -8,12 +7,14 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
-import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
+import { makeCaretMemory } from '../harness/editor-actions';
+import { restoreTarget } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 interface Emission {
-	/** The block the NATIVE caret sat in — what a subscriber's read-back resolves. */
+	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
 	caretBlock: number | null;
 	isCrossBlock: boolean;
 }
@@ -51,14 +52,17 @@ function emissionHarness() {
 			emissions.length = 0;
 		},
 		restore(selection: EditorSelection): boolean {
-			return applySelectionToDom(selection, selectionState, (path) => blocks[path[0]] ?? null);
+			return applySelectionToDom(
+				selection,
+				restoreTarget(selectionState, (path) => blocks[path[0]] ?? null)
+			);
 		}
 	};
 }
 
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
-describe('the restore road settles before it notifies', () => {
+describe('the restore path settles before it notifies', () => {
 	it('a collapsed restore reports the landed caret, not the outgoing one', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
@@ -78,22 +82,21 @@ describe('the restore road settles before it notifies', () => {
 	});
 
 	// The documented exception, pinned so changing it is a visible decision: a collapsed restore
-	// whose target resolves but has no element clears state THEN fails, reporting the outgoing one.
+	// whose target resolves but has no element clears state, then fails, reporting the outgoing one.
 	it('an unplaced restore still reports the outgoing selection', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
 
 		const placed = applySelectionToDom(
 			{ anchor: at(1, 2), focus: at(1, 2) },
-			h.selectionState,
-			() => null
+			restoreTarget(h.selectionState, () => null)
 		);
 
 		expect(placed).toBe(false);
 		expect(h.emissions).toEqual([{ caretBlock: 0, isCrossBlock: false }]);
 	});
 
-	it('a cross-block restore notifies once, with the park caret already landed', () => {
+	it('a cross-block restore notifies once, with the gap caret already landed', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
 
@@ -143,8 +146,8 @@ describe('SelectionState.batch', () => {
 		expect(count()).toBe(1);
 	});
 
-	// A depth that leaks on a throw mutes the selection channel for the editor's
-	// whole lifetime — the failure worth guarding at the seam, not at call sites.
+	// A batch depth that leaks on a throw mutes selection notifications for the editor's whole
+	// lifetime, so the flush is in `batch` itself, not at call sites.
 	it('flushes and stays usable when the body throws', () => {
 		const { state, count } = counting();
 		state.setGapCaret({ parentPath: [], index: 1 });
@@ -162,9 +165,8 @@ describe('SelectionState.batch', () => {
 	});
 });
 
-// The restore road is the only entry path wrapped in a batch. These pin the counts of the paths
-// that are NOT: a mutator that changed nothing must stay silent, so a subscriber's read-back is
-// never woken by a gesture the selection slept through (#29).
+// Only the restore path is wrapped in a batch, so on every other path a mutator that changed
+// nothing must stay silent, or subscribers read back after a gesture that moved no selection.
 describe('unbatched entry-path emission counts', () => {
 	it('a pointerdown that collapses a cross-block selection notifies once', () => {
 		let notifies = 0;
@@ -172,7 +174,7 @@ describe('unbatched entry-path emission counts', () => {
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		// The counter was already 0, so only the clear is a real mutation.
 		expect(notifies).toBe(1);
@@ -183,13 +185,13 @@ describe('unbatched entry-path emission counts', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		expect(notifies).toBe(0);
 	});
 
-	// The preamble is the native sibling of the caret door: both must end every editor-owned
-	// caret claim, or a click leaves a phantom gap painted beside the new caret.
+	// The pointerdown reset is the pointer counterpart of `placeCaret`: both must end every
+	// editor-owned caret, or a click leaves a phantom gap caret painted beside the new caret.
 	it('a pointerdown ends a live gap caret, shift held or not', () => {
 		for (const isShift of [false, true]) {
 			let notifies = 0;
@@ -197,15 +199,14 @@ describe('unbatched entry-path emission counts', () => {
 			state.setGapCaret({ parentPath: [], index: 1 });
 			notifies = 0;
 
-			resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), isShift);
+			resetForPointerDown(state, makeCaretMemory(), isShift);
 
 			expect(state.gapCaret).toBeNull();
 			expect(notifies).toBe(1);
 		}
 	});
 
-	// Miss (#29): the doors were pinned through their callers, where a real mutation always rode
-	// along, so no test ever asked what a door does with nothing to change.
+	// Miss-analysis: GH #29; mutators were only tested through callers, where a real change came.
 	it('every mutator is silent when it changes nothing', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
@@ -218,7 +219,7 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(0);
 	});
 
-	it('a repeated clear notifies once — the first one is the mutation', () => {
+	it('a repeated clear notifies once: the first one is the mutation', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 		state.enterCrossBlock(at(0, 0), at(2, 3));
@@ -231,8 +232,8 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(1);
 	});
 
-	// The counter is the fourth field `clear` zeroes: guarding on the endpoints alone would
-	// swallow the notification that a Ctrl+A run was reset.
+	// The counter is the fourth field `clear` zeroes: checking the endpoints alone would swallow
+	// the notification that a Ctrl+A run was reset.
 	it('clear notifies for a standing select-all count with no endpoints', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
@@ -262,7 +263,9 @@ describe('unbatched entry-path emission counts', () => {
 		h.parkCaretIn(0, 3);
 		const doc = parse('Alpha one\n\nBravo two\n');
 
-		expect(extendFocusToNextBlock(h.selectionState, doc, h.blocks[0], [0])).toBe(true);
+		expect(
+			extendFocusToNextBlock(h.selectionState, doc, defaultGrammarView, h.blocks[0], [0])
+		).toBe(true);
 
 		// enterCrossBlockFromKeyboard seeds a collapsed pair, then extendFocus reaches
 		// the next leaf. Two mutations, two emissions, both reporting real state.

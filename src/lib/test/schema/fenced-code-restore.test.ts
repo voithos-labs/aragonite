@@ -1,18 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { normalizeFencedRaw } from '$lib/schema/fenced-code-raw';
+import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 
-// The whole-raw door (`normalizeFencedRaw`), where RESTORE lives: the byte sinks reach a node's
-// raw with the OLD metadata still attached, so a closer a truncation consumed is recoverable
-// there and nowhere downstream. `fenced-code-raw.test.ts` covers the display funnel's door
-// (`reconcileFenceWrite`), which the surface guard keeps a closer away from;
-// `fenced-code-stranded-closer.test.ts` covers the door's other arm, for the write that took
-// the OPENER instead.
+/** The document line ending a write runs under, LF or CRLF. */
+const LF_WRITE = { lineEnding: '\n' } as const;
+const CRLF_WRITE = { lineEnding: '\r\n' } as const;
+
+/** The fence rule as a byte write from outside the block's own editing applies it. */
+const literalWrite = (raw: string, node: CstNode, write: typeof LF_WRITE | typeof CRLF_WRITE) =>
+	fencedCodeWrite.normalize(raw, { node, mode: 'literal', lineEnding: write.lineEnding });
+
+// The literal write puts back a closer a truncation ate, since it still sees the node's metadata
+// from before the write and nothing later does.
 
 const codeNode = (source: string): CstNode => parse(source).children[0];
 
-/** What the bytes reparse to on their own — the reload the restored closer has to survive. */
+/** What the bytes reparse to on their own: the reload the restored closer has to survive. */
 function reload(raw: string) {
 	const children = parse(raw).children;
 	const first = children[0];
@@ -22,41 +26,46 @@ function reload(raw: string) {
 	};
 }
 
-describe('normalizeFencedRaw — the dropped closer', () => {
+describe('the fence rule as a literal write: the dropped closer', () => {
 	const closed = codeNode('```js\nbody\n```\n');
 
 	it('re-appends the closer a truncating write dropped', () => {
-		expect(normalizeFencedRaw('```js\nbo\n', closed)).toBe('```js\nbo\n```\n');
-		expect(reload(normalizeFencedRaw('```js\nbo\n', closed))).toEqual({ count: 1, closed: true });
-	});
-
-	it('is idempotent — a second pass finds the closer and declines', () => {
-		const once = normalizeFencedRaw('```js\nbo\n', closed);
-		expect(normalizeFencedRaw(once, closed)).toBe(once);
-	});
-
-	it('mints on the block’s own line ending (G4.20)', () => {
-		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
-		expect(normalizeFencedRaw('```js\r\nbo\r\n', crlf)).toBe('```js\r\nbo\r\n```\r\n');
-		expect(reload(normalizeFencedRaw('```js\r\nbo\r\n', crlf))).toEqual({
+		expect(literalWrite('```js\nbo\n', closed, LF_WRITE)).toBe('```js\nbo\n```\n');
+		expect(reload(literalWrite('```js\nbo\n', closed, LF_WRITE))).toEqual({
 			count: 1,
 			closed: true
 		});
 	});
 
-	// An unterminated slice is what a last block without a trailing newline leaves behind: the
-	// reattached ending falls back to LF, so reading the closer's ending off it downgrades a
-	// CRLF block.
-	it('mints CRLF onto an unterminated slice', () => {
+	it('is idempotent: a second pass finds the closer and declines', () => {
+		const once = literalWrite('```js\nbo\n', closed, LF_WRITE);
+		expect(literalWrite(once, closed, LF_WRITE)).toBe(once);
+	});
+
+	it('creates on the block’s own line ending (G4.20)', () => {
 		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
-		expect(normalizeFencedRaw('```js\r\nbo', crlf)).toBe('```js\r\nbo\r\n```\n');
-		expect(reload(normalizeFencedRaw('```js\r\nbo', crlf))).toEqual({ count: 1, closed: true });
+		expect(literalWrite('```js\r\nbo\r\n', crlf, CRLF_WRITE)).toBe('```js\r\nbo\r\n```\r\n');
+		expect(reload(literalWrite('```js\r\nbo\r\n', crlf, CRLF_WRITE))).toEqual({
+			count: 1,
+			closed: true
+		});
+	});
+
+	// An unterminated slice is what a last block without a trailing newline leaves behind: every
+	// ending the rule writes, the restored closer's and the reattached one, is the fence's CRLF.
+	it('creates CRLF onto an unterminated slice', () => {
+		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
+		expect(literalWrite('```js\r\nbo', crlf, CRLF_WRITE)).toBe('```js\r\nbo\r\n```\r\n');
+		expect(reload(literalWrite('```js\r\nbo', crlf, CRLF_WRITE))).toEqual({
+			count: 1,
+			closed: true
+		});
 	});
 
 	it('copies the opener’s indent, which still closes at GFM’s 3-space limit', () => {
 		const indented = codeNode('  ```js\n  body\n  ```\n');
-		expect(normalizeFencedRaw('  ```js\n  bo\n', indented)).toBe('  ```js\n  bo\n  ```\n');
-		expect(reload(normalizeFencedRaw('  ```js\n  bo\n', indented))).toEqual({
+		expect(literalWrite('  ```js\n  bo\n', indented, LF_WRITE)).toBe('  ```js\n  bo\n  ```\n');
+		expect(reload(literalWrite('  ```js\n  bo\n', indented, LF_WRITE))).toEqual({
 			count: 1,
 			closed: true
 		});
@@ -64,21 +73,21 @@ describe('normalizeFencedRaw — the dropped closer', () => {
 
 	it('restores at the block’s own run length, leaving a shorter body run content', () => {
 		const wide = codeNode('````js\n```\nbody\n````\n');
-		expect(normalizeFencedRaw('````js\n```\nbo\n', wide)).toBe('````js\n```\nbo\n````\n');
-		expect(reload(normalizeFencedRaw('````js\n```\nbo\n', wide))).toEqual({
+		expect(literalWrite('````js\n```\nbo\n', wide, LF_WRITE)).toBe('````js\n```\nbo\n````\n');
+		expect(reload(literalWrite('````js\n```\nbo\n', wide, LF_WRITE))).toEqual({
 			count: 1,
 			closed: true
 		});
 	});
 
-	// Which is why RESTORE and ESCALATE cannot co-fire on a truncation: escalation triggers on
-	// a body line that reads as this fence's closer, and RESTORE's probe reads it AS the closer.
+	// Restoring the closer and growing the runs never both fire: growing needs a body line that
+	// reads as this fence's closer, and the restore takes that line as the closer.
 	it('treats a body line that reads as the closer as the closer', () => {
-		expect(normalizeFencedRaw('```js\n```\nbo\n', closed)).toBe('```js\n```\nbo\n');
+		expect(literalWrite('```js\n```\nbo\n', closed, LF_WRITE)).toBe('```js\n```\nbo\n');
 	});
 
 	it('declines for a fence the metadata never closed', () => {
 		const open = codeNode('```js\nbody\n');
-		expect(normalizeFencedRaw('```js\nbo\n', open)).toBe('```js\nbo\n');
+		expect(literalWrite('```js\nbo\n', open, LF_WRITE)).toBe('```js\nbo\n');
 	});
 });

@@ -2,11 +2,10 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { attachIme } from '../simulation/ime';
 
-// Real IME composition via CDP, producing genuine compositionstart/update/end events
-// (requirements/ime-composition.md). Chromium's order, pinned by the first test: every
-// insertCompositionText fires with isComposing true BEFORE compositionend, and the post-end
-// CST commit is the surface's own funnel, not another DOM input event. These sequences are
-// G1.27's first deliberate real-browser exercise.
+// Real IME composition over CDP, with genuine compositionstart/update/end events
+// (requirements/ime-composition.md). The first test checks Chromium's order: every
+// insertCompositionText fires with isComposing true before compositionend, and the commit to the
+// tree comes from the block's own code, not another DOM input event (G1.27).
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;
@@ -66,8 +65,8 @@ test.describe('IME composition', () => {
 		await ime.commit('かん');
 		await editor.bridge.waitForSourceContains('codeかん');
 
-		// The insertLineBreak/newline gates apply mid-composition only: with the
-		// window closed, Enter must splice its newline into the body normally.
+		// The checks on insertLineBreak apply only while composing: once composition has ended,
+		// Enter must put its newline into the body as usual.
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceContains('codeかん\n\n```');
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
@@ -75,7 +74,7 @@ test.describe('IME composition', () => {
 
 	test('table cell: composed commit updates the cell once and round-trips', async ({ page }) => {
 		await editor.loadContent('| H |\n| :- |\n| Left |\n');
-		await page.locator('[role="cell"]').nth(1).click();
+		await page.locator('.table-cell').nth(1).click();
 		await page.keyboard.press('End');
 		const ime = await attachIme(page);
 
@@ -112,8 +111,8 @@ test.describe('IME composition', () => {
 		await ime.commit('かん');
 		await editor.bridge.waitForSourceContains('かん');
 
-		// One entry per composition: the commit funnels through one
-		// updateBlockContent whose debounced snapshot anchors pre-composition.
+		// One undo entry per composition: the commit goes through a single updateBlockContent,
+		// whose debounced snapshot was taken before the composition started.
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('hello world\n');
 	});

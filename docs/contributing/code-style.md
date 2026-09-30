@@ -41,24 +41,69 @@ The test for all of it: a maintainer can answer "what does this file do, and whe
 
 ## Comments
 
-Default to none. The one you do write explains **why** (the non-obvious choice, the workaround, the deliberate exclusion), never **what**; names and types already carry the what. The budget: a comment is 1-2 lines, and a header (the comment at the top of a file, or the one stating a module's contract) is at most ~5. A why that needs more room moves to a design doc, with a one-line pointer left behind.
+Default to none. The reader of a comment is someone competent who opened this repo today, and they read it once. Every word they'd have to look up and every sentence they'd have to read twice is a defect. (That reader is also me. When I can't read a comment it isn't a comment, it's a technical essay, and the repo has enough of those already.)
 
-The comments share a working vocabulary (seam, door, funnel, settle, mint, peel, landable), defined once at the top of `docs/contributing/codebase-map.md`. Use those words; don't redefine them in place, and don't coin a new one without adding it there.
+Two kinds of comment earn their lines:
 
-The budget has teeth, too. A source scan in the unit suite (G4.26 in `docs/design/invariants.md`) fails any comment block over six text lines, or a file header over seven; the slack above the stated budget is for contract prose that needs it. Here's the red line, from a seven-line comment I planted for the occasion:
+- A **header** (the block at the top of a file, or above a module's contract) says what the thing is for, in one sentence a newcomer can read, and then at most the one thing a caller has to get right. Five lines, tops.
+- A **comment in a body** says why this line is the way it is, in one plain sentence: the non-obvious choice, the workaround, the thing left out on purpose. One or two lines.
 
+Neither says what the code does or how (names and types already do), and neither argues. The case for this reading over the other one was made in the review; the code keeps the conclusion. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
+
+The budget alone didn't stop the essays. The rules that do:
+
+- **Plain words.** Write the English you'd use out loud to a colleague from another team. The repo grew a private vocabulary (seam, door, funnel, rung, ceremony, mint, peel, settle, seat, island, oracle, ladder, landable, and a few dozen more), and a comment written in it reads as encrypted to anyone who didn't grow up here. Use the plain phrase: "the module boundary", "the one entry point", "the estimated height", "where the caret sits". Where a symbol forces the word (`heightOracle` is the type's name), gloss it in three words or fewer: "the height oracle (estimates block heights)". [`glossary.md`](glossary.md) is there so you can read the comments that still use them, not so you can write more.
+- **Name the subject.** "Least destructive first:" is not a sentence. Least destructive _what_? Say the thing: the paragraph block, the scroll container, the undo stack, the caret. A comment about "the seam", "the surface" or "this" makes the reader reconstruct the subject from the code, which was the comment's job.
+- **A code is not a reason.** `G1.28` and `VR-15` are catalogue numbers. Say what holds ("a `<br>` adds no text, so the offset walk stays exact") and put the number after it if you like.
+- **No shouting.** ON, CURRENT, OWN and BEFORE in capitals mean the sentence is carrying too much. Rewrite the sentence.
+
+Before and after, from the tree as it stands (the afters are what the rewrite passes will land):
+
+```ts
+// before: two private words per line, and "owes" doing the work of a sentence
+// An edit that empties the body leaves the same chrome-only source a bare block arrives
+// as, so the edit door owes the completion the reveal door applies.
+
+// after
+// Emptying the body leaves only the markers, the same source a new block starts with,
+// so this edit path applies the same marker completion the reveal path does.
 ```
-$ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
- FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its limit
-AssertionError: expected [ { …(4) } ] to deeply equal []
-+ [
-+   {
-+     "limit": 6,
-+     "line": 4,
-+     "relPath": "src/lib/zz-probe-comment.ts",
-+     "textLines": 7,
-+   },
-+ ]
+
+```ts
+// before: a five-line essay, with a citation code and a mode flip nobody defined
+/**
+ * A surviving block keeps the height the model measured (VR-15); `carried` is null only
+ * where a width or type-scale change has earned a reseed from the oracle. The cache behind
+ * those heights can be gone (a mode flip drops it, and a block whose box never moved reports
+ * no resize to put it back), so reseeding a structural rebuild would trade a whole document
+ * of measurements for estimates and scroll the reader by the difference.
+ */
+
+// after
+/**
+ * A block that survives a rebuild keeps its measured height (`carried`); re-estimating would
+ * swap a document of measurements for guesses and scroll the user by the difference.
+ * Null after a width or font-size change, when the old heights are wrong anyway.
+ */
+```
+
+```ts
+// before: no subject, three private words, one shouted
+/** The press landed ON the island: the engine answers such a point with a position in the
+ *  neighbouring text, so its own caret is no reason to stand this seat down. */
+inside: boolean;
+
+// after
+/** The click landed on the widget itself. The browser would put the caret in the text
+ *  beside it, and that caret is no reason to drop this snap. */
+inside: boolean;
+```
+
+And one that was right all along, so you know the target exists:
+
+```ts
+// Reading mode keeps checkboxes visible but inert: a toggle rewrites the
+// document, and reading mode writes no bytes.
 ```
 
 For the comments already in a file: if removing one wouldn't confuse a reader, delete it. You own a file's signal-to-noise the moment you touch it, so prune the failing ones even when you didn't write them. Especially when you didn't write them.
@@ -71,6 +116,37 @@ Delete on sight:
 - Naming callers or the current task (`used by the X flow`, `added for #123`). That belongs in the commit or the issue.
 - Multi-paragraph docstrings on internal functions. The name and the signature carry the load.
 - Design-rationale essays (incidents, rejected alternatives, review history). That context lives in git log, issues, and `docs/`; the code keeps one line of why, at most.
+- A claim with no subject (`// Rows before columns.`, `// Least destructive first:`). Say what the sentence is about, or delete it.
+- Past-state narration (`used to`, `previously`, `no longer`, `the old X did Y`). The reader needs the current rule, not the diff. Git has the diff.
+
+### The gate
+
+The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget. A comment trailing code is its own block. That scan knows a header when it sees one: a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
+
+Every comment in the repo fits the budget now, so the scan is a hard line: one comment over it fails the suite and names its `path:line`. Tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) under a comment don't count as its lines. Here's the red, from a three-line comment I planted mid-file:
+
+```
+$ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
+ FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its budget
+AssertionError: expected [ 'src/lib/zz-probe.ts:3' ] to deeply equal []
+```
+
+The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's what one planted `seam` gets you:
+
+```
+$ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
+ FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 no house word in a comment > no comment under src/lib or src/routes holds a house word
+AssertionError: expected [ { …(2) } ] to deeply equal []
++ Received
++ [
++   {
++     "file": "src/lib/zz-probe-comment.ts",
++     "hits": 1,
++   },
++ ]
+```
+
+The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each of those docs is pinned to a baseline that only goes down. Delete a few and the test fails until you lower that doc's baseline, a one-number edit in the same test file.
 
 ## Directories
 
@@ -90,7 +166,7 @@ npm run lint     # check
 `npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
 
 1. the Prettier check
-2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide must name a heading its target doc still carries
+2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide (outside code) must name a heading its target doc still carries, slugged the way GitHub renders it
 3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk, and every `<doc>.md § Section name` pointer in the tree must still name a heading that doc carries
 4. ESLint
 

@@ -52,8 +52,8 @@ describe('SearchState', () => {
 		expect(s.matches.length).toBe(0);
 	});
 	it('replacedCount reports the replace path’s real count, not the match count', async () => {
-		// The replace path may skip matches (a substitution that would reparse as a different
-		// kind), so the count comes from its return value — 2 matches here, only 1 replaced.
+		// Replace may skip a match (one whose replacement would reparse as a different kind), so
+		// the count comes from its return value: 2 matches here, only 1 replaced.
 		const s = makeState('cat cat\n', () => {}, {
 			replaceOne: async () => 0,
 			replaceAll: async () => 1
@@ -85,8 +85,8 @@ describe('SearchState', () => {
 		expect(closed).toBe(1);
 	});
 	it('reopening with an unchanged query re-publishes the matches', () => {
-		// close() clears matches; the cap-1 scan memo must drop with them, or reopen on
-		// the same editEpoch + query hits the primed key and serves the cleared set.
+		// `close()` clears the matches, and the one-entry scan memo has to go with them, or
+		// reopening on the same counter and query hits that entry and serves the cleared set.
 		const s = makeState('a a\n');
 		s.open();
 		s.setQuery('a');

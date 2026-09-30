@@ -1,18 +1,25 @@
 /**
- * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert` opener.
- * Both converters run the parser's own extent authority so CommonMark §5.1 lazy
- * continuation lands identically. On a whole document prefer the wrapper in
- * `convert-document.ts`: the stream scanner here is not fence-safe.
+ * The one place `> [!TYPE]` is recognized, shared with the native `githubAlert` opener.
+ * Both converters ask the parser how far the blockquote runs, so CommonMark §5.1 lazy
+ * continuation is handled identically. For a whole document use `convert-document.ts`
+ * instead: the scanner here is not fence-safe.
  */
-import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
+import {
+	blockquoteExtent,
+	escalatedColonCount,
+	firstLineEnding,
+	splitLines,
+	type LineEnding,
+	type ParsedLine
+} from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 
 const CANONICAL_COLONS = 3;
 
-/** Every `>` pattern here caps indent at CommonMark's 0–3 spaces: past that the line is
- *  indented code, and claiming it would promote a literal `>` to a marker on rebuild. */
+/** Every `>` pattern here caps indent at CommonMark's 0 to 3 spaces: past that the line is
+ *  indented code, and taking it would promote a literal `>` to a marker on rebuild. */
 const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 
 const QUOTE_OPEN = /^ {0,3}>/;
@@ -34,20 +41,16 @@ export interface AlertConversion {
 	changed: boolean;
 }
 
-/**
- * Each emitted line keeps its source line ending so CRLF survives; the closer runs one line past
- * the source, which is what the fallback covers. The body converts in the same pass: stripping a
- * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
- */
-function emitDirective(name: string, source: ParsedLine[]): string {
-	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';
+/** Each emitted line keeps its own ending, else `ending`, so CRLF survives. The body converts in
+ *  the same pass, since stripping a quote level exposes a nested `> [!TIP]` to a second pass. */
+function emitDirective(name: string, source: ParsedLine[], fallback: LineEnding): string {
 	const stripped = source
 		.slice(1)
 		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
 		.join('');
-	const body = splitLines(convertGithubAlerts(stripped).converted);
-	// Fence lengthened past any colon run in the body, which would otherwise read as the
-	// container's own closer once this output is written into the document.
+	const body = splitLines(convertAlerts(stripped, fallback).converted);
+	// The fence runs longer than any colon run in the body, which would otherwise read as
+	// this container's own closer once the output is written into the document.
 	const colons = ':'.repeat(
 		escalatedColonCount(body.map((line) => line.text).join('\n'), CANONICAL_COLONS)
 	);
@@ -58,14 +61,18 @@ function emitDirective(name: string, source: ParsedLine[]): string {
 
 /** GitHub honors `[!TYPE]` only on the blockquote's first line; everything after,
  *  lazy-continuation lines and later literal markers alike, is body. */
-export function convertAlertBlockquoteRaw(raw: string): string | null {
+export function convertAlertBlockquoteRaw(raw: string, ending: LineEnding): string | null {
 	const lines = splitLines(raw);
 	if (lines.length === 0) return null;
 	const typed = matchAlertMarker(lines[0].text);
-	return typed ? emitDirective(typed.toLowerCase(), lines) : null;
+	return typed ? emitDirective(typed.toLowerCase(), lines, ending) : null;
 }
 
 export function convertGithubAlerts(text: string): AlertConversion {
+	return convertAlerts(text, firstLineEnding(text) ?? '\n');
+}
+
+function convertAlerts(text: string, ending: LineEnding): AlertConversion {
 	const lines = splitLines(text);
 	let converted = '';
 	let changed = false;
@@ -75,10 +82,10 @@ export function convertGithubAlerts(text: string): AlertConversion {
 		const typed = matchAlertMarker(lines[i].text);
 		if (typed && startsBlockquote(lines, i)) {
 			const { nextIndex } = blockquoteExtent(lines, i, lines.length);
-			// A marker line always opens a quote, so the extent claims at least this line;
-			// floored anyway because a loosened indent cap would hang this loop.
+			// A marker line always opens a quote, so the extent covers at least this line;
+			// checked anyway because a loosened indent cap would hang this loop.
 			if (nextIndex > i) {
-				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
+				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex), ending);
 				changed = true;
 				i = nextIndex;
 				continue;

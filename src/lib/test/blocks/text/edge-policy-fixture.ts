@@ -1,6 +1,6 @@
-// Shared scaffolding for the edge-policy-dispatch suites. The deps base is passive-only:
-// EVERY behaviour a test asserts on must come from the caller's `overrides` — a baked
-// default would let a test assert against this stub.
+// Shared scaffolding for the edge-policy-dispatch suites. The base dependencies do nothing:
+// every behaviour a test asserts on has to come from the caller's `overrides`, or a test
+// could end up asserting against this stub.
 import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -9,12 +9,16 @@ import {
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { BlockEditActions } from '$lib/action-contracts';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
+import { asPresentationMode } from '$lib/presentation-mode';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
-/** `updateBlockContent` argument tuples, newest last. */
+/** `updateBlockContent` argument tuples less the write mode, newest last. */
 export type EditTuple = [index: number, content: string, start: number, end: number];
 
 export interface EdgeDispatchHarness {
@@ -31,6 +35,7 @@ export function makeEdgeDispatch(
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
 	const deps: EdgePolicyDispatchDeps = {
+		getLineEnding: () => '\n',
 		get node() {
 			return readNode();
 		},
@@ -40,16 +45,24 @@ export function makeEdgeDispatch(
 		get containerParent() {
 			return null;
 		},
-		get linkRef() {
-			return undefined;
+		// The mode on the element's `data-presentation` root, as the editor writes it from the reading.
+		get reading() {
+			return fixtureReading(
+				{},
+				asPresentationMode(el.closest('[data-presentation]')?.getAttribute('data-presentation'))
+			);
 		},
 		getEl: () => el,
-		getAmbientLength: () => 0,
+		// The block alone at the top level, unless a case places it in a document of its own.
+		storedAs: () => topLevelStore(readNode(), deps.reading),
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as EditTuple)
-		} as unknown as BlockEditActions,
+			updateBlockContent: (index, content, _mode, start = 0, end = start) => {
+				edits.push([index, content, start, end]);
+				return withStoredCaret(Promise.resolve(true), end);
+			}
+		} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
 		setPendingCursor: () => {},
 		setSnapTarget: () => {},
 		isRevealing: () => false,
@@ -57,7 +70,7 @@ export function makeEdgeDispatch(
 		isReading: () => false,
 		getEdgeAffinity: () => null,
 		pendingMarks: makePendingMarks(),
-		installedAs: 'block',
+		ownPairs: createAutoPairRecord().forBlock(),
 		...overrides
 	};
 	const dispatch = createEdgePolicyDispatch(deps);
@@ -66,7 +79,7 @@ export function makeEdgeDispatch(
 
 // ── DOM scaffolding ──────────────────────────────────────────────────────────
 
-/** A contenteditable surface holding `content`, optionally under a data-presentation root. */
+/** A contenteditable element holding `content`, optionally under a data-presentation root. */
 export function mountSurface(content: string | Node[], mode?: string): HTMLElement {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -92,8 +105,8 @@ export function decorationIsland(start: number, end = start): HTMLElement {
 	return island;
 }
 
-/** `[text before][island][text after]` for `source`'s first block; a zero-width
- *  `start === end` mounts a widget island. Empty flanks are omitted. */
+/** `[text before][widget][text after]` for `source`'s first block; a zero-width
+ *  `start === end` mounts a widget. Empty sides are left out. */
 export function mountIslandBlock(
 	source: string,
 	start: number,
@@ -110,7 +123,7 @@ export function mountIslandBlock(
 	return { node, el: mountSurface(parts, mode), island };
 }
 
-/** Element-level caret directly after `target` — where the browser drops a printable key. */
+/** Element-level caret directly after `target`, where the browser drops a printable key. */
 export function caretAfter(target: Node): void {
 	const range = document.createRange();
 	range.setStartAfter(target);

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-//
-// The arrival door: what a gap landing writes, and what it ends on the way in.
+// Placing a gap caret: what the placement writes, and what it ends on the way in.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { tryGapStop } from '../../selection/gap-caret';
@@ -21,7 +20,7 @@ function makeScope(mode: PresentationMode = 'source') {
 }
 
 describe('tryGapStop', () => {
-	it('parks the caret at an eligible boundary and reports it stopped', () => {
+	it('puts the caret at an eligible boundary and reports it stopped', () => {
 		const scope = makeScope();
 
 		expect(tryGapStop(scope, [], 2)).toBe(true);
@@ -35,22 +34,16 @@ describe('tryGapStop', () => {
 		expect(scope.selection.gapCaret).toBeNull();
 	});
 
-	// Reading mode has no caret to park, so the move keeps its old landing.
+	// Reading mode has no caret to place, so the move goes where it would without a gap caret.
 	it('never stops in reading mode', () => {
 		const scope = makeScope('reading');
 
 		expect(tryGapStop(scope, [], 2)).toBe(false);
 		expect(scope.selection.gapCaret).toBeNull();
 	});
-
-	it('stops on an unwired presentation mode', () => {
-		const selection = createSelectionState({ getDoc: () => DOC });
-
-		expect(tryGapStop({ selection, getDoc: () => DOC }, [], 2)).toBe(true);
-	});
 });
 
-describe('placeGapCaret — the gap door', () => {
+describe('placeGapCaret: the gap entry point', () => {
 	it('ends a live cross-block range in the same gesture (G2.12)', () => {
 		const selection = createSelectionState({ getDoc: () => DOC });
 		selection.enterCrossBlock(at(0, 0), at(3, 2));

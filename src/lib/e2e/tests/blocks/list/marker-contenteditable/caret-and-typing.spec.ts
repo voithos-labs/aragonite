@@ -1,7 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-test.describe('list marker — caret placement and typing', () => {
+test.describe('list marker: caret placement and typing', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -43,9 +43,8 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.bridge.waitForSourceEquals('- World\n');
 	});
 
-	// Typing `- ` in an empty paragraph live-promotes to a list, and `focus(CURSOR_END)` on the new
-	// ListBlock must clear the contenteditable="false" marker text node — a caret clamped onto its
-	// end has every following keystroke silently dropped by the browser.
+	// `focus(CURSOR_END)` on the new `ListBlock` must move past the `contenteditable="false"`
+	// marker, since the browser silently drops every keystroke at a caret clamped to its end.
 	test('typing after live-promote of empty paragraph lands caret in editable area', async () => {
 		await editor.loadContent('\n');
 		await editor.focusBlockEnd(0);

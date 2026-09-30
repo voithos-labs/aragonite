@@ -1,12 +1,13 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode, focusPath } from './helpers';
+import { enterPresentationMode, focusPath } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
-// The seat after a caret is placed by a MUTATION rather than by a step. The source is the
-// oracle: the caret reports the same offset on either side of a hidden closer, so only the
-// bytes distinguish the two seats.
-// Requirements: e2e/requirements/presentation/presentation-live-structural-landing-seat.md.
+// Where the caret ends up when an edit places it rather than a key step. The source is the
+// reference: the caret reports the same offset on either side of a hidden closer, so only the
+// bytes tell the two positions apart.
+// Requirements: `e2e/requirements/presentation/presentation-live-structural-landing-seat.md`.
 
 const DOC = [
 	'A **bold**',
@@ -29,7 +30,7 @@ const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 /** Exit a fence upward the way a user does: click its body, Home, Backspace. */
 async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
+	const point = await textRunCenter(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Home');
@@ -38,15 +39,15 @@ async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promis
 	await ep.waitForRenderFlush();
 }
 
-test.describe('live mode — a structural landing seats outside the construct it lands on', () => {
+test.describe('live mode: a structural landing puts the caret outside the construct it lands on', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterLive(page);
 	});
 
-	// The landing is at the paragraph's end, whose last bytes are a hidden `**`. It was seated
-	// there, not stepped there, so the side is construct-relative (live-mode.md § 4.2).
+	// The caret was placed at the paragraph's end, behind a hidden `**`, not stepped there, so its
+	// side is construct-relative (`docs/design/live-mode.md` § 4.2).
 	test('a byte typed after exiting a fence upward lands past the closing marker', async ({
 		page
 	}) => {
@@ -57,14 +58,14 @@ test.describe('live mode — a structural landing seats outside the construct it
 		await ep.bridge.waitForSourceContains('A **bold**x');
 	});
 
-	test('the exit press itself deletes nothing — the fence survives it whole', async ({ page }) => {
+	test('the exit press itself deletes nothing: the fence survives it whole', async ({ page }) => {
 		await exitFenceUpward(ep, page, 'fence');
 
 		await ep.bridge.waitForSourceContains('```\nfence\n```');
 	});
 
-	// The control: the same gesture onto a paragraph with no trailing construct. If this one
-	// ever disagreed with the first, the merge would be what moved, not the seat.
+	// The control: the same gesture onto a paragraph with no trailing construct. If this one ever
+	// disagreed with the first, the merge would be what moved, not where the caret goes.
 	test('a landing on a plain paragraph types plainly', async ({ page }) => {
 		await exitFenceUpward(ep, page, 'other');
 		await expect.poll(() => focusPath(ep)).toEqual([PLAIN]);

@@ -5,6 +5,7 @@ import { parse } from '../../core/parser';
 import { ALL_BLOCK_KINDS, type BlockKind, type CstNode } from '../../core/nodes';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { serialize } from '../../core/serializer';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 function parseBlock(src: string): CstNode {
 	const doc = parse(src);
@@ -29,7 +30,7 @@ const MERGEABLE: ReadonlyArray<[MergeRole, MergeRole]> = [
 	['self-merge', 'self-merge']
 ];
 
-describe('isMergeEligible — every ordered role pair', () => {
+describe('isMergeEligible: every ordered role pair', () => {
 	const roles = Object.keys(ROLE_SAMPLE) as MergeRole[];
 
 	// Non-vacuity: the matrix below is only about roles if its samples still carry them.
@@ -146,7 +147,7 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 		const targetText = raw.replace(/\r?\n$/, '');
 		target.raw = targetText + currText + lineEnding;
 		if (result.path.length > 0) {
-			rebuildAncestryRaw(prev, result.path);
+			rebuildAncestryRaw(prev, result.path, fixtureGrammar);
 		}
 		return serialize({ children: [prev], prefix: '', suffix: '' });
 	}

@@ -1,15 +1,13 @@
 import fc from 'fast-check';
 import type { InlineNode } from '../../../core/nodes';
 
-// Inline fragments interleaved so the emphasis matcher, code-span handler, and bracket
-// stack see realistic adjacency. Images, `<br>`, and ACCEPTING character references are
-// excluded: they are widgets (breaking the widget-free G2.4 spine) or shift commonmark's
-// flanking around a decoded space (a divergence the kind-differential oracle reports).
-// Their coverage lives in the G2.11 conformance corpus,
-// `test/core/inline/character-refs.test.ts`, and `arbAltOnlyImage` below.
+// Inline fragments interleaved so the emphasis matcher, the code-span handler and the bracket
+// stack see realistic adjacency. Images, `<br>` and decoding character references are left out:
+// widgets break the textContent comparison (G2.4), and a decoded space shifts CommonMark's
+// flanking. The conformance corpus, `test/core/inline/character-refs.test.ts` and
+// `arbAltOnlyImage` below cover them.
 
-// Non-ASCII words arm the properties against surrogate/cluster slicing: no node boundary
-// may land mid-pair.
+// Non-ASCII words, because no node boundary may land inside a surrogate pair or a cluster.
 const word = fc.constantFrom(
 	'foo',
 	'bar',
@@ -34,11 +32,8 @@ const codeSpan = fc
 	.tuple(fc.constantFrom('`', '``'), fc.constantFrom('code', 'x = 1', 'a*b', '**', '[x]', ''))
 	.map(([ticks, inner]) => ticks + inner + ticks);
 
-/**
- * Nesting the flat `emphasisRun` cannot reach: a run inside a run of the SAME kind. The asterisk
- * spellings carry the SHARED delimiter run, whose bytes serve both pairs at once, so a typed byte
- * beside one can rebind which delimiter pairs with which.
- */
+/** A run nested in a run of the same kind, which the flat `emphasisRun` cannot reach. The asterisk
+ *  spellings share one delimiter run, so a typed byte beside it can change which delimiters pair. */
 const nestedRun = fc.constantFrom(
 	'~~a ~b~ c~~',
 	'_a _b_ c_',
@@ -49,8 +44,7 @@ const nestedRun = fc.constantFrom(
 	'***foo****foo*'
 );
 
-/** Runs that decline, and a construct abutting the delimiters that would have taken them: a space
- *  inside the run kills its flanking, and an autolink's own bytes are no run's content. Both
+/** Runs that decline, and an autolink abutting the delimiters that would have taken it; both
  *  autolink grammars, since only the bare one's URL scanner absorbs a closing `*`. */
 const decliningRun = fc.constantFrom('~~ a ~~', '_ a _', '*foo@bar.com*', '*www.example.com*');
 
@@ -58,32 +52,43 @@ const decliningRun = fc.constantFrom('~~ a ~~', '_ a _', '*foo@bar.com*', '*www.
 // are reachable: backticks in either side, `)` inside a code span, balanced parens.
 const inlineLink = fc
 	.tuple(
-		fc.constantFrom('text', 'a', '**bold**', '', 'x`y'),
+		fc.constantFrom('text', 'a', '**bold**', '', 'x`y', 'foo@bar.com', 'https://x.co', 'www.x.co'),
 		fc.constantFrom('url', 'u`x`', 'u`)`', 'a(b)c', 'u\\)', '<u v>', ''),
 		fc.constantFrom('', ' "t"')
 	)
 	.map(([label, dest, title]) => `[${label}](${dest}${title})`);
 
-const referenceLink = fc.constantFrom('[label][ref]', '[collapsed][]', '[shortcut]');
+const referenceLink = fc.constantFrom(
+	'[label][ref]',
+	'[collapsed][]',
+	'[shortcut]',
+	'[www.x.co][ref]'
+);
 
 const autolink = fc.constantFrom(
 	'<https://example.com>',
 	'https://example.com',
 	'www.example.com',
 	'foo@bar.com',
-	'<foo@bar.com>'
+	'mailto:foo@bar.com',
+	'xmpp:foo@bar.com/home',
+	'<foo@bar.com>',
+	// An open bracket before the address: only the email form links there.
+	'[a www.example.com',
+	'![https://example.com',
+	'[foo@bar.com'
 );
 
 const escape = fc.constantFrom('\\*', '\\\\', '\\`', '\\[', '\\&', '\\!');
 
-// Only the `&` scanner's decline forms: both stay flanking-neutral literal text on
-// aragonite and commonmark alike (see the header).
+// Only the `&` scanner's decline forms, which stay flanking-neutral literal text in aragonite
+// and commonmark alike.
 const ampersandDecline = fc.constantFrom('&notreal;', '&');
 
 const hardBreak = fc.constantFrom('\\\n', '\\\r\n', '  \n', '  \r\n');
 
-// U+10100 (astral Po) spaces runs the way `.` does — flanking must classify
-// it via code points, not UTF-16 units.
+// U+10100 (astral Po) spaces runs the way `.` does: flanking has to classify
+// it by code points, not by UTF-16 units.
 const punctSpacer = fc.constantFrom(' ', '. ', ', ', ' (', ') ', '!', '?', ': ', '', '\u{10100}');
 
 const fragment = fc.oneof(
@@ -101,22 +106,16 @@ const fragment = fc.oneof(
 	{ arbitrary: punctSpacer, weight: 3 }
 );
 
-/**
- * Inline source string, biased toward emphasis flanking, nested delimiters, and
- * code/link/escape adjacency so the offset-partition and textContent-spine properties
- * exercise parser/renderer interaction rather than plain text. Exclusions: see the header.
- */
+/** Biased toward emphasis flanking, nested delimiters and code/link/escape adjacency, so the
+ *  offset and `textContent` properties test how the parser and the renderer interact. */
 export const arbInlineSource = fc
 	.array(fragment, { minLength: 1, maxLength: 12 })
 	.map((parts) => parts.join(''));
 
-// ── Minted images (the alt-only render path) ─────────────────────────────────
+// ── Hand-built images (the alt-only render path) ─────────────────────────────
 
-/**
- * An `image` node paired with the bytes it spans, minted the way an inline-syntax rung
- * mints one: `alt` need not be a slice of the node, or of the document, at all. No source
- * arbitrary reaches this, because a parsed alt is always read off its own label.
- */
+/** An `image` node whose `alt` need not be a slice of its bytes, as a plugin's inline handler may
+ *  build it; no source generator reaches this, since a parsed alt is read off its own label. */
 export const arbAltOnlyImage = fc
 	.record({
 		lead: fc.constantFrom('', 'see ', '## '),

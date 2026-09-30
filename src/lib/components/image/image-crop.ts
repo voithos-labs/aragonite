@@ -1,10 +1,7 @@
 /**
- * Pure math for the image crop: how a `{x, y, z}` window maps to the styles that paint it, and
- * how a pan or a wheel turn moves it. No DOM here beyond a style bag; the properties surface
- * owns the pointer events and `widget-dom.ts` paints a committed crop from the same styles.
- *
- * The model is CSS `background-size: cover` at `z` times the fill scale, with the image point
- * (`x`%, `y`%) pinned to that point of the frame, so `{50, 50, 1}` is a centred cover fit.
+ * Pure math for the image crop: the styles a `{x, y, z}` window paints with, and how a pan or a
+ * wheel turn moves it. The model is a cover fit scaled by `z`, with the image point (`x`%, `y`%)
+ * pinned to the same point of the frame, so `{50, 50, 1}` is a centred cover fit.
  */
 
 import type { ImageCrop } from '../../core/nodes';
@@ -25,11 +22,8 @@ export function clampCrop(crop: ImageCrop): ImageCrop {
 	};
 }
 
-/**
- * The styles an `<img>` inside an `overflow: hidden` frame takes. The image box is `z` times
- * the frame with `object-fit: cover`, offset so the pinned point stays put: at `z` 1 the offset
- * is zero and `object-position` alone pans the cover overflow.
- */
+/** The image box is `z` times the frame with `object-fit: cover`, offset so the pinned point
+ *  stays put; at `z` 1 the offset is zero and `object-position` alone pans. */
 export function cropImageStyle(crop: ImageCrop): {
 	width: string;
 	height: string;

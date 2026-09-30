@@ -1,10 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { runCenter } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
-// An edit key over a whole-block range whose first inline node is an atomic island
-// (requirements/selection/widget-led-range-edit.md). The range is what the key edits; the
-// construct beside its start is not.
+// An edit key over a whole-block range whose first inline node is a widget the caret cannot
+// enter (`requirements/selection/widget-led-range-edit.md`). The range is what the key edits;
+// the construct beside its start is not.
 
 const MATH_LINE = '$x^2$ opens this line\n';
 const GLYPH_LINE = ':smile: opens this line\n';
@@ -19,7 +19,7 @@ async function selectWholeBlock(
 		await editor.selectAll();
 		return;
 	}
-	const at = await runCenter(page, 'opens');
+	const at = await textRunCenter(page, 'opens');
 	await page.mouse.click(at.x, at.y, { clickCount: 3 });
 }
 
@@ -65,7 +65,7 @@ test.describe('editing a whole-block range that opens with a widget', () => {
 test.describe('editing a whole-block range that opens with a glyph', () => {
 	let editor: PluginsPage;
 
-	// The glyph kind deletes atomically at a caret, the policy the range has to outrank.
+	// The glyph kind deletes whole at a caret, the rule the range has to override.
 	for (const mode of ['source', 'live'] as const) {
 		test.describe(`${mode} mode`, () => {
 			test.beforeEach(async ({ page }) => {

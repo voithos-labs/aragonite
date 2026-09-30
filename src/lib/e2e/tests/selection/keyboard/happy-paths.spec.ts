@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-test.describe('selection — keyboard: happy paths', () => {
+test.describe('selection: keyboard: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -67,5 +67,16 @@ test.describe('selection — keyboard: happy paths', () => {
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
 		expect(sel!.focus.path).toEqual([2]);
+	});
+
+	// A dragged range never counted a first Ctrl+A, so one press has to take the whole document.
+	test('Ctrl+A over a dragged range selects the whole document', async () => {
+		await editor.loadContent('one\n\ntwo\n\nthree\n');
+		await editor.dragFromTo([0], 1, [1], 2);
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await expect
+			.poll(() => editor.bridge.getSelection())
+			.toEqual({ anchor: { path: [0], offset: 0 }, focus: { path: [2], offset: 5 } });
 	});
 });

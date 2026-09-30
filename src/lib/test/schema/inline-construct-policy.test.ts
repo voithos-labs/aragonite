@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import {
-	declarePluginInlineKind,
-	__clearDeclaredPluginInlineKindsForTests
-} from '$lib/schema/plugin-kind';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
@@ -16,7 +13,6 @@ import {
 	listInlineMarks,
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
-	__resetInlineConstructPoliciesForTests,
 	__resetLiveSplitRebalancerForTests,
 	type InlineConstructPolicy,
 	type InlineMarkPolicy,
@@ -40,11 +36,9 @@ const atomic: InlineConstructPolicy = {
 const rebalancer = (): LiveSplitRebalancer => () => null;
 
 afterEach(() => {
-	__resetInlineConstructPoliciesForTests();
-	// Separate door: the row reset deliberately leaves the slot alone, so only this suite —
-	// which tests the slot itself — empties it between cases.
+	// A separate reset: clearing the rows deliberately leaves this function registered, so only
+	// this suite, which tests that function, clears it between cases.
 	__resetLiveSplitRebalancerForTests();
-	__clearDeclaredPluginInlineKindsForTests();
 });
 
 describe('built-in rows', () => {
@@ -60,8 +54,8 @@ describe('built-in rows', () => {
 		}
 	);
 
-	// The mark vocabulary the toggle seams used to hold as two hand-written tables: the byte run
-	// each chord writes, and the order a set of them nests in.
+	// What a mark writes: the run of bytes each chord inserts, and the order several of them nest
+	// in.
 	it('the markable kinds are the four format chords, outermost first', () => {
 		expect(
 			listInlineMarks().map(({ kind, mark }) => [kind, mark.markerBytes, mark.command])
@@ -90,8 +84,8 @@ describe('built-in rows', () => {
 		expect(getInlineMarkPolicy('link')).toBeUndefined();
 	});
 
-	// The card is one construct's door. An image's destination has its own editor and an
-	// autolink's is the text on screen, so neither claims the card.
+	// The card belongs to one construct. An image's destination has its own editor and an
+	// autolink's is the text on screen, so neither uses the card.
 	it('the bracketed link alone is card-editable', () => {
 		const kinds = Object.keys(INLINE_KIND_TABLE) as AnyInlineKind[];
 		expect(kinds.filter(isCardEditableInlineKind)).toEqual(['link']);
@@ -103,7 +97,8 @@ describe('built-in rows', () => {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
-			cardEditable: true
+			cardEditable: true,
+			prose: 'content'
 		});
 	});
 
@@ -112,7 +107,8 @@ describe('built-in rows', () => {
 			edgeAffinity: 'never-extend',
 			autoUnwrapOnEmpty: false,
 			splitBehavior: 'plain',
-			revealable: true
+			revealable: true,
+			prose: 'none'
 		});
 	});
 
@@ -125,8 +121,8 @@ describe('built-in rows', () => {
 });
 
 describe('revealable membership', () => {
-	// The pin on construct-reveal's former module-private REVEALABLE_KINDS: the table
-	// replaced it, so any drift here is a behavior change in preview-inline.
+	// The kinds preview-inline may show markers for, so a change here is a change in what
+	// preview-inline does.
 	it('is exactly the six marker-bearing constructs', () => {
 		const kinds = Object.keys(INLINE_KIND_TABLE) as AnyInlineKind[];
 		expect(kinds.filter(isRevealableInlineKind)).toEqual([
@@ -139,9 +135,8 @@ describe('revealable membership', () => {
 		]);
 	});
 
-	// The autolink is rowed but not revealable: its brackets hide with the block rather than by
-	// caret proximity (a revealable row would make them permanently invisible), and the row is
-	// what the typing seat reads to keep a byte out from between them.
+	// The autolink's brackets hide with the block, not by caret position, so its row is not
+	// `revealable`; the typing code still reads the row to keep characters out from between them.
 	it('excludes autolink, which is rowed but not revealable', () => {
 		expect(getInlineConstructPolicy('autolink')?.edgeAffinity).toBe('never-extend');
 		expect(isRevealableInlineKind('autolink')).toBe(false);
@@ -162,9 +157,7 @@ describe('registration lifecycle', () => {
 		expect(() => registerInlineConstructPolicy(kind, atomic)).toThrow(/already registered/i);
 	});
 
-	// Miss-analysis: the aggregate reset's own test enumerates the PUBLISHED register-once doors,
-	// and this row's door is not on the plugin barrel yet, so no case ever pointed the schema reset
-	// at it — leaving a suite that registers a row unable to re-run its setup.
+	// Miss-analysis: the reset's own test lists only plugin-barrel registries, and this is off it.
 	it('drops its plugin rows through the schema registry reset', () => {
 		const kind = declarePluginInlineKind('policy-schema-reset');
 		registerInlineConstructPolicy(kind, atomic);
@@ -184,8 +177,8 @@ describe('registration lifecycle', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
-	// The seam refuses the row rather than registering one G1.31 will only warn about. The dev
-	// valve forgives a DUPLICATE, never an invalid row: a re-eval would re-submit the same claim.
+	// Registration refuses an invalid row rather than leaving it to the mount warning (G1.31). The
+	// dev server forgives a duplicate, never an invalid row: a re-run would submit the same one.
 	const claimsCard = (name: string) => () =>
 		registerInlineConstructPolicy(declarePluginInlineKind(name), {
 			...atomic,
@@ -204,8 +197,8 @@ describe('registration lifecycle', () => {
 });
 
 describe('live split rebalancer slot', () => {
-	// A parse-only bootstrap loads the descriptors and never the component layer, so the slot
-	// stands empty there and `splitNode` falls back to the byte-literal cut.
+	// A parse-only startup loads the descriptors and never the component layer, so nothing is
+	// registered there and `splitNode` falls back to cutting the bytes.
 	it('is empty until the editor layer registers into it', () => {
 		expect(getLiveSplitRebalancer()).toBeUndefined();
 	});
@@ -230,12 +223,11 @@ describe('live split rebalancer slot', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
-	// Miss-analysis: a reset that drops the slot retires live splits silently, since
-	// `registerBuiltInBlocks` short-circuits on its idempotence flag and nothing re-registers.
+	// Miss-analysis: no test reset and then read this function, which nothing re-adds once cleared.
 	it('survives the plugin-row reset, being a built-in registration', () => {
 		const fn = rebalancer();
 		registerLiveSplitRebalancer(fn);
-		__resetInlineConstructPoliciesForTests();
+		__resetSchemaRegistriesForTests();
 		expect(getLiveSplitRebalancer()).toBe(fn);
 	});
 });
@@ -247,8 +239,8 @@ describe('coherence check scope', () => {
 		return kind;
 	};
 
-	// The parser's getOrderedOpeners drains the same queue inside parse-only unit tests,
-	// where the component layer that patches the policy's hooks in is absent.
+	// The parser's getOrderedOpeners empties the same queue inside parse-only unit tests, where
+	// the component layer that registers the policy's functions is absent.
 	it('stays out of the registration flush the parser also drains', () => {
 		incoherent('scope-parser');
 		const { report, byTag } = collector();
@@ -272,16 +264,15 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')).toEqual([]);
 	});
 
-	// The guards that replaced the mark union's exhaustiveness: a rank tie leaves which mark wraps
-	// the other to registration order, and a command tie makes one press two toggles. Both ties are
-	// between rows the seam accepts — a mark on a built-in id it refuses at registration instead.
+	// The mount check stands in for an exhaustive union of marks: a tied rank leaves nesting to
+	// registration order, and a shared command makes one keypress two toggles.
 	const markRow = (mark: InlineMarkPolicy): InlineConstructPolicy => ({
 		...atomic,
 		revealable: true,
 		mark
 	});
-	// Minted, not cast: a mark row's command is an `AnyCommandId`, and the mint is the only door
-	// to the plugin half of it.
+	// Created properly rather than cast: a mark row's command is an `AnyCommandId`, and
+	// `mintCommandId` is the only way to get the plugin half of it.
 	const tiedCommand = mintCommandId('spec.toggleTied');
 	const sharedCommand = mintCommandId('spec.toggleShared');
 
@@ -296,8 +287,8 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty('nestingRank');
 	});
 
-	// One plugin's two kinds pointing at one of its own minted ids: the collision still reachable
-	// now that a built-in id cannot be claimed at all.
+	// One plugin's two kinds pointing at the same id it created: registration refuses a built-in
+	// id outright, so this is the collision left to check.
 	it('fires when two plugin rows claim one command', () => {
 		for (const [name, nestingRank] of [
 			['mark-tie-first', 98],

@@ -6,13 +6,13 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
-	stepTo,
-	trailingEdgeOfWord
+	stepTo
 } from './helpers';
 import { attachIme } from '../../simulation/ime';
+import { textRunEnd } from '../../text-runs';
 
-// Which side of a hidden delimiter run a typed byte lands on. The source is the oracle: the
-// caret reports the same offset either way, so only the bytes distinguish the two seats.
+// Which side of a hidden delimiter run a typed byte lands on. The source is the reference: the
+// caret reports the same offset either way, so only the bytes tell the two positions apart.
 // Requirements: e2e/requirements/presentation/presentation-live-typing-affinity.md.
 
 const DOC = [
@@ -40,7 +40,7 @@ const LEAD = 4;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-test.describe('live mode — a symmetric pair extends by arrival', () => {
+test.describe('live mode: a symmetric pair extends by arrival', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	});
 
 	// `Some **bold** text`: strong is [5,13), `bold` [7,11). Rightward arrival stops on the
-	// content side, so the byte belongs to the construct — and so does the one after it.
+	// content side, so the byte belongs to the construct, and so does the one after it.
 	test('typing at bold’s trailing content edge extends it, and keeps extending', async ({
 		page
 	}) => {
@@ -76,7 +76,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		await ep.bridge.waitForSourceContains('Some **bold**X text');
 	});
 
-	// Leading edge, mirrored: one leftward press out of `bold` reaches the shared pixel but
+	// Leading edge, mirrored: one leftward keypress out of `bold` reaches the shared pixel but
 	// has not left the construct, so the byte stays inside it.
 	test('a caret that stepped left out of bold’s leading edge still types inside', async ({
 		page
@@ -98,8 +98,8 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		await ep.bridge.waitForSourceContains('Some X**bold** text');
 	});
 
-	// A line extreme is construct-relative, not directional: `Home` on a line that OPENS with
-	// a pair means before its opener, the opposite walk-order side from `End` after a closer.
+	// The end of a line is construct-relative, not directional: `Home` on a line that opens with
+	// a pair means before its opener, the opposite side in step order from `End` after a closer.
 	test('Home on a line opening with bold types before the construct', async ({ page }) => {
 		await clickBlockSettled(ep, LEAD);
 		await page.keyboard.press('Home');
@@ -110,10 +110,10 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		await ep.bridge.waitForSourceContains('X**Lead** in');
 	});
 
-	// A click clears the arrival, so the seat's own default IS the click contract: the
-	// construct the caret touches keeps the byte (live-mode.md § 4.2, the gdocs default).
+	// A click clears how the caret arrived, so the click rule applies: the construct the caret
+	// touches keeps the byte (`docs/design/live-mode.md` § 4.2).
 	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
-		const point = await trailingEdgeOfWord(page, 'bold');
+		const point = await textRunEnd(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(11);
@@ -123,9 +123,9 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	});
 });
 
-// Bold's cases all run over a two-asterisk run. These two say the seat reads the kind's row and
-// not that run's shape: `~~` is a different two bytes, and a code fence is ONE.
-test.describe('live mode — the other symmetric pairs seat the same way', () => {
+// Bold's cases all run over a two-asterisk run. These two say the rule reads the kind's own row
+// and not that run's shape: `~~` is a different two bytes, and a code span's backtick is one.
+test.describe('live mode: the other symmetric pairs caret position the same way', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -148,7 +148,7 @@ test.describe('live mode — the other symmetric pairs seat the same way', () =>
 	}
 });
 
-test.describe('live mode — a never-extend construct ignores the arrival', () => {
+test.describe('live mode: a never-extend construct ignores the arrival', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 
 	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Both arrivals
 	// that would extend a symmetric pair put the byte past the closing `)`.
-	test('a link’s trailing content edge never extends, whichever arrival seated the caret', async ({
+	test('a link’s trailing content edge never extends, whichever arrival placed the caret', async ({
 		page
 	}) => {
 		await clickWordSettled(ep, page, 'link');
@@ -182,7 +182,7 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 	});
 });
 
-test.describe('live mode — unstamped marker runs are never typed into', () => {
+test.describe('live mode: unstamped marker runs are never typed into', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -216,10 +216,8 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 	});
 });
 
-// A construct with no CHILDREN — a line-leading escape, an angle autolink — has no content range
-// for the seat to split on, yet the landable floor puts the caret against its run legitimately:
-// a click at a line's left edge clears the leading hidden run, which is INSIDE a construct that
-// is all delimiters, so the seat must still answer there.
+// A construct with no children (a line-leading escape, an angle autolink) has no content range,
+// yet a click at a line's left edge can put the caret against its run, so the rule answers.
 const CHILDLESS_DOC = [
 	'\\*Lead in',
 	'',
@@ -235,7 +233,7 @@ const AUTOLINK_LEAD = 1;
 const AUTOLINK_TAIL = 2;
 const BOLD_LEAD = 3;
 
-test.describe('live mode — a childless construct is all delimiters', () => {
+test.describe('live mode: a childless construct is all delimiters', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -265,9 +263,8 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 		expect(await ep.bridge.getSource()).toContain('Z<https://example.com> tail');
 	});
 
-	// The softer sibling: the caret seats at the landable end, which is INSIDE the closing
-	// bracket, and a byte there rewrites where the link goes. A link never extends at either
-	// edge (live-mode.md § 4.2), and the angle form is a link.
+	// The caret lands at the last reachable offset, inside the closing bracket, where a byte rewrites
+	// the destination: a link never extends at either edge, and the angle form is a link.
 	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
 		await clickBlockSettled(ep, AUTOLINK_TAIL);
 		await page.keyboard.press('End');
@@ -278,8 +275,8 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 		expect(await ep.bridge.getSource()).toContain('<https://example.com>Z');
 	});
 
-	// The discriminating twin: the bold control was correct throughout, so a fix that moved the
-	// symmetric pair too would show up here.
+	// The discriminating counterpart: bold is already correct here, so a change that moved the
+	// symmetric pair too would show up in this row.
 	test('the bold control is unchanged by the same gesture', async ({ page }) => {
 		await clickBlockSettled(ep, BOLD_LEAD);
 		await page.keyboard.press('Home');
@@ -291,9 +288,9 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 	});
 });
 
-// The IME half of the same contract: `insertCompositionText` is not cancelable, so the composed
-// run is relocated on the commit compositionend drives — one commit, one undo entry.
-test.describe('live mode — an IME commit takes the same seat as a keystroke', () => {
+// The IME half of the same rule: `insertCompositionText` is not cancelable, so the composed run
+// is moved on the commit that compositionend drives: one commit, one undo entry.
+test.describe('live mode: an IME commit takes the same caret position as a keystroke', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

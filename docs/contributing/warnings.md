@@ -44,14 +44,14 @@ fyi, in a dev build the warning's message embeds the comparison operator that tr
 
 Four things watch the console for these warnings. The unit suite and the e2e specs you have already met; the other two are the **simulation sessions** (long scripted editing runs that type whole documents through real keystrokes, see `testing.md`) and the dev server the e2e suite runs the editor on.
 
-One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`: one set of fires, one set of claim doors.
+One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`: one set of fires, one set of claim routes.
 
-| Gate                    | Watches                                                                                                                             | What goes red                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Unit suite (Vitest)     | every `devWarn` fire and every `[svelte]` code, through the sink                                                                    | the test that provoked it, unless that test claims it (next section)                                                      |
-| E2E specs (Playwright)  | console lines carrying either prefix                                                                                                | the spec whose page emitted one, at teardown                                                                              |
-| Simulation sessions     | either prefix                                                                                                                       | the checkpoint the session was at (sessions assert at checkpoints mid-run), so a fire surfaces in context, not at the end |
-| Playwright's dev server | that server's own console, for a fire during SSR (the page rendering on the server, so the warning lands there, not in the browser) | the whole run, at teardown; only when Playwright started the server itself rather than reusing one already running        |
+| Gate                    | Watches                                                                                                                                                                                     | What goes red                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Unit suite (Vitest)     | every `devWarn` fire and every `[svelte]` code, through the sink                                                                                                                            | the test that provoked it, unless that test claims it (next section)                                                      |
+| E2E specs (Playwright)  | console lines carrying either prefix, uncaught page errors and rejections (tag `pageerror`), and errors only `window.onerror` sees, such as a ResizeObserver loop (tag `onerror:<message>`) | the spec whose page emitted one, at teardown                                                                              |
+| Simulation sessions     | either prefix, plus every console error and page error, the `window.onerror` relay included                                                                                                 | the checkpoint the session was at (sessions assert at checkpoints mid-run), so a fire surfaces in context, not at the end |
+| Playwright's dev server | that server's own console, for a fire during SSR (the page rendering on the server, so the warning lands there, not in the browser)                                                         | the whole run, at teardown; only when Playwright started the server itself rather than reusing one already running        |
 
 Though, two consequences of the sink:
 
@@ -60,7 +60,7 @@ Though, two consequences of the sink:
 
 Either one blinds the gate for that whole file, so a source scan (G4.41 in `invariants.md`) fails on both.
 
-On the e2e side the expectation runs in both directions: a spec that trips a fire on purpose declares its tags, `test.use({ expectInvariants: ['late-opener-registration'] })` for a guard (the bare tag; `assertInvariant` prepends the `invariant:` half), `test.use({ expectWarns: ['tree-ops'] })` for a diagnostic, `test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code (the bare code; the watch prepends the `svelte:` half). A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
+On the e2e side the expectation runs in both directions: a spec that trips a fire on purpose declares its tags, `test.use({ expectInvariants: ['late-opener-registration'] })` for a guard (the bare tag; `assertInvariant` prepends the `invariant:` half), `test.use({ expectWarns: ['tree-ops'] })` for a diagnostic, `test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code (the bare code; the watch prepends the `svelte:` half), `test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message (matched whole). A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
 
 And if a fire ever shows up that no gate goes red for, that's a bug in the gate; file it.
 
@@ -81,7 +81,7 @@ takeDevWarns();
 // [{ tag: 'tree-ops', message: 'probe message', details: { at: 3 }, site: 'src/lib/test/probe.test.ts' }]
 ```
 
-`site` is the repo-relative file the fire came from, and it's also what an allowlist row keys on, together with the tag. A Svelte warning takes the same four doors under the tag `svelte:<code>`, so `allowDevWarns(['svelte:derived_inert'])` reads like any other waiver.
+`site` is the repo-relative file the fire came from, and it's also what an allowlist row keys on, together with the tag. A Svelte warning takes the same four routes under the tag `svelte:<code>`, so `allowDevWarns(['svelte:derived_inert'])` reads like any other waiver.
 
 Prefer 1 through 3. An allowlist row hides every fire of that tag at that site, real bugs included, which is why the list only shrinks (it is empty right now, and adding the first row is a conversation, not a shrug), and why an `invariant:` fire may never take one.
 

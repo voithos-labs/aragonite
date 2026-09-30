@@ -1,16 +1,10 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// A leaked registration would let the dormant-until-registered gate below pass for
-// the wrong reason, so every case starts from a cleared platform.
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
-
-// Recognition is gated on the opener registering — with no plugin loaded `[[toc]]`
-// is an ordinary paragraph, byte-identical to bare GFM.
+// Recognition starts only once the opener registers: with no plugin loaded `[[toc]]` is an
+// ordinary paragraph, byte-identical to plain GFM.
 describe('toc is dormant until registered', () => {
 	it('leaves a [[toc]] line as a paragraph with nothing registered', () => {
 		const src = '# H\n\n[[toc]]\n';
@@ -19,9 +13,8 @@ describe('toc is dormant until registered', () => {
 	});
 });
 
-// Grammar: the opener claims ONLY the exact line `[[toc]]`. Indentation or trailing
-// content declines to a paragraph — the exact-match strictness that keeps the
-// process-wide opener inert for every sibling plugin document.
+// The opener takes only the exact line `[[toc]]`; indentation or trailing content stays a
+// paragraph, which keeps the opener out of every other plugin's documents.
 describe('toc recognition', () => {
 	beforeEach(registerTocBlock);
 
@@ -59,9 +52,8 @@ describe('toc recognition', () => {
 	});
 });
 
-// Round-trip is the load-bearing guarantee: serialize re-emits `leadingTrivia + raw`,
-// so a `raw` taken verbatim from the consumed line round-trips byte-for-byte. The
-// decline rows prove the non-claimed shapes preserve their bytes too.
+// Serialize re-emits `leadingTrivia + raw`, so a `raw` taken verbatim from the line round-trips;
+// the declined rows prove the shapes the opener does not take keep their bytes too.
 describe('toc round-trip', () => {
 	beforeEach(registerTocBlock);
 

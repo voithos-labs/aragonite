@@ -1,30 +1,28 @@
 // @vitest-environment jsdom
-//
-// A debounce timer surviving a `source` swap or an unmount fires `edit { op: 'input' }`
-// carrying the OLD document's path against the document that replaced it. Asked of the
-// mounted component on purpose: the batch was always interruptible, but no lifecycle
-// seam called it.
+// A debounce timer that survives a `source` swap or an unmount would fire `edit { op: 'input' }`
+// with the outgoing document's path against the incoming one. The mounted component drives
+// the case, since only its lifecycle hooks interrupt the batch.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { installLayoutStubs } from '../../blocks/editor-mount';
 import {
-	mountEditorOverProps,
-	typeInFirstBlock,
-	unmountEditorOverProps
-} from '../../harness/editor-over-props.svelte';
+	installLayoutStubs,
+	mountEditor,
+	destroyMountedEditors,
+	typeInFirstBlock
+} from '$lib/test/harness/mount-editor.svelte';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import type { EditEvent } from '$lib/editor-events';
 
 beforeAll(installLayoutStubs);
 afterEach(() => {
-	unmountEditorOverProps();
+	void destroyMountedEditors();
 	vi.useRealTimers();
 });
 
-function mountEditor(source: string) {
-	const mounted = mountEditorOverProps({ source });
+function mountTracking(source: string) {
+	const mounted = mountEditor({ source });
 	const inputs: EditEvent[] = [];
-	mounted.editor.getEvents().on('edit', (e) => {
+	mounted.instance.getEvents().on('edit', (e) => {
 		if (e.op === 'input') inputs.push(e);
 	});
 	return { ...mounted, inputs };
@@ -32,7 +30,7 @@ function mountEditor(source: string) {
 
 describe('the typing debounce is interrupted before the document it addresses goes away', () => {
 	it('fires no input edit against the document that replaced the one typed in', async () => {
-		const { props, target, inputs } = mountEditor('alpha\n\nbeta\n');
+		const { props, target, inputs } = mountTracking('alpha\n\nbeta\n');
 		vi.useFakeTimers();
 
 		typeInFirstBlock(target, 'alpha!');
@@ -53,9 +51,9 @@ describe('the typing debounce is interrupted before the document it addresses go
 	});
 
 	// The flush emits `edit`, which the editor's own subscriber defers into a decoration
-	// run — at teardown, against a getter closed over dead state.
+	// run: at teardown, against a getter closed over dead state.
 	it('schedules no decoration work for the document it just tore down', async () => {
-		const { editor, target, inputs } = mountEditor('alpha\n\nbeta\n');
+		const { instance: editor, target, inputs } = mountTracking('alpha\n\nbeta\n');
 		const provided: number[] = [];
 		editor.getDecorations().addSource({
 			name: 'probe',
@@ -71,7 +69,7 @@ describe('the typing debounce is interrupted before the document it addresses go
 		const providedBeforeTeardown = provided.length;
 		expect(providedBeforeTeardown, 'the probe source never ran at all').toBeGreaterThan(0);
 
-		unmountEditorOverProps();
+		void destroyMountedEditors();
 		flushSync();
 		await tick();
 		await tick();
@@ -84,13 +82,13 @@ describe('the typing debounce is interrupted before the document it addresses go
 	});
 
 	it('fires no input edit after the editor unmounts mid-batch', async () => {
-		const { target, inputs } = mountEditor('alpha\n\nbeta\n');
+		const { target, inputs } = mountTracking('alpha\n\nbeta\n');
 		vi.useFakeTimers();
 
 		typeInFirstBlock(target, 'alpha!');
 		await tick();
 
-		unmountEditorOverProps();
+		void destroyMountedEditors();
 		flushSync();
 		const flushedDuringTeardown = inputs.length;
 

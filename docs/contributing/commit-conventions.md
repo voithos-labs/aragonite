@@ -42,7 +42,7 @@ script runs at two checkpoints, so nothing above depends on you remembering it:
 | `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, before it exists      |
 | CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` |
 
-Both doors pass over the authors named in the script's `EXEMPT_AUTHORS`, which today is a
+Both checks pass over the authors named in the script's `EXEMPT_AUTHORS`, which today is a
 co-founder who writes his own subjects: the convention is ours, and his history costs more than
 the uniformity would buy.
 

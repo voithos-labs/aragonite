@@ -4,11 +4,10 @@ import { assertSingleNodeSink, mergeWithNext } from '$lib/tree-operations';
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// G1.35 asks its question at the WRITE, over the nodes a one-slot sink is putting in its slot.
-// Miss-analysis: the predicate used to take `installed` as `count <= 1` from both call sites, so
-// it was identically null and the catalog row claimed a fire path no input could reach — the
-// refusal above it (the higher rung) was doing all the work, and nothing answered for sink N+1.
+// The single-node check runs at the write, over what a one-block write target installs (G1.35).
+// Miss-analysis: both call sites passed `count <= 1` as `installed`, so the check never fired.
 
 const node = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
@@ -25,9 +24,9 @@ describe('G1.35 single-node sink', () => {
 		expect(violation?.detail).toEqual({ sink: 'probe', installed: 3 });
 	});
 
-	// The fire path the row claims: a sink that skips the refusal its siblings make and splices a
-	// plural replacement into a slot holding one.
-	it('fires through the door for sink N+1, and stays silent on one node', () => {
+	// The failure path the row claims: a write target that skips the refusal its siblings make and
+	// splices several blocks into a position holding one.
+	it('fires through the entry point for sink N+1, and stays silent on one node', () => {
 		assertSingleNodeSink('probe', [node('a\n')]);
 		expect(takeDevWarns()).toEqual([]);
 
@@ -35,15 +34,17 @@ describe('G1.35 single-node sink', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:single-node-sink']);
 	});
 
-	// The refusal is the higher rung and still holds: the door is crossed on every real merge and
-	// answers one node, plural or not (GH #166's join reads as two blocks and is declined).
-	it('stays silent through the merge doors, refused join included', () => {
+	// The refusal comes first and still holds: the call is made on every real merge and answers one
+	// node, however many arrived (a join whose bytes read as two blocks is declined).
+	it('stays silent through the merge entry points, refused join included', () => {
 		const plural = parse('# h\ntext\nmore\n');
-		expect(mergeWithNext(plural, 0, undefined, undefined).change).toEqual({ op: 'noop' });
+		expect(mergeWithNext(plural, 0, fixtureReading(), undefined).change).toEqual({
+			op: 'noop'
+		});
 		expect(takeDevWarns()).toEqual([]);
 
 		const ordinary = parse('alpha\n\nbeta\n');
-		expect(mergeWithNext(ordinary, 0, undefined, undefined).change.op).toBe('replace');
+		expect(mergeWithNext(ordinary, 0, fixtureReading(), undefined).change.op).toBe('replace');
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

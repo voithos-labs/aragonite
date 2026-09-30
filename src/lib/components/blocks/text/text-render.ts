@@ -1,29 +1,39 @@
 /**
- * DOM-build steps for TextEditableBlock's render $effect. The component owns the
- * effect and the `pendingCursorOffset` restore (those writes touch $state); this
- * factory owns the imperative inline-DOM construction and carries a live caret across
- * a decoration-driven rebuild the edit path's pending restore doesn't cover.
+ * DOM-building steps for TextEditableBlock's render effect. The component owns the effect
+ * and the `pendingCursorOffset` restore, since those writes touch `$state`; this factory
+ * builds the inline DOM and keeps a live caret across a rebuild a decoration caused, which
+ * the edit path's own restore does not cover.
  */
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
+import { hidesMarkers } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
 	computeInlineContent,
 	contentLengthOf,
 	getContentRange,
-	isProseKind
+	isProseKind,
+	structuralSuffix,
+	sameLineSuffix
 } from '../../../core/inline';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
-import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
-import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
-import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+import type { Reading } from '../../../schema/reading';
 import {
-	captureFocusedCaretWalkOffset,
-	restoreCaretAtWalkOffset
-} from '../../../cursor/focused-caret';
+	PENDING_BREAK_ANCHOR,
+	renderInlineNodes,
+	type ImageLoadPolicy
+} from '../../../core/inline-render';
+import type { RawOffset } from '../../../cursor/coordinate-spaces';
+import {
+	BLOCK_PREFIX_ATTR,
+	BLOCK_SUFFIX_ATTR,
+	CONTENT_EMPTY_ATTR,
+	createCaretAnchor,
+	holdsOnlyMarkerChrome,
+	placeCaretAtRaw
+} from '../../../cursor/widget-offset';
+import { captureFocusedCaret } from '../../../cursor/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -51,42 +61,33 @@ export interface TextRenderDeps {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	get imageLoadPolicy(): ImageLoadPolicy;
-	/** Effective mode. Read inside the render pass on purpose: the read is the
-	 *  reactive dependency that re-renders every mounted block on a mode flip. */
-	get presentationMode(): PresentationMode;
-	/** The editor's theme name, forwarded to widgets. NOT a render-key term: this DOM is
-	 *  themed by CSS, so only a widget whose engine paints its own colors reads it. */
-	getTheme?: () => string;
+	/** How the editor reads its bytes. Its mode is read inside the render pass on purpose: that read
+	 *  is the reactive dependency that re-renders every mounted block when the mode changes. */
+	get reading(): Reading;
+	/** The editor's theme name, passed on to widgets. Not part of the render key: this DOM
+	 *  is themed by CSS, so only a widget that draws its own colors reads it. */
+	getTheme: () => string;
 	/** Live root document for widgets that derive from it. A getter, so a pooled widget
 	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
-	/** The editor's content version, so a widget can memoize a document-wide derivation
-	 *  on it. Absent in a bare harness. */
-	getContentVersion?: () => number;
-	/** The editor's navigation door, forwarded to widgets whose gesture jumps elsewhere. */
-	navigateTo?: (path: number[]) => Promise<boolean>;
-	get linkResolver(): LinkReferenceResolver | undefined;
-	/** A compact stamp changing exactly when the document's LRD signature does
-	 *  (`link-reference-resolver.ts` mints it), so a reference-bearing block folds this
-	 *  into its render key instead of a signature string that reaches ~MB scale. */
-	get linkStamp(): string;
-	/** Position-sorted islands. A getter read inside the render pass on purpose: that
-	 *  read is the reactive dependency that re-renders the block on an island change. */
+	/** The editor's content version, so a widget can memoize a document-wide derivation on it. */
+	getContentVersion: () => number;
+	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
+	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Decoration widgets, sorted by position. A getter read inside the render pass on
+	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	brokenUrlCache: Set<string>;
-	/** A widget's synchronous mount throw goes to the editor's `error` channel. Absent →
-	 *  unsurfaced; the widget still falls back to its raw source. */
-	reportRenderError?: (error: unknown) => void;
+	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
+	 *  back to its raw source. */
+	reportRenderError: (error: unknown) => void;
 }
 
 export interface TextRender {
-	/**
-	 * Rebuild the block's children from current node state. Skips work on an unchanged
-	 * render key unless `forceRebuild` — pass it when a pending cursor restore needs the
-	 * DOM re-anchored. `carryCaret` re-anchors the caret; the edit path passes false.
-	 */
+	/** Rebuild the block's children, skipped on an unchanged render key unless `forceRebuild` (a
+	 *  pending cursor restore). `carryCaret` re-anchors the caret; the edit path passes false. */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
-	/** Destroy every pooled widget instance — called when the block unmounts. */
+	/** Destroy every pooled widget instance, called when the block unmounts. */
 	dispose(): void;
 }
 
@@ -101,8 +102,8 @@ const RENDER_KEY_SEGMENTS = [
 	'islands'
 ] as const;
 
-/** Which renderKey segment(s) differ — the interaction trace's rebuild cause. Pure over
- *  the key format, so the recorder never learns the NUL layout. */
+/** Which parts of the render key differ, which the interaction trace reports as the cause of
+ *  a rebuild. Pure over the key format, so the recorder never learns the NUL layout. */
 export function renderKeySegmentDiff(prev: string, next: string): string {
 	const a = prev.split('\0');
 	const b = next.split('\0');
@@ -117,11 +118,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
-		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
-		navigateTo: deps.navigateTo
+		navigateTo: deps.navigateTo,
+		reading: deps.reading
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -134,12 +135,18 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
 	}
 
-	// The dimmed marker portion of the raw — whatever the kind's descriptor excludes
-	// from the content range. Kinds that declare none yield ''.
+	// The dimmed marker part of the raw ahead of the content range. Kinds that declare none give ''.
 	function getBlockMarkerPrefix(): string {
 		const node = deps.node;
 		const range = getContentRange(node);
 		return node.raw.slice(0, range.start);
+	}
+
+	function markerSpan(text: string): HTMLSpanElement {
+		const span = document.createElement('span');
+		span.className = 'md-marker';
+		span.textContent = text;
+		return span;
 	}
 
 	// The render path computes inline content on the pure path, never the caching
@@ -152,9 +159,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
 		if (blockOwnPrefix) {
-			const span = document.createElement('span');
-			span.className = 'md-marker';
-			span.textContent = blockOwnPrefix;
+			const span = markerSpan(blockOwnPrefix);
+			span.setAttribute(BLOCK_PREFIX_ATTR, '');
 			frag.appendChild(span);
 		}
 		const descriptor = getBlockKindDescriptor(node.kind);
@@ -167,101 +173,123 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
-				// Attribute-only stamps for the construct-reveal trigger, mode-gated so the
-				// other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.presentationMode === 'preview-inline',
-				pendingBreakSeat: hidesMarkers(deps.presentationMode)
+				grammar: deps.reading.grammar,
+				// Data attributes only, for the code that shows construct markers; set in this
+				// mode alone so the other modes' DOM stays byte-identical.
+				tagConstructMarkers: deps.reading.mode() === 'preview-inline',
+				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
 			})
 		);
+		// The bytes past the content (a setext underline, a heading's closing run) are block markers
+		// too, so they are drawn and hidden along with the prefix.
+		const suffix = structuralSuffix(node);
+		if (suffix) {
+			const span = markerSpan(suffix);
+			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
+			// A closing run on the text's own line stays there when a pending break draws a new one.
+			const onTextLine = sameLineSuffix(node) === suffix;
+			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_ANCHOR) : null);
+		}
 		return frag;
 	}
 
 	// No inline pass runs here, so the remainder is a verbatim text node.
 	function buildMarkerPrefixDOM(marker: string, rest: string): DocumentFragment {
 		const frag = document.createDocumentFragment();
-		const span = document.createElement('span');
-		span.className = 'md-marker';
-		span.textContent = marker;
-		frag.appendChild(span);
+		frag.appendChild(markerSpan(marker));
 		frag.appendChild(document.createTextNode(rest));
 		return frag;
 	}
 
-	// A `<br>` inside an island belongs to the widget, so it must not satisfy the empty
-	// block's caret anchor.
+	// A `<br>` inside a decoration widget belongs to that widget, so it cannot serve as the
+	// empty block's caret anchor.
 	function ensureBr(el: HTMLElement): void {
-		if (deps.getDisplayText() !== '') return;
+		const display = deps.getDisplayText();
+		if (display.endsWith('\n')) return anchorEmptyLastLine(el);
+		if (display !== '') return;
 		const hasAnchorBr = [...el.querySelectorAll('br')].some(
 			(br) => !br.closest('[data-decoration-island]')
 		);
 		if (!hasAnchorBr) el.appendChild(document.createElement('br'));
 	}
 
-	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
-		const walk = captureFocusedCaretWalkOffset(el);
-		if (walk !== null) traceCursorCapture(walk);
-		return walk;
+	// Chromium paints no caret on the empty line after a trailing line break, so the next key
+	// would land before the break; the anchor adds no text, so offsets are untouched.
+	function anchorEmptyLastLine(el: HTMLElement): void {
+		const last = el.lastChild;
+		if (last instanceof HTMLElement && last.tagName === 'BR' && 'caretAnchor' in last.dataset) {
+			return;
+		}
+		el.appendChild(createCaretAnchor());
 	}
 
-	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
-		restoreCaretAtWalkOffset(el, walkOffset);
-		traceCursorRestore(walkOffset);
+	function captureCaretIfFocused(el: HTMLElement): RawOffset | null {
+		const raw = captureFocusedCaret(el);
+		if (raw !== null) traceCursorCapture(raw);
+		return raw;
+	}
+
+	function restoreCaret(el: HTMLElement, raw: RawOffset): void {
+		placeCaretAtRaw(el, raw, { clamp: 'exact' });
+		traceCursorRestore(raw);
 	}
 
 	function render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
-		// Gating both the signature dependency and the resolver read on the bracket keeps
-		// one LRD edit from re-rendering the whole document.
+		// Checking for a bracket before reading the signature or the resolver keeps one edit
+		// to a link-reference definition from re-rendering the whole document.
 		const hasRef = node.raw.includes('[');
-		const refKeyPart = hasRef ? deps.linkStamp : '';
-		// The built widget bakes in imageLoadPolicy, so the key tracks it — but only for
-		// blocks with an image, which keeps image-free blocks off the policy dependency.
+		const refKeyPart = hasRef ? String(deps.reading.resolverEpoch) : '';
+		// The built widget bakes in `imageLoadPolicy`, so the key tracks it, but only for
+		// blocks with an image, which keeps image-free blocks off that dependency.
 		const hasImg = node.raw.includes('![');
 		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
-		// Unconditional, unlike the ref/img gating: a mode flip re-renders every mounted
-		// block. '' in source keeps the default key byte-identical but for one NUL.
-		const mode = deps.presentationMode;
+		// Always included, unlike the reference and image parts: a mode change re-renders
+		// every mounted block. '' in source mode keeps the default key byte-identical.
+		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		// The kind is a render input, not just a branch selector: two prose kinds can share
-		// a raw when the registry gains an opener for bytes already in the document, and
-		// the memo would then early-return onto the previous kind's DOM.
+		// The kind is part of the key: two prose kinds can share a raw once the registry gains an
+		// opener for bytes already in the document.
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
-		let carriedCaret: DomTextOffset | null = null;
+		let carriedCaret: RawOffset | null = null;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
-			// Detail assembly (the segment diff) allocates, so it stays behind the gate.
+			// Working out which parts differ allocates, so it stays behind the trace check.
 			if (isInteractionTraceEnabled())
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
-			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
-			// Edit-path rebuilds skip the capture/restore pair: the SFC's pending restore
-			// overwrites the selection right after, so the walk would be dead work.
-			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;
+			const content = computeInlineContent(
+				node,
+				hasRef ? deps.reading.resolver : undefined,
+				deps.reading.grammar
+			);
+			// Rebuilds from the edit path skip the capture-and-restore pair: the component's
+			// pending restore overwrites the selection right after, so it would be wasted.
+			const carried = carryCaret ? captureCaretIfFocused(el) : null;
 			// Bracketing the rebuild pools portal widgets: the sweep destroys only those the
-			// previous DOM held and this build didn't re-acquire. Island widgets are unpooled.
+			// previous DOM held and this build did not reuse. Decoration widgets are not pooled.
 			widgetPool.beginPass();
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 				contentLength: contentLengthOf(node),
-				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
-				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
+				onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 			});
 			if (islands.length > 0) {
 				recordIslandRebuild();
 				traceIslandsApplied(islands.length);
 			}
 			widgetPool.sweep();
-			carriedCaret = caretWalkOffset;
+			carriedCaret = carried;
 		} else {
-			// An empty pass sweeps any widget or island stranded by an in-place
-			// prose→non-prose kind change, which reuses this same component instance.
+			// An empty pass clears any widget stranded by a prose-to-non-prose kind change in
+			// place, which reuses this same component instance.
 			widgetPool.beginPass();
 			destroyIslands();
 			widgetPool.sweep();
@@ -280,12 +308,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			}
 		}
 
-		// Unconditional: after this pass the DOM reflects renderKey even where an arm
-		// skipped its write, and a key frozen by a skipped write would let a later render
-		// early-return onto stale DOM.
+		// Always set, even where a branch skipped its write: a stale key would let a later render
+		// return early onto outdated DOM.
 		lastRenderedKey = renderKey;
 		ensureBr(el);
-		// The stamp decides which spans the walk can land in, so it precedes the caret restore.
+		// This attribute decides which spans the caret can land in, so it is set first.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		if (carriedCaret !== null) restoreCaret(el, carriedCaret);
 	}

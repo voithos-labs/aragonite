@@ -38,7 +38,7 @@ test.describe('selection toolbar', () => {
 		const bar = await toolbar.boundingBox();
 		const rect = await firstSelectionRect(page);
 		expect(rect).not.toBeNull();
-		// Below the selected line, and starting past where the selection ends — never over it.
+		// Below the selected line and starting past where the selection ends, never over it.
 		expect(bar!.y).toBeGreaterThanOrEqual(rect!.bottom - 1);
 		expect(bar!.x).toBeGreaterThanOrEqual(rect!.left);
 	});
@@ -53,8 +53,8 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator(TOOLBAR)).toBeHidden();
 	});
 
-	// The recipe's focus rule: without the mousedown cancel the press moves focus to the button,
-	// the door resolves no surface, and the click silently does nothing.
+	// The focus rule from the toolbar recipe: without cancelling mousedown the click moves focus
+	// to the button, the command finds no editable element, and nothing happens.
 	test('the bold button wraps the selection without stealing the caret', async ({ page }) => {
 		await editor.loadContent('select some of this text\n\nsecond block\n');
 		await editor.focusBlock(0, 7);
@@ -82,7 +82,7 @@ test.describe('selection toolbar', () => {
 		// rect[0] starts mid-line; the multi-line union would start at the block's
 		// left edge, far left of the selection start.
 		expect(rect!.left).toBeGreaterThan(50);
-		// Hung off the LAST line of the selection, so it sits below the first rect.
+		// The bar hangs off the last line of the selection, so it sits below the first rect.
 		expect(bar!.y).toBeGreaterThanOrEqual(rect!.top);
 	});
 
@@ -139,7 +139,7 @@ test.describe('selection toolbar', () => {
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
 		await expect(link).toHaveAttribute('aria-pressed', 'false');
 
-		// What the paint promises: the same range presses through to that link's own card.
+		// What the pressed state promises: clicking over the same range opens that link's own card.
 		await editor.focusBlockAtPath([0], 8);
 		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
 		await expect(link).toHaveAttribute('aria-pressed', 'true');
@@ -150,8 +150,8 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator('[data-link-card] input')).toBeFocused();
 	});
 
-	// The affordance the split owes a reader: the toggles stay live because they have a
-	// cross-block arm, and only the button the door would still refuse is visibly dead.
+	// What the split has to show the user: the toggles stay live because they handle a
+	// cross-block range, and only the button that would still be refused looks dead.
 	test('a cross-block selection greys only the link editor out', async ({ page }) => {
 		await editor.loadContent('first block here\n\nsecond block below\n');
 		await editor.focusBlockStart(0);
@@ -163,8 +163,8 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
 	});
 
-	// The bar paints pressed for a run the press does not address: no content inside a bare
-	// delimiter, and an outer run that survives the inner strip.
+	// The bar paints pressed for a run the click does not act on: nothing inside a bare
+	// delimiter, and an outer run that survives stripping the inner one.
 	test('the strike button declines over a bare delimiter and splits the outer run over the inner', async ({
 		page
 	}) => {
@@ -210,8 +210,8 @@ test.describe('selection toolbar', () => {
 		await expect(bold).toHaveAttribute('aria-pressed', 'true');
 	});
 
-	// A heading level belongs to one block, so the door declines it over a range and the row goes
-	// with it; the rows that DO act on the whole range stay.
+	// A heading level belongs to one block, so the command declines over a range and the row goes
+	// with it; the rows that do act on the whole range stay.
 	test('a cross-block selection drops the Set heading row, a single-block one keeps it', async ({
 		page
 	}) => {
@@ -232,8 +232,8 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator('[data-testid="toolbar-set-heading"]')).toBeVisible();
 	});
 
-	// The row the issue asked to drop with the heading picker: it stays because it HAS a
-	// cross-block arm, and each block's covered run becomes its own code span.
+	// This row stays where the heading picker goes, because it does handle a cross-block range:
+	// each block's covered run becomes its own code span.
 	test('the inline code row over a cross-block selection wraps each block on its own', async ({
 		page
 	}) => {
@@ -267,7 +267,7 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator(TOOLBAR)).toBeVisible();
 	});
 
-	// `runCommand` with an argument: the picker fires the `heading.cycle` arm with its level.
+	// `runCommand` with an argument: the picker runs `heading.cycle` with the level it was given.
 	test('Set heading runs heading.cycle with the picked level, and Normal text with zero', async ({
 		page
 	}) => {

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
 // The defensive branch in handleCrossBlockPaste that consumes the event and inserts nothing.
 // Reachable through the delete's own re-entrancy serialization: a paste arriving while a delete is
-// parked on its reveal waits it out, and the delete collapses the selection on its way through.
+// waiting on its mount waits it out, and the delete collapses the selection on its way through.
 import { describe, it, expect } from 'vitest';
 import {
 	performCrossBlockDelete,
@@ -12,11 +11,12 @@ import { serialize } from '$lib/core/serializer';
 import type { EditorError } from '$lib/editor-events';
 import type { BlockComponent } from '$lib/block-component';
 import { makeEnv, makeHandlers, makePasteEvent } from './typed-char-env';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 const SOURCE = 'para A\n\npara B\n\npara C\n';
 
-/** `revealPath` is gated so a delete can be held mid-flight, the window a second
- *  cross-block gesture arrives in. */
+/** `revealPath` is held so a delete can be paused mid-way, the window a second cross-block
+ *  gesture arrives in. */
 function makeGatedEnv() {
 	const env = makeEnv(SOURCE);
 	let release!: () => void;
@@ -29,7 +29,7 @@ function makeGatedEnv() {
 	env.events.on('error', (e) => errors.push(e));
 
 	const handlers = makeHandlers(env, [0], {
-		revealPath: (path) => (gateArmed ? gate : env.deps.revealPath(path))
+		revealPath: (path) => (gateArmed ? gate : env.deps.caretLanding.mount(path))
 	});
 
 	const mutCtx: CrossBlockMutationContext = {
@@ -38,10 +38,7 @@ function makeGatedEnv() {
 		getBlockElByPath: () => null,
 		revealPath: () => gate,
 		controller: env.controller,
-		pushUndoSnapshot: () => env.controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	};
 
 	return {
@@ -61,9 +58,9 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		const { env, handlers, errors, mutCtx, releaseReveal } = makeGatedEnv();
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
-		// The delete parks on its reveal; the paste arrives while the selection is
-		// still cross-block, so it passes every guard on the way in.
-		const deleting = performCrossBlockDelete(mutCtx);
+		// The delete waits on its mount; the paste arrives while the selection is still
+		// cross-block, so it passes every check on the way in.
+		const deleting = performCrossBlockDelete(mutCtx, 'keyless');
 		const pasting = handlers.handlePaste(makePasteEvent('DROPPED'));
 		releaseReveal();
 
@@ -74,22 +71,37 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		expect(errors.map((e) => e.origin)).toEqual(['clipboard']);
 		expect(String((errors[0].error as Error).message)).toContain('no caret');
 		// The range start, read before the delete collapsed the selection: a report naming nothing
-		// would leave a host unable to say WHERE the paste it must compensate for was aimed.
+		// would leave a host unable to say where the paste it must compensate for was aimed.
 		expect(errors[0].context?.path).toEqual([0]);
+	});
+
+	// Miss-analysis: GH #30; the case above read the error and the bytes, never the undo stack.
+	it('leaves no undo entry of its own: one Ctrl+Z takes back the delete it waited out', async () => {
+		const { env, handlers, mutCtx, releaseReveal } = makeGatedEnv();
+		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
+
+		const deleting = performCrossBlockDelete(mutCtx, 'keyless');
+		const pasting = handlers.handlePaste(makePasteEvent('DROPPED'));
+		releaseReveal();
+		await pasting;
+		await deleting;
+
+		const undo = env.deps.undoManager.getStacks().undo;
+		expect(undo).toHaveLength(1);
+		expect(serialize(undo[0].snapshot)).toBe(SOURCE);
 	});
 });
 
-// The empty-payload return commits nothing, so no commit ceremony runs to clear the ephemeral
-// caret states behind it — the arm's own resets are the only ones on that path.
+// The empty-payload return commits nothing, so no commit runs to clear the transient caret state
+// behind it; the branch's own resets are the only ones on that path.
 describe('a cross-block paste with an empty payload', () => {
-	it('consumes the event and still clears the sticky column and the edge affinity', async () => {
+	it('consumes the event and still forgets how the caret arrived', async () => {
 		const { env, handlers } = makeGatedEnv();
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
 		expect(await handlers.handlePaste(makePasteEvent(''))).toBe(true);
 
 		expect(serialize(env.doc)).toBe(SOURCE);
-		expect(env.stickyColumn.reset).toHaveBeenCalled();
-		expect(env.edgeAffinity.reset).toHaveBeenCalled();
+		expect(env.caretMemory.forget).toHaveBeenCalled();
 	});
 });

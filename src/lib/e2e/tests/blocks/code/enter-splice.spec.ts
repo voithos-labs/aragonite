@@ -2,10 +2,10 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { roundTripStable } from '../../plugins/helpers';
 
-// A splice inside the opener renders a phantom fence; one inside the closer breaks the fence
-// outright. Requirements: enter-splice.md.
+// A splice inside the opener renders a fence that is not in the bytes; one inside the closer
+// breaks the fence outright. Requirements: `enter-splice.md`.
 
-test.describe('code block — Enter on the opener fence line', () => {
+test.describe('code block: Enter on the opener fence line', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -13,7 +13,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 		await editor.goto();
 	});
 
-	test('Enter at raw offset 0 of a closed fence — opener intact, blank first body line', async () => {
+	test('Enter at raw offset 0 of a closed fence: opener intact, blank first body line', async () => {
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Enter');
@@ -21,26 +21,11 @@ test.describe('code block — Enter on the opener fence line', () => {
 
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		// Rendered text must match the raw — a phantom fence adds bytes the raw lacks.
+		// Rendered text must match the raw: an extra fence adds bytes the raw does not have.
 		expect(await editor.getBlockText(0)).toBe('```js\n\nconst x = 1;\n```');
 
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceEquals('```js\n\nyconst x = 1;\n```\n');
-	});
-
-	test('Enter at raw offset 0 of an unclosed fence — same clamp, opener intact', async () => {
-		await editor.loadContent('```js\nconst x = 1\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```js\n\nconst x = 1\n');
-	});
-
-	test('Enter mid-opener clamps to the body start — never splits the opener text', async () => {
-		await editor.loadContent('```js\nconst x = 1;\n```\n');
-		await editor.focusBlock(0, 3);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```js\n\nconst x = 1;\n```\n');
 	});
 
 	test('repeated Enter at the top does not cascade', async () => {
@@ -55,7 +40,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	test('Enter at the end of the opener line keeps its behavior — caret on the new blank line', async ({
+	test('Enter at the end of the opener line keeps its behavior: caret on the new blank line', async ({
 		page
 	}) => {
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
@@ -67,7 +52,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 	});
 });
 
-test.describe('code block — Enter on the closer fence line', () => {
+test.describe('code block: Enter on the closer fence line', () => {
 	let editor: EditorPage;
 
 	// display "```js\nconst x = 1\n```": body ends at 17, closer text runs [18,21).
@@ -77,44 +62,12 @@ test.describe('code block — Enter on the closer fence line', () => {
 		await editor.loadContent('```js\nconst x = 1\n```\n');
 	});
 
-	test('Enter inside the closer text clamps to the body end — fence intact', async () => {
+	test('Enter inside the closer text clamps to the body end: fence intact', async () => {
 		await editor.focusBlock(0, 19);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		expect(await roundTripStable(editor.page)).toBe(true);
-	});
-
-	test('Enter at the start of the closer line keeps its blank-line behavior', async () => {
-		await editor.focusBlock(0, 18);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');
-	});
-});
-
-test.describe('code block — Enter over a selection', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent('```js\nconst x = 1\n```\n');
-	});
-
-	test('Enter replaces the selected text with the newline', async () => {
-		await editor.focusBlock(0, 12);
-		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```js\nconst \n\n```\n');
-	});
-
-	test('Enter over a selection reaching into the closer keeps the fence', async () => {
-		await editor.focusBlock(0, 12);
-		for (let i = 0; i < 8; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```js\nconst \n\n```\n');
-
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 });

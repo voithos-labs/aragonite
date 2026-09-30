@@ -1,16 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
 	onEditorCallbacks,
 	installedPluginNames,
-	__resetInstalledPluginsForTests,
 	type PluginSetupContext
 } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-beforeEach(() => __resetInstalledPluginsForTests());
-
-describe('onEditor subscription seam', () => {
+describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {
 		const calls: string[] = [];
 		installPlugins([
@@ -59,7 +57,7 @@ describe('onEditor subscription seam', () => {
 				}
 			})
 		]);
-		__resetInstalledPluginsForTests();
+		__resetSchemaRegistriesForTests();
 		expect(onEditorCallbacks('gone')).toHaveLength(0);
 	});
 
@@ -72,8 +70,8 @@ describe('onEditor subscription seam', () => {
 			}
 		});
 		expect(() => installPlugins([plugin])).toThrow(/setup exploded/);
-		// The install never completes, so its callback must not survive to run against
-		// a later mount — the catch in installOne clears the plugin's subscriptions.
+		// The install never completes, so its callback must not survive to run against a later
+		// mount: the catch in installOne clears the plugin's subscriptions.
 		expect(onEditorCallbacks('boom')).toHaveLength(0);
 		// A partial setup can't be re-run: the second attempt reports the prior failure.
 		expect(() => installPlugins([plugin])).toThrow(/failed during a previous install/);

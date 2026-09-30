@@ -2,13 +2,16 @@
 
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength } from '../lines';
+import { displayLength, firstDisplayLine } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-// Registered before any descriptor read, headless of the editor mount. Explicit call: a bare
-// side-effect import is tree-shaken from the production build.
+// The built-in descriptors register before any read, with or without a mounted editor; the call
+// is explicit because a bare side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import type { Reading } from '../../schema/reading';
+import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
+import { codeSpanFence } from './scan/code-spans';
 import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
 
@@ -22,8 +25,8 @@ export interface ContentRange {
 }
 
 declare const contentLengthBrand: unique symbol;
-/** Raw-space length of a block's rendered content, mintable only from its content range: a
- *  DOM-measured length answers in walk space and lags the pass that is rewriting the DOM. */
+/** Raw-offset length of a block's rendered content, built only from its content range: a
+ *  DOM-measured length counts as the DOM traversal does and lags the pass rewriting the DOM. */
 export type ContentLength = number & { readonly [contentLengthBrand]: true };
 
 /** Content range within a prose block's raw; marker-bearing kinds override via descriptor. */
@@ -33,7 +36,27 @@ export function getContentRange(node: NodeView): ContentRange {
 	return { start: 0, end: displayLength(node.raw) };
 }
 
-/** The one {@link ContentLength} mint. */
+/** The structure between a block's content and its line ending, like a setext underline: drawn
+ *  as a marker after the text, and kept by every edit that keeps the block's head. */
+export function structuralSuffix(node: NodeView): string {
+	// A kind that is not prose shows its whole display as content.
+	if (!isProseKind(node.kind)) return '';
+	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
+}
+
+/** The structural suffix's part on the text's own line, an ATX closing run: a line break made
+ *  at the text's end goes after it. A setext underline starts on a line of its own. */
+export function sameLineSuffix(node: NodeView): string {
+	if (!isProseKind(node.kind)) return '';
+	return sameLineSuffixOf(node.raw, getContentRange(node).end);
+}
+
+/** {@link sameLineSuffix} over a prose block's raw and its content end. */
+export function sameLineSuffixOf(raw: string, contentEnd: number): string {
+	return firstDisplayLine(raw.slice(contentEnd, displayLength(raw))).text;
+}
+
+/** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;
 }
@@ -42,61 +65,75 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 	return getBlockKindDescriptor(kind).supportsInline;
 }
 
-/**
- * The bytes an INLINE construct's delimiters do not cover, or null for a kind that has none — a
- * bare text run, an escape, a pair emptied of content. The inline twin of {@link getContentRange},
- * here rather than beside one of its callers because the caret bounds, the typing seat, the
- * destructive arm and the toggles all need the same answer.
- */
+/** The inline counterpart of {@link getContentRange}: the bytes a construct's delimiters do not
+ *  cover, or null for one with no content (a text run, an escape, an emptied pair). */
 export function constructContentRange(node: InlineNode): ContentRange | null {
 	const children = node.children;
 	if (children && children.length > 0) {
 		return { start: children[0].start, end: children[children.length - 1].end };
 	}
-	// A code span carries its content as `text` rather than children, and a matched span's two
-	// backtick runs are equal, so what the content does not cover splits evenly between them.
-	if (node.kind === 'inlineCode' && node.text !== undefined) {
-		const fence = (node.end - node.start - node.text.length) / 2;
-		if (Number.isInteger(fence) && fence > 0) {
-			return { start: node.start + fence, end: node.end - fence };
-		}
-	}
-	return null;
+	// A code span carries its content as `text` rather than children.
+	const fence = node.kind === 'inlineCode' ? codeSpanFence(node) : 0;
+	return fence > 0 ? { start: node.start + fence, end: node.end - fence } : null;
 }
 
-/**
- * A prose node's inline tree, pure: no caching, no reactive reads. The render path calls this
- * directly; the caching accessor (inline-cache.ts) calls it on a miss.
- */
+/** Uncached and free of reactive reads, so the render path can call it directly. An editor
+ *  passes its own grammar, so a plugin it left out takes no bytes. */
 export function computeInlineContent(
 	node: NodeView,
-	resolver?: LinkReferenceResolver
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	recordInlineCompute();
 	const range = getContentRange(node);
-	return parseInline(node.raw, range.start, range.end, resolver);
+	return readInline(node.raw, range.start, range.end, resolver, grammar);
+}
+
+type InlineReader = (node: NodeView) => InlineNode[];
+
+const readersByReading = new WeakMap<Reading, { epoch: number; read: InlineReader }>();
+
+/** The inline parse a plugin gets: this editor's grammar and the document's definitions as they
+ *  stand at each call. A new function per definitions change, so a cache keyed on it refreshes. */
+export function inlineReaderFor(reading: Reading): InlineReader {
+	const epoch = reading.resolverEpoch;
+	const held = readersByReading.get(reading);
+	if (held?.epoch === epoch) return held.read;
+	const read: InlineReader = (node) =>
+		computeInlineContent(node, reading.resolver, reading.grammar);
+	readersByReading.set(reading, { epoch, read });
+	return read;
 }
 
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
-/**
- * Parse inline content over raw[start, end). Node offsets are absolute into raw, and every byte
- * lands in exactly one node's range. Both bounds are checked, not just typed: a caller the
- * compiler cannot reach that passes only the source would otherwise get one whole-string text
- * node, which is wrong output that looks like a result.
- */
+/** Node offsets are absolute into raw, and each byte of raw[start, end) lands in exactly one node.
+ *  With no grammar it reads every installed plugin's syntax; the editor uses {@link readInline}. */
 export function parseInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	resolver?: LinkReferenceResolver,
+	grammar?: GrammarView
+): InlineNode[] {
+	return readInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
+}
+
+/** Both bounds are checked at runtime: a caller outside the type checker that passes only the
+ *  source would get one whole-string text node, wrong output that looks like a result. */
+export function readInline(
+	raw: string,
+	start: number,
+	end: number,
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	if (!Number.isFinite(start) || !Number.isFinite(end)) {
 		throw new TypeError(
-			'parseInline requires both scan bounds — to scan a whole string, call parseInline(src, 0, src.length)'
+			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
-	return scanInline(raw, start, end, resolver);
+	return scanInline(raw, start, end, resolver, grammar);
 }
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────

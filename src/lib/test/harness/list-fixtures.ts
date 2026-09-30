@@ -1,10 +1,10 @@
-// Hand-built list shapes for the commit-ceremony suites: minimal, not parser output, so
-// consuming suites allow the stale-raw oracle where it fires. A scope's own children stay
-// metadata-free — only an item the ceremony publishes carries the marker its id path reads.
+// Hand-built list shapes for the commit suites: minimal, not parser output, so a suite using them
+// allows the stale-raw check where it fires. A list's own children carry no metadata: only an item
+// the commit writes back carries the marker its id path reads.
 
 import type { CstNode } from '$lib/core/nodes';
 
-/** A list item as a mutate callback pushes it: marker metadata included. */
+/** A list item as a mutate callback adds it: marker metadata included. */
 export function makeListItem(raw: string): CstNode {
 	return {
 		kind: 'listItem',

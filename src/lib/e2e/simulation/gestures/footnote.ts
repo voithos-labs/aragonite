@@ -2,11 +2,10 @@ import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 import { waitForNodeCount } from './node-count';
 
-// Footnote gestures (plugins route, `?seed=footnotes`), spanning two tiers: the `[^label]: `
-// strip-container definition and the `[^label]` inline reference widget. Each gates on the
-// promotion or widget swap and RESYNCS around the reparse — never predicts across a mount
-// boundary. The number a reference renders is derived display state the tracker never models,
-// so nothing here predicts or asserts it; the reference e2e is that oracle.
+// Footnote gestures (plugins route, `?seed=footnotes`) for the `[^label]: ` definition block and
+// the `[^label]` reference widget. Each waits for the block to change kind or for the widget to
+// swap in, then resyncs. The number a reference shows is computed for display and never checked
+// here; the reference's own e2e test does that.
 
 const DEF = '.footnote-def';
 const REF = '.footnote-ref';
@@ -14,9 +13,8 @@ const REF = '.footnote-ref';
 // ── Definition tier ───────────────────────────────────────────────────────────
 
 /**
- * Marker formation from live typing. Typed PER KEYSTROKE, which routes the line through a
- * transient inline reference widget before the reparse resolves it to a definition marker —
- * the intermediate state a real author produces and an atomic insert never reaches.
+ * Typed key by key, so the line passes through a short-lived reference widget before the reparse
+ * makes it a definition marker, a state a one-shot insert never reaches.
  */
 export async function typeFootnoteDefinition(
 	ctx: SimContext,
@@ -29,8 +27,8 @@ export async function typeFootnoteDefinition(
 
 	await editor.focusBlockStart(targetIndex);
 	await page.keyboard.press('Shift+End');
-	// The separating space is NOT typed: closing the marker with `:` auto-completes it to
-	// `[^label]: `, so a literal space here would land a second one.
+	// The space after the marker is not typed: closing it with `:` completes it to `[^label]: `,
+	// so typing a space here would add a second one.
 	await editor.typeSlowly(`[^${label}]:`);
 	await editor.typeSlowly(body);
 	await editor.bridge.waitForSourceContains(`[^${label}]: ${body}`);
@@ -40,9 +38,8 @@ export async function typeFootnoteDefinition(
 }
 
 /**
- * The strip container inherits blockquote's split override, so the split must grow the
- * CONTAINER's children and never the document root. Asserts both counts, failing loud if the
- * split escaped.
+ * The definition splits like a blockquote, adding a child to the container, never to the root;
+ * both counts are checked, so a split that escaped the container throws.
  */
 export async function splitFootnoteDefinitionBody(
 	ctx: SimContext,
@@ -70,7 +67,7 @@ export async function splitFootnoteDefinitionBody(
 	if (after.root !== before.root) {
 		throw new Error(
 			`[${ctx.label}] footnote-def body split escaped the container to the root ` +
-				`(root ${before.root} → ${after.root}) — the blockquote split override did not hold`
+				`(root ${before.root} → ${after.root}): the blockquote split override did not hold`
 		);
 	}
 	await editor.waitForRenderFlush();
@@ -78,10 +75,8 @@ export async function splitFootnoteDefinitionBody(
 }
 
 /**
- * Backspace at the first body child's start lifts that child out of the definition
- * (`lift-first-child-keep-container`): it becomes the paragraph before the marker and the rest
- * of the body stays under it; a single-child definition dissolves into that paragraph. Gates on
- * the source changing, then asserts the shape by re-reading the tree.
+ * Backspace at the first child's start lifts it out of the definition
+ * (`lift-first-child-keep-container`); the tree is read back to check the shape.
  */
 export async function footnoteDefinitionExitBackspace(
 	ctx: SimContext,
@@ -129,8 +124,8 @@ export async function footnoteDefinitionExitBackspace(
 // ── Reference tier ────────────────────────────────────────────────────────────
 
 /**
- * The widget hides but preserves the literal bytes, so the source carries the reference the
- * instant it is typed — the mount signal is the COUNT rising, not a new substring.
+ * The widget hides the bytes but keeps them, so the source holds the reference from the moment
+ * it is typed: what marks the widget arriving is the count rising, not new text.
  */
 export async function typeFootnoteReference(ctx: SimContext, label: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -144,8 +139,8 @@ export async function typeFootnoteReference(ctx: SimContext, label: string): Pro
 }
 
 /**
- * A pure view toggle: the source is dimmed-but-present in both states, so the widget COUNT is
- * the only reveal signal and the bytes must be identical across the whole round trip.
+ * Only the view changes: the source is present in both states, just dimmed, so the widget count
+ * is the one sign it opened, and the bytes must be identical all the way round.
  */
 export async function revealFootnoteReference(
 	ctx: SimContext,
@@ -176,8 +171,8 @@ export async function revealFootnoteReference(
 }
 
 /**
- * The reveal→edit→commit UX this widget shares with inline math. The edit is suppressed from
- * the CST until commit, so settling on the source delta before the blur races the reveal DOM.
+ * The show-edit-commit behaviour shared with inline math: the edit stays out of the tree until
+ * the commit, so a source wait before the blur would race the DOM.
  */
 export async function editFootnoteLabel(
 	ctx: SimContext,
@@ -190,7 +185,7 @@ export async function editFootnoteLabel(
 
 	const island = await nthRefIsland(page, refIndex);
 	await editor.focusBlockAtPath(island.blockPath, island.start);
-	await page.keyboard.press('ArrowRight'); // reveal (caret at the revealed leading edge)
+	await page.keyboard.press('ArrowRight'); // opens it, caret at the front of the shown source
 	await page.keyboard.press('ArrowRight'); // past `[`
 	await page.keyboard.press('ArrowRight'); // past `^` — now at the label start
 	await page.keyboard.type(text);
@@ -201,9 +196,8 @@ export async function editFootnoteLabel(
 }
 
 /**
- * A destructive key adjacent to a folded reference REVEALS it rather than deleting it whole,
- * so the first Delete only reveals and the second removes the opening `[` — leaving the rest
- * as ordinary text. The caller nets it to identity with a trailing undo.
+ * Delete next to a closed reference opens it rather than removing it whole, so the second
+ * keypress takes the opening `[`; the caller closes with an undo.
  */
 export async function deleteFootnoteReference(
 	ctx: SimContext,
@@ -216,9 +210,9 @@ export async function deleteFootnoteReference(
 
 	const island = await nthRefIsland(page, refIndex);
 	await editor.focusBlockAtPath(island.blockPath, island.start);
-	await page.keyboard.press('Delete'); // reveal, no byte deleted
+	await page.keyboard.press('Delete'); // opens it, deletes nothing
 	await page.keyboard.press('Delete'); // remove the opening `[`
-	await blurToCommit(ctx, blurBlockIndex, before); // commit → literal text
+	await blurToCommit(ctx, blurBlockIndex, before); // commits, leaving plain text
 	await waitForNodeCount(ctx, REF, refsBefore - 1);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
@@ -227,9 +221,8 @@ export async function deleteFootnoteReference(
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Blur is the commit that holds WHEREVER the widget sits: Enter is the block's split key
- * (`latex-inline-reveal-commands`), and a block-edge reference has no adjacent position for a
- * caret escape to land in. The caret-escape commit is covered by the inline-math gestures.
+ * Blur commits wherever the widget sits: Enter splits the block, and a reference at a block's
+ * edge has nowhere beside it for the caret to step out to.
  */
 async function blurToCommit(
 	ctx: SimContext,
@@ -240,7 +233,7 @@ async function blurToCommit(
 	await ctx.editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 }
 
-/** Block path + `data-source-start` offset of the Nth rendered reference widget island. */
+/** Block path and `data-source-start` offset of the Nth rendered reference widget. */
 async function nthRefIsland(
 	page: Page,
 	refIndex: number
@@ -253,13 +246,13 @@ async function nthRefIsland(
 		const path = host?.getAttribute('data-block-path');
 		const start = island?.getAttribute('data-source-start');
 		if (path === null || path === undefined || start === null || start === undefined) {
-			throw new Error('footnote-ref island/host is missing its offset attributes');
+			throw new Error('footnote-ref widget/host is missing its offset attributes');
 		}
 		return { blockPath: JSON.parse(path) as number[], start: Number(start) };
 	}, refIndex);
 }
 
-/** Body-child count of the container at `defIndex` and the document root count, together. */
+/** How many children the container at `defIndex` holds, and how many the document root does. */
 async function containerAndRootCounts(
 	page: Page,
 	defIndex: number

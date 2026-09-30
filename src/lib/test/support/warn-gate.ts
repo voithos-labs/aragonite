@@ -1,18 +1,15 @@
 /**
- * Fail-on-warn unit gate (Vitest setup). Every `devWarn` fire and every Svelte runtime warning
- * reds its owning test unless the test claims it (`takeDevWarns` to assert on it, `drainDevWarns`
- * to discard it, `allowDevWarns` for a file's incidental tags) or the site is allowlisted for the
- * whole run. The claim doors are file-level `afterEach` hooks, so the config pins
- * `sequence.hooks: 'stack'` to order them first. A per-file `afterAll` closes the two holes a
- * per-test verdict cannot see: a declared tag that no longer fires, and a fire that outlived
- * every test.
+ * Vitest setup that fails a unit test on any `devWarn` or Svelte runtime warning it did not claim
+ * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
+ * Claims run in file-level `afterEach` hooks, so the config's `sequence.hooks: 'stack'` runs them
+ * before this verdict. A per-file `afterAll` also fails a declared tag that never fired and a
+ * warning that arrived after the last test.
  */
 
 import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
-import { setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
+import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
 
 export interface AllowedWarn {
@@ -33,23 +30,20 @@ export const UNKNOWN_SITE = '<unattributed>';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-/** Drain the fires recorded since the last drain. A test whose subject IS the fire asserts on these. */
+/** Drain the warnings recorded since the last drain. A test about a warning asserts on these. */
 export function takeDevWarns(): DevWarnRecord[] {
 	const taken = recorded;
 	recorded = [];
 	return taken;
 }
 
-/** Discard the fires a fixture provoked, so the test asserts only on what follows them. */
+/** Discard the warnings a fixture provoked, so the test asserts only on what follows them. */
 export function drainDevWarns(): void {
 	takeDevWarns();
 }
 
-/**
- * Drain, refusing any tag the caller did not declare. For a fixture that provokes a fire the
- * test is not about. Every declared tag must fire somewhere in the file, or the file's
- * `afterAll` aggregate names it stale.
- */
+/** Drain, refusing any tag not in `tags`, for a fixture's warning the test is not about. Each
+ *  declared tag must fire somewhere in the file, or the `afterAll` summary names it stale. */
 export function allowDevWarns(tags: string[]): DevWarnRecord[] {
 	for (const tag of tags) declaredTags.add(tag);
 	const drained = takeDevWarns();
@@ -67,7 +61,7 @@ export function findUnallowlistedWarns(
 	);
 }
 
-/** For a fire nobody claimed at all: the reader has yet to pick a door. */
+/** For a warning nobody claimed at all: the test has yet to choose how to handle it. */
 export function formatWarnFailure(records: DevWarnRecord[]): string {
 	return (
 		`${records.length} unclaimed devWarn fire(s) in this test:\n${listRecords(records)}\n` +
@@ -102,13 +96,13 @@ export function siteFromStack(stack: string | undefined): string {
 
 const FRAME_SITE = /\/(src\/lib\/[^\s:?]+\.(?:ts|svelte))(?:\?[^\s:]*)?:\d+:\d+/;
 
-/** Frames that relay a fire rather than emit it; the interesting site sits below them. */
+/** Frames that pass a warning along rather than emit it; the interesting file sits below them. */
 const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/assert.ts']);
 
 let recorded: DevWarnRecord[] = [];
 
-// Per file, because Vitest re-runs the setup files for each: the aggregate below reads a
-// declaration against the tags this file actually warmed.
+// Per file, because Vitest re-runs the setup files for each one: the summary below checks a
+// declaration against the tags this file actually fired.
 const declaredTags = new Set<string>();
 const firedTags = new Set<string>();
 
@@ -127,26 +121,23 @@ setDevWarnSink(gateSink);
 
 // ── The Svelte runtime channel ───────────────────────────────────────────────
 
-/** Svelte's runtime warnings print through `console.warn` and nowhere else, headed
- *  `%c[svelte] <code>`; they join the sink under a `svelte:` tag so one claim door covers both. */
-const SVELTE_WARN = /\[svelte\]\s+([a-z0-9_]+)/;
-
 const PRINT = Symbol.for('aragonite:warn-gate:print');
 
 type WatchedWarn = typeof console.warn & { [PRINT]?: typeof console.warn };
 
 function watchSvelteWarns(): void {
-	// Vitest may hand a later file the console a previous one wrapped; unwrap first so the
-	// watch reads THIS file's sink rather than chaining onto a dead module instance.
+	// Vitest may hand a later file the console a previous one wrapped, so unwrap first: otherwise
+	// the watcher records into a dead module instance instead of this file's own store.
 	const print = (console.warn as WatchedWarn)[PRINT] ?? console.warn;
 	const watch: WatchedWarn = (...args: unknown[]) => {
-		const code = SVELTE_WARN.exec(String(args[0]))?.[1];
-		if (code === undefined) {
+		// Svelte's runtime warnings print through `console.warn` and nowhere else.
+		const tag = warnTagOfLine(String(args[0]));
+		if (tag === null || !tag.startsWith('svelte:')) {
 			print(...args);
 			return;
 		}
 		gateSink({
-			tag: `svelte:${code}`,
+			tag,
 			message: String(args[0]).replace(/%c/g, '').replace(/\n/g, ' ')
 		});
 	};
@@ -161,22 +152,21 @@ const STOLEN_SINK =
 	'blind for the rest of it. Restore it in an afterEach; setDevWarnSink returns the sink it ' +
 	'replaced. The gate has re-armed itself for the next test.';
 
-/** The per-test verdict, exported so the gate's own suite can drive it without a nested runner. */
+/** The per-test check, exported so the gate's own suite can drive it without a nested runner. */
 export async function enforceWarnGate(): Promise<void> {
-	// A guard may defer its own fire (`reportContestedClaim` awaits a tick before warning);
-	// without this the fire lands on the NEXT test's verdict, or on no test at all.
+	// A dev-mode check may defer its own warning (`reportContestedClaim` awaits a tick first);
+	// without this the warning lands on the next test, or on no test at all.
 	await tick();
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
-	// The env singleton and the once-per-id warn set are process-global, so a leaked
-	// override or a deduped warn would make the next test's verdict order-dependent.
+	// The environment singleton is process-global, so a leaked override would make the next test
+	// depend on run order.
 	resetEditorEnv();
-	__resetCommandWarningsForTests();
 	const stolen = setDevWarnSink(gateSink) !== gateSink;
 	if (unclaimed.length > 0) throw new Error(formatWarnFailure(unclaimed));
 	if (stolen) throw new Error(STOLEN_SINK);
 }
 
-/** The per-file aggregate: stale declarations, plus fires that outlived every test. */
+/** The per-file summary: stale declarations, plus warnings that outlived every test. */
 export function auditWarnDeclarations(
 	declared: Iterable<string>,
 	fired: ReadonlySet<string>,

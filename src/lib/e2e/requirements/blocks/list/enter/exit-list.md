@@ -1,6 +1,6 @@
-# Block: List — Enter (exit list on empty item)
+# Block: List, Enter (exit list on empty item)
 
-Enter on an item whose first paragraph is empty exits the list. Position-aware behavior depends on whether the empty item is the only/first/middle/last item, and whether the item has nested content.
+Enter on an item whose first paragraph is empty exits the list. What happens next depends on whether the empty item is the only, first, middle or last item, and on whether the item has nested content.
 
 ## Exit-list scenarios
 
@@ -17,4 +17,4 @@ Enter on an item whose first paragraph is empty exits the list. Position-aware b
 
 ## State consistency
 
-- After exiting a list, the surviving list's `BlockListState` stays in sync — `auditBlockListStateConsistency()` reports no violation (the reused ListBlock component's `innerBlockRefs` must not retain a stale trailing slot for the removed item)
+- After exiting a list, the surviving list's `BlockListState` stays in step: `auditBlockListStateConsistency()` reports no violation (the reused ListBlock component's `innerBlockRefs` must not keep a stale trailing entry for the removed item)

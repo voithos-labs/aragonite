@@ -1,12 +1,10 @@
-// F4: a registered paste transform's effect must be observable from the published surface.
-// Everything below imports only `@voithos-labs/aragonite/plugin` and `@voithos-labs/aragonite/testing`, so it is exactly
-// the suite a third-party author can write.
-//
-// Miss-analysis: `registerPasteTransform` was pinned by e2e paste specs alone, so nothing at
-// the unit gate proved the registration reaches the pipeline — an author could only test the
-// pure function, which proves nothing about the wiring.
-import { describe, it, expect, beforeEach } from 'vitest';
-import { registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
+// A registered paste transform's effect must be visible from the published API: everything
+// below imports only `@voithos-labs/aragonite/plugin` and `@voithos-labs/aragonite/testing`,
+// so it is exactly the suite a third-party author can write.
+// Miss-analysis: only e2e specs pinned `registerPasteTransform`, so no unit test saw its wiring.
+import { describe, it, expect } from 'vitest';
+import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
+import { installPlugins } from '$lib';
 import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
@@ -19,8 +17,6 @@ const bangToBullet = {
 	name: 'bang-to-bullet',
 	transform: (text: string) => (text.startsWith('!') ? `- ${text.slice(1)}` : null)
 };
-
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('the registered paste pipeline, driven through aragonite/testing', () => {
 	it('runs a registered transform over the pasted text', () => {
@@ -37,12 +33,20 @@ describe('the registered paste pipeline, driven through aragonite/testing', () =
 		registerPasteTransform(bangToBullet);
 		registerPasteTransform(upcaseHeadings);
 		// bang-to-bullet declines a heading, upcase-headings declines a bullet: order is only
-		// observable through a text the FIRST rewrites into something the second claims.
+		// visible through a text the first rewrites into something the second matches.
 		registerPasteTransform({
 			name: 'bullet-to-heading',
 			transform: (text) => (text.startsWith('- ') ? `# ${text.slice(2)}` : null)
 		});
 		expect(applyPasteTransforms('!note\n')).toBe('# note\n');
+	});
+
+	it('runs a plugin transform only for a list of plugins that names it', () => {
+		installPlugins([
+			definePlugin({ name: 'shouter', setup: () => registerPasteTransform(upcaseHeadings) })
+		]);
+		expect(applyPasteTransforms('# title\n', ['shouter'])).toBe('# TITLE\n');
+		expect(applyPasteTransforms('# title\n', [])).toBe('# title\n');
 	});
 
 	it('declines for the whole pipeline once the registry is reset', () => {
@@ -76,8 +80,8 @@ describe('isPasteTransformRegistered', () => {
 		expect(isPasteTransformRegistered('upcase-headings')).toBe(false);
 	});
 
-	// The bind the probe closes: a module-level `registered` flag survives the reset and
-	// silently skips re-registration, so the guard has to read the registry itself.
+	// What the check exists for: a module-level `registered` flag survives the reset and
+	// silently skips re-registration, so the check has to read the registry itself.
 	it('lets an idempotent registrar re-run across a reset without a dup throw', () => {
 		const registerOnce = () => {
 			if (!isPasteTransformRegistered(upcaseHeadings.name)) registerPasteTransform(upcaseHeadings);

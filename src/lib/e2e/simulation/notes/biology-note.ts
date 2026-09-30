@@ -2,11 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The headline note, built entirely from HOLD constructs — those a char-by-char build
- * reproduces exactly, so end-state equality (typing ≡ loading) stays a primary oracle. ATX
- * headings only: Enter splits a block, so setext is unreachable by typing. Two structural
- * Enters need `softEnter` rather than `pressEnter` — a newline in the code body (which shares
- * one host) and the list-exit collapse (which removes one).
+ * The main note, built only from constructs that typing reproduces exactly, so the end state must
+ * match loading the same markdown. `#` headings only, since Enter splits a block and the underlined
+ * form cannot be typed. A newline in the code body and leaving the list take `softEnter`, since
+ * neither adds a block.
  */
 export const BIOLOGY_NOTE: NoteFixture = {
 	name: 'biology-note',
@@ -52,7 +51,8 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.softEnter();
 		await g.checkpoint('study-checklist', 'task-list');
 
-		await g.startQuote('Remember: oxygen is released, not consumed.');
+		// Picked from the slash list rather than typed as `>`, so the default run covers a pick.
+		await g.slashInsert('quote', '> ', 'Remember: oxygen is released, not consumed.');
 		await g.pressEnter();
 		await g.softEnter();
 		await g.checkpoint('blockquote', 'blockquote');
@@ -74,17 +74,18 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.resizeImage('right', 2);
 		await g.checkpoint('image-resized', 'image');
 
-		// The checkbox's nearest pathed ancestor is the item's paragraph, not the
-		// list item — only the list and the item-paragraphs carry data-block-path.
+		// The nearest ancestor of the checkbox with a path is the item's paragraph, not the list
+		// item: only the list and the item paragraphs carry a data-block-path.
 		await g.toggleTask([7, 0, 0]);
+		await g.toggleTaskByKeyboard([7, 1, 0]);
 
-		// Live mode's own rules over the intro paragraph, which carries every construct they
-		// need. Each gesture enters live, drives one rule and undoes it in one press, so the
-		// note's canonical end state is what it was before them.
+		// Live mode's own rules, over the opening paragraph, which holds every construct they need;
+		// each undoes itself, so the note ends as it was.
 		await g.liveToggleFormat(1, 'notes', 'strikethrough');
 		await g.liveEdgeBackspace(1, 'cell division');
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
-		// The re-routed caret doors (G2.12): a merge landing's seat, and the list item's Home.
+		// The two places the editor puts the caret itself (G2.12): after a merge, and on Home in a list
+		// item.
 		await g.liveMergeLanding(1, 'Photosynthesis', 'These');
 		await g.liveListHomeSeat('Prophase condenses the chromosomes');
 		await g.checkpoint('live-rules', 'live-editing');
@@ -99,8 +100,8 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'oxygen is released',
 		'chloroplast diagram'
 	],
-	// Enter separates: each heading typed on its own line stands one blank line above what
-	// follows, and the break's own Enter is the blank below it.
+	// Enter separates blocks: a heading typed on its own line stands one blank line above what
+	// follows, and its own Enter provides the blank line below it.
 	expectedMarkdown:
 		'# Cell Division and Photosynthesis\n' +
 		'\n' +
@@ -121,7 +122,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'## Study checklist\n' +
 		'\n' +
 		'- [x] Redraw the light reactions\n' +
-		'- [ ] Label oxygen as a byproduct\n' +
+		'- [x] Label oxygen as a byproduct\n' +
 		'\n' +
 		'> Remember: oxygen is released, not consumed.\n' +
 		'\n' +

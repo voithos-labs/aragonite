@@ -22,10 +22,10 @@ makes the pattern backtrack catastrophically.
 - typing into the document while the pathological scan is running: the keystroke
   reaches the document within a bounded wait (the freeze regression is this never
   landing)
-- the deadline overrun: the count readout carries the error presentation and reads
+- the deadline overrun: the count readout shows its error state and reads
   "Regex too slow", and no match overlay is painted
 - recovery after an overrun: replacing the query with a cheap pattern clears the
-  too-slow state and matches again, so the bar is not wedged
+  too-slow state and matches again, so the bar is not stuck
 
 ## Error cases
 

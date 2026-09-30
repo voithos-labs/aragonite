@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { INSERT_CHUNK, spliceMany } from '$lib/tree-operations/splice-many';
 
-/** Past the engine's argument limit, so a single spread would raise a RangeError here. */
+/** Past V8's argument limit, so a single spread would raise a RangeError here. */
 const OVER_LIMIT = 200_000;
 
 const run = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
@@ -27,8 +27,8 @@ describe('spliceMany past the argument limit', () => {
 		expect(target.slice(landsAt + OVER_LIMIT)).toEqual(survivors.slice(landsAt));
 	});
 
-	// The seam between the one-call path and the chunk loop, where the loop's offset arithmetic
-	// first has a second chunk to place.
+	// The boundary between the one-call path and the chunk loop, where the loop's offset
+	// arithmetic first has a second chunk to place.
 	it.each([INSERT_CHUNK, INSERT_CHUNK + 1])('hands off at the ceiling with %i items', (count) => {
 		const target = run(4);
 		spliceMany(target, 2, 1, run(count));

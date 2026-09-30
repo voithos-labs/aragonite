@@ -2,25 +2,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
-afterEach(() =>
-	allowDevWarns([
-		'deleteFromProseIntoTable:end',
-		'deleteFromTableIntoProse:start',
-		'deleteAcrossTwoTables:start',
-		'deleteAcrossTwoTables:end'
-	])
-);
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
-// The chrome wall × the table branch: `involvesTable` dispatches before `involvesReservedChrome`,
-// so these ranges ride the table branch and the wall must hold there too. Table endpoints carry
-// already-snapped cell indices (start = row start, end = inclusive row-last cell).
+// `involvesTable` is checked before `involvesReservedChrome`, so these ranges take the table branch
+// and the title-line wall must hold there too. Table endpoints are already-snapped cell indices.
 
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=table of rows (a,b)/(1,2)), [2]=Below.
 const TBL_FIXTURE =
@@ -40,17 +34,19 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
-describe('chrome wall × table branch — table endpoint inside the container', () => {
+describe('chrome wall × table branch: table endpoint inside the container', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + table body child', () => {
@@ -64,7 +60,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		// end.offset 1 = inclusive last cell of header row → header removed, body promoted.
 		const { doc, source, caret } = run(TBL_FIXTURE, point([0], 2), point([1, 1], 1));
 		// The truncated prose head keeps its line ending, so the blank line the source had between it
-		// and the container survives — matching the chrome-start case below.
+		// and the container survives, matching the title-line start case below.
 		expect(source).toBe('Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
 		const note = doc.children[1];
 		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
@@ -82,8 +78,8 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 	});
 
 	it('body table emptied but not last child: chrome clears, the rest of the body survives', () => {
-		// Body = table + trailing paragraph, so the emptied table is NOT a
-		// last-child chain — no unit delete, the wall clear applies instead.
+		// The body is a table plus a trailing paragraph, so the emptied table is not at the end of
+		// a last-child chain: no unit delete, the wall clear applies instead.
 		const source = 'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
 		const { doc, source: out } = run(source, point([0], 2), point([1, 1], 1));
 		expect(out).toBe('Ab\n\n:::callout\n\nAfter\n:::\n\nBelow\n');
@@ -95,12 +91,18 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, undefined, undefined, undefined);
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 1))),
+			sharing,
+			fixtureReading(),
+			'keyless'
+		);
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
 
-describe('chrome wall × table branch — table endpoint outside the container', () => {
+describe('chrome wall × table branch: table endpoint outside the container', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('chrome-end endpoint: table above → mid-title keeps the tail in the chrome leaf', () => {
@@ -113,8 +115,8 @@ describe('chrome wall × table branch — table endpoint outside the container',
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
-	// G1.9 guard for the chrome-END truncate: the kept tail is written into the title raw in place,
-	// so a narrowed branch-entry unshare writes through a snapshot-shared node — assert the child.
+	// The end truncation writes the kept tail into the title raw in place, so it must write a copy,
+	// never the node the undo snapshot shares (G1.9).
 	it('chrome-end truncate writes an unshared copy, never the snapshot-shared title node', () => {
 		const doc = parse(TBL_ABOVE_FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];
@@ -124,12 +126,10 @@ describe('chrome wall × table branch — table endpoint outside the container',
 		sharing.markSnapshotTaken();
 		const { newDoc } = rangeDelete(
 			doc,
-			point([0], 2),
-			point([1, 0], 3),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3))),
 			sharing,
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
@@ -155,7 +155,7 @@ describe('chrome wall × table branch — table endpoint outside the container',
 	});
 });
 
-describe('chrome wall × table branch — consumed container unit-deletes', () => {
+describe('chrome wall × table branch: consumed container unit-deletes', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('prose end at the container last byte: one splice, children intact', () => {
@@ -163,18 +163,16 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 		const note = doc.children[1];
 		const result = rangeDelete(
 			doc,
-			point([0], 2),
-			point([1, 1], 4),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 4))),
 			createSharingState(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
-		// One splice, not an empty-then-cascade: the detached node keeps its
-		// children so a commit scope holding it stays invariant-clean.
+		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
+		// so the undo entry holds a whole node.
 		expect(note.children?.length).toBe(2);
-		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
 	it('table end emptied as the container last child: one splice, children intact', () => {
@@ -183,16 +181,14 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 		// end.offset 3 = inclusive last cell of the inner table → tableEmpty.
 		const result = rangeDelete(
 			doc,
-			point([0], 2),
-			point([1, 1], 3),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 3))),
 			createSharingState(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);
-		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
 	it('start table also emptied: caret falls to the nearest survivor', () => {

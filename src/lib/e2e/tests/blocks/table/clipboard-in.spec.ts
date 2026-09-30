@@ -17,7 +17,7 @@ test.describe('table block: paste in', () => {
 
 	test('plain text without special chars inserts at caret', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('hello');
 		await editor.paste();
@@ -26,7 +26,7 @@ test.describe('table block: paste in', () => {
 
 	test('pipes auto-escape to backslash-pipe in cell raw', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('a|b|c');
 		await editor.paste();
@@ -35,7 +35,7 @@ test.describe('table block: paste in', () => {
 
 	test('newlines collapse to a single space and edges are trimmed', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('Home');
 		// One content paragraph: the blank lines the copy wrapped around it are packaging, so the
 		// cell keeps the inline path rather than breaking the table around them.
@@ -46,10 +46,8 @@ test.describe('table block: paste in', () => {
 	});
 
 	// ── Structural ──────────────────────────────────────────────────────
-	//
-	// Exact-source assertions are load-bearing here: the bug they catch (a doc-level splice routed
-	// through the cell's row-level blockEdit) leaves the substrings a `waitForSourceContains`
-	// checks intact while the surrounding structure rots.
+	// The exact source is asserted because a splice routed through a cell's row-level `blockEdit`
+	// leaves the substrings intact while the structure rots.
 
 	// A grid is data for the cells, not a block to splice between them: a GFM table, or the tabs a
 	// spreadsheet writes, fills from the caret's cell and grows the table to fit, in one commit.
@@ -57,7 +55,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('| X | Y |\n| --- | --- |\n| 9 | 8 |\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| 9 | 8 |');
@@ -69,7 +67,7 @@ test.describe('table block: paste in', () => {
 
 	test('pasting tab-separated rows appends the rows and columns they need', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(5).click(); // "4": row 2, col 1
+		await page.locator('.table-cell').nth(5).click(); // "4": row 2, col 1
 		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| s | t | u |');
@@ -86,9 +84,8 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
 	});
 
-	// The bytes came back while the RENDERED cells did not: an expanding paste writes cell raws
-	// at depth two, and unsharing only the rows left each row's cells shared with the undo
-	// snapshot, so the write went through it and undo restored the pasted text.
+	// An expanding paste writes cell raws two levels down; copying only the rows first leaves the
+	// cells shared with the undo snapshot, so undo restores the pasted text.
 	test('undo of an expanding paste restores the rendered cells, not just the bytes', async ({
 		page
 	}) => {
@@ -96,7 +93,7 @@ test.describe('table block: paste in', () => {
 			page.evaluate(() =>
 				[...document.querySelectorAll('.table-row')]
 					.map((row) =>
-						[...row.querySelectorAll('[role="cell"], [role="columnheader"]')]
+						[...row.querySelectorAll('.table-cell, [role="columnheader"]')]
 							.map((cell) => cell.textContent?.trim() ?? '')
 							.join('|')
 					)
@@ -106,7 +103,7 @@ test.describe('table block: paste in', () => {
 		await editor.loadContent(TABLE_2BODY);
 		const before = await grid();
 
-		await page.locator('[role="cell"]').nth(2).click(); // "1": row 1, col 0
+		await page.locator('.table-cell').nth(2).click(); // "1": row 1, col 0
 		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('| s | t | u |');
@@ -118,14 +115,21 @@ test.describe('table block: paste in', () => {
 
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('# Hello\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Hello');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['| A | B |', '| --- | --- |', '| 1 | 2 |', '# Hello', '| 3 | 4 |', '| --- | --- |'].join(
-				'\n'
-			)
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'',
+				'# Hello',
+				'',
+				'| 3 | 4 |',
+				'| --- | --- |'
+			].join('\n')
 		);
 	});
 
@@ -133,7 +137,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await editor.seedClipboard('Para one.\n\n## Two\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('## Two');
@@ -142,9 +146,11 @@ test.describe('table block: paste in', () => {
 				'| A | B |',
 				'| --- | --- |',
 				'| 1 | 2 |',
+				'',
 				'Para one.',
 				'',
 				'## Two',
+				'',
 				'| 3 | 4 |',
 				'| --- | --- |'
 			].join('\n')
@@ -157,7 +163,7 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await editor.seedClipboard('# Sandwiched\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Sandwiched');
@@ -165,7 +171,9 @@ test.describe('table block: paste in', () => {
 			[
 				'| A | B |',
 				'| --- | --- |',
+				'',
 				'# Sandwiched',
+				'',
 				'| 1 | 2 |',
 				'| --- | --- |',
 				'| 3 | 4 |'
@@ -177,12 +185,12 @@ test.describe('table block: paste in', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await editor.seedClipboard('# Tail\n');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Tail');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '# Tail'].join('\n')
+			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '', '# Tail'].join('\n')
 		);
 	});
 
@@ -191,7 +199,7 @@ test.describe('table block: paste in', () => {
 	test('Ctrl+Z undoes a paste in a single press', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		const before = await editor.bridge.getSource();
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('End');
 		await editor.seedClipboard('xyz');
 		await editor.paste();
@@ -214,8 +222,8 @@ test.describe('table block: paste in', () => {
 		await editor.seedClipboard('hello');
 		await editor.paste();
 
-		// "hello" in the anchor cell is the only shape the pre-paste document does not
-		// already have, so it is the one predicate that can settle on the paste.
+		// "hello" in the anchor cell is the only shape the document lacks before the paste, so it
+		// is the one predicate that can resolve on it.
 		await editor.bridge.waitForSourceContains('| hello |  |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| hello |  |', '|  |  |'].join('\n')
@@ -237,8 +245,8 @@ test.describe('table block: paste in', () => {
 		);
 	});
 
-	// Ctrl+A steps cell → document, so a rectangle over every cell is the road to a whole-table
-	// selection: cells 0..5 of a two-column, two-body-row table.
+	// Ctrl+A steps from cell to document, so a rectangle over every cell is the way to select the
+	// whole table: cells 0..5 of a two-column, two-body-row table.
 	test('whole-table selection (a rectangle over every cell) + paste a paragraph replaces the table', async ({
 		page
 	}) => {
@@ -269,5 +277,31 @@ test.describe('table block: paste in', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('| --- | --- |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
+	});
+
+	// The undo restores the cell rectangle and the redo swaps the paragraph back under it, where a
+	// stale rectangle would put a cell index on a paragraph.
+	test('undo and redo of a whole-table paste restore each side without a stale rectangle', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		await dragBetweenCells(page, 0, 5);
+		await editor.waitForCrossBlock(true);
+		await editor.seedClipboard('replaced text\n');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('replaced text');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| --- | --- |');
+		expect(await editor.bridge.getSource()).toBe(TABLE_2BODY);
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [0], offset: 0, cellCoordinate: true },
+			focus: { path: [0], offset: 5, cellCoordinate: true }
+		});
+
+		await editor.redo();
+		await editor.bridge.waitForSourceNotContains('| --- | --- |');
+		expect(await editor.bridge.getSource()).toBe('replaced text\n');
+		await editor.waitForCrossBlock(false);
 	});
 });

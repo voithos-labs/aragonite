@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
-//
-// The table is the only thing that knows where the caret is inside its grid, and the two ways a
-// cell hands that over — focus notification and the exit gesture — are context calls with no
-// return value, so what is asserted is the table's response. `internalStickyColumn` is
-// deliberately NOT asserted: `getStickyColumn`/`resetStickyColumn` have no callers, so the field
-// is write-only; the reset that IS observable, the focused-cell clear, is pinned below.
+// Only the table knows where the caret is in its grid, and a cell reports it by calls with no
+// return value (a focus notification, the exit gesture), so the table's response is asserted.
+// `internalStickyColumn` is not: nothing calls `getStickyColumn` or `resetStickyColumn`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { vi } from 'vitest';
-import { installTableLayoutStubs, mountTable, press, type MountedTable } from './mount-table';
+import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { pressKey } from '$lib/test/harness/settle';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -50,8 +48,8 @@ describe('the table tracks which of its cells holds the caret', () => {
 	});
 
 	it('keeps it when focus moves between two of its own cells', () => {
-		// The relatedTarget guard is the whole handler: without it, every Tab
-		// between cells would blank the table's idea of where the caret is.
+		// Without the relatedTarget check, every Tab between cells would clear the table's
+		// record of where the caret is.
 		mounted = mountTable(GRID);
 		mounted.cell(1, 1).focus();
 
@@ -66,9 +64,9 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 		mounted = mountTable(GRID);
 		mounted.cell(2, 0).focus();
 
-		await press(mounted.cell(2, 0), { key: 'ArrowDown' });
+		await pressKey(mounted.cell(2, 0), { key: 'ArrowDown' });
 
-		expect(mounted.stickyColumn.capture).toHaveBeenCalled();
+		expect(mounted.caretMemory.captureColumn).toHaveBeenCalled();
 		expect(vi.mocked(mounted.focus.moveFocus)).toHaveBeenCalledWith(1, {
 			stickyColumnFrom: 'above'
 		});
@@ -78,7 +76,7 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 		mounted = mountTable(GRID);
 		mounted.cell(0, 1).focus();
 
-		await press(mounted.cell(0, 1), { key: 'ArrowUp' });
+		await pressKey(mounted.cell(0, 1), { key: 'ArrowUp' });
 
 		expect(vi.mocked(mounted.focus.moveFocus)).toHaveBeenCalledWith(-1, {
 			stickyColumnFrom: 'below'
@@ -86,12 +84,12 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 	});
 
 	it('stays inside the grid when the arrow has a row to move to', async () => {
-		// Non-vacuity: the exit is edge-gated, so an interior arrow must move the
-		// caret rather than ask the editor for a sibling block.
+		// The exit fires only at the grid's edge, so an interior arrow must move the caret
+		// rather than ask the editor for a sibling block.
 		mounted = mountTable(GRID);
 		mounted.cell(1, 0).focus();
 
-		await press(mounted.cell(1, 0), { key: 'ArrowDown' });
+		await pressKey(mounted.cell(1, 0), { key: 'ArrowDown' });
 
 		expect(document.activeElement).toBe(mounted.cell(2, 0));
 		expect(mounted.focus.moveFocus).not.toHaveBeenCalled();

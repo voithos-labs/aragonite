@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
-//
-// A UTF-16 offset can land INSIDE an astral scalar, and the public `setSelection` takes plain
-// numbers, so the endpoint funnel is the only place that can refuse one. Miss-analysis: every
-// generator feeding the endpoint funnels draws pure ASCII, and the one lane that could have drawn
-// this shape clamps the offset away before asserting — so no test in the suite has ever handed a
-// funnel an offset that splits a scalar (#167).
+// A UTF-16 offset can land inside a surrogate pair, and the public `setSelection` takes plain
+// numbers, so the endpoint normalization is the only place that can refuse one.
+// Miss-analysis: GH #167; every generator feeding the endpoint normalizers drew pure ASCII.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { normalizeCharEndpoint } from '../../selection/char-endpoint-snap';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 /** 'a' + U+1F466 (a surrogate pair at offsets 1–2) + 'b'. */
 const BOY = 'a\u{1F466}b\n\ntail\n';
@@ -38,17 +37,15 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 	state.enterCrossBlock({ path: [0], offset: startOffset }, { path: [1], offset: endOffset });
 	const { newDoc } = rangeDelete(
 		doc,
-		state.start!,
-		state.end!,
+		rangeCoverage(doc, coverRange(doc, state.start!, state.end!)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
 	return serialize(newDoc);
 }
 
-describe('the char endpoint funnel refuses an offset inside a scalar', () => {
+describe('the one char-endpoint call refuses an offset inside a scalar', () => {
 	it('snaps a mid-pair offset back to the pair start', () => {
 		const doc = parse(BOY);
 		expect(normalizeCharEndpoint(doc, { path: [0], offset: 2 }, [1])).toEqual({
@@ -64,8 +61,8 @@ describe('the char endpoint funnel refuses an offset inside a scalar', () => {
 		}
 	});
 
-	// The self-test the oracle owes: it must see the corruption it is meant to catch.
-	it('the well-formedness oracle names a split pair and passes an intact one', () => {
+	// The checker's own self-test: it must see the corruption it is meant to catch.
+	it('the well-formedness check names a split pair and passes an intact one', () => {
 		expect(loneSurrogatesIn('a\u{1F466}b')).toEqual([]);
 		expect(loneSurrogatesIn('a\uD83D')).toEqual([1]);
 		expect(loneSurrogatesIn('\uDC66b')).toEqual([0]);
@@ -80,7 +77,7 @@ describe('a cross-block delete through a surrogate pair', () => {
 		expect(out).toBe('ail\n');
 	});
 
-	// The END endpoint's own arm: the pair sits in the block the range finishes in.
+	// The end endpoint's own case: the pair sits in the block the range finishes in.
 	it('leaves the pair whole when the trailing endpoint splits it', () => {
 		const out = deleteAcross(parse('head\n\na\u{1F466}b\n'), 2, 2);
 		expect(loneSurrogatesIn(out)).toEqual([]);

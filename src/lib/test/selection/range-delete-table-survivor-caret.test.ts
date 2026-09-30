@@ -1,15 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import type { SelectionPoint } from '../../selection/primitives';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Two 2×2 tables followed by a blockquote, and the same pair nested inside a blockquote holding a
 // paragraph. Selecting across both tables empties them, forcing the survivor caret path.
@@ -19,16 +16,15 @@ const NESTED =
 	'para A\n\n> para B\n>\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n>\n> | C | D |\n> | --- | --- |\n> | 3 | 4 |\n';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
+	const doc = parse(source);
 	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, caret: result.collapsedCaret };
+	return { doc: result.newDoc, caret: result.caret(result.newDoc)! };
 }
 
 function isLeafAt(doc: Document, path: number[]): boolean {
@@ -37,7 +33,7 @@ function isLeafAt(doc: Document, path: number[]): boolean {
 	return !('children' in node) || !node.children || node.children.length === 0;
 }
 
-describe('rangeDelete — survivor caret when both endpoint tables are consumed', () => {
+describe('rangeDelete: survivor caret when both endpoint tables are consumed', () => {
 	it('descends into a surviving container instead of naming its bare path', () => {
 		const { doc, caret } = run(FLAT, { path: [0], offset: 0 }, { path: [1], offset: 3 });
 

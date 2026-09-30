@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -15,12 +15,12 @@ describe('convertGithubAlertsInDocument', () => {
 		expect(converted).toBe('# Title\n\n:::warning\nCritical.\nMore.\n:::\n\nAfter.\n');
 	});
 
-	it('does NOT convert alert-shaped lines inside a fenced code block', () => {
+	it('does not convert alert-shaped lines inside a fenced code block', () => {
 		const src = '```markdown\n> [!NOTE]\n> sample\n```\n';
 		expect(convertGithubAlertsInDocument(src)).toEqual({ converted: src, changed: false });
 	});
 
-	it('does NOT convert a marker that is not the first line of its blockquote', () => {
+	it('does not convert a marker that is not the first line of its blockquote', () => {
 		const src = '> plain quote\n> [!NOTE]\n> still a quote\n';
 		expect(convertGithubAlertsInDocument(src)).toEqual({ converted: src, changed: false });
 	});
@@ -60,7 +60,7 @@ describe('convertGithubAlertsInDocument', () => {
 
 	it('converts a natively-parsed githubAlert node, not only a blockquote', () => {
 		// With native rendering, a top-level alert is a `githubAlert`, not a
-		// `blockquote`; the convert affordance must still rewrite it to directive source.
+		// `blockquote`; the converter must still rewrite it to directive source.
 		const src = '> [!NOTE]\n> Native.\n';
 		expect(parse(src).children[0].kind).toBe('githubAlert');
 		expect(convertGithubAlertsInDocument(src).converted).toBe(':::note\nNative.\n:::\n');
@@ -72,5 +72,14 @@ describe('convertGithubAlertsInDocument', () => {
 		const doc = parse(converted);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'admonition', 'fencedCode']);
 		expect(serialize(doc)).toBe(converted);
+	});
+});
+
+// Miss-analysis: every document fixture was LF, so no alert sat on an unterminated CRLF last line.
+describe('convertGithubAlertsInDocument in a CRLF document', () => {
+	it("closes an alert on the unterminated last line with the document's ending", () => {
+		expect(convertGithubAlertsInDocument('a\r\n\r\n> [!NOTE]').converted).toBe(
+			'a\r\n\r\n:::note\r\n:::'
+		);
 	});
 });

@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-//
-// Backspace at offset 0 of a blockquote's FIRST child lifts it out; one child later the
-// same keystroke merges instead. Neither is in BlockquoteBlock.svelte — the arm is picked
-// by the descriptor's `unwrapRole.{firstChild,middleChild}Backspace`, read by
-// `createNestedBlockEdit` and dispatched into `firstChildUnwrapStrategies`. Four parts have
-// to agree, each unit tested alone; a mount is the only level where the agreement shows.
+// Backspace at offset 0 of a blockquote's first child lifts it out; one child later it merges.
+// The choice comes from the kind descriptor's `unwrapRole`, read by `createNestedBlockEdit` and
+// dispatched into `firstChildUnwrapStrategies`; each part is tested alone, and only a mount
+// shows that they agree.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
@@ -23,7 +21,8 @@ describe('blockquote Backspace unwrap (U2)', () => {
 
 		await pressKeyAt(mounted, [0, 0], 0, BACKSPACE);
 
-		expect(mounted.source()).toBe('alpha\n> beta\n');
+		// The blank quote line between the two children stays as the blank line between them.
+		expect(mounted.source()).toBe('alpha\n\n> beta\n');
 	});
 
 	it('unwraps a sole child into a bare paragraph', async () => {

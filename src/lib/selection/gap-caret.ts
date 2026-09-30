@@ -1,8 +1,8 @@
 /**
- * Where a caret can live BETWEEN two sibling blocks: the boundaries no block's own editing
- * surface can reach, read off the kinds' `gapEdges` declarations. Eligibility is pure — doc
- * in, boolean out; `tryGapStop` is the one seam that turns it into an arrival.
- * The gap is deliberately not a `SelectionPoint`: it is never a cross-block endpoint.
+ * Where a caret can sit between two sibling blocks: the boundaries no block's own editable
+ * element can reach, read off the kinds' `gapEdges`. The eligibility checks are pure (document
+ * in, boolean out); `tryGapStop` is the one call that places the caret. A gap is deliberately
+ * not a `SelectionPoint`: it is never a cross-block endpoint.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -18,22 +18,16 @@ export interface GapCaretPosition {
 	index: number;
 }
 
-/**
- * A boundary is eligible when every block facing it declares that edge — an unregistered or
- * undeclared kind refuses on its side. The root's trailing boundary is excluded: the
- * move-past-end append (`editor-actions/focus/focus.ts`) already owns it.
- */
+/** A boundary is eligible when every block facing it declares that edge. The root's trailing
+ *  boundary is excluded, since the move-past-end append already handles it. */
 export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: number): boolean {
 	const children = gapScopeChildren(doc, parentPath);
 	if (!children) return false;
 	return gapEligibleAmong(children, index, parentPath.length > 0);
 }
 
-/**
- * The same rule for a scope that already holds its own children — the renderer, which has them
- * in hand and no path to resolve. `ownsTrailingBoundary` is false for the root, whose trailing
- * boundary belongs to the move-past-end append.
- */
+/** The same rule for a caller that already has the children and no path to resolve;
+ *  `ownsTrailingBoundary` is false for the root. */
 export function gapEligibleAmong(
 	children: readonly NodeView[],
 	index: number,
@@ -48,11 +42,8 @@ export function gapEligibleAmong(
 	return declaresEdge(children[index - 1], 'after') && declaresEdge(children[index], 'before');
 }
 
-/**
- * The children a gap could live between at `parentPath`, or null when that path names no
- * scope a BlockList renders. Shared with the undo restore road, so a drifted path cannot
- * park a caret somewhere nothing would paint it.
- */
+/** The children a gap could sit between at `parentPath`, or null when that path names no child
+ *  list a BlockList renders, so a stale path cannot put a caret where nothing paints it. */
 export function gapScopeChildren(
 	doc: DocumentView,
 	parentPath: number[]
@@ -71,18 +62,16 @@ function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {
 
 // ── Arrival ─────────────────────────────────────────────────────────────────
 
-/** What an arrival needs beyond the boundary itself. Getters, so a bound stop reads live. */
+/** What placing a gap caret needs beyond the boundary itself. Its reads are getters, so a stop
+ *  bound early sees live values. */
 export interface GapStopScope {
 	getDoc: () => DocumentView;
 	selection: SelectionState;
-	getPresentationMode?: () => PresentationMode;
+	getPresentationMode: () => PresentationMode;
 }
 
-/**
- * Whether an arriving gesture may park here. Reading mode never may: it has no caret at
- * all, so the gesture keeps its old landing. A caller that must act BETWEEN the decision
- * and the landing asks this, then goes through the door itself.
- */
+/** Whether a gesture may put the caret in this gap; reading mode has no caret, so never. A caller
+ *  that must act between the decision and the placement asks this, then calls `placeGapCaret`. */
 export function canGapStop(
 	scope: GapStopScope,
 	parentPath: number[],
@@ -92,8 +81,8 @@ export function canGapStop(
 	return gapEligibleAt(scope.getDoc(), parentPath, boundaryIndex);
 }
 
-/** Park the caret at an eligible `boundaryIndex`, reporting whether it did — so a
- *  traversal can stop instead of entering its target. */
+/** Puts the caret at an eligible `boundaryIndex` and reports whether it did, so a traversal
+ *  can stop instead of entering its target. */
 export function tryGapStop(
 	scope: GapStopScope,
 	parentPath: number[],

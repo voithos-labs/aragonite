@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
-// The gap indicator at the WINDOWED seam: a boundary index equal to the slice's end while
-// blocks below it stay unmounted. No scroll position holds that state in a browser (the
-// window recompute jumps past it), so the honest oracle is a synthetic WindowResult here.
+// The gap indicator at the end of the rendered range: a boundary index equal to that end
+// while blocks below it stay unmounted. No scroll position holds that state in a browser
+// (the window recompute jumps past it), so a made-up WindowResult is the honest way to test it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockList from '$lib/components/BlockList.svelte';
@@ -30,7 +29,8 @@ const WINDOW: WindowResult = {
 	start: 0,
 	end: SLICE_END,
 	topSpacerPx: 0,
-	bottomSpacerPx: 400
+	bottomSpacerPx: 400,
+	floorPx: 400
 };
 
 interface Mounted {
@@ -48,7 +48,7 @@ afterEach(async () => {
 const FENCE = '```\ncode\n```\n';
 const PARAGRAPH = 'para\n';
 
-/** A windowed BlockList over `BLOCK_COUNT` blocks with the gap parked at `gapIndex`. */
+/** A windowed BlockList over `BLOCK_COUNT` blocks with the gap caret at `gapIndex`. */
 function mountWindowedList(gapIndex: number, blockSource = FENCE): Mounted {
 	const doc = parse(Array.from({ length: BLOCK_COUNT }, () => blockSource).join('\n'));
 	expect(doc.children).toHaveLength(BLOCK_COUNT);
@@ -80,7 +80,7 @@ function mountWindowedList(gapIndex: number, blockSource = FENCE): Mounted {
 }
 
 describe('the gap indicator at a windowed slice boundary', () => {
-	it('renders the slice short of the document, so the seam is a real state', () => {
+	it('renders the slice short of the document, so the join is a real state', () => {
 		mounted = mountWindowedList(SLICE_END);
 
 		expect(mounted.target.querySelectorAll('.block-host')).toHaveLength(SLICE_END);
@@ -92,24 +92,23 @@ describe('the gap indicator at a windowed slice boundary', () => {
 
 		const painted = mounted.target.querySelectorAll('[data-gap-caret]');
 		expect(painted).toHaveLength(1);
-		// Document order is the claim: the seam sits past the last rendered host, not
-		// between two of them.
+		// Document order is what is being checked: the gap sits past the last rendered
+		// host, not between two of them.
 		const hosts = mounted.target.querySelectorAll('.block-host');
 		const last = hosts[hosts.length - 1];
 		expect(last.compareDocumentPosition(painted[0])).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 	});
 
-	// The windowed-out blocks below the seam own their own boundaries; painting one here
-	// would put the caret's line at a boundary the user is not looking at.
+	// The unmounted blocks below own their own boundaries; painting one here would put
+	// the caret's line at a boundary the user is not looking at.
 	it('paints nothing for a boundary past the slice end', () => {
 		mounted = mountWindowedList(SLICE_END + 1);
 
 		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(0);
 	});
 
-	// A gap outlives the tree it was minted against: an edit elsewhere can change the kinds
-	// facing its boundary, and the state has no way to see that. The renderer re-reads the
-	// eligibility rather than painting a caret no gesture could have parked there.
+	// An edit elsewhere can change the kinds either side of a stored gap, so the renderer
+	// re-checks rather than painting a caret no gesture could have put there.
 	it('paints nothing at a boundary the kinds facing it do not declare', () => {
 		mounted = mountWindowedList(SLICE_END, PARAGRAPH);
 

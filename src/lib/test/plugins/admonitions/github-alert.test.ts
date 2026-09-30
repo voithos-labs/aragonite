@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { GithubAlertMetadata } from '$lib/plugins/admonitions/kinds';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]` becomes
-// its own `githubAlert` kind, with the marker line in the container raw + metadata
-// only. Every NON-alert blockquote must still parse plain.
+// Native GitHub alerts: a blockquote whose first line is exactly `> [!TYPE]` becomes its own
+// `githubAlert` kind, with the marker line in the container raw and metadata only. Every
+// other blockquote must still parse plain.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -17,7 +17,7 @@ const firstKind = (src: string) => parse(src).children[0].kind;
 const alertType = (src: string) =>
 	getPluginMetadata<GithubAlertMetadata>(parse(src).children[0])?.alertType;
 
-describe('github alert — the marker grammar claims a githubAlert', () => {
+describe('github alert: the marker grammar claims a githubAlert', () => {
 	it('parses a first-line marker to the githubAlert kind', () => {
 		expect(firstKind('> [!NOTE]\n> Body.\n')).toBe('githubAlert');
 	});
@@ -50,8 +50,8 @@ describe('github alert — the marker grammar claims a githubAlert', () => {
 	});
 });
 
-describe('github alert — MARKER whitespace edges', () => {
-	// The edges MARKER's regex flags imply but no other case reaches, so a tightening
+describe('github alert: marker whitespace edges', () => {
+	// The edges `MARKER`'s regex allows but no other case reaches, so a tightening
 	// of the spacing rule cannot slip through green.
 
 	it('accepts trailing whitespace after the `]`', () => {
@@ -69,7 +69,7 @@ describe('github alert — MARKER whitespace edges', () => {
 	}
 });
 
-describe('github alert — the CommonMark block-indent boundary', () => {
+describe('github alert: the CommonMark block-indent boundary', () => {
 	// 4+ spaces makes a line indented code, so `blockquoteExtent` refuses it. A marker
 	// regex accepting the indent anyway consumes nothing and hangs the parse loop.
 
@@ -101,7 +101,7 @@ describe('github alert — the CommonMark block-indent boundary', () => {
 	]);
 });
 
-describe('github alert — non-alert blockquotes stay plain', () => {
+describe('github alert: non-alert blockquotes stay plain', () => {
 	const declines = [
 		{ name: 'mid-quote marker (not the first line)', src: '> plain\n> [!NOTE]\n> more\n' },
 		{ name: 'marker with trailing text', src: '> [!NOTE] and more\n' },

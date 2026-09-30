@@ -10,18 +10,17 @@ function entryWith(selection: UndoEntry['selection']): UndoEntry {
 }
 
 describe('isGapSelection', () => {
-	it('narrows a gap-carrying entry away from the anchor/focus arm', () => {
+	it('narrows a gap-carrying entry away from the anchor/focus branch', () => {
 		const entry = entryWith({ gapCaret: { parentPath: [0], index: 1 } });
 
 		expect(isGapSelection(entry.selection)).toBe(true);
-		// The narrow is what lets a consumer read the gap at all; without it neither arm's
-		// fields are reachable on the union.
+		// Only the narrowed type lets a consumer read either case's fields.
 		if (isGapSelection(entry.selection)) {
 			expect(entry.selection.gapCaret).toEqual({ parentPath: [0], index: 1 });
 		}
 	});
 
-	it('leaves an anchor/focus entry on the range arm', () => {
+	it('leaves an anchor/focus entry on the range branch', () => {
 		const point = { path: [0], offset: 2 };
 		const entry = entryWith({ anchor: point, focus: point });
 

@@ -1,37 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import {
 	activateDirectives,
-	declarePluginKind,
-	registerBlockKind,
 	registerDirective,
 	type CstNode,
 	type ParsedDirective
 } from '$lib/plugin';
-import { testClosure } from '$lib/test/support/closure';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
-/**
- * Admonitions registers five directive names and leaves alone any already registered.
- * Held here rather than by co-registering two claimants on a dev route: the winner is then
- * decided by process install order, which a multi-route SSR server and a fresh browser
- * realm resolve differently.
- */
+/** Admonitions registers its directive names only where no other plugin already holds one. */
 
 const PROBE = 'directiveYieldProbe';
 
 function claimNoteDirective(): void {
 	activateDirectives();
-	const kind = declarePluginKind(PROBE);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: { contract: 'opaque', rebuildRaw: () => {} }
-	});
+	const kind = testContainer(PROBE, { rebuildRaw: () => {} });
 	registerDirective('container', 'note', {
 		kind,
 		fromDirective: (parsed: ParsedDirective): CstNode => ({
@@ -44,8 +28,6 @@ function claimNoteDirective(): void {
 }
 
 describe('admonitions directive-name arbitration', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('leaves a name claimed before it installed to the first claimant', () => {
 		claimNoteDirective();
 		installPlugins([admonitionsPlugin()]);

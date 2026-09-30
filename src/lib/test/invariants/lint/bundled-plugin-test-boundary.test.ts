@@ -1,16 +1,13 @@
 /**
- * G4.63 — bundled-plugin test boundary: a file under a per-plugin test directory reaches
- * into aragonite only where a third-party author can. The published entry points (`$lib`,
- * `$lib/plugin`, `$lib/testing`), the plugin's own source, another plugin's PUBLISHED
- * subpath, the copyable in-repo test support, relative paths outside library code. An npm
- * package is the author's own business. G4.16's twin one layer out: that one proves the
- * barrels can BUILD a plugin, this one that they can TEST it. An allowlist entry is a
- * missing public door, named.
+ * A file under a per-plugin test directory imports from aragonite only what an outside author
+ * could (G4.63): the published entry points, the plugin's own source, another plugin's published
+ * subpath, the copyable in-repo test support, and relative paths outside library code. An
+ * allowlist entry names the public entry point that does not exist yet.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { readFileSync, readdirSync } from 'node:fs';
-import { collectEditorSources } from './scan-source';
+import { readFileSync } from 'node:fs';
+import { bundledPluginDirs, collectEditorSources, importSpecifiers } from './scan-source';
 
 const PLUGIN_SRC_ROOT = 'src/lib/plugins';
 const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
@@ -18,26 +15,27 @@ const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
 interface Exemption {
 	/** The exact specifiers this file may still reach for. */
 	specifiers: string[];
-	/** The public door that does not exist yet, which is why the reach-in stands. */
+	/** The public entry point that does not exist yet, which is why the reach-in stands. */
 	reason: string;
 }
 
-/**
- * Eight doors are missing, and every entry below names the one it waits on: a headless
- * editor-actions environment, tree mutation off a parsed document, the opaque-raw
- * predicates, parse convergence, registry read-back, the perf instruments, the built-in
- * text surface, and an inline node's raw text. Closing one empties its entries.
- */
+/** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
 		specifiers: ['$lib/schema/block-kind-descriptor'],
 		reason: 'no registry read-back: a kind can be registered and probed, never read back'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
-		specifiers: ['$lib/schema/block-kind-descriptor', '$lib/invariants/node-shape'],
+		specifiers: [
+			'$lib/schema/block-kind-descriptor',
+			'$lib/invariants/node-shape',
+			'$lib/tree-operations/sharing',
+			'$lib/tree-operations/chain-rebuild'
+		],
 		reason:
-			'no registry read-back, and the opaque stale-raw / rebuild-determinism predicates are ' +
-			'off the testing barrel (only checkCopyIsRawByteSlice is published)'
+			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
+			'testing barrel (only checkCopyIsRawByteSlice is published), and nothing published runs ' +
+			'the ancestor rebuild a commit runs over a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [
@@ -54,7 +52,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/github-alert-empty-body.test.ts': {
 		specifiers: ['$lib/tree-operations', '$lib/invariants/node-shape'],
 		reason:
-			'no door mutates a parsed document off an instance, and the stale-raw predicate is ' +
+			'nothing published mutates a parsed document off an instance, and the stale-raw predicate is ' +
 			'off the testing barrel'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-formation-siblings.test.ts': {
@@ -75,12 +73,13 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/tree-operations'
 		],
 		reason:
-			'no headless editor-actions environment, no published parse convergence, and no door ' +
+			'no headless editor-actions environment, no published parse convergence, and nothing published ' +
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['$lib/tree-operations'],
-		reason: 'no published door unwraps a child from its quote off a parsed document'
+		specifiers: ['$lib/tree-operations', '$lib/schema/block-openers'],
+		reason:
+			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
 	},
 	'src/lib/test/plugins/details/terminator-collision.test.ts': {
 		specifiers: [
@@ -101,39 +100,40 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/editor-actions/paste-coordinator',
 			'$lib/invariants/node-shape',
 			'$lib/reactivity/state-registry',
-			'$lib/tree-operations/paste-surfaces',
-			'$lib/tree-operations/paste/dispatch',
-			'$lib/tree-operations/paste/hooks',
-			'$lib/tree-operations/paste/replace-block-at-parent'
+			'$lib/schema/block-openers',
+			'$lib/tree-operations/paste/dispatch'
 		],
 		reason:
-			'the paste pipeline publishes applyPasteTransforms alone: no surface registration, no ' +
-			'dispatch, and no headless environment to run either against'
+			'the paste pipeline publishes applyPasteTransforms alone: no dispatch, and no headless ' +
+			'environment to run it against'
 	},
 	'src/lib/test/plugins/details/terminator-collision-structural.test.ts': {
 		specifiers: [
 			'$lib/invariants/node-shape',
 			'$lib/selection/range-delete',
+			'$lib/selection/range-coverage',
 			'$lib/tree-operations/node-ops',
 			'$lib/tree-operations/sharing'
 		],
 		reason:
-			'no published door splits or range-deletes a parsed document, and no published opaque ' +
+			'nothing published splits, joins or range-deletes a parsed document, and no published opaque ' +
 			'stale-raw predicate to hold the result to'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
 		specifiers: ['$lib/core/directive/kinds'],
 		reason:
-			'the directive inline tier has no published kind name; the plugin barrel publishes the ' +
-			'body wrap and the registration doors only'
+			'the directive inline level has no published kind name; the plugin barrel publishes the ' +
+			'body wrap and the registration entry points only'
 	},
 	'src/lib/test/plugins/emoji/widget.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back: a widget kind registers its editing policy but never reads it'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
+			'and the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
 		specifiers: ['$lib/tree-operations', '$lib/testing/parse-convergence'],
-		reason: 'no published door splits a parsed document, and no published parse convergence'
+		reason: 'nothing published splits a parsed document, and no published parse convergence'
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [
@@ -153,8 +153,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'renders into'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back: a widget kind registers its component but never reads it'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back: a widget kind registers its component but never reads it, and ' +
+			'the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/highlight-occurrences/wiring.test.ts': {
 		specifiers: ['$lib/schema/plugin-install'],
@@ -164,35 +166,80 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/latex/block.test.ts': {
 		specifiers: ['$lib/core/inline/scan/plugin-syntax'],
-		reason: 'no registry read-back: an inline rung registers on a trigger but is never listed back'
+		reason:
+			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets'],
-		reason: 'no registry read-back for a widget kind, and no published core widget shell builder'
+		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		reason:
+			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
+			'no published grammar for either read'
+	},
+	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
+		specifiers: ['$lib/tree-operations/node-primitives'],
+		reason:
+			'a kind declares rawWrite but nothing published applies one, so an author cannot ' +
+			'check what their rule makes of bytes a tree operation wrote'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
 		specifiers: ['$lib/cursor/widget-offset'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
-		specifiers: ['$lib/editor-actions/enter-completion', '$lib/schema/block-completions'],
+		specifiers: [
+			'$lib/editor-actions/enter-completion',
+			'$lib/schema/block-completions',
+			'$lib/schema/block-openers'
+		],
 		reason:
-			'a completer registers but nothing published runs one, and the Enter seam that consults ' +
-			'it has no headless entry'
+			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
+			'it has no headless entry, nor a published grammar to run it under'
 	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
 		specifiers: ['$lib/testing/parse-convergence'],
 		reason: 'parse convergence lives in src/lib/testing without reaching the testing barrel'
 	},
-	'src/lib/test/plugins/toc/options.test.ts': {
-		specifiers: ['$lib/schema/block-component-registry'],
+	'src/lib/test/plugins/mermaid/raw-write-rule.test.ts': {
+		specifiers: [
+			'$lib/tree-operations/node-primitives',
+			'$lib/selection/range-delete',
+			'$lib/selection/range-coverage',
+			'$lib/tree-operations/sharing'
+		],
+		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'
+	},
+	'src/lib/test/plugins/parrot/caption.test.ts': {
+		specifiers: ['$lib/schema/block-kind-descriptor'],
+		reason: "no registry read-back: the kind's caretTargetAtPoint cannot be read back to call"
+	},
+	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
+		specifiers: [
+			'$lib/editor-events',
+			'$lib/inline-menu/inline-menu-state.svelte',
+			'$lib/schema/insert-catalogue',
+			'$lib/schema/plugin-activation',
+			'$lib/schema/plugin-editor-context',
+			'$lib/schema/plugin-install'
+		],
 		reason:
-			'no registry read-back: a component entry registers its extraProps closure but nothing ' +
-			'published reads it, so option threading needs a mounted editor'
+			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
+			'but typing a trigger and the write a pick makes need the menu state of the editor itself; ' +
+			'only a mounted editor or a plugin context lists the insert catalogue, and only a headless ' +
+			"editor context merges an entry's options over the defaults"
+	},
+	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
+		specifiers: [
+			'$lib/schema/commands',
+			'$lib/schema/keybindings',
+			'$lib/schema/plugin-activation'
+		],
+		reason:
+			'no command dispatch or chord read off a mounted editor: the handler of a global command, ' +
+			'its chord binding and the activation it resolves under are reachable only through the schema registries'
 	}
 };
 
-// ── The published surface ────────────────────────────────────────────────────
+// ── The published API ────────────────────────────────────────────────────────
 
 const PUBLIC_BARRELS = new Set(['$lib', '$lib/plugin', '$lib/testing']);
 
@@ -211,11 +258,7 @@ function publishedPluginSubpaths(): Set<string> {
 
 const PUBLISHED_PLUGIN_SUBPATHS = publishedPluginSubpaths();
 
-const BUNDLED_PLUGINS = new Set(
-	readdirSync(path.resolve(PLUGIN_SRC_ROOT), { withFileTypes: true })
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => entry.name)
-);
+const BUNDLED_PLUGINS = new Set(bundledPluginDirs());
 
 /** The plugin whose suite `relPath` belongs to, or null for a platform test sitting loose
  *  under the test root. */
@@ -226,8 +269,7 @@ function suiteOf(relPath: string): string | null {
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
-	// A relative path is fine unless it lands in library code, which would be a back door
-	// around every rule below; `../../../core/parser` is the shape being closed.
+	// A relative path into library code would get around every rule below.
 	if (specifier.startsWith('.')) {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
 		return !resolved.startsWith('src/lib/') || resolved.startsWith('src/lib/test/');
@@ -245,24 +287,6 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 	return specifier === own || specifier.startsWith(`${own}/`);
 }
 
-// ── Specifier extraction ─────────────────────────────────────────────────────
-
-// Line-anchored so a CSS `@import` inside a <style> block can't read as a JS
-// side-effect import.
-const FROM_IMPORT = /^\s*(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
-const SIDE_EFFECT_IMPORT = /^\s*import\s+['"]([^'"]+)['"]/gm;
-const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]/g;
-
-function importSpecifiers(code: string): string[] {
-	const specs: string[] = [];
-	for (const source of [FROM_IMPORT, SIDE_EFFECT_IMPORT, DYNAMIC_IMPORT]) {
-		const re = new RegExp(source.source, source.flags);
-		let match: RegExpExecArray | null;
-		while ((match = re.exec(code)) !== null) specs.push(match[1]);
-	}
-	return specs;
-}
-
 interface Reach {
 	relPath: string;
 	specifier: string;
@@ -272,7 +296,7 @@ function reachIns(sources: ReturnType<typeof collectEditorSources>): Reach[] {
 	const out: Reach[] = [];
 	for (const file of sources) {
 		if (suiteOf(file.relPath) === null) continue;
-		for (const specifier of importSpecifiers(file.code)) {
+		for (const { specifier } of importSpecifiers(file.code)) {
 			if (!isAllowedSpecifier(file.relPath, specifier)) {
 				out.push({ relPath: file.relPath, specifier });
 			}
@@ -291,7 +315,7 @@ describe('G4.63 bundled-plugin test boundary', () => {
 		expect(suites.size).toBeGreaterThan(1);
 	});
 
-	it('every reach-in past the published surface is an allowlisted missing door', () => {
+	it('every reach-in past the published surface is an allowlisted missing entry point', () => {
 		const violations = reachIns(sources).filter(
 			(hit) => !ALLOWLIST[hit.relPath]?.specifiers.includes(hit.specifier)
 		);
@@ -314,7 +338,7 @@ describe('G4.63 bundled-plugin test boundary', () => {
 		expect(dead, `allowlist entries with no live import: ${dead.join(', ')}`).toEqual([]);
 	});
 
-	it('every allowlist entry names the missing door', () => {
+	it('every allowlist entry names the missing entry point', () => {
 		for (const [relPath, exemption] of Object.entries(ALLOWLIST)) {
 			expect(exemption.specifiers.length, relPath).toBeGreaterThan(0);
 			expect(exemption.reason.length, relPath).toBeGreaterThan(20);
@@ -373,26 +397,5 @@ describe('G4.63 classifier non-vacuity', () => {
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/details/round-trip.test.ts`)).toBe('details');
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/kind-conformance.test.ts`)).toBe(null);
 		expect(suiteOf(`${PLUGIN_TEST_ROOT}/fixtures/showcase.ts`)).toBe(null);
-	});
-});
-
-describe('G4.63 specifier extraction', () => {
-	it('extracts single-line, multi-line, side-effect, and dynamic specifiers', () => {
-		const code = [
-			"import { a } from '$lib';",
-			'import {',
-			'\tb,',
-			'\tc',
-			"} from './local';",
-			"import 'katex/dist/katex.min.css';",
-			"const m = await import('mermaid');"
-		].join('\n');
-		expect(importSpecifiers(code).sort()).toEqual(
-			['$lib', './local', 'katex/dist/katex.min.css', 'mermaid'].sort()
-		);
-	});
-
-	it('ignores a CSS @import in a style block', () => {
-		expect(importSpecifiers("\t@import 'reset.css';")).toEqual([]);
 	});
 });

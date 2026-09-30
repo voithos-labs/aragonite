@@ -1,8 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Link affordance + layout, all of which only surface under real layout/CSS — jsdom has no computed
-// cursor, no `:has()`, and no element box geometry.
+// How a link invites a click, and how it lays out: both need real layout and CSS, and jsdom has
+// no computed cursor, no `:has()` and no element boxes.
 test.describe('link styling + affordance', () => {
 	let editor: EditorPage;
 
@@ -22,9 +22,8 @@ test.describe('link styling + affordance', () => {
 
 		await expect(link).toHaveCSS('text-decoration-line', 'underline');
 
-		// "Is the accent, non-default" without pinning a hex: the link and the autolink resolve the
-		// same `--color-accent` token and both differ from body text, so the comparison survives a
-		// theme change.
+		// The link and the autolink resolve the same `--color-accent` token and both differ from
+		// body text, so the check survives a theme change without naming a hex.
 		const linkColor = await link.evaluate((el) => getComputedStyle(el).color);
 		const autoColor = await page
 			.locator('a.md-autolink', { hasText: 'auto.example.com' })
@@ -68,9 +67,8 @@ test.describe('link styling + affordance', () => {
 		await page.keyboard.down('Control');
 		await expect(editor.editorContainer).toHaveAttribute('data-mod-active', '');
 
-		// The page can lose focus while the modifier is physically down (OS shortcut, alt-tab): the
-		// keyup never arrives, so the blur/visibility reset must clear the pointer affordance on
-		// its own.
+		// The page can lose focus while the modifier is held (an OS shortcut, alt-tab) and the
+		// keyup never arrives, so the blur and visibility reset must clear the pointer on its own.
 		await page.evaluate(() => {
 			window.dispatchEvent(new Event('blur'));
 		});
@@ -84,7 +82,7 @@ test.describe('link styling + affordance', () => {
 		page
 	}) => {
 		// `[shot]` resolves the inner image, `[repo]` the outer link; the title on the `[repo]`
-		// LRD is what widens the `title` tooltip when the link does not hug the image.
+		// definition is what widens the `title` tooltip when the link does not hug the image.
 		const NESTED = [
 			'[![cat][shot]][repo]',
 			'',
@@ -114,8 +112,8 @@ test.describe('link styling + affordance', () => {
 
 		// The anchor hugs the image (within a couple of sub-pixel rounding px)…
 		expect(Math.abs(anchorBox!.width - imgBox!.width)).toBeLessThanOrEqual(3);
-		// …and far narrower than the editing surface: the bug ballooned it to the full content
-		// width.
+		// …and far narrower than the editable area: getting this wrong balloons it to the full
+		// content width.
 		const contentWidth = await editor.editorContainer.evaluate((el) => el.clientWidth);
 		expect(anchorBox!.width).toBeLessThan(contentWidth / 2);
 	});

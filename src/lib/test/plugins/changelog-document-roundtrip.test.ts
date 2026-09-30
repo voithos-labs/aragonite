@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { detailsPlugin, DETAILS } from '$lib/plugins/details';
 import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc';
@@ -16,15 +15,12 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
 
 /**
  * The `/changelog` route serves the repo's own changelog, one release family per document, so
- * every release entry ships to a demo route as untested content and byte-exact round-trip is the
- * route's whole claim. A unit case by necessity: the route exposes no `window.__test` bridge, and
- * the composed documents are imported here rather than re-composed, so neither the prelude nor a
- * newly added family can drift out from under the guard.
+ * every entry ships to a demo route as untested content and a byte-exact round trip is the
+ * route's whole promise. The documents are imported here rather than re-composed, so neither
+ * the prelude nor a newly added family can drift out from under this guard.
  */
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
-	// The parser never renders, so no-op renderers satisfy the required options.
+beforeEach(() => {
 	installPlugins([
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -32,23 +28,22 @@ beforeAll(() => {
 		footnotesPlugin(),
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		mermaidPlugin({ renderer: async () => '<svg />' }),
+		latexPlugin(),
+		mermaidPlugin(),
 		parrotPlugin()
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 const PRELUDE = '<details>\n<summary>Versions</summary>\n\n[[toc]]\n\n</details>\n\n';
 
 describe('changelog documents', () => {
 	// A `?raw` glob resolving to nothing would round-trip vacuously, and so would a prelude the
-	// route stopped prepending.
-	it('composes every release family behind the route prelude', () => {
+	// route stopped prepending. The file's `../changelog.md` pointer is a 404 on the site.
+	it('composes every release family behind the route prelude, minus the index pointer', () => {
 		expect(CHANGELOG_FAMILIES.length).toBeGreaterThan(1);
 		for (const { id, document } of CHANGELOG_FAMILIES) {
 			expect(document.startsWith(`${PRELUDE}# Changelog ${id}\n`)).toBe(true);
+			expect(document, id).not.toContain('](../changelog.md)');
 		}
 		const bytes = CHANGELOG_FAMILIES.reduce((sum, f) => sum + f.document.length, 0);
 		expect(bytes).toBeGreaterThan(20_000);
@@ -69,8 +64,8 @@ describe('changelog documents', () => {
 	it('resolves the prelude to a collapsed details holding the outline', () => {
 		const [outline] = parse(CHANGELOG_FAMILIES[0].document).children;
 		expect(outline.kind).toBe(DETAILS);
-		// Child 0 is the summary chrome; the `[[toc]]` must have parsed as the plugin leaf
-		// inside the container rather than falling back to prose.
+		// Child 0 is the summary; the `[[toc]]` must have parsed as the plugin block inside
+		// the container rather than falling back to prose.
 		expect(outline.children?.[1]?.kind).toBe(TOC_BLOCK);
 		expect(outline.raw.startsWith('<details>\n')).toBe(true);
 	});

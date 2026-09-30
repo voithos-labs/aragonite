@@ -1,67 +1,46 @@
 /**
- * Cell text ingestion for tableCell: the caret mapping that follows the sink's
- * inserted backslashes, plus the paste hooks exposed as a PasteSurface. The bytes
- * are the kind's business — every hook hands back plain spliced text and
- * `normalizeCellRaw` runs at the write sink.
+ * How a table cell takes in pasted text. The bytes are the kind's business: every hook hands back
+ * unescaped text, and the cell's write rule (`schema/table-cell-raw.ts`) runs when it is written.
  */
 
 import { CURSOR_END } from '../../../block-component';
-import { normalizeCellRaw } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
-import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
+import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
+import { documentLineEnding, trimTrailingLineEnding, trimWhitespace } from '../../../core/lines';
 import type {
 	InlinePasteResult,
 	PasteRange,
-	PasteSeam,
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
+import type { StoredAs } from '../../../schema/stored-as';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function normalizeWhitespace(s: string): string {
-	return s.replace(/\n+/g, ' ').trim();
-}
-
-/**
- * Where `offset` lands once the sink's `normalizeCellRaw` has run — defined as that
- * same pass over the prefix, so the caret cannot drift out of step with the bytes.
- */
-export function escapedCellOffset(text: string, offset: number): number {
-	return normalizeCellRaw(text.slice(0, offset)).length;
+	return trimWhitespace(s.replace(/\n+/g, ' '));
 }
 
 export function tableCellInlinePaste(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange,
-	seam?: PasteSeam
+	preDelete: PasteRange | undefined,
+	store: StoredAs
 ): InlinePasteResult {
+	// The kind's pipe escaping runs over whatever the join writes, when the cell is written.
 	const cleaned = normalizeWhitespace(text);
-
-	// The delete half crosses the join seam BEFORE the escaping stage (live-mode.md § 4.5): the
-	// seam reads and writes the cell's own display bytes, and `normalizeCellRaw` still runs at the
-	// sink over whatever they end up being.
-	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
+	const edit = replaceRangeInLeaf(
 		node,
-		node.raw,
 		preDelete ?? { start: offset, end: offset },
-		seam?.presentationMode,
-		seam?.linkRef
+		cleaned,
+		store
 	);
-
-	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
-	// Escaped space, because the sink escapes the whole spliced raw and not just the
-	// pasted text: the insertion point can sit between a `\` and the `|` it frees.
-	return {
-		newRaw: spliced,
-		caretOffset: escapedCellOffset(spliced, effectiveOffset + cleaned.length)
-	};
+	return { newRaw: trimTrailingLineEnding(edit.raw), caretOffset: edit.caret };
 }
 
 export const tableCellPasteSurface: PasteSurface = {
@@ -74,31 +53,35 @@ export const tableCellPasteSurface: PasteSurface = {
 // ── Internal ───────────────────────────────────────────────────────────────
 
 // The cell's blockEdit is the row-level nested bundle (its `replaceBlock` targets the
-// row's cells), so the splice routes through `replaceBlockAtParent` at the table's parent.
+// row's cells), so the splice goes through the paste coordinator at the table's parent.
 async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput): Promise<void> {
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
 	const table = blockNodeAt(input.doc, tablePath);
-	// Malformed path: swallow the paste.
+	// Malformed path: drop the paste.
 	if (!table || table.kind !== 'table') return;
 
 	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
+	const lineEnding = documentLineEnding(input.doc);
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
+	const landed = landClipboardBlocks(firstHalf ?? undefined, input.blocks, lineEnding);
 	// Appended, never spread: a paste can outnumber an argument list (G4.60).
-	for (const block of input.blocks) replacement.push(block);
-	if (secondHalf) replacement.push(secondHalf);
+	for (const block of landed) replacement.push(block);
+	const last = replacement[replacement.length - 1];
+	// The rows below the cell stay a table: with no blank line, the last block would read them.
+	if (secondHalf) replacement.push(last ? landedAfter(last, secondHalf, lineEnding) : secondHalf);
 
-	await replaceBlockAtParent({
-		doc: input.doc,
-		blockPath: tablePath,
+	await input.controller.replaceBlock(
+		tablePath,
 		replacement,
-		controller: input.controller,
-		undoEntry: input.undoEntry,
-		// The last pasted block, before the second table half (the residue).
-		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
-		focusOffset: CURSOR_END,
-		source: 'paste-dispatch-table-cell',
-		...(input.grammar ? { grammar: input.grammar } : {})
-	});
+		// The last pasted block, before the second half of the table.
+		{
+			replacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
+			offset: CURSOR_END
+		},
+		// The commit targets the whole table, where no in-cell offset applies; the live read
+		// records the cell's caret.
+		{ source: 'paste-dispatch-table-cell', snapshotOffset: 0 }
+	);
 }

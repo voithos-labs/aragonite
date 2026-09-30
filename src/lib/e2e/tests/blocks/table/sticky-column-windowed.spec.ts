@@ -2,16 +2,15 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { capturePageErrors } from '../../../page-probes';
 
-// VR-K1: sticky-column entry into a row-windowed table must read column geometry from a MOUNTED
-// row, not hard-coded row 0 — an unmounted row 0 yields [] rects and columnNearestX collapses the
-// caret to column 0.
+// Entering a row-windowed table with a sticky column must read the column geometry from a mounted
+// row, not a hardcoded row 0: an unmounted row 0 gives no rects and `columnNearestX` collapses the
+// caret to column 0 (VR-K1).
 test.describe('table block: sticky-column entry into a row-windowed table', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
-		// Fixed viewport so the windowed mount set is deterministic, matching the VR table suite. A
-		// 2MB table clears the 4000px watermark at any height, but pinning the geometry keeps the
-		// precondition unambiguous.
+		// A fixed viewport keeps the windowed mount set deterministic, as in the VR table suite,
+		// even though a 2MB table windows at any height.
 		await page.setViewportSize({ width: 1280, height: 900 });
 		editor = new EditorPage(page);
 		await editor.goto();
@@ -20,8 +19,8 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 	test('ArrowUp from below lands the nearest-X column, not column 0, when row 0 is windowed out', async ({
 		page
 	}) => {
-		// Row-windowing settles are layout-bound on a 2MB load; give the same headroom the VR table
-		// suite uses.
+		// Row windowing on a 2MB load is bound by layout, so this gets the VR table suite's
+		// headroom.
 		test.setTimeout(120_000);
 
 		const pageErrors = capturePageErrors(page);
@@ -41,19 +40,18 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 		);
 		await editor.scrollEditorTo(scrollHeight);
 
-		// Click the RIGHTMOST cell (col 2 of the 3-col fixture): the sticky-X then maps
-		// unambiguously to col 2, so the bug's col-0 landing is maximally distinguishable.
+		// Click the rightmost cell (col 2 of the 3-column fixture): the sticky x then maps
+		// clearly to col 2, so a landing in col 0 stands out.
 		const rightCol = 2;
-		await page.locator(`[data-table-row-idx="${lastRow}"] [role="cell"]`).nth(rightCol).click();
+		await page.locator(`[data-table-row-idx="${lastRow}"] .table-cell`).nth(rightCol).click();
 
-		// ArrowDown exits to the paragraph below, capturing the sticky-X at col 2. No
-		// typing in between — input events reset the sticky column.
+		// ArrowDown exits to the paragraph below, capturing the sticky x at col 2. No
+		// typing in between: input events reset the sticky column.
 		await page.keyboard.press('ArrowDown');
 		await editor.waitForRenderFlush();
 
-		// Load-bearing precondition at the decisive instant: row 0 unmounted and the table windowed
-		// — otherwise this passes vacuously, since the buggy row-0 read only fails when row 0 is
-		// genuinely off-window.
+		// The precondition at the decisive moment: row 0 unmounted and the table windowed, or this
+		// passes vacuously, since a read of row 0 only fails when row 0 is really unmounted.
 		expect(
 			await page.evaluate(() => document.querySelector('[data-table-row-idx="0"]'))
 		).toBeNull();
@@ -64,8 +62,8 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 		await page.keyboard.press('ArrowUp');
 		await editor.waitForRenderFlush();
 
-		// Oracle: the focus path is [tableIdx, rowIdx, colIdx, ...]. The caret must land
-		// in col 2 (nearest the sticky-X), NOT col 0 — the bug's empty-rects fallback.
+		// The check: the focus path is [tableIdx, rowIdx, colIdx, ...]. The caret must land in
+		// col 2, nearest the sticky x, not col 0, which is what an empty set of rects falls to.
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.focus.path[1]).toBe(lastRow);

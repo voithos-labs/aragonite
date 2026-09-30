@@ -1,14 +1,11 @@
 // @vitest-environment jsdom
-//
-// The composition seat at its wiring level: what a compositionend commit writes when the seat
-// is consulted, per presentation mode. Miss: the seat's mode gate lived only at the keydown
-// dispatch; no composition-path test ever ran outside live mode, so the ungated sibling
-// relocated bytes a source-mode user placed beside a VISIBLE delimiter.
+// Where a composed run is placed: what a `compositionend` commit writes in each presentation mode.
+// Miss-analysis: no composition test ran outside live mode, so only keydown checked the mode.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
@@ -18,6 +15,7 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import { screenVisibilityOf } from '$lib/cursor/widget-offset';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => {
@@ -25,7 +23,7 @@ afterEach(() => {
 	document.body.innerHTML = '';
 });
 
-// `Some **bold** text`: strong [5,13), content [7,11) — 11 is the trailing run's near side.
+// `Some **bold** text`: strong [5,13), content [7,11), and 11 is the trailing run's near side.
 const BOLD = 'Some **bold** text';
 
 interface SeatHarness {
@@ -41,20 +39,23 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
+		reading: fixtureReading(),
 		getAffinity: () => affinity,
 		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,
 		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, 'live', undefined);
-			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+			const store = topLevelStore(node, fixtureReading({}, 'live'));
+			const edit = replaceRangeInLeaf(node, range, typed, store);
+			if (edit.matchesBrowserEdit) return null;
+			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
 	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
 	surface.el.textContent = source;
 
-	// Browser order as the block wires it: seat capture, then the surface's own start half.
+	// Browser order as the block wires it: the caret capture first, then the block's own start.
 	const compose = (domAfter: string, caretAt: number): void => {
 		surface.setCaret(caretAt);
 		seat.noteStart();
@@ -69,14 +70,14 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	return { surface, compose, selectRange };
 }
 
-describe('the composition seat is gated on the mode, like its keydown sibling', () => {
+describe('the composition caret position is gated on the mode, like its keydown sibling', () => {
 	it('source mode commits the DOM read verbatim: the delimiter the caret touched is visible', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		compose('Some **boldかん** text', 11);
 		expect(surface.commits.map((c) => c.text)).toEqual(['Some **boldかん** text']);
 	});
 
-	it('live mode relocates the composed run through the seat', () => {
+	it('live mode relocates the composed run through the caret position', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		surface.el.setAttribute('data-presentation', 'live');
 		compose('Some **boldかん** text', 11);
@@ -84,12 +85,12 @@ describe('the composition seat is gated on the mode, like its keydown sibling', 
 	});
 });
 
-describe('a composition over a selection takes the join seam', () => {
-	// Same fixture as live-selection-edit: selecting [9,21) crosses `**`'s closer and `*`'s
-	// opener, so the literal replace strands both runs on screen.
+describe('a composition over a selection takes the join', () => {
+	// Selecting [9,21) crosses `**`'s closer and `*`'s opener, so a literal replace leaves both
+	// marker runs unpaired on screen.
 	const MIXED = 'Some **bold** and *italic* words';
 
-	it('live mode cleans the stranded runs and lands the run at the cleaned seam', () => {
+	it('live mode cleans the stranded runs and lands the run at the cleaned join', () => {
 		const { surface, compose, selectRange } = makeSeatHarness(MIXED, null);
 		surface.el.setAttribute('data-presentation', 'live');
 		selectRange(9, 21);
@@ -97,7 +98,7 @@ describe('a composition over a selection takes the join seam', () => {
 		expect(surface.commits.map((c) => c.text)).toEqual(['Some boかんalic words']);
 	});
 
-	it('a range whose seam has nothing to clean stays the verbatim native edit', () => {
+	it('a range whose join has nothing to clean stays the verbatim native edit', () => {
 		const PLAIN = 'plain words here';
 		const { surface, compose, selectRange } = makeSeatHarness(PLAIN, null);
 		surface.el.setAttribute('data-presentation', 'live');

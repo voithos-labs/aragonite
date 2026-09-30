@@ -1,9 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Requirements: e2e/requirements/blocks/blockquote/marker-completion.md.
+// Requirements: `e2e/requirements/blocks/blockquote/marker-completion.md`.
 
-/** An empty paragraph below `lead`, made by a real Enter — the mint path a load never runs. */
+/** An empty paragraph below `lead`, made by a real Enter: the path a load never runs. */
 async function emptyParagraphBelowLead(editor: EditorPage): Promise<void> {
 	await editor.loadContent('lead\n');
 	await editor.focusBlockEnd(0);
@@ -11,7 +11,7 @@ async function emptyParagraphBelowLead(editor: EditorPage): Promise<void> {
 	await editor.waitForBlockHostCount(2);
 }
 
-/** Type `>` and settle on the mint: the source carries the marker and the caret has moved
+/** Type `>` and wait for the new block: the source carries the marker and the caret has moved
  *  into the quote's child, so the next keystroke cannot race the reclassify. */
 async function typeQuoteOpener(editor: EditorPage, depth: number): Promise<void> {
 	await editor.typeText('>');
@@ -21,14 +21,14 @@ async function typeQuoteOpener(editor: EditorPage, depth: number): Promise<void>
 		.toBeGreaterThanOrEqual(depth + 1);
 }
 
-/** The marker-completion press: consumed, so not one byte of the document moves. */
+/** The key that completes the marker is consumed, so not one byte of the document moves. */
 async function pressMarkerSpace(editor: EditorPage): Promise<void> {
 	const before = await editor.bridge.getSource();
 	await editor.pressDeclined('Space');
 	expect(await editor.bridge.getSource()).toBe(before);
 }
 
-test.describe('blockquote — the space that completes the `> ` marker', () => {
+test.describe('blockquote: the space that completes the `> ` marker', () => {
 	let editor: EditorPage;
 
 	test('live: `>` then space then `a` yields `> a`, and the space moves no byte', async ({
@@ -91,7 +91,7 @@ test.describe('blockquote — the space that completes the `> ` marker', () => {
 		expect(await editor.bridge.getSource()).not.toContain('>  ');
 	});
 
-	test('a space at offset 0 of a NON-empty quote child is ordinary content', async ({ page }) => {
+	test('a space at offset 0 of a non-empty quote child is ordinary content', async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('> abc\n');

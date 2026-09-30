@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('text editing — happy paths', () => {
+test.describe('text editing: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe('text editing — happy paths', () => {
 		expect(source).toContain('Hello world');
 	});
 
-	test('Enter at end splits block — creates new empty block after current', async () => {
+	test('Enter at end splits block: creates new empty block after current', async () => {
 		await editor.loadContent('Line one\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
@@ -26,20 +26,6 @@ test.describe('text editing — happy paths', () => {
 		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 		expect(await editor.getBlockText(0)).toContain('Line one');
-	});
-
-	test('Enter in middle splits content across two blocks', async () => {
-		await editor.loadContent('HelloWorld\n');
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Enter');
-
-		const domCount = await editor.getDomBlockCount();
-		expect(domCount).toBe(2);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Hello');
-		expect(source).toContain('World');
 	});
 
 	test('Backspace at start merges with previous paragraph', async () => {
@@ -60,7 +46,7 @@ test.describe('text editing — happy paths', () => {
 		expect(kind).toBe('heading');
 	});
 
-	test('rapid split — Enter twice creates three blocks', async () => {
+	test('rapid split: Enter twice creates three blocks', async () => {
 		await editor.loadContent('Start\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');

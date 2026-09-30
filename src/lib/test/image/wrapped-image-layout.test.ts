@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The ambient-marker pin (`.md-marker[contenteditable=false]` absolutely placed at the image's
- * bottom-left) and the image-only `min-height: 0` are pure CSS, so only the real cascade can pin
- * them. The class under guard is sibling-path parity across wrapper shapes: `renderInlineNodes`
- * wraps children for emphasis, strong, strikethrough and both link forms, putting the widget one
- * level deeper than a bare `![img](x)`.
+ * The container marker's placement beside an image is pure CSS, so this checks it holds for every
+ * inline wrapper that puts the widget one level deeper than a plain `![img](x)`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -13,13 +10,14 @@ import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
+import { renderOptions } from '../harness/fixture-grammar';
 
 function widgetOptions(): RenderInlineOptions {
 	const brokenUrlCache = new Set<string>();
-	return {
+	return renderOptions({
 		buildImageWidget: (node, raw, imgOpts) =>
 			buildImageWidget(node, raw, { ...imgOpts, brokenUrlCache })
-	};
+	});
 }
 
 let editorRoot: HTMLElement;
@@ -33,7 +31,7 @@ beforeAll(() => {
 	document.body.appendChild(editorRoot);
 });
 
-/** A list-item paragraph: ambient `- ` prefix plus `content` rendered for real. */
+/** A list-item paragraph: the `- ` marker prefix plus `content` rendered for real. */
 function renderListParagraph(content: string): HTMLElement {
 	const paragraph = document.createElement('div');
 	paragraph.className = 'text-editable-block paragraph-block';
@@ -51,8 +49,8 @@ function ambientMarkerOf(paragraph: HTMLElement): Element {
 	return marker;
 }
 
-// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The bare
-// case is the control that already worked; a re-tightened combinator turns the other five red.
+// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The
+// plain case is the control that already worked; a tightened selector turns the other five red.
 const WRAPPED_IMAGES: Array<[string, string]> = [
 	['bare (control — already worked)', '![b](i.png)'],
 	['emphasis', '*![b](i.png)*'],
@@ -63,7 +61,7 @@ const WRAPPED_IMAGES: Array<[string, string]> = [
 	['nested wrappers', '[*![b](i.png)*](https://x.com)']
 ];
 
-describe('image-bearing list paragraph — ambient marker pin', () => {
+describe('image-bearing list paragraph: ambient marker pin', () => {
 	it.each(WRAPPED_IMAGES)('pins the marker out of flow for %s', (_label, content) => {
 		const paragraph = renderListParagraph(content);
 		expect(getComputedStyle(paragraph).position).toBe('relative');
@@ -77,7 +75,7 @@ describe('image-bearing list paragraph — ambient marker pin', () => {
 	});
 });
 
-describe('image-bearing list paragraph — trailing line-box', () => {
+describe('image-bearing list paragraph, trailing line-box', () => {
 	it.each(WRAPPED_IMAGES)('drops the dead line-box for %s', (_label, content) => {
 		expect(getComputedStyle(renderListParagraph(content)).minHeight).toBe('0px');
 	});
@@ -87,7 +85,7 @@ describe('image-bearing list paragraph — trailing line-box', () => {
 	});
 });
 
-describe('image-bearing link anchor — tooltip hugs the image', () => {
+describe('image-bearing link anchor: tooltip hugs the image', () => {
 	it.each([
 		['direct child', '[![b](i.png)](https://x.com "t")'],
 		['nested in emphasis', '[*![b](i.png)*](https://x.com "t")']

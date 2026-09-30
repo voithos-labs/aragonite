@@ -1,6 +1,6 @@
 # Clipboard: List Copy-Paste Round-trip
 
-Copy of a list selection pasted back over itself reconstructs the original structure exactly — no nested sub-list, no content loss. When the clipboard holds a list and the target is an empty list item whose outer list is the same kind, the pasted items flatten into the outer list rather than nesting; this is the classic markdown-editor round-trip expectation (Obsidian, Typora, VS Code markdown).
+Copy of a list selection pasted back over itself reconstructs the original structure exactly: no nested sub-list, no content loss. When the clipboard holds a list and the target is an empty list item whose outer list is the same kind, the pasted items flatten into the outer list rather than nesting; this is the classic markdown-editor round-trip expectation (Obsidian, Typora, VS Code markdown).
 
 ## Happy paths
 

@@ -1,6 +1,6 @@
 // A commit whose mutation splices one of its own scope nodes out of the tree must not
-// rebuild or invariant-check the detached node, and overlapping scopes must not
-// false-fire the identity assert on the ceremony's own copies.
+// rebuild or invariant-check the detached node, and overlapping scopes must not trip the
+// identity assert on the commit's own copies.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -9,6 +9,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { asDocPath } from '$lib/selection/path-math';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { trackChildIds } from '$lib/tree-operations/structural-change';
 import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
@@ -18,6 +19,7 @@ import {
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
 import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 describe('multi-scope commits with a scope detached by the mutation', () => {
 	it('unindent of the only nested item fires nothing (nested-list scope dies)', async () => {
@@ -73,7 +75,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
+				rangeDelete(
+					deps.doc,
+					rangeCoverage(deps.doc, coverRange(deps.doc, start, end)),
+					views[0].sharing,
+					fixtureReading(),
+					'keyless'
+				);
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();
@@ -105,7 +113,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
+				rangeDelete(
+					deps.doc,
+					rangeCoverage(deps.doc, coverRange(deps.doc, start, end)),
+					views[0].sharing,
+					fixtureReading(),
+					'keyless'
+				);
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();

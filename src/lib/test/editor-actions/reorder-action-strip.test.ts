@@ -1,20 +1,20 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { serialize } from '$lib/core/serializer';
 import { makeReorderContainer } from './reorder-harness';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A strip plugin container reorders its body children within itself. The
-// rebuild-as-blockquote hazard (which drops the `[!TYPE]` marker) is masked in committed
-// state by the ceremony re-rebuilding the scope through its own descriptor, so these pin
-// the OBSERVABLE contract instead: reorder-within, marker survives, tree converges.
+// An alert-style plugin container reorders its body children within itself. The hazard of
+// rebuilding it as a blockquote (which drops the `[!TYPE]` marker) is hidden in committed
+// state by the commit rebuilding the scope through its own descriptor, so these test the
+// observable contract instead: reorder within, marker survives, tree converges.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
-describe('reorder action — githubAlert body children reorder within', () => {
+describe('reorder action: githubAlert body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [!TYPE] marker', async () => {
 		const h = makeReorderContainer('> [!NOTE]\n> a\n>\n> b\n');
 		await h.reorder.moveReorderUnit([0, 0], 1);
@@ -38,7 +38,7 @@ describe('reorder action — githubAlert body children reorder within', () => {
 	});
 });
 
-describe('reorder action — footnote-def body children reorder within', () => {
+describe('reorder action: footnote-def body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [^label]: marker', async () => {
 		const h = makeReorderContainer('[^a]: first\n\n    second\n');
 		await h.reorder.moveReorderUnit([0, 0], 1);
@@ -49,9 +49,8 @@ describe('reorder action — footnote-def body children reorder within', () => {
 	});
 });
 
-// The teleport: nudging a body child must not drag the whole alert among the
-// document siblings.
-describe('reorder action — no whole-alert teleport', () => {
+// Nudging a body child must not move the whole alert among the document's blocks.
+describe('reorder action: no whole-alert teleport', () => {
 	it('nudging a body child reorders within; top/bottom siblings stay put', async () => {
 		const h = makeReorderContainer('top\n\n> [!NOTE]\n> a\n>\n> b\n\nbottom\n', { nodeIndex: 1 });
 		await h.reorder.nudgeReorderUnit([1, 0], 1);

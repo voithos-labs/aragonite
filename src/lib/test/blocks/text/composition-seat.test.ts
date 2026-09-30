@@ -1,22 +1,23 @@
 // @vitest-environment jsdom
-// The per-composition capture: one window from noteStart to the commit, holding the inputs the
-// commit's own re-arm has spent by the time the run arrives. The relocation table itself is
-// edge-seat's suite; the mode gate sits at the surface (editable-surface-composition-seat).
+// What one composition captures, from `noteStart` to the commit: the values the commit itself has
+// already overwritten by the time the composed run arrives. Where that run moves to is
+// `edge-seat`'s suite; the mode check lives in the block (`editable-surface-composition-seat`).
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const BOLD = 'Some **bold** text';
 
 interface Live {
 	display: string;
-	/** Held at the pre-composition parse, as in production: commits are skipped mid-window,
-	 *  so the component's live inline read still answers the pre-composition tree. */
+	/** Kept at the parse from before the composition, as in production: commits are skipped
+	 *  while one runs, so the component's live read still answers with the old tree. */
 	inlines: ReturnType<typeof parseInline>;
 	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
@@ -24,10 +25,11 @@ interface Live {
 	rangeEdits: Array<{ range: { start: number; end: number }; typed: string }>;
 }
 
-function makeSeat(live: Live, pending?: PendingMarksState) {
+function makeSeat(live: Live, pending?: PendingMarks) {
 	return createCompositionSeat({
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
+		reading: fixtureReading(),
 		getAffinity: () => live.affinity,
 		getScreen: () => screenVisibility('live', { chromePaints: false }),
 		consumePendingMarks: () => pending?.consume() ?? live.marks,
@@ -56,7 +58,7 @@ describe('the window is captured at noteStart, not read at the commit', () => {
 		const live = liveState(BOLD, 'far');
 		const seat = makeSeat(live);
 		seat.noteStart();
-		// The surface's own start half re-arms the affinity and the DOM moves mid-window.
+		// The block's own `compositionstart` resets the arrival side, and the DOM moves too.
 		live.affinity = 'near';
 		live.display = 'unrelated';
 		expect(seat.relocate('Some **boldかん** text', 11)).toEqual({
@@ -65,7 +67,7 @@ describe('the window is captured at noteStart, not read at the commit', () => {
 		});
 	});
 
-	it('answers null outside a window — before any start, and after noteEnd', () => {
+	it('answers null outside a window: before any start, and after noteEnd', () => {
 		const live = liveState(BOLD, 'far');
 		const seat = makeSeat(live);
 		expect(seat.relocate('Some **boldかん** text', 11)).toBeNull();
@@ -85,9 +87,8 @@ describe('pending marks beat the arrival side', () => {
 	});
 });
 
-// The window takes the marks out of the affinity's reach at compositionstart, which spends them
-// whether or not the composition ever commits. An IME cancel is a composition that inserts
-// nothing, so the promise the toggle made is still owed to the next insertion.
+// Taking the marks at `compositionstart` spends them even when the composition never commits,
+// so a cancelled IME run must hand them back for the next insertion.
 describe('a composition that commits nothing returns the marks it took', () => {
 	it('hands back a set no commit spent', () => {
 		const live = liveState('hello', 'far');
@@ -124,8 +125,8 @@ describe('a composition that commits nothing returns the marks it took', () => {
 	});
 });
 
-describe('a selection captured at noteStart routes the commit to the join seam', () => {
-	it('hands the seam the range and the extracted run', () => {
+describe('a selection captured at noteStart routes the commit to the join', () => {
+	it('hands the join the range and the extracted run', () => {
 		const live = liveState(BOLD, 'far');
 		live.range = { start: 5, end: 13 };
 		const seat = makeSeat(live);

@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { absorbWindowSeams } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
 import { rebuildUnsharedChain, type AncestrySeamFold } from '$lib/tree-operations/chain-rebuild';
@@ -11,13 +12,12 @@ import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
-// GH #21: a mutation can invalidate a join that was already correct — a demoted heading stops
-// interrupting the paragraph under it, a reorder pulls an interrupter out from between two — and
-// the siblings left behind reload as ONE block. The seam absorb settles each to the reading the
-// reload gives it, byte-identical.
-// Miss-analysis: the seam question was pinned at the delete door alone, never asked as a
-// sibling-path parity question of the other doors that disturb a join.
+// A mutation can break a join that was already correct (a demoted heading, a reorder that pulls an
+// interrupter out), so the neighbour merge brings the siblings to the reading their reload gives.
+// Miss-analysis: GH #21, the join was tested at the delete alone, never at the other mutations.
 
 const sharing = () => createSharingState();
 
@@ -25,7 +25,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('absorbs the neighbour a typed character turned into a continuation', () => {
 		const doc = parse('# h\nb\n');
 
-		const { change } = updateNodeContent(doc, 0, 'x# h\n');
+		const { change } = updateNodeContent(doc, 0, 'x# h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('x# h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -33,41 +33,42 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// The other side of the same `updateNodeContent` arm: the marker deleted rather than pushed off.
+	// The other side of the same `updateNodeContent` branch: the marker deleted rather than pushed off.
 	it('absorbs when the marker is deleted instead', () => {
 		const doc = parse('# h\nb\n');
 
-		updateNodeContent(doc, 0, ' h\n');
+		updateNodeContent(doc, 0, ' h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe(' h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(doc.children.map((c) => c.raw)).toEqual([' h\nb\n']);
 	});
 
-	// Only a TIGHT join is invalidated; a separated neighbour still reloads as its own block, so
-	// the absorb declines rather than eating the line between them.
+	// Only a tight join is broken; a separated neighbour still reloads as its own block, so the
+	// merge declines rather than eating the line between them.
 	it('leaves a separated neighbour standing', () => {
 		const doc = parse('# h\n\nb\n');
 
-		updateNodeContent(doc, 0, 'x# h\n');
+		updateNodeContent(doc, 0, 'x# h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('x# h\n\nb\n');
 		expect(doc.children.map((c) => c.raw)).toEqual(['x# h\n', 'b\n']);
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The content door exists at two levels, and the container one writes marker-stripped body
-	// bytes — a different reading path than the document's, so it owes its own pin.
+	// The content write exists at two levels, and the container one takes marker-stripped body
+	// bytes, a different reading path than the document's, so it needs its own pin.
 	it('absorbs inside a container body too', () => {
 		const doc = parse('> # h\n> b\n');
 		const quote = doc.children[0];
 
 		const { change } = updateNodeContent(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{ children: quote.children!, owner: quote, lineEnding: '\n' },
 			0,
-			'x# h\n'
+			'x# h\n',
+			defaultGrammarView
 		);
-		rebuildContainerRaw(quote);
+		rebuildContainerRaw(quote, fixtureGrammar);
 
 		expect(serialize(doc)).toBe('> x# h\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -75,12 +76,12 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// A multi-block write puts a MINTED block against the follower, so the seam owed is the one
-	// at the last block written, not at the slot the gesture named.
-	it('asks at the last block a multi-block write minted', () => {
+	// A multi-block write puts a new block against the follower, so the join to ask is the one
+	// at the last block written, not at the position the gesture named.
+	it('asks at the last block a multi-block write created', () => {
 		const doc = parse('# h\nb\n');
 
-		const { change } = updateNodeContent(doc, 0, '---\nx\n');
+		const { change } = updateNodeContent(doc, 0, '---\nx\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('---\nx\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -96,13 +97,19 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('folds the pair an interrupter moved out from between', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 2, sharing());
+		const result = reorderChildrenWithTrivia(
+			documentBody(doc),
+			1,
+			2,
+			sharing(),
+			defaultGrammarView
+		);
 
 		expect(serialize(doc)).toBe('a\nb\n# h\n');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n']);
-		// The heading the fold did not eat keeps its slot's identity: only the folded window's
-		// blocks are re-minted (GH #178).
+		// The heading the merge did not eat keeps its position's identity: only the merged
+		// window's blocks get new ids.
 		expect(result.change).toEqual({
 			op: 'replace',
 			at: 0,
@@ -110,15 +117,21 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 			newCount: 2,
 			idMap: { 0: 0, 1: 1 }
 		});
-		// The moved block outlived a fold ABOVE it, so the caret lands one slot short of `to`.
+		// The moved block outlived a merge above it, so the caret lands one position short of `to`.
 		expect(result.landing).toBe(1);
 	});
 
-	// The window's lower edge: the same move upward leaves the pair adjacent BELOW it.
+	// The window's lower edge: the same move upward leaves the pair adjacent below it.
 	it('folds the pair the move left below the window', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 0, sharing());
+		const result = reorderChildrenWithTrivia(
+			documentBody(doc),
+			1,
+			0,
+			sharing(),
+			defaultGrammarView
+		);
 
 		expect(serialize(doc)).toBe('# h\na\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -129,7 +142,13 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('stays a plain permutation where every join holds', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 0, 2, sharing());
+		const result = reorderChildrenWithTrivia(
+			documentBody(doc),
+			0,
+			2,
+			sharing(),
+			defaultGrammarView
+		);
 
 		expect(serialize(doc)).toBe('b\n\nc\n\na\n');
 		expect(result.change).toEqual({
@@ -143,28 +162,28 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// A structured container's children have no standalone reading — two items' joined bytes read
-	// as a nested list, which is the parent's kind — so the seam is not askable inside one.
+	// A structured container's children have no standalone reading (two items' joined bytes read
+	// as a nested list, which is the parent's kind), so a join inside one cannot be asked.
 	it('never folds a list into its own items', () => {
 		const doc = parse('- a\n- # h\n- b\n');
 		const items = doc.children[0].children!;
 
-		const result = reorderChildrenWithTrivia(items, 1, 2, sharing());
+		const body = { children: items, owner: doc.children[0], lineEnding: '\n' as const };
+		const result = reorderChildrenWithTrivia(body, 1, 2, sharing(), defaultGrammarView);
 
 		expect(items.map((c) => c.raw)).toEqual(['- a\n', '- b\n', '- # h\n']);
 		expect(result.landing).toBe(2);
 	});
 });
 
-// No single reorder reaches two DISJOINT folds — a fold's own cascade collapses adjacent ones into
-// one anchor, and positional trivia keeps a moved block's new slot separated — so the union
-// arithmetic is pinned at the helper's own contract instead.
+// No single reorder reaches two disjoint merges, so the union of their windows is tested at the
+// helper's own contract.
 describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	it('unions them and carries the tracked index through both', () => {
 		const block = (source: string): CstNode => parse(source, { scope: 'fragment' }).children[0];
 		const children = ['a\n', 'b\n', '# h\n', 'c\n', 'd\n'].map(block);
 
-		const settled = absorbWindowSeams({ children }, 0, 5, 4, { op: 'noop' });
+		const settled = absorbWindowSeams({ children }, 0, 5, 4, { op: 'noop' }, defaultGrammarView);
 
 		expect(children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n', 'c\nd\n']);
 		expect(settled.change).toEqual({
@@ -178,16 +197,13 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	});
 });
 
-// A mutation INSIDE a container changes whether the container interrupts, and the join it
-// invalidates is in the GRANDPARENT's children, which the container's own commit never splices
-// (GH #176). The ancestry rebuild asks the seam at the container's slot on its way out.
-// Miss-analysis: the fuzzer's lanes each mutate a block and ask about its siblings; none mutates
-// inside a container and asks the container's own slot above.
+// An inner edit can stop a container interrupting, so the rebuild asks the join at its position.
+// Miss-analysis: GH #176, no fuzzer case mutated inside a container and asked about its position.
 describe('a nested delete can stop an ordered list interrupting (GH #176)', () => {
 	it('folds the list into the paragraph it stopped interrupting', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
-		await h.bundle.blockEdit.deleteBlock(0);
+		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
 
 		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph']);
@@ -197,12 +213,12 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		expect(h.deps.blockRefs).toHaveLength(1);
 	});
 
-	// The other side of the gate: a delete that leaves the list still interrupting settles
-	// nothing, so the paragraph above keeps its own slot.
+	// The other side of the check: a delete that leaves the list still interrupting merges
+	// nothing, so the paragraph above keeps its own position.
 	it('leaves a list that still starts at 1 standing', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
 
 		expect(serialize(h.deps.doc)).toBe('a\n1. x\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
@@ -210,10 +226,8 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
-	// The slot ask's LOWER half, which the #176 pins left to the opener side. The producer opens
-	// the container's own LAST block: a tight follower the quote could not continue into becomes a
-	// lazy continuation, so the pair reloads as one. Only the closer line moves, so this is the
-	// arm that pays the container's own bytes on every keystroke.
+	// A body write can let a tight follower lazily continue the quote, so the pair reloads as one
+	// and the join below the container's position is asked too.
 	it('folds the follower a body write let the container continue into', () => {
 		const doc = parse('> a\n> # h\ntext\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['blockquote', 'paragraph']);
@@ -221,9 +235,14 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		const chain = ensureUnsharedPath(doc, [0, 1], share);
 		const quote = chain[0];
 
-		updateNodeContent({ children: quote.children!, ownerKind: quote.kind, owner: quote }, 1, 'h\n');
+		updateNodeContent(
+			{ children: quote.children!, owner: quote, lineEnding: '\n' },
+			1,
+			'h\n',
+			defaultGrammarView
+		);
 		const folds: AncestrySeamFold[] = [];
-		rebuildUnsharedChain(doc, chain, share, folds, undefined);
+		rebuildUnsharedChain(doc, chain, share, folds, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('> a\n> h\ntext\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['blockquote']);

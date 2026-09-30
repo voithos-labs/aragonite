@@ -18,29 +18,20 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import '$lib/schema/built-in-descriptors';
 import '$lib/components/built-in-blocks';
 
-// The § 4 catalog's edge cases are a searchable space, and the simulation drives scripted flows
-// through it. This searches between them: a seeded stream of typing and destructive gestures at
-// hidden-edge positions, every one checked against § 2's license. The oracles and the violation
-// categories live in `live-gesture-fuzz.ts`; this file owns the budget and the pins.
+// A seeded stream of typing and destructive gestures at hidden edges, each checked against what
+// live-mode.md § 2 allows; the checks live in `live-gesture-fuzz.ts`, the budget and pins here.
 
-// Miss-analysis for the defect this net landed with (the fence-minting cut, pinned in
-// `blocks/text/construct-edge-delete.test.ts`): every suite over that arm fed it a fixture and read
-// its bytes back as inline text, so none could see a candidate whose bytes re-read as a different
-// BLOCK — and no generator drew a document holding a childless construct between two literal runs.
+// Miss-analysis: suites read a cut's bytes back only as inline text, so none saw it write a fence.
 
 const FIXED_SEED = 606060;
 const SEED = freshOrFixedSeed(FIXED_SEED);
-/** Matches the property suites' per-run cost: ~1200 gestures, each applied twice and judged. The
- *  deep lane is a knob rather than a bigger default, since the sweep runs inside `npm test`. */
+/** About 1200 gestures, each applied twice and judged, matching the property suites' cost per
+ *  run; the variables allow a deeper sweep, since this default runs inside `npm test`. */
 const DOCS = Number(process.env.LIVE_FUZZ_DOCS ?? 100);
 const STEPS = Number(process.env.LIVE_FUZZ_STEPS ?? 12);
 
-/**
- * The unnamed bucket's ceiling, PER APPLIED GESTURE — an absolute count measures how big the
- * sweep was, so the deep lane above reds on nothing but its own budget. Headroom over the widest
- * rate three seeds measure (0.24): a typed byte that mints a construct rebinds more of markdown
- * in BOTH arms, which is coverage arriving rather than live drifting.
- */
+/** Per applied gesture, so a deeper sweep doesn't trip it by running more. The headroom over the
+ *  widest measured rate (0.24) allows for typed bytes that re-pair markdown in both runs. */
 const AMBIGUOUS_RATE_CEILING = 0.3;
 
 let stats: FuzzStats;
@@ -56,33 +47,34 @@ afterAll(() => {
 });
 
 describe('live-mode gestures at hidden edges', () => {
-	it('leaves no divergence the byte-literal twin does not already have', () => {
+	it('leaves no divergence the byte-literal counterpart does not already have', () => {
 		const seams = stats.violations.filter((v) => v.category === 'seam');
 		expect(seams.map((v) => v.report).join('\n\n'), `seed ${SEED}`).toBe('');
 	});
 
-	// Non-vacuity: a sweep whose gestures never reach a live rewrite proves nothing about one, and
-	// each counter names a different seam — the caret-edge arms, the split, and the join cleaner.
-	it('reaches every seam it claims to search', () => {
+	// A sweep whose gestures never reach a live rewrite proves nothing about one, and each counter
+	// names a different piece of code: the caret-edge handlers, the split, and the join cleanup.
+	it('reaches every join it claims to search', () => {
 		expect(stats.applied).toBeGreaterThan(DOCS * 5);
 		expect(stats.claimed).toBeGreaterThan(20);
 		expect(stats.rewrote.type).toBeGreaterThan(5);
 		expect(stats.rewrote.enter).toBeGreaterThan(5);
 		expect(stats.rewrote['range-delete']).toBeGreaterThan(5);
 		expect(stats.rewrote.backspace + stats.rewrote.delete).toBeGreaterThan(10);
-		// The two newest entrances: the toggle seam, and the beforeinput arm a chorded delete is the
-		// only gesture that reaches. Both count draws where live diverged from the byte-literal twin.
+		// These two cover the format toggle, and the beforeinput handler only a chorded delete
+		// reaches. Both count draws where live diverged from the byte-literal edit.
 		expect(stats.rewrote['format-toggle']).toBeGreaterThan(5);
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
 		// The toggle again, spread over two leaves: the per-block spans a range decomposes into
 		// are verified one at a time, so a range can rewrite where a single block would not.
 		expect(stats.rewrote['cross-format-toggle']).toBeGreaterThan(5);
+		// A check that refuses every candidate reads green on the checks above, so the cleanup
+		// under a list marker has to be seen rewriting at all.
+		expect(stats.rewroteUnderListMarker).toBeGreaterThan(0);
 	});
 
-	// The three gestures whose offset a CALLER computes rather than the engine reporting it: a
-	// mid-scalar one reaches the seam, and a silent well-formedness oracle means its snap held.
-	// Single digits at the default budget, so the floor is the FIXED seed's coverage guarantee: the
-	// fresh lane exists to surface finds, and a red over a thin draw would bury them in noise.
+	// These gestures take an offset a caller computed, so a draw inside a surrogate pair reaches
+	// them. The counts are single digits, so the floor holds for the fixed seed only.
 	it.runIf(SEED === FIXED_SEED)(
 		'draws offsets inside a surrogate pair, at the doors that take a raw one',
 		() => {
@@ -92,12 +84,8 @@ describe('live-mode gestures at hidden edges', () => {
 		}
 	);
 
-	/**
-	 * The unnamed bucket, held to a ceiling rather than left unbounded. Every entry is a divergence
-	 * the byte-literal twin has too, so none is live's to answer — but an unwatched bucket absorbs
-	 * a new class silently, which is how #166 (a mode-independent block drop) sat in it unnamed.
-	 * A rise here is a signal to read the bucket, not automatically a defect.
-	 */
+	/** An unwatched bucket takes in a new class silently, so it is held to a ceiling; a rise is a
+	 *  signal to read the bucket, not automatically a defect. */
 	it('keeps the unnamed bucket inside its ceiling', () => {
 		const ambiguous = stats.violations.filter((v) => v.category === 'ambiguous');
 		const detail = [`${ambiguous.length} of ${stats.applied} applied`]
@@ -134,7 +122,7 @@ async function liveAndLiteral(source: string, over: Partial<Gesture>) {
 		screen: live ? documentContentText(live.doc) : null,
 		shape: live ? describeConvergence(live.doc) : null,
 		literalShape: literal ? describeConvergence(literal.doc) : null,
-		/** The sweep's own verdict for this draw, lazily, so a pin can read an oracle not bytes. */
+		/** The sweep's own answer for this draw, computed on demand, so a pin can read a check. */
 		seams: () =>
 			live && literal
 				? judgeGesture(drawn, { bytes: source, doc: parse(source) }, live, literal).filter(
@@ -144,14 +132,11 @@ async function liveAndLiteral(source: string, over: Partial<Gesture>) {
 	};
 }
 
-/**
- * The shapes the sweep once excused, kept as the fixes' regression pins: each was a live-only
- * divergence with a ledger number, and each now writes what the byte-literal twin writes.
- */
+/** Shapes where live mode must write exactly what the byte-literal edit writes. */
 describe('the shapes that used to need an exclusion', () => {
-	// #116: a run of three or more asterisks shared between a nested pair. No seat keeps the
-	// pairing, so the seat declines and the byte lands where the caret already was.
-	it('#116 — a byte against a shared asterisk run lands at the caret', async () => {
+	// No placement keeps a nested pair sharing an asterisk run, so live declines and the byte
+	// lands where the caret already was.
+	it('#116: a byte against a shared asterisk run lands at the caret', async () => {
 		const at = { kind: 'type' as const, offset: 18, char: 'a' };
 		for (const affinity of ['outside', 'near'] as const) {
 			const drawn = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity });
@@ -160,18 +145,18 @@ describe('the shapes that used to need an exclusion', () => {
 		}
 	});
 
-	// #162: a space seated just inside an opener kills the construct and paints both its runs, so
-	// the painter rejects that candidate and the outside reading is written instead.
-	it('#162 — a space at an opener seats outside the run it would break', async () => {
+	// A space just inside an opener kills the construct and paints both its runs, so the painter
+	// rejects that candidate and the reading outside the run is written instead.
+	it('#162: a space at an opener puts the caret outside the run it would break', async () => {
 		const far = await liveAndLiteral('**bold** x\n', { offset: 0, char: ' ', affinity: 'far' });
 		expect(far.live).toBe(' **bold** x\n');
 		expect(far.live).toBe(far.literal);
 		expect(far.screen).toBe(' bold x');
 	});
 
-	// #162, second shape: no seat across a content-empty construct keeps its delimiters hidden, so
-	// the caret's own offset stands.
-	it('#162 — a byte across content-empty chrome surfaces nothing', async () => {
+	// No placement across a construct with no content keeps its delimiters hidden, so the caret's
+	// own offset stands.
+	it('#162: a byte across content-empty chrome surfaces nothing', async () => {
 		const seated = await liveAndLiteral('**[](u)**&amp; z\n', {
 			offset: 2,
 			char: 'a',
@@ -181,18 +166,18 @@ describe('the shapes that used to need an exclusion', () => {
 		expect(seated.screen).toBe('a& z');
 	});
 
-	// #118, settled: a childless construct has no interior a cut can land in, so the cut moves to
-	// its nearer edge and one half takes it whole — every byte kept, no delimiter on screen.
-	it('#118 — a split inside an autolink takes the whole autolink', async () => {
+	// A childless construct has no interior a cut can land in, so the cut moves to its nearer edge
+	// and one half takes it whole: every byte kept, no delimiter on screen.
+	it('#118: a split inside an autolink takes the whole autolink', async () => {
 		const cut = await liveAndLiteral('<https://example.com> tail\n', { kind: 'enter', offset: 13 });
 		expect(cut.live).toBe('<https://example.com>\n\n tail\n');
 		expect(cut.literal).toBe('<https://exam\n\nple.com> tail\n');
 		expect(cut.screen).toBe('https://example.com\n tail');
 	});
 
-	// #165: the typed run rides the seam into the cleanup's own verification, so the reading that
-	// would surface a pair around it is rejected and the literal replace stands.
-	it('#165 — the selection replace verifies the bytes it writes', async () => {
+	// The typed run goes into the cleanup's verification with the join, so the reading that would
+	// show a pair around it is rejected and the byte-literal replace stands.
+	it('#165: the selection replace verifies the bytes it writes', async () => {
 		const typed = await liveAndLiteral('lorem*汉[](u)*`a`\n', {
 			kind: 'type-over',
 			offset: 14,
@@ -203,33 +188,43 @@ describe('the shapes that used to need an exclusion', () => {
 		expect(typed.screen).toBe('lorem汉`a');
 	});
 
-	// #163: the cleaned body would start with a space the item's marker absorbs on reload, so the
-	// seam reads its candidate back through the marker and declines it.
-	it('#163 — a join in a list item keeps the marker the tree holds', async () => {
+	// The cleaned body starts with a space the item's marker takes on reload: the cleanup reads it
+	// back through the marker, where it still shows, and the tree takes the wider marker too.
+	it('#163: a join in a list item drops the runs, and the tree reads as the reload does', async () => {
 		const cut = await liveAndLiteral('- **a b** c\n', {
 			kind: 'range-delete',
 			offset: 0,
 			endOffset: 5
 		});
-		expect(cut.live).toBe('- ** c\n');
-		expect(cut.live).toBe(cut.literal);
+		expect(cut.live).toBe('-  c\n');
+		expect(cut.literal).toBe('- ** c\n');
 		expect(cut.shape).toBeNull();
 	});
 
-	// #164's shape, settled by the splice settle's seam ask (GH #183): the rebalanced split's empty
-	// first half owes a blank line of its own, handed to it like any other window.
-	it('#164 — a split with an empty first half converges', async () => {
+	// The rebalanced split's empty first half gets a blank line of its own, from the same fix-up as
+	// any other gap between blocks.
+	it('#164: a split with an empty first half converges', async () => {
 		const cut = await liveAndLiteral('## \n**a**b\n', { kind: 'enter', leaf: 1, offset: 2 });
 		expect(cut.live).toBe('## \n\n**a**b\n');
 		expect(cut.shape).toBeNull();
 		expect(cut.literalShape).toBeNull();
 	});
 
-	// #166, the one MODE-INDEPENDENT class the sweep surfaced: a join whose bytes reparse to two
-	// blocks has no home in the one slot the door installs, so both doors refuse it and the pair
-	// stands where it did. Silently, in both arms — the refusal is an ordinary editing outcome
-	// (G1.35), so the seam warns about installing such bytes, never about meeting them.
-	it('#166 — a join whose bytes reparse to two blocks is refused, not truncated', async () => {
+	// A tilde pairs only as a double run, so the empty-pair collapse has no partner to drop between
+	// two single tildes, in either mode.
+	it('#462: a space between two tildes keeps both', async () => {
+		const typed = await liveAndLiteral('*foo~![](u)*~~b &https://example.com \n', {
+			offset: 13,
+			char: ' ',
+			affinity: 'far'
+		});
+		expect(typed.live).toBe('*foo~![](u)*~ ~b &https://example.com \n');
+		expect(typed.live).toBe(typed.literal);
+	});
+
+	// A join whose bytes reparse to two blocks doesn't fit the one child slot, so both runs refuse
+	// it, silently, since a refusal is an ordinary editing outcome (G1.35).
+	it('#166: a join whose bytes reparse to two blocks is refused, not truncated', async () => {
 		const merged = await liveAndLiteral('## \n(u\n)\n', { kind: 'delete', leaf: 0, offset: 0 });
 		expect(merged.live).toBe('## \n(u\n)\n');
 		expect(merged.live).toBe(merged.literal);
@@ -238,12 +233,9 @@ describe('the shapes that used to need an exclusion', () => {
 	});
 });
 
-/**
- * The class this batch fixed at both cut seams, held as a pin rather than as a sweep oracle: chrome
- * standing over no content is bytes the reader saw, so neither seam may move or drop them. A sweep
- * arm for it fires on live's own LEGITIMATE removal of residue the literal edit left behind.
- */
-describe('painted chrome survives both cut seams', () => {
+/** Markers standing over no content are bytes the user saw, so neither split nor join may move
+ *  them; a sweep check would misfire where live rightly removes the literal edit's residue. */
+describe('painted chrome survives both cut joins', () => {
 	it('a split inside painted chrome stays byte-literal', async () => {
 		const cut = await liveAndLiteral('**[](u)**\n', { kind: 'enter', offset: 4 });
 		expect(cut.live).toBe('**[]\n\n(u)**\n');
@@ -262,11 +254,9 @@ describe('painted chrome survives both cut seams', () => {
 		expect(cut.live).toBe(cut.literal);
 	});
 
-	// The draw the residue arm reported as live's alone (fresh seed 4032657474, doc 13 step 0):
-	// both arms leave one pair enclosing nothing, so the increase belongs to the literal edit.
-	// Miss-analysis: every residue pin started from a source holding none, so no case ever handed
-	// the arm a draw where BOTH twins leave one.
-	it('a residue the byte-literal twin leaves too is not live minting one', async () => {
+	// Both runs leave one pair enclosing nothing, so the residue belongs to the byte-literal edit.
+	// Miss-analysis: every residue pin started with none, so no case had both runs leave one.
+	it('a residue the byte-literal counterpart leaves too is not live creating one', async () => {
 		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: 'near' });
 		expect(typed.live).toBe('**[](u)a**\n');
 		expect(typed.literal).toBe('**[](u)**a\n');

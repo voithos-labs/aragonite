@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	getInlineRungs,
 	hasInlineSyntax,
 	hasScanProbeRungs,
@@ -10,8 +9,6 @@ import {
 	type InlineSyntaxRecognizer
 } from '../../../../core/inline/scan/plugin-syntax';
 import { assertTotalCoverage, textNode } from './scan-test-helpers';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 function mathNode(start: number, end: number): InlineNode {
 	return { kind: 'math' as InlineNode['kind'], start, end };
@@ -36,7 +33,7 @@ describe('inline-syntax registry', () => {
 		expect(getInlineRungs('%')).toHaveLength(0);
 	});
 
-	it('registers a trigger once — a duplicate throws', () => {
+	it('registers a trigger once: a duplicate throws', () => {
 		registerInlineSyntax('$', recognizeMath);
 		expect(() => registerInlineSyntax('$', recognizeMath)).toThrow(/already registered/);
 	});
@@ -45,7 +42,7 @@ describe('inline-syntax registry', () => {
 		expect(() => registerInlineSyntax('$$', recognizeMath)).toThrow(/single character/);
 	});
 
-	// The scanner consults the registry only from its `default` arm, so a trigger the
+	// The scanner consults the registry only from its `default` branch, so a trigger the
 	// built-in switch claims would register cleanly and then never fire.
 	it.each(['\\', '`', '&', '*', '_', '~', '[', ']', '!', '<', '\n'])(
 		'rejects %j — a trigger the built-in scanner already claims',
@@ -61,14 +58,14 @@ describe('inline-syntax registry', () => {
 	});
 });
 
-// The probe is a cost switch, not a correctness one: a rung on a trigger SPECIAL_CHARS
-// already visits must leave it off, or every character pays for a visit the bail makes.
-describe('inline-syntax registry — what the fast bail must probe', () => {
+// The fast bail's extra checks are about cost: a handler on a trigger it always checks stays
+// out of them, or every character pays for a check already made.
+describe('inline-syntax registry: what the fast bail must probe', () => {
 	it('reports nothing to probe until a trigger is registered', () => {
 		expect(hasScanProbeRungs()).toBe(false);
 	});
 
-	it('stays off for a prefix rung on a scan-visible reserved trigger', () => {
+	it('stays off for a prefix inline syntax handler on a scan-visible reserved trigger', () => {
 		registerInlineSyntax('[', recognizeMath, { prefix: '[^', priority: 40 });
 		expect(hasScanProbeRungs()).toBe(false);
 	});
@@ -85,7 +82,7 @@ describe('inline-syntax registry — what the fast bail must probe', () => {
 // ── Scanner integration ──────────────────────────────────────────────────────
 
 describe('inline-syntax recognition', () => {
-	it('is dormant until registered — $ stays plain text', () => {
+	it('is dormant until registered: $ stays plain text', () => {
 		const nodes = parseInline('a $x$ b', 0, 7);
 		expect(nodes).toEqual([textNode(0, 7, 'a $x$ b')]);
 	});
@@ -110,7 +107,7 @@ describe('inline-syntax recognition', () => {
 
 	it('throws when a recognizer returns a node that starts off the cursor', () => {
 		// appendNode flushes pending text to node.start, so an off-cursor start gaps or
-		// overlaps coverage; the seam fails loud instead of tiling a torn tree.
+		// overlaps coverage; the scanner fails loud instead of building a torn tree.
 		registerInlineSyntax('$', (_raw, pos) => mathNode(pos + 1, pos + 2));
 		expect(() => parseInline('a$b', 0, 3)).toThrow(/started at 2, expected 1/);
 	});

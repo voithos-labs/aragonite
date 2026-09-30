@@ -1,18 +1,15 @@
 /**
- * What an open link card can read and write: the construct re-resolved from its target identity
- * after every edit, the bytes the write seam would produce, and the anchoring measure. Kept out of
- * the component so the card stays a rendering shell.
+ * What an open link card can read and write: the construct looked up again from its target after
+ * every edit, the bytes the write path would produce, and the measurement that positions it. Kept
+ * out of the component so the card stays a rendering shell.
  */
 
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
-import type { UndoController } from '../../editor-actions/deps';
-import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
+import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import type { LinkReferenceResolverRef } from '../../editor-keys';
-import type { GrammarView } from '../../schema/block-openers';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
@@ -21,43 +18,42 @@ import {
 	buildLinkWrapBytes,
 	linkFieldsFromInline,
 	type LinkFields
-} from '../blocks/text/link-source-bytes';
+} from '../../core/inline/link-source-bytes';
 import type { CreateLinkTarget } from './link-card-state.svelte';
+import type { Reading } from '../../schema/reading';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export interface LinkCardCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
-	/** The open card's target, read live: the anchor re-measures against whatever it names now. */
+	/** The open card's target, read live: the position re-measures against whatever it names. */
 	getTarget: () => LinkTarget | null;
-	/** The create gesture's range, the anchor when no construct exists yet. */
+	/** The create gesture's range, what the card sits under when no construct exists yet. */
 	getCreateTarget: () => CreateLinkTarget | null;
-	controller: UndoController;
+	/** The editor's inline range write, which every card edit goes through. */
+	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
-	/** Rect measure for a raw range in a mounted block — the anchoring geometry. */
+	/** Measures the rectangles of a raw range in a mounted block, which is what positions it. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
-	/** Reveal + land the caret at a raw offset, so the next keystroke addresses the document. */
-	landCaret: (path: number[], offset: number) => Promise<boolean>;
-	linkRef?: LinkReferenceResolverRef;
-	grammar?: GrammarView;
+	reading: Reading;
 }
 
 export interface ResolvedLinkTarget {
 	block: NodeView;
 	link: InlineNode;
-	/** The destination as the author wrote it, decoded — what the card's field shows. */
+	/** The destination as the author wrote it, decoded: what the card's field shows. */
 	url: string;
 }
 
 export interface LinkCardCommitter {
-	/** The construct the target names, re-read from the live tree; null once an edit removed it. */
+	/** The construct the target names, re-read from the live tree; null once an edit removes it. */
 	resolve(target: LinkTarget): ResolvedLinkTarget | null;
-	/** The bytes a url commit would write, or null if the seam would decline — the card's dirty
-	 *  check compares against these rather than deciding bytes itself. */
+	/** The bytes a url commit would write, or null if the write path would refuse; the card
+	 *  compares against these rather than deciding the bytes itself. */
 	buildBytes(target: LinkTarget, url: string): string | null;
 	commitUrl(target: LinkTarget, url: string): void;
-	/** Mint `[selected text](url)` over the create range — the one write of the create gesture. */
+	/** Write `[selected text](url)` over the create range: the create gesture's one write. */
 	commitCreate(target: CreateLinkTarget, url: string): void;
 	removeLink(target: LinkTarget): void;
 	/** Position `getCard()` under the link and keep it there across edits and scrolls. */
@@ -65,16 +61,12 @@ export interface LinkCardCommitter {
 }
 
 export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCommitter {
-	const inlineRange = createInlineRangeCommit({
-		getDoc: deps.getDoc,
-		controller: deps.controller,
-		grammar: deps.grammar
-	});
+	const { inlineRange } = deps;
 
 	function resolve(target: LinkTarget): ResolvedLinkTarget | null {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return null;
-		const link = linkConstructAt(block, target.sourceStart, deps.linkRef);
+		const link = linkConstructAt(block, target.sourceStart, deps.reading);
 		return link === null ? null : { block, link, url: link.url ?? '' };
 	}
 
@@ -83,9 +75,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved) return null;
 		const { block, link } = resolved;
 		const current = linkFieldsFromInline(link, block.raw);
-		// A reference form cannot carry a NEW destination without editing its definition, which
-		// lives in another block; changing the url is the user opting into the inline form. The
-		// title rides along either way — the card never shows it, so it is not the card's to drop.
+		// A reference form cannot take a new url without editing its definition elsewhere, so a
+		// changed url writes the inline form; the title comes along either way.
 		const fields: LinkFields =
 			url === current.url
 				? current
@@ -94,7 +85,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 						url,
 						...(current.title !== undefined ? { title: current.title } : {})
 					};
-		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.linkRef?.current);
+		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.reading);
 		return bytes === null ? null : { bytes, link };
 	}
 
@@ -103,8 +94,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	}
 
 	function commitUrl(target: LinkTarget, url: string): void {
-		// An unchanged url is a close, not a write: the rebuild would respell author bytes the
-		// serializer normalizes (`(<a b>)` → `(a%20b)`) and mint an undo entry for nothing.
+		// An unchanged url just closes the card: a rebuild would respell author bytes the
+		// serializer normalizes (`(<a b>)` to `(a%20b)`) and add an undo entry for nothing.
 		const resolved = resolve(target);
 		if (!resolved || url === resolved.url) return;
 		const edit = editBytes(target, url);
@@ -115,13 +106,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function commitCreate(target: CreateLinkTarget, url: string): void {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return;
-		const bytes = buildLinkWrapBytes(
-			block.raw,
-			target.start,
-			target.end,
-			url,
-			deps.linkRef?.current
-		);
+		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, target.start, target.end, bytes);
 	}
@@ -129,20 +114,18 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function removeLink(target: LinkTarget): void {
 		const resolved = resolve(target);
 		if (!resolved) return;
-		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef?.current);
+		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}
 
+	// The caret goes to the construct's outer start, which the undo entry records too, so the caret
+	// before and after an undo agree.
 	async function write(path: number[], start: number, end: number, bytes: string): Promise<void> {
-		await inlineRange.commitInlineRange(path, start, end, bytes, start);
-		// The construct's outer start, which is also the offset the undo entry records: the caret
-		// before an undo and the caret after it then agree, and a remove-link lands where the
-		// unwrapped text now begins.
-		await deps.landCaret(path, start);
+		await inlineRange.commitInlineRange(path, start, end, bytes, start, { landCaret: true });
 	}
 
-	/** The raw range the card anchors under: the resolved construct, or the create range as-is. */
+	/** The raw range the card sits under: the resolved construct, or the create range as it is. */
 	function anchoredRange(): { path: number[]; start: number; end: number } | null {
 		const target = deps.getTarget();
 		if (target) {
@@ -159,8 +142,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		const editorEl = deps.getEditorEl();
 		if (!cardEl || !editorEl) return () => {};
 
-		// Measured through the rects API off RAW offsets, so the anchor survives the DOM rebuild
-		// every commit does — there is no element reference here to go stale.
+		// Measured through the rects API from raw offsets, so the position survives the DOM
+		// rebuild every commit does: there is no element reference here to go stale.
 		const measure = () => {
 			const range = anchoredRange();
 			if (!range) return;
@@ -174,9 +157,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// The setup measure reads the document, and letting that register would make the caller's
-		// $effect tear down and re-wire these listeners on every keystroke. The `edit` subscription
-		// below is the one document trigger.
+		// Untracked setup measure, or the caller's $effect would re-wire these listeners on every
+		// keystroke; the `edit` subscription below is the document trigger.
 		const unwireScroll = wireOverlayRemeasure({
 			el: cardEl,
 			editorRoot: editorEl,

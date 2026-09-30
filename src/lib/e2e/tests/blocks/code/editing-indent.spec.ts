@@ -70,8 +70,8 @@ test.describe('code block tab / indent', () => {
 		}
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Tab');
-		// The marker flushes any async edit Shift+Tab might trigger, so the no-op assertion can't
-		// pass vacuously.
+		// The typed character flushes any async edit Shift+Tab might start, so the assertion
+		// that nothing changed cannot pass vacuously.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');

@@ -1,8 +1,8 @@
 /**
  * Type pins for the bytes-scoped view (G1.9 as a type). The `@ts-expect-error` directives
- * ARE the assertions: `npm run check` fails if a byte-field write starts compiling through
+ * are the assertions: `npm run check` fails if a byte-field write starts compiling through
  * a view, or if the `childIds`/`ownerEpoch` carve-out stops compiling. `compileTimePins`
- * is never invoked — the writes must not execute.
+ * is never invoked: the writes must not execute.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
@@ -29,7 +29,7 @@ export function compileTimePins(node: NodeView, doc: DocumentView): void {
 	node.innerSuffix = '\n';
 	// @ts-expect-error the document's children array is readonly on a view
 	doc.children = [];
-	// The bookkeeping carve-out MUST keep compiling — G1.9 is bytes-scoped.
+	// The bookkeeping carve-out must keep compiling: only the bytes are read-only (G1.9).
 	node.childIds = ['a'];
 	node.ownerEpoch = 3;
 }
@@ -59,7 +59,7 @@ export function viewNarrowingPin(node: NodeView): void {
 
 const SOURCE = '# h\n\n- a\n- b\n';
 
-describe('node views — bytes-scoped readonly (G1.9)', () => {
+describe('node views: bytes-scoped readonly (G1.9)', () => {
 	it('accepts the bookkeeping carve-out writes (childIds, ownerEpoch)', () => {
 		const doc: DocumentView = parse(SOURCE);
 		const node = doc.children[0];
@@ -74,7 +74,7 @@ describe('node views — bytes-scoped readonly (G1.9)', () => {
 		expect(serialize(doc)).toBe(SOURCE);
 	});
 
-	it('a NodeView narrows to its built-in arm and reads typed metadata', () => {
+	it('a NodeView narrows to its built-in branch and reads typed metadata', () => {
 		const doc: DocumentView = parse('## title\n');
 		const node = doc.children[0];
 		let level = 0;

@@ -10,9 +10,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// Miss-analysis (GH #220): each list door was pinned alone and only over sublists holding items,
-// so no test asked the doors that SEAT an item into a sublist what a childless one means — the
-// same shape #202 closed one seam over, in the lift direction.
+// Miss-analysis (GH #220): each list action was tested only over sublists that held items.
 
 interface KindShape {
 	kind: string;
@@ -45,12 +43,12 @@ function listWithChildlessSublist(spelling: 'undefined' | 'empty'): CstNode {
 	return list;
 }
 
-// `[]` is truthy, so it already reaches the sublist scope; `undefined` is the red-first pin and
-// `[]` the guard that keeps the two spellings answering alike.
+// A childless sublist spells its children `[]` or `undefined`, and only `[]` is truthy, so both
+// spellings run to keep them answering alike.
 describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const }])(
 	'indentItem into a childless matching sublist (children: $spelling)',
 	({ spelling }) => {
-		it('seats the moved item in the sublist, never under the item holding it', async () => {
+		it('puts the caret at the moved item in the sublist, never under the item holding it', async () => {
 			const list = listWithChildlessSublist(spelling);
 			const { deps, doc } = makeEditorActionsDeps([list]);
 			expect(serialize(doc)).toBe('1. a\n2. b\n');
@@ -80,7 +78,7 @@ describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const 
 				]
 			});
 
-			// The bytes must reload to the tree that wrote them: an item seated under an item
+			// The bytes must reload to the tree that wrote them: an item placed under an item
 			// serializes to something no reparse can produce.
 			expect(serialize(deps.doc)).toBe('1. a\n   1. b\n');
 			expect(shapeOf(parse(serialize(deps.doc)).children[0])).toEqual(shapeOf(liveList()));

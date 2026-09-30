@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import path from 'node:path';
+import { describe, it, expect } from 'vitest';
+import python from 'highlight.js/lib/languages/python';
 import {
 	applyPasteTransforms,
 	configureEditorEnv,
@@ -17,91 +16,206 @@ import {
 	declarePluginInlineKind,
 	isInlineKindDeclared,
 	registerBlockKind,
+	registerBlockComponent,
 	registerBlockOpener,
 	registerBlockCompleter,
 	registerBlockCommand,
+	registerBlockContextActions,
+	registerChromeLeaf,
 	registerGlobalCommand,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
+	registerInsertEntry,
+	registerLanguage,
 	registerPasteTransform,
 	registerDirective,
 	isBlockKindDeclared,
 	isBlockKindRegistered,
+	isBlockComponentRegistered,
 	isBlockOpenerRegistered,
 	isBlockCompleterRegistered,
 	isPasteTransformRegistered,
 	isDirectiveRegistered,
+	listLanguages,
 	definePlugin,
-	isPluginInstalled
+	isPluginInstalled,
+	type BlockComponentEntry,
+	type NodeView,
+	type PluginBlockKind,
+	type PluginInlineKind
 } from '$lib/plugin';
 import { devWarn } from '$lib/dev-warn';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
+import { getBlockCommand } from '$lib/schema/block-commands';
+import { blockContextActionsFor } from '$lib/schema/context-actions';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { isInlineWidget } from '$lib/core/inline/inline-widgets';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
-import { stripComments } from '../invariants/lint/scan-source';
+import { collectFiles, importSpecifiers, readSource } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
-import type { AnyBlockKind } from '$lib/plugin';
 
-// One registration through each public register-once entry, so a new one added without
-// wiring its reset into `resetPluginPlatformForTests` re-throws its dup on the
-// re-install below. Keep in lockstep with the aggregate.
+// ── One probe per public registration ────────────────────────────────────────
+// Each check registers through an exported register or declare function and reports whether it
+// survives; the list is held to the barrel's exports, and a reset that misses one reds.
+
+let block: PluginBlockKind;
+let chrome: PluginBlockKind;
+let inline: PluginInlineKind;
+const blockNode = () => ({ kind: block, raw: 'x\n' }) as unknown as NodeView;
+
+const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
+	{
+		entry: 'declarePluginKind',
+		register: () => {
+			block = declarePluginKind('probe-block');
+			chrome = declarePluginKind('probe-chrome');
+		},
+		registered: () => isBlockKindDeclared('probe-block')
+	},
+	{
+		entry: 'declarePluginInlineKind',
+		register: () => void (inline = declarePluginInlineKind('probe-inline')),
+		registered: () => isInlineKindDeclared('probe-inline')
+	},
+	{
+		entry: 'registerBlockKind',
+		register: () =>
+			registerBlockKind(block, {
+				gapEdges: 'none',
+				mergeRole: 'not-mergeable',
+				editable: false,
+				supportsInline: false,
+				closure: testClosure
+			}),
+		registered: () => isBlockKindRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockComponent',
+		register: () => registerBlockComponent(block, {} as BlockComponentEntry),
+		registered: () => isBlockComponentRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockOpener',
+		register: () =>
+			registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false }),
+		registered: () => isBlockOpenerRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockCompleter',
+		register: () => registerBlockCompleter(block, { tryComplete: () => null }),
+		registered: () => isBlockCompleterRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockCommand',
+		register: () => void registerBlockCommand(block, 'probe.cmd', () => true),
+		registered: () =>
+			getBlockCommand(block, 'probe.cmd' as never, everyInstalledPlugin) !== undefined
+	},
+	{
+		entry: 'registerBlockContextActions',
+		register: () =>
+			registerBlockContextActions('probe-block', 'probe', () => [
+				{ id: 'probe.row', label: 'Probe', run: () => {} }
+			]),
+		registered: () =>
+			blockContextActionsFor(blockNode(), [0], everyInstalledPlugin, 'block').length > 0
+	},
+	{
+		entry: 'registerChromeLeaf',
+		register: () => registerChromeLeaf(chrome),
+		registered: () => isBlockKindRegistered('probe-chrome')
+	},
+	{
+		entry: 'registerGlobalCommand',
+		register: () =>
+			void registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' }),
+		registered: () => pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin) !== null
+	},
+	{
+		entry: 'registerInlineSyntax',
+		register: () => registerInlineSyntax('⌘', () => null),
+		registered: () => getInlineRungs('⌘').length > 0
+	},
+	{
+		entry: 'registerInlineWidgetKind',
+		register: () => registerInlineWidgetKind(inline, { isWidget: () => true }),
+		registered: () =>
+			isInlineWidget({ kind: inline, start: 0, end: 1 } as never, 'x', defaultGrammarView)
+	},
+	{
+		entry: 'registerInsertEntry',
+		register: () =>
+			registerInsertEntry({
+				id: 'probe-entry',
+				label: 'Probe',
+				icon: 'plus',
+				keywords: [],
+				markdown: 'probe\n'
+			}),
+		registered: () => insertCatalogue(everyInstalledPlugin).some((e) => e.id === 'probe-entry')
+	},
+	{
+		entry: 'registerLanguage',
+		register: () => registerLanguage('probe-lang', python),
+		registered: () => listLanguages().includes('probe-lang')
+	},
+	{
+		entry: 'registerPasteTransform',
+		register: () => registerPasteTransform({ name: 'probe-transform', transform: () => null }),
+		registered: () => isPasteTransformRegistered('probe-transform')
+	},
+	{
+		entry: 'registerDirective',
+		register: () => registerDirective('text', 'probe-dir', { kind: inline }),
+		registered: () => isDirectiveRegistered('text', 'probe-dir')
+	}
+];
+
+/** Every `register*` and `declare*` value the plugin barrel exports. */
+function publicRegistrations(): string[] {
+	const { code } = readSource('src/lib/plugin.ts');
+	const names = [
+		...[...code.matchAll(/export\s*\{([^}]*)\}\s*from/g)].flatMap((m) =>
+			m[1].split(',').map((spec) =>
+				spec
+					.trim()
+					.split(/\s+as\s+/)
+					.pop()!
+			)
+		),
+		...[...code.matchAll(/export\s+function\s+(\w+)/g)].map((m) => m[1])
+	];
+	return names.filter((name) => /^(register|declare)[A-Z]/.test(name)).sort();
+}
+
 function installProbePlugin(): void {
-	const block = declarePluginKind('probe-block');
-	const inline = declarePluginInlineKind('probe-inline');
-	registerBlockKind(block, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		closure: testClosure
-	});
-	registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false });
-	registerBlockCompleter(block, { tryComplete: () => null });
-	registerBlockCommand(block, 'probe.cmd', () => true);
-	registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' });
-	registerPasteSurface({ kind: block });
-	registerPasteTransform({ name: 'probe-transform', transform: () => null });
-	registerInlineSyntax('⌘', () => null);
-	registerInlineWidgetKind(inline, { isWidget: () => false });
-	registerDirective('text', 'probe-dir', { kind: inline });
+	for (const probe of PROBES) probe.register();
 	installPlugins([definePlugin({ name: 'probeplugin', setup: (ctx) => ctx.onEditor(() => {}) })]);
 }
 
 describe('resetPluginPlatformForTests aggregate', () => {
-	beforeEach(() => resetPluginPlatformForTests());
+	it('probes every registration the plugin barrel exports', () => {
+		expect(PROBES.map((p) => p.entry).sort()).toEqual(publicRegistrations());
+	});
 
-	it('clears every public register-once registry so a re-install never throws a dup', () => {
+	it('clears every public registration so a re-install never throws a dup', () => {
 		installProbePlugin();
-		expect(isBlockKindDeclared('probe-block')).toBe(true);
-		expect(isBlockKindRegistered('probe-block')).toBe(true);
-		expect(isBlockOpenerRegistered('probe-block')).toBe(true);
-		expect(isBlockCompleterRegistered('probe-block')).toBe(true);
-		expect(isPasteTransformRegistered('probe-transform')).toBe(true);
-		expect(isInlineKindDeclared('probe-inline')).toBe(true);
-		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
+		const still = () => PROBES.filter((p) => p.registered()).map((p) => p.entry);
+		expect(still()).toEqual(PROBES.map((p) => p.entry));
 		expect(isPluginInstalled('probeplugin')).toBe(true);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(1);
-		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)?.command).toBe('probe.global');
 
 		resetPluginPlatformForTests();
 
-		expect(isBlockKindDeclared('probe-block')).toBe(false);
-		expect(isBlockKindRegistered('probe-block')).toBe(false);
-		expect(isBlockOpenerRegistered('probe-block')).toBe(false);
-		expect(isBlockCompleterRegistered('probe-block')).toBe(false);
-		expect(isPasteTransformRegistered('probe-transform')).toBe(false);
-		expect(isInlineKindDeclared('probe-inline')).toBe(false);
-		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
+		expect(still()).toEqual([]);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
-		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)).toBeNull();
-		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
-		expect(getInlineRungs('⌘')).toHaveLength(0);
 
-		// The register-once dup throw is exactly what a third-party suite hits
-		// without a sanctioned reset — re-running the whole setup must be clean.
+		// The duplicate-registration throw is exactly what a third-party suite hits without
+		// the supported reset; re-running the whole setup must be clean.
 		expect(() => installProbePlugin()).not.toThrow();
 	});
 
@@ -115,8 +229,8 @@ describe('resetPluginPlatformForTests aggregate', () => {
 	});
 });
 
-// ── Published conformance surface ───────────────────────────────────────────────
-// The seams a third-party suite imports from `@voithos-labs/aragonite/testing`. A rename or a
+// ── Published conformance API ───────────────────────────────────────────────
+// What a third-party suite imports from `@voithos-labs/aragonite/testing`. A rename or a
 // dropped re-export fails to resolve here rather than in a downstream author's suite.
 
 describe('@voithos-labs/aragonite/testing conformance surface', () => {
@@ -131,7 +245,7 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 		expect(typeof installEditorDomStubsForTests).toBe('function');
 	});
 
-	// The reset's own error tells a non-Vitest runner to opt in through this door, so it
+	// The reset's own error tells a non-Vitest runner to opt in through this function, so it
 	// has to be reachable from the subpath that error is thrown on.
 	it('publishes the editor-env override door', () => {
 		expect(typeof configureEditorEnv).toBe('function');
@@ -150,20 +264,16 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 	});
 });
 
-// ── What the published `@voithos-labs/aragonite/testing` surface may depend on ────────────────
+// ── What the published `@voithos-labs/aragonite/testing` code may depend on ────────────────
 
-/** `testing.ts` plus every module behind it — the code that ships as `@voithos-labs/aragonite/testing`. */
+/** `testing.ts` plus every module behind it: the code that ships as
+ *  `@voithos-labs/aragonite/testing`. */
 function testingSurfaceSources(): { relPath: string; specifiers: string[] }[] {
-	const dir = path.resolve('src/lib/testing');
-	const files = readdirSync(dir)
-		.filter((f) => f.endsWith('.ts'))
-		.map((f) => `src/lib/testing/${f}`);
-	return ['src/lib/testing.ts', ...files].map((relPath) => {
-		// Comments here name the very specifiers the scans forbid; strip them first.
-		const code = stripComments(readFileSync(path.resolve(relPath), 'utf8'));
-		const specifiers = [...code.matchAll(/(?:\bfrom|\bimport)\s+'([^']+)'/g)].map((m) => m[1]);
-		return { relPath, specifiers };
-	});
+	const files = collectFiles('src/lib/testing', { extensions: ['.ts'] });
+	return ['src/lib/testing.ts', ...files].map((relPath) => ({
+		relPath,
+		specifiers: importSpecifiers(readSource(relPath).code).map((found) => found.specifier)
+	}));
 }
 
 const offendersMatching = (
@@ -177,23 +287,21 @@ const offendersMatching = (
 describe('@voithos-labs/aragonite/testing dependency rules', () => {
 	const sources = testingSurfaceSources();
 
-	it('sees the whole surface — the barrel plus the modules behind it, with their imports', () => {
+	it('sees the whole surface: the barrel plus the modules behind it, with their imports', () => {
 		expect(sources.map((s) => s.relPath)).toContain('src/lib/testing.ts');
 		expect(sources.length).toBeGreaterThan(1);
 		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);
 	});
 
-	// The kit runs INSIDE an author's own case, so a static runner import would force
-	// that runner on every suite reaching for `resetPluginPlatformForTests` alone —
-	// including one on Jest or node:test. It throws plain `Error`s instead.
+	// The kit runs inside an author's own test case, so a static runner import would force that
+	// runner on every suite, Jest or node:test included; the kit throws plain `Error`s instead.
 	it('imports no test runner', () => {
 		const offenders = offendersMatching(sources, /^(vitest|jest|@jest\/|node:test|chai)/);
 		expect(offenders, 'runner imports on the published testing surface').toEqual([]);
 	});
 
-	// `prune-dist.mjs` deletes `dist/test` before pack and `verify-pack.mjs` rejects any
-	// that ship, so an import reaching into `test/` resolves in the repo and 404s in the
-	// published package — a break no in-repo suite sees.
+	// `prune-dist.mjs` and `verify-pack.mjs` keep `dist/test` out of the package, so an import
+	// into `test/` resolves in the repo and 404s in the published package.
 	it('reaches into no directory that is stripped from the published package', () => {
 		const offenders = offendersMatching(sources, /(^|\/)(test|e2e)\//);
 		expect(offenders, 'imports of paths pruned from dist/').toEqual([]);

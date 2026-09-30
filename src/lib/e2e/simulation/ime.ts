@@ -2,17 +2,16 @@ import { type CDPSession, type Page } from '@playwright/test';
 import { isWebKit } from '../browser-engine';
 
 // The one IME driver, shared by the simulation gestures and the specs. Chromium composes through
-// CDP, whose `Input.imeSetComposition` / `Input.insertText` fire genuine composition events; WebKit
-// exposes no CDP, so its arm hand-fires the sequence at the focused editable — the single exemption
-// G4.49 grants, which no spec may copy. Mid-composition there is no source change, so `compose`
-// settles on the DOM instead.
+// CDP's `Input.imeSetComposition` and `Input.insertText`, which fire real composition events;
+// WebKit has no CDP, so its branch fires the sequence by hand, the one exception no spec may copy
+// (G4.49). The source does not change mid-composition, so `compose` waits on the DOM.
 
 export interface ImeDriver {
-	/** Set the in-flight composition text and settle on its DOM arrival. */
+	/** Sets the text being composed and waits for it to appear in the DOM. */
 	compose(text: string): Promise<void>;
-	/** Commit the composition through a compositionend carrying the committed data. */
+	/** Commits the composition through a compositionend carrying the committed data. */
 	commit(text: string): Promise<void>;
-	/** End the in-flight composition committing no bytes. */
+	/** Ends the composition in progress, writing no bytes. */
 	abort(): Promise<void>;
 }
 
@@ -20,7 +19,7 @@ export async function attachIme(page: Page): Promise<ImeDriver> {
 	return isWebKit(page) ? handFiredIme(page) : cdpIme(page);
 }
 
-// ── Arms ────────────────────────────────────────────────────────────────────
+// ── The two branches ────────────────────────────────────────────────────────
 
 async function cdpIme(page: Page): Promise<ImeDriver> {
 	const cdp: CDPSession = await page.context().newCDPSession(page);
@@ -43,10 +42,8 @@ async function cdpIme(page: Page): Promise<ImeDriver> {
 }
 
 /**
- * WebKit's arm, mirroring the unit harness (`test/harness/editable-surface.ts`): the composed run
- * is written into the DOM the way an IME writes it, and the events the editor listens to are fired
- * around that write. What it proves is the commit funnel, not event order — see
- * `requirements/webkit/ime-composition.md`.
+ * WebKit's branch writes the composed text into the DOM the way an IME does and fires the editor's
+ * events around it: it proves the commit path runs, not the event order.
  */
 function handFiredIme(page: Page): ImeDriver {
 	let open = false;
@@ -57,7 +54,7 @@ function handFiredIme(page: Page): ImeDriver {
 		await page.evaluate(() => {
 			const el = document.activeElement as HTMLElement;
 			el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
-			// The composing run replaces the selection, as the engine's own window does.
+			// The composed text replaces the selection, as the browser's own composition does.
 			const range = window.getSelection()!.getRangeAt(0);
 			range.deleteContents();
 			const run = document.createTextNode('');

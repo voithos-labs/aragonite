@@ -1,30 +1,29 @@
 // @vitest-environment jsdom
-//
-// The fence guard at its own entry layer: the mounted surface's real beforeinput,
-// cut and compositionstart listeners, driven with a live DOM selection. The pure
-// clamp is covered by code-fence-boundary.test.ts — what only this layer can prove
-// is that the surface CLAIMS the native gesture (preventDefault) and commits the
-// clamped text instead of letting the browser splice the fence away.
+// The fence check through the mounted block's real beforeinput, cut and compositionstart
+// listeners with a live DOM selection: where the mode hides the fence lines, the block prevents
+// the browser's gesture and commits the clamped text; where it paints them, it does not. The
+// pure clamp is in `code-fence-boundary.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import {
-	createRangeFromOffsets,
-	getRangeOffsets,
-	getSelectionOffsets
-} from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
 import { mountCode, type MountedCode } from './mount-code';
-
-// Async handlers finish after the dispatch returns; one macrotask drains the await
-// chain (handleSharedBeforeInput) before the guard's commit is observable.
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
 
+/** Live mode hides every fence line, so an edit that reaches one clamps to the body. */
+const HIDDEN_FENCE_LINES = { policies: { presentationMode: () => 'live' as const } };
+
 let mounted: MountedCode;
 
 function select(start: number, end: number): void {
-	const range = createRangeFromOffsets(mounted.el, asDomTextOffset(start), asDomTextOffset(end));
+	const range = createRangeAtDomTextOffsets(
+		mounted.el,
+		asDomTextOffset(start),
+		asDomTextOffset(end)
+	);
 	mounted.el.focus();
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -53,7 +52,7 @@ function replacement(transferred: string): InputEvent {
 	return e;
 }
 
-/** The committed display text, without the trailing line ending the surface reattaches. */
+/** The committed displayed text, without the trailing line ending that is reattached. */
 function committedText(): string {
 	const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
 	expect(calls.length).toBe(1);
@@ -61,18 +60,27 @@ function committedText(): string {
 }
 
 beforeEach(() => {
-	mounted = mountCode(SOURCE);
+	mounted = mountCode(SOURCE, HIDDEN_FENCE_LINES);
 });
 afterEach(async () => {
 	await mounted.dispose();
 	document.body.innerHTML = '';
 });
 
-describe('CodeBlock — fence-crossing ranged edits', () => {
+describe('CodeBlock: fence-crossing ranged edits', () => {
 	it('claims a delete whose selection runs into the closer and commits the clamped text', async () => {
 		select(12, 20);
 		const e = beforeInput('deleteContentBackward');
-		await settle();
+		await settleEditor();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\nconst \n```');
+	});
+
+	it('claims a forward delete the same way: direction picks no different bytes', async () => {
+		select(12, 20);
+		const e = beforeInput('deleteContentForward');
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst \n```');
@@ -81,18 +89,18 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('claims a type-over and writes the typed character into the body', async () => {
 		select(12, 20);
 		const e = beforeInput('insertText', 'Z');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst Z\n```');
 	});
 
-	// A replacement carries its payload on the dataTransfer, which this surface never reads: a
+	// A replacement carries its payload on the `dataTransfer`, which is never read here: a
 	// payload it did not read cannot go through the paste transforms (G4.11), so it is refused.
 	it('refuses a replacement rather than re-siting a payload it never read', async () => {
 		select(12, 20);
 		const e = replacement('Q');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -101,7 +109,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('claims a soft break and splices it inside the body', async () => {
 		select(12, 20);
 		const e = beforeInput('insertLineBreak');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst \n\n```');
@@ -111,10 +119,10 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	// insertParagraph is the same gesture and keeps the indent.
 	it('claims a paragraph break and keeps the body line indent', async () => {
 		await mounted.dispose();
-		mounted = mountCode('```js\n  const x = 1\n```\n');
+		mounted = mountCode('```js\n  const x = 1\n```\n', HIDDEN_FENCE_LINES);
 		select(14, 22);
 		const e = beforeInput('insertParagraph');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\n  const \n  \n```');
@@ -123,12 +131,12 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('prevents a fence-only delete without spending a commit', async () => {
 		for (const [start, end] of [
 			[17, 18], // the body's own line ending
-			[18, 21], // the closer text — structure, not content
+			[18, 21], // the closer text: structure, not content
 			[0, 3] // the opener's marker run
 		]) {
 			select(start, end);
 			const e = beforeInput('deleteContentBackward');
-			await settle();
+			await settleEditor();
 
 			expect(e.defaultPrevented).toBe(true);
 			expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -140,19 +148,24 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('prevents a collapsed-caret insertion inside the closer run', async () => {
 		select(19, 19);
 		const e = beforeInput('insertText', 'x');
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	it('leaves a selection inside one region to native handling', async () => {
-		select(3, 5); // the info string
-		const e = beforeInput('insertText', 'p');
-		await settle();
+	// Chromium's own replace of a range can take the hidden opener with it, so the block writes
+	// even a type-over that stays inside one region.
+	it.each([
+		['a character over the info string', 3, 5, 'p', '```p\nconst x = 1\n```'],
+		['an emoji over body text', 6, 11, '😀', '```js\n😀 x = 1\n```']
+	])('writes %s itself', async (_name, start, end, data, text) => {
+		select(start, end);
+		const e = beforeInput('insertText', data);
+		await settleEditor();
 
-		expect(e.defaultPrevented).toBe(false);
-		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe(text);
 	});
 
 	// The pending edit's target range covers a structural line ending. Chromium reports it
@@ -164,16 +177,16 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 			bubbles: true,
 			cancelable: true
 		});
-		const target = createRangeFromOffsets(mounted.el, asDomTextOffset(3), asDomTextOffset(6));
+		const target = createRangeAtDomTextOffsets(mounted.el, asDomTextOffset(3), asDomTextOffset(6));
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 		mounted.el.dispatchEvent(e);
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	// A target range reaching outside this block is a cross-block edit the surface cannot
+	// A target range reaching outside this block is a cross-block edit this block cannot
 	// measure, so it declines rather than guessing an offset.
 	it('declines a target range that leaves the surface', async () => {
 		select(12, 20);
@@ -191,7 +204,7 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		});
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 		mounted.el.dispatchEvent(e);
-		await settle();
+		await settleEditor();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
@@ -201,25 +214,25 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	it('cut deletes only the body part of a fence-crossing selection', async () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
-		await settle();
+		await settleEditor();
 
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
-	// Enter never reaches beforeinput — the keymap claims it at keydown — so its
-	// splice carries the same span rule rather than inheriting the guard.
+	// Enter never reaches beforeinput, since the keymap takes it at keydown, so its
+	// splice carries the same span rule rather than inheriting the check.
 	it('Enter over a fence-crossing selection replaces only the body part', async () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
 		);
-		await settle();
+		await settleEditor();
 
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
 
-	// A landing door must seat a caret that can type: the cross-container merge fallback moves
-	// focus to this block's END, which is the closer run, where every keystroke is refused.
+	// Focus must leave a caret that can type: the cross-container merge fallback moves
+	// focus to this block's end, which is the closer run, where every keystroke is refused.
 	it.each([
 		['past the display end', 999, 17],
 		['at offset 0', 0, 6]
@@ -227,20 +240,114 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		(mounted.instance as unknown as { focus(offset: number): void }).focus(asked);
 
 		const range = window.getSelection()!.getRangeAt(0);
-		expect(getRangeOffsets(mounted.el, range)).toEqual({ start: seated, end: seated });
+		expect(createSurfaceBackend({ getEl: () => mounted.el }).rawRangeOf(range)).toEqual({
+			start: seated,
+			end: seated
+		});
 
-		// The guard declines here, which is what "typable" means on this surface.
+		// The check refuses here, which is what "can be typed into" means for this block.
 		const e = beforeInput('insertText', 'X');
-		await settle();
+		await settleEditor();
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach
-	// an IME; the selection has to be shrunk before the composition owns the surface.
-	it('compositionstart re-seats a fence-crossing selection onto the body', () => {
-		select(12, 20);
+	// beforeinput's insertCompositionText is not cancelable, so the check cannot stop an IME;
+	// the block deletes the body part of the selection before the composition takes over.
+	it.each([
+		['a fence-crossing selection', 12, 20, '```js\nconst \n```'],
+		['a body-only selection', 6, 12, '```js\nx = 1\n```']
+	])('compositionstart over %s deletes its body part first', async (_name, start, end, text) => {
+		select(start, end);
+		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		await settleEditor();
+
+		expect(committedText()).toBe(text);
+	});
+
+	it('compositionstart over fence structure alone collapses onto the body and writes nothing', () => {
+		select(18, 21);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 
-		expect(getSelectionOffsets(mounted.el)).toEqual({ start: 12, end: 17 });
+		expect(createSurfaceBackend({ getEl: () => mounted.el }).getRaw()).toBe(17);
+		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+});
+
+// Miss-analysis: no fence-edit test put an edit on a fence line the mode paints.
+describe('CodeBlock: a fence line the mode paints takes the edit', () => {
+	it.each(['source', 'preview-block'] as const)(
+		'leaves a delete into the closer to the browser (%s)',
+		async (mode) => {
+			await mounted.dispose();
+			mounted = mountCode(SOURCE, { policies: { presentationMode: () => mode } });
+			select(12, 20);
+			const e = beforeInput('deleteContentBackward');
+			await settleEditor();
+
+			expect(e.defaultPrevented).toBe(false);
+		}
+	);
+});
+
+// Live mode is the one editable mode that hides the fence lines, and no pointer or arrow puts a
+// caret on them there, so these refusals are driven here rather than end to end.
+describe('CodeBlock: a gesture confined to a hidden fence line does nothing', () => {
+	/** A clipboard event with a plain-text payload, returning what the handler wrote back. */
+	function clipboardEvent(type: 'cut' | 'paste', text = ''): Map<string, string> {
+		const data = new Map([['text/plain', text]]);
+		const e = new Event(type, { bubbles: true, cancelable: true });
+		Object.defineProperty(e, 'clipboardData', {
+			value: {
+				getData: (format: string) => data.get(format) ?? '',
+				setData: (format: string, value: string) => data.set(format, value),
+				files: [],
+				items: [],
+				types: ['text/plain']
+			}
+		});
+		mounted.el.dispatchEvent(e);
+		return data;
+	}
+
+	const commits = () => vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls.length;
+
+	it('Backspace inside the closer run is taken and commits nothing', async () => {
+		select(20, 20);
+		const e = beforeInput('deleteContentBackward');
+		await settleEditor();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(commits()).toBe(0);
+	});
+
+	it.each([
+		['with the caret inside the closer run', 19, 19],
+		['with the caret inside the opener run', 1, 1],
+		['over a closer-only selection', 18, 21]
+	])('a paste %s commits nothing', async (_label, start, end) => {
+		select(start, end);
+		clipboardEvent('paste', 'Y');
+		await settleEditor();
+
+		expect(commits()).toBe(0);
+	});
+
+	it('a cut of a closer-only selection commits nothing', async () => {
+		select(18, 21);
+		clipboardEvent('cut');
+		await settleEditor();
+
+		expect(commits()).toBe(0);
+	});
+
+	// Chromium, deleting the last character it paints on a line, also takes the hidden fence line
+	// beside it, so a delete inside the body is applied by the block rather than the browser.
+	it('a delete inside the body is taken and applied to the body alone', async () => {
+		select(10, 12);
+		const e = beforeInput('deleteContentBackward');
+		await settleEditor();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\nconsx = 1\n```');
 	});
 });

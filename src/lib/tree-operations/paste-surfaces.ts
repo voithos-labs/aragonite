@@ -1,26 +1,16 @@
-import type { UndoEntryMode } from '../action-contracts';
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
-import type { GrammarView } from '../schema/block-openers';
+import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
+import type { LineEnding } from '../core/lines';
+import type { StoredAs } from '../schema/stored-as';
+import type { ChildSlot } from './list/task-paragraph';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
-import { registerOnce } from '../schema/register-once';
+import type { PluginActivation } from '../schema/plugin-activation';
+import { createBlockKindRegistry } from '../schema/plugin-registry';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface PasteRange {
 	start: number;
 	end: number;
-}
-
-/**
- * What the join-seam cleanup needs from the caller: the paste's delete half is a join, and in
- * live the runs it strands are bytes the reader never saw. Absent leaves the cut byte-literal,
- * which is every non-live mode's answer anyway.
- */
-export interface PasteSeam {
-	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef | undefined;
 }
 
 export interface InlinePasteResult {
@@ -41,34 +31,33 @@ export interface ScopedStructuralPasteInput {
 	/** Pasted blocks, blank-line-materialized. */
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
-	undoEntry: UndoEntryMode;
-	/** The instance grammar the splice owes its bodyWrite escape reparse. Required-nullable, so
-	 *  a new scoped surface cannot silently drop it; `undefined` = global. */
-	grammar: GrammarView | undefined;
 }
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
-	/**
-	 * This surface holds text, never blocks (a table cell), so a blank block at the clipboard's
-	 * edge is the copy's packaging: it neither picks the route nor lands in a structural splice.
-	 */
+	/** The kind's editable element holds text, never blocks (a table cell), so a blank block at the
+	 *  clipboard's edge is packaging: it neither picks the route nor lands in a splice. */
 	blankEdgesArePackaging?: boolean;
-	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. */
+	/** Pure. The pasted text replaces the pre-delete through `replaceRangeInLeaf`, as typing it
+	 *  would; every line the hook writes takes `lineEnding`, the document's. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,
 		text: string,
-		preDelete?: PasteRange,
-		seam?: PasteSeam
+		preDelete: PasteRange | undefined,
+		store: StoredAs,
+		lineEnding: LineEnding
 	): InlinePasteResult;
-	/** Splice CST blocks at the target. Pure data transform. */
+	/** Splice CST blocks at the target. Pure data transform. `slot` is where the target sits, so
+	 *  the text the hook leaves there is read as a reload reads it. */
 	onStructuralPaste?(
 		node: CstNode,
 		offset: number,
 		blocks: CstNode[],
-		preDelete?: PasteRange,
-		seam?: PasteSeam
+		preDelete: PasteRange | undefined,
+		store: StoredAs,
+		lineEnding: LineEnding,
+		slot: ChildSlot
 	): StructuralPasteResult;
 	/**
 	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the
@@ -79,24 +68,29 @@ export interface PasteSurface {
 
 // ── Registry ───────────────────────────────────────────────────────────────
 
-const surfaces = new Map<AnyBlockKind, PasteSurface>();
+const surfaces = createBlockKindRegistry<PasteSurface>({
+	label: 'registerPasteSurface',
+	isBuiltin: isBuiltinBlockKind
+});
 
 export function registerPasteSurface(surface: PasteSurface): void {
-	registerOnce(
-		surfaces.has(surface.kind),
-		() => surfaces.set(surface.kind, surface),
+	surfaces.register(
+		surface.kind,
+		surface,
 		`registerPasteSurface: "${surface.kind}" is already registered. Paste surfaces are register-once.`
 	);
 }
 
-export function getPasteSurface(kind: AnyBlockKind): PasteSurface | undefined {
-	return surfaces.get(kind);
+/** The kind's surface in an editor with this activation; a plugin kind's surface is absent where
+ *  the editor left out the kind's plugin, so the paste takes the default hooks. */
+export function getPasteSurface(
+	kind: AnyBlockKind,
+	activation: PluginActivation
+): PasteSurface | undefined {
+	return surfaces.get(kind, activation);
 }
 
-export function __resetPasteSurfacesForTests(): void {
-	surfaces.clear();
-}
-
-export function __removePasteSurfaceForTests(kind: AnyBlockKind): void {
-	surfaces.delete(kind);
+/** Whether any plugin or built-in registered a surface for the kind, whatever the activation. */
+export function isPasteSurfaceRegistered(kind: AnyBlockKind): boolean {
+	return surfaces.has(kind);
 }

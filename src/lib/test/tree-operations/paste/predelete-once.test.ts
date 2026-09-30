@@ -9,15 +9,12 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 
-// GH #121: the container-match, sibling-absorb and break-out strategies never read `preDelete`, so
-// a paste over a selection kept the selected bytes as the residue its split hands the trailing
-// half. The cut is spent ONCE at the door now, ahead of a strategy pick that decides on the
-// target's bytes.
-// Miss-analysis: every container-route case pastes at a COLLAPSED caret, so the field these routes
-// ignore was populated in none of them; the hook routes' own `preDelete` pins hid the gap.
+// Dispatch cuts a selection once, before picking a strategy, so no route keeps the cut bytes.
+// Miss-analysis: GH #121, every container-route case pasted at a collapsed caret.
 
 function harnessFor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));
@@ -26,7 +23,7 @@ function harnessFor(source: string) {
 		makeBlockListState(() => deps.doc.children[0])
 	);
 	const controller = createUndoController(deps);
-	return { deps, coordinator: createPasteCoordinator(controller, deps.revealPath) };
+	return { deps, coordinator: createPasteCoordinator(deps, controller) };
 }
 
 describe('a paste over a selection inside a list item', () => {
@@ -40,7 +37,11 @@ describe('a paste over a selection inside a list item', () => {
 				offset: 0,
 				preDelete: { start: 0, end: 'alpha'.length }
 			},
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'own' }
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('- x\n- y\n');
@@ -57,7 +58,11 @@ describe('a paste over a selection inside a list item', () => {
 				offset: 0,
 				preDelete: { start: 0, end: 'alpha '.length }
 			},
-			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator, undoEntry: 'own' }
+			pasteContext({
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator
+			})
 		);
 
 		expect(serialize(deps.doc)).toBe('- x\n- beta\n');

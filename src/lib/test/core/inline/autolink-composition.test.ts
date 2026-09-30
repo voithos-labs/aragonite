@@ -35,7 +35,7 @@ describe('autolink interactions with other constructs', () => {
 	});
 });
 
-describe('parseInline — fast-bail output shape', () => {
+describe('parseInline: fast-bail output shape', () => {
 	// Both cases open by asserting the autolink is there: without that precondition a
 	// degenerate single-text-node output would satisfy both shape checks vacuously.
 	it('fast path output has no adjacent text siblings', () => {

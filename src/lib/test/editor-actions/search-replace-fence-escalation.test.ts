@@ -6,11 +6,9 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
 // A replacement is literal content, so a fence run it lands in a code body must grow the
-// block's fence instead of terminating it, and a replacement that CONSUMES the closer must
-// get it back (issue #55, same door). Miss-analysis: the G4.24 funnel lint pinned the
-// COMPONENT's write sites, and no test drove a byte sink that reaches a fencedCode raw
-// without the surface — the descriptor-hook route (`normalizeRawWrite`) had no fence arm at
-// all. Issue #45.
+// block's fence instead of closing it, and a replacement that consumes the closer must get
+// it back.
+// Miss-analysis (GH #45): the descriptor's `rawWrite` route had no fence case, only the component.
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 
@@ -93,7 +91,7 @@ describe('search/replace into a fenced code block', () => {
 	});
 
 	// An unclosed fence ends the document, so the bytes still converge; the rule it needs is
-	// that the replacement stays INSIDE the block rather than closing it.
+	// that the replacement stays inside the block rather than closing it.
 	it('keeps a closer run inside an unclosed fence’s body', async () => {
 		const { deps, sr } = makeSearchReplace('```js\nXX\nconst x = 1\n');
 
@@ -125,9 +123,8 @@ describe('search/replace into a fenced code block', () => {
 		expect(serialize(stack[0].snapshot)).toBe(source);
 	});
 
-	// The escalation grows the OPENER, ahead of every body match, so a caret or a match
-	// offset read off the pre-replace bytes lands wrong. Search re-scans after a replace;
-	// the undo entry is the one offset that survives, and it addresses the old bytes.
+	// The escalation grows the opener ahead of every body match; search re-scans after a replace,
+	// so the undo entry's caret is the one offset left, and it addresses the pre-replace bytes.
 	it('seeds the undo caret at the pre-replace match offset', async () => {
 		const { deps, sr } = makeSearchReplace('```js\nXX\nconst x = 1\n```\n\n# Heading\n');
 		const match = scan(deps.doc, 'XX')[0];
@@ -139,8 +136,8 @@ describe('search/replace into a fenced code block', () => {
 		expect(rangeSelectionOf(entry).anchor.offset).toBe(match.start);
 	});
 
-	// The match spans the body into the closer line, so the substitution deletes a terminator
-	// the metadata still claims — the block would otherwise absorb the heading on reload.
+	// The match spans the body into the closer line, so the substitution deletes a terminator the
+	// metadata still records; without it the block absorbs the heading on reload.
 	it('restores a closer the replacement consumed', async () => {
 		const { deps, sr } = makeSearchReplace('```js\nbody\n```\n\n# Heading\n');
 
@@ -150,7 +147,7 @@ describe('search/replace into a fenced code block', () => {
 		expectParseConverged(deps.doc);
 	});
 
-	it('is idempotent — replacing into an already-escalated fence adds no backticks', async () => {
+	it('is idempotent, replacing into an already-escalated fence adds no backticks', async () => {
 		const { deps, sr } = makeSearchReplace('````js\n```\nXX\n````\n\n# Heading\n');
 
 		await sr.replaceAll(scan(deps.doc, 'XX'), 'plain');

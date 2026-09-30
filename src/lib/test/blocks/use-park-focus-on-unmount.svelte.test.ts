@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe('useParkFocusOnUnmount', () => {
-	it('parks focus on the editor root when the focused block tears down', () => {
+	it('puts the caret focus on the editor root when the focused block tears down', () => {
 		const { root, block } = mountPair();
 		block.focus();
 		const dispose = $effect.root(() => {
@@ -52,9 +52,9 @@ describe('useParkFocusOnUnmount', () => {
 		expect(document.activeElement).toBe(other);
 	});
 
-	// The el is captured at effect run: at unmount the component's binding is already
-	// cleared, and a live re-read would skip the park exactly when it is owed.
-	it('parks through the element captured at effect time, not the live getter', () => {
+	// At unmount the component's element binding is already cleared, so reading it live would
+	// skip moving focus exactly when it is needed.
+	it('puts the caret through the element captured at effect time, not the live getter', () => {
 		const { root, block } = mountPair();
 		block.focus();
 		let current: HTMLElement | null = block;

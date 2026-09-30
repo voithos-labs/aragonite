@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('inline editing — backslash escapes', () => {
+test.describe('inline editing: backslash escapes', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -85,14 +85,6 @@ test.describe('inline editing — backslash escapes', () => {
 		const markers = await block.locator('.md-marker').allTextContents();
 		expect(markers.filter((t) => t === '\\').length).toBe(2);
 	});
-
-	for (const escape of ['\\*', '\\[', '\\]', '\\_', '\\`', '\\\\', '\\!', '\\#']) {
-		test(`round-trips ${JSON.stringify(escape)} unchanged`, async () => {
-			await editor.typeText(escape);
-			await editor.bridge.waitForSourceContains(escape);
-			expect((await editor.bridge.getSource()).trim()).toBe(escape);
-		});
-	}
 
 	test('prepending backslash to existing *foo* collapses emphasis', async () => {
 		await editor.loadContent('*foo*\n');

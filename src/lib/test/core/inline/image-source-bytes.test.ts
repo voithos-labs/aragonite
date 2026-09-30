@@ -1,0 +1,207 @@
+import { describe, it, expect } from 'vitest';
+import { buildImageSourceBytes, imageFieldsFromInline } from '$lib/core/inline/image-source-bytes';
+import { parseInline } from '$lib/core/inline';
+
+describe('buildImageSourceBytes', () => {
+	it('basic image with alt + url', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png' })).toBe('![cat](cat.png)');
+	});
+
+	it('with title (canonical double quotes)', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', title: 'Cat' })).toBe(
+			'![cat](cat.png "Cat")'
+		);
+	});
+
+	it('with width-only dimensions', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400 })).toBe(
+			'![cat|400](cat.png)'
+		);
+	});
+
+	it('with width and height dimensions', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400, height: 300 })).toBe(
+			'![cat|400x300](cat.png)'
+		);
+	});
+
+	it('combines dimensions and title', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				title: 'Cat',
+				width: 400
+			})
+		).toBe('![cat|400](cat.png "Cat")');
+	});
+
+	it('writes the crop tail on the framed form, zoom only when it is not one', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 30, y: 60, z: 1 }
+			})
+		).toBe('![cat|400x300@30,60](cat.png)');
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 50, y: 50, z: 2.5 }
+			})
+		).toBe('![cat|400x300@50,50,2.5](cat.png)');
+		// Rounded to what the parser reads back: whole percents, two-decimal zoom.
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				height: 300,
+				crop: { x: 30.4, y: 59.6, z: 1.2345 }
+			})
+		).toBe('![cat|400x300@30,60,1.23](cat.png)');
+	});
+
+	it('a crop without a frame height is not written', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'cat.png',
+				width: 400,
+				crop: { x: 30, y: 60, z: 1 }
+			})
+		).toBe('![cat|400](cat.png)');
+	});
+
+	it('a scanned crop round-trips through the fields', () => {
+		const src = '![cat|400x300@30,60,2](cat.png)';
+		const [image] = parseInline(src, 0, src.length);
+		const fields = imageFieldsFromInline(image);
+		expect(fields.crop).toEqual({ x: 30, y: 60, z: 2 });
+		expect(buildImageSourceBytes(fields)).toBe('![cat|400x300@30,60,2](cat.png)');
+	});
+
+	it('empty alt is allowed', () => {
+		expect(buildImageSourceBytes({ alt: '', url: 'cat.png' })).toBe('![](cat.png)');
+	});
+
+	it('escapes embedded double quotes in title', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', title: 'A "quoted" cat' })).toBe(
+			'![cat](cat.png "A \\"quoted\\" cat")'
+		);
+	});
+});
+
+describe('buildImageSourceBytes: reference form (label preserved)', () => {
+	it('emits the reference form when a label is present', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'resolved.png', label: 'ref' })).toBe(
+			'![cat][ref]'
+		);
+	});
+
+	it('keeps the dimension hint in the alt for the reference form', () => {
+		expect(
+			buildImageSourceBytes({ alt: 'cat', url: 'resolved.png', width: 400, label: 'ref' })
+		).toBe('![cat|400][ref]');
+	});
+
+	it('keeps width × height in the alt for the reference form', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'resolved.png',
+				width: 400,
+				height: 300,
+				label: 'ref'
+			})
+		).toBe('![cat|400x300][ref]');
+	});
+
+	it('does not write url or title in the reference form (they live in the LRD)', () => {
+		const out = buildImageSourceBytes({
+			alt: 'cat',
+			url: 'resolved.png',
+			title: 'Some title',
+			width: 200,
+			label: 'shot'
+		});
+		expect(out).toBe('![cat|200][shot]');
+		expect(out).not.toContain('resolved.png');
+		expect(out).not.toContain('Some title');
+	});
+
+	it('escapes brackets in the alt of the reference form', () => {
+		expect(buildImageSourceBytes({ alt: 'a]b', url: 'u', label: 'ref' })).toBe('![a\\]b][ref]');
+	});
+
+	it('falls back to the inline form when no label is present', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400 })).toBe(
+			'![cat|400](cat.png)'
+		);
+	});
+});
+
+describe('buildImageSourceBytes: output re-parses as an image', () => {
+	const parsesToOneImage = (built: string): boolean => {
+		const nodes = parseInline(built, 0, built.length);
+		return nodes.length === 1 && nodes[0].kind === 'image';
+	};
+
+	it.each([
+		['close bracket in alt', { alt: 'a]b', url: 'u' }],
+		['open bracket in alt', { alt: 'a[b', url: 'u' }],
+		['backslash in alt', { alt: 'a\\b', url: 'u' }],
+		['space in url (local path)', { alt: 'a', url: 'C:/My Photos/x.png' }],
+		['close paren in url', { alt: 'a', url: 'http://x/(y)' }],
+		['single quote in url', { alt: 'a', url: "http://x/'y" }]
+	])('%s survives the scanner instead of degrading to text', (_label, fields) => {
+		expect(parsesToOneImage(buildImageSourceBytes(fields))).toBe(true);
+	});
+
+	it('URL encoding is idempotent (no double-encode on rebuild)', () => {
+		expect(buildImageSourceBytes({ alt: 'a', url: 'x%20y' })).toBe(
+			buildImageSourceBytes({ alt: 'a', url: 'x y' })
+		);
+	});
+
+	// The `alt` an image node holds is the label's bytes as written, unlike `title` and `url`,
+	// which arrive already processed. Escaping everything doubles a backslash on each commit.
+	const rebuildSpan = (source: string): string => {
+		const image = parseInline(source, 0, source.length)[0];
+		return buildImageSourceBytes(imageFieldsFromInline(image));
+	};
+
+	it.each([
+		['a Windows path in the alt', '![C:\\path](x.png)'],
+		['an already-escaped close bracket', '![a\\]b](x.png)'],
+		['an already-escaped backslash', '![a\\\\b](x.png)'],
+		['a trailing backslash', '![a\\\\](x.png)']
+	])('%s rebuilds byte-for-byte and stays put on a second rebuild', (_label, source) => {
+		expect(rebuildSpan(source)).toBe(source);
+		expect(rebuildSpan(rebuildSpan(source))).toBe(source);
+	});
+
+	it('repeated resizes do not grow the alt', () => {
+		let bytes = '![C:\\path](x.png)';
+		for (let round = 0; round < 3; round++) {
+			const image = parseInline(bytes, 0, bytes.length)[0];
+			bytes = buildImageSourceBytes({ ...imageFieldsFromInline(image), width: 400 });
+		}
+		expect(bytes).toBe('![C:\\path|400](x.png)');
+	});
+
+	it('still escapes a bare bracket the user typed into the alt', () => {
+		expect(buildImageSourceBytes({ alt: 'a]b[c', url: 'u' })).toBe('![a\\]b\\[c](u)');
+	});
+
+	// CommonMark allows parentheses in a destination only escaped or balanced.
+	it('keeps balanced parens and escapes an unbalanced one', () => {
+		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/(y)' })).toBe('![a](http://x/(y))');
+		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/y)' })).toBe('![a](http://x/y\\))');
+	});
+});

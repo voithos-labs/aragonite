@@ -36,9 +36,8 @@ describe('fixture generators', () => {
 		});
 	}
 
-	// Baseline numbers are keyed to these exact bytes, so a corpus edit must fail loudly
-	// and force deliberate re-baselining. One pin per shape: inline snapshots need
-	// distinct call sites, so a loop cannot carry them.
+	// The baseline numbers are keyed to these exact bytes, so a corpus edit must fail and force a
+	// re-baseline; a loop can't carry them, since each inline snapshot needs its own call site.
 	it('flat-prose: exact output pinned', () => {
 		expect(generateFixture('flat-prose', 200, 7)).toMatchInlineSnapshot(`
 			"## alpha alpha papa lima
@@ -156,7 +155,7 @@ describe('fixture generators', () => {
 });
 
 describe('giant-single-container fixtures', () => {
-	it('giant-single-list is ONE list of many items', () => {
+	it('giant-single-list is one list of many items', () => {
 		const md = generateFixture('giant-single-list', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		expect(lines.length).toBeGreaterThan(1000);
@@ -164,7 +163,7 @@ describe('giant-single-container fixtures', () => {
 		expect(md).not.toContain('\n\n'); // no block separators -> single list node
 	});
 
-	it('giant-single-blockquote is ONE blockquote of many paragraphs', () => {
+	it('giant-single-blockquote is one blockquote of many paragraphs', () => {
 		const md = generateFixture('giant-single-blockquote', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		expect(lines.length).toBeGreaterThan(1000);
@@ -178,7 +177,7 @@ describe('giant-single-container fixtures', () => {
 });
 
 describe('giant-single-table fixture', () => {
-	it('giant-single-table is ONE table of many rows', () => {
+	it('giant-single-table is one table of many rows', () => {
 		const md = generateFixture('giant-single-table', 200_000);
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		// Every line is a table row ("| ... |"); no blank-line separators that would
@@ -225,7 +224,7 @@ describe('generateTriggerDense', () => {
 			expect(serialize(parse(src))).toBe(src);
 		});
 
-		// The rows measure a per-trigger cost, and only the viewport slice mounts, so
+		// The rows measure the cost per trigger character, and only the visible range mounts, so
 		// every paragraph has to carry the trigger for the density to be real.
 		it(`${kind}: every paragraph carries the trigger`, () => {
 			const doc = parse(generateTriggerDense(kind, 20_000, 7));
@@ -235,16 +234,16 @@ describe('generateTriggerDense', () => {
 		});
 	}
 
-	// A mounted reference re-derives from a whole-document walk, so the reference has to
-	// be in block 0 — the caret's block, and the only one guaranteed mounted.
+	// A mounted reference re-derives from a traversal of the whole document, so the reference
+	// has to be in block 0: the caret's block, and the only one certain to be mounted.
 	it('bracket-footnote: block 0 carries a footnote reference and bracket density', () => {
 		const doc = parse(generateTriggerDense('bracket-footnote', 20_000, 7));
 		expect(doc.children[0].raw).toContain('[^fn-0]');
 		expect(doc.children[0].raw.split('[').length - 1).toBeGreaterThanOrEqual(3);
 	});
 
-	// No definitions: numbering is by first-reference order, and `[^label]:` lines
-	// would parse as link reference definitions on the rung-free control route.
+	// No definitions: numbering follows the order of first reference, and `[^label]:` lines
+	// would parse as link reference definitions on the control route, which installs no handler.
 	it('bracket-footnote: carries no footnote definitions', () => {
 		expect(generateTriggerDense('bracket-footnote', 20_000, 7)).not.toMatch(/^\[\^/m);
 	});
@@ -264,7 +263,7 @@ describe('generateTriggerDense', () => {
 	});
 });
 
-// Walk the descent spine, collecting each container's raw length outermost-first.
+// Walk down the chain of containers, collecting each one's raw length, outermost first.
 function spineContainerRaws(root: CstNode): number[] {
 	const raws: number[] = [];
 	let node: CstNode | undefined = root;
@@ -314,9 +313,9 @@ describe('generateDeepNested', () => {
 		expect(leaf.children).toBeUndefined();
 	});
 
-	// Every level must carry sibling bytes: a spine-only tree passes the shape checks
-	// above while silently understating the ancestry-rebuild tax the bench measures.
-	it('each level carries bytes: spine raws non-increasing, outermost ≈ whole doc', () => {
+	// Every level has to hold sibling bytes: a tree that is only the chain passes the shape
+	// checks above while quietly understating the rebuild cost this bench measures.
+	it('each level carries bytes: ancestor chain raws non-increasing, outermost ≈ whole doc', () => {
 		const doc = parse(generateDeepNested(8, 10_000, 7));
 		const raws = spineContainerRaws(doc.children[0]);
 		expect(raws[0]).toBeGreaterThanOrEqual(docByteLength(doc) * 0.95);

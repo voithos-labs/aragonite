@@ -1,23 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { collectReservedChords, chordIsClaimed } from '$lib/schema/reserved-chords';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
-import {
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests
-} from '$lib/schema/commands';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 registerBuiltInDescriptors();
-
-beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
-});
 
 const chords = (searchBar = true) =>
 	collectReservedChords({ searchBar, activation: everyInstalledPlugin });
@@ -26,24 +16,23 @@ function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
 	return new KeyboardEvent('keydown', init);
 }
 
-describe('collectReservedChords — sources', () => {
+describe('collectReservedChords: sources', () => {
 	it('unions the kind keymaps and the editor-global keymap', () => {
 		const set = chords();
-		// Prose keymap, table-cell keymap, and undo/redo.
+		// One chord each from the prose keymap, the table-cell keymap, and undo/redo.
 		expect([...set]).toEqual(
 			expect.arrayContaining(['Mod+B', 'Mod+1', 'Mod+Shift+A', 'Mod+Z', 'Mod+Shift+Z'])
 		);
 	});
 
-	// A keymap-declared chord needs no manifest edit — the registry tier reports it. The two
-	// newest toggles are the standing proof that the tier, not a hand-kept list, is the source.
+	// A chord declared in a keymap needs no edit to the hardcoded list: the registry reports it.
 	it('picks up a chord from the kind keymaps alone', () => {
 		expect([...chords()]).toEqual(expect.arrayContaining(['Mod+Shift+X', 'Mod+E']));
 	});
 
 	it('includes chords claimed outside every keymap', () => {
-		// Whole-block clipboard, document-edge extend, and the table context menu — none of
-		// these resolve through a keymap, so only the manifest can report them.
+		// Whole-block clipboard, document-edge extend and the table context menu: none of these
+		// resolve through a keymap, so only the hardcoded list can report them.
 		expect([...chords()]).toEqual(
 			expect.arrayContaining(['Mod+C', 'Mod+X', 'Mod+Shift+Home', 'Mod+Shift+End', 'Shift+F10'])
 		);
@@ -54,7 +43,6 @@ describe('collectReservedChords — sources', () => {
 		for (const key of ['Enter', 'Tab', 'Backspace', 'Delete', 'Escape', 'ArrowUp']) {
 			expect(set.has(key), `${key} is a bare key and must not be reported`).toBe(false);
 		}
-		// The modified forms of the same keys are in.
 		expect(set.has('Shift+Enter')).toBe(true);
 		expect(set.has('Alt+ArrowUp')).toBe(true);
 	});
@@ -70,12 +58,12 @@ describe('collectReservedChords — sources', () => {
 		expect(chords().has('Mod+Shift+7')).toBe(false);
 		registerGlobalCommand('demo.reserved', () => true, { chord: 'Mod+Shift+7' });
 		expect(chords().has('Mod+Shift+7')).toBe(true);
-		__resetPluginGlobalKeymapForTests();
+		__resetSchemaRegistriesForTests();
 		expect(chords().has('Mod+Shift+7')).toBe(false);
 	});
 });
 
-describe('collectReservedChords — per-instance overrides', () => {
+describe('collectReservedChords: per-instance overrides', () => {
 	const withOverrides = (overrides: Parameters<typeof normalizeKeybindingOverrides>[0]) =>
 		collectReservedChords({
 			searchBar: true,
@@ -98,10 +86,9 @@ describe('collectReservedChords — per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
-	// The released half of the disable split: the host may claim Mod+Z app-wide, and their
-	// handler fires while focus is outside the editor. Inside it the press is still consumed —
-	// the other half, pinned at `components/gap-caret-global-chord.svelte.test.ts`.
-	it('drops a disabled GLOBAL chord even though the arms still consume it', () => {
+	// Disabling Mod+Z releases it to the host while focus is outside the editor; inside the editor
+	// the keypress is still swallowed.
+	it('drops a disabled global chord even though the branches still consume it', () => {
 		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
 	});
 
@@ -110,14 +97,14 @@ describe('collectReservedChords — per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+C', command: null }]).has('Mod+C')).toBe(true);
 	});
 
-	it('leaves other instances alone — a kind-scoped disable is not a global one', () => {
+	it('leaves other instances alone: a kind-scoped disable is not a global one', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null, kind: 'paragraph' }]).has('Mod+B')).toBe(
 			true
 		);
 	});
 });
 
-describe('chordIsClaimed — the editor normalization, not the caller', () => {
+describe('chordIsClaimed: the editor normalization, not the caller', () => {
 	const set = chords();
 
 	it('folds Ctrl and Cmd to one answer', () => {

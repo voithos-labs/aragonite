@@ -8,15 +8,15 @@ import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// A splice outside the commit ceremony updates neither the parent's `childIds` (which
-// never self-heals: `createBlockListState` backfills only an ABSENT id array, never a
-// short one) nor the `edit` stream, so persistence sees the delete and not the insertion.
+// A splice outside the commit updates neither the parent's `childIds`, which nothing repairs
+// later, nor the `edit` stream, so persistence would see the delete and not the insertion.
 
 function blockquoteHarness() {
 	const { deps, events } = makeEditorActionsDeps(parse('> # Head\n').children);
@@ -27,22 +27,22 @@ function blockquoteHarness() {
 		deps,
 		events,
 		liveQuote,
-		coordinator: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+		coordinator: createPasteCoordinator(deps, createUndoController(deps))
 	};
 }
 
-describe("cross-block inline paste ('join') — commit ceremony participation", () => {
+describe("cross-block inline paste ('join'): commit sequence participation", () => {
 	it('keeps the container childIds aligned with children when the paste reparses to two blocks', async () => {
 		const { deps, liveQuote, coordinator } = blockquoteHarness();
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		const quote = liveQuote();
@@ -57,12 +57,12 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		expect(onEdit.mock.calls.map(([e]) => e.op)).toContain('updateContent');
@@ -75,52 +75,52 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 
 		await pasteDispatch(
 			{ pastedText: 'ing', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		expect(deps.doc.children[0].children![0].raw).toBe('# Heading\n');
 		expect(onEdit.mock.calls.map(([e]) => e.op)).toContain('updateContent');
 	});
 
-	// The range delete has ALREADY committed by the time the paste dispatches, so a throw here
-	// loses the selection with nothing pasted; only ref alignment is unavailable when unmounted.
+	// The range delete has already committed by the time the paste dispatches, so a throw here
+	// loses the selection with nothing pasted. The write lands by path, so it needs no refs.
 	it('an unmounted container still commits instead of throwing', async () => {
 		const { deps } = makeEditorActionsDeps(parse('> # Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		const quote = deps.doc.children[0];
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['paste']);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('top-level target syncs the document-scope block ids', async () => {
 		const { deps } = makeEditorActionsDeps(parse('# Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0], offset: 'Head'.length + 2 },
-			{
+			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
-			}
+				crossBlock: true
+			})
 		);
 
 		expect(deps.doc.children).toHaveLength(2);

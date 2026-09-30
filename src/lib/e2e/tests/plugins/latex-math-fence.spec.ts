@@ -3,12 +3,10 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * GitHub's third math form: a ```math fence parsed as the distinct `mathFence` kind, not
- * `mathBlock` and not a plain `fencedCode`. It rides the same render-primary BlockMath component as
- * `$$…$$`, so this pins only what is specific to the fence — the kind identity, a KaTeX render
- * through the shared component, and one reveal→edit→commit round trip that keeps the fence a
- * `mathFence` (the shared editable-leaf mechanics are proven by latex-block.spec.ts). Seed
- * `mathfence`: the fence block sits at index 1.
+ * GitHub's third math form: a ```math fence parsed as its own `mathFence` kind. It shares the
+ * BlockMath component with `$$…$$` (latex-block.spec.ts), so this covers only the kind, a KaTeX
+ * render, and an open, edit and commit round trip that keeps the kind. Seed `mathfence`: the fence
+ * is block 1.
  */
 
 test.describe('plugin math fence: distinct kind, shared render', () => {
@@ -31,13 +29,13 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		page
 	}) => {
 		await editor.revealFromBefore();
-		// Walk from the source leading edge to the start of the `x^2` body, then insert a
-		// char there — an info-string edit would flip the kind, a body edit must not.
+		// Step from the source's leading edge to the start of the `x^2` body and insert a
+		// character there: an edit to the info string would change the kind, a body edit must not.
 		const bodyStart = (await editor.sourceText()).indexOf('x^2');
 		expect(bodyStart).toBeGreaterThan(0);
 		for (let i = 0; i < bodyStart; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('a');
-		// Blur onto the paragraph below → commit + re-render.
+		// Blur onto the paragraph below, which commits and re-renders.
 		await editor.getBlock(2).click();
 
 		await editor.bridge.waitForSourceContains('```math\nax^2\n```');
@@ -45,5 +43,32 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		await expect(editor.source).toHaveCount(0);
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		expect(await roundTripStable(editor.page)).toBe(true);
+	});
+
+	// Picking `math` for a code block's language turns it into a math fence, and the code block
+	// that did it is gone by the time its own caret step would run.
+	test('picking math as a live code block’s language becomes a math fence', async ({ page }) => {
+		await editor.loadContent('para\n\nafter\n');
+		await editor.setPresentationMode('live');
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('```math');
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('para\n\n```math\n\n```\n\nafter\n');
+		await expect.poll(() => editor.bridge.getBlockKind(1)).toBe('mathFence');
+	});
+
+	test('stands off its neighbours by the same padding as a $$ block', async ({ page }) => {
+		await editor.loadContent('para\n\n$$\nx\n$$\n\npara\n\n```math\nx\n```\n\npara\n');
+		const padding = (kind: string) =>
+			page
+				.locator(`.block-host[data-block-kind='${kind}']`)
+				.evaluate(
+					(el) => `${getComputedStyle(el).paddingTop} ${getComputedStyle(el).paddingBottom}`
+				);
+
+		expect(await padding('mathBlock')).toBe('6px 6px');
+		expect(await padding('mathFence')).toBe(await padding('mathBlock'));
 	});
 });

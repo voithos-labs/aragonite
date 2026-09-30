@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { tick } from 'svelte';
 import { createModeFlip } from '$lib/components/editor-root-mode-flip';
 import { createEditorEvents } from '$lib/editor-events';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
+import { settleEditor } from '$lib/test/harness/settle';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -15,8 +15,7 @@ const caretAt = (path: number[], offset: number): EditorSelection => ({
 	focus: { path, offset }
 });
 
-// Miss-analysis: every flip test drove a mounted editor, where the caret's return could pass
-// for the restore road's own doing; nothing pinned which mode captured and which restored.
+// Miss-analysis: every mode-change test drove a mounted editor, never which mode captured.
 function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | null } = {}) {
 	const root = document.createElement('div');
 	const leaf = document.createElement('button');
@@ -28,8 +27,9 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 
 	let mode: PresentationMode = opts.mode ?? 'source';
 	let snapshot = opts.selection ?? null;
+	let held: PresentationMode | null = null;
 	const calls = {
-		affinityResets: 0,
+		caretForgets: 0,
 		measuredDrops: 0,
 		gapClears: 0,
 		selectionEmits: 0,
@@ -38,7 +38,6 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	events.on('selectionChange', () => calls.selectionEmits++);
 	events.on('presentationModeChange', (next) => calls.modeEmits.push(next));
 	const flip = createModeFlip({
 		get editorEl() {
@@ -49,13 +48,17 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		},
 		selection,
 		getSelection: () => snapshot,
+		announceSelection: () => calls.selectionEmits++,
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
-		edgeAffinity: { reset: () => calls.affinityResets++ },
-		heightOracle: { dropMeasured: () => calls.measuredDrops++ },
+		caretMemory: { forget: () => calls.caretForgets++ },
+		layout: { forgetMeasuredHeights: () => calls.measuredDrops++ },
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
+		},
+		holdOutgoingMode: (next) => {
+			held = next;
 		}
 	});
 	/** Both halves in effect order, the mode already moved as the derived would have. */
@@ -66,21 +69,40 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const setMode = (next: PresentationMode) => (mode = next);
 	const setSnapshot = (next: EditorSelection | null) => (snapshot = next);
-	return { leaf, headerField, flip, calls, selection, flipTo, setMode, setSnapshot };
+	return {
+		leaf,
+		headerField,
+		flip,
+		calls,
+		selection,
+		flipTo,
+		setMode,
+		setSnapshot,
+		held: () => held
+	};
 }
 
-/** The restore waits one flush of its own before it lands. */
-async function settle(): Promise<void> {
-	await tick();
-	await tick();
-}
+describe('editor-root mode flip: the outgoing mode', () => {
+	// Miss-analysis: the blur's commit was only checked for its bytes, never for the mode it saw.
+	it('is held only while the blur commits, so that write lands in the mode it was typed in', () => {
+		const h = harness({ mode: 'source' });
+		let heldAtBlur: PresentationMode | null | undefined;
+		h.leaf.addEventListener('blur', () => (heldAtBlur = h.held()));
+		h.leaf.focus();
 
-describe('editor-root mode flip — the two halves', () => {
+		h.flipTo('reading');
+
+		expect(heldAtBlur).toBe('source');
+		expect(h.held()).toBeNull();
+	});
+});
+
+describe('editor-root mode flip: the two halves', () => {
 	it('an unchanged mode is a no-op for both halves', () => {
 		const h = harness();
 		h.flip.beforeFlip('source');
 		h.flip.afterFlip('source');
-		expect(h.calls).toMatchObject({ affinityResets: 0, measuredDrops: 0, modeEmits: [] });
+		expect(h.calls).toMatchObject({ caretForgets: 0, measuredDrops: 0, modeEmits: [] });
 	});
 
 	it('the pre half blurs a focused leaf and announces the dropped selection', () => {
@@ -99,25 +121,25 @@ describe('editor-root mode flip — the two halves', () => {
 		expect(h.calls.selectionEmits).toBe(0);
 	});
 
-	it('the post half resets the affinity, drops measured heights and announces the mode', () => {
+	it('the post half forgets the caret memory, drops measured heights and announces the mode', () => {
 		const h = harness();
 		h.flipTo('live');
-		expect(h.calls).toMatchObject({ affinityResets: 1, measuredDrops: 1, modeEmits: ['live'] });
+		expect(h.calls).toMatchObject({ caretForgets: 1, measuredDrops: 1, modeEmits: ['live'] });
 	});
 });
 
-describe('editor-root mode flip — the caret carry', () => {
+describe('editor-root mode flip: the caret carry', () => {
 	it('restores the caret captured on the way out after the flush', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([[[1], 3]]);
 	});
 
 	it('entering reading clears the gap caret and restores nothing', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('reading');
-		await settle();
+		await settleEditor();
 		expect(h.calls.gapClears).toBe(1);
 		expect(h.calls.restores).toEqual([]);
 	});
@@ -127,7 +149,7 @@ describe('editor-root mode flip — the caret carry', () => {
 		h.flipTo('reading');
 		h.setSnapshot(null);
 		h.flipTo('source');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([[[2], 5]]);
 	});
 
@@ -135,7 +157,7 @@ describe('editor-root mode flip — the caret carry', () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.selection.isCrossBlock = true;
 		h.flipTo('live');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 
@@ -143,7 +165,7 @@ describe('editor-root mode flip — the caret carry', () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');
 		h.setMode('source');
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 
@@ -153,7 +175,7 @@ describe('editor-root mode flip — the caret carry', () => {
 		const field = document.createElement('input');
 		document.body.append(field);
 		field.focus();
-		await settle();
+		await settleEditor();
 		expect(h.calls.restores).toEqual([]);
 	});
 });

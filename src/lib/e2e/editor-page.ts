@@ -1,19 +1,15 @@
-import { type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
-import {
-	BLOCK_CONTENT_SELECTOR,
-	BLOCK_CONTENT_LOCATOR_SELECTOR
-} from '../components/block-content-selector';
+import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-selector';
+import { PAST_TYPING_PAUSE_MS } from './page-probes';
+import { gotoReady } from './goto-ready';
+import { pointAtRaw } from './text-runs';
 
-// Re-exported so specs route their in-`evaluate` block-content lookups through the
-// one selector definition instead of inlining `:not(.selection-overlay)`.
+// Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
+// instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
-
-/** Hang guard on the harness installing `window.__test`, not a budget for it: a battery
- *  saturating one dev server pushes hydration well past the seconds a quiet host takes. */
-export const BRIDGE_INSTALL_TIMEOUT = 60_000;
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -28,16 +24,9 @@ export class EditorPage {
 
 	// ── Navigation ──────────────────────────────────────────────────────
 
-	async goto(query = '') {
+	async goto(query: '' | `?${string}` = '') {
 		await this.clipboard.install();
-		await this.page.goto(`/test/editor${query}`);
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: BRIDGE_INSTALL_TIMEOUT
-		});
-		// The harness paints a proportional webfont; a caret measured before it lands sits in
-		// the fallback face's geometry, and the block reflows under the spec.
-		await this.page.evaluate(() => document.fonts.ready);
+		await gotoReady(this.page, `/test/editor${query}`);
 	}
 
 	async loadContent(md: string) {
@@ -55,13 +44,27 @@ export class EditorPage {
 			{ timeout: 5000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
+		// A face the new content is the first to use (a code block's monospace) starts loading at the
+		// layout the read below forces, and a point measured before it lands reflows under the spec.
+		await this.page.evaluate(() => {
+			void document.body.offsetHeight;
+			return document.fonts.ready.then(() => undefined);
+		});
 	}
 
-	/**
-	 * `loadContent` polls a full-document serialize under the harness's short wait, which times
-	 * out at MB scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
-	 * trailing markdown so a sibling block exists for cross-block navigation.
-	 */
+	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
+	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
+	async setPresentationMode(mode: string): Promise<void> {
+		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
+		if (mode === 'source') {
+			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
+			return;
+		}
+		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
+	}
+
+	/** `loadContent`'s full serialize times out at megabyte scale, so this waits on an in-page
+	 *  length check. `suffix` appends markdown, say a sibling block for cross-block navigation. */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;
 		await this.page.evaluate((c) => (window as any).__test.setSource(c), fixture);
@@ -81,8 +84,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.getDocument().children.length);
 	}
 
-	/** The editor scrolls INTERNALLY, not the page, so `page.mouse.wheel` would miss it; a
-	 *  direct scrollTop write fires the passive listener the window subscribes to. */
+	/** The editor scrolls inside its own box, not the page, so `page.mouse.wheel` would miss it;
+	 *  writing scrollTop fires the passive listener windowing subscribes with. */
 	async scrollEditorTo(scrollTop: number): Promise<void> {
 		await this.page.evaluate((top) => {
 			const el = document.querySelector('.editor') as HTMLElement | null;
@@ -93,9 +96,8 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
-	// Top-level addressing only: a comma in `data-block-path` marks a nested host, and the
-	// drag-handle filter drops the hover grip, so the count stays one per block. Nested
-	// addressing goes through `focusBlockAtPath`.
+	// Top-level blocks only (a comma in `data-block-path` marks a nested host); the content selector
+	// drops the hover drag handle, so each block matches once.
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
@@ -122,8 +124,7 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// Every harness wait defaults to 5s, expect()'s own default: a wait is a ceiling, not a
-	// measurement, and 2s under-provisioned saturated parallel-worker runs.
+	// Every harness wait defaults to 5s, like expect(): a wait is a ceiling, not a measurement.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -135,120 +136,35 @@ export class EditorPage {
 	// ── Cursor Positioning ──────────────────────────────────────────────
 
 	async focusBlockEnd(index: number) {
-		await this.placeCaretInBlock(index, 'end');
+		await this.placeCaretAtPath([index], 'end');
 	}
 
 	async focusBlock(index: number, offset: number) {
-		await this.placeCaretInBlock(index, offset);
+		await this.placeCaretAtPath([index], offset);
 	}
 
 	async focusBlockStart(index: number) {
-		await this.placeCaretInBlock(index, 'start');
+		await this.placeCaretAtPath([index], 'start');
 	}
 
-	// COORDINATE-SPACE WARNING: a numeric `position` is a DOM-textContent offset counting
-	// `.md-marker` spans, NOT the raw-semantic offset `focusBlockAtPath` uses — the two are not
-	// interchangeable on marker-bearing blocks. Pinned by
-	// lint/caret-helper-coordinate-spaces.test.ts.
-	private async placeCaretInBlock(
-		index: number,
+	/** Setup only, through the editor's own `setSelection`: a spec whose subject is the click or the
+	 *  key drives `clickBlockAtPath` or the keyboard. A container or table takes its first leaf. */
+	private async placeCaretAtPath(
+		path: number[],
 		position: 'start' | 'end' | number
 	): Promise<void> {
-		await this.page.evaluate(
-			({ pathAttr, position, contentSelector }) => {
-				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
-				const block = wrapper?.querySelector(contentSelector) as HTMLElement | null;
-				// Throw, never silently return: a selector drift (missing wrapper or
-				// editable) must fail the spec, not let a downstream absence-assertion
-				// pass for the wrong reason. Mirrors pointForOffset.
-				if (!block) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
-				block.focus();
-
-				const range = document.createRange();
-				if (position === 'start' || position === 'end') {
-					range.selectNodeContents(block);
-					range.collapse(position === 'start');
-				} else {
-					let remaining = position;
-					function walk(node: Node): { node: Node; offset: number } | null {
-						if (node.nodeType === Node.TEXT_NODE) {
-							const len = node.textContent?.length ?? 0;
-							if (remaining <= len) return { node, offset: remaining };
-							remaining -= len;
-							return null;
-						}
-						for (const child of node.childNodes) {
-							const result = walk(child);
-							if (result) return result;
-						}
-						return null;
-					}
-					const pos = walk(block);
-					if (pos) {
-						range.setStart(pos.node, pos.offset);
-						range.collapse(true);
-					} else {
-						range.selectNodeContents(block);
-						range.collapse(false);
-					}
-				}
-				const sel = window.getSelection()!;
-				sel.removeAllRanges();
-				sel.addRange(range);
-			},
-			{ pathAttr: JSON.stringify([index]), position, contentSelector: BLOCK_CONTENT_SELECTOR }
+		const placed = await this.page.evaluate(
+			({ path, position }) => (window as any).__test.placeCaret(path, position) as Promise<boolean>,
+			{ path, position }
 		);
+		if (!placed) {
+			throw new Error(`placeCaret: the editor declined ${JSON.stringify(path)} @ ${position}`);
+		}
 	}
 
-	// COORDINATE-SPACE WARNING: `offset` is RAW-SEMANTIC — the walk filters `.md-marker`
-	// spans — NOT the marker-counting space `placeCaretInBlock(index, number)` uses. Pinned
-	// by lint/caret-helper-coordinate-spaces.test.ts.
+	/** `focusBlock` for any path, nested blocks and table cells included. */
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
-		await this.page.evaluate(
-			({ path, offset, contentSelector }) => {
-				const attr = JSON.stringify(path);
-				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
-				// Throw, never silently return: selector drift must fail the spec, not
-				// green an absence-assertion for the wrong reason. Mirrors pointForOffset.
-				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
-				const block = wrapper.querySelector(contentSelector) as HTMLElement | null;
-				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
-				block.focus();
-
-				const range = document.createRange();
-				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
-					// Ambient marker spans (contenteditable="false") contribute to DOM
-					// textContent but not to raw. Callers pass raw-semantic offsets.
-					acceptNode(n) {
-						const parent = (n as Text).parentElement;
-						if (parent?.closest('.md-marker[contenteditable="false"]')) {
-							return NodeFilter.FILTER_REJECT;
-						}
-						return NodeFilter.FILTER_ACCEPT;
-					}
-				});
-				let remaining = offset;
-				let node: Node | null;
-				while ((node = walker.nextNode())) {
-					const len = node.textContent?.length ?? 0;
-					if (remaining <= len) {
-						range.setStart(node, remaining);
-						range.setEnd(node, remaining);
-						const sel = window.getSelection();
-						sel?.removeAllRanges();
-						sel?.addRange(range);
-						return;
-					}
-					remaining -= len;
-				}
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				range.selectNodeContents(block);
-				range.collapse(false);
-				sel?.addRange(range);
-			},
-			{ path, offset, contentSelector: BLOCK_CONTENT_SELECTOR }
-		);
+		await this.placeCaretAtPath(path, offset);
 	}
 
 	// ── User Actions ────────────────────────────────────────────────────
@@ -257,12 +173,9 @@ export class EditorPage {
 		await this.getBlock(index).click();
 	}
 
-	/**
-	 * Resolves ANY `data-block-path`, comma-paths included, to a pixel point — the nested
-	 * targets `clickBlock`'s top-level-only addressing cannot reach.
-	 */
+	/** Reaches the nested blocks `clickBlock` cannot, by resolving the path to a pixel point. */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
-		const point = await this.pointForOffset(path, offset);
+		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.mouse.click(point.x, point.y);
 		await this.waitForRenderFlush();
 	}
@@ -271,8 +184,7 @@ export class EditorPage {
 		await this.page.keyboard.insertText(text);
 	}
 
-	/** Each character fires its own keydown/input/keyup cycle, for tests where per-keystroke
-	 *  behavior matters (formatting, kind changes). */
+	/** Each character fires its own keydown/input/keyup cycle, unlike `typeText`. */
 	async typeSlowly(text: string) {
 		await this.page.keyboard.type(text);
 	}
@@ -311,8 +223,8 @@ export class EditorPage {
 		endPath: number[],
 		endOffset: number
 	): Promise<void> {
-		const start = await this.pointForOffset(startPath, startOffset);
-		const end = await this.pointForOffset(endPath, endOffset);
+		const start = await pointAtRaw(this.page, startPath, startOffset);
+		const end = await pointAtRaw(this.page, endPath, endOffset);
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -321,8 +233,7 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** One held drag through `mid` to `end`: two `dragFromTo` calls would release and
-	 *  re-press between segments. */
+	/** One held drag through `mid` to `end`; two `dragFromTo` calls would let go in between. */
 	async dragFromToThenTo(
 		startPath: number[],
 		startOffset: number,
@@ -331,9 +242,9 @@ export class EditorPage {
 		endPath: number[],
 		endOffset: number
 	): Promise<void> {
-		const start = await this.pointForOffset(startPath, startOffset);
-		const mid = await this.pointForOffset(midPath, midOffset);
-		const end = await this.pointForOffset(endPath, endOffset);
+		const start = await pointAtRaw(this.page, startPath, startOffset);
+		const mid = await pointAtRaw(this.page, midPath, midOffset);
+		const end = await pointAtRaw(this.page, endPath, endOffset);
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -355,53 +266,11 @@ export class EditorPage {
 	}
 
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
-		const point = await this.pointForOffset(path, offset);
+		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.keyboard.down('Shift');
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.up('Shift');
 		await this.waitForRenderFlush();
-	}
-
-	/** Pixel point of a raw-semantic offset inside any `data-block-path` block. */
-	async pointForOffset(path: number[], offset: number): Promise<{ x: number; y: number }> {
-		const point = await this.page.evaluate(
-			({ path, offset }) => {
-				const wrapper = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
-				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
-				if (!editable) return null;
-				const range = document.createRange();
-				let remaining = offset;
-				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
-					// Ambient marker spans (contenteditable="false") contribute to DOM
-					// textContent but not to raw. Callers pass raw-semantic offsets.
-					acceptNode(n) {
-						const parent = (n as Text).parentElement;
-						if (parent?.closest('.md-marker[contenteditable="false"]')) {
-							return NodeFilter.FILTER_REJECT;
-						}
-						return NodeFilter.FILTER_ACCEPT;
-					}
-				});
-				let node: Node | null;
-				while ((node = walker.nextNode())) {
-					const len = node.textContent?.length ?? 0;
-					if (remaining <= len) {
-						range.setStart(node, remaining);
-						range.setEnd(node, remaining);
-						const rect = range.getBoundingClientRect();
-						return { x: rect.left + 1, y: rect.top + rect.height / 2 };
-					}
-					remaining -= len;
-				}
-				const rect = editable.getBoundingClientRect();
-				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
-			},
-			{ path, offset }
-		);
-		if (!point) {
-			throw new Error(`pointForOffset: could not resolve ${JSON.stringify(path)} @ ${offset}`);
-		}
-		return point;
 	}
 
 	async getCaretPixelX(): Promise<number> {
@@ -415,13 +284,10 @@ export class EditorPage {
 		});
 	}
 
-	// ── Settle Helpers ──────────────────────────────────────────────────
+	// ── Waits on rendering and timing ───────────────────────────────────
 
-	/**
-	 * Reads of post-mutation DOM state (mounted overlays, `data-cross-block`, geometry) see
-	 * mid-transition values before this. The DOUBLE rAF covers an `$effect` commit plus a
-	 * child-component mount, or a layout flush after caret-affecting keystrokes.
-	 */
+	/** Two animation frames cover an `$effect` plus a child component mounting, so a DOM read after
+	 *  a mutation does not catch it mid-change. */
 	async waitForRenderFlush(): Promise<void> {
 		await this.page.evaluate(
 			() =>
@@ -431,11 +297,8 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * Enter at the end of a list item inserts an empty trailing item whose marker is TRIMMED in
-	 * the serialized source, so `getSource()` predicates see no change. DOM count is the
-	 * cheapest signal that the post-Enter tree flushed.
-	 */
+	/** Enter at a list item's end adds an empty item the serialized source trims out, so a
+	 *  `getSource()` predicate sees no change; the DOM count does. */
 	async waitForListItemCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.list-item-block').length === n,
@@ -444,11 +307,8 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * Enter inserts a transient empty paragraph whose marker is TRIMMED in the serialized
-	 * source, so `getBlockCount()` — which re-parses it — cannot see it. Every block wraps in
-	 * `.block-host`, so the total moves by one per insertion.
-	 */
+	/** Enter adds a short-lived empty paragraph the serialized source trims out, so the reparsing
+	 *  `getBlockCount()` misses it; every block has one `.block-host`. */
 	async waitForBlockHostCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.block-host').length === n,
@@ -457,39 +317,26 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * A fixed wait, not a predicate: the source already reflects the typed text, so there is no
-	 * shape to poll for. Tests wanting two separate undo batches need the next interaction to
-	 * land outside the prior batch's debounce window.
-	 */
+	/** A fixed wait: the source already holds the typed text, so nothing marks the typing pause
+	 *  ending, and a test wanting two undo entries needs its next input after it. */
 	async waitForUndoBatchFlush(): Promise<void> {
-		await this.page.waitForTimeout(300);
+		await this.page.waitForTimeout(PAST_TYPING_PAUSE_MS);
 	}
 
-	/**
-	 * The absence oracle of last resort, for a gesture that produces NO keydown verdict — a
-	 * click, a drag, a paste, a menu item, a programmatic door. A predicate cannot observe a
-	 * non-event, so it waits past the window a wrongly-committed mutation would surface in.
-	 * A keyboard gesture has a verdict: use `pressDeclined` / `typeDeclined` instead.
-	 */
+	/** Last resort for proving nothing changed after a gesture the editor records no decision for;
+	 *  a keyboard gesture is recorded, so it uses `pressDeclined` or `typeDeclined` instead. */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
 
-	/**
-	 * ResizeObserver's initial-observe callback fires the frame after attach; without draining
-	 * it, a layout shift in the same callback batch is absorbed silently and the test observing
-	 * that shift sees nothing.
-	 */
+	/** ResizeObserver's first callback fires the frame after it is attached, and a layout shift in
+	 *  that same batch would go unseen. */
 	async waitForResizeObserverFlush(): Promise<void> {
 		await this.page.waitForTimeout(120);
 	}
 
-	/**
-	 * The copy handler writes through a synthetic `copy` event whose flush timing the BROWSER
-	 * owns, and no editor state changes, so no bridge predicate can observe it. The copy-only
-	 * carve-out in docs/contributing/testing.md § Patterns and gotchas.
-	 */
+	/** A copy changes no editor state, so no predicate can watch for it
+	 *  (`docs/contributing/testing.md` § Patterns and gotchas). */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
@@ -498,27 +345,21 @@ export class EditorPage {
 		await this.clipboard.waitForContains(expected, timeout);
 	}
 
-	// ── Absence Oracles ─────────────────────────────────────────────────
+	// ── Proving nothing happened ────────────────────────────────────────
 
-	/**
-	 * Press a key that must change nothing, returning once the editor's verdict for it is
-	 * recorded — the surface handler's await chain has settled, so the caller's source read is
-	 * ordered after the gesture rather than after a timer.
-	 */
+	/** A key that must change nothing, returning once the editor has recorded whether it handled
+	 *  the key, so the caller's source read comes after the handler rather than after a timer. */
 	async pressDeclined(key: string): Promise<void> {
 		await this.awaitKeydownVerdicts(key, 1, () => this.page.keyboard.press(key));
 	}
 
-	/** Per-character typing: one keydown, and so one verdict, per character. */
+	/** Per-character typing: one keydown, and so one recorded decision, per character. */
 	async typeDeclined(text: string): Promise<void> {
 		await this.awaitKeydownVerdicts(text, text.length, () => this.page.keyboard.type(text));
 	}
 
-	/**
-	 * Reading mode takes no keystrokes, so no verdict exists to wait on; the positive signal is
-	 * the structural one — the editor root holds no editable surface — plus a drained tick for
-	 * whatever an effect would still commit.
-	 */
+	/** Reading mode records no key decisions, so the signal is that no editable element remains,
+	 *  plus one drained tick for whatever an effect would still write. */
 	async expectSurfaceInert(): Promise<void> {
 		try {
 			await this.page.waitForFunction(
@@ -535,7 +376,7 @@ export class EditorPage {
 
 	/**
 	 * A count that never advances is a finding, not a timeout to widen: the key reached no
-	 * instrumented surface, so the gesture the spec believes it made never happened.
+	 * editable element, so the gesture the spec believes it made never happened.
 	 */
 	private async awaitKeydownVerdicts(
 		gesture: string,

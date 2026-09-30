@@ -10,4 +10,4 @@ Covers click behavior on rendered inline links and autolinks: modifier-click nav
 
 ## User interactions
 
-- Plain click (no modifier) on a link does not navigate — the click is intercepted so the caret can be placed inside the link text.
+- Plain click (no modifier) on a link does not navigate: the click is intercepted so the caret can be placed inside the link text.

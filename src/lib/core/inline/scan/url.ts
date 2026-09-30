@@ -5,6 +5,7 @@
 
 import { matchCharacterReference } from '../character-refs';
 import { ESCAPABLE_PUNCTUATION } from '../../escapable';
+import { isHighSurrogate, isLowSurrogate } from '../../lines';
 
 export function processDestination(rawDest: string): string {
 	return percentEncodeUri(unescapeSpecString(rawDest));
@@ -35,8 +36,8 @@ export function unescapeSpecString(s: string): string {
 	return out;
 }
 
-// The mdurl encode() kept set: commonmark.js normalizes destinations through it, so the
-// differ needs byte-equal output.
+// mdurl encode()'s kept set, which commonmark.js normalizes destinations through, so a url
+// here matches the reference byte for byte.
 const URI_SAFE = buildUriSafeTable(";/?:@&=+$,-_.!~*'()#");
 
 function buildUriSafeTable(kept: string): boolean[] {
@@ -67,14 +68,11 @@ export function percentEncodeUri(s: string): string {
 			out += URI_SAFE[code] ? s[i] : '%' + code.toString(16).toUpperCase().padStart(2, '0');
 			continue;
 		}
-		if (code >= 0xd800 && code <= 0xdfff) {
-			if (code <= 0xdbff && i + 1 < s.length) {
-				const next = s.charCodeAt(i + 1);
-				if (next >= 0xdc00 && next <= 0xdfff) {
-					out += encodeURIComponent(s[i] + s[i + 1]);
-					i++;
-					continue;
-				}
+		if (isHighSurrogate(code) || isLowSurrogate(code)) {
+			if (isHighSurrogate(code) && isLowSurrogate(s.charCodeAt(i + 1))) {
+				out += encodeURIComponent(s[i] + s[i + 1]);
+				i++;
+				continue;
 			}
 			out += '%EF%BF%BD';
 			continue;

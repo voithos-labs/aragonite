@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../core/nodes';
 import { parseInline } from '../../../core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../core/inline/scan/plugin-syntax';
@@ -12,8 +11,6 @@ import {
 	scanClean,
 	textNode
 } from './scan/scan-test-helpers';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 // A minimal Obsidian-style embed stand-in. The extension gate is the point: `![[a]](u)`
 // is a built-in image with alt `[a]`, so the recognizer, consulted first, must decline it.
@@ -30,14 +27,14 @@ function registerEmbed(): void {
 	registerInlineSyntax('!', recognizeEmbed, { prefix: '![[', priority: 40 });
 }
 
-describe('inline ladder — a prefix rung on the `!` trigger', () => {
-	it('is dormant until registered — `![[a.png]]` stays plain text', () => {
+describe('inline priority order: a prefix inline syntax handler on the `!` trigger', () => {
+	it('is dormant until registered: `![[a.png]]` stays plain text', () => {
 		const raw = '![[a.png]]';
 		expect(parseInline(raw, 0, raw.length)).toEqual([textNode(0, 10, raw)]);
 	});
 
-	// The rung must be consulted ahead of `handleBang`: that handler consumes `![` as one
-	// unit and advances past it, so a rung waiting behind the switch never sees the trigger.
+	// The plugin handler must be consulted ahead of `handleBang`: that built-in consumes `![` as
+	// one unit and advances past it, so a handler waiting behind the switch never sees the trigger.
 	it('claims `![[a.png]]` while a built-in image in the same document is untouched', () => {
 		const raw = 'see ![[a.png]] and ![alt](u)';
 		registerEmbed();
@@ -82,7 +79,7 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 
 // `!` is the only registerable trigger whose built-in handler pushes the bracket stack, so
 // a claim lands among the label's children while the construct must still close over it.
-describe('inline ladder — a claiming `!` rung inside an open bracket', () => {
+describe('inline priority order: a claiming `!` inline syntax handler inside an open bracket', () => {
 	it.each([
 		['a link label', '[see ![[b.png]] here](u)', 'link'],
 		['an image alt', '![see ![[b.png]] here](u)', 'image']

@@ -10,7 +10,7 @@ import {
 	type CellAnchor
 } from '../../../components/blocks/table/cell-pointer';
 import { createSelectionState } from '../../../selection/selection-state.svelte';
-import type { DocumentView } from '../../../core/node-views';
+import { parse } from '../../../core/parser';
 
 describe('handleCellShiftClick', () => {
 	function makeAnchor(rowIdx: number, colIdx: number): CellAnchor {
@@ -23,28 +23,41 @@ describe('handleCellShiftClick', () => {
 		};
 	}
 
-	// The anchor carries cellCoordinate so a later exit-the-table extend snaps its
-	// whole row (matching the drag anchor); the focus stays context-established.
+	// Both corners carry cellCoordinate, so a later extend out of the table snaps whole rows.
 	it('builds shallow-path multi-cell selection from cold state', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 1, colIdx: 2 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 5 });
+		expect(sel.focus).toEqual({ path: [2], offset: 5, cellCoordinate: true });
 	});
 
 	it('extends focus when already in custom-rendered mode', () => {
 		const sel = createSelectionState();
-		sel.enterCrossBlock({ path: [2], offset: 0, cellCoordinate: true }, { path: [2], offset: 1 });
+		sel.enterCrossBlock(
+			{ path: [2], offset: 0, cellCoordinate: true },
+			{ path: [2], offset: 1, cellCoordinate: true }
+		);
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 2, colIdx: 2 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 8 });
+		expect(sel.focus).toEqual({ path: [2], offset: 8, cellCoordinate: true });
 	});
 
 	it('encodes anchor at non-origin cell', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(1, 1), { rowIdx: 2, colIdx: 0 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 4, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 6 });
+		expect(sel.focus).toEqual({ path: [2], offset: 6, cellCoordinate: true });
+	});
+
+	// Miss-analysis: no shift-click row started from a standing range with no rectangle painted.
+	it('re-anchors at the pressed-from cell when only a one-cell pair stands', () => {
+		const sel = createSelectionState();
+		const corner = (offset: number) => ({ path: [2], offset, cellCoordinate: true as const });
+		// The pair Shift+Down then Shift+Up leaves: a range standing, nothing painted.
+		sel.enterCrossBlock(corner(0), corner(0));
+		handleCellShiftClick(sel, makeAnchor(1, 1), { rowIdx: 2, colIdx: 2 });
+		expect(sel.anchor).toEqual(corner(4));
+		expect(sel.focus).toEqual(corner(8));
 	});
 
 	it('does not mutate the input tablePath', () => {
@@ -56,23 +69,10 @@ describe('handleCellShiftClick', () => {
 		expect(sel.focus!.path).toEqual([2]);
 	});
 
-	// Reading a same-table rectangle (start/end normalize + snap short-circuit) must not trip the
-	// coordinate-space warn that force-flagging every same-table read once caused.
+	// Reading a rectangle inside one table, where the ends normalise and the snap is skipped,
+	// must not fire the coordinate-space warning.
 	it('reads the same-table rectangle without a coordinate-space warn', () => {
-		const doc = {
-			kind: 'document',
-			prefix: '',
-			suffix: '',
-			children: [
-				{
-					kind: 'table',
-					leadingTrivia: '',
-					raw: '',
-					metadata: { columnCount: 3, alignments: ['none', 'none', 'none'] },
-					children: []
-				}
-			]
-		} as unknown as DocumentView;
+		const doc = parse('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		const sel = createSelectionState({ getDoc: () => doc });
 		handleCellShiftClick(sel, { ...makeAnchor(0, 0), tablePath: [0] }, { rowIdx: 1, colIdx: 2 });
 		void sel.start;
@@ -98,7 +98,7 @@ describe('cellCoordsOfElement', () => {
 			tableEl.appendChild(rowEl);
 			for (let c = 0; c < 3; c++) {
 				const cellEl = document.createElement('div');
-				cellEl.setAttribute('role', 'cell');
+				cellEl.setAttribute('role', r === 0 ? 'columnheader' : 'cell');
 				rowEl.appendChild(cellEl);
 			}
 		}
@@ -108,8 +108,8 @@ describe('cellCoordsOfElement', () => {
 		tableEl.remove();
 	});
 
-	// Returning the resolved cell element is what lets `cellAtPoint` delegate here
-	// and still yield its `{ rowIdx, colIdx, cellEl }` shape.
+	// Returning the resolved cell element is what lets `cellAtPoint` call through here
+	// and still give back its `{ rowIdx, colIdx, cellEl }` shape.
 	it('cellCoordsOfElement reads coords and the resolved cell from a cell descendant', () => {
 		const cell = tableEl.querySelector('[data-table-row-idx="1"] > [role="cell"]:nth-child(2)');
 		expect(cellCoordsOfElement(cell, tableEl)).toEqual({ rowIdx: 1, colIdx: 1, cellEl: cell });
@@ -117,7 +117,7 @@ describe('cellCoordsOfElement', () => {
 
 	it('cellCoordsOfElement resolves from a nested descendant, not just the cell itself', () => {
 		const cell = tableEl.querySelector(
-			'[data-table-row-idx="0"] > [role="cell"]:nth-child(3)'
+			'[data-table-row-idx="0"] > [role="columnheader"]:nth-child(3)'
 		) as HTMLElement;
 		const inner = document.createElement('span');
 		cell.appendChild(inner);
@@ -146,8 +146,8 @@ describe('cellCoordsOfElement', () => {
 	});
 });
 
-// The one selector contract for the cell grid: rows by `data-table-row-idx`,
-// cells by `role="cell"`, direct children only.
+// The one selector contract for the cell grid: rows by `data-table-row-idx`, cells by
+// `role="cell"` or, in the header row, `role="columnheader"`, direct children only.
 describe('mountedRowEls / rowCellEls', () => {
 	let tableEl: HTMLElement;
 
@@ -163,7 +163,7 @@ describe('mountedRowEls / rowCellEls', () => {
 			tableEl.appendChild(rowEl);
 			for (let c = 0; c < 2; c++) {
 				const cellEl = document.createElement('div');
-				cellEl.setAttribute('role', 'cell');
+				cellEl.setAttribute('role', r === 0 ? 'columnheader' : 'cell');
 				rowEl.appendChild(cellEl);
 			}
 		}
@@ -180,10 +180,18 @@ describe('mountedRowEls / rowCellEls', () => {
 		expect(rowCellEls(row).every((c) => c.getAttribute('role') === 'cell')).toBe(true);
 	});
 
+	it('rowCellEls counts the header row’s column headers as its cells', () => {
+		const header = mountedRowEls(tableEl)[0];
+		expect(rowCellEls(header).map((c) => c.getAttribute('role'))).toEqual([
+			'columnheader',
+			'columnheader'
+		]);
+	});
+
 	it('rowCellEls ignores a nested cell in a sub-table', () => {
 		const row = mountedRowEls(tableEl)[0];
-		// A cell that itself holds a nested table's cell must not be counted for the
-		// outer row: `:scope >` keeps the walk to the row's own column cells.
+		// A cell that itself holds a nested table's cell must not be counted for the outer
+		// row: `:scope >` keeps the search to the row's own column cells.
 		const nested = document.createElement('div');
 		nested.setAttribute('role', 'cell');
 		row.firstChild!.appendChild(nested);

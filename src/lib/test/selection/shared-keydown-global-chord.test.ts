@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { handleSharedKeydown, type SharedKeydownContext } from '$lib/selection/shared-keydown';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
+import { makeCaretMemory } from '$lib/test/harness/editor-actions';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
-import {
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests
-} from '$lib/schema/commands';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { commandContext } from '$lib/test/support/command-context';
 
-// The prelude that runs before every editable surface's own dispatch. A plugin-global chord must
-// be preventDefaulted AND deferred (return false) so the surface's own dispatchKeyCommand runs it;
-// a `return true` here would swallow every plugin-global chord with no other test failing.
+// The shared keydown must prevent a plugin-global chord's default yet return false, so the block's
+// own `dispatchKeyCommand` still runs it; true would swallow every plugin-global chord.
 
 const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,
@@ -23,42 +19,35 @@ const noCross: CrossBlockHandlers = {
 	handleBeforeInput: async () => false,
 	insertText: async () => false,
 	handleCompositionStart: () => false,
-	performCrossBlockDeleteFromEvent: async () => {}
+	performCrossBlockCut: async () => {}
 };
 
 function makeCtx(): SharedKeydownContext {
 	const el = document.createElement('div');
 	return {
 		// No plugins stood up here, so every installed one is active.
-		activePlugins: undefined,
+		commands: commandContext(),
+		reading: fixtureReading(),
 		getEl: () => el,
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,
-		getAmbientLength: () => 0,
 		getTextLen: () => 0,
 		getMyPath: () => [0],
 		getIndex: () => 0,
 		crossBlock: noCross,
 		selection: createSelectionState(),
-		stickyColumn: makeStickyColumn(),
-		edgeAffinity: makeEdgeAffinity(),
+		caretMemory: makeCaretMemory(),
 		history: { requestUndo() {}, requestRedo() {} } as unknown as SharedKeydownContext['history'],
 		focus: {} as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
-		getBlockElByPath: () => null
+		scrollOwner: { place: () => ({ scroll: async () => true }) }
 	};
 }
 
 const keydown = (over: KeyboardEventInit): KeyboardEvent =>
 	new KeyboardEvent('keydown', { cancelable: true, ...over });
 
-beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
-});
-
-describe('handleSharedKeydown — plugin-global chord deferral', () => {
+describe('handleSharedKeydown: plugin-global chord deferral', () => {
 	it('preventDefaults a plugin-global chord and returns false so the surface dispatch runs', async () => {
 		registerGlobalCommand('demo.chord', () => true, { chord: 'Mod+Shift+7' });
 		const e = keydown({ key: '7', ctrlKey: true, shiftKey: true });
@@ -69,7 +58,7 @@ describe('handleSharedKeydown — plugin-global chord deferral', () => {
 		expect(e.defaultPrevented).toBe(true);
 	});
 
-	it('leaves an unregistered chord alone — the preventDefault is gated on the predicate', async () => {
+	it('leaves an unregistered chord alone: the preventDefault is gated on the predicate', async () => {
 		const e = keydown({ key: '7', ctrlKey: true, shiftKey: true });
 
 		const handled = await handleSharedKeydown(e, makeCtx());
@@ -78,12 +67,8 @@ describe('handleSharedKeydown — plugin-global chord deferral', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// The swallow the consumer guide now promises: a disabled history chord runs nothing and is
-	// still taken, because the native default it would fall through to rewrites the document past
-	// the CST stack. This arm reads the DEFAULT table, so it swallows before any override is
-	// consulted — which is why the press is consumed whatever the override left it bound to.
-	// Miss-analysis: the file drove plugin-global chords only, so the arm's own reason for
-	// existing — the three built-in history chords — was never pressed at this level.
+	// A disabled history chord is still swallowed, since its native default edits behind the CST.
+	// Miss-analysis: the file pressed plugin-global chords only, never the built-in history ones.
 	it.each(['Mod+Z', 'Mod+Y', 'Mod+Shift+Z'])(
 		'%s is preventDefaulted and deferred to the block dispatch',
 		async (chord) => {

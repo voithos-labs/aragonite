@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
 import {
@@ -16,7 +16,6 @@ import {
 import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
 import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 import { collector } from '$lib/test/harness/violation-collector';
@@ -51,15 +50,8 @@ const opener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 
-// registerChromeLeaf also registers a register-once paste surface, which the
-// schema reset does not clear; reset it so chrome-leaf batches don't accumulate.
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-});
-
-// The unit setup registers built-in descriptors, never components, so every flush this file
-// forces reports the completeness gap; the subject here is what else the flush finds.
+// The unit setup registers built-in descriptors but never components, so every check this file
+// forces reports the missing components; what matters here is what else it finds.
 afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
 describe('checkLateOpenerRegistration', () => {
@@ -91,8 +83,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
-		// An editorless `parse()` consumes the grammar without flushing (nothing pending),
-		// so `didFirstFlush` stays false — G1.17 pre-flush blindness.
+		// A `parse()` with no editor marks the grammar used without running the checks, so
+		// `didFirstFlush` stays false and a late opener must still warn (G1.17).
 		getOrderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, leaf);
@@ -159,8 +151,8 @@ describe('flushPendingRegistrationChecks', () => {
 
 		__resetSchemaRegistriesForTests();
 
-		// Post-reset registrations are bootstrap again: both latches cleared, so they
-		// enqueue nothing and the opener must not warn late.
+		// Registrations after a reset count as startup again: both flags are cleared, so they queue
+		// nothing and the opener must not warn about being late.
 		const fresh = declarePluginKind('post-reset');
 		registerBlockKind(fresh, leaf);
 		registerBlockOpener(fresh, opener(9106));
@@ -188,7 +180,7 @@ describe('registry-derived first-flush sweep', () => {
 		expect(byTag('keymap-coherence')[0].violation.message).toContain('pre-mount-keymap');
 	});
 
-	it('accepts a pre-mount plugin keymap binding its own minted command', () => {
+	it('accepts a pre-mount plugin keymap binding its own created command', () => {
 		const kind = declarePluginKind('pre-mount-command');
 		const command = registerBlockCommand(kind, 'toggleThing', () => true);
 		registerBlockKind(kind, { ...leaf, keymap: [{ chord: 'Mod+K', command }] });
@@ -213,10 +205,10 @@ describe('registry-derived first-flush sweep', () => {
 	});
 });
 
-// Twins of the first-sweep keymap cases at the INCREMENTAL path — the sibling path that
-// a first-flush-only scope, or a builtin-only known-command set, would leave unguarded.
+// The same keymap cases on the later, incremental path: the sibling path a first-run-only check,
+// or a known-command set holding only built-ins, would leave unguarded.
 describe('keymap coherence at the incremental flush', () => {
-	it('accepts a plugin keymap binding its own minted command', () => {
+	it('accepts a plugin keymap binding its own created command', () => {
 		flushPendingRegistrationChecks();
 		const kind = declarePluginKind('inc-minted');
 		const command = registerBlockCommand(kind, 'toggleIncThing', () => true);
@@ -244,9 +236,8 @@ describe('keymap coherence at the incremental flush', () => {
 	});
 });
 
-// A leaf declaring reservedChrome is unrepresentable through the registration shape, so
-// only chrome-kind gaps are constructible here; the not-container branch is covered by
-// direct call in test/invariants/reserved-chrome-coherence.test.ts.
+// The predicate is unit-tested in test/invariants/reserved-chrome-coherence.test.ts; this case
+// checks that the flush actually runs it (G1.18).
 describe('reservedChrome coherence at the flush', () => {
 	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
 		const title = declarePluginKind('rc-descriptor-only');
@@ -264,12 +255,12 @@ describe('reservedChrome coherence at the flush', () => {
 	});
 });
 
-// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this pins the
-// G1.24 wiring, which every predicate test would stay green without.
+// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; these cases check
+// that the flush actually runs it (G1.24).
 describe('closure coherence at the flush', () => {
 	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
 		const kind = declarePluginKind('incoherent-closure');
-		// not-mergeable + mergeBackspace inherit-default → G1.24 rule (b).
+		// A not-mergeable kind has no default merge for `mergeBackspace` to inherit (G1.24).
 		registerBlockKind(kind, {
 			...leaf,
 			closure: { ...testClosure, mergeBackspace: { mode: 'inherit-default' } }
@@ -286,7 +277,7 @@ describe('closure coherence at the flush', () => {
 });
 
 // The predicate is unit-tested in test/invariants/descriptor-field-coherence.test.ts; the
-// opener arm is the one the flush alone can supply, since no descriptor field records it.
+// opener check is the one the flush alone can supply, since no descriptor field records it.
 describe('descriptor field coherence at the flush', () => {
 	it('flags a context-dependent kind that also registers an opener', () => {
 		const kind = declarePluginKind('ctx-dependent-opener');

@@ -1,17 +1,15 @@
 /**
- * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets alone
- * can't answer it past 2 wrapped lines, so the cursor's line is compared to the edge line's.
- * Collapsed ranges beside non-text children (dimmed markers, atomic islands) measure to nothing,
- * so the edge line is measured around real text, and a rect-less caret reads the box it sits
- * against.
+ * Whether the cursor sits on the first or last visual line of a wrapping element, by comparing
+ * the cursor's line box with the edge line's. A caret beside a non-text child measures to
+ * nothing, so it borrows the box it sits against; that box and the line tolerance live here.
  */
 
 import { domDescendants } from './dom-walk';
 import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
 import { isHiddenMarkerText } from './widget-offset';
 
-// Fraction of a line height within which the cursor Y counts as the boundary line —
-// sub-line, so sub/superscript or inline-image jitter doesn't read as a different line.
+// Fraction of a line height within which the cursor Y counts as the boundary line; under one
+// line, so sub/superscript or inline-image jitter doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
 
 /** The first rect that can position a caret: the leading client rect when it has real
@@ -26,6 +24,33 @@ export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | n
 
 export function getRangeTop(range: Range): number | null {
 	return firstUsefulRect(range, false)?.top ?? null;
+}
+
+/** The box a caret sits in: what the line comparisons and the sticky column both read of it. */
+export interface CaretRect {
+	/** The caret's x. For a caret borrowing a widget's box, the edge it sits on. */
+	left: number;
+	top: number;
+	bottom: number;
+}
+
+/** The box a caret with no rect of its own borrows: the widget it precedes, else the one it follows.
+ *  Null off an element-level position, or when the neighbour measures to nothing. */
+export function neighbourCaretRect(range: Range): CaretRect | null {
+	const container = range.startContainer;
+	if (container.nodeType !== Node.ELEMENT_NODE) return null;
+	const children = container.childNodes;
+	return (
+		nodeCaretRect(children[range.startOffset], false) ??
+		nodeCaretRect(children[range.startOffset - 1], true)
+	);
+}
+
+/** How far apart two carets' boxes may sit and still read as one visual line: under one line of
+ *  the element's own leading, so sub/superscript or inline-image jitter is not a new line. */
+export function sameLineTolerance(el: HTMLElement): number {
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
+	return lineHeight * SAME_LINE_TOLERANCE;
 }
 
 /** Non-collapsed ranges reliably return rects where collapsed ones don't. */
@@ -56,20 +81,21 @@ export function findLastTextNode(root: Node): Text | null {
 	return measurableText(root, containerOf(root), true);
 }
 
-/**
- * True if the selection inside `el` sits on the first visual line; empty containers return true.
- * `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`) resolves the case
- * where there is no live range — Chromium drops the caret range next to atomic
- * contenteditable=false islands across event-loop yields. It is compared against the block's
- * first LANDABLE offset, which a leading hidden run moves off raw 0.
- */
+/** The first and last offsets a caret can sit at in a block, which a hidden run moves inward. */
+export interface CaretBounds {
+	start: number;
+	end: number;
+}
+
+/** True if the selection in `el` sits on the first visual line, or holds no range. `fallbackOffset`
+ *  answers without a live range, which Chromium drops beside widgets across event-loop yields. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentStart: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset <= contentStart, {
-		isEmpty: (el.textContent ?? '').length === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset <= bounds.start, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: true,
 		boundaryTop: () => {
 			const firstText = findFirstTextNode(el);
@@ -82,10 +108,10 @@ export function isAtFirstVisualLine(
 export function isAtLastVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentEnd: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset >= contentEnd, {
-		isEmpty: contentEnd === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset >= bounds.end, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: false,
 		boundaryTop: () => {
 			const lastText = findLastTextNode(el);
@@ -97,8 +123,7 @@ export function isAtLastVisualLine(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot — a
- *  dropped range, a caret no box can be found for, an unmeasurable boundary line — and
+/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot, and
  *  `boundaryTop` measures the edge line each side's own way. */
 function isAtEdgeVisualLine(
 	el: HTMLElement,
@@ -110,16 +135,15 @@ function isAtEdgeVisualLine(
 	if (edge.isEmpty) return true;
 
 	const cursorRange = sel.getRangeAt(0);
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
-	const tolerance = lineHeight * SAME_LINE_TOLERANCE;
+	const tolerance = sameLineTolerance(el);
 	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null) {
 		if (!cursorRange.collapsed) return true;
-		// A caret beside an atomic island sits at an element-level position and measures to no rect
-		// of its own: it rides the island's box, and is at the edge line when nothing reaches past.
-		const band = neighbourBand(cursorRange);
-		const contents = bandOfRange(contentsRange(el));
+		// A caret beside an atomic widget sits at an element-level position and measures to no rect
+		// of its own: it borrows the widget's box, and is at the edge line when nothing reaches past.
+		const band = neighbourCaretRect(cursorRange);
+		const contents = contentsRect(el);
 		if (!band || !contents) return fallback();
 		return edge.toStart
 			? band.top < contents.top + tolerance
@@ -131,30 +155,15 @@ function isAtEdgeVisualLine(
 	return Math.abs(cursorTop - edgeTop) < tolerance;
 }
 
-interface VerticalBand {
-	top: number;
-	bottom: number;
-}
-
-/** The vertical band of the box a rect-less caret sits against: the child it precedes, else the
- *  one it follows. Null where the caret is not at an element-level position. */
-function neighbourBand(range: Range): VerticalBand | null {
-	const container = range.startContainer;
-	if (container.nodeType !== Node.ELEMENT_NODE) return null;
-	const children = container.childNodes;
-	return (
-		nodeBand(children[range.startOffset], false) ?? nodeBand(children[range.startOffset - 1], true)
-	);
-}
-
-function nodeBand(node: Node | undefined, fromEnd: boolean): VerticalBand | null {
+function nodeCaretRect(node: Node | undefined, fromEnd: boolean): CaretRect | null {
 	if (!node) return null;
 	const range = document.createRange();
 	range.selectNode(node);
 	// A node that wraps has one rect per line, and the caret touches the line on its own side.
 	const rects = range.getClientRects();
-	if (rects.length === 0) return bandOfRange(range);
-	return bandOf(rects[fromEnd ? rects.length - 1 : 0]);
+	const rect =
+		rects.length === 0 ? range.getBoundingClientRect() : rects[fromEnd ? rects.length - 1 : 0];
+	return caretRectOf(rect, fromEnd);
 }
 
 function contentsRange(el: HTMLElement): Range {
@@ -163,12 +172,13 @@ function contentsRange(el: HTMLElement): Range {
 	return range;
 }
 
-function bandOfRange(range: Range): VerticalBand | null {
-	return bandOf(range.getBoundingClientRect());
+function contentsRect(el: HTMLElement): CaretRect | null {
+	return caretRectOf(contentsRange(el).getBoundingClientRect(), false);
 }
 
-function bandOf(rect: DOMRect): VerticalBand | null {
-	return rect.height > 0 ? { top: rect.top, bottom: rect.bottom } : null;
+function caretRectOf(rect: DOMRect, fromEnd: boolean): CaretRect | null {
+	if (rect.height <= 0) return null;
+	return { left: fromEnd ? rect.right : rect.left, top: rect.top, bottom: rect.bottom };
 }
 
 /** The boundary line's collapsed-contents fallback measurement. */
@@ -178,7 +188,7 @@ function collapsedContentsTop(el: HTMLElement, toStart: boolean): number | null 
 	return getRangeTop(range);
 }
 
-/** Hidden-run classification needs the walk container; a bare text-node root has none. */
+/** Deciding whether text is a hidden marker needs the walk container; a bare text-node root has none. */
 function containerOf(root: Node): HTMLElement | null {
 	return root instanceof HTMLElement ? root : null;
 }

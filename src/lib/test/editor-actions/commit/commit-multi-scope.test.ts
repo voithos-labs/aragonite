@@ -6,9 +6,9 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
-// oracle reads them as stale; the ids and refs under test do not care.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The scope fixtures are hand-built, not parser output: the stale-raw check reads them as stale,
+// and the one-block check reads their childless list items as emptied.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block']));
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -41,9 +41,9 @@ describe('commitMultiScope', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 	});
 
-	it('multi-scope: two scopes each get independent descriptors, still ONE snapshot + ONE event', async () => {
-		// A separator and a different bullet: two TIGHT `-` lists are one list on reload, which
-		// the ancestry settle now folds them back into.
+	it('multi-scope: two scopes each get independent descriptors, still one snapshot + one event', async () => {
+		// A separator and a different bullet: two tight `-` lists are one list on reload, which
+		// the ancestor fix-up merges them back into.
 		const { deps, events } = makeEditorActionsDeps([
 			makeListNode(['- a\n', '- b\n', '- c\n']),
 			makeListNode(['* x\n', '* y\n'], { leadingTrivia: '\n' })
@@ -81,10 +81,8 @@ describe('commitMultiScope', () => {
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
 
-	// A container that never mounted has no `childIds` at all, which is not the same fact as an
-	// EMPTY one — and the paste ceremony reaches exactly that scope through its unmounted stand-in
-	// (`tree-operations/paste/parent-scope.ts`). Miss-analysis: every fixture in this file mints
-	// ids first, so the ceremony was only ever asked to grow an array that already fit.
+	// The paste commit can reach a never-mounted container, whose `childIds` is absent, not empty.
+	// Miss-analysis: every fixture here creates ids first, so no commit grew an array from nothing.
 	it('a scope that never mounted publishes one id per child, not one per insert', async () => {
 		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n', '- c\n'])]);
 		const owned = deps.doc.children[0];
@@ -193,9 +191,8 @@ describe('commitMultiScope', () => {
 		expect(state.innerBlockIds[1]).not.toBe(originalId);
 	});
 
-	// Compile-pin, enforced by `npm run check` (vitest does not typecheck): if
-	// the tuple-typed mutate contract loosens, the directive turns unused and
-	// check fails.
+	// A compile-time test, enforced by `npm run check` (vitest does not typecheck): if the
+	// tuple-typed mutate contract loosens, the directive turns unused and check fails.
 	it('tuple contract: literal two-scope commit with one returned change is a type error', () => {
 		const nodeA = makeListNode(['- a\n']);
 		const nodeB = makeListNode(['- b\n']);
@@ -211,8 +208,8 @@ describe('commitMultiScope', () => {
 		};
 		const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
 			scopes: [scopeA, scopeB],
-			snapshot: 'skip',
-			// @ts-expect-error — mutate must return exactly one StructuralChange per scope
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			// @ts-expect-error mutate must return exactly one StructuralChange per scope
 			mutate: () => [{ op: 'noop' }]
 		};
 		void bad;

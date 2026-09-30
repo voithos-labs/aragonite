@@ -25,7 +25,7 @@ describe('checkPoolBracket (G1.25)', () => {
 	}
 });
 
-describe('checkRevealSourceLength (G1.26 kernel leg)', () => {
+describe('checkRevealSourceLength (G1.26 shared editable core leg)', () => {
 	it('accepts a source spanning exactly its range', () => {
 		expect(checkRevealSourceLength(5, 2, 7)).toBeNull();
 	});

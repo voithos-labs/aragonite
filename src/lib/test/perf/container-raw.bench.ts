@@ -1,8 +1,6 @@
-// Every keystroke inside a nested container pays a full ancestry raw rebuild. Driven
-// through the SHIPPED `rebuildUnsharedChain` over an owned spine, so the numbers track
-// the real per-keystroke cost rather than a hand-rolled stand-in. Three axes: depth
-// (chain length alone), breadth (the O(container-size) re-join cliff), and combined,
-// which is the only one that puts depth and per-level bytes together.
+// Every keystroke inside a nested container rebuilds the raw of every ancestor. These rows time
+// the real `rebuildUnsharedChain` over an already-copied chain along three axes: depth, breadth
+// (the cost of re-joining children), and the two together.
 import { describe, test } from 'vitest';
 import { BENCH_TIMEOUT } from './fixtures/bench-timeout';
 import type { CstNode } from '../../core/nodes';
@@ -12,9 +10,9 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// Every row below would otherwise time G1.38's dev-only re-derive alongside the rebuild it
-// belts, which is the one thing these numbers must not include.
+// Keeps the dev-only check that re-derives each splice (G1.38) out of every row's timing.
 enablePerfInstruments();
 
 function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
@@ -23,9 +21,8 @@ function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
 	return containerChild ? deepestChain(containerChild, chain) : chain;
 }
 
-// A fresh sharing state sits at epoch 0, so nothing reads as shared and the chain is
-// the live-owned spine — the steady-typing condition, since the debounced snapshot
-// re-shares only ~once per 250ms.
+// A fresh sharing state shares nothing, so the chain is already owned: steady typing, where the
+// debounced snapshot shares it again only about every 250ms.
 function benchAncestryRebuild(
 	label: string,
 	root: CstNode,
@@ -35,7 +32,7 @@ function benchAncestryRebuild(
 	const sharing = createSharingState();
 	test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 		await bench(label, () => {
-			rebuildUnsharedChain(root, chain, sharing, null, undefined);
+			rebuildUnsharedChain(root, chain, sharing, null, defaultGrammarView);
 		}).run({ warmupIterations: 1, ...opts });
 	});
 }
@@ -50,7 +47,7 @@ function singleFlatList(targetBytes: number): string {
 	return lines.join('');
 }
 
-describe('ancestry rebuild — depth axis', () => {
+describe('ancestry rebuild: depth axis', () => {
 	const doc = parse(generateFixture('nested-containers', 1_000_000));
 	const chain = deepestChain(doc.children.find((c) => c.kind === 'list')!);
 	benchAncestryRebuild(`rebuild depth-${chain.length} ancestry (many tiny lists, 1MB)`, chain[0], {
@@ -58,7 +55,7 @@ describe('ancestry rebuild — depth axis', () => {
 	});
 });
 
-describe('ancestry rebuild — breadth axis', () => {
+describe('ancestry rebuild: breadth axis', () => {
 	const SIZES: Array<[label: string, bytes: number, opts: { iterations?: number; time?: number }]> =
 		[
 			['100KB', 100_000, { iterations: 50 }],
@@ -71,12 +68,9 @@ describe('ancestry rebuild — breadth axis', () => {
 	}
 });
 
-// The keystroke the breadth axis is really about: an edit deep INSIDE a large container, which
-// pays the same re-join as one at its head. The two arms are the two paths: `full` re-joins every
-// child (what a caller passing no hint gets), `spliced` rewrites the changed child's region. Plain
-// objects understate the difference, since the axis the splice removes is the `$state` proxy read
-// per child; `test/tree-operations/ancestry-splice-read-bounds.test.ts` counts those.
-describe('ancestry rebuild — interior keystroke, hint vs full', () => {
+// An edit deep inside a large container: `full` re-joins every child, `spliced` rewrites only the
+// changed child's region. Plain objects understate the gap, which is one `$state` read per child.
+describe('ancestry rebuild: interior keystroke, hint vs full', () => {
 	const doc = parse(singleFlatList(1_000_000));
 	const list = doc.children[0];
 	const middle = Math.floor(list.children!.length / 2);
@@ -86,17 +80,17 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 		const item = list.children![middle];
 		const chain = [list, item, item.children![0]];
 		const sharing = createSharingState();
-		rebuildUnsharedChain(list, chain, sharing, null, undefined);
+		rebuildUnsharedChain(list, chain, sharing, null, defaultGrammarView);
 		const leaf = chain[2];
 		let longer = false;
 		const label = `rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`;
 		test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 			await bench(label, () => {
 				const leafPreviousRaw = leaf.raw;
-				// Alternating lengths, so the span shift is measured rather than skipped.
+				// Alternating lengths, so the shift in spans is measured rather than skipped.
 				longer = !longer;
 				leaf.raw = longer ? 'item edited\n' : 'item edit\n';
-				// The label, made true by construction: no spans, no region to rewrite.
+				// No child spans means no region to rewrite, so the rebuild re-joins every child.
 				if (!hinted) {
 					dropChildSpans(list);
 					dropChildSpans(item);
@@ -106,7 +100,7 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 					chain,
 					sharing,
 					null,
-					undefined,
+					defaultGrammarView,
 					hinted ? { path, leafPreviousRaw } : undefined
 				);
 			}).run({ warmupIterations: 1, iterations: 20 });
@@ -114,10 +108,9 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 	}
 });
 
-// Every ancestor level carries substantial raw, so one rebuild pays Σ(level raw) ≈
-// amplification × doc bytes. The adversarial point past the realistic envelope is
-// reported, not judged against the verdict bounds.
-describe('ancestry rebuild — combined depth × bytes axis', () => {
+// Every ancestor level holds a lot of raw, so one rebuild costs the sum of raw across levels. The
+// adversarial row is past anything realistic, so it is reported rather than judged.
+describe('ancestry rebuild: combined depth × bytes axis', () => {
 	const DEPTHS = [4, 8, 12] as const;
 	const PER_LEVEL: Array<[label: string, bytes: number]> = [
 		['1KB', 1_000],

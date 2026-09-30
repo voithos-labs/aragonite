@@ -1,11 +1,16 @@
-// Public, supported surface of the editor module: adding an export is non-breaking,
+// The editor module's public, supported API: adding an export is non-breaking,
 // removing one is breaking. Anything not re-exported here is internal.
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export { default as Editor } from './components/Editor.svelte';
 
-export type { EditorProps, EditorInstance } from './editor-props';
+export type {
+	EditorProps,
+	EditorInstance,
+	InsertMarkdownOptions,
+	SyntaxOptions
+} from './editor-props';
 
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 
@@ -43,7 +48,7 @@ export type { CommandId } from './schema/commands';
 
 // ── Commands (pre-freeze: the id space opens up when the command registry unifies) ──
 
-// The ids `editor.runCommand()` supports — what a selection toolbar needs.
+// The ids `editor.runCommand()` supports: what a selection toolbar needs.
 export { TOOLBAR_COMMANDS } from './schema/commands';
 
 // ── CST utilities ────────────────────────────────────────────────────────────
@@ -87,7 +92,8 @@ export type {
 	EditEvent,
 	EditorEventMap,
 	EditorError,
-	SelectionChangeEvent
+	SelectionChangeEvent,
+	SourceSwapEvent
 } from './editor-events';
 
 // ── Decorations ──────────────────────────────────────────────────────────────
@@ -109,7 +115,27 @@ export type {
 // ── Rects ──────────────────────────────────────────────────────────────────────
 
 // Viewport-space geometry over the rendered document, via `editor.getRects()`.
-// SELECTION_END is the sentinel `rangeRects` accepts as `end`.
+// `SELECTION_END` is the special value `rangeRects` accepts as `end`.
 export type { EditorRects } from './editor-rects';
 export { SELECTION_END } from './block-component';
 export type { SelectionEnd } from './block-component';
+
+// ── Inline menus ───────────────────────────────────────────────────────────────
+
+// Lists opened under the caret by a typed trigger (`#`, `[[`), via `editor.getInlineMenus()`.
+export type {
+	InlineMenuRegistry,
+	InlineMenuOpenOptions,
+	InlineMenuSource,
+	InlineMenuSourceHandle,
+	InlineMenuItem,
+	InlineMenuQuery,
+	InlineMenuRowProps
+} from './inline-menu/types';
+
+// ── Insert catalogue ───────────────────────────────────────────────────────────
+
+// The blocks the insert menus offer, plugin blocks included, via `editor.getInsertCatalogue()`.
+export { registerInsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry } from './schema/insert-catalogue';
+export type { MenuIconName } from './menu-icons';

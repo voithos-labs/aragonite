@@ -1,17 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { augmentBlockKind, declaredPluginKind, type UnwrapRole } from '$lib/plugin';
 import {
-	resetPluginPlatformForTests,
+	augmentBlockKind,
+	declarePluginKind,
+	declaredPluginKind,
+	registerBlockKind,
+	type BlockKindRegistration
+} from '$lib/plugin';
+import {
 	reversedAncestryLeavesRootStale,
 	runContainerConformance,
 	type ContainerConformanceProfile
 } from '$lib/testing';
+import { checkDeclarationSanity } from '$lib/testing/container-conformance';
+import { testClosure } from '$lib/test/support/closure';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
-// The G4.3 kit pointed at real PLUGIN containers, the audience it is billed for. Unlike
-// the built-in sweep (`test/invariants/container-conformance.test.ts`), which derives
-// its kinds from the registry, an author opts in explicitly with a profile.
+// The container conformance kit pointed at real plugin containers, the audience it is for.
+// Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
+// kinds from the registry, an author opts in explicitly with a profile.
 
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
@@ -19,8 +26,8 @@ const DETAILS_KIND = () => declaredPluginKind(DETAILS);
 // outer `::::callout` > inner `:::callout` (child 1, after the reserved title) > [title, para, para].
 const NESTED_CALLOUTS = '::::callout Outer\n:::callout Inner\nA\n\nB\n:::\n::::\n';
 
-// `:::callout` > `<details>` (child 1) > [summary, para, para] — a plugin container
-// nested in a DIFFERENT plugin container, so the chain is not callout-shaped.
+// `:::callout` > `<details>` (child 1) > [summary, para, para]: a plugin container nested
+// in a different plugin container, so the chain is not all callouts.
 const CALLOUT_WRAPPING_DETAILS =
 	':::callout Wrapper\n<details open>\n<summary>S</summary>\n\nA\n\nB\n\n</details>\n:::\n';
 
@@ -60,9 +67,8 @@ const detailsProfile: ContainerConformanceProfile = {
 	terminatorCollision: { mode: 'assert' }
 };
 
-describe('G4.3 conformance kit — plugin containers', () => {
+describe('G4.3 conformance kit: plugin containers', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});
@@ -77,9 +83,10 @@ describe('G4.3 conformance kit — plugin containers', () => {
 			'multiScope:exempt',
 			'focusBubble:asserted',
 			'terminatorCollision:asserted',
+			'titleRow:asserted',
 			'declarations:asserted'
 		]);
-		expect(report.cells.find((c) => c.cell === 'multiScope')?.reason).toBe(NO_MULTI_SCOPE_OP);
+		expect(report.cells.find((c) => c.cell === 'multiScope')?.detail).toBe(NO_MULTI_SCOPE_OP);
 	});
 
 	// A second, differently-shaped container (HTML opener, not a `:::` directive)
@@ -93,6 +100,7 @@ describe('G4.3 conformance kit — plugin containers', () => {
 			'ancestry',
 			'focusBubble',
 			'terminatorCollision',
+			'titleRow',
 			'declarations'
 		]);
 	});
@@ -105,10 +113,9 @@ describe('G4.3 conformance kit — plugin containers', () => {
 });
 
 // Non-vacuity for the kit as a whole. A harness that passes everything guards
-// nothing — these break a plugin container on purpose and require the red.
-describe('G4.3 conformance kit — a broken plugin container fails', () => {
+// nothing, so these break a plugin container on purpose and require the red.
+describe('G4.3 conformance kit: a broken plugin container fails', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});
@@ -125,20 +132,28 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		);
 	});
 
-	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
-		// The cast is the point: a JS plugin can declare an unwrapRole nothing
-		// implements, and the nested Backspace dispatcher indexes it unguarded.
-		augmentBlockKind(CALLOUT_KIND(), {
+	// The cast is the point: a JS plugin can register an unwrapRole nothing implements, and the
+	// nested Backspace dispatcher indexes it unguarded. Augment refuses the field, so it registers.
+	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', () => {
+		const kind = declarePluginKind('unwrap-typo');
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
 			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
 				unwrapRole: {
-					firstChildBackspace: 'no-such-strategy' as UnwrapRole['firstChildBackspace'],
+					firstChildBackspace: 'no-such-strategy',
 					middleChildBackspace: 'default-merge'
 				}
 			}
-		});
+		} as unknown as BlockKindRegistration);
 
-		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
-			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/
+		expect(() => checkDeclarationSanity(kind, calloutProfile)).toThrow(
+			/unwrap-typo first-child unwrap strategy "no-such-strategy" is implemented/
 		);
 	});
 
@@ -154,8 +169,8 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 	});
 
 	// `bodyWrite` exists only to repair a terminator collision, so a profile excusing that
-	// cell ships the repair unprobed behind a reason that reads reviewed.
-	it('fails declaration sanity when bodyWrite ships with an excused terminatorCollision cell', async () => {
+	// cell ships the repair unchecked behind a reason that reads as if it were reviewed.
+	it('fails terminatorCollision when bodyWrite ships with the cell excused', async () => {
 		await expect(
 			runContainerConformance(DETAILS_KIND(), {
 				...detailsProfile,
@@ -164,11 +179,25 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 					reason: 'red-test bait: excusing the one cell that drives the bodyWrite repair'
 				}
 			})
-		).rejects.toThrow(/declarations: details declares container\.bodyWrite/);
+		).rejects.toThrow(/terminatorCollision: details declares container\.bodyWrite/);
 	});
 
-	// The bodyWrap probe reads the descriptor's OWN fixture, so a container carrying none
-	// leaves the declaration unprobed while the cell still reports asserted.
+	// Miss-analysis: only the bodyWrite branch of the excused-collision check had a case, so an
+	// opaque container excusing the cell passed once that branch was dropped.
+	it('fails terminatorCollision when an opaque container excuses it', async () => {
+		await expect(
+			runContainerConformance(CALLOUT_KIND(), {
+				...calloutProfile,
+				terminatorCollision: {
+					mode: 'exempt',
+					reason: 'red-test bait: an opaque container claiming its terminator cannot collide'
+				}
+			})
+		).rejects.toThrow(/terminatorCollision: callout is an opaque container/);
+	});
+
+	// The bodyWrap check reads the descriptor's own fixture, so a container with none
+	// leaves the declaration unchecked while the cell still reports asserted.
 	it('fails declaration sanity when the container carries no conformanceFixture', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: undefined });
 
@@ -177,9 +206,8 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		);
 	});
 
-	// Miss-analysis (#78): the broken-container suite probed every fail() branch of the bodyWrap
-	// probe but never its carve-out return, so the silent skip of a nested fixture had no red.
-	// Callout is the adversarial pick: its recognizer is the shared ::: opener, not its own.
+	// Miss-analysis: no case hit the bodyWrap check's early return on a nested fixture (GH #78).
+	// Callout is the hardest pick: its recognizer is the shared `:::` opener.
 	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
 
@@ -189,8 +217,8 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 	});
 
 	// A fence container re-emits its body lines verbatim, so consuming the user's space would
-	// swallow a byte no rebuild gives back — the declaration is the lie, not the rebuild.
-	it('fails declaration sanity when contentStartSpace ships on a rebuild that mints no marker space', async () => {
+	// swallow a byte no rebuild gives back: the declaration is wrong, not the rebuild.
+	it('fails declaration sanity when contentStartSpace ships on a rebuild that creates no marker space', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { container: { contentStartSpace: 'complete-marker' } });
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(

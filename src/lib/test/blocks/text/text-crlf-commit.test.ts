@@ -1,44 +1,37 @@
 // @vitest-environment jsdom
-//
-// A CRLF-authored paragraph must keep its trailing `\r\n` through the keystroke
-// commit funnel: the input path appended a hard `\n`, so the first keystroke
-// normalized the block's trailing ending. Driven through the mounted component's
-// real input listener (the commit closure lives in the component).
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+// A paragraph written with CRLF must keep its trailing `\r\n` through the keystroke commit:
+// appending a hard `\n` there would make the first keystroke rewrite the block's line ending.
+// Driven through the mounted component's real input listener, since the commit lives there.
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import type { EditorServices } from '$lib/editor-keys';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	surfaceAt
+} from '../../harness/mount-editor.svelte';
 
-// The render effect reads islands off the decoration engine; the stub returns none.
+// The render effect reads decorations off `decorationEngine`; the stub returns none.
 const noIslands = {
 	islandsForPath: () => []
 } as unknown as EditorServices['decorations'];
 
 function mountText(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit,
-			doc: { doc: () => doc },
-			services: { decorations: noIslands }
-		})
+	const { instance, target, blockEdit } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: { services: { decorations: noIslands } }
 	});
-	flushSync();
 	const el = target.querySelector('.text-editable-block') as HTMLElement;
 	return { instance, el, blockEdit };
 }
 
-let mounted: ReturnType<typeof mountText>;
+let mounted: ReturnType<typeof mountText> | undefined;
 afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
+	mounted = undefined;
 	document.body.innerHTML = '';
 });
 
@@ -63,5 +56,20 @@ describe('TextEditableBlock keystroke commit preserves the trailing line ending'
 		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(newRaw.endsWith('\r\n')).toBe(false);
 		expect(newRaw.endsWith('\n')).toBe(true);
+	});
+});
+
+// Miss-analysis: GH #458, every fixture above ended in a line ending, never an unterminated one.
+describe('a keystroke on the unterminated last line of a CRLF document', () => {
+	beforeAll(installLayoutStubs);
+	afterEach(destroyMountedEditors);
+
+	it('terminates the line with the document ending, CRLF', async () => {
+		const editor = mountEditor({ source: 'abc\r\n\r\nlast' });
+		const el = surfaceAt(editor, [1]);
+		el.textContent = 'lastZ';
+		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await editor.settle();
+		expect(editor.source()).toBe('abc\r\n\r\nlastZ\r\n');
 	});
 });

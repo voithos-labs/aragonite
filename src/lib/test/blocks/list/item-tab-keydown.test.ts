@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
-//
-// Tab inside a list is a two-hop dispatch: the focused paragraph's `block.insertTab` DECLINES
-// (without preventDefault) when a listContext is present, the event bubbles to
-// `.list-item-content`, and ListItemBlock resolves it against the listItem keymap. Either hop
-// breaking stops indenting with no other symptom. The reading-mode arm is this component's own
-// G4.19 obligation: the caller hands the dispatcher no `getPresentationMode`, so the seam's gate
-// cannot dead-key it and `handleKeydown` carries a local `readOnly` guard instead.
+// Tab inside a list takes two steps: the paragraph's `block.insertTab` declines without
+// `preventDefault` under a list context, and the event bubbles to `.list-item-content`, where
+// ListItemBlock resolves it against the listItem keymap. Either step breaking stops indenting
+// with no other sign.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
@@ -46,8 +43,8 @@ describe('list item Tab dispatch', () => {
 		expect(mounted.source()).toBe('- alpha\n- beta\n');
 	});
 
-	// G4.19, local-guard arm: reading mode renders the SAME surface (only `contenteditable` flips),
-	// so the key still arrives; without the local guard this indents — the dispatcher has no mode.
+	// Reading mode renders the same element with only `contenteditable` changed, so the key still
+	// arrives and only the dispatcher's mode check stops the indent.
 	it('does not indent in reading mode', async () => {
 		mounted = mountEditor({ source: '- alpha\n- beta\n', presentationMode: 'reading' });
 		const itemContent = mounted.target.querySelectorAll('.list-item-content')[1];

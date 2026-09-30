@@ -15,6 +15,8 @@ import {
 	recordDecorationRun,
 	recordFormatCoverageRead,
 	recordInlineCompute,
+	recordHeightTableBuild,
+	recordNeighbourPass,
 	recordIslandKeyScan,
 	recordIslandRebuild,
 	recordParse,
@@ -23,12 +25,15 @@ import {
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const EMPTY: PerfSnapshot = {
 	snapshotCount: 0,
 	snapshotCloneBytes: 0,
 	rebuildDepths: {},
 	containerKindReparses: 0,
+	containerReparseBytes: 0,
+	openerLineReads: 0,
 	parseCount: 0,
 	parseMsTotal: 0,
 	parseBlockCount: 0,
@@ -43,7 +48,9 @@ const EMPTY: PerfSnapshot = {
 	mountedBlockCount: 0,
 	decorationRuns: 0,
 	islandRebuilds: 0,
-	islandKeyScans: 0
+	islandKeyScans: 0,
+	heightTableBuilds: [],
+	neighbourPasses: 0
 };
 
 function recordOneOfEach(): void {
@@ -57,6 +64,8 @@ function recordOneOfEach(): void {
 	recordDecorationRun();
 	recordIslandRebuild();
 	recordIslandKeyScan();
+	recordHeightTableBuild([0, 1], 640);
+	recordNeighbourPass();
 	markKeystrokeStart();
 	markKeystrokeSettle();
 }
@@ -72,8 +81,8 @@ afterEach(() => {
 });
 
 describe('perf instruments', () => {
-	// `DEV` is a build-time constant, so the production arm of the switch is reachable
-	// only by re-importing the module against a false one.
+	// `DEV` is a build-time constant, so the production branch is reachable only by re-importing
+	// the module with it set to false.
 	it('enable is a no-op outside dev and Vitest', async () => {
 		vi.resetModules();
 		vi.doMock('esm-env', () => ({ DEV: false }));
@@ -141,7 +150,7 @@ describe('perf instruments', () => {
 		expect(s.blockRenderMsTotal).toBeCloseTo(4);
 	});
 
-	it('accumulates decoration and island counters while enabled', () => {
+	it('accumulates decoration and widget counters while enabled', () => {
 		enablePerfInstruments();
 		recordDecorationRun();
 		recordDecorationRun();
@@ -153,6 +162,16 @@ describe('perf instruments', () => {
 		expect(s.decorationRuns).toBe(2);
 		expect(s.islandRebuilds).toBe(1);
 		expect(s.islandKeyScans).toBe(3);
+	});
+
+	it('records each height table build with its list path and width', () => {
+		enablePerfInstruments();
+		recordHeightTableBuild([], 1280);
+		recordHeightTableBuild([2, 0], 1183);
+		expect(perfSnapshot().heightTableBuilds).toEqual([
+			{ path: '', width: 1280 },
+			{ path: '2,0', width: 1183 }
+		]);
 	});
 
 	it('records the block path when one is supplied', () => {
@@ -185,7 +204,7 @@ describe('perf instruments', () => {
 	});
 });
 
-describe('perf seams', () => {
+describe('perf boundaries', () => {
 	it('parse() records duration and block count when enabled', () => {
 		enablePerfInstruments();
 		parse('# a\n\nb\n\nc\n');
@@ -198,10 +217,42 @@ describe('perf seams', () => {
 	it('rebuildUnsharedChain records one depth sample per chain rebuild', () => {
 		const doc = parse('- a\n  - b\n');
 		const sharing = createSharingState();
-		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
+		// The nested paragraph's ancestors: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
+	});
+});
+
+// Miss-analysis: the switch read Vitest's own env variable, and every suite runs under Vitest.
+describe('the perf switch reads the editor environment', () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.doUnmock('esm-env');
+		vi.resetModules();
+	});
+
+	async function freshInstruments(): Promise<{
+		perf: typeof import('../../perf/instruments');
+		env: typeof import('../../env');
+	}> {
+		vi.stubEnv('VITEST', '');
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
+		return { perf: await import('../../perf/instruments'), env: await import('../../env') };
+	}
+
+	it('stays off on a production build outside a declared test runner', async () => {
+		const { perf } = await freshInstruments();
+		perf.enablePerfInstruments();
+		expect(perf.perfEnabled()).toBe(false);
+	});
+
+	it('turns on under a runner that declares itself through configureEditorEnv', async () => {
+		const { perf, env } = await freshInstruments();
+		env.configureEditorEnv({ isTest: true });
+		perf.enablePerfInstruments();
+		expect(perf.perfEnabled()).toBe(true);
 	});
 });

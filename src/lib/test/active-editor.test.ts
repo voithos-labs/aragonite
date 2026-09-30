@@ -10,7 +10,7 @@ import {
 	__resetActiveEditorForTests
 } from '$lib/active-editor';
 
-describe('active-editor — body-chord claimant', () => {
+describe('active-editor: body-chord claimant', () => {
 	const a = document.createElement('div');
 	const b = document.createElement('div');
 	beforeEach(() => __resetActiveEditorForTests());
@@ -35,7 +35,7 @@ describe('active-editor — body-chord claimant', () => {
 		expect(claimsBodyChord(b)).toBe(true);
 	});
 
-	it('two mounted editors with no live claim resolve to neither — ambiguous', () => {
+	it('two mounted editors with no live claim resolve to neither: ambiguous', () => {
 		registerEditor(a);
 		registerEditor(b);
 		expect(claimsBodyChord(a)).toBe(false);
@@ -60,7 +60,7 @@ describe('active-editor — body-chord claimant', () => {
 	});
 });
 
-describe('active-editor — isForeignTextEntry', () => {
+describe('active-editor: isForeignTextEntry', () => {
 	beforeEach(() => __resetActiveEditorForTests());
 
 	const input = (type?: string) => {
@@ -99,8 +99,8 @@ describe('active-editor — isForeignTextEntry', () => {
 		});
 	}
 
-	// Non-text controls stay claimable so a sole editor keeps Ctrl+F when one holds
-	// focus — the presentation-reading toggle is a checkbox.
+	// A control that takes no text still lets an editor take the chord, so a lone editor keeps
+	// Ctrl+F while one has focus; the reading-mode toggle is a checkbox.
 	for (const type of ['checkbox', 'radio', 'button', 'file', 'range', 'color', 'date']) {
 		it(`a foreign non-text <input type="${type}"> keeps the editor's claim`, () => {
 			expect(isForeignTextEntry(input(type))).toBe(false);

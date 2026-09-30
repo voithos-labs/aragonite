@@ -10,14 +10,15 @@ import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merg
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
 import type { CstNode } from '$lib/core/nodes';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 /**
- * Mirrors the commitContainer path: M1 takes a children-copy and returns the outer-scope
- * delete implicitly, so the childIds are applied here the way the commit primitive does.
+ * The merge deletes the item from its children copy only, so the helper applies the same
+ * delete to `childIds` the way the container commit does.
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();
-	mergeListItemIntoPrevious(list, children, currentIndex, undefined, undefined, undefined);
+	mergeListItemIntoPrevious(list, children, currentIndex, undefined, fixtureReading());
 	const refs: undefined[] = new Array(list.children!.length).fill(undefined);
 	applyStructuralChangeToIdsRefs(
 		{ op: 'delete', at: currentIndex, count: 1 },
@@ -27,7 +28,7 @@ function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	list.children = children;
 }
 
-describe('mergeListItemIntoPrevious — container children/childIds parity', () => {
+describe('mergeListItemIntoPrevious: container children/childIds parity', () => {
 	it('row 2: current item has nested sub-list absorbed into target (mutates targetItem)', () => {
 		const doc = parse('- A\n- B\n  - C\n');
 		const list = doc.children[0];
@@ -48,7 +49,7 @@ describe('mergeListItemIntoPrevious — container children/childIds parity', () 
 		assertContainerParity(list);
 	});
 
-	it('row 4: deep nesting — depth-1 list grows with current nested-list items', () => {
+	it('row 4: deep nesting; depth-1 list grows with current nested-list items', () => {
 		const doc = parse('- A\n  - B\n    - C\n- D\n  - E\n');
 		const list = doc.children[0];
 		seedChildIdsRecursive(list);

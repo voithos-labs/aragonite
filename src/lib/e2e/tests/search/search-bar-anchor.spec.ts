@@ -8,7 +8,7 @@ const anchoredBar = (page: Page) => anchor(page).locator('.search-bar');
 const rootBar = (page: Page) => page.locator('.editor .search-bar');
 
 // `--color-border` is declared only in the theme scope, and the find input's inline
-// fallback is a DIFFERENT grey — so the computed value says which one resolved.
+// fallback is a different grey, so the computed value says which one resolved.
 const TOKEN_DARK = 'rgb(62, 62, 59)';
 const TOKEN_LIGHT = 'rgb(201, 199, 192)';
 const INLINE_FALLBACK = 'rgb(68, 71, 79)';
@@ -16,7 +16,7 @@ const INLINE_FALLBACK = 'rgb(68, 71, 79)';
 const inputBorderColor = (page: Page) =>
 	findInput(page).evaluate((el) => getComputedStyle(el).borderTopColor);
 
-test.describe('search bar — consumer anchor', () => {
+test.describe('search bar: consumer anchor', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -46,8 +46,8 @@ test.describe('search bar — consumer anchor', () => {
 
 	test('theme tokens resolve inside the anchor and follow a live theme flip', async ({ page }) => {
 		await openFind(editor);
-		// The anchor sits outside every `.aragonite-editor-theme` ancestor, so this value can
-		// only come from the scope the portaled node brought with it.
+		// The bar's anchor element sits outside every `.aragonite-editor-theme` ancestor, so this value
+		// can only come from the scope the portaled node brought with it.
 		expect(await inputBorderColor(page)).toBe(TOKEN_DARK);
 		expect(await inputBorderColor(page)).not.toBe(INLINE_FALLBACK);
 
@@ -86,7 +86,7 @@ test.describe('search bar — consumer anchor', () => {
 	});
 });
 
-test.describe('search bar — no anchor supplied', () => {
+test.describe('search bar: no anchor supplied', () => {
 	test('the bar renders in the editor root, as it always has', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();

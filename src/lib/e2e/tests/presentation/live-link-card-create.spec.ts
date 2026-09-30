@@ -4,7 +4,7 @@ import type { EditorPage } from '../../editor-page';
 import { clickWordSettled, enterPresentationMode, extendTo, landAt } from './helpers';
 import { CARD, URL_FIELD } from './link-card-helpers';
 
-// The chord's create half (#119): Mod+K over a selection mints the construct on commit.
+// The chord's create half: Mod+K over a selection writes the link when the card commits.
 // Requirements: e2e/requirements/presentation/live-link-card-create.md.
 
 const DOC = [
@@ -17,7 +17,7 @@ const DOC = [
 	'| plain cell | word |'
 ].join('\n');
 
-/** Shift-extend `count` glyphs right — a real selection gesture, the create target's shape. */
+/** Shift-extend `count` glyphs right: a real selection gesture, the shape create acts on. */
 async function selectRight(ep: EditorPage, page: Page, count: number): Promise<void> {
 	for (let i = 0; i < count; i++) {
 		await page.keyboard.press('Shift+ArrowRight');
@@ -25,21 +25,21 @@ async function selectRight(ep: EditorPage, page: Page, count: number): Promise<v
 	await ep.waitForRenderFlush();
 }
 
-/** Land at raw offset 6 of block 0 and select `bravo` — the create rows' shared range. */
+/** Land at raw offset 6 of block 0 and select `bravo`, the range every create test uses. */
 async function selectBravo(ep: EditorPage, page: Page): Promise<void> {
 	await clickWordSettled(ep, page, 'Alpha');
 	await landAt(ep, page, 6);
 	await selectRight(ep, page, 5);
 }
 
-test.describe('live-mode link card — the create half of Mod+K', () => {
+test.describe('live-mode link card: the create half of Mod+K', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterPresentationMode(page, 'live', DOC);
 	});
 
-	test('the chord over a selected word opens an empty card; Enter mints ONE undo entry', async ({
+	test('the chord over a selected word opens an empty card; Enter creates one undo entry', async ({
 		page
 	}) => {
 		await selectBravo(ep, page);
@@ -47,7 +47,7 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 
 		await ep.pressDeclined('ControlOrMeta+k');
 
-		// Entered, empty, and the document untouched: the construct is minted only on commit.
+		// Focused, empty, and the document untouched: the link is written only on commit.
 		await expect(page.locator(CARD)).toBeVisible();
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await expect(page.locator(URL_FIELD)).toHaveValue('');
@@ -58,13 +58,37 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 
 		await ep.bridge.waitForSourceContains('Alpha [bravo](https://new.test/b) charlie');
 		await expect(page.locator(CARD)).toHaveCount(0);
-		// The card-commit caret rule: the construct's own start.
+		// The caret rule after a card commit: the start of the construct it wrote.
 		await expect
 			.poll(async () => (await ep.bridge.getSelectionPaths())?.focus)
 			.toEqual({ path: [0], offset: 6 });
 
 		await ep.undo();
 		await ep.bridge.waitForSourceEquals(before, 3000);
+	});
+
+	// Focusing the card's field before the host places the card would scroll to the top of the
+	// document, leaving the card, placed a frame later beside the selection, off screen.
+	test('the chord deep in a scrolled document keeps the scroll and shows the card', async ({
+		page
+	}) => {
+		const filler = Array.from({ length: 60 }, (_, i) => `filler line ${i + 1}`).join('\n\n');
+		const ep = await enterPresentationMode(page, 'live', `${filler}\n\nAlpha bravo charlie\n`);
+		await ep.scrollEditorTo(10_000_000);
+		await clickWordSettled(ep, page, 'Alpha');
+		await landAt(ep, page, 6);
+		await selectRight(ep, page, 5);
+		const scrollTop = () => ep.editorContainer.evaluate((el) => el.scrollTop);
+		const before = await scrollTop();
+		expect(before).toBeGreaterThan(0);
+
+		await ep.pressDeclined('ControlOrMeta+k');
+
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(CARD)).toBeInViewport();
+		// The scroll stays, or nudges down by the card's own height when the selection sits at the
+		// bottom edge and the card opens below it; it never runs back toward the top.
+		expect(await scrollTop()).toBeGreaterThanOrEqual(before);
 	});
 
 	test('Escape leaves the document byte-identical and the selection live', async ({ page }) => {
@@ -78,10 +102,11 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await page.keyboard.press('Escape');
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		// The card's URL field is its own input, outside every editable surface.
+		// The card's URL field is its own input, outside every editable element.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
-		// The range rides the caret-restore slot while the card borrows focus; Escape re-arms it.
+		// The range is held in the caret-restore state while the card borrows focus; Escape
+		// puts it back.
 		await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('bravo');
 		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
 	});
@@ -90,7 +115,7 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await clickWordSettled(ep, page, 'Visit');
 		await landAt(ep, page, 2);
 		const before = await ep.bridge.getSource();
-		// Extend until the focus sits inside the link text — raw 10 of block 1 is in `example`.
+		// Extend until the focus sits inside the link text: raw 10 of block 1 is in `example`.
 		await extendTo(ep, page, 'ArrowRight', [1], 10);
 
 		await ep.pressDeclined('ControlOrMeta+k');
@@ -100,15 +125,14 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	// Three guards deep by design, and this is the user-visible outcome all three owe: the
-	// cross-block keydown swallows Mod+K, the dispatch seam declines `link.openCard` over a range,
-	// and the card's own create door refuses. The unit pins say which one answered.
+	// Three checks refuse this (the cross-block keydown, dispatch over a range, and the card's own
+	// create path), and this is the outcome all three produce; the unit tests say which answered.
 	test('a selection spanning two blocks declines create: no card, not a byte', async ({ page }) => {
 		await clickWordSettled(ep, page, 'Alpha');
 		await landAt(ep, page, 6);
 		const before = await ep.bridge.getSource();
-		// Extend by real presses until the range leaves block 0 — the byte the focus stops on is
-		// the walk's business, and this case is about the range spanning blocks at all.
+		// Extend with real keypresses until the range leaves block 0: which byte the focus stops
+		// on is the arrow stepping's business, and this case is only about spanning two blocks.
 		for (let i = 0; i < 30 && !(await ep.bridge.isCrossBlockActive()); i++) {
 			await page.keyboard.press('Shift+ArrowRight');
 			await ep.waitForRenderFlush();

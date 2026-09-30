@@ -1,12 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Enter in a setext title keeps the trailing underline with the HEADING half — a plain raw
-// cut demotes it and turns the underline into a thematicBreak below
-// (requirements/text-editing/enter-at-setext-end.md). The block-KIND assertions are
-// load-bearing: source bytes stay stable through the demotion, so nothing else sees it.
+// Enter in a setext title keeps the trailing underline with the heading half: a plain cut of
+// the raw text demotes it and turns the underline into a thematic break below
+// (`requirements/text-editing/enter-at-setext-end.md`). The block-kind assertions decide it,
+// since the source bytes stay the same through the demotion and nothing else would see it.
 
-test.describe('text editing — Enter at the end of a setext title', () => {
+test.describe('text editing: Enter at the end of a setext title', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -17,9 +17,9 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 	for (const underline of ['=====', '-----']) {
 		const content = `Title\n${underline}\n`;
 
-		test(`Enter at the end of a ${underline} title — heading survives, empty block below`, async () => {
+		test(`Enter at the end of a ${underline} title, heading survives, empty block below`, async () => {
 			await editor.loadContent(content);
-			await editor.focusBlockEnd(0);
+			await editor.focusBlock(0, 5);
 
 			// The suffix rule only fires from the content end; a caret at raw end would
 			// make the plain cut produce the same shape and hide a regression.
@@ -31,8 +31,8 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 
 			expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
 			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-			// The empty half is a blank BLOCK, so it takes a separator of its own: without one
-			// the reload would read the single trailing blank as the document suffix.
+			// The empty half is a blank block, so it takes a separator of its own: without one
+			// the reload would read the single trailing blank as the document's final newline.
 			await editor.bridge.waitForSourceEquals(content + '\n\n');
 			expect(await editor.parseConverged()).toBe(true);
 
@@ -41,21 +41,9 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 		});
 	}
 
-	test('Enter mid-title keeps the underline with the heading half', async () => {
+	test('real click + End + Enter, typing lands in the empty block below', async () => {
 		await editor.loadContent('Title\n=====\n');
-		await editor.focusBlock(0, 2);
-		await editor.page.keyboard.press('Enter');
-		await editor.waitForBlockHostCount(2);
-
-		expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-		await editor.bridge.waitForSourceEquals('Ti\n=====\ntle\n');
-		expect(await editor.parseConverged()).toBe(true);
-	});
-
-	test('real click + End + Enter — typing lands in the empty block below', async () => {
-		await editor.loadContent('Title\n=====\n');
-		await editor.clickBlock(0);
+		await editor.clickBlockAtPath([0], 1);
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(2);

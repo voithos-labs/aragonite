@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-
-// Mounting a plugin component through the published surface ONLY. The in-repo mount harness
-// is not packaged, so an author's recipe has to stand alone; this file IS that recipe.
-//
-// Miss-analysis: every mounted-block suite reached the internal harness, so nothing held the
-// published surface to mounting one — the jsdom stubs and the scroll mode were maintainer
-// knowledge with no test standing on them.
+// Mounting a plugin component through the published API only: the in-repo mount harness is not
+// packaged, so an author's recipe has to stand alone, and this file is that recipe.
+// Miss-analysis: every mounted-block suite used the internal harness, never the published API.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { Editor, type EditorInstance } from '$lib';
@@ -19,14 +15,18 @@ import {
 	type EditorPlugin,
 	type ParsedLine
 } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { settleEditor } from '$lib/test/harness/settle';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import PlainLeafBlock from './fixtures/PlainLeafBlock.svelte';
 
 const KIND = 'jsdom-mount-leaf';
 const MARKER = '@@';
 const SOURCE = `intro\n\n${MARKER}\nfirst\nsecond\n${MARKER}\n\noutro\n`;
 
-/** A closed `@@ … @@` block — multi-line on purpose, so the leaf's newlines are observable. */
+/** A closed `@@ … @@` block, multi-line on purpose so the block's newlines are observable. */
 function markerBlockExtent(lines: readonly ParsedLine[], index: number): number {
 	if (lines[index].text !== MARKER) return 0;
 	for (let i = index + 1; i < lines.length; i++) {
@@ -74,20 +74,19 @@ function markerLeafPlugin(): EditorPlugin {
 let instance: EditorInstance | null = null;
 let target: HTMLElement | null = null;
 
-function mountEditor(plugins: EditorPlugin[]): HTMLElement {
+function mountEditor(plugins: EditorPlugin[], presentationMode?: PresentationMode): HTMLElement {
 	target = document.createElement('div');
 	document.body.appendChild(target);
 	instance = mount(Editor, {
 		target,
 		// A short fixture, so it stays under the windowing watermark and every block mounts.
-		props: { source: SOURCE, plugins, scrollMode: 'host' as const }
+		props: { source: SOURCE, plugins, scrollMode: 'host' as const, presentationMode }
 	}) as EditorInstance;
 	flushSync();
 	return target;
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
@@ -105,7 +104,7 @@ describe('mounting a plugin block through the published surface', () => {
 		const leaf = root.querySelector<HTMLElement>('.plain-leaf-block');
 		expect(leaf, 'the plugin component mounted').not.toBeNull();
 		expect(leaf?.getAttribute('contenteditable')).toBe('true');
-		// The single-text-node contract: the surface's text IS the block's raw, newlines included.
+		// The single-text-node rule: the element's text is the block's raw, newlines included.
 		expect(leaf?.textContent).toBe(`${MARKER}\nfirst\nsecond\n${MARKER}`);
 		expect(leaf?.childNodes).toHaveLength(1);
 	});
@@ -124,8 +123,23 @@ describe('mounting a plugin block through the published surface', () => {
 	});
 });
 
-// Miss-analysis: every caller ran in a bare jsdom, so the install-only-where-absent guard never
-// met an API already in place, and the internal mount harness kept a force-assigning copy instead.
+// Miss-analysis: no test drove an input into a plain-mode leaf in reading mode.
+describe('a plain-mode plugin leaf in reading mode', () => {
+	it('is not editable, and an input that reaches it anyway writes nothing', async () => {
+		const root = mountEditor([markerLeafPlugin()], 'reading');
+		const leaf = root.querySelector<HTMLElement>('.plain-leaf-block')!;
+		expect(leaf.getAttribute('contenteditable')).toBe('false');
+
+		leaf.textContent = `${MARKER}\nedited\n${MARKER}`;
+		leaf.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await settleEditor();
+
+		expect(instance?.getSource()).toBe(SOURCE);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
+	});
+});
+
+// Miss-analysis: every caller ran in a bare jsdom, so no stub met an API already in place.
 describe('installEditorDomStubsForTests', () => {
 	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {

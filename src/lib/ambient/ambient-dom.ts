@@ -1,12 +1,10 @@
 /**
- * DOM construction and lookup for the ambient marker span — the read-only
- * prefix container blocks contribute to their first prose child's textContent.
+ * Builds the marker prefix span (the "ambient" prefix): the read-only prefix a container block
+ * draws in front of its first prose child's text. Reading it back is `cursor/widget-offset.ts`.
  */
 
 import type { AmbientPrefix } from '../block-component';
 import { DRAG_ANCHOR_ATTR } from '../components/block-content-selector';
-import { domDescendants } from '../cursor/dom-walk';
-import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
@@ -36,9 +34,13 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 		if (range.ariaChecked !== undefined) {
 			inner.setAttribute('aria-checked', String(range.ariaChecked));
 		}
+		if (range.label !== undefined) inner.setAttribute('aria-label', range.label);
+		if (range.focusable) inner.tabIndex = 0;
 		if (range.dragAnchor) inner.setAttribute(DRAG_ANCHOR_ATTR, '');
 		inner.textContent = normalized.text.slice(range.start, range.end);
 		inner.addEventListener('click', range.onClick);
+		const onActivate = range.onActivate;
+		if (onActivate) inner.addEventListener('keydown', (e) => activateOnKey(e, onActivate));
 		outer.appendChild(inner);
 		cursor = range.end;
 	}
@@ -50,61 +52,12 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	return outer;
 }
 
-export function ambientSpanOf(blockEl: ParentNode): HTMLElement | null {
-	const first = blockEl.firstChild;
-	if (!first || first.nodeType !== Node.ELEMENT_NODE) return null;
-	const span = first as HTMLElement;
-	if (!span.classList.contains('md-marker')) return null;
-	if (span.getAttribute('contenteditable') !== 'false') return null;
-	return span;
-}
-
-export function ambientLengthOf(blockEl: HTMLElement): number {
-	return ambientSpanOf(blockEl)?.textContent?.length ?? 0;
-}
-
-export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
-	const span = ambientSpanOf(blockEl);
-	if (!span) return false;
-	const range = document.createRange();
-	// Prefer the first text node after the span so visual-line geometry returns real rects;
-	// setStartAfter yields a collapsed range with no textbox in empty-item state. A hidden
-	// marker run next to the span is not that text node — it paints nothing, and descending
-	// into it would seat raw 0 inside unpainted bytes.
-	const textAfter = firstTextNodeAfter(span);
-	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) {
-		range.setStart(textAfter, 0);
-	} else {
-		range.setStartAfter(span);
-	}
-	range.collapse(true);
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
-	return true;
-}
-
 // ── Internal ────────────────────────────────────────────────────────────────
 
-function firstTextNodeAfter(node: Node): Text | null {
-	let sibling = node.nextSibling;
-	while (sibling) {
-		// An atomic widget stands for raw bytes, so text past it is not raw 0.
-		if (isAtomicInlineWidget(sibling)) return null;
-		const text = firstTextDescendant(sibling);
-		if (text) return text;
-		sibling = sibling.nextSibling;
-	}
-	return null;
-}
-
-// Unfiltered on the way down, unlike the measurable-text search it resembles
-// (`cursor/visual-lines.ts`): the caller judges hidden marker text once, at the top.
-function firstTextDescendant(node: Node): Text | null {
-	for (const current of domDescendants(node)) {
-		if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
-			return current as Text;
-		}
-	}
-	return null;
+// Enter and Space, the keys a link or button answers; the block below must not see them too.
+function activateOnKey(e: KeyboardEvent, onActivate: () => void): void {
+	if (e.key !== 'Enter' && e.key !== ' ') return;
+	e.preventDefault();
+	e.stopPropagation();
+	onActivate();
 }

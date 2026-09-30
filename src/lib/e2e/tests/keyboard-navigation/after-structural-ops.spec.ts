@@ -1,5 +1,5 @@
-// One invariant — container-block navigation surviving the index shift a structural op causes
-// — parametrized across split, M1 merge, and cross-container merge.
+// One rule over split, merge, and cross-container merge: navigating past a container block still
+// works after a structural edit shifts the block indices.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -124,7 +124,7 @@ test.describe('focus traversal after block insertion', () => {
 	});
 
 	test('ArrowDown traverses correctly after cross-container merge into blockquote', async () => {
-		// Blank-line separator required due to lazy continuation.
+		// The blank-line separator stops lazy continuation.
 		const content = ['> quote line', '', 'text', '', '```', 'code', '```', '', 'Final.', ''].join(
 			'\n'
 		);

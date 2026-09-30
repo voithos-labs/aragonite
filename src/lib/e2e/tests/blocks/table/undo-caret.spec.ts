@@ -14,7 +14,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 	test('undo after Alt+Shift+Backspace restores caret to same cell', async ({ page }) => {
 		// Focus cell at row 2, col 1 (body row 2, middle column = "5" cell).
-		await page.locator('[role="cell"]').nth(7).click();
+		await page.locator('.table-cell').nth(7).click();
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Alt+Shift+Backspace');
@@ -35,9 +35,9 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	test('undo after Ctrl+Shift+Backspace (delete row) restores caret to same cell', async ({
 		page
 	}) => {
-		// Focus cell row 1 col 1 (the "2" cell — picking row 1 not row 2 since
-		// row deletion test should pick a row that wouldn't promote header).
-		await page.locator('[role="cell"]').nth(4).click();
+		// Focus cell row 1, col 1 (the "2" cell): row 1 rather than row 2, so deleting
+		// the row does not promote a new header.
+		await page.locator('.table-cell').nth(4).click();
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
@@ -55,8 +55,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after typing in a cell restores caret to that cell', async ({ page }) => {
-		// Cell index 4 = body row 0, col 1 (middle of 3×3 — the "2" cell).
-		await page.locator('[role="cell"]').nth(4).click();
+		// Cell index 4 = body row 0, col 1: the middle of the 3×3, the "2" cell.
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('End');
 
 		const before = await editor.bridge.getSource();
@@ -78,11 +78,11 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	test('undo after deleting a substring inside a cell restores caret to that cell', async ({
 		page
 	}) => {
-		// Multi-char middle cell so substring delete is meaningful (the user repro).
+		// A multi-character middle cell, so a substring delete means something.
 		await editor.loadContent(
 			'| A | Column | C |\n| --- | --- | --- |\n| 1 | Column | 3 |\n| 4 | data | 6 |\n'
 		);
-		await page.locator('[role="cell"]').nth(4).click();
+		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('End');
 
 		const before = await editor.bridge.getSource();
@@ -105,8 +105,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
-		// Drag down column 0 (header "A" → body cell "4") to make a column-covering selection — the
-		// 3-stage Ctrl+A escalates cell → table → document without ever isolating a column.
+		// Drag down column 0 (header "A" to body cell "4") to cover a column: Ctrl+A goes cell,
+		// then document, without ever isolating a column.
 		const tableInfo = await page.evaluate(() => {
 			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
 			tableEl.scrollIntoView({ block: 'center' });
@@ -131,8 +131,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Backspace');
-		// Settle on column A's disappearance: '| A | B | C |' contains '| B | C |',
-		// so waiting for the post-delete header would return before the Backspace ran.
+		// Waits for column A to go: '| A | B | C |' contains '| B | C |', so waiting for the
+		// post-delete header would return before the Backspace ran.
 		await editor.bridge.waitForSourceNotContains('| A |');
 
 		await editor.undo();

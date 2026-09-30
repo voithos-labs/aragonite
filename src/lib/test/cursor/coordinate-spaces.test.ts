@@ -1,9 +1,11 @@
-// Pins the conversion directions (a flipped ± is a real caret bug) and, at the
-// type level, that the brands reject cross-space and unbranded values.
+// Tests the conversion directions (a flipped plus or minus is a real caret bug) and, at the
+// type level, that the brands reject values from another space or with no brand at all.
 
 import { describe, it, expect } from 'vitest';
 import {
 	asCellIndex,
+	rowMajorCellIndex,
+	cellRectBounds,
 	cellRowCol,
 	asDomTextOffset,
 	asEditorX,
@@ -20,7 +22,8 @@ import {
 	type DomTextOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
-import type { CursorBackend, EditableSurfaceDeps } from '../../components/blocks/editable-surface';
+import type { EditableSurfaceDeps } from '../../components/blocks/editable-surface';
+import type { CursorBackend } from '../../cursor/surface-backend';
 
 describe('coordinate-space conversions', () => {
 	it('raw ↔ dom-text adds/subtracts the ambient length', () => {
@@ -41,7 +44,7 @@ describe('coordinate-space conversions', () => {
 
 describe('coordinate-space brands (compile-time pins)', () => {
 	// An unused @ts-expect-error is itself a check error, so a green gate proves both directions:
-	// the mix fails to compile AND the brand has not decayed to plain number.
+	// the mix fails to compile, and the brand has not decayed into a plain number.
 	it('brands reject cross-space and unbranded values but stay usable as numbers', () => {
 		const raw: RawOffset = asRawOffset(3);
 
@@ -49,7 +52,7 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		const mixed: DomTextOffset = raw;
 		void mixed;
 
-		// @ts-expect-error a plain number needs a mint or conversion to enter a space
+		// @ts-expect-error a plain number needs a constructor or a conversion to enter a space
 		const bare: RawOffset = 3;
 		void bare;
 
@@ -74,9 +77,9 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		expect(asCellIndex(3) + 1).toBe(4);
 	});
 
-	// Assignment-shaped (never invoked) so the pins are runtime-free; call-site
-	// checking would be bivariance-exempt on methods, assignment is not.
-	it('the editable-surface seam rejects wrong-space offsets', () => {
+	// Written as assignments, never called, so the checks need no runtime; checking at a call
+	// site would be exempt from bivariance on methods, and assignment is not.
+	it('the editable-surface boundary rejects wrong-space offsets', () => {
 		type SetRawArg = Parameters<CursorBackend['setRaw']>[0];
 
 		// @ts-expect-error a walk-space offset cannot enter the raw-space backend
@@ -109,8 +112,8 @@ describe('DocPath composition', () => {
 		const src = [0, 1];
 		const out = docPathFrom(src);
 		expect(out).toEqual([0, 1]);
-		// Copied: a later mutation of the composer's own array can't leak into the
-		// emitted event path or snapshot coordinate.
+		// Copied, so a later change to the caller's own array cannot leak into the emitted event
+		// path or the snapshot coordinate.
 		expect(out).not.toBe(src);
 	});
 });
@@ -125,5 +128,31 @@ describe('cellRowCol', () => {
 
 	it('handles a single-column grid (every index is a new row)', () => {
 		expect(cellRowCol(4, 1)).toEqual({ row: 4, col: 0 });
+	});
+});
+
+describe('rowMajorCellIndex', () => {
+	it('encodes grid coordinates as the row-major index cellRowCol decodes', () => {
+		expect(rowMajorCellIndex(0, 0, 3)).toBe(0);
+		expect(rowMajorCellIndex(1, 0, 3)).toBe(3);
+		expect(rowMajorCellIndex(2, 1, 3)).toBe(7);
+		for (let idx = 0; idx < 12; idx++) {
+			const { row, col } = cellRowCol(idx, 4);
+			expect(rowMajorCellIndex(row, col, 4)).toBe(idx);
+		}
+	});
+});
+
+describe('cellRectBounds', () => {
+	// Corner order is the drag's direction, which must not change the rectangle.
+	it('spans the same rows and columns whichever corner comes first', () => {
+		const expected = { top: 1, left: 0, rows: 2, cols: 2 };
+		expect(cellRectBounds(3, 7, 3)).toEqual(expected);
+		expect(cellRectBounds(7, 3, 3)).toEqual(expected);
+		expect(cellRectBounds(4, 6, 3)).toEqual(expected);
+	});
+
+	it('is one cell for equal corners', () => {
+		expect(cellRectBounds(5, 5, 3)).toEqual({ top: 1, left: 2, rows: 1, cols: 1 });
 	});
 });

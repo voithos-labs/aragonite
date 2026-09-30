@@ -10,8 +10,8 @@ export interface KeyBinding {
 	chord: string;
 	command: AnyCommandId;
 	/**
-	 * Static argument baked into the binding, widened so a minted command travels the same
-	 * channel. It reaches the handler as `unknown`, which must type-guard before use.
+	 * Static argument baked into the binding, widened so a plugin command's argument travels the
+	 * same channel. It reaches the handler as `unknown`, which must type-guard before use.
 	 */
 	arg?: unknown;
 }
@@ -42,13 +42,27 @@ function normalizeKey(key: string): string {
 	return key.length === 1 ? key.toUpperCase() : key;
 }
 
-export function eventToChord(e: KeyboardEvent): string | null {
+/** The fields of a keydown a chord is read from; a `KeyboardEvent` is one. */
+export type ChordKeys = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
+
+export function eventToChord(e: ChordKeys): string | null {
 	if (BARE_MODIFIERS.has(e.key)) return null;
 	const mods: string[] = [];
 	if (e.ctrlKey || e.metaKey) mods.push('Mod');
 	if (e.altKey) mods.push('Alt');
 	if (e.shiftKey) mods.push('Shift');
 	return [...mods, normalizeKey(e.key)].join('+');
+}
+
+/** Mod+A, CapsLock or not (CapsLock uppercases the key without a Shift). Select-all is a browser
+ *  chord rather than a keymap command, so every block asks this one predicate. */
+export function isSelectAllChord(e: ChordKeys): boolean {
+	return eventToChord(e) === 'Mod+A';
+}
+
+/** Whether a key ends a run of select-all keypresses: any chord but Mod+A, not a held modifier. */
+export function endsSelectAllRun(e: ChordKeys): boolean {
+	return eventToChord(e) !== null && !isSelectAllChord(e);
 }
 
 export function normalizeChord(chord: string): string {
@@ -61,10 +75,7 @@ export function normalizeChord(chord: string): string {
 
 const VALID_MODIFIERS = new Set<string>(MOD_ORDER);
 
-/**
- * Why a chord is malformed, or null when it is well-formed. Shared core of the strict paths;
- * keeping the reason lets `normalizeChordStrict` name it in the warn.
- */
+/** Why a chord is malformed, or null when it's well-formed; a registration's error names it. */
 function chordDefect(chord: string): string | null {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';
@@ -73,13 +84,19 @@ function chordDefect(chord: string): string | null {
 	return bad === undefined ? null : `unrecognized modifier "${bad}" (use Mod/Alt/Shift)`;
 }
 
-/**
- * The well-formedness the strict ingestion paths gate on, so a mis-typed `'Ctrl+B'` can't
- * collapse to a bare `'B'` that fires on every keypress. Pure: the caller decides whether to
- * warn, throw, or report.
- */
+/** Whether a chord is well-formed: Mod/Alt/Shift modifiers and a non-empty key. */
 export function isChordWellFormed(chord: string): boolean {
 	return chordDefect(chord) === null;
+}
+
+/**
+ * Validate then normalize a chord a registration declares, throwing on a malformed one, so a
+ * mis-typed `'Ctrl+B'` never collapses to a bare `'B'` that fires on every keypress.
+ */
+export function registeredChord(chord: string, entry: string): string {
+	const defect = chordDefect(chord);
+	if (defect !== null) throw new Error(`${entry}: chord "${chord}" is malformed: ${defect}`);
+	return normalizeChord(chord);
 }
 
 /**

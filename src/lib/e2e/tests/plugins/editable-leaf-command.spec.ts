@@ -1,27 +1,17 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
+import { roundTripStable, capturedErrors } from './helpers';
+import { MemoPage } from './memo-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Minted block commands on the editable-leaf tier (requirements/plugins/editable-leaf-command.md):
- * the `%%` memo harness kind binds two commands on its keymap — `memo.tag` (Mod+Shift+K, commits
- * metadata) and `memo.boom` (Mod+Shift+J, throws). Proves a minted `(kind, id)` command resolves on
- * the leaf path through the real `createEditableLeaf` factory, and that a handler throw is
- * contained and surfaced as an `origin: 'command'` error rather than escaping.
+ * Block commands a plugin registers on an editable leaf
+ * (requirements/plugins/editable-leaf-command.md): the `%%` memo kind binds `memo.tag`
+ * (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws). A registered command
+ * resolves through `createEditableLeaf`, and a throwing handler is reported as an `origin:
+ * 'command'` error.
  */
 
-class MemoPage extends PluginsPage {
-	get memo() {
-		return this.page.locator('.memo-block');
-	}
-
-	async gotoSeed(): Promise<void> {
-		await this.gotoPlugins('memo');
-		await expect(this.memo).toHaveCount(1);
-	}
-}
-
-test.describe('minted block commands on the editable-leaf tier: the %% memo kind', () => {
+test.describe('plugin block commands on the editable-leaf level: the %% memo kind', () => {
 	let editor: MemoPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -29,7 +19,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		await editor.gotoSeed();
 	});
 
-	test('a bound minted command fires on the leaf and commits through the metadata route', async ({
+	test('a bound plugin command fires on the leaf and commits through the metadata route', async ({
 		page
 	}) => {
 		await editor.memo.click();
@@ -64,7 +54,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		expect(origins.filter((o) => o === 'command')).toHaveLength(1);
 		expect(pageErrors).toEqual([]);
 
-		// The gesture was a no-op that consumed the key; the editor stays interactive.
+		// The gesture did nothing but consume the key, and the editor stays interactive.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('%% memo text!');
 	});

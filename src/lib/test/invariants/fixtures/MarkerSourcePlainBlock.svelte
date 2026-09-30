@@ -1,7 +1,7 @@
 <script lang="ts">
-	// A plain-mode leaf on the platform's own caret door, painting its bytes as marker chrome:
-	// the single-text-node sync leaves the span alone (its textContent already matches), so the
-	// shared factory's `parkCaret` seats a caret where the mode paints nothing.
+	// A plain-mode leaf using the platform's own caret call, painting its bytes as markers: the
+	// single-text-node sync leaves the span alone, since its textContent already matches, so the
+	// shared factory's `parkCaret` puts a caret where the mode paints nothing.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

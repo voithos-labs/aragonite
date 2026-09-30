@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { consumePendingRestore } from '../../components/blocks/editable-surface';
 
-// The blur-yank scar: a pending caret armed before a render must NOT be applied once focus
+// A pending caret set before a render must not be applied once focus
 // has left the block, or the restore drags the global selection back into it.
 describe('consumePendingRestore', () => {
 	let el: HTMLDivElement;
@@ -60,7 +60,7 @@ describe('consumePendingRestore', () => {
 		expect(ran).toBe(false);
 	});
 
-	it('carries any pending shape — a range for the code wrap arm', () => {
+	it('carries any pending shape: a range for the code wrap branch', () => {
 		el.focus();
 		let applied: { start: number; end: number } | null = null;
 		const result = consumePendingRestore(el, { start: 2, end: 5 }, (range) => {

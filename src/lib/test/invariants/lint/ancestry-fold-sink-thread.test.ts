@@ -1,23 +1,28 @@
 /**
- * G4.46 — the ancestry rebuild's `folds` sink is a required-nullable capability: a fold splices
- * the PARENT's children array, so only a caller that reconciles that scope's ids/refs may pass
- * one. The type stops an omission; what it cannot stop is caller N+1 answering `null` because
- * reconciling was inconvenient, and a wrong id length is permanent. Hence the site map below —
- * every production call site is enumerated with the stance it takes and why it takes it.
+ * Every production call to the ancestry rebuild, with whether it passes a `folds` callback or
+ * `null` and why (G4.46). A merged container splices the parent's children array, so only a
+ * caller that reconciles that list's ids and refs may pass a callback; the type forces a choice
+ * but cannot stop a convenient `null`, and a wrong id length is permanent.
  */
 
 import { describe, it, expect } from 'vitest';
-import { callArguments, callsTo, collectEditorSources, stripComments } from './scan-source';
+import {
+	callArguments,
+	callsTo,
+	collectEditorSources,
+	sourceFile,
+	type SourceFile
+} from './scan-source';
 
 const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry'] as const;
 
-/** `(root, chain, sharing, folds, grammar)` — the sink is the fourth argument of both seams. */
+/** `(root, chain, sharing, folds, grammar)`: the callback is the fourth argument of both. */
 const FOLDS_ARGUMENT = 3;
 
 interface SiteStance {
 	/** Calls answering the literal `null`. */
 	declines: number;
-	/** Calls passing a sink, which is the claim "I can reconcile a parent-scope splice". */
+	/** Calls passing a callback, which asserts the caller can reconcile a splice in the parent. */
 	sinks: number;
 	why: string;
 }
@@ -26,12 +31,12 @@ const SITES: Record<string, SiteStance> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		declines: 0,
 		sinks: 1,
-		why: 'the multi-scope ceremony owns the doc-level ids/refs and every prepared scope’s state, so it reconciles and publishes the fold’s unwind'
+		why: 'the multi-scope commit sequence owns the doc-level ids/refs and every prepared scope’s state, so it reconciles and publishes the fold’s unwind'
 	},
-	'src/lib/editor-actions/container-edit.ts': {
+	'src/lib/editor-actions/leaf-write.ts': {
 		declines: 0,
 		sinks: 1,
-		why: 'the routine-typing spine; it publishes no descriptor of its own, so it reconciles the splice directly'
+		why: 'the keystroke written in place; it publishes no descriptor of its own, so it reconciles the splice directly'
 	},
 	'src/lib/tree-operations/chain-rebuild.ts': {
 		declines: 0,
@@ -41,45 +46,45 @@ const SITES: Record<string, SiteStance> = {
 	'src/lib/editor-actions/block-edit-core.ts': {
 		declines: 1,
 		sinks: 0,
-		why: 'a decision, not a constraint: the rebuild root IS the scope whose descriptor the ceremony publishes, so a fold there would ride that descriptor. Declining because a metadata write that changes what a container interrupts has no producer'
+		why: 'a decision, not a constraint: the rebuild root is itself the scope whose descriptor the commit sequence publishes, so a fold there would ride that descriptor. Declining because a metadata write that changes what a container interrupts has no producer'
 	},
 	'src/lib/selection/cross-block/format-range.ts': {
 		declines: 1,
 		sinks: 0,
 		why: 'a byte write inside the content range: no opener or closer line moves, so no fold a parent scope would have to reconcile can be produced'
 	},
-	'src/lib/selection/cross-block/type-replace.ts': {
-		declines: 1,
-		sinks: 0,
-		why: 'the degraded splice arm, which already warns; its chain is built from a leaf path strictly BELOW the commit scope, so the ceremony’s own re-walk does not reach those levels'
-	},
 	'src/lib/selection/range-delete.ts': {
-		declines: 4,
+		declines: 2,
 		sinks: 0,
-		why: 'the cross-block delete family: byte-correctness passes inside a ceremony that owns the registers elsewhere and splices at the LCA itself. Their chains can run deeper than the ceremony’s scope, which is a recorded residual rather than a reconciliation'
+		why: 'the cross-block delete family: byte-correctness passes inside a commit sequence that owns the registers elsewhere and splices the containers it empties itself. Their chains can run deeper than that commit’s scope, which is a recorded residual rather than a reconciliation'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		declines: 2,
 		sinks: 0,
-		why: 'same family — the endpoint-survivor and chrome-clear rebuild passes'
+		why: 'same family: the removed subtrees’ parent chains and the chrome-clear rebuild passes'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
 		declines: 2,
 		sinks: 0,
-		why: 'same family — both endpoints of a wall range'
+		why: 'same family: both kept edges of a range that merges nothing'
 	},
 	'src/lib/selection/range-delete-table.ts': {
-		declines: 7,
+		declines: 2,
 		sinks: 0,
-		why: 'same family — every table-range endpoint and survivor pass'
+		why: 'same family: the cleared table, and each kept edge of a table range'
 	},
 	'src/lib/tree-operations/paste/container-match.ts': {
 		declines: 2,
 		sinks: 0,
 		why: 'the merged leaf sits below the commit scope, and the deeper levels are listItem/list joins the absorb’s same-kind window test cannot satisfy'
 	},
-	'src/lib/testing/container-conformance.ts': {
+	'src/lib/editor-actions/search-replace.ts': {
 		declines: 1,
+		sinks: 0,
+		why: 'the rebuild runs on a private clone that is reparsed whole afterwards, so any fold the chain could produce is read again by that parse and by the commit’s own settle'
+	},
+	'src/lib/testing/container-conformance.ts': {
+		declines: 3,
 		sinks: 0,
 		why: 'the published kit owns neither ids nor refs, so there is no parent scope for it to reconcile'
 	}
@@ -96,9 +101,8 @@ interface SinkCall {
 	declines: boolean;
 }
 
-/** Every seam call in `code`, classified by whether its sink argument is the literal `null`. */
-function sinkCalls(relPath: string, rawText: string): SinkCall[] {
-	const code = stripComments(rawText);
+/** Every such call in the file, classified by whether its callback argument is literally `null`. */
+function sinkCalls({ relPath, code }: SourceFile): SinkCall[] {
 	return SEAMS.flatMap((seam) =>
 		callsTo(code, seam).map((call) => ({
 			relPath,
@@ -108,9 +112,9 @@ function sinkCalls(relPath: string, rawText: string): SinkCall[] {
 }
 
 describe('ancestry-rebuild fold-sink source-scan', () => {
-	const calls = collectEditorSources().flatMap((f) => sinkCalls(f.relPath, f.text));
+	const calls = collectEditorSources().flatMap(sinkCalls);
 
-	it('found the seam call sites to validate', () => {
+	it('found the call sites to validate', () => {
 		expect(new Set(calls.map((c) => c.relPath)).size).toBe(Object.keys(SITES).length);
 	});
 
@@ -127,13 +131,12 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 					declines: own.filter((c) => c.declines).length,
 					sinks: own.filter((c) => !c.declines).length
 				},
-				`${relPath} — ${stance.why}`
+				`${relPath}: ${stance.why}`
 			).toEqual({ declines: stance.declines, sinks: stance.sinks });
 		}
 	});
 
-	// The declining set is a judgement call, so the map is only worth its lines while a reader can
-	// see one: a reason too thin to argue with is the shape this scan is meant to stop.
+	// Passing `null` is a judgement call, so every entry must give a reason worth arguing with.
 	it('every stance states a reason', () => {
 		for (const [relPath, stance] of Object.entries(SITES)) {
 			expect(stance.why.length, `${relPath} states no substantive reason`).toBeGreaterThan(40);
@@ -142,12 +145,14 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
+	const synthetic = (text: string) => sourceFile('synthetic.ts', text);
+
 	it('matcher reads the sink slot, not the last argument', () => {
+		expect(sinkCalls(synthetic('rebuildUnsharedChain(doc, chain, sharing, null, null);'))).toEqual([
+			{ relPath: 'synthetic.ts', declines: true }
+		]);
 		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedChain(doc, chain, sharing, null, null);')
-		).toEqual([{ relPath: 'synthetic.ts', declines: true }]);
-		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedAncestry(doc, path, sharing, folds, ctx.grammar);')
+			sinkCalls(synthetic('rebuildUnsharedAncestry(doc, path, sharing, folds, ctx.grammar);'))
 		).toEqual([{ relPath: 'synthetic.ts', declines: false }]);
 	});
 
@@ -155,12 +160,12 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 		const decl =
 			'export function rebuildUnsharedChain(root, chain, sharing, folds, grammar) {}\n' +
 			'// rebuildUnsharedAncestry(doc, path, sharing, null, grammar) would decline';
-		expect(sinkCalls('synthetic.ts', decl)).toEqual([]);
+		expect(sinkCalls(synthetic(decl))).toEqual([]);
 	});
 
 	it('matcher survives a nested call in an earlier argument', () => {
 		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedChain(doc, chainOf(a, b), sharing, null, grammar);')
+			sinkCalls(synthetic('rebuildUnsharedChain(doc, chainOf(a, b), sharing, null, grammar);'))
 		).toEqual([{ relPath: 'synthetic.ts', declines: true }]);
 	});
 });

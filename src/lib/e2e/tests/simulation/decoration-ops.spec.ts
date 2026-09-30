@@ -3,14 +3,12 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Ungated decoration-ops oracle. plugin-ops already runs the decoration ENGINE under the
-// corruption oracles; this drives the INTERACTION surface — island caret/delete/typing and
-// block-decoration chrome — which had no gesture and was scripted-e2e only. Every gesture
-// nets to identity, so end-state equality holds. The decoded-entity atomic widget rides the
-// same session as a widget-island sibling carrying its glyph, not its raw.
+// Decorations, run in the default gate: the caret, deletes and typing around a decoration, and a
+// block's badge, beside the decoded-entity widget. Every gesture leaves the bytes as they were, so
+// the end state still matches.
 
 const DECORATION_DOC =
 	'Alpha lead with a [>hidden gem<] fold inline.\n\n' +
@@ -23,13 +21,12 @@ test.describe('decoration-ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` installs the standing mark source plus the content-keyed island
-		// source; loadContent overrides the seed's (absent) document with DECORATION_DOC,
-		// whose sentinels (`[>…<]`, `WIDGET`, `BADGE`) light up the island source.
+		// `?seed=sim` installs both decoration sources; `loadContent` replaces the seed's empty
+		// document with DECORATION_DOC, whose markers (`[>…<]`, `WIDGET`, `BADGE`) those sources match.
 		await editor.gotoPlugins('sim');
 	});
 
-	test('island caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({
+	test('widget caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({
 		page
 	}) => {
 		const errors = attachErrorCollector(page);
@@ -39,8 +36,8 @@ test.describe('decoration-ops simulation', () => {
 		await editor.waitForRenderFlush();
 		const loaded = await editor.bridge.getSource();
 
-		// `loadContent` fires no edit event and decoration sources run on the per-edit pass, so a
-		// neutral net-identity edit is what primes the engine before the island gestures.
+		// `loadContent` fires no edit event and decoration sources run on each edit, so an edit
+		// that changes nothing is what gets them running before the gestures.
 		await editor.focusBlockEnd(3);
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceWith((s, prev) => s !== prev, loaded);
@@ -48,7 +45,7 @@ test.describe('decoration-ops simulation', () => {
 		await editor.bridge.waitForSourceEquals(loaded);
 		await editor.waitForRenderFlush();
 
-		// The decorations now paint at their content-keyed positions before any gesture.
+		// The decorations are drawn at the positions their text implies, before any gesture.
 		await expect(page.locator("[data-block-path='[0]'] [data-decoration-island]")).toHaveCount(1);
 		await expect(page.locator("[data-block-path='[1]'] [data-decoration-island]")).toHaveCount(1);
 		await expect(page.locator("[data-block-path='[2]'].sim-badged-block")).toHaveCount(1);
@@ -56,48 +53,44 @@ test.describe('decoration-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'decoration-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
-		// ── Replace island (block 0): walk, two-press delete both edges, type adjacent ──
+		// ── Replace decoration (block 0): walk it, delete from each edge, type beside it ──
 		await g.walkAcrossIsland(0);
-		await checkOracles('replace-walk');
+		await assertCheckpoint(ctx, 'replace-walk');
 
 		await g.edgeDeleteReplaceIsland(0, 'Backspace');
-		await checkOracles('replace-backspace-delete');
+		await assertCheckpoint(ctx, 'replace-backspace-delete');
 
 		await g.edgeDeleteReplaceIsland(0, 'Delete');
-		await checkOracles('replace-delete-delete');
+		await assertCheckpoint(ctx, 'replace-delete-delete');
 
 		await g.typeAdjacentToIsland(0);
-		await checkOracles('replace-type-adjacent');
+		await assertCheckpoint(ctx, 'replace-type-adjacent');
 
-		// ── Widget island (block 1): walk (transparency), backspace-through, type adjacent ──
+		// ── Widget decoration (block 1): walk through it, backspace through it, type beside ──
 		await g.walkAcrossIsland(1);
-		await checkOracles('widget-walk');
+		await assertCheckpoint(ctx, 'widget-walk');
 
 		await g.backspaceThroughWidgetIsland(1);
-		await checkOracles('widget-backspace-through');
+		await assertCheckpoint(ctx, 'widget-backspace-through');
 
 		await g.typeAdjacentToIsland(1);
-		await checkOracles('widget-type-adjacent');
+		await assertCheckpoint(ctx, 'widget-type-adjacent');
 
 		// ── Block decoration (block 2): reorder down and back; the badge follows ──
 		await g.reorderDecoratedBlock(2);
-		await checkOracles('badge-reorder');
+		await assertCheckpoint(ctx, 'badge-reorder');
 
-		// ── Entity widget (block 3): type mid-prose, then atomic-delete whole ──
+		// ── Entity widget (block 3): type mid-sentence, then delete it whole ──
 		await g.typeEntityWidget(3, 5, '&copy;');
 		expect(await editor.bridge.getSource()).toContain('Tail &copy;line');
-		await checkOracles('entity-typed');
+		await assertCheckpoint(ctx, 'entity-typed');
 
 		await g.atomicDeleteEntityWidget(3);
-		await checkOracles('entity-deleted');
+		await assertCheckpoint(ctx, 'entity-deleted');
 
-		// Every gesture nets to identity, so the document returns to the loaded bytes.
+		// Every gesture leaves the bytes as they were, so the document is back to what loaded.
 		expect(await editor.bridge.getSource()).toBe(loaded);
 	});
 });

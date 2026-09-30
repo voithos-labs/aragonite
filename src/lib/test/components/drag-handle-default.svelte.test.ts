@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-//
-// The hover drag handle is ON by default, and `false` is the opt-out. Miss-analysis: the e2e suite
-// pinned `blockDragHandles=false` but drove every other case through a harness route that passes
-// the prop explicitly, so nothing anywhere asserted the default — the one value every consumer
-// actually gets.
+// The hover drag handle is on by default, and `false` turns it off.
+// Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 installLayoutStubs();
 
@@ -31,17 +32,29 @@ describe('blockDragHandles default', () => {
 		expect(handleCount()).toBe(0);
 	});
 
-	// Prose is the page's background: no grip, though it stays a reorder unit.
+	// Prose is the page's background: no handle, though it can still be reordered.
 	it('renders no handle on a paragraph, and one per list item beside it', () => {
 		mounted = mountEditor({ source: '- one\n- two\n\nplain\n' });
-		// Path [1]: the top-level paragraph, not the one inside the list item (not a unit).
+		// Path [1]: the top-level paragraph, not the one inside the list item.
 		const para = mounted.target.querySelector('.block-host[data-block-path="[1]"]')!;
 		expect(para.classList.contains('reorder-host')).toBe(true);
 		expect(para.querySelector(':scope > .block-drag-handle')).toBeNull();
 		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
 	});
 
-	// A list item's drag is scoped to its list, so a lone item's grip could never drop anywhere.
+	// Miss-analysis: the no-handle case ran a paragraph only, never a heading.
+	it('renders no handle on a heading of either syntax, and one on the code beside them', () => {
+		mounted = mountEditor({ source: '# Atx\n\nSetext\n===\n\n```\ncode\n```\n' });
+		const handleOn = (path: string) =>
+			mounted!.target.querySelector(
+				`.block-host[data-block-path="${path}"] > .block-drag-handle`
+			) !== null;
+		expect(handleOn('[0]')).toBe(false);
+		expect(handleOn('[1]')).toBe(false);
+		expect(handleOn('[2]')).toBe(true);
+	});
+
+	// A list item's drag stays inside its list, so a lone item's handle could drop nowhere.
 	it('renders no handle on the only item of a list', () => {
 		mounted = mountEditor({ source: '- [ ] lone task\n\nplain\n' });
 		const item = mounted.target.querySelector('.list-item-block')!;

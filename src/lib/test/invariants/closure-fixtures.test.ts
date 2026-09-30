@@ -1,11 +1,10 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { ALL_BLOCK_KINDS, type AnyBlockKind, type CstNode } from '$lib/core/nodes';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { activateDirectives } from '$lib/components/blocks/directive/activate-directives';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
@@ -15,9 +14,9 @@ import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
-// G1.24 rule (c): every declared `conformanceFixture` parses to a tree containing its
-// declaring kind. A sweep rather than a flush-seam check because a `parse` import there
-// would close a schema → core/parser → schema cycle. Scope is lib-resident kinds only.
+// Every declared `conformanceFixture` parses to a tree containing the kind that declared it
+// (G1.24 rule c). Checked here rather than at registration, because a `parse` import there would
+// close a schema → core/parser → schema cycle. It covers kinds that live in the library only.
 
 function treeContainsKind(
 	node: { kind: string; children?: readonly CstNode[] },
@@ -44,7 +43,7 @@ describe('built-in conformance fixtures parse to their kind', () => {
 		(kind) => getBlockKindDescriptor(kind).conformanceFixture !== undefined
 	);
 
-	it('is not vacuous — the parser-reachable built-ins carry fixtures', () => {
+	it('is not vacuous: the parser-reachable built-ins carry fixtures', () => {
 		expect(withFixture.length).toBeGreaterThan(8);
 	});
 
@@ -59,8 +58,6 @@ describe('built-in conformance fixtures parse to their kind', () => {
 });
 
 describe('directive + bundled-plugin conformance fixtures parse to their kind', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('generic directive fallback (container + leaf)', () => {
 		activateDirectives();
 		checkFixture(DIRECTIVE_CONTAINER);

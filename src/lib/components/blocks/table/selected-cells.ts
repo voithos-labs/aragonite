@@ -1,19 +1,19 @@
 /**
- * Which cells of one table a measurement request covers: a live intra-table
- * rectangle, or a plain `[start, end)` run of row-major cell indices. The rectangle
- * wins only when it belongs to THIS table.
+ * Which cells of one table a measurement request covers: a live rectangle of cells, or a plain
+ * `[start, end)` run of row-major cell indices. The rectangle wins only when it belongs to this
+ * table.
  */
 
 import { SELECTION_END } from '../../../block-component';
-import { cellRowCol } from '../../../cursor/coordinate-spaces';
+import { cellRowCol, type CellRect } from '../../../cursor/coordinate-spaces';
 import { pathsEqual } from '../../../selection/path-math';
-import type { IntraTableRect } from './cell-clipboard';
+import type { GridCoverage } from '../../../selection/range-coverage';
 import type { CellCoord } from './table-navigation';
 
 export interface SelectedCellsInput {
-	/** The live rectangle from anywhere in the document, or null. */
-	rect: IntraTableRect | null;
-	/** This table's doc path — the owner check against `rect.tablePath`. */
+	/** The live rectangle's coverage from anywhere in the document, or null. */
+	grid: GridCoverage | null;
+	/** This table's document path, checked against `grid.path`. */
 	myPath: readonly number[];
 	start: number;
 	/** `SELECTION_END` means "through the last cell". */
@@ -23,10 +23,8 @@ export interface SelectedCellsInput {
 }
 
 export function selectedCells(input: SelectedCellsInput): CellCoord[] {
-	const { rect, myPath, columnCount, rowCount } = input;
-	if (rect && pathsEqual(rect.tablePath, myPath)) {
-		return rectangleCells(rect, columnCount);
-	}
+	const { grid, myPath, columnCount, rowCount } = input;
+	if (grid && pathsEqual(grid.path, myPath)) return rectangleCells(grid.rect);
 
 	const cellCount = rowCount * columnCount;
 	const end = input.end === SELECTION_END ? cellCount : Math.min(input.end, cellCount);
@@ -35,14 +33,10 @@ export function selectedCells(input: SelectedCellsInput): CellCoord[] {
 	return cells;
 }
 
-function rectangleCells(rect: IntraTableRect, columnCount: number): CellCoord[] {
-	const a = coordOf(rect.anchorCellIdx, columnCount);
-	const b = coordOf(rect.focusCellIdx, columnCount);
+function rectangleCells({ top, left, rows, cols }: CellRect): CellCoord[] {
 	const cells: CellCoord[] = [];
-	for (let r = Math.min(a.rowIdx, b.rowIdx); r <= Math.max(a.rowIdx, b.rowIdx); r++) {
-		for (let c = Math.min(a.colIdx, b.colIdx); c <= Math.max(a.colIdx, b.colIdx); c++) {
-			cells.push({ rowIdx: r, colIdx: c });
-		}
+	for (let r = top; r < top + rows; r++) {
+		for (let c = left; c < left + cols; c++) cells.push({ rowIdx: r, colIdx: c });
 	}
 	return cells;
 }

@@ -74,8 +74,7 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 		expect(check([row()], ['emphasis'])).toBeNull();
 	});
 
-	// The mark column's two ties. Both were compile errors while `InlineMarkKind` was a closed
-	// union and the vocabulary two hand-written tables; the check is what replaced that.
+	// The mark column's two ties: `InlineMarkKind` is any inline kind, so no type rules them out.
 	it('fires when two mark rows share a nesting rank', () => {
 		const mark = { nestingRank: 0, command: 'format.toggleStrong' };
 		const violation = check(
@@ -115,9 +114,8 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 		).toBeNull();
 	});
 
-	// A built-in id the mark table does not already claim ties with nothing, so only this rule
-	// catches it — and the surfaces that consult the mark table disagree on where in their command
-	// lookup it sits, so the shadow is one surface's and not the other's.
+	// A built-in id no mark row claims ties with no other row, so only this rule catches it, and the
+	// mark table's readers order their lookups differently, so the shadow would hit only one.
 	it('fires when a plugin row’s mark claims a built-in command id', () => {
 		const violation = check(
 			[row({ kind: kind('spec-mark'), mark: { nestingRank: 9, command: 'link.openCard' } })],
@@ -132,7 +130,7 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 		});
 	});
 
-	it('accepts a plugin row whose mark names a minted command', () => {
+	it('accepts a plugin row whose mark names a created command', () => {
 		expect(
 			check(
 				[row({ kind: kind('spec-mark'), mark: { nestingRank: 9, command: 'spec.toggleMark' } })],

@@ -1,7 +1,7 @@
 /**
  * Per-instance keybinding overrides: the public override-entry type, the normalized lookup it
- * compiles into, and the primitives the command resolver composes with the built-in tables.
- * Schema leaf — the map reaches the resolver as an argument, never through a context read.
+ * compiles into, and the primitives the command resolver composes with the built-in tables. The
+ * map reaches the resolver as an argument, never through a context read.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import { normalizeChordStrict, type KeyBinding } from './keybindings';
@@ -11,17 +11,15 @@ import type { AnyCommandId } from './command-id';
 export interface KeybindingOverride {
 	/** Chord string in the public format (Mod/Alt/Shift + key). See keybindings.ts. */
 	chord: string;
-	/** A command to bind (built-in or minted plugin id), or `null` to disable the chord. A disable
-	 *  removes the binding and drops the chord from `reservedChords()`, but the press is still
-	 *  consumed inside the editor rather than falling through to the browser's own default. */
+	/** A command to bind (built-in or plugin id), or `null` to disable the chord. A disabled chord
+	 *  leaves `reservedChords()` but is still consumed, so the browser's own default never runs. */
 	command: AnyCommandId | null;
-	/** Target one block kind's keymap — built-in, or a plugin kind via its exported
-	 *  kind constant (branded; a raw string literal won't typecheck). Omit for the
-	 *  editor-global scope. */
+	/** One block kind's keymap, a plugin kind named by its exported (branded) constant. Omit for
+	 *  the editor-global scope. */
 	kind?: AnyBlockKind;
 	/**
-	 * Static argument baked into the binding. `unknown` for coherence with `KeyBinding.arg`: a
-	 * minted command's non-number arg survives normalization, and the handler type-guards it.
+	 * Static argument baked into the binding. `unknown` to match `KeyBinding.arg`: a plugin
+	 * command's non-number arg survives normalization, and the handler type-guards it.
 	 */
 	arg?: unknown;
 }
@@ -76,7 +74,7 @@ export function lookupOverride(
 	return overrides.byKind.get(scope)?.get(chord);
 }
 
-/** Resolve one tier: a binding (use it), null (decided unbound — disabled), undefined (no decision). */
+/** Resolve one override scope: a binding (use it), null (disabled), undefined (no entry). */
 export function overrideDecision(value: OverrideValue | undefined): KeyBinding | null | undefined {
 	if (value === undefined) return undefined;
 	return value === 'disabled' ? null : value;

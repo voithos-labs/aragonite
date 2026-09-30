@@ -1,9 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
 import {
 	ALL_BLOCK_KINDS,
@@ -38,7 +36,7 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	setextHeading: 'GAP: every heading is ATX; the underlined form is unshown',
 	indentedCode: 'GAP: code is fenced throughout; the four-space form is unshown',
 	linkReferenceDefinition: 'GAP: every link is inline; the reference form is unshown',
-	// Kinds a finished tour must NOT contain.
+	// Kinds a finished tour must not contain.
 	htmlBlock:
 		'BY DESIGN: the only raw HTML is the `<details>` block, which the details plugin claims',
 	unrecognized: 'BY DESIGN: the parser mints this for input it cannot place; a valid tour has none',
@@ -47,9 +45,8 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	directiveLeaf: 'BY DESIGN: the leaf half of the same unclaimed-directive fallback'
 };
 
-/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour.
- *  Lockstepped against the directory listing below, so a plugin dropped from the demo
- *  set fails here even though its kinds leave the registry with it. */
+/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour, checked
+ *  against the directory listing so a plugin dropped from the demo set fails here. */
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
 	details: [DETAILS],
@@ -61,10 +58,12 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	toc: [TOC_BLOCK],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
-	'highlight-occurrences': []
+	'highlight-occurrences': [],
+	// Declares no kind either: typing `/` opens it, which a document's bytes cannot show.
+	'slash-commands': []
 };
 
-/** The inline kinds the bundled plugins mint. No registry lists them, so the plugin
+/** The inline kinds the bundled plugins add. No registry lists them, so the plugin
  *  packages' own exported constants stand in. */
 const PLUGIN_INLINE_KINDS = [EMOJI_KIND, FOOTNOTE_REF_KIND, MATH_INLINE];
 
@@ -90,8 +89,7 @@ function kindsIn(document: Document): Set<string> {
 let demonstrated: Set<string>;
 let expected: Set<string>;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins(DEMO_PLUGINS);
 	demonstrated = kindsIn(parse(SHOWCASE_DOCUMENT));
 	expected = new Set([
@@ -100,8 +98,6 @@ beforeAll(() => {
 		...PLUGIN_INLINE_KINDS
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('the showcase document demonstrates the surface it ships with', () => {
 	it('installs the plugin grammar it is written against', () => {
@@ -116,7 +112,8 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		);
 		expect(
 			missing,
-			`kinds the tour installs but never shows — demonstrate them in showcase-content.md, or list them in NOT_YET_DEMONSTRATED with a reason:\n  ${missing.join('\n  ')}`
+			`kinds the tour installs but never shows: demonstrate them in showcase-content.md, or list them in NOT_YET_DEMONSTRATED with a reason:
+  ${missing.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -124,7 +121,8 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		const closed = Object.keys(NOT_YET_DEMONSTRATED).filter((kind) => demonstrated.has(kind));
 		expect(
 			closed,
-			`NOT_YET_DEMONSTRATED entries the document now demonstrates (drop them — the list only shrinks):\n  ${closed.join('\n  ')}`
+			`NOT_YET_DEMONSTRATED entries the document now demonstrates (drop them: the list only shrinks):
+  ${closed.join('\n  ')}`
 		).toEqual([]);
 	});
 
@@ -136,7 +134,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 		).toEqual([]);
 	});
 
-	// The registry cannot see a plugin that LEFT the demo set: its kinds leave the expected
+	// The registry cannot see a plugin that left the demo set: its kinds leave the expected
 	// set with it, and every assertion above stays green on a tour that lost a plugin.
 	it.each(Object.entries(PLUGIN_DEMONSTRATED_BY))(
 		'the %s plugin has something to show',
@@ -163,9 +161,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 	});
 
 	it('enrolls every bundled plugin directory, and only those', () => {
-		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => entry.name);
+		const dirs = bundledPluginDirs();
 		const enrolled = Object.keys(PLUGIN_DEMONSTRATED_BY);
 		expect(
 			dirs.filter((dir) => !enrolled.includes(dir)),
@@ -178,7 +174,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 	});
 });
 
-/** The first word of four letters or more a paragraph repeats — `showcase-occurrences.spec.ts`
+/** The first word of four letters or more a paragraph repeats; `showcase-occurrences.spec.ts`
  *  picks its click target the same way, over the same tokenization the plugin scans with. */
 function repeatedWord(raw: string): string | null {
 	const counts = new Map<string, number>();

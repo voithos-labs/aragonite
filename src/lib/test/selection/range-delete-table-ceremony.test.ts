@@ -1,43 +1,39 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
-// SelectionState would have snapped to cell coordinates first.
-afterEach(() =>
-	allowDevWarns([
-		'deleteFromProseIntoTable:end',
-		'deleteFromTableIntoProse:start',
-		'deleteAcrossTwoTables:start',
-		'deleteAcrossTwoTables:end'
-	])
-);
+// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
+// `SelectionState` would have snapped to cell coordinates first.
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
-// The table branch rides the chrome branch's deletion ceremony: a covered container strictly
-// between the endpoints dies as ONE splice with children intact, never a child-by-child emptying,
-// so a commit scope or undo entry holding the detached node stays invariant-clean.
+// As in the title-line branch, a covered container between the endpoints goes as one splice with
+// its children intact, so the undo entry holds a whole detached node.
 
 const TWO_COL_TWO_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
 function run(doc: Document, start: SelectionPoint, end: SelectionPoint) {
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
-describe('rangeDelete table branch — covered containers die whole', () => {
+describe('rangeDelete table branch: covered containers die whole', () => {
 	it('Case 1 (prose → table): a covered blockquote detaches with its child intact', () => {
 		// [0] para, [1] blockquote(paragraph), [2] table. end.offset 1 = inclusive
 		// last header cell → header removed, body promotes, table survives.
@@ -66,7 +62,7 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 		expect(doc.children[0].raw).toBe('ter\n');
 	});
 
-	it('two-table span: the between container rides the same ceremony', () => {
+	it('two-table span: the between container rides the same commit sequence', () => {
 		// [0] table A (emptied), [1] blockquote(paragraph), [2] table B (header
 		// row cleared by inclusive end.offset 1, body promotes).
 		const input = parse(`${TWO_COL_TWO_ROW}\n> quoted\n\n${TWO_COL_TWO_ROW}`);

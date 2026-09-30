@@ -1,22 +1,19 @@
 /**
- * G4.20 CRLF-mirror oracle — an edit's output bytes depend on the document's line
- * ending only through that ending. Each gesture runs twice over one fixture, once
- * LF-authored and once mirrored to CRLF, and the CRLF result must be the LF result
- * mirrored. Any other byte difference is the bug.
- *
- * An outcome oracle rather than another source-scan arm because most G4.20 breaches carry
- * no literal shape to scan for (a blank-line comparison, a default parameter three calls
- * down), and because this fires for gesture N+1 without being taught about it.
+ * An edit's output bytes depend on the document's line ending only through that ending (G4.20).
+ * Each gesture runs over one fixture written with LF and mirrored to CRLF, and the CRLF result has
+ * to be the LF result mirrored. The outcome is checked rather than the source scanned, since most
+ * breaches have no literal shape to scan for, and a new gesture is caught without being listed.
  */
 
 import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { insertHardBreak } from '../../components/blocks/text/text-keydown';
 import { computeFenceExit } from '../../components/blocks/code/code-fence-exit';
 import { codePasteSurface } from '../../components/blocks/code/code-paste-surface';
+import { tableCellPasteSurface } from '../../components/blocks/table/table-cell-paste';
 import { metadataOf } from '../../core/nodes';
 import {
 	rebuildBlockquoteRaw,
@@ -26,19 +23,30 @@ import {
 } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
-import { pasteDispatch, __getDefaultTextSurface } from '../../tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '../../tree-operations/paste-surfaces';
+import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
+import { replaceBlockRaw } from '../../editor-actions/block-edit-core';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
+import {
+	makeEditorActionsDeps,
+	makeListContextAt,
+	makeTopHarness,
+	pasteContext
+} from '../harness/editor-actions';
+import { createFocusActions } from '../../editor-actions/focus/focus';
+import { blockContextActionsFor } from '../../schema/context-actions';
+import { everyInstalledPlugin } from '../../schema/plugin-activation';
+import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 interface EditGesture {
 	name: string;
@@ -52,54 +60,62 @@ interface EditGesture {
 const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
 
-/**
- * The separators a paste MINTED, without the clipboard raws it merely spliced: normalization
- * makes the clipboard LF on both runs, so only the editor's own seams can mirror.
- */
-const mintedSeams = (doc: Document) =>
-	doc.children.map((n) => n.leadingTrivia ?? '').join('') + doc.suffix;
-
-/** Paste `clipboard` into `doc` through the real per-level bundle. */
+/** Paste through the real per-level bundle. The clipboard stays LF on both runs, as every paste
+ *  entry point normalizes it, so the lines mirror only if written in the document's ending. */
 async function pasteInto(
 	doc: Document,
 	targetPath: number[],
 	offset: number,
 	clipboard: string
 ): Promise<Document> {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-	registerPasteSurface(__getDefaultTextSurface('heading'));
+	ensurePasteSurface(tableCellPasteSurface);
+	ensurePasteSurface(codePasteSurface);
 	const { deps } = makeEditorActionsDeps(doc);
 	const controller = createUndoController(deps);
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
-		}
+			controller: createPasteCoordinator(deps, controller)
+		})
 	);
 	return deps.doc;
 }
 
-/** A range delete's emitted bytes. The grammar/mode/resolver slots stay `undefined`: this oracle
- *  reads the line ending, and none of the three moves one. */
+/** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
+ *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
-		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, undefined).newDoc
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, start, end)),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
 	);
 
 const GESTURES: EditGesture[] = [
 	{
 		name: 'hard break at end of display',
 		source: 'abc\n',
-		apply: (doc) => insertHardBreak(doc.children[0].raw, displayLength(doc.children[0].raw)).newRaw
+		apply: (doc) =>
+			insertHardBreak(
+				doc.children[0].raw,
+				displayLength(doc.children[0].raw),
+				documentLineEnding(doc),
+				{ start: 0, end: displayLength(doc.children[0].raw) }
+			).newRaw
 	},
 	{
 		name: 'hard break mid display',
 		source: 'abc\n',
-		apply: (doc) => insertHardBreak(doc.children[0].raw, 1).newRaw
+		apply: (doc) =>
+			insertHardBreak(doc.children[0].raw, 1, documentLineEnding(doc), {
+				start: 0,
+				end: displayLength(doc.children[0].raw)
+			}).newRaw
 	},
 	{
 		name: 'blockquote rebuild across a blank quote line',
@@ -140,14 +156,15 @@ const GESTURES: EditGesture[] = [
 	{
 		name: 'list exit minting the paragraph below the list',
 		source: '- a\n- b\n',
-		apply: (doc) => serializeNodes(buildExitReplacement(doc.children[0], 1).blocks)
+		apply: (doc) =>
+			serializeNodes(buildExitReplacement(doc.children[0], 1, documentLineEnding(doc)).blocks)
 	},
 	{
 		name: 'empty-container backfill',
 		source: '- \n',
 		apply: (doc) => {
 			const item = doc.children[0].children![0];
-			ensureEditableContainers(item);
+			ensureEditableContainers(item, documentLineEnding(doc));
 			return serializeNodes(item.children!);
 		}
 	},
@@ -182,8 +199,8 @@ const GESTURES: EditGesture[] = [
 			)
 	},
 	{
-		// The document empties, so nothing survives to read an ending from — which is why
-		// the ending has to be captured before the delete.
+		// The document empties, so nothing survives to read an ending from, which is why the
+		// ending has to be captured before the delete.
 		name: 'range delete emptying the document across two tables',
 		source: '| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n',
 		apply: (doc) =>
@@ -213,19 +230,186 @@ const GESTURES: EditGesture[] = [
 		apply: (doc) => {
 			const node = doc.children[0];
 			const caret = node.raw.indexOf('code') + 'code'.length;
-			return codePasteSurface.onInlinePaste!(node, caret, 'X').newRaw;
+			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, topLevelStore(node), '\n')
+				.newRaw;
 		}
 	},
 	{
 		name: 'structural paste landing the clipboard’s trailing blank at the document tail',
 		source: 'x\n',
-		apply: async (doc) => mintedSeams(await pasteInto(doc, [0], 1, '# h\n\n'))
-	}
+		apply: async (doc) => serialize(await pasteInto(doc, [0], 1, '# h\n\n'))
+	},
+	{
+		name: 'fence exit on the empty line above the closer',
+		source: '```\nfoo\n\n```\n',
+		apply: (doc) => {
+			const node = doc.children[0];
+			const text = trimTrailingLineEnding(node.raw);
+			const exit = computeFenceExit({
+				text,
+				// The empty line starts just past the break that ends `foo`.
+				offset: text.indexOf('\n', text.indexOf('foo')) + 1,
+				meta: metadataOf(node, 'fencedCode')
+			});
+			return exit.kind === 'exitWithEdit' ? exit.newText : `UNEXPECTED ${exit.kind}`;
+		}
+	},
+	{
+		name: 'dissolving a fence into text',
+		source: '```\nfoo\nbar\n```\n',
+		apply: (doc) => dissolveBlock(doc, 0)
+	},
+	{
+		// Miss-analysis: every dissolve fixture had a line break inside the fence to copy.
+		name: 'dissolving a lone opener on the last line',
+		source: 'a\n\n```',
+		apply: (doc) => dissolveBlock(doc, 1)
+	},
+	...unterminatedTail(),
+	...pasteRoutes()
 ];
+
+/** The bytes the code block's "Dissolve into text" row writes for the block at `index`. */
+async function dissolveBlock(doc: Document, index: number): Promise<string> {
+	registerCodeContextActions();
+	const node = doc.children[index];
+	const dissolve = blockContextActionsFor(node, [index], everyInstalledPlugin, 'block').find(
+		(action) => action.id === 'code.dissolve'
+	);
+	const written: string[] = [];
+	await dissolve!.run({
+		node,
+		path: [index],
+		deleteBlock: async () => {},
+		replaceRaw: async (raw) => void written.push(raw),
+		transformPaste: (text) => text,
+		lineEnding: documentLineEnding(doc)
+	});
+	return written.join('');
+}
+
+// Miss-analysis: every fixture ended in a line ending, so none met an unterminated tail (GH #458).
+function unterminatedTail(): EditGesture[] {
+	return [
+		{
+			name: 'Enter at the end of an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				await harness.actions.splitBlock(1, 'last'.length);
+				return serialize(harness.deps.doc);
+			}
+		},
+		{
+			name: 'paste of blocks at the end of an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => serialize(await pasteInto(doc, [1], 'last'.length, 'x\n\ny'))
+		},
+		{
+			name: 'Enter at the end of an unterminated last list item',
+			source: 'abc\n\n- a\n- b',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				const list = makeListContextAt(harness.deps, 1, { controller: harness.controller });
+				await list.listContext.insertItemAfter(1);
+				return serialize(harness.deps.doc);
+			}
+		},
+		{
+			name: 'ArrowDown past an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				await createFocusActions(harness.deps, harness.controller).moveFocus(2, 'start');
+				return serialize(harness.deps.doc);
+			}
+		},
+		{
+			name: 'list exit below an unterminated list',
+			source: 'abc\n\n- a\n- ',
+			apply: (doc) =>
+				serializeNodes(buildExitReplacement(doc.children[1], 1, documentLineEnding(doc)).blocks)
+		},
+		{
+			name: 'table rebuild of an unterminated table',
+			source: 'abc\n\n| a |\n| --- |\n| 1 |',
+			apply: (doc) => {
+				rebuildTableRaw(doc.children[1]);
+				return doc.children[1].raw;
+			}
+		}
+	];
+}
+
+/** One row per route a paste can take into the tree, each pasting lines of its own. A drop has
+ *  no row: it moves no text holding a line break. */
+function pasteRoutes(): EditGesture[] {
+	const paste =
+		(path: number[], offset: number | ((doc: Document) => number), clipboard: string) =>
+		async (doc: Document): Promise<string> => {
+			const at = typeof offset === 'number' ? offset : offset(doc);
+			return serialize(await pasteInto(doc, path, at, clipboard));
+		};
+	// A code block's offsets count its opening fence line, whose ending the mirror lengthens.
+	const afterCode = (doc: Document) => doc.children[0].raw.indexOf('code') + 'code'.length;
+	return [
+		{ name: 'block paste at a soft break', source: 'abc\nAfter\n', apply: paste([0], 3, 'x\n\ny') },
+		{ name: 'inline paste of two lines', source: 'abc\nAfter\n', apply: paste([0], 3, 'x\ny') },
+		{
+			name: 'blocks pasted into a table cell',
+			source: '| a | b |\n| --- | --- |\n| c |  |\n\nAfter\n',
+			apply: paste([0, 1, 1], 0, 'x\n\ny')
+		},
+		{
+			name: 'items into a list',
+			source: '- a\n- b\n',
+			apply: paste([0, 0, 0], 1, '- one\n- two')
+		},
+		{
+			name: 'a list breaking out of a list',
+			source: '1. a\n',
+			apply: paste([0, 0, 0], 1, '- x\n- y')
+		},
+		{
+			name: 'a quote into a quote',
+			source: '> a\n',
+			apply: paste([0, 0], 1, '> q\n> r')
+		},
+		{
+			name: 'lines into a code block',
+			source: '```\ncode\n```\n',
+			apply: paste([0], afterCode, 'x\ny')
+		},
+		// Miss-analysis: the rows below build their bytes outside `pasteDispatch`, and every row
+		// here went through it, so neither route met a document whose ending differed from LF.
+		{
+			name: 'blocks replacing a block the selection covers whole',
+			source: 'abc\n\nAfter\n',
+			apply: (doc) =>
+				serializeNodes(
+					parseReplacement(
+						doc.children[0],
+						'x\ny\n\nz',
+						documentLineEnding(doc),
+						slotReaderAt(doc, [0], fixtureReading().grammar)
+					)!.replacement
+				)
+		},
+		{
+			name: 'the block menu replacing a code block with the clipboard',
+			source: 'first\n\n```\ncode\n```\n',
+			apply: async (doc) => {
+				const { deps, controller } = makeTopHarness(doc);
+				await replaceBlockRaw({ deps, controller }, [1], 'x\ny\n');
+				return serialize(deps.doc);
+			}
+		}
+	];
+}
 
 const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 
-describe('G4.20 CRLF-mirror oracle', () => {
+describe('G4.20 CRLF-mirror check', () => {
 	for (const gesture of GESTURES) {
 		it(`${gesture.name} emits the CRLF mirror of its LF result`, async () => {
 			// Mirror-identity, not "contains no lone LF": an untouched line rewritten under a

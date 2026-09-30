@@ -2,8 +2,9 @@
 	import { Editor } from '$lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
-	// A post-hydration readiness signal: once both instances are bound, their mount effects
-	// (each document-level keydown listener included) have run, so no chord races a cold editor.
+	// A signal that the page is ready after hydration: once both instances are bound, their mount
+	// effects have run, the document-level keydown listeners included, so no shortcut arrives
+	// before an editor is listening.
 	let left = $state<ReturnType<typeof Editor>>();
 	let right = $state<ReturnType<typeof Editor>>();
 

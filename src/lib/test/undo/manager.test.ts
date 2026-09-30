@@ -99,8 +99,8 @@ describe('UndoManager', () => {
 	});
 
 	it('evicts the oldest entry once the stack exceeds MAX_UNDO (FIFO)', () => {
-		// Regression guard: an eviction direction flip (pop vs shift) would make
-		// the user's most recent edit unreachable.
+		// Regression check: dropping from the wrong end (`pop` instead of `shift`) would make the
+		// user's most recent edit unreachable.
 		const manager = createUndoManager();
 		const CAP = 200;
 		for (let i = 0; i < CAP + 1; i++) {

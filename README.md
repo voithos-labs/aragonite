@@ -195,7 +195,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`@voithos-labs/aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
-Does the design actually work in practice? Well, the nine bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
+Does the design actually work in practice? Well, the ten bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, slash commands, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
 
 # Fast
 
@@ -340,7 +340,7 @@ Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use i
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: Parse then serialize returns the same text every time. Unfortunately, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`). docs/design/syntax-tree.md covers why the alternative is worse.
+[^9]: Parse then serialize returns the same text every time. Unfortunately, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`), and a list item's tab indentation can turn into spaces. docs/design/syntax-tree.md covers why the alternative is worse.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 

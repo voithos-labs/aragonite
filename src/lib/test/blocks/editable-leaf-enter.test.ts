@@ -1,77 +1,30 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every editable-leaf case was written against a multi-line kind (block math, the
-// `@@` harness leaf), so the literal newline Enter inserts was always visible and always wanted,
-// and no test asked what a one-line leaf does with a byte it cannot show.
+// Miss-analysis: every editable-leaf case used a multi-line kind, so none asked a one-line leaf.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { makeStubBlockEdit } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-import { installLayoutStubs } from './editor-mount';
+import { unmount } from 'svelte';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
+import { mountBlock } from '../harness/mount-block';
 
 const KIND = 'enter-leaf';
 const RAW = '@@ one\n';
 const SOURCE = '@@ one';
 
-/** Drains the microtask queue the async keydown handler and the reveal both run on. */
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 function mountLeaf(singleLine: boolean) {
-	const kind = declarePluginKind(KIND);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
-	});
-
-	const node: CstNode = { kind, leadingTrivia: '', raw: RAW } as CstNode;
-	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
-	const blockEdit = makeStubBlockEdit();
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-
-	const instance = mount(RevealLeafBlock, {
-		target,
-		props: { node, index: 0, myPath: [0], singleLine },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-
+	const kind = registerRevealLeafKind(KIND);
+	const mounted = mountRevealLeaf(leafDocument(kind, RAW), { props: { singleLine } });
 	return {
-		instance,
-		blockEdit,
-		source: () => target.querySelector<HTMLElement>('.reveal-leaf-source'),
-		/** Reveal the source with the caret at the end of the block's bytes. */
-		revealAtEnd: async () => {
-			instance.parkCaret(SOURCE.length);
-			await flush();
-			const el = target.querySelector<HTMLElement>('.reveal-leaf-source');
-			expect(el, 'the reveal mounted no source element').not.toBeNull();
-			return el!;
-		}
+		...mounted,
+		source: () => mounted.target.querySelector<HTMLElement>('.reveal-leaf-source')
 	};
 }
-
-const pressEnter = async (el: HTMLElement) => {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-	await flush();
-};
 
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
@@ -79,7 +32,6 @@ afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('Enter in an editable leaf', () => {
@@ -87,7 +39,7 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(false);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(el.textContent).toBe(`${SOURCE}\n`);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
@@ -97,25 +49,23 @@ describe('Enter in an editable leaf', () => {
 		mounted = mountLeaf(true);
 		const el = await mounted.revealAtEnd();
 
-		await pressEnter(el);
+		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length);
-		// The fold is the split's precondition, so the source is back to its rendered view.
+		// The split first collapses the revealed source, so the block shows its rendered view.
 		expect(mounted.source()).toBeNull();
 	});
 
-	// Miss-analysis: every case here dispatched the press and awaited it on a leaf nothing
-	// touched, so no test ever asked what the handler does when the block it addresses stops
-	// existing between two of its own steps.
+	// Miss-analysis: every case awaited the key on an untouched leaf, never one unmounted mid-step.
 	it('drops the press whose container unmounted the leaf mid-step', async () => {
 		mounted = mountLeaf(true);
 		const el = await mounted.revealAtEnd();
 
-		// Svelte's delegated walk does not await the handler, so the container above claims the
-		// press and tears the block down while the shared step is still pending.
+		// Svelte's delegated dispatch does not await the handler, so the container above takes the
+		// key and tears the block down while the leaf's Enter handling is still pending.
 		el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 		el.remove();
-		await flush();
+		await settleEditor();
 
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 	});
@@ -123,23 +73,51 @@ describe('Enter in an editable leaf', () => {
 	it('lands the fold’s write before the split reads the block’s bytes', async () => {
 		mounted = mountLeaf(true);
 		let releaseWrite!: () => void;
-		const writeGate = new Promise<void>((resolve) => {
-			releaseWrite = resolve;
+		const writeGate = new Promise<boolean>((resolve) => {
+			releaseWrite = () => resolve(true);
 		});
-		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() => writeGate);
+		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() =>
+			withStoredCaret(writeGate, 0)
+		);
 
 		const el = await mounted.revealAtEnd();
 		// A draft the reveal holds and the CST has not seen; the caret goes back to its end.
 		el.textContent = '@@ two';
 		mounted.instance.parkCaret(6);
-		await flush();
-		await pressEnter(el);
+		await settleEditor();
+		await pressKey(el, { key: 'Enter' });
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '@@ two\n', 6, 6);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'@@ two\n',
+			'authored',
+			6,
+			6
+		);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		releaseWrite();
-		await flush();
+		await settleEditor();
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
+	});
+});
+
+// A plain leaf's source stays focusable in reading mode, so its Enter arrives and the leaf's own
+// reading-mode check is what keeps the split from asking the write.
+describe('Enter in a plain one-line leaf in reading mode', () => {
+	it('arrives, and splits nothing', async () => {
+		const kind = registerRevealLeafKind(KIND);
+		const plain = mountBlock(PlainOneLineLeafBlock, {
+			doc: leafDocument(kind, RAW),
+			overrides: { policies: { presentationMode: () => 'reading' } }
+		});
+		const el = plain.target.querySelector<HTMLElement>('.plain-one-line-source')!;
+		el.focus();
+
+		const pressed = await pressKey(el, { key: 'Enter' });
+
+		expect(pressed.defaultPrevented).toBe(true);
+		expect(plain.blockEdit.splitBlock).not.toHaveBeenCalled();
+		await plain.dispose();
 	});
 });

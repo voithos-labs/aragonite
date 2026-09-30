@@ -1,74 +1,28 @@
 /**
- * ContainerEditActions factory: the debounced checkpoint pusher for raw typing
- * outside the commit primitive, the doc-root reactivity nudge, and `commitContainer`.
+ * The root ContainerEditActions: what a container reaches the editor root for, which is the
+ * document's line ending, the container commit, the two things a keystroke needs the root for
+ * (grouping it with its typing burst, and the write that keeps the leaf in place), and the caret
+ * landing with the whole-document read a delete's caret needs.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
-import type { SharingState } from '../tree-operations/sharing';
-import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { rebuildUnsharedChain, type AncestrySeamFold } from '../tree-operations/chain-rebuild';
-import type { StructuralChange } from '../tree-operations/structural-change';
-import { publishAncestryFolds, publishScopeFold } from './ancestry-folds';
+import { documentLineEnding } from '../core/lines';
 import type { EditorActionsDeps, UndoController } from './deps';
+import { createLeafTyping } from './leaf-write';
+import { survivorAfterRemoval } from '../selection/caret-target';
 
 export function createContainerEditActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): ContainerEditActions {
+	const { typeInLeaf, writeLeafInPlace } = createLeafTyping(deps, controller);
 	return {
-		pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
-			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
-		},
-
-		armDebouncedPause(): void {
-			controller.armUndoPause();
-		},
-
-		nudgeReactivity(): void {
-			// Raw mutations made outside the commit primitive surface through this nudge,
-			// so Svelte re-reads doc.children.
-			deps.doc.children = [...deps.doc.children];
-		},
-
-		withUnsharedSpine(
-			absPath: number[],
-			write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
-		): boolean {
-			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
-			// Read before the write: it is the one byte-state no level of the rebuild can capture
-			// for itself, and the ancestry splice needs it to place the leaf's own region.
-			const leafPreviousRaw = chain[chain.length - 1]?.raw;
-			const written = write(chain, deps.sharing) ?? { op: 'noop' };
-			// Unconditional: this door exists to carry bytes, and a short chain or a `noop`
-			// settle says nothing about whether `write` moved any.
-			deps.bumpContentVersion();
-			// The write's own settle can splice the scope it wrote in, and a short chain means the
-			// unshare never reached that scope, so there is nothing to publish against.
-			if (chain.length === absPath.length) {
-				publishScopeFold(deps, chain[absPath.length - 2], written);
-			}
-			// The ANCESTRY settle's folds — a container's own slot in its PARENT, not the write's
-			// scope published above. Their unwind is discarded on purpose: nothing rolls back at a
-			// door that is not a ceremony. Their caret landing (`foldLandingFor`) wants a tick this
-			// synchronous door has not got, and no producer reaches one.
-			const folds: AncestrySeamFold[] = [];
-			const replacements = rebuildUnsharedChain(
-				deps.doc,
-				chain,
-				deps.sharing,
-				folds,
-				deps.grammar,
-				leafPreviousRaw === undefined ? undefined : { path: absPath, leafPreviousRaw }
-			);
-			publishAncestryFolds(deps, folds);
-			return replacements.length > 0;
-		},
-
-		commitContainer(args): Promise<void> {
-			return controller.commitContainerStructural(args);
-		}
+		lineEnding: () => documentLineEnding(deps.doc),
+		commitContainer: (args) => controller.commitContainerStructural(args),
+		typeInLeaf,
+		writeLeafInPlace,
+		land: (pos) => deps.caretLanding.land(pos),
+		survivorAfterRemoval: (removedPath, gesture) =>
+			survivorAfterRemoval(deps.doc, removedPath, gesture)
 	};
 }

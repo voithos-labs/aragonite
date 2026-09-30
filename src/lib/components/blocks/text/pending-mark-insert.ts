@@ -1,15 +1,15 @@
 /**
  * The bytes an insertion produces while marks are pending. A mark resolves against the caret's
- * construct chain (live-mode.md § 4.3): a kind the chain lacks WRAPS the insertion, a kind it
- * carries escapes it. Flanking rules mean a splice that READS right can PARSE wrong
- * (`**hello**X** world**` renders literal stars), so every candidate is re-parsed and checked.
+ * chain of enclosing constructs (live-mode.md § 4.3): a kind the chain lacks wraps the insertion,
+ * a kind it already has escapes it. Flanking rules mean a splice that reads right can parse wrong
+ * (`**hello**X** world**` renders literal stars), so every candidate is reparsed and checked.
  */
 
 import {
 	constructContentRange,
 	constructKinds,
 	inlineDescendants,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -20,26 +20,25 @@ import {
 	type InlineMark,
 	type InlineMarkKind
 } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
-	/** The block's whole display bytes after the insertion. */
+	/** The block's whole displayed text after the insertion. */
 	raw: string;
-	/** Where the caret lands — after the inserted text, inside whatever now wraps it. */
+	/** Where the caret lands: after the inserted text, inside whatever now wraps it. */
 	caret: number;
 }
 
-/**
- * The insertion `text` at `caretOffset` makes under `marks`. Null when the marks name nothing to
- * do, or when no candidate parses back to what was asked — markdown cannot express every
- * combination at every caret, and a byte that types plain beats one that shows delimiters.
- */
+/** The insertion `text` at `caretOffset` makes under `marks`, or null when no candidate parses back
+ *  as asked. `reading` must be the one `inlines` was read with. */
 export function resolveMarkedInsertion(
 	display: string,
 	caretOffset: number,
 	text: string,
 	marks: ReadonlySet<InlineMarkKind>,
-	inlines: readonly InlineNode[]
+	inlines: readonly InlineNode[],
+	reading: Reading
 ): MarkedInsertion | null {
 	if (marks.size === 0 || text.length === 0) return null;
 
@@ -49,15 +48,14 @@ export function resolveMarkedInsertion(
 		.map((entry) => entry.kind)
 		.filter((kind) => marks.has(kind) && !chain.some((node) => node.mark === kind));
 	const removedKinds = new Set<AnyInlineKind>(removed.map((node) => node.kind));
-	// What must enclose the inserted text afterwards: every construct the caret was inside minus
-	// the ones this chord removes, plus the ones it adds. Non-markable ancestors are in it too —
-	// that is what stops an escape from carrying the byte out of a link it was inside.
+	// Ancestors with no mark stay in the intended chain, which stops an escape from carrying the
+	// byte out of a link it was inside.
 	const intended = new Set<AnyInlineKind>([
 		...chain.map((node) => node.kind).filter((kind) => !removedKinds.has(kind)),
 		...applied
 	]);
 
-	const before = { visible: visibleText(display), kinds: constructKinds(inlines) };
+	const before = { visible: visibleText(display, reading), kinds: constructKinds(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
 		caretOffset,
@@ -66,7 +64,7 @@ export function resolveMarkedInsertion(
 		removed,
 		intended
 	)) {
-		if (parsesAsIntended(candidate, text, intended, before)) {
+		if (parsesAsIntended(candidate, text, intended, before, reading)) {
 			return { raw: candidate.raw, caret: candidate.textAt + text.length };
 		}
 	}
@@ -77,7 +75,7 @@ export function resolveMarkedInsertion(
 
 interface Candidate {
 	raw: string;
-	/** Where `text` itself begins in `raw` — the span the verification reads the chain around. */
+	/** Where `text` itself begins in `raw`, the span the check reads the chain around. */
 	textAt: number;
 }
 
@@ -105,9 +103,8 @@ function* candidateInsertions(
 	const outside = chain.slice(0, depth);
 	const payload = marksToWrite(intended, outside);
 
-	// A link or a widget between the caret and the construct being escaped cannot be cut open: its
-	// closer is not a mirror of its opener the way a mark's is, and splicing inside one writes
-	// literal bytes into content. Only stepping outside is available there.
+	// A link or widget between the caret and the escaped construct cannot be cut open, since its
+	// closer does not mirror its opener, so only stepping outside is tried.
 	if (escaped.every((node) => isSymmetricPair(node.kind))) {
 		yield splitOpen(display, caretOffset, text, escaped, payload);
 	}
@@ -117,9 +114,8 @@ function* candidateInsertions(
 	for (const at of sides) yield spliceWrapped(display, at, text, payload);
 }
 
-/** The marks the insertion must declare for itself: the intended ones its surroundings do not
- *  already provide, outermost first. Rows rather than kinds, so nothing downstream can look a
- *  marker up and miss. */
+/** The marks the insertion must write for itself: the intended ones its surroundings do not
+ *  already provide, outermost first. */
 function marksToWrite(
 	intended: ReadonlySet<AnyInlineKind>,
 	provided: readonly ChainNode[]
@@ -146,9 +142,8 @@ function spliceWrapped(
 	};
 }
 
-/** Close every escaped construct before the insertion and reopen it after — the split that keeps
- *  the user's text where they put it. An empty half would leave a pair enclosing nothing, the
- *  invisible `****` residue live mode must never mint, so that side steps outside the run. */
+/** Close every escaped construct before the insertion and reopen it after. A side left empty
+ *  steps outside the run instead, since live mode never writes a pair around nothing. */
 function splitOpen(
 	display: string,
 	caretOffset: number,
@@ -181,25 +176,28 @@ interface BlockBefore {
 	kinds: ReadonlySet<AnyInlineKind>;
 }
 
-/**
- * Three questions, and a candidate answers all of them or it is not written. Did the mark TAKE —
- * do exactly the intended constructs enclose the inserted text? Did every construct the block
- * already held SURVIVE — a delimiter run shared between two pairings rebinds under any splice, and
- * the loser is a construct nobody asked to spend. And is the rewrite invisible otherwise?
- */
+/** A candidate is written only if exactly the intended constructs enclose the inserted text, every
+ *  construct the block held survives (a shared run can rebind), and nothing else shows a change. */
 function parsesAsIntended(
 	candidate: Candidate,
 	text: string,
 	intended: ReadonlySet<AnyInlineKind>,
-	before: BlockBefore
+	before: BlockBefore,
+	reading: Reading
 ): boolean {
-	const nodes = parseInline(candidate.raw, 0, candidate.raw.length);
+	const nodes = readInline(
+		candidate.raw,
+		0,
+		candidate.raw.length,
+		reading.resolver,
+		reading.grammar
+	);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
 	if (around.size !== intended.size) return false;
 	for (const kind of intended) if (!around.has(kind)) return false;
 	const after = constructKinds(nodes);
 	for (const kind of before.kinds) if (!after.has(kind)) return false;
-	return insertsExactly(before.visible, visibleText(candidate.raw, nodes), text);
+	return insertsExactly(before.visible, visibleText(candidate.raw, reading, nodes), text);
 }
 
 /** The construct kinds covering `[start, end)`; `text` is content, not a construct. */
@@ -216,13 +214,15 @@ function enclosingKinds(
 	return kinds;
 }
 
-/** What a reader sees, asked of the thing that actually paints it: only the render path knows
- *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. The content
- *  reading, not the block's own: the first byte typed into content-empty chrome folds it away, and
- *  the diff above would read that fold as bytes lost. This arm only ADDS bytes, so no reading of
- *  it licenses dropping one the reader saw. */
-function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
-	return renderedText(parsed ?? parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
+/** What the user sees, asked of the render (G4.33). The content reading rather than the block's
+ *  own: the first byte typed into an empty construct hides its markers, which is not a loss. */
+function visibleText(raw: string, reading: Reading, parsed?: readonly InlineNode[]): string {
+	return renderedText(
+		parsed ?? readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
+		raw,
+		CONTENT_VISIBILITY,
+		{ grammar: reading.grammar }
+	);
 }
 
 // ── The chain ────────────────────────────────────────────────────────────────
@@ -248,13 +248,8 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.edgeAffinity === 'symmetric-pair';
 }
 
-/**
- * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
- * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children is
- * content-INCLUSIVE, a childless one STRICT-interior, its edges being ordinary insertion points.
- * Exported for the depth pin, which has to reach it with a tree no insertion this deep could be
- * rendered at.
- */
+/** Every construct holding `offset`, outermost first; one missing here could be destroyed unnoticed.
+ *  Exported for the depth test. */
 export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
 	const chain: ChainNode[] = [];
@@ -273,8 +268,8 @@ export function constructChainAt(offset: number, inlines: readonly InlineNode[])
 	return chain;
 }
 
-/** Whether `offset` sits inside this construct, on the reading the chain doc states. Text is
- *  content, and nothing under it is a construct either. */
+/** Whether `offset` sits inside this construct, on the reading `constructChainAt` describes. Text
+ *  is content, and nothing under it is a construct either. */
 function holdsOffset(node: InlineNode, offset: number): boolean {
 	if (node.kind === 'text') return false;
 	const content = constructContentRange(node);

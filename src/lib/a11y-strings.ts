@@ -1,17 +1,27 @@
 /**
  * Accessible names, tooltips, and live-region announcements in one table, so a future
- * locale pass has one seam. Internal — no barrel exports it.
+ * translation pass has one place to work. Internal: no barrel exports it.
  */
 
-import type { TableAlignment } from './core/nodes';
+import type { NodeView } from './core/node-views';
+import {
+	headingLevel,
+	isBuiltinBlockKind,
+	metadataOf,
+	type AnyBlockKind,
+	type BlockKind,
+	type TableAlignment
+} from './core/nodes';
+import { tryGetBlockKindDescriptor } from './schema/block-kind-descriptor';
+import { shownKind } from './core/parsers/heading';
+import { fenceLanguage } from './core/parsers/fence-syntax';
 
-// ── Editor chrome ────────────────────────────────────────────────────────────
+// ── Editor controls ──────────────────────────────────────────────────────────
 
 export const EDITOR_LABEL = 'Markdown editor';
 export const DRAG_HANDLE_TITLE = 'Drag to reorder — or Alt+↑ / Alt+↓';
 export const FAILED_BLOCK_LABEL = 'Block failed to render';
 export const GAP_CARET_LABEL = 'Insertion point between blocks';
-export const WHOLE_BLOCK_INPUT_LABEL = 'Focused block input';
 export const IMAGE_PROPERTIES_LABEL = 'Image properties';
 export const IMAGE_ALT_FIELD = 'Alt text';
 export const IMAGE_ALT_PLACEHOLDER = 'Describe the image';
@@ -23,6 +33,7 @@ export const LINK_CARD_LABEL = 'Link properties';
 export const LINK_CARD_URL = 'Link URL';
 export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';
+export const INLINE_MENU_LABEL = 'Suggestions';
 export const CODE_LANGUAGE_FIELD = 'Code block language';
 
 export const CODE_RUN_LABEL = 'Run code block';
@@ -33,9 +44,62 @@ export const CODE_RAIL_LABEL = 'Code block controls';
 export const CODE_LANGUAGE_LIST = 'Code block languages';
 export const SELECTION_TOOLBAR_LABEL = 'Selection formatting';
 
-/** Chrome, not an announcement: the language chip's accessible name. */
+/** A control's name, not an announcement: the language chip's accessible name. */
 export function codeLanguageLabel(language: string): string {
 	return `Code language: ${language}`;
+}
+
+// ── Block names ──────────────────────────────────────────────────────────────
+
+/** What each built-in kind is called, to a screen reader and in the block menu's rows. */
+const BUILT_IN_BLOCK_LABELS: Record<BlockKind, string> = {
+	paragraph: 'Paragraph',
+	heading: 'Heading',
+	setextHeading: 'Heading',
+	fencedCode: 'Code block',
+	indentedCode: 'Code block',
+	htmlBlock: 'HTML block',
+	thematicBreak: 'Divider',
+	linkReferenceDefinition: 'Link definition',
+	table: 'Table',
+	tableRow: 'Table row',
+	tableCell: 'Table cell',
+	unrecognized: 'Raw block',
+	blockquote: 'Quote',
+	list: 'List',
+	listItem: 'List item'
+};
+
+/** A kind's name: the built-in table, else the plugin descriptor's `label`, else the kind
+ *  itself in words (`mathBlock` reads "Math block"). */
+export function blockKindLabel(kind: AnyBlockKind): string {
+	if (isBuiltinBlockKind(kind)) return BUILT_IN_BLOCK_LABELS[kind];
+	return tryGetBlockKindDescriptor(kind)?.label ?? humanizeKind(kind);
+}
+
+/** A block's accessible name: the name of the kind it shows as, plus a heading's level or a code
+ *  fence's language, which is what a reader moving block to block needs to tell them apart. */
+export function blockAccessibleName(node: NodeView): string {
+	const shown = shownKind(node);
+	if (shown !== node.kind) return blockKindLabel(shown);
+	const label = blockKindLabel(node.kind);
+	const level = headingLevel(node);
+	if (level !== null) return `${label} level ${level}`;
+	if (node.kind === 'fencedCode') {
+		const language = fenceLanguage(metadataOf(node, 'fencedCode').info);
+		if (language) return `${label}, ${language}`;
+	}
+	return label;
+}
+
+function humanizeKind(kind: string): string {
+	const words = kind
+		.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+		.split(/[\s_:-]+/)
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+	return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 // ── Search bar ───────────────────────────────────────────────────────────────
@@ -61,7 +125,6 @@ export const COLUMN_ALIGNMENT = 'Column alignment';
 export const ADD_ROW_BELOW = 'Add row';
 export const ADD_COLUMN_RIGHT = 'Add column';
 export const TAIL_ADD_ROW = 'Add a line below';
-export const TAIL_ADD_BLOCK = 'Add a block';
 export const BLOCK_MENU_LABEL = 'Insert a block';
 export const BLOCK_ACTIONS_LABEL = 'Block actions';
 export const ALIGN_LEFT = 'Left';

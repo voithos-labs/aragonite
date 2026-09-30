@@ -24,7 +24,7 @@ test.describe('code block electric indent', () => {
 		await expectBody(editor, '\tf(){\n\t\t\n\t}');
 	});
 
-	test('Enter between "|" does NOT electric-indent (quotes stay inline)', async () => {
+	test('Enter between "|" does not electric-indent (quotes stay inline)', async () => {
 		await editor.loadContent('```\n""\n```\n');
 		await focusCodeBody(editor, 1);
 		await editor.page.keyboard.press('Enter');

@@ -1,4 +1,4 @@
-# Block: List — Task Checkbox (rendering)
+# Block: List, Task Checkbox (rendering)
 
 Visual styling for completed vs pending tasks, GitHub's: a done item dims, it is not struck
 through; nested sub-lists render independently.
@@ -10,5 +10,5 @@ through; nested sub-lists render independently.
 
 ## Regression guards
 
-- Nested task sub-lists render independently — a checked outer item does not dim its nested
+- Nested task sub-lists render independently: a checked outer item does not dim its nested
   task sub-list's text.

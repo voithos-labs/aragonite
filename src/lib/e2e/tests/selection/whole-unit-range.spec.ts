@@ -4,16 +4,14 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * A drag inside a block with no character position selects it whole, and every destructive
- * gesture over that range goes through the range door
- * (requirements/selection/whole-unit-range.md). Focus parks on the editor root, so the root's
- * own arms are the only ones a keystroke or a clipboard event can reach.
- * Miss-analysis: the existing coverage pinned Backspace and the copy bytes; nothing typed a
- * character over such a range, and nothing asked where a pasted block landed.
+ * gesture over that range goes through the range command. Focus stays on the editor root, so
+ * the root's own handlers are the only ones a keystroke or a clipboard event can reach.
+ * Miss-analysis: nothing typed a character over such a range or checked where a paste landed.
  */
 
 const DOC = 'above\n\n---\n\nbelow\n';
 
-/** A held sweep across the block's middle: the unit joins the range the moment the pointer moves. */
+/** A held drag across the block's middle: the block joins the range as soon as the pointer moves. */
 async function dragInside(editor: EditorPage, selector: string): Promise<void> {
 	const box = await editor.page.locator(selector).boundingBox();
 	if (!box) throw new Error(`no box for ${selector}`);
@@ -25,7 +23,7 @@ async function dragInside(editor: EditorPage, selector: string): Promise<void> {
 	await editor.waitForCrossBlock(true);
 }
 
-test.describe('a whole-unit range — thematic break', () => {
+test.describe('a whole-unit range: thematic break', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -43,7 +41,7 @@ test.describe('a whole-unit range — thematic break', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 
-		// The caret sits after the character it landed, not at the block's head.
+		// The caret sits after the character that landed, not at the block's start.
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceEquals('above\n\nxy\n\nbelow\n');
 	});
@@ -55,6 +53,23 @@ test.describe('a whole-unit range — thematic break', () => {
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(DOC);
+	});
+
+	test('the undo puts the rule back held whole, so the next key replaces it again', async () => {
+		await dragInside(editor, '.thematic-break-block');
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceContains('\nx\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(DOC);
+		await editor.waitForCrossBlock(true);
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [1], offset: 0 },
+			focus: { path: [1], offset: 3 }
+		});
+
+		await editor.typeSlowly('y');
+		await editor.bridge.waitForSourceEquals('above\n\ny\n\nbelow\n');
 	});
 
 	test('a paste replaces the rule with the clipboard', async () => {
@@ -78,7 +93,74 @@ test.describe('a whole-unit range — thematic break', () => {
 	});
 });
 
-test.describe('a whole-unit range — block math', () => {
+test.describe('a whole-unit range: where each key leaves the caret', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	const SIDES = [
+		{ key: 'Backspace', lands: 'at the end of the block above', typed: 'abovex\n\nbelow\n' },
+		{ key: 'Delete', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' },
+		{ key: 'ControlOrMeta+x', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' }
+	];
+	for (const { key, lands, typed } of SIDES) {
+		test(`${key} ${lands}`, async () => {
+			await editor.loadContent(DOC);
+			await dragInside(editor, '.thematic-break-block');
+			await editor.page.keyboard.press(key);
+			await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+
+			await editor.typeSlowly('x');
+			await editor.bridge.waitForSourceEquals(typed);
+		});
+	}
+
+	test('in the first item of a list below, with nothing above', async () => {
+		await editor.loadContent('---\n\n- a\n');
+		await dragInside(editor, '.thematic-break-block');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('- a\n');
+
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals('- xa\n');
+	});
+});
+
+test.describe('a whole-unit range: the only block', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	for (const doc of ['---\n', '> ---\n']) {
+		test(`Backspace over ${JSON.stringify(doc)} leaves one empty paragraph to type into`, async () => {
+			await editor.loadContent(doc);
+			await dragInside(editor, '.thematic-break-block');
+			await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('\n');
+
+			await editor.typeSlowly('x');
+			await editor.bridge.waitForSourceEquals('x\n');
+		});
+	}
+
+	test('one undo brings the rule back', async () => {
+		await editor.loadContent('---\n');
+		await dragInside(editor, '.thematic-break-block');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('---\n');
+	});
+});
+
+test.describe('a whole-unit range: block math', () => {
 	test('a cut writes the equation to the clipboard and takes it out', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('mathblock');

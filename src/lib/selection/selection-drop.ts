@@ -1,67 +1,79 @@
 /**
- * Dragging a selection and dropping it. The browser's own version is two native edits committed
- * apart — `deleteByDrag` on the source, `insertFromDrop` on the target — so undo takes two presses
- * over a document that lost bytes in between, and inside one block the source commit rebuilds the
- * surface under the drop. Owned here instead: one snapshot over two raw writes, which splice
- * nothing, so no path moves under the second.
+ * Dragging a selection and dropping it, as one undo entry over two raw writes (the cut, then
+ * the insert). The browser's own drag is two separate edits, which undo would take in two steps.
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { GrammarView } from '../schema/block-openers';
-import type { LinkReferenceResolverRef, PresentationModeGetter } from '../editor-keys';
+import type { Reading } from '../schema/reading';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-import { domTextOffsetAtNode } from '../cursor/widget-offset';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
-import { blockNodeAt, emptyParagraph, writeOwnRaw } from '../tree-operations/node-primitives';
+import { rawOffsetAt, rawRangeToDomRange } from '../cursor/widget-offset';
+import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { blockContentElAt } from '../components/block-el-lookup';
+import {
+	blockNodeAt,
+	emptyParagraph,
+	normalizeOwnRaw,
+	writeOwnRaw
+} from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
-import { cutRangeFromDisplay } from '../tree-operations/node-ops';
+import { replaceRangeInLeaf } from '../tree-operations/leaf-range';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
-import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../tree-operations/list/task-paragraph';
 import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
-import { containerAmbientPrefix } from './range-delete';
+import { charOffsetOf } from './primitives';
+import { storedAsAt } from '../tree-operations/stored-as';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 
 export interface SelectionDropDeps {
 	editorRoot: HTMLElement;
 	getDoc(): Document;
 	controller: CommitController;
 	coordinator: PasteCommitCoordinator;
-	getPresentationMode: PresentationModeGetter | undefined;
-	linkRef: LinkReferenceResolverRef | undefined;
-	grammar: GrammarView | undefined;
-	activePlugins: PluginActivation | undefined;
-	/** The instance event surface: a ceremony that throws mid-move has nowhere else to report. */
+	/** How the editor reads its bytes: the cut is a join, and the reparse reads its grammar. */
+	reading: Reading;
+	activePlugins: PluginActivation;
+	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
+	/** Draws the caret saying where a release lands; null takes it away again. */
+	setDropCaret(rect: DropCaretRect | null): void;
 	isReadOnly(): boolean;
 }
 
-/** Where the drag started, in the source surface's raw offsets. */
-interface DragSource {
-	/** The editing surface the range sits in: a block, or a table cell. */
+/** Where the drop caret stands, in viewport coordinates. */
+export interface DropCaretRect {
+	left: number;
+	top: number;
+	height: number;
+}
+
+/** Where the drag started, in raw offsets of the element it started in. */
+export interface DragSource {
+	/** The editable element the range sits in: a block, or a table cell. */
 	path: number[];
 	start: number;
 	end: number;
 	inCell: boolean;
+	/** The bytes the release writes, read once at `dragstart` so the caret shown while the drag
+	 *  is held and the release itself cannot disagree about what moves. */
+	text: string;
 }
 
 /** The cut's bytes, at the block whose raw carries them: the source block, or the table a cell's
- *  bytes are joined into. `shrunkBy` is that block's own shrink. */
+ *  bytes are joined into. `shrunkBy` is how much that block's raw shrank. */
 interface ScopeCut {
 	path: number[];
 	raw: string;
 	shrunkBy: number;
 }
 
-/** A drag that IS this gesture but whose shape the seam does not move — a range leaving its
- *  surface, an empty one. The drop cancels it rather than handing it back. */
+/** A drag of the editor's selection in a shape the drop can't move (leaving its element, empty,
+ *  holding a line break); the drop cancels it rather than handing it back to the browser. */
 const DECLINED = 'declined';
 type DragStash = DragSource | typeof DECLINED;
 
@@ -69,49 +81,98 @@ type DragStash = DragSource | typeof DECLINED;
 
 export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	let source: DragStash | null = null;
+	// Where the painted caret stands. A drag fires `dragover` over and over at one position,
+	// and only a move to a different drop point has a new caret to draw.
+	let caretAt: { path: number[]; offset: number } | null = null;
+
+	function hideCaret(): void {
+		if (!caretAt) return;
+		caretAt = null;
+		deps.setDropCaret(null);
+	}
+
+	/** The caret saying where a release would land: cancelling the browser's drop takes its own
+	 *  caret away, so the editor's stands where the drop would land and declines where it does. */
+	function drawCaretAt(clientX: number, clientY: number, copy: boolean): void {
+		const from = source;
+		if (!from || from === DECLINED || deps.isReadOnly()) return hideCaret();
+		const target = dropTarget(deps, clientX, clientY);
+		if (!target) return hideCaret();
+		// The same refusal `dropOffsetAfterCut` makes once the cut has shrunk the block, tested
+		// here before the cut: a move has nowhere to put bytes inside the range it took them from.
+		const inside =
+			pathsEqual(target.path, from.path) && insideRange(target.offset, from.start, from.end);
+		if (inside && !copy) {
+			return hideCaret();
+		}
+		if (caretAt && caretAt.offset === target.offset && pathsEqual(caretAt.path, target.path)) {
+			return;
+		}
+		const rect = dropCaretRect(deps.editorRoot, target.path, target.offset);
+		if (!rect) return hideCaret();
+		caretAt = target;
+		deps.setDropCaret(rect);
+	}
+
 	const onDragStart = (e: DragEvent) => {
-		source = readSelectionSource(deps.editorRoot, e.target);
+		source = readSelectionSource(deps, e.target);
 	};
 	const onDragEnd = () => {
 		source = null;
+		hideCaret();
 	};
-	// The editor is the drop target for every drag this seam recognized, declined ones included:
-	// the drop below must RUN to cancel the browser's pair of native edits.
+	// The editor is the drop target for every drag recognised here, declined ones included: the
+	// drop handler below must run to cancel the browser's pair of native edits.
 	const onDragOver = (e: DragEvent) => {
-		if (source) e.preventDefault();
+		if (!source) return;
+		e.preventDefault();
+		drawCaretAt(e.clientX, e.clientY, isCopyDrag(e));
+	};
+	// `dragleave` also fires for every child the pointer crosses, so the caret goes only once
+	// the point is outside the editor's own box.
+	const onDragLeave = (e: DragEvent) => {
+		if (source && !isInside(deps.editorRoot, e.clientX, e.clientY)) hideCaret();
 	};
 	const onDrop = (e: DragEvent) => {
 		const from = source;
 		source = null;
+		hideCaret();
 		if (!from) return;
-		// Before every decline below, not after: the browser's two edits land apart and its undo
-		// is not ours, so a shape this seam declines mutates nothing rather than half of it.
+		// Before every decline below, not after: the browser's two edits land separately and its
+		// undo is not the editor's, so a declined shape changes nothing rather than half of it.
 		e.preventDefault();
 		if (from === DECLINED || deps.isReadOnly()) return;
 		const target = dropTarget(deps, e.clientX, e.clientY);
 		if (!target) return;
-		const text = movedText(deps, from);
-		if (text === null) return;
-		void runDrop(deps, from, target, text, e.ctrlKey || e.altKey).catch((error) => {
-			// A throw between the two writes leaves a snapshot pushed and half the move applied;
-			// the host hears it on the channel the paste route reports through.
+		void runDrop(deps, from, target, isCopyDrag(e)).catch((error) => {
+			// A throw between the two writes leaves half the move applied; the host hears about it on
+			// the same channel paste errors use.
 			emitClipboardError(deps.events, { error, path: from.path });
 		});
 	};
 	deps.editorRoot.addEventListener('dragstart', onDragStart);
 	deps.editorRoot.addEventListener('dragend', onDragEnd);
 	deps.editorRoot.addEventListener('dragover', onDragOver);
+	deps.editorRoot.addEventListener('dragleave', onDragLeave);
 	deps.editorRoot.addEventListener('drop', onDrop);
 	return () => {
+		// A reinstall mid-drag hands the new listeners no caret to clear, so it goes here.
+		hideCaret();
 		deps.editorRoot.removeEventListener('dragstart', onDragStart);
 		deps.editorRoot.removeEventListener('dragend', onDragEnd);
 		deps.editorRoot.removeEventListener('dragover', onDragOver);
+		deps.editorRoot.removeEventListener('dragleave', onDragLeave);
 		deps.editorRoot.removeEventListener('drop', onDrop);
 	};
 }
 
-/** Where a splice of `delta` blocks at `at` inside `parent` leaves `target`: what the drop's
- *  second write addresses once the first one's reparse changed its slot's block count. */
+/** Ctrl, or Alt (Option, macOS's copy key for a drag): the release copies instead of moving. */
+function isCopyDrag(e: DragEvent): boolean {
+	return e.ctrlKey || e.altKey;
+}
+
+/** Where `target` ends up after a splice of `delta` blocks at `at` inside `parent`: what the
+ *  drop's second write addresses once the first write's reparse changed the block count. */
 export function shiftPathAfterSplice(
 	target: number[],
 	parent: number[],
@@ -126,52 +187,43 @@ export function shiftPathAfterSplice(
 	return shifted;
 }
 
-/** Where a drop at `offset` lands once `[start, end)` left the same block, `shrunkBy` bytes
- *  shorter than the range was wide once the join seam cleaned up. Null inside the range. */
+/** Where a drop at `offset` lands once `[start, end)` has left the same block, which shrank by
+ *  `shrunkBy` bytes after the join cleanup. Null inside the range. */
 export function dropOffsetAfterCut(
 	offset: number,
 	start: number,
 	end: number,
 	shrunkBy: number
 ): number | null {
-	if (offset > start && offset < end) return null;
+	if (insideRange(offset, start, end)) return null;
 	return offset <= start ? offset : Math.max(0, offset - shrunkBy);
 }
 
 // ── Reading the gesture ────────────────────────────────────────────────────
 
-/**
- * The native range the drag carries, in its surface's raw offsets. `null` is "not this gesture" and
- * leaves the drag to the browser; {@link DECLINED} is this gesture in a shape the seam does not
- * move, which the drop cancels. A cross-block selection reaches neither: it paints through the
- * overlay and leaves no native range for the browser to drag.
- */
+/** The native range the drag carries, in raw offsets: null leaves the drag to the browser, and
+ *  {@link DECLINED} is the editor's selection in a shape the drop cancels. */
 function readSelectionSource(
-	editorRoot: HTMLElement,
+	deps: SelectionDropDeps,
 	dragged: EventTarget | null
 ): DragStash | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	// A draggable of its own (a rendered link, an image) is not this gesture, even with a range
-	// painted elsewhere: a selection drag grips a node the range covers.
+	// An element that is draggable on its own (a rendered link, an image) is not this gesture,
+	// even with a range painted elsewhere: a selection drag starts on a node the range covers.
 	if (!(dragged instanceof Node) || !range.intersectsNode(dragged)) return null;
 	const surface = surfaceOf(range.startContainer);
-	if (!surface || !editorRoot.contains(surface)) return null;
-	// Past this point the drag IS the editor's selection, so every remaining shape declines.
+	if (!surface || !deps.editorRoot.contains(surface)) return null;
+	// From here the drag is the editor's selection, so every remaining shape is declined.
 	if (!surface.contains(range.endContainer)) return DECLINED;
 	const found = findSurfaceForElement(surface);
 	if (!found) return DECLINED;
-	const ambient = ambientLengthOf(surface);
-	const start = toClampedRawOffset(
-		domTextOffsetAtNode(surface, range.startContainer, range.startOffset),
-		ambient
-	);
-	const end = toClampedRawOffset(
-		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
-		ambient
-	);
-	return start < end ? { ...found, start, end } : DECLINED;
+	const start = rawOffsetAt(surface, range.startContainer, range.startOffset);
+	const end = rawOffsetAt(surface, range.endContainer, range.endOffset);
+	if (start >= end) return DECLINED;
+	const text = movedText(deps, { ...found, start, end });
+	return text === null ? DECLINED : { ...found, start, end, text };
 }
 
 /** The block and offset a drop point addresses, as a single-click caret would land. Null where
@@ -187,9 +239,26 @@ function dropTarget(
 	return blockNodeAt(deps.getDoc(), point.path) ? { path: point.path, offset: point.offset } : null;
 }
 
-/** The source surface's own bytes for the range, past the paste transforms. Null for a payload
- *  this seam does not own: a line break needs the structural paste route. */
-function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
+/** Viewport rect of the caret at `offset` in the block at `path`. A block whose offset names no
+ *  text position falls back to its own box, and an unmounted one to null. */
+function dropCaretRect(root: HTMLElement, path: number[], offset: number): DropCaretRect | null {
+	const el = blockContentElAt(root, path);
+	if (!el) return null;
+	const at = charOffsetOf({ path, offset }, 'selection-drop:caret');
+	const rect = rawRangeToDomRange(el, at, at)?.getBoundingClientRect();
+	if (rect && rect.height > 0) return { left: rect.left, top: rect.top, height: rect.height };
+	const box = el.getBoundingClientRect();
+	return box.height > 0 ? { left: box.left, top: box.top, height: box.height } : null;
+}
+
+function isInside(el: HTMLElement, clientX: number, clientY: number): boolean {
+	const box = el.getBoundingClientRect();
+	return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
+}
+
+/** The source element's bytes for the range, after the paste transforms. Null for text this
+ *  module does not handle: a line break needs the structural paste path. */
+function movedText(deps: SelectionDropDeps, from: Omit<DragSource, 'text'>): string | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	const raw = trimTrailingLineEnding(node.raw).slice(from.start, from.end);
@@ -197,17 +266,29 @@ function movedText(deps: SelectionDropDeps, from: DragSource): string | null {
 	return text && !/[\r\n]/.test(text) ? text : null;
 }
 
-// ── The commit ceremony ────────────────────────────────────────────────────
+// ── The commit ─────────────────────────────────────────────────────────────
 
-async function runDrop(
+export function runDrop(
 	deps: SelectionDropDeps,
 	from: DragSource,
 	to: { path: number[]; offset: number },
-	text: string,
 	copy: boolean
 ): Promise<void> {
+	// One entry for the cut and the insert, and none when neither lands.
+	return deps.controller.undoStep({ path: docPathFrom(from.path), offset: from.start }, () =>
+		moveOrCopy(deps, from, to, copy)
+	);
+}
+
+async function moveOrCopy(
+	deps: SelectionDropDeps,
+	from: DragSource,
+	to: { path: number[]; offset: number },
+	copy: boolean
+): Promise<void> {
+	const text = from.text;
 	if (copy) {
-		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length, true);
+		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length);
 		return;
 	}
 	const cut = cutFrom(deps, from);
@@ -216,103 +297,92 @@ async function runDrop(
 		const offset = dropOffsetAfterCut(to.offset, from.start, from.end, cut.shrunkBy);
 		if (offset === null) return;
 		const merged = spliceAt(cut.raw, offset, text);
-		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length, true);
+		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length);
 		return;
 	}
-	deps.controller.pushUndoSnapshotPath(from.path, from.start);
-	// A table's caret door reads a cell landing, never a character offset (G1.29), so the
-	// transient caret the second write moves off is its first cell.
+	// A table's `focus` takes a cell, never a character offset, so the temporary caret the second
+	// write moves away from is its first cell (G1.29).
 	const sourceCaret = from.inCell ? 0 : from.start;
-	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret, false);
+	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret);
+	// An insert after a cut that never landed would turn the move into a copy.
+	if (spliced === null) return;
 	const at = cut.path[cut.path.length - 1];
 	const target = shiftPathAfterSplice(to.path, cut.path.slice(0, -1), at, spliced);
-	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length, false);
+	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length);
 }
 
 function insert(offset: number, text: string): (raw: string) => string {
 	return (raw) => spliceAt(raw, offset, text);
 }
 
-/** The source surface's display bytes with the dragged range gone, through the delete seam so a
- *  live-mode join cleans up after itself. */
+/** The source element's display bytes with the dragged range gone, cut as any in-leaf edit is so
+ *  a live-mode join cleans up after itself. */
 function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
-	const edit = replaceRangeRaw(
-		node,
-		{ start: from.start, end: from.end },
-		'',
-		deps.getPresentationMode?.(),
-		deps.linkRef,
-		containerAmbientPrefix(deps.getDoc(), from.path)
-	);
+	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
+	const edit = replaceRangeInLeaf(node, { start: from.start, end: from.end }, '', store);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
 }
 
-/** A cell's bytes are joined into its row, so the TABLE is the block the cut rewrites: the cell's
- *  own range-delete on a copy, then the kind's escape and the ancestry rebuild around it. */
+/** A cell's bytes are joined into its row, so the table is the block the cut rewrites: the cell's
+ *  own cut on a copy, then the kind's escaping and the ancestor rebuild around it. */
 function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): ScopeCut | null {
 	const tablePath = from.path.slice(0, -2);
 	// The cell path is resolved from a DOM selector contract, so the kind is read, not assumed.
 	const table = blockNodeAt(deps.getDoc(), tablePath);
 	if (!table || table.kind !== 'table') return null;
-	const cut = cutRangeFromDisplay(
-		cell,
-		cell.raw,
-		{ start: from.start, end: from.end },
-		deps.getPresentationMode?.(),
-		deps.linkRef
-	);
+	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
+	const cut = replaceRangeInLeaf(cell, { start: from.start, end: from.end }, '', store);
 	const rebuilt = cloneNode(table);
 	const inner = from.path.slice(-2);
 	const [rowIdx, colIdx] = inner;
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
-	writeOwnRaw(written, cut.display, deps.grammar);
-	rebuildAncestryRaw(rebuilt, inner);
+	writeOwnRaw(
+		written,
+		trimTrailingLineEnding(cut.raw),
+		documentLineEnding(deps.getDoc()),
+		deps.reading.grammar
+	);
+	rebuildAncestryRaw(rebuilt, inner, deps.reading.grammar);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
 }
 
-/**
- * Replace the block at `path` with the reparse of the bytes `rewrite` returns, at its parent
- * scope. Answers how many blocks the slot grew or shrank by, which is what keeps a second
- * write's path honest. `own` pushes this write's own undo entry.
- */
+/** Replaces the block at `path` with the reparse of `rewrite`'s bytes. Returns the change in block
+ *  count at that position, so a second write's path stays right, or null when nothing landed. */
 async function writeBlockRaw(
 	deps: SelectionDropDeps,
 	path: number[],
 	rewrite: (displayRaw: string) => string,
-	caret: number,
-	own: boolean
-): Promise<number> {
+	caret: number
+): Promise<number | null> {
 	const doc = deps.getDoc();
 	const node = blockNodeAt(doc, path);
-	if (!node) return 0;
-	const written = rewrite(trimTrailingLineEnding(node.raw));
-	// A block emptied by the cut keeps its slot as a blank paragraph: no splice, so the second
-	// write's path is still the one this gesture resolved.
-	const parsed = parseReplacement(node, written, deps.grammar, () => [
-		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
+	if (!node) return null;
+	// The bytes are built outside the block's own element, so the kind's write rule runs here.
+	const lineEnding = documentLineEnding(doc);
+	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
+	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
+	// second write's path is still the one resolved at the drop.
+	const read = slotReaderAt(doc, path, deps.reading.grammar);
+	const parsed = parseReplacement(node, written, lineEnding, read, () => [
+		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
-	if (!parsed) return 0;
-	const landed = await replaceBlockAtParent({
-		doc,
-		blockPath: path,
-		replacement: parsed.replacement,
-		controller: deps.coordinator,
-		undoEntry: own ? 'own' : 'join',
-		focusReplacementIndex: parsed.replacement.length - 1,
-		focusOffset: caret,
-		source: 'selection-drop',
-		...(deps.grammar ? { grammar: deps.grammar } : {})
-	});
-	// The LANDED count, not the parse's: a body rule inside the scope can rewrite the list. Zero
-	// is the unmounted-scope decline, which wrote nothing and so moved nothing.
-	return Math.max(0, landed - 1);
+	if (!parsed) return null;
+	const landed = await deps.coordinator.replaceBlock(
+		path,
+		parsed.replacement,
+		{ replacementIndex: parsed.replacement.length - 1, offset: caret },
+		// The drop's undo step records the selection, so this offset is never read.
+		{ source: 'selection-drop', snapshotOffset: 0 }
+	);
+	// The count that landed, not the parse's: a container's body rule can rewrite the list.
+	return landed === null ? null : landed - 1;
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────
@@ -320,6 +390,11 @@ async function writeBlockRaw(
 function spliceAt(raw: string, offset: number, text: string): string {
 	const at = Math.max(0, Math.min(offset, raw.length));
 	return raw.slice(0, at) + text + raw.slice(at);
+}
+
+/** Strictly between `start` and `end`: a position the dragged range itself covers. */
+function insideRange(offset: number, start: number, end: number): boolean {
+	return offset > start && offset < end;
 }
 
 function pathsEqual(a: number[], b: number[]): boolean {

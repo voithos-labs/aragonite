@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import type { Editor, PastedImage, PresentationMode } from '$lib';
-import { parse } from '$lib/core/parser';
+import { readBlocks } from '$lib/core/parser';
+import type { GrammarView } from '$lib/schema/block-openers';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
@@ -41,11 +42,18 @@ import {
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 import type { ClosureBlock } from '$lib/schema/closure';
+import { blockContentElAt } from '$lib/components/block-el-lookup';
+import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
+import { domDescendants } from '$lib/cursor/dom-walk';
+import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
+import { childIdDrifts } from '$lib/invariants/child-id-parity';
+import { isProseLeaf } from '$lib/schema/page-role';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// These kinds only trip BlockHost fallback paths, never a real editing surface, so every
+// These kinds only reach BlockHost's fallback paths, never a real editable block, so every
 // cross-cutting system is honestly not-supported.
 const HARNESS_PROBE_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
@@ -71,14 +79,13 @@ export interface TestProbeDeps {
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
 
-// The three closure columns the headless battery records as `boundary` — their
-// mechanisms are mounted-DOM-only, so the browser sweep executes them per kind.
+// The three closure columns the headless suite records as `boundary`: they work only against
+// mounted DOM, so the browser sweep runs them per kind.
 interface ConformanceSweepEntry {
 	kind: string;
 	fixture: string;
-	// Drawn from the fixture's first text leaf and absent from the neighbour paragraphs
-	// the sweep sandwiches it between, so a match is attributable to this block. Null
-	// when the block carries no searchable text.
+	// Taken from the fixture's first text leaf, so a match can only come from this block; null
+	// when the block has no searchable text.
 	token: string | null;
 	cells: {
 		focus: { mode: string };
@@ -96,8 +103,8 @@ function firstNodeOfKind(node: CstNode | Document, kind: string): CstNode | null
 	return null;
 }
 
-// The LEAF's raw, not the node's own: a container's opener (`:::note`, `> `) is chrome
-// the search never scans, so a token drawn from it would never paint.
+// The leaf's raw text, not the node's own: a container's opener (`:::note`, `> `) is syntax
+// the search never scans, so a token taken from it would never paint.
 function firstTextLeafToken(node: CstNode): string | null {
 	if (node.children && node.children.length > 0) {
 		for (const child of node.children) {
@@ -109,16 +116,15 @@ function firstTextLeafToken(node: CstNode): string | null {
 	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
 }
 
-// One row per kind declaring a conformanceFixture, parsed in the ROUTE's registry: a fixture
-// another plugin's opener claims yields a null token, so the sweep records that reachability
-// gap rather than the bridge hiding it.
-function collectConformanceEntries(): ConformanceSweepEntry[] {
+// Parsed against this route's registry, so a fixture another plugin's opener takes first comes
+// back with a null token and the sweep records the gap.
+function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[] {
 	const entries: ConformanceSweepEntry[] = [];
 	for (const kind of getAllRegisteredKinds()) {
 		const descriptor = getBlockKindDescriptor(kind);
 		const fixture = descriptor.conformanceFixture;
 		if (fixture === undefined) continue;
-		const node = firstNodeOfKind(parse(fixture), kind);
+		const node = firstNodeOfKind(readBlocks(fixture, { grammar, scope: 'document' }), kind);
 		entries.push({
 			kind,
 			fixture,
@@ -130,7 +136,7 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 			}
 		});
 	}
-	// A sweep over zero rows asserts nothing about any kind. Loud beats vacuous.
+	// A sweep over zero rows checks nothing about any kind, so this fails loudly instead.
 	if (entries.length === 0) {
 		throw new Error(
 			'collectConformanceEntries: no registered kind declares a conformanceFixture; the browser sweep would run over an empty set'
@@ -139,14 +145,90 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 	return entries;
 }
 
-// ── window.__test probe surface (backs the e2e suite) ──────────────────────
+// ── Aim points: where the editor puts a raw offset or a word on screen ─────
+// Backs `src/lib/e2e/text-runs.ts`; the coordinates are the viewport's, as a mouse gesture takes.
+
+interface PlainRect {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+}
+
+interface TextRunRect extends PlainRect {
+	/** The block holding the run, or null for text outside every block. */
+	path: number[] | null;
+}
+
+const plainRect = (r: DOMRect): PlainRect => ({
+	left: r.left,
+	top: r.top,
+	right: r.right,
+	bottom: r.bottom,
+	width: r.width,
+	height: r.height
+});
+
+// The harness routes mount one editor, so the first editor root on the page is this one.
+const editorRoot = (): HTMLElement | null => document.querySelector<HTMLElement>('.editor');
+
+/** A block with nothing editable (a rule, an image) answers itself; a table cell's path gets its
+ *  row and column appended. */
+function editableLeafAt(
+	path: number[],
+	which: 'first' | 'last'
+): { path: number[]; el: HTMLElement } | null {
+	const root = editorRoot();
+	const content = root && blockContentElAt(root, path);
+	if (!content) return null;
+	const editables = content.matches('[contenteditable="true"]')
+		? [content]
+		: [...content.querySelectorAll<HTMLElement>('[contenteditable="true"]')];
+	const leaf = (which === 'last' ? editables.at(-1) : editables[0]) ?? content;
+	if (leaf === content) return { path, el: leaf };
+	const owner = leaf.closest('[data-block-path]')!;
+	const leafPath = JSON.parse(owner.getAttribute('data-block-path')!) as number[];
+	if (leaf.matches(TABLE_CELL_SELECTOR)) {
+		const row = leaf.closest<HTMLElement>('[data-table-row-idx]')!;
+		const cells = [...row.querySelectorAll(`:scope > ${TABLE_CELL_SELECTOR}`)];
+		leafPath.push(Number(row.dataset.tableRowIdx), cells.indexOf(leaf));
+	}
+	return { path: leafPath, el: leaf };
+}
+
+/** Hidden marker text and zero-width runs are skipped, since a click aimed at either lands
+ *  somewhere else. A match split across text nodes is not found. */
+function* paintedTextRuns(needle: string, path?: number[]): Generator<TextRunRect> {
+	const root = editorRoot();
+	const scope = root && (path ? blockContentElAt(root, path) : root);
+	if (!scope) return;
+	for (const node of domDescendants(scope)) {
+		if (node.nodeType !== Node.TEXT_NODE) continue;
+		const editable = node.parentElement?.closest<HTMLElement>('[contenteditable]') ?? scope;
+		if (isHiddenMarkerText(node, editable)) continue;
+		const data = (node as Text).data;
+		for (let at = data.indexOf(needle); at >= 0; at = data.indexOf(needle, at + needle.length)) {
+			const range = document.createRange();
+			range.setStart(node, at);
+			range.setEnd(node, at + needle.length);
+			const rect = range.getBoundingClientRect();
+			if (rect.width === 0) continue;
+			const host = node.parentElement?.closest('[data-block-path]');
+			const hostPath = host?.getAttribute('data-block-path');
+			yield { ...plainRect(rect), path: hostPath ? (JSON.parse(hostPath) as number[]) : null };
+		}
+	}
+}
+
+// ── The `window.__test` probes the e2e suite drives ────────────────────────
 
 type ProbeRect = { top: number; left: number; width: number; height: number } | null;
 type CaretProbeState = { captured: boolean; rect: ProbeRect };
 
-// A session subscribes to ONE editor's events. The accumulator is module-level and
-// survives a remount; the subscription does not, so reading afterwards would hand back
-// a vacuous empty array — `invalidate` marks the session stale and the read throws.
+// A session's array outlives a remount but its subscription does not, so after `invalidate` a
+// read throws instead of returning an array that proves nothing.
 function createSessionProbe<T>(init: () => T): {
 	start: (subscribe: (accumulator: T) => () => void) => void;
 	stop: () => T;
@@ -188,6 +270,7 @@ function createSessionProbe<T>(init: () => T): {
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const menuProbe = createSessionProbe<boolean[]>(() => []);
+const sourceSwapProbe = createSessionProbe<number[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
 
@@ -200,20 +283,20 @@ interface StateDrift {
 	refsLen: number;
 }
 
-/** One `selectionChange` payload, flattened so it survives `page.evaluate`. */
+/** `raw` is the focus block's source when the event fired, so a spec can tell an announcement
+ *  made before a keystroke's bytes landed from one made after. */
 interface SelectionChangeRecord {
 	anchor: { path: number[]; offset: number } | null;
 	focus: { path: number[]; offset: number } | null;
+	raw: string | null;
 }
 
-// ── Image-paste host hook ──────────────────────────────────────────────────
-//
-// `onPasteImage` is set-once at mount, so the page installs THIS stable function
-// (opted in with `?imagePaste=on`) and a spec swaps what it answers behind it, instead
-// of remounting per arm. Responses are consumed one per image; the last one repeats.
+// ── The host's image-paste hook ────────────────────────────────────────────
+// `onPasteImage` is fixed at mount, so a spec swaps the responses behind this one function.
+// Responses are used one per image; the last one repeats.
 
 interface ImagePasteResponse {
-	/** Markdown to insert; omitted or null exercises the skip-this-image arm. */
+	/** Markdown to insert; omitted or null exercises the case where the image is skipped. */
 	markdown?: string | null;
 	reject?: boolean;
 	/** Stay pending until `release()`, so a spec can move the caret mid-import. */
@@ -245,12 +328,12 @@ export async function harnessPasteImage(image: PastedImage): Promise<string | nu
 }
 
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
-// Handles kept by source name so a spec can dispose/invalidate a source it
-// registered — the returned handle carries functions and can't cross page.evaluate.
+// Handles kept by source name so a spec can dispose or invalidate a source it registered:
+// the handle holds functions and cannot cross page.evaluate.
 const decorationHandles = new Map<string, DecorationSourceHandle>();
 
-// Installs the e2e probe surface on `window.__test`. Behavior must stay
-// byte-for-byte stable — the e2e suite drives the editor through these.
+// Installs the e2e probes on `window.__test`. What they do must stay exactly as it is:
+// the e2e suite drives the editor through them.
 export function installTestProbes({
 	editor,
 	setSource,
@@ -259,17 +342,18 @@ export function installTestProbes({
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
-	// A reinstall means a new editor instance; any session still open belongs to the
-	// old one's emitter and can no longer observe anything.
+	// A reinstall means a new editor instance, and a session still open is subscribed to
+	// the previous instance's events.
 	const remounted = 'the editor remounted while the session was open';
 	editOpProbe.invalidate(remounted);
 	errorProbe.invalidate(remounted);
 	menuProbe.invalidate(remounted);
+	sourceSwapProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
 	selectionProbe.invalidate(remounted);
 
-	// Unfiltered: the requirement files claim "exactly one edit event per user gesture"
-	// without qualification, so a filter would let a second commit leg count zero.
+	// Nothing is filtered out: the requirement files claim "exactly one edit event per user
+	// gesture" with no exceptions, so a filter would let a second commit go uncounted.
 	const subscribeEditOps = (ops: string[]): (() => void) =>
 		editor.getEvents().on('edit', (e: { op: string }) => {
 			ops.push(e.op);
@@ -278,23 +362,24 @@ export function installTestProbes({
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
 		getDocument: () => editor.__test.getDocument(),
+		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
+		getHeightOracle: () => editor.__test.getHeightOracle(),
 		setSource: (md: string) => {
 			setSource(md);
 		},
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);
 		},
-		// Flips the live prop with no DOM focus change, the one path that exercises the
-		// editor's mode-reconcile of data-focused (the header toggles blur instead).
+		// Changes the prop without moving DOM focus, the one path that exercises how the editor
+		// reconciles data-focused on a mode change (the header toggles blur instead).
 		setPresentationMode: (mode: PresentationMode) => {
 			setPresentationMode(mode);
 		},
-		// getBlockCount / getBlockKind / dumpTree read the LIVE CST, not parse(getSource()): a
-		// reparse can't see a live-kind-vs-raw desync or a transient block the serializer trims.
+		// getBlockCount, getBlockKind and dumpTree read the live CST: a reparse cannot see a
+		// block whose kind has left its raw text behind, or a short-lived block the serializer trims.
 		getBlockCount: () => editor.__test.getDocument().children.length,
-		// Fires a nested container scope's windowing rebuild WITHOUT moving the scroll, unlike
-		// setSource or undo; root paths are rejected because root ids live in a separate array.
-		// Ancestor raw stays STALE, so assert through getDocument() or parseConverged().
+		// Rebuilds a nested child list's windowing without moving the scroll; a root path is
+		// ignored. Ancestors' raw is left stale, so check through getDocument() or parseConverged().
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -304,15 +389,31 @@ export function installTestProbes({
 			if (path.length === 0) return;
 			const container = nodeAt(editor.__test.getDocument(), path) as CstNode | null;
 			if (!container) return;
-			const inserted = markdown ? parse(markdown).children : [];
+			const grammar = editor.__test.getGrammar();
+			const inserted = markdown
+				? readBlocks(markdown, { grammar, scope: 'fragment' }).children
+				: [];
 			spliceChildren(container, at, removeCount, inserted);
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
-		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
-		// A descriptor with NO registered component reaches BlockHost's no-component branch and
-		// its visible-raw fallback. Outside ALL_BLOCK_KINDS, so the startup completeness check
-		// stays unperturbed.
+		// Whether a top-level block is prose the caret writes in, as the editor's own reading says.
+		isProseLeafAt: (index: number): boolean => {
+			const doc = editor.__test.getDocument();
+			const node = doc.children[index];
+			if (!node) return false;
+			const refs = buildLinkReferenceMap(doc.children);
+			const grammar = editor.__test.getGrammar();
+			return isProseLeaf(node, {
+				grammar,
+				resolver: refs.resolve,
+				resolverSignature: refs.signature
+			});
+		},
+		getConformanceEntries: (): ConformanceSweepEntry[] =>
+			collectConformanceEntries(editor.__test.getGrammar()),
+		// A kind with no registered component reaches BlockHost's visible-raw fallback; it stays
+		// outside ALL_BLOCK_KINDS so the startup completeness check is unaffected.
 		makeBlockOrphan: (index: number): void => {
 			const kind = 'orphanTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
@@ -356,13 +457,12 @@ export function installTestProbes({
 			node.kind = kind;
 			doc.children = [...doc.children];
 		},
-		// Reads SelectionState, never the deferred `data-cross-block` DOM mirror: the lag
-		// turns every `false` assertion into a false pass, and the mirror is document-global
-		// (wrong editor on a two-editor route). Same rule `editor-rects.ts` carries.
+		// Reads SelectionState, not the `data-cross-block` attribute: the attribute lags a tick,
+		// which turns every `false` check into a pass, and can answer for another editor.
 		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
 		// The third selection mode, read from the state for the same reason as above.
 		getGapCaret: (): GapCaretPosition | null => editor.__test.getGapCaret(),
-		// Narrower than the mode above: an intra-table rectangle turns that on while both
+		// Narrower than the check above: a rectangle inside one table turns that on while both
 		// endpoints keep the table's own path.
 		isCrossBlockSelection: (): boolean => {
 			const sel = editor?.getSelection();
@@ -377,18 +477,63 @@ export function installTestProbes({
 				focus: { path: sel.focus.path, offset: sel.focus.offset }
 			};
 		},
-		// Faithful mirrors, unlike getSelectionPaths above: a round-trip spec must hand back
-		// the endpoint UNION variant it got, and the path-only projection drops `cellCoordinate`.
+		// Exact copies, unlike getSelectionPaths above: a round-trip spec has to hand back the
+		// same endpoint variant it got, and the path-only form drops `cellCoordinate`.
 		getSelection: (): EditorSelection | null => editor.getSelection(),
 		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
-		// The real instance door, called the way a shell answering a click on its own chrome
-		// calls it — viewport coordinates the shell read off its own element.
+		// Spec setup's one caret placement: through `setSelection`, the call every real placement
+		// ends in, at a raw offset of the leaf a caret at `path` goes to. It clamps past the end.
+		placeCaret: (path: number[], position: 'start' | 'end' | number): Promise<boolean> => {
+			const leaf = editableLeafAt(path, position === 'end' ? 'last' : 'first');
+			if (!leaf) throw new Error(`placeCaret: no block content at ${JSON.stringify(path)}`);
+			const offset = position === 'start' ? 0 : position === 'end' ? Infinity : position;
+			leaf.el.focus();
+			return editor.setSelection({
+				anchor: { path: leaf.path, offset },
+				focus: { path: leaf.path, offset }
+			});
+		},
+		// Measured through `getRects().rangeRects` so a click there lands at the offset; falls
+		// back to the other side of the offset, then to the end of the leaf.
+		pointAtRaw: (
+			path: number[],
+			offset: number,
+			edge: 'before' | 'after'
+		): { x: number; y: number } | null => {
+			const leaf = editableLeafAt(path, 'first');
+			if (!leaf) return null;
+			const painted = (start: number, end: number) =>
+				editor
+					.getRects()
+					.rangeRects(leaf.path, start, end)
+					.filter((r) => r.width > 0);
+			const after = () => {
+				const r = painted(offset, offset + 1)[0];
+				return r && { x: r.left + 1, y: r.top + r.height / 2 };
+			};
+			const before = () => {
+				const r = offset > 0 ? painted(offset - 1, offset).at(-1) : undefined;
+				return r && { x: r.right - 1, y: r.top + r.height / 2 };
+			};
+			const point = edge === 'after' ? (after() ?? before()) : (before() ?? after());
+			if (point) return point;
+			const box = leaf.el.getBoundingClientRect();
+			return { x: box.right - 1, y: box.top + box.height / 2 };
+		},
+		textRunRect: (needle: string, path?: number[]): TextRunRect | null =>
+			paintedTextRuns(needle, path).next().value ?? null,
+		textRunRects: (needle: string, path?: number[]): TextRunRect[] => [
+			...paintedTextRuns(needle, path)
+		],
+		undoDepth: (): number => editor.__test.getUndoStack().undo.length,
+		// The real call on the instance, made the way an app answering a click on its own UI
+		// makes it: viewport coordinates the app read off its own element.
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
-		// The programmatic insertion door, called the way a consumer toolbar calls it.
-		insertMarkdown: (md: string): boolean => editor.insertMarkdown(md),
-		// The semantic command door, called the way a selection toolbar's button calls it: a
-		// bare id, no chord, no keydown.
-		runCommand: (commandId: string): boolean => editor.runCommand(commandId),
+		// The insertion call, made the way a consumer's toolbar makes it.
+		insertMarkdown: (md: string): Promise<boolean> => editor.insertMarkdown(md),
+		// The command call, made the way a toolbar's button makes it: an id and its argument,
+		// no key combination, no keydown.
+		runCommand: (commandId: string, arg?: unknown): boolean => editor.runCommand(commandId, arg),
 		// A plugin-shaped paste transform without a plugin. Transforms are register-once and
 		// process-global, so the probe asks before registering rather than catching the throw.
 		registerPasteTransform: (name: string, find: string, replace: string): void => {
@@ -400,16 +545,19 @@ export function installTestProbes({
 		},
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
-			return serialize(parse(src)) === src;
+			return (
+				serialize(readBlocks(src, { grammar: editor.__test.getGrammar(), scope: 'document' })) ===
+				src
+			);
 		},
-		// The live-tree convergence oracle, unlike roundTripStable above, which is a tautology
-		// for all valid GFM: this compares the LIVE CST against a reparse of its own
-		// serialization, catching a tree left diverging from its raw.
-		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
+		// Unlike roundTripStable, compares the live CST with a reparse of its serialization, so
+		// it catches a tree that has drifted from its raw.
+		parseConverged: (): boolean =>
+			parseConverges(editor.__test.getDocument(), editor.__test.getGrammar()),
 		// The bar shows a match count instead of "N replaced" whenever matches survive a
 		// replace (skipped container matches), so specs read the replaced count here.
 		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,
-		// ── Image-paste hook knob (the hook itself is installed by the page) ──
+		// ── Image-paste controls (the hook itself is installed by the page) ──
 		imagePaste: {
 			setResponses: (responses: ImagePasteResponse[]): void => {
 				imagePasteResponses = responses;
@@ -451,9 +599,8 @@ export function installTestProbes({
 				editor.getRects().scrollTo(path, opts)
 		},
 		// ── Cross-block caretRect timing probe ─────────────────────────────
-		// Reads caretRect from INSIDE the synchronous handler, the window before the
-		// deferred data-cross-block $effect runs, pinning that caretRect reads
-		// SelectionState: the stale attribute would leak the parked cross-block range.
+		// Read inside the synchronous handler, before the data-cross-block attribute updates, so
+		// the probe fails if caretRect reads the attribute instead of SelectionState.
 		startCrossBlockCaretProbe: (): void =>
 			caretProbe.start((state) =>
 				editor.getEvents().on('selectionChange', (sel) => {
@@ -465,54 +612,58 @@ export function installTestProbes({
 			),
 		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => caretProbe.stop(),
 		// ── selectionChange emission capture ──────────────────────────────
-		// Every payload in order, so a spec can assert what a subscriber READS BACK
-		// mid-gesture: the burst's shape, not only its settled last value.
+		// Every payload in order, so a spec can check what a subscriber sees mid-gesture: the
+		// whole run of events, not only the last one.
 		startSelectionChangeCapture: (): void =>
 			selectionProbe.start((records) =>
 				editor.getEvents().on('selectionChange', (sel) => {
+					const node = sel
+						? (nodeAt(editor.__test.getDocument(), sel.focus.path) as CstNode | null)
+						: null;
 					records.push({
 						anchor: sel && { path: sel.anchor.path, offset: sel.anchor.offset },
-						focus: sel && { path: sel.focus.path, offset: sel.focus.offset }
+						focus: sel && { path: sel.focus.path, offset: sel.focus.offset },
+						raw: node && 'raw' in node ? node.raw : null
 					});
 				})
 			),
 		stopSelectionChangeCapture: (): SelectionChangeRecord[] => selectionProbe.stop(),
-		// ── Perf instruments surface ──────────────────────────────────────
+		// ── The performance instruments ───────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,
 			reset: resetPerfInstruments,
 			snapshot: perfSnapshot
 		},
-		// ── Interaction-trace surface ─────────────────────────────────────
+		// ── The interaction trace ─────────────────────────────────────────
 		trace: {
 			enable: enableInteractionTrace,
 			disable: disableInteractionTrace,
 			snapshot: interactionTraceSnapshot,
 			keydownCount: interactionTraceKeydownCount
 		},
-		// The harness's one drain for a gesture with no keydown verdict to wait on.
+		// The harness's one way to wait out a gesture that records no keydown result.
 		drainTick: (): Promise<void> => tick(),
-		// ── Consumer diagnostics door (real, not the extracted builder) ────
-		// Through the actual door, so the includeSource `?? false` default is exercised
-		// where it lives.
+		// ── The consumer's diagnostics call (real, not the extracted builder) ──
+		// Through the real call, so the `includeSource ?? false` default is exercised where
+		// it lives.
 		serializeDiagnostics: (opts?: { includeSource?: boolean }) =>
 			editor.getDiagnostics().serializeDiagnostics(opts),
-		// ── Debug engine surface ──────────────────────────────────────────
+		// ── The debug dumps ───────────────────────────────────────────────
 		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
-		dumpInlineTree: () => dumpFocusedInlineTree(editor.getSource()),
+		dumpInlineTree: () => dumpFocusedInlineTree(editor),
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
 		// ── Edit-event capture probe ──────────────────────────────────────
-		// One accumulator; a second start replaces the first. A caller wanting a count
-		// takes the capture's length.
+		// One array; a second start replaces the first. A caller wanting a count takes the
+		// array's length.
 		startEditOpCapture: (): void => editOpProbe.start(subscribeEditOps),
 		stopEditOpCapture: (): string[] => editOpProbe.stop(),
 		// ── Error-event capture probe ─────────────────────────────────────
-		// Subscribes to the same EditorEvents instance BlockHost emits to, so a caught
-		// render failure surfaces here.
+		// Subscribes to the same EditorEvents instance BlockHost emits to, so a caught render
+		// failure shows up here.
 		startErrorCapture: (): void =>
 			errorProbe.start((origins) =>
 				editor.getEvents().on('error', (e) => {
@@ -528,6 +679,14 @@ export function installTestProbes({
 				})
 			),
 		stopMenuChangeCapture: (): boolean[] => menuProbe.stop(),
+		// ── Source-swap capture probe ─────────────────────────────────────
+		startSourceSwapCapture: (): void =>
+			sourceSwapProbe.start((generations) =>
+				editor.getEvents().on('sourceSwap', ({ generation }) => {
+					generations.push(generation);
+				})
+			),
+		stopSourceSwapCapture: (): number[] => sourceSwapProbe.stop(),
 		// ── List item id probe ────────────────────────────────────────────
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();
@@ -536,12 +695,24 @@ export function installTestProbes({
 			const state = getStateForNode(node);
 			return state ? [...state.innerBlockIds] : [];
 		},
+		// Every block id the document holds now, top level and nested, mounted or not.
+		liveBlockIds: (): string[] => {
+			const ids = [...editor.__test.getBlockIds()];
+			const walk = (node: CstNode): void => {
+				if (!node.children) return;
+				ids.push(...(getStateForNode(node)?.innerBlockIds ?? node.childIds ?? []));
+				for (const child of node.children) walk(child);
+			};
+			for (const block of editor.__test.getDocument().children) walk(block as CstNode);
+			return ids;
+		},
+		measuredIds: (): string[] => editor.__test.getMeasuredIds(),
+		// The height the block list holding `path` keeps for it, from its height table.
+		tableHeightAt: (path: number[]): number | null =>
+			editor.__test.getListTree().resolve(path)?.height ?? null,
 		// ── Stale ref-slot probes ────────────────────────────────────────
-		/**
-		 * Forges the stale detached ref the windowed each-block's conditional cleanup
-		 * only rarely leaves behind: capture the mounted component here, then write it
-		 * back into a cleared slot via `replantBlockRef`.
-		 */
+		// Recreates the rare stale component reference the windowed loop's cleanup leaves:
+		// capture here, then write it into a cleared position with `replantBlockRef`.
 		captureBlockRef: (index: number): boolean => {
 			capturedBlockRef = editor.__test.getBlockComponent([index]);
 			return capturedBlockRef !== null;
@@ -551,13 +722,9 @@ export function installTestProbes({
 			editor.__test.setBlockRefSlot(index, capturedBlockRef);
 			return true;
 		},
-		// ── BlockComponent surface probe ─────────────────────────────────
-		/**
-		 * The public `BlockComponent` caret doors a plugin-authored container calls
-		 * directly, unreachable from gesture-level specs (every built-in caret placement goes
-		 * through a pointer or keyboard path first). `parkCaret` is optional on the contract, so
-		 * its probe reports false rather than falling back to the clearing verb.
-		 */
+		// ── The BlockComponent caret calls ───────────────────────────────
+		// Calls a plugin container makes directly, which no gesture reaches. `parkCaret` is
+		// optional, so its probe reports false rather than falling back to another call.
 		focusBlockComponent: (path: number[], offset: number): boolean => {
 			const block = editor.__test.getBlockComponent(path);
 			if (!block) return false;
@@ -570,11 +737,8 @@ export function installTestProbes({
 			block.parkCaret(offset);
 			return true;
 		},
-		/**
-		 * The shallow/deep cursor contract `getSelection()` hides: a 2D surface like
-		 * TableBlock nulls its shallow getCursorOffset because (row, col) can't be
-		 * losslessly packed into one integer.
-		 */
+		// The two cursor readings `getSelection()` hides; a table returns null from the flat
+		// getCursorOffset because (row, column) does not fit one integer.
 		getBlockCursorSurface: (
 			path: number[]
 		): {
@@ -589,15 +753,17 @@ export function installTestProbes({
 			return { exists: true, cursorOffset, cursorPosition };
 		},
 		// ── BlockListState consistency probe ─────────────────────────────
-		/**
-		 * Walks the LIVE CST for containers whose registered BlockListState has drifted in
-		 * length from node.children. Throws rather than reporting `[]` when containers exist but
-		 * none resolved a state: call sites assert `toEqual([])`, which a registration
-		 * regression would otherwise turn vacuously green.
-		 */
+		// Throws when containers exist but none resolved a state, since callers assert
+		// `toEqual([])` and a broken registration would otherwise pass.
 		auditBlockListStateConsistency: (): StateDrift[] => {
 			const doc = editor.__test.getDocument();
 			const violations: StateDrift[] = [];
+			// The ids go through the shared keyed-container check; the refs are this list state's own.
+			const idDrifts = new Set(
+				doc.children.flatMap((block, i) =>
+					childIdDrifts(block).map((drift) => [i, ...drift.path].join())
+				)
+			);
 			let containers = 0;
 			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {
@@ -609,7 +775,7 @@ export function installTestProbes({
 					const childrenLen = node.children.length;
 					const idsLen = state.innerBlockIds.length;
 					const refsLen = state.innerBlockRefs.length;
-					if (idsLen !== childrenLen || refsLen !== childrenLen) {
+					if (idDrifts.has(path.join()) || refsLen !== childrenLen) {
 						violations.push({ path: [...path], kind: node.kind, childrenLen, idsLen, refsLen });
 					}
 				}

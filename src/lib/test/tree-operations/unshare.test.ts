@@ -10,6 +10,7 @@ import {
 	rebuildOwnedContainer
 } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();
@@ -74,7 +75,7 @@ it('ensureUnsharedChild unshares one child of an already-unshared parent', () =>
 	expect(ensureUnsharedChild(list, 1, sharing)).toBe(fresh);
 });
 
-// The gate reads the container CONTRACT, not the `table` kind. `tableRow` is the in-repo
+// The check reads the container contract, not the `table` kind. `tableRow` is the in-repo
 // grid that is not `table`, standing in for the plugin grids a kind test would miss.
 it('rebuildOwnedContainer unshares the children of any grid, not just table', () => {
 	const { doc, sharing } = sharedDoc('| a | b |\n| --- | --- |\n| c | d |\n');
@@ -86,8 +87,8 @@ it('rebuildOwnedContainer unshares the children of any grid, not just table', ()
 	expect(row.children!.some((cell) => sharing.isShared(cell))).toBe(false);
 });
 
-// Without the range check its sibling walk carries (G1.22), an off-the-end index is an
-// epoch-dependent crash: silent `undefined` before the first snapshot, TypeError after.
+// Without the range check its sibling walk carries (G1.22), an off-the-end index is a crash
+// that depends on the generation: silent `undefined` before the first snapshot, TypeError after.
 it('ensureUnsharedChild flags an out-of-range index instead of throwing', () => {
 	const { doc, sharing } = sharedDoc('- a\n');
 	const [list] = ensureUnsharedPath(doc, [0], sharing);
@@ -107,14 +108,14 @@ it('ensureUnsharedChild treats an out-of-range index the same before and after a
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 });
 
-// G1.22 is the ONE axis separating the two shared-spine walks: the strict path flags an
-// off-the-end index, the tolerant rebuild swallows it (post-delete hands short paths).
+// The strict copy-on-write walk flags an off-the-end index and the tolerant rebuild swallows it,
+// since a delete leaves short paths behind (G1.22).
 it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild', () => {
 	const strict = sharedDoc('para\n');
 	ensureUnsharedPath(strict.doc, [5], strict.sharing);
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 
 	const tolerant = sharedDoc('para\n');
-	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, null, undefined);
+	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, null, defaultGrammarView);
 	expect(takeDevWarns()).toEqual([]);
 });

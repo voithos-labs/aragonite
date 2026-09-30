@@ -10,8 +10,8 @@ test.describe('image popover portal isolation', () => {
 		await editor.goto();
 	});
 
-	// The popover was reparented INTO the widget, so keydown on its inputs bubbled through the
-	// wrapping contenteditable and hit the "type while widget selected = replace image" branch.
+	// Moving the popover inside the widget makes keydown on its inputs bubble through the wrapping
+	// contenteditable and hit the "typing while the widget is selected replaces it" branch.
 	test('typing into a popover input does not delete the image', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -24,9 +24,8 @@ test.describe('image popover portal isolation', () => {
 		expect(await altInput.inputValue()).toContain(' v2');
 	});
 
-	// Clicking between popover inputs fired the widget's pointerdown (the popover sat inside the
-	// widget), re-dispatching `image-widget-select`; the reparent effect re-ran and the transient
-	// detach blurred it shut.
+	// With the popover inside the widget, a click between its inputs fires the widget's
+	// `pointerdown` and reselects it, and the move's brief detach blurs the field shut.
 	test('toggling the alt field keeps the toolbar open', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -42,9 +41,8 @@ test.describe('image popover portal isolation', () => {
 		await expect(page.locator('.md-image-properties input')).toBeFocused();
 	});
 
-	// Reparenting the overlay INTO the widget carried Svelte whitespace text nodes with it; on a
-	// `display: block` widget those made an inline line-box that grew it by one line-height on
-	// open.
+	// Moving the overlay inside the widget carries Svelte's whitespace text nodes along, which on a
+	// `display: block` widget grow it by one line height on open.
 	test('opening popover does not shift the widget or the block below it', async ({ page }) => {
 		await editor.loadContent('intro\n\n![cat|400x200](/test-fixtures/sample.png)\n\nfollowing.\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -67,9 +65,8 @@ test.describe('image popover portal isolation', () => {
 		expect(belowYAfter).toBe(belowYBefore);
 	});
 
-	// Anchored inside the widget DOM the popover sat on the first visual line of a list-item
-	// paragraph, with the item's wrapped trailing text rendering alongside it; a portal at editor
-	// root keeps its bounds independent of list-item flow.
+	// Inside the widget's DOM the popover sits on a list-item paragraph's first line, beside the
+	// item's wrapped text; rendering it at the editor root keeps it out of the item's flow.
 	test('popover field labels stay inside popover bounds when image is in a list', async ({
 		page
 	}) => {

@@ -3,7 +3,7 @@
 Enter with the caret at raw offset 0 of a non-empty text block splits like any
 other offset: an empty block appears above, the content keeps its bytes below,
 and the caret stays on the content. The empty half absorbs no following line, so
-this is the one split that mints no blank-line separator.
+this is the one split that creates no blank-line separator.
 
 ## Happy paths
 
@@ -16,8 +16,9 @@ this is the one split that mints no blank-line separator.
 - real click + Home + Enter on a paragraph: same split as the seeded-caret path (the gesture Home lands on raw 0)
 - Enter at offset 0 of a blockquote's first child: empty block above inside the blockquote at the same nesting level; nested block-list state stays consistent; caret on the content
 - the live tree converges after every split: it matches a reparse of its own serialization
-  (not merely `serialize(parse(source)) === source`, which is a tautology for valid GFM — the
-  convergence check catches a split that left the tree's kind or shape stale vs its raw)
+  (not merely `serialize(parse(source)) === source`, which holds for all valid GFM whatever the
+  tree looks like; this check catches a split that left the tree's kind or shape out of step
+  with its raw)
 
 ## User interactions
 

@@ -4,8 +4,17 @@
  * An unmatched run stays whole in the pending text, so an inner backtick is never retried.
  */
 
+import type { InlineNode } from '../../nodes';
 import { findBacktickCloser, indexBacktickRuns } from '../backticks';
 import { appendNode, type ScanContext } from './scan-state';
+
+/** The width of each of a code span's two equal delimiter runs, which every caller places the
+ *  content by; 0 when the bytes outside `text` don't split evenly, so the node is all content. */
+export function codeSpanFence(node: InlineNode): number {
+	if (node.text === undefined) return 0;
+	const fence = (node.end - node.start - node.text.length) / 2;
+	return Number.isInteger(fence) && fence > 0 ? fence : 0;
+}
 
 export function handleBacktick(ctx: ScanContext): void {
 	const { raw, pos, end } = ctx;

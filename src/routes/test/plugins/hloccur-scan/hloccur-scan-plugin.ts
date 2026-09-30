@@ -1,6 +1,6 @@
-// Harness observability wrapper over the bundled highlight-occurrences plugin. It
-// CONFIGURES the shipped unit through its public `onScan` option rather than re-declaring
-// the wiring, so the memoization battery pins the plugin consumers actually get.
+// A harness wrapper that counts what the bundled highlight-occurrences plugin does. It
+// configures the shipped plugin through its public `onScan` option rather than rebuilding it,
+// so the memoization suite tests the plugin consumers actually get.
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 
 declare global {
@@ -10,8 +10,8 @@ declare global {
 	}
 }
 
-// Each spec navigates to a fresh page, so the counters start undefined and the readers'
-// `?? 0` is the zero point — no module-scope window write on the SSR path.
+// Each spec loads a fresh page, so the counters start undefined and the `?? 0` where they are
+// read is the zero point: nothing writes to `window` at module scope, which SSR would run.
 export const hloccurScanProbePlugin = highlightOccurrencesPlugin({
 	onScan: ({ tokenizedLeaves }) => {
 		window.__hloccurScans = (window.__hloccurScans ?? 0) + 1;

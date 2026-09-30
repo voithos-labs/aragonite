@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('cross-block paste over selection — undo / redo', () => {
+test.describe('cross-block paste over selection: undo / redo', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		expect(await editor.bridge.isCrossBlockSelection()).toBe(false);
 	});
 
-	test('single-paragraph paste over cross-block selection — one undo restores', async () => {
+	test('single-paragraph paste over cross-block selection: one undo restores', async () => {
 		const original = '# Heading\n\nPara one\n\nPara two\n';
 		await editor.loadContent(original);
 

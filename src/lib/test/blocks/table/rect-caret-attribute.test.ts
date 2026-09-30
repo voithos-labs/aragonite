@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
-//
-// Which predicate the editor root's caret-hiding attribute keys on. Two consumers read two
-// predicates of one state — the overlay paints on `isCustomRendered`, the root hid the native
-// caret on `isCrossBlock` — so every state where those disagree hides the caret with nothing
-// painted in its place. Miss (Sel-F1, class half): the e2e helper waits on the ATTRIBUTE, which
-// made it the oracle for "is a selection live" everywhere, and no test ever compared it against
-// what the overlay would paint.
+// The editor root hides the browser caret only while the selection overlay draws in its place,
+// or a state where the two disagree leaves nothing on screen.
+// Miss-analysis: no test compared the caret-hiding attribute with what the overlay draws.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
+import { pressKey } from '$lib/test/harness/settle';
 
-// Without the Range stubs the visual-line probe throws instead of falling back to the
-// offset comparison the cell's edge gate reads.
+// Without the Range stubs the visual-line check throws instead of falling back to the
+// offset comparison the cell's edge test reads.
 let restoreLayout: () => void;
 beforeAll(() => {
 	installLayoutStubs();
@@ -28,11 +30,6 @@ afterEach(async () => {
 // Three rows, so a rectangle can grow downward and shrink back onto the cell it started in.
 const DOC = '| aa | bb |\n| -- | -- |\n| cc | dd |\n| ee | ff |\n';
 
-async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
-
 function editorRoot(): HTMLElement {
 	return mounted!.target.querySelector('.editor') as HTMLElement;
 }
@@ -44,22 +41,22 @@ describe('the root hides the native caret only while something paints in its pla
 		// At the cell's last visual line, which is what admits the rectangle entry.
 		placeCaret(start, 2);
 
-		await press(start, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
 
 		// Back onto the anchor cell: a one-cell rectangle is a stored pair the overlay declines
-		// to paint (same path, same offset), so hiding the caret leaves nothing on screen.
-		await press(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
+		// to draw, same path and offset, so hiding the caret leaves nothing on screen.
+		await pressKey(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
 
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(false);
 	});
 
-	it('a live rectangle still hides it — the overlay owns that highlight', async () => {
+	it('a live rectangle still hides it: the overlay owns that highlight', async () => {
 		mounted = mountEditor({ source: DOC });
 		const start = cellAt(mounted!, 1, 0);
 		placeCaret(start, 2);
 
-		await press(start, { key: 'ArrowDown', shiftKey: true });
+		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
 
 		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
 	});

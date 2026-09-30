@@ -4,18 +4,13 @@ import { diffInput, type Divergence } from './differ';
 import { explainDivergence, NEUTRALIZATIONS_TRIED, type DivergenceClass } from './excuses';
 import { arbInlineSource, freshOrFixedSeed } from '../invariants/arbitraries';
 
-// The semantic oracle the byte-conservation and offset-tiling properties can NOT be:
-// they stay green when emphasis is classified into the WRONG kinds, since the bytes
-// still tile. Blind spot, by construction: breaking aragonite's code-point read makes it
-// CONVERGE with the equally-wrong UTF-16 reference, so astral-flanking regressions are
-// the baseline slice ratchet's job (it pins astral inputs as must-diverge), not this.
+// Checks inline node kinds, which byte conservation and offset tiling cannot: emphasis with the
+// wrong kind still tiles. `excuses.ts` classes each divergence by rule, since a random input is
+// never in baseline.json. A broken code-point read would agree with the UTF-16 reference, so the
+// baseline slice ratchet, which holds astral inputs as must-diverge, covers astral flanking.
 
-// The three baseline.json classes are decided per divergence by `excuses.ts` — a random input
-// is never in baseline.json, so each class is a rule over the diverging kinds, not a lookup.
-
-// Strikethrough is a GFM extension the pinned CommonMark reference cannot express, so
-// `~` inputs are skipped before the differential (the corpus's ENUM_ALPHABET omits it
-// for the same reason) rather than mapped to a construct the reference lacks.
+// Strikethrough is a GFM extension the pinned CommonMark reference cannot express, so `~` inputs
+// are skipped, as `ENUM_ALPHABET` omits `~`.
 function isOutsideBaseline(input: string): boolean {
 	return input.includes('~');
 }
@@ -47,9 +42,8 @@ describe('kind-differential: inline node kinds vs commonmark over arbInlineSourc
 		);
 	});
 
-	// Reachability + completeness self-test (rules.md: a generator that cannot reach the
-	// class proves nothing, and an allowlist that excuses everything is vacuously green).
-	// Fixed seed so it is a deterministic guard, not part of the fresh lane's search.
+	// A generator that cannot reach a class proves nothing, and an allowlist that excuses
+	// everything is vacuously green; the fixed seed keeps this check deterministic.
 	it('arbInlineSource reaches all three documented classes and no fourth', () => {
 		const samples = fc.sample(arbInlineSource, { numRuns: 30000, seed: 424242 });
 		const reached: Record<DivergenceClass, number> = {

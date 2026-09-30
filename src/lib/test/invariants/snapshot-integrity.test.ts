@@ -25,7 +25,7 @@ function topEntry(deps: EditorActionsDeps) {
 describe('checkSnapshotIntegrity (G1.9)', () => {
 	it('fires when serialized bytes are written through a shared node', () => {
 		const { deps, controller } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		// Missed copy-path-on-write: the live ref and the entry share this node.
 		deps.doc.children[0].raw = 'corrupted\n';
 		expect(checkSnapshotIntegrity(topEntry(deps))?.code).toBe('snapshot-integrity');
@@ -33,7 +33,7 @@ describe('checkSnapshotIntegrity (G1.9)', () => {
 
 	it('passes across a correctly unshared mutation sequence', async () => {
 		const { deps, blockEdit } = makeHarness('hello\n\nworld\n');
-		await blockEdit.updateBlockContent(0, 'hello more\n', 0);
+		await blockEdit.updateBlockContent(0, 'hello more\n', 'authored', 0);
 		await blockEdit.splitBlock(1, 2);
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo.length).toBeGreaterThan(0);

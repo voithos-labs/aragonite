@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
@@ -7,17 +7,14 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeReorderContainer } from './reorder-harness';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
-// Built through `parse` so blank-line separators exist as real `leadingTrivia` — a
-// hand-built `{ raw }` node has none, and positional trivia only shows up against genuine ones.
+// Built through `parse` so blank-line separators exist as real `leadingTrivia`: a
+// hand-built `{ raw }` node has none, and separator moves only show up against real ones.
 function makeTop(raws: string[]) {
 	const harness = makeEditorActionsDeps(parse(raws.join('\n\n') + '\n').children);
 	const controller = createUndoController(harness.deps);
@@ -39,7 +36,7 @@ function makeTop(raws: string[]) {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('reorder action — top level', () => {
+describe('reorder action: top level', () => {
 	it('nudge moves a block down, one undo step, ids preserved via idMap', async () => {
 		const h = makeTop(['a', 'b', 'c']);
 		const idsBefore = h.ids().slice();
@@ -70,8 +67,8 @@ describe('reorder action — top level', () => {
 		expect(serialize(h.doc)).toBe('a\n\nb\n\nc\n');
 	});
 
-	// A "loose list" parses to separate top-level `list` nodes (the blank line is the
-	// next list's leadingTrivia), so this is the document branch, not the list branch.
+	// A loose list parses to separate top-level `list` nodes (the blank line is the next
+	// list's leadingTrivia), so this is the document branch, not the list branch.
 	it('reorders blank-separated top-level list nodes, separators stay positional', async () => {
 		const harness = makeEditorActionsDeps(parse('- one\n\n- two\n\n- three\n').children);
 		const controller = createUndoController(harness.deps);
@@ -86,7 +83,7 @@ describe('reorder action — top level', () => {
 	});
 });
 
-describe('reorder action — list', () => {
+describe('reorder action: list', () => {
 	it('nudge moves a list item up and down (down at the tail clamps)', async () => {
 		const up = makeReorderContainer('- one\n- two\n- three\n');
 		await up.reorder.nudgeReorderUnit([0, 2, 0], -1);
@@ -113,7 +110,7 @@ describe('reorder action — list', () => {
 	});
 });
 
-describe('reorder action — blockquote', () => {
+describe('reorder action: blockquote', () => {
 	it('drag move (absolute toIndex) reorders and undoes in one byte-exact step', async () => {
 		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 2);
@@ -128,7 +125,7 @@ describe('reorder action — blockquote', () => {
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 	});
 
-	// A drag carries no live caret, so the snapshot synthesizes the restore path; a
+	// A drag carries no live caret, so the snapshot builds the restore path itself; a
 	// top-level index there strands the caret on an unrelated block after undo.
 	it('a no-caret container reorder snapshots a deep restore path', async () => {
 		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
@@ -138,30 +135,14 @@ describe('reorder action — blockquote', () => {
 	});
 });
 
-describe('reorder action — plugin (opaque) container declines', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
-	// The teleport seed: a pre-decline resolver hands back the container's DOCUMENT
-	// slot, so a body-leaf gesture permutes the top-level array instead.
+describe('reorder action: plugin (opaque) container declines', () => {
+	// A resolver that does not decline hands back the container's document index, so a body-leaf
+	// gesture would permute the top-level array instead.
 	function makeDeclineHarness() {
-		const chromeKind = declarePluginKind('spec-chrome');
-		const containerKind = declarePluginKind('spec-container');
-		registerBlockKind(chromeKind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			contextDependentKind: true
-		});
-		registerBlockKind(containerKind, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
-		});
+		const { container: containerKind, chrome: chromeKind } = testChromeContainer(
+			'spec-container',
+			'spec-chrome'
+		);
 		const container: CstNode = {
 			kind: containerKind,
 			leadingTrivia: '\n',
@@ -189,14 +170,14 @@ describe('reorder action — plugin (opaque) container declines', () => {
 
 		await reorder.nudgeReorderUnit([1, 1], -1);
 
-		// Ordered so each fails independently: the commit emits an edit and pushes an
-		// undo entry BEFORE the permutation reaches the bytes.
+		// Ordered so each fails independently: the commit emits an edit and pushes an undo
+		// entry before the permutation reaches the bytes.
 		expect(edits).toBe(0);
 		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
 		expect(serialize(harness.doc)).toBe(before);
 	});
 
-	it('a body-leaf drag move is a no-op — the teleport is gone', async () => {
+	it('a body-leaf drag move is a no-op: the teleport is gone', async () => {
 		const { harness, reorder } = makeDeclineHarness();
 		const before = serialize(harness.doc);
 		let edits = 0;

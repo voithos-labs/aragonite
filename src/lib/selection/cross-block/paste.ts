@@ -1,26 +1,22 @@
 /**
- * Cross-block paste: delete the active range inside a single undo snapshot, dispatch the paste
- * onto the collapsed caret, then restore the caret via DOM, since the originating block may be
- * gone and pendingCursor with it.
+ * Cross-block paste: delete the range and paste at the collapsed caret as one undo entry, then
+ * restore the caret through the DOM, since the block the paste started in may be gone.
  */
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
-import type { Document } from '../../core/nodes';
-import type { SelectionState } from '../selection-state.svelte';
-import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings } from '../../core/lines';
-import { performCrossBlockDelete } from './ops';
+import { documentLineEnding, normalizeLineEndings } from '../../core/lines';
+import { performCrossBlockDelete, rangeUndoStep } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
 import { blockCoveredWhole } from '../covered-block';
+import { coverRange, rangeCoverage } from '../range-coverage';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
-import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
-import { pathsEqual } from '../path-math';
-import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { emitClipboardError } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
@@ -31,8 +27,7 @@ export async function handleCrossBlockPaste(
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
 
-	ctx.stickyColumn.reset();
-	ctx.edgeAffinity.reset();
+	ctx.caretMemory.forget();
 	ctx.selection.resetSelectAllCount();
 	e?.preventDefault();
 	// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
@@ -45,11 +40,11 @@ export async function handleCrossBlockPaste(
 
 	const doc = ctx.getDoc();
 
-	// The range holds one block whole, in either addressing: replace the block at its parent
+	// The range holds one block whole, a table included: replace the block at its parent
 	// position, single undo. A sub-rectangle inside a table only clears cells, leaving the table.
+	const { anchor, focus } = ctx.selection;
 	const covered =
-		wholeTablePath(ctx.selection, doc) ??
-		blockCoveredWhole(doc, ctx.selection.anchor, ctx.selection.focus);
+		anchor && focus ? blockCoveredWhole(rangeCoverage(doc, coverRange(doc, anchor, focus))) : null;
 	if (covered) {
 		await replaceCoveredBlockWithPaste(ctx, mutCtx, pasted, covered);
 		return true;
@@ -59,56 +54,47 @@ export async function handleCrossBlockPaste(
 	// declined branch below could still name.
 	const rangeStartPath = ctx.selection.start?.path.slice();
 
-	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave an intermediate
-	// "selection-deleted but blocks-not-inserted" state.
-	mutCtx.pushUndoSnapshot();
-
-	const caret = await performCrossBlockDelete(mutCtx, {
-		undoEntry: 'join',
-		skipCaretRestore: true
-	});
-	// The gesture was consumed (preventDefault above) and there is nowhere to put the payload:
-	// another cross-block mutation collapsed the selection while this paste waited it out. Text
-	// survives on the clipboard, but a host-imported image does not, so report it.
-	if (!caret) {
-		emitClipboardError(ctx.events, {
-			error: new Error('cross-block paste resolved no caret; nothing inserted'),
-			...(rangeStartPath ? { path: rangeStartPath } : {})
-		});
-		return true;
-	}
-
-	// No `preDelete`: the range is already gone. `performCrossBlockDelete` above took it through
-	// `rangeDelete`, which crosses the join seam itself, so this dispatch inserts at a caret the
-	// cleanup already seated — handing it a range would delete a second time.
-	const result = await pasteDispatch(
-		{
-			pastedText: pasted,
-			targetPath: caret.path,
-			offset: charOffsetOf(caret, 'cross-block-paste:dispatch')
-		},
-		{
-			doc,
-			blockEdit: ctx.blockEdit,
-			controller: ctx.pasteCoordinator,
-			undoEntry: 'join',
-			grammar: ctx.grammar,
-			activePlugins: ctx.activePlugins
+	// One entry for the delete and the paste, so Ctrl+Z never stops between them.
+	await rangeUndoStep(mutCtx, async () => {
+		const caret = await performCrossBlockDelete(mutCtx, 'keyless', { skipCaretRestore: true });
+		// The paste was consumed but has nowhere to go, since another cross-block edit collapsed the
+		// selection first; an imported image, unlike text, isn't on the clipboard, so report it.
+		if (!caret) {
+			emitClipboardError(ctx.events, {
+				error: new Error('cross-block paste resolved no caret; nothing inserted'),
+				...(rangeStartPath ? { path: rangeStartPath } : {})
+			});
+			return;
 		}
-	);
 
-	// A settle that absorbed the join above the target moved the caret to a slot this gesture
-	// never revealed, so mount it before the landing reads for its element.
-	if (result.inlineCaretPath) await ctx.revealPath(result.inlineCaretPath);
-	await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
+		// No `preDelete`: the delete above already removed the range and ran the join cleanup, so
+		// handing the dispatch a range would delete a second time.
+		const result = await pasteDispatch(
+			{
+				pastedText: pasted,
+				targetPath: caret.path,
+				offset: charOffsetOf(caret, 'cross-block-paste:dispatch')
+			},
+			{
+				doc,
+				blockEdit: ctx.blockEdit,
+				controller: ctx.pasteCoordinator,
+				crossBlock: true,
+				reading: ctx.reading,
+				activePlugins: ctx.activePlugins
+			}
+		);
+
+		// A fix-up that merged the target into the block above moved the caret to a position this
+		// gesture never mounted, so mount it before the placement looks for its element.
+		if (result.inlineCaretPath) await ctx.revealPath(result.inlineCaretPath);
+		await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
+	});
 	return true;
 }
 
-/**
- * Land the caret after a cross-block paste commit. Inline pastes place it via DOM, since
- * pendingCursor may address a block the range delete unmounted; structural pastes rely on
- * pasteDispatch's internal focus and only step in when focus escaped the editor.
- */
+/** An inline paste places the caret through the DOM, since the pending caret may name a block the
+ *  delete unmounted; a structural paste focuses itself, so this only catches focus leaving. */
 async function landCaretAfterPaste(
 	ctx: CrossBlockDispatchContext,
 	caretPath: number[],
@@ -127,27 +113,8 @@ async function landCaretAfterPaste(
 
 // ── Covered-block paste ────────────────────────────────────────────────────
 
-/** The table a cell rectangle covers whole (Ctrl+A's 2nd press inside a cell), or null. */
-function wholeTablePath(selection: SelectionState, doc: Document): number[] | null {
-	const anchor = selection.anchor;
-	const focus = selection.focus;
-	if (!anchor || !focus) return null;
-	if (!pathsEqual(anchor.path, focus.path)) return null;
-	const node = nodeAt(doc, anchor.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
-	const cellCount = tableCellCount(node);
-	if (cellCount === 0) return null;
-	// Same-path intra-table selection: cell offsets are context-established, so read directly.
-	const lo = Math.min(anchor.offset, focus.offset);
-	const hi = Math.max(anchor.offset, focus.offset);
-	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
-}
-
-/**
- * Replace the covered block with the pasted content at its parent position. Routes through
- * replaceBlockAtParent so the splice lands at the doc/enclosing-container scope rather than the
- * row-level blockEdit TableRowBlock propagates. One snapshot covers the replace.
- */
+/** Through the paste coordinator, so the splice lands at the enclosing container's scope rather
+ *  than the row-level `blockEdit` a table row passes down. */
 async function replaceCoveredBlockWithPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
@@ -158,30 +125,30 @@ async function replaceCoveredBlockWithPaste(
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
 
-	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
-	// ride here too; both rules live in the helper, applied at both sites.
+	// This route skips `pasteDispatch`, so it applies the paste transforms and the instance
+	// grammar itself.
 	const parsed = parseReplacement(
 		covered,
 		applyPasteTransforms(pasted, ctx.activePlugins),
-		ctx.grammar
+		documentLineEnding(doc),
+		slotReaderAt(doc, blockPath, ctx.reading.grammar)
 	);
 	if (!parsed) return;
 
-	mutCtx.pushUndoSnapshot();
-	ctx.selection.collapse();
-
-	await replaceBlockAtParent({
-		doc,
-		blockPath,
-		replacement: parsed.replacement,
-		controller: ctx.pasteCoordinator,
-		undoEntry: 'join',
-		focusReplacementIndex: parsed.replacement.length - 1,
-		focusOffset: CURSOR_END,
-		source: 'cross-block-covered-block',
-		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
-		// Nothing is reattached behind the clipboard here — the block's whole slot is the target —
-		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
-		trailingSeparator: parsed.suffix
+	// Opened before the collapse, so the entry holds the range rather than the caret it leaves.
+	await rangeUndoStep(mutCtx, async () => {
+		ctx.selection.collapse();
+		await ctx.pasteCoordinator.replaceBlock(
+			blockPath,
+			parsed.replacement,
+			{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
+			// The trailing blank line comes in unfiltered, since nothing is reattached after the
+			// pasted text; the range's undo step records the selection, so the offset is never read.
+			{
+				source: 'cross-block-covered-block',
+				trailingBlank: parsed.suffix !== '',
+				snapshotOffset: 0
+			}
+		);
 	});
 }

@@ -3,8 +3,8 @@ import { parse } from '$lib/core/parser';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 
-// Sibling-path parity with the top-level factory (which threads deps.grammar): without
-// it, a disabled kind's opener typed inside a container materializes that kind anyway.
+// The nested factory must pass deps.grammar as the top-level one does, or a disabled kind's
+// opener typed inside a container creates that kind anyway.
 
 function driveTypeInContainer(grammar: ReturnType<typeof createGrammarView> | undefined) {
 	const doc = parse('> para\n');
@@ -17,16 +17,16 @@ describe('nested updateBlockContent honors the instance grammar', () => {
 		const { deps, bundle } = driveTypeInContainer(createGrammarView((kind) => kind !== 'heading'));
 		expect(deps.doc.children[0].children?.[0].kind).toBe('paragraph');
 
-		await bundle.blockEdit.updateBlockContent(0, '# x\n', 0);
+		await bundle.blockEdit.updateBlockContent(0, '# x\n', 'authored', 0);
 
 		expect(deps.doc.children[0].children?.[0].kind).toBe('paragraph');
 	});
 
-	// Positive control: the assertion above is not vacuously passing.
+	// Control: without an instance grammar the same line does become a heading.
 	it('the global grammar still materializes the heading', async () => {
 		const { deps, bundle } = driveTypeInContainer(undefined);
 
-		await bundle.blockEdit.updateBlockContent(0, '# x\n', 0);
+		await bundle.blockEdit.updateBlockContent(0, '# x\n', 'authored', 0);
 
 		expect(deps.doc.children[0].children?.[0].kind).toBe('heading');
 	});

@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
-// The ```math fence's own fence lines, on a marker-hiding rung: chrome the mode collapses and the
-// edit range clamps away from, exactly as the `$$` sibling's.
+// The ```math fence's own fence lines under a marker-hiding mode: lines the mode collapses and the
+// edit range is kept away from, exactly as for its `$$` sibling.
 // Requirements: e2e/requirements/plugins/latex-fence-live-editing.md.
 
 const SOURCE = '```math\nx^2\n```';
@@ -38,6 +38,19 @@ test.describe('math fence editing edges (live)', () => {
 
 		await editor.getBlock(2).click();
 		await editor.bridge.waitForSourceEquals('Before\n\n```math\n\n```\n\nAfter\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	// Twelve real steps take the range past the closing fence line into the paragraph below; the
+	// truncation drops that line, so the closer comes back, as a fenced code block's does.
+	test('a range that runs out of the body keeps the closing fence line', async ({ page }) => {
+		await editor.revealFromBefore();
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 12; i++) await page.keyboard.press('Shift+ArrowRight');
+		await page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('Before\n\n```math\nAfter\n```\n');
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		expect(await roundTripStable(page)).toBe(true);
 	});

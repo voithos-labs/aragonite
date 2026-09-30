@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-// Miss-analysis: the width path was pinned only by vr-anchoring's NARROWING arm, where the
-// two corrections happen to pick the same anchor index and telescope; no arm made the
-// estimate-poisoned intermediate model name a DIFFERENT block at the viewport top.
+// Miss-analysis: the one width case had both corrections pick the same block, so they cancelled.
 import { describe, it, expect } from 'vitest';
-import { flushSync } from 'svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
+import { flushSync, tick } from 'svelte';
+import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -12,14 +10,14 @@ import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 const BLOCKS = 20;
 const ESTIMATE = 100;
 const REAL = 300;
-/** Measured before the width change: everything the reader already scrolled through. */
+/** Measured before the width change: everything the user already scrolled through. */
 const SCROLLED_THROUGH = 12;
 /** Mounted at the width change, so only these re-measure afterwards. */
 const MOUNTED = [10, 11, 12, 13, 14];
 
 const idOf = (i: number) => `b${i}`;
 
-function seededOracle(): HeightOracle {
+function seededOracle(): MeasuredHeightOracle {
 	const measured = new Map<string, number>();
 	for (let i = 0; i < SCROLLED_THROUGH; i++) measured.set(idOf(i), REAL);
 	return {
@@ -28,7 +26,8 @@ function seededOracle(): HeightOracle {
 		recordMeasured: (id, height) => {
 			measured.set(id, height);
 		},
-		dropMeasured: () => measured.clear()
+		dropMeasured: () => measured.clear(),
+		measuredIds: () => [...measured.keys()]
 	};
 }
 
@@ -44,16 +43,16 @@ describe('list-windowing width re-measure', () => {
 			getWidthVersion: () => widthVersion
 		});
 
-		// The mounted band reads its REAL height, which the width rebuild's estimate reseed
-		// does not know — the error the anchor delta must not absorb.
+		// The mounted band reads its real height, which the estimates the width rebuild starts from
+		// do not know: the error the correction must not absorb.
 		for (const i of MOUNTED) {
 			windowing.registerChild(idOf(i), {
-				readHeight: () => REAL,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, idOf(i), h)
+				index: i,
+				readHeight: () => REAL
 			});
 		}
 
-		// Park block 11 100px above the viewport top: its screen offset is the invariant.
+		// Put block 11 100px above the top of the viewport: its position on screen is what must hold.
 		const anchor = 11;
 		port.setScrollTop(SCROLLED_THROUGH * REAL - REAL + 100);
 		const heldOffset = await screenOffsetOf(windowing, port, anchor);
@@ -61,14 +60,15 @@ describe('list-windowing width re-measure', () => {
 		oracle.dropMeasured();
 		widthVersion++;
 		flushSync();
+		await tick();
 
 		expect(await screenOffsetOf(windowing, port, anchor)).toBe(heldOffset);
 		cleanup();
 	});
 });
 
-/** The anchor's top relative to the viewport top. `revealChild` is the only read of
- *  `model.offsetOf` the surface exposes, so it doubles as the probe and is undone after. */
+/** The held block's top relative to the top of the viewport. `revealChild` is the only read of
+ *  `model.offsetOf` on offer, so it doubles as the measurement and is undone afterwards. */
 async function screenOffsetOf(
 	windowing: ListWindowing,
 	port: Scrollport,

@@ -1,21 +1,21 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath, roundTripStable } from './helpers';
 
-// Gap caret on the opaque-container tier (#93): callout|callout, details|callout, and the
-// strip negative (requirements/plugins/gap-caret-opaque-containers.md). The generic
-// arrival/mint/undo mechanics live in selection/gap-caret-*.spec.ts; bytes are the oracle
-// here because opaque raws are rebuilt, not sliced.
+// The gap caret between opaque containers: callout beside callout, details beside callout, and a
+// marker-prefixed container that declines (requirements/plugins/gap-caret-opaque-containers.md).
+// Arrival, creation and undo are in selection/gap-caret-*.spec.ts; the bytes are the reference here
+// because an opaque container's raw is rebuilt rather than sliced.
 
 const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
-/** admonition, admonition, paragraph — the eligible boundary is 1. */
+/** admonition, admonition, paragraph: the boundary that qualifies is 1. */
 const TWO_CALLOUTS = `${CALLOUT_A}\n${CALLOUT_B}\ntail\n`;
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nbody a\n\n</details>\n';
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nbody a\n\n</details>\n';
-/** details, admonition, paragraph — the eligible boundary is 1. */
+/** details, admonition, paragraph: the boundary that qualifies is 1. */
 const DETAILS_THEN_CALLOUT = `${OPEN_DETAILS}\n${CALLOUT_B}\ntail\n`;
 const COLLAPSED_THEN_CALLOUT = `${CLOSED_DETAILS}\n${CALLOUT_B}\ntail\n`;
-/** blockquote, blockquote — the strip tier's pinned non-boundary. */
+/** blockquote, blockquote: the case where no gap caret appears. */
 const TWO_QUOTES = '> alpha\n\n> beta\n';
 const AT_BOUNDARY = { parentPath: [], index: 1 };
 const AT_DOC_START = { parentPath: [], index: 0 };
@@ -38,7 +38,7 @@ test.describe('gap caret between opaque containers', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('admonition');
 	});
 
-	test('ArrowDown out of the first callout parks, typing mints between the two', async () => {
+	test('ArrowDown out of the first callout puts the caret, typing creates between the two', async () => {
 		await editor.loadContent(TWO_CALLOUTS);
 		await editor.focusBlockAtPath([0, 1], 5);
 
@@ -52,7 +52,7 @@ test.describe('gap caret between opaque containers', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	test('one undo drops the mint byte-exactly and re-parks the gap', async () => {
+	test('one undo drops the new block byte-exactly and puts the caret back at the gap', async () => {
 		await editor.loadContent(TWO_CALLOUTS);
 		await editor.focusBlockAtPath([0, 1], 5);
 		await editor.page.keyboard.press('ArrowDown');
@@ -66,7 +66,7 @@ test.describe('gap caret between opaque containers', () => {
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
 	});
 
-	test('ArrowUp from the second callout title parks, and again enters the callout above', async () => {
+	test('ArrowUp from the second callout title puts the caret, and again enters the callout above', async () => {
 		await editor.loadContent(TWO_CALLOUTS);
 		await editor.focusBlockAtPath([1, 0], 0);
 
@@ -78,7 +78,7 @@ test.describe('gap caret between opaque containers', () => {
 		await expect.poll(() => activeBlockPath(editor.page)).toEqual([0, 1]);
 	});
 
-	test('the details|callout boundary parks and mints the same way', async () => {
+	test('the details|callout boundary puts the caret and creates the same way', async () => {
 		await editor.loadContent(DETAILS_THEN_CALLOUT);
 		await editor.focusBlockAtPath([0, 1], 6);
 
@@ -92,8 +92,9 @@ test.describe('gap caret between opaque containers', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	// The clamped-out body is refless; the move must skip it and park, not dead-end.
-	test('ArrowDown from a collapsed details summary parks at the boundary below', async () => {
+	// The unmounted body has no reference, so the move must skip it and stop in the gap rather
+	// than dead-end.
+	test('ArrowDown from a collapsed details summary puts the caret at the boundary below', async () => {
 		await editor.loadContent(COLLAPSED_THEN_CALLOUT);
 		await editor.focusBlockAtPath([0, 0], 0);
 
@@ -103,7 +104,7 @@ test.describe('gap caret between opaque containers', () => {
 		expect(await editor.bridge.getSource()).toBe(COLLAPSED_THEN_CALLOUT);
 	});
 
-	test('a click above a leading callout parks at the document start', async () => {
+	test('a click above a leading callout puts the caret at the document start', async () => {
 		await editor.loadContent(TWO_CALLOUTS);
 		const point = await editor.page.evaluate(() => {
 			const root = document.querySelector('.editor')!.getBoundingClientRect();
@@ -116,7 +117,8 @@ test.describe('gap caret between opaque containers', () => {
 		await editor.bridge.waitForGapCaret(AT_DOC_START);
 	});
 
-	// The decision's other half: the strip tier keeps its unwrap/exit gestures instead.
+	// The other half of the decision: a marker-prefixed container keeps its unwrap and exit
+	// gestures instead.
 	test('blockquote|blockquote stays gap-free: ArrowDown enters the second quote', async () => {
 		await editor.loadContent(TWO_QUOTES);
 		await editor.focusBlockAtPath([0, 0], 5);

@@ -1,5 +1,5 @@
 <script module lang="ts">
-	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES } from './demo-plugins';
+	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES, DEMO_TAGS } from './demo-plugins';
 
 	// The prop is the enablement set, so the toggle is the plugin's presence in the array.
 	const WITHOUT_OCCURRENCES = DEMO_PLUGINS.filter((unit) => unit !== DEMO_HIGHLIGHT_OCCURRENCES);
@@ -9,6 +9,7 @@
 	import { resolve } from '$app/paths';
 	import { Editor, type PresentationMode } from '$lib';
 	import SHOWCASE_DOCUMENT from './showcase-content.md?raw';
+	import './demo-tags/tag-marks.css';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import InsertToolbar from './InsertToolbar.svelte';
@@ -16,7 +17,7 @@
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
 	import { demoPasteImage, resolveDemoImageUrl } from './demo-image-store';
 
-	// Live-changeable props — the toggles flip these in place, no remount.
+	// Props that can change while the editor runs: the toggles set these in place, no remount.
 	const MODES: PresentationMode[] = [
 		'source',
 		'reading',
@@ -27,18 +28,23 @@
 	let presentationMode = $state<PresentationMode>('live');
 	let theme = $state<'dark' | 'light'>('light');
 
-	// The showcase installs no probe surface, so `trackParityDocument` is the only thing
-	// putting its container-dense document under the teardown parity net.
+	// The showcase installs no test probes, so `trackParityDocument` is the only thing putting
+	// its container-heavy document under the teardown parity check.
 	let editor = $state<ReturnType<typeof Editor>>();
 	trackParityDocument(() => editor);
 
-	// blockDragHandles and the plugin set are both set-once at mount, so their toggles remount
-	// the editor via {#key}, carrying the live content across so a visitor's edits survive.
+	// blockDragHandles and the plugin set are both fixed at mount, so their toggles remount the
+	// editor through {#key}, passing the current content across so a visitor's edits survive.
 	let source = $state(SHOWCASE_DOCUMENT);
 	let dragHandles = $state(true);
 	let occurrences = $state(false);
 	let selectionMenu = $state(true);
-	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);
+	// In-body tags are a consumer's plugin, not one of ours: the showcase runs them beside the
+	// bundled tour so a `#tag` can be tried against everything else.
+	const showcasePlugins = $derived([
+		...(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES),
+		DEMO_TAGS
+	]);
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
@@ -50,11 +56,11 @@
 		occurrences = !occurrences;
 	}
 
-	// Reading mode ONLY: the editor gates handles off there, so an enabled toggle would paint an
-	// active state it cannot produce. Live is an editing mode, so it keeps every affordance.
+	// Reading mode only: the editor turns the handles off there, so an enabled toggle would show
+	// an active state it cannot produce. Live is an editing mode, so it keeps every control.
 	const handlesGated = $derived(presentationMode === 'reading');
 
-	// Owned here rather than inside the panel, so the header affordance and the panel's own
+	// Kept here rather than inside the panel, so the header button and the panel's own
 	// Ctrl+Shift+D drive one state.
 	const panel = createPanelState();
 	const panelFeed = createDebugPanelFeed(() => editor);
@@ -65,7 +71,7 @@
 		<span class="showcase-title">aragonite</span>
 		<span class="showcase-tag">showcase</span>
 		<!-- Left of the mode group's auto margin: the open debug panel is fixed to the right
-		     edge and would otherwise cover the affordance that closes it. -->
+		     edge and would otherwise cover the button that closes it. -->
 		<button
 			type="button"
 			class="showcase-toggle"
@@ -138,7 +144,8 @@
 		>
 		<a class="showcase-link" href={resolve('/changelog')}>changelog</a>
 	</header>
-	<!-- Both toolbars are live mode's WYSIWYG affordance set; the markdown-first modes stay bare. -->
+	<!-- Both toolbars belong to live mode, where the document is edited as it looks; the
+	     markdown-first modes stay bare. -->
 	{#if presentationMode === 'live'}
 		<InsertToolbar {editor} />
 	{/if}
@@ -166,24 +173,24 @@
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
-		/* The wrapper carries the theme tokens, so the page chrome flips with the editor. */
+		/* The wrapper holds the theme tokens, so the page around the editor switches with it. */
 		background: var(--color-bg, #2c2c2a);
 		color: var(--color-text-secondary, #cfcfca);
-		/* The host app's two faces: a PROPORTIONAL surface, and code that stays monospace
-		   whatever the surface is. Set on the wrapper, which is where a consumer sets them. */
+		/* The host app's two typefaces: proportional for the text, and code that stays monospace
+		   whatever the text face is. Set on the wrapper, which is where a consumer sets them. */
 		--font-editor: 'Inter', system-ui, sans-serif;
 		--font-code: 'JetBrains Mono', ui-monospace, monospace;
 		font-family: var(--font-ui, system-ui, sans-serif);
 	}
 
-	/* Soft Light: the page chrome flips with the editor, off the same stamp. */
+	/* Soft Light: the page switches with the editor, from the same data attribute. */
 	.showcase[data-editor-theme='light'] {
 		--color-bg: #dfddd7;
 		--color-border: #c9c7c0;
 		--color-text-primary: #2a2a27;
 		--color-text-secondary: #4a4a45;
-		--color-ui-dulled: #71716a;
-		--color-ui-muted: #83837b;
+		--color-ui-dulled: #5c5c56;
+		--color-ui-muted: #62625c;
 	}
 	.showcase-header {
 		flex: 0 0 auto;
@@ -241,9 +248,8 @@
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}
-	/* A reading column, not the whole window — but the SCROLLER is the whole window's width, so
-	   the scrollbar sits at the screen's edge and the margins are the editor's own dead space
-	   (a drag can start there). The column is the root's padding, centred at 1000px. */
+	/* The scroll container spans the window so its margins are the editor's own empty space,
+	   where a drag can start; the reading column is the root's padding. */
 	.showcase-editor {
 		flex: 1;
 		display: flex;
@@ -262,15 +268,14 @@
 		background: rgba(250, 204, 21, 0.18);
 	}
 
-	/* Eleven controls over four rows ate a quarter of a phone screen before the document
-	   got a pixel. The demo IS the document, so the chrome condenses and drops what a
-	   phone cannot use. */
+	/* On a phone the header condenses and drops what a phone cannot use, so the document
+	   keeps the screen. */
 	@media (max-width: 640px) {
 		.showcase-header {
 			gap: 0.3rem 0.45rem;
 			padding: 0.45rem 0.6rem;
 		}
-		/* No modifier key to press, and the tag is a label the title already carries. */
+		/* No modifier key on a phone, and the tag repeats what the title already says. */
 		.showcase-tag,
 		.showcase-hint {
 			display: none;
@@ -283,8 +288,7 @@
 			font-size: 0.7rem;
 			padding: 0.1rem 0.4rem;
 		}
-		/* inline-flex holds the pills on one line no width can break, which is what put
-		   `live` past the right edge; the group takes a row and wraps inside it instead. */
+		/* The mode group takes its own row and wraps, so no pill runs past the right edge. */
 		.showcase-modes {
 			margin-left: 0;
 			flex: 1 0 100%;
@@ -293,8 +297,8 @@
 		}
 	}
 
-	/* Every header control clears the thumb minimum, the links included. It costs the condensed
-	   header two rows back, which is the trade: a control nobody can hit is not a saved row. */
+	/* Every header control clears the minimum touch size, the links included, even at the
+	   cost of header rows. */
 	@media (pointer: coarse) {
 		.showcase-mode,
 		.showcase-toggle,

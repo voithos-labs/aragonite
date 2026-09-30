@@ -1,14 +1,15 @@
 /**
- * The engine adapter behind `@voithos-labs/aragonite/plugins/mermaid/renderer`. The engine is stubbed at
- * its module boundary because the adapter's `import('mermaid')` is its only seam, and the
- * real engine draws through SVG layout that no node run provides.
+ * The mermaid adapter behind `@voithos-labs/aragonite/plugins/mermaid/renderer`. Mermaid is
+ * stubbed at its module boundary because the adapter's `import('mermaid')` is the only place
+ * it enters, and the real thing draws through SVG layout that node cannot do.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { MermaidRenderContext } from '$lib/plugins/mermaid/mermaid-renderer';
+import type { MermaidRenderer } from '$lib/plugins/mermaid/mermaid-renderer';
+import { settleEditor } from '$lib/test/harness/settle';
 
 const engine = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
-/** Counts engine module evaluations, so a load at adapter-eval time is observable. */
+/** Counts how many times the mermaid module is evaluated, so a load at import time shows. */
 const loads = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('mermaid', () => {
@@ -20,15 +21,11 @@ vi.mock('mermaid', () => {
 // what pins it, since a swapped call would draw the id.
 const drawSvg = async (_id: string, code: string) => ({ svg: `<svg>${code}</svg>` });
 const BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true };
-const settle = () => new Promise((resolve) => setTimeout(resolve));
 
-// The subpath is published, so its callers need not be typed: the context is optional here.
-type LooseRenderer = (code: string, id: string, context?: MermaidRenderContext) => Promise<string>;
-
-/** The theme memo and the render queue are module-global, so each case starts cold. */
-async function freshAdapter(): Promise<LooseRenderer> {
+/** The remembered theme and the render queue are module-wide, so each case starts fresh. */
+async function freshAdapter(): Promise<MermaidRenderer> {
 	vi.resetModules();
-	return (await import('$lib/plugins/mermaid/renderer')).mermaidRenderer as LooseRenderer;
+	return (await import('$lib/plugins/mermaid/renderer')).mermaidRenderer;
 }
 
 beforeEach(() => {
@@ -38,8 +35,8 @@ beforeEach(() => {
 });
 
 describe('mermaid engine adapter', () => {
-	// Nothing may touch `document` until a diagram actually renders, so the engine has to
-	// stay behind the dynamic import rather than ride the adapter's module eval.
+	// Nothing may touch `document` until a diagram actually renders, so mermaid has to stay
+	// behind the dynamic import rather than load when this module is evaluated.
 	it('loads the engine on the first render, never at module eval', async () => {
 		const before = loads.count;
 		const render = await freshAdapter();
@@ -49,22 +46,17 @@ describe('mermaid engine adapter', () => {
 		expect(loads.count).toBe(before + 1);
 	});
 
-	// A fresh adapter per row: the theme memo would swallow a second row mapping to the
-	// same mermaid theme, and the row would assert nothing.
+	// A fresh adapter per row: the remembered theme would swallow a second row mapping to
+	// the same mermaid theme, and that row would assert nothing.
 	it('passes mermaid theme names through and falls back for anything else', async () => {
-		const cases: [editorTheme: string | undefined, mermaidTheme: string][] = [
+		const cases: [editorTheme: string, mermaidTheme: string][] = [
 			['forest', 'forest'],
-			['limestone-night', 'default'],
-			[undefined, 'dark'] // an untyped caller omitting the context still picks a palette
+			['limestone-night', 'default']
 		];
 		for (const [editorTheme, mermaidTheme] of cases) {
 			engine.initialize.mockClear();
 			const render = await freshAdapter();
-			await render(
-				'graph TD',
-				'id-a',
-				editorTheme === undefined ? undefined : { theme: editorTheme }
-			);
+			await render('graph TD', 'id-a', { theme: editorTheme });
 			expect(engine.initialize).toHaveBeenCalledTimes(1);
 			expect(engine.initialize).toHaveBeenCalledWith(
 				expect.objectContaining({ theme: mermaidTheme })
@@ -86,9 +78,8 @@ describe('mermaid engine adapter', () => {
 		expect(engine.initialize).toHaveBeenCalledTimes(3);
 	});
 
-	// `initialize` replaces the site config rather than patching it, so a flip that sent
-	// only `{ theme }` would drop suppressErrorRendering and the engine would inject its
-	// own error SVG instead of rejecting.
+	// `initialize` replaces the whole config, so sending only `{ theme }` would drop
+	// suppressErrorRendering and mermaid would inject its own error SVG instead of rejecting.
 	it('re-sends the whole base config on every initialize', async () => {
 		const render = await freshAdapter();
 		await render('a', 'id-1', { theme: 'dark' });
@@ -109,7 +100,9 @@ describe('mermaid engine adapter', () => {
 
 		const first = render('A', 'id-a', { theme: 'dark' });
 		const second = render('B', 'id-b', { theme: 'forest' });
-		await settle();
+		// The first render waits on the engine's module load, which is I/O, not a scheduler turn.
+		await vi.waitFor(() => expect(engine.render).toHaveBeenCalled());
+		await settleEditor();
 		expect(engine.render).toHaveBeenCalledTimes(1);
 		expect(engine.initialize).toHaveBeenCalledTimes(1);
 

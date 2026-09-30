@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
-//
-// The generic directive container is the plugin tier's representative: everything below its
-// own marker is `createContainerBlock`'s, and unlike the blockquote it renders CHROME BESIDE
-// THE LIST — the only mounted container exercising the seam's `:scope > .block-list` lookup.
-// It also supplies none of the seam's optional deps, so what it renders is what an
-// unconfigured plugin container gets: every assertion is a seam decision, not a directive one.
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+// The generic directive container stands in for every plugin container: it passes none of
+// `createContainerBlock`'s optional dependencies, so each assertion tests the helper, not
+// directives. It draws its marker beside the child list, the only mounted container that
+// exercises the `:scope > .block-list` lookup.
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { componentAt } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
 
-beforeAll(installDirectiveStubs);
+beforeEach(installDirectiveStubs);
 
 const BODY = ':::foo\nalpha\n\nbeta\n:::\n';
 
@@ -37,12 +36,12 @@ describe('the directive container delegates its body past its own chrome', () =>
 		mounted = mountDirective(BODY);
 		const { containerApi } = mounted;
 
-		const first = containerApi.getBlockComponentByPath([0]);
-		const second = containerApi.getBlockComponentByPath([1]);
+		const first = componentAt(containerApi.childList(), [0]);
+		const second = componentAt(containerApi.childList(), [1]);
 
 		expect(first?.editable).toBe(true);
 		expect(second).not.toBe(first);
-		expect(containerApi.getBlockComponentByPath([2])).toBeNull();
+		expect(componentAt(containerApi.childList(), [2])).toBeNull();
 	});
 
 	it('lands focus in the first body child, never on the read-only marker', () => {
@@ -56,8 +55,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.containerApi.getCursorOffset()).toBe(0);
 	});
 
-	// The marker is chrome the container paints, not bytes the body owns. Forwarding the opener
-	// line as `ambientPrefixForFirst` would put the fence into child 0's offset space.
+	// The marker is drawn by the container, not bytes the body owns. Passing the opener line as
+	// `ambientPrefixForFirst` would put the fence into child 0's offset space.
 	it('keeps the opener out of the body child it labels', () => {
 		mounted = mountDirective(BODY);
 
@@ -69,8 +68,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.box.textContent?.match(/:::foo/g)).toHaveLength(1);
 	});
 
-	// The seam defaults `reorderable` to false (an opaque container is a reorder boundary), so a
-	// handle on a body row here would be a dead affordance — `resolveReorderUnit` declines inside.
+	// `createContainerBlock` defaults `reorderable` to false (an opaque container is a reorder
+	// boundary), so a drag handle on a body row would do nothing: `resolveReorderUnit` refuses.
 	it('leaves its body rows out of the reorder vocabulary, unlike the blockquote', () => {
 		mounted = mountDirective(BODY, { policies: { blockDragHandles: () => true } });
 

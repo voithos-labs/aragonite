@@ -1,7 +1,6 @@
 <script lang="ts">
-	// Collapse-ness has one definition, the descriptor's `reservedChrome.isCollapsed` probe.
-	// The reader's transient disclosure layers over it by feeding the factory the effective
-	// state, so the window clamp, focus clamp and caret never disagree.
+	// The document's collapsed state comes from `reservedChrome.isCollapsed`; reading mode's
+	// temporary open state is passed to the factory on top of it, so windowing and focus agree.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -22,15 +21,15 @@
 			getIndex: () => index,
 			getPath: () => myPath,
 			getBoxEl: () => boxEl,
-			// The effective state, so a transiently-opened section actually mounts and
-			// measures its body.
+			// The state on screen, so a section opened only in reading mode still mounts
+			// and measures its body.
 			isCollapsed: () => !open
 		});
 
 	const reading = $derived(getPresentationMode() === 'reading');
 	const reader = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
-	// Leaving reading mode discards the flip: with the bytes editable again, a view
-	// state they disagree with would be a live lie.
+	// Leaving reading mode discards the temporary state: with the bytes editable again, a
+	// view that disagrees with them would be showing something the document does not say.
 	$effect(() => {
 		if (!reading) reader.reset();
 	});
@@ -38,16 +37,17 @@
 
 	function commitDisclosure() {
 		const isOpen = open;
-		// Collapsing unmounts the body, orphaning a caret inside it, so move it to the summary
-		// in the commit's afterTick. Read before the commit: the toggle suppresses mousedown,
-		// so a mouse toggle leaves the caret in the body.
+		// Collapsing unmounts the body and orphans a caret inside it, so the commit puts it on the
+		// summary; the toggle suppresses mousedown, so a click leaves the caret where it was.
 		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
 		const caretInBody = pos != null && pos.path[0] >= 1;
-		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
+		updateOwnMetadata(
+			{ open: !isOpen },
+			caretInBody ? { caret: { path: [0], offset: 0 } } : undefined
+		);
 	}
 
-	// Reading mode gets the handler that cannot write, not one that declines to: this
-	// is the only mode read, and the toggle keeps working for a reader either way.
+	// Reading mode gets a handler that cannot write at all, so no toggle there becomes an edit.
 	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
 	export { containerApi };
@@ -67,7 +67,7 @@
 </div>
 
 <style>
-	/* Mirrors the admonition's rail gap and caret column so the two read as a family. */
+	/* Matches the admonition's left border and text column so the two look like a family. */
 	.details-block {
 		position: relative;
 		margin: 0.8em 0;
@@ -80,11 +80,11 @@
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
-		/* Anchors the button's em geometry to the editor font; without it the UA font-size
-		   shrinks the line-box math below and floats the caret above the summary title. */
+		/* Ties the button's em sizes to the editor font; without it the browser's default
+		   font-size shrinks the line box below and floats the arrow above the summary title. */
 		font: inherit;
-		/* Overlays the summary's first line box exactly (block padding + the leaf's 2px,
-		   one line-height tall), so flex-centering lands the caret on the title line. */
+		/* Sits exactly over the summary's first line (the block's padding plus the child's
+		   2px, one line-height tall), so centring lands the arrow on the title line. */
 		top: calc(0.15em + 2px);
 		width: 1.1em;
 		height: 1.6em;
@@ -116,8 +116,8 @@
 		border-radius: var(--radius-ui, 3px);
 	}
 
-	/* The summary leaf is promoted to a title row by CSS alone; it stays a real block
-	   inside `.block-list`, so selection and windowing treat it as an ordinary child. */
+	/* The summary is styled as a title row by CSS alone; it stays a real block inside
+	   `.block-list`, so selection and windowing treat it as an ordinary child. */
 	.details-block :global(.details-summary) {
 		font-weight: 600;
 	}

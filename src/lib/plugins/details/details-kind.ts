@@ -1,9 +1,8 @@
 /**
- * `<details>` collapsible: the second reserved-chrome container consumer. The
- * `<summary>` is a real CST child at index 0 whose tags live in the container's own
- * raw, so `strip(raw)` diverges from `serialize(children)`, hence `'opaque'` (raw
- * authoritative, exempt from `checkStaleRaw`). Non-canonical `<details …>` declines
- * to the built-in htmlBlock.
+ * The `<details>` collapsible. Its `<summary>` is a real CST child at index 0, but the tags
+ * around it live in the container's own raw, so `strip(raw)` differs from
+ * `serialize(children)`: hence `'opaque'`, where raw is authoritative and `checkStaleRaw` is
+ * skipped. A `<details …>` written any other way is left to the built-in htmlBlock.
  */
 
 import {
@@ -20,7 +19,7 @@ import {
 	serializeChildren,
 	trimTrailingLineEnding,
 	matchFenceOpen,
-	matchFenceClose,
+	findFenceCloser,
 	htmlBlockTagLineMatcher,
 	OPENER_PRIORITIES,
 	type ContainerBodyWrap,
@@ -39,8 +38,8 @@ const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: 
 
 export interface DetailsMetadata {
 	open: boolean;
-	/** One captured ending governs all three chrome lines: a well-formed document has
-	 *  uniform endings, so the rebuild reproduces them byte-identically. */
+	/** One captured ending is used for all three tag lines: a well-formed document has
+	 *  uniform endings, so the rebuild reproduces them byte for byte. */
 	lineEnding: string;
 	/** False for a document-final details with no trailing newline, so the rebuild
 	 *  does not add one. */
@@ -57,24 +56,24 @@ const canonicalTagLine = (text: string): TagVerdict =>
  *  and therefore of what closes the element in a browser. */
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
-/**
- * A `</details>` inside a fenced code block is content on both sides of the round trip, so
- * neither the recognizer nor the escape may count it. Stateful, because the fence is.
- */
-function createTagScanner(tagLine: (text: string) => TagVerdict) {
-	let fence: { marker: '`' | '~'; length: number } | null = null;
-	return (text: string): TagVerdict => {
+/** Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true; a fenced
+ *  code block's lines are skipped whole, since a `</details>` inside one is content. */
+function visitTagLines(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	tagLine: (text: string) => TagVerdict,
+	visit: (index: number, verdict: TagVerdict) => boolean | void
+): void {
+	for (let i = from; i < end; i++) {
+		const fence = matchFenceOpen(lines[i].text);
 		if (fence) {
-			if (matchFenceClose(text, fence.marker, fence.length)) fence = null;
-			return null;
+			const closer = findFenceCloser(lines, i + 1, end, fence);
+			i = closer === -1 ? end : closer;
+			continue;
 		}
-		const opened = matchFenceOpen(text);
-		if (opened) {
-			fence = { marker: opened.marker, length: opened.length };
-			return null;
-		}
-		return tagLine(text);
-	};
+		if (visit(i, tagLine(lines[i].text))) return;
+	}
 }
 
 function unpairedTagLines(
@@ -82,23 +81,19 @@ function unpairedTagLines(
 	tagLine: (text: string) => TagVerdict,
 	settled: ReadonlySet<number>
 ): number[] {
-	const classify = createTagScanner(tagLine);
 	const openIndices: number[] = [];
 	const unpaired: number[] = [];
-	for (let i = 0; i < lines.length; i++) {
-		const verdict = classify(lines[i]);
-		if (settled.has(i)) continue;
+	const texts = lines.map((text) => ({ text }));
+	visitTagLines(texts, 0, texts.length, tagLine, (i, verdict) => {
+		if (settled.has(i)) return;
 		if (verdict === 'open') openIndices.push(i);
 		else if (verdict === 'close' && openIndices.pop() === undefined) unpaired.push(i);
-	}
+	});
 	return [...unpaired, ...openIndices];
 }
 
-/**
- * Two accountings, because the recognizer and a browser disagree about what a tag line is,
- * and only the fixpoint leaves neither renderer holding a stray. Terminates because every
- * round escapes a line and escaping never mints a tag.
- */
+/** Repeats until nothing changes, since this recognizer and a browser disagree on what a tag line
+ *  is; every round escapes a line and escaping never creates a tag, so it ends. */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
 	for (;;) {
@@ -127,8 +122,8 @@ function strayEscapePoints(raw: string): number[] {
 		.map((i) => starts[i] + texts[i].indexOf('<'));
 }
 
-/** Renders as the literal glyph in a paragraph, in an html block's passthrough, and on
- *  GitHub alike, while matching no tag line. */
+/** Renders as a literal `<` in a paragraph, in an html block's passthrough, and on GitHub
+ *  alike, while matching no tag line. */
 const ESCAPED_LT = '&lt;';
 
 function escapeStrayDetailsTags(raw: string): string {
@@ -144,8 +139,8 @@ function escapeStrayDetailsTags(raw: string): string {
 	return out + raw.slice(cursor);
 }
 
-/** {@link escapeStrayDetailsTags}'s caret image: each escape ahead of the caret pushes
- *  it by the entity's growth. */
+/** Where {@link escapeStrayDetailsTags} leaves the caret: each escape before it pushes the
+ *  caret along by the characters the entity adds. */
 function mapStrayEscapeOffset(raw: string, offset: number): number {
 	const grown = ESCAPED_LT.length - 1;
 	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
@@ -173,10 +168,13 @@ export function registerDetailsKind(): void {
 	const detailsSummary = declarePluginKind(DETAILS_SUMMARY);
 
 	registerBlockKind(details, {
+		label: 'Details',
+		dragLabel: 'Details',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		// An opaque container has no text at either edge for the caret to step into, so both
+		// edges take the gap caret.
 		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
@@ -187,10 +185,7 @@ export function registerDetailsKind(): void {
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			},
+			unwrapRole: { middleChildBackspace: 'default-merge' },
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
@@ -216,13 +211,13 @@ export function registerDetailsKind(): void {
 		})
 	});
 
-	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
+	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });
 
 	registerBlockOpener(details, {
-		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
+		// Just below htmlBlock, which would otherwise take `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
 		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
-		// so the opener's paragraph behavior does not depend on that priority ordering.
+		// so this opener's paragraph behavior does not depend on that priority order.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
@@ -236,19 +231,11 @@ export function registerDetailsKind(): void {
 			// Depth-counted so nested details recurse via parse rather than closing early.
 			let depth = 1;
 			let closeIdx = -1;
-			const classify = createTagScanner(canonicalTagLine);
-			for (let i = summaryIdx + 1; i < ctx.end; i++) {
-				const tag = classify(ctx.lines[i].text);
-				if (tag === 'open') {
-					depth++;
-				} else if (tag === 'close') {
-					depth--;
-					if (depth === 0) {
-						closeIdx = i;
-						break;
-					}
-				}
-			}
+			visitTagLines(ctx.lines, summaryIdx + 1, ctx.end, canonicalTagLine, (i, tag) => {
+				if (tag === 'open') depth++;
+				else if (tag === 'close' && --depth === 0) closeIdx = i;
+				return closeIdx !== -1;
+			});
 			if (closeIdx === -1) return null; // unterminated declines to htmlBlock
 
 			const bodyText = ctx.lines
@@ -256,7 +243,10 @@ export function registerDetailsKind(): void {
 				.map((l) => l.raw)
 				.join('');
 			// A fresh parse entry, so the body's own line 0 must not read as the document top.
-			const body = parseContainerBody(bodyText, BODY_WRAP, { scope: 'fragment' });
+			const body = parseContainerBody(bodyText, BODY_WRAP, {
+				scope: 'fragment',
+				grammar: ctx.grammar
+			});
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

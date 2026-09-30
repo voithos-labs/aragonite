@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib';
 import { collectHeadings } from '$lib/plugins/toc/heading-outline';
 
-// The walk collects `heading`/`setextHeading` nodes anywhere in the tree, with
-// their doc-absolute path and level, filtered by max heading level. "Depth" here
-// is heading level (h1–h6), never container-nesting depth.
-describe('collectHeadings — level, path, order', () => {
+// Collects `heading` and `setextHeading` nodes anywhere in the tree, with their
+// document-absolute path and level, filtered by maximum heading level. "Depth" here means
+// heading level (h1 to h6), never how deeply nested the container is.
+describe('collectHeadings: level, path, order', () => {
 	it('collects both ATX and setext headings in document order with levels', () => {
 		const doc = parse('# One\n\n## Two\n\nThree\n=====\n\nbody\n');
 		const entries = collectHeadings(doc, 6);
@@ -15,6 +15,12 @@ describe('collectHeadings — level, path, order', () => {
 			[1, 'Three']
 		]);
 		expect(entries.map((e) => e.path)).toEqual([[0], [1], [2]]);
+	});
+
+	// Miss-analysis: every heading was ASCII, never one holding a typed non-breaking space.
+	it('trims Markdown whitespace off a label and keeps a non-breaking space', () => {
+		const doc = parse('# \u00a0One\t\n');
+		expect(collectHeadings(doc, 6).map((e) => e.label)).toEqual(['\u00a0One']);
 	});
 
 	it('filters out headings deeper than maxDepth', () => {

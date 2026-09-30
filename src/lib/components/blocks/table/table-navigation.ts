@@ -1,5 +1,5 @@
-// Pure: no DOM, no Svelte. Null means "no cell that way" — what the caller does with
-// the edge (exit, append a row) is the plan's decision, not this module's.
+// Pure: no DOM, no Svelte. Null means there is no cell that way; what the caller does at the
+// edge, leaving the table or appending a row, is its own decision.
 
 export interface CellCoord {
 	rowIdx: number;

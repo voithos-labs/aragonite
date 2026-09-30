@@ -1,18 +1,16 @@
 /**
- * Which plugins one editor instance activates. Definitions are process-global and first-wins;
- * this is the per-instance half: an editor activates exactly the plugins its `plugins` prop
- * listed, and an editor mounted without the prop activates everything installed in the process
- * (docs/design/plugin-contract.md § Per-instance enablement).
+ * Which plugins one editor activates, and the one check every plugin registration is read
+ * through. Definitions are process-wide; an editor activates exactly the plugins its `plugins`
+ * prop lists, and one mounted without that prop activates everything installed in the process
+ * (`docs/design/plugin-contract.md` § Per-instance enablement).
  */
-import type { AnyBlockKind } from '../core/nodes';
-import { pluginKindOwner } from './plugin-install';
-import type { KindEnablement } from './registry-view';
+import { isPluginInstalled } from './plugin-install';
 
 export interface PluginActivation {
 	isActive(pluginName: string): boolean;
 }
 
-/** The prop-less default: everything installed in the process is active. */
+/** The default when no `plugins` prop is given; `resolvesIn` still drops a plugin whose setup threw. */
 export const everyInstalledPlugin: PluginActivation = { isActive: () => true };
 
 export function activationFor(pluginNames: readonly string[]): PluginActivation {
@@ -21,13 +19,9 @@ export function activationFor(pluginNames: readonly string[]): PluginActivation 
 }
 
 /**
- * A kind whose owning plugin this instance did not activate resolves no component and drops
- * its opener. A kind no plugin owns is never gated, which covers the built-ins and any kind
- * registered outside an install.
+ * An entry no plugin owns always resolves; a plugin's only once its setup finished without
+ * throwing and the editor activated it, so a half-installed plugin resolves nowhere.
  */
-export function kindEnablementFor(activation: PluginActivation): KindEnablement {
-	return (kind: AnyBlockKind) => {
-		const owner = pluginKindOwner(kind);
-		return owner === null || activation.isActive(owner);
-	};
+export function resolvesIn(activation: PluginActivation, owner: string | null): boolean {
+	return owner === null || (isPluginInstalled(owner) && activation.isActive(owner));
 }

@@ -1,48 +1,95 @@
-import { type Page } from '@playwright/test';
+import { type ConsoleMessage, type Page, type Request, type Response } from '@playwright/test';
+import { UNDO_DEBOUNCE_MS } from '../editor-actions/commit/text-batch';
 
-// Page-level probes shared across the e2e suites. Collecting a pageerror stream stays a
-// per-spec assertion decision: this module hands over the collector, never an auto-assertion.
+// Page-level checks shared across the e2e suites. Whether a spec asserts on page errors is its own
+// decision: this module hands back what it collected and never asserts.
 
-// Start collecting uncaught page errors and return the growing array. Pair with an
-// explicit `expect(pageErrors).toEqual([])` where the spec asserts error-freedom.
+// Pair with an explicit `expect(pageErrors).toEqual([])` where the spec asserts there were none.
 export function capturePageErrors(page: Page): string[] {
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(e.message));
 	return errors;
 }
 
-// Demo routes SSR their editor, so painted blocks prove nothing about handlers: a click
-// landing before hydration silently reaches none. `trackParityDocument` registers from a
-// client-only effect, so its arrival is the barrier. Bridge-less routes have no other one.
-export function waitForEditorHydrated(page: Page): Promise<unknown> {
-	return page.waitForFunction(
-		() => ((window as { __parityDocuments?: unknown[] }).__parityDocuments ?? []).length > 0
-	);
+/** What a page reported while it loaded: uncaught errors first, then console errors, then one
+ *  line per request that failed. `seen` reads what has arrived; `stop` detaches the listeners. */
+export interface PageFailures {
+	seen(): string[];
+	stop(): void;
 }
 
-// A fixed instant rather than the wall clock (G4.48), advanced one second so a timer armed
-// during setup settles before the page stops ticking.
+// Attach before navigating: a wait that runs out can then say what the page reported instead of
+// only that it waited.
+export function watchPageFailures(page: Page): PageFailures {
+	const uncaught = new Set<string>();
+	const logged = new Set<string>();
+	const byUrl = new Map<string, string>();
+	const onConsole = (m: ConsoleMessage) => {
+		// Chromium logs this line for every bad response, and `byUrl` already names the URL.
+		if (m.type() !== 'error' || m.text().startsWith('Failed to load resource')) return;
+		logged.add(`console error: ${m.text()}`);
+	};
+	// Each page error is listed once: an effect that throws on every reactive flush would
+	// otherwise bury the cause under thousands of copies of itself.
+	const onPageError = (e: Error) => uncaught.add(`page error: ${e.message}`);
+	const onRequestFailed = (r: Request) => {
+		const reason = r.failure()?.errorText ?? 'no reason given';
+		if (!byUrl.has(r.url())) byUrl.set(r.url(), `request failed: ${r.url()} (${reason})`);
+	};
+	const onResponse = (r: Response) => {
+		if (r.status() >= 400 && !byUrl.has(r.url())) {
+			byUrl.set(r.url(), `response ${r.status()}: ${r.url()}`);
+		}
+	};
+	page.on('console', onConsole);
+	page.on('pageerror', onPageError);
+	page.on('requestfailed', onRequestFailed);
+	page.on('response', onResponse);
+	return {
+		seen: () => [...uncaught, ...logged, ...byUrl.values()],
+		stop() {
+			page.off('console', onConsole);
+			page.off('pageerror', onPageError);
+			page.off('requestfailed', onRequestFailed);
+			page.off('response', onResponse);
+		}
+	};
+}
+
+// A fixed instant rather than the wall clock, advanced one second so a timer set during setup
+// fires before the page stops ticking (G4.48).
 const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
 const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
 
-// Stop every in-page timer, so a spec owns when the editor's typing pause elapses.
-// `install` alone leaves the fake clock ticking; only the pause stops timers, and
-// Playwright's own retries keep running on the runner's real clock. Install it after the
-// setup gestures: the harness's render-flush waits ride rAF, which a frozen page never runs.
+// Stops every in-page timer (`install` alone keeps them running; `pauseAt` stops them), so a spec
+// decides when the typing pause elapses. Call it after setup: the render waits ride rAF.
 export async function freezeInPageClock(page: Page): Promise<void> {
 	await page.clock.install({ time: FROZEN_AT });
 	await page.clock.pauseAt(FROZEN_UNTIL);
 }
 
-/** Advance a frozen clock by this to elapse the editor's 250 ms typing pause. */
-export const PAST_TYPING_PAUSE_MS = 300;
+/** Advance a frozen clock by this to elapse the editor's typing pause, with a margin past it. */
+export const PAST_TYPING_PAUSE_MS = UNDO_DEBOUNCE_MS + 50;
 
-// Whether the top-level block at `index` has a mounted host — false once windowing
-// unmounts it. Windowing-generic, so it serves both the VR reveal specs and the
-// off-window selection-skip specs.
+// Whether the top-level block at `index` has a mounted host: false once windowing unmounts it.
 export function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
 	return page.evaluate(
 		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
 		index
 	);
+}
+
+// Where keyboard focus sits: the block holding it, and whether it is that block's editable element
+// rather than another focus stop inside the block.
+export function focusedBlockSurface(
+	page: Page
+): Promise<{ path: number[] | null; isSurface: boolean }> {
+	return page.evaluate(() => {
+		const active = document.activeElement as HTMLElement | null;
+		const attr = active?.closest('[data-block-path]')?.getAttribute('data-block-path');
+		return {
+			path: attr ? (JSON.parse(attr) as number[]) : null,
+			isSurface: active?.getAttribute('contenteditable') === 'true'
+		};
+	});
 }

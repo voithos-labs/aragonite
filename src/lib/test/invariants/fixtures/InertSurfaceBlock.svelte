@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The rogue door's inert twin: identical marker-only chrome behind its own caret door, with
-	// `contenteditable="false"` the whole difference. A surface that takes no keystroke traps no
-	// caret, so G1.33 stands down on it however little it paints.
+	// The inert counterpart of `RogueCaretDoorBlock`: the same marker-only content behind its own
+	// caret call, with `contenteditable="false"` the whole difference. A block that takes no
+	// keystroke traps no caret, so the caret check skips it however little it paints (G1.33).
 	import type { BlockComponent, NodeView } from '$lib/plugin';
 
 	let { node }: { node: NodeView } = $props();

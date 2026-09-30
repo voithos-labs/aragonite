@@ -1,10 +1,9 @@
 import { type SimContext } from '../invariants';
 import { arrowRightToOffset, cursorOffset } from './caret-walk';
 
-// Emoji shortcode atomic-widget gestures (plugins route, `?seed=emoji`). The widget
-// contributes its GLYPH, not its raw, and the shortcode is typed MID-prose, so the tracker's
-// end-of-doc append rule can predict neither the insert nor the atomic delete — both settle
-// on the widget swap and resync. The decoded-entity mold, so these mirror gestures/entity.ts.
+// Gestures for the emoji shortcode widget (plugins route, `?seed=emoji`), mirroring `entity.ts`.
+// The widget shows the emoji, not its shortcode, and the shortcode is typed mid-sentence, so the
+// expected answer can predict neither the insert nor the delete: both wait and resync.
 
 const EMOJI = '.md-emoji-widget';
 
@@ -28,10 +27,8 @@ async function emojiSpan(
 	return span;
 }
 
-/**
- * The caret is placed with the Selection API for SETUP only; the shortcode itself is typed
- * per-key, so the widget appears on the closing `:`. `shortcode` is the bare name, no colons.
- */
+/** The caret is placed programmatically for setup only; the shortcode is typed key by key, so
+ *  the widget appears on the closing `:`. `shortcode` is the bare name, with no colons. */
 export async function typeEmojiShortcode(
 	ctx: SimContext,
 	blockIndex: number,
@@ -51,10 +48,8 @@ export async function typeEmojiShortcode(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * The `onEdge: 'step-over'` policy must cross the whole atomic island in ONE press each way,
- * so a press that lands inside the island (an offset between start and end) fails loud.
- */
+/** `onEdge: 'step-over'` crosses the whole widget in one keypress each way, so a caret inside
+ *  it throws. */
 export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { start, end } = await emojiSpan(ctx, blockIndex);
@@ -75,10 +70,8 @@ export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promis
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * `deleteGranularity: 'atomic'` removes the whole shortcode in one press and one undo entry.
- * The caret reaches the trailing edge with REAL arrows so the press lands on that branch.
- */
+/** `deleteGranularity: 'atomic'` removes the whole shortcode in one keypress and one undo entry;
+ *  the caret reaches its trailing edge by arrow keys, the path a user takes. */
 export async function atomicDeleteEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await emojiSpan(ctx, blockIndex);

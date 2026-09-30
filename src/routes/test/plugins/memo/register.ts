@@ -1,4 +1,4 @@
-/** The memo plugin: the plain-tier validator for `createEditableLeaf` — see memo-kind.ts. */
+/** The memo plugin: the plain-mode check on `createEditableLeaf`; see memo-kind.ts. */
 
 import {
 	definePlugin,

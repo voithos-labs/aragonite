@@ -1,12 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-// Shared drag-autoscroll settles for the reorder suites (block drag + table row/column).
+// Waits on drag-autoscroll, shared by the block-drag and table reorder suites.
 
-/**
- * Holds the pointer at `hold` and polls `readScroll` until it passes `threshold`. The
- * autoscroll rAF loop self-drives only while Playwright's pointer state stays fresh, so
- * every iteration re-moves the mouse to the hold point. Never waitForTimeout.
- */
+/** The autoscroll loop runs only while Playwright's pointer state is fresh, so every poll moves
+ *  the mouse back to `hold`. */
 export async function pollAutoscrollPast(
 	page: Page,
 	hold: { x: number; y: number },
@@ -25,7 +22,7 @@ export async function pollAutoscrollPast(
 		.toBeGreaterThan(threshold);
 }
 
-/** Settles once `axis` holds still across two frames — a rect read mid-scroll is stale by the drop. */
+/** Waits until `axis` holds still for two frames: a rect read mid-scroll is stale by the drop. */
 export async function settleScroll(
 	scroller: Locator,
 	axis: 'scrollTop' | 'scrollLeft'

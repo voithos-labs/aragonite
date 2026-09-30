@@ -1,6 +1,6 @@
 <script lang="ts">
-	// Render-primary editable leaf: all editing behavior lives in `createEditableLeaf`,
-	// so this component owns only the list↔source swap and navigation.
+	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
+	// this component owns only the swap between the list and the source, and navigation.
 	import {
 		createEditableLeaf,
 		type BlockComponent,
@@ -8,23 +8,22 @@
 		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
-	import { collectHeadings, resolveMaxDepth } from './heading-outline';
+	import { collectHeadings, MAX_HEADING_DEPTH } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
+	import type { TocOptions } from './toc-plugin';
 
 	let {
 		node,
 		index,
 		myPath = [],
 		document,
-		rects,
-		maxDepth = 6
+		rects
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
 		document?: DocumentView;
 		rects?: EditorRects;
-		maxDepth?: number;
 	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -42,22 +41,24 @@
 		}
 	});
 
-	// Instance options win; the `maxDepth` prop is the factory argument, which a bare install
-	// (and only a bare install) is configured by.
-	const depth = $derived(resolveMaxDepth(leaf.getOptions(), maxDepth));
+	// Undefined only for a block mounted with no editor, as the unit tests mount it.
+	const options = leaf.getOptions() as Required<TocOptions> | undefined;
+	const depth = options?.maxDepth ?? MAX_HEADING_DEPTH;
 
-	// The walk reads heading bytes through the prop, subscribing to the CST's $state proxy, so
-	// an edit above re-runs it; it stays uncached to keep the derived reactive-safe.
-	const headings = $derived(collectHeadings(document, depth));
+	// This reads heading bytes through the prop, subscribing to the CST's $state proxy, so an
+	// edit above re-runs it; left uncached so the derived stays reactive.
+	const headings = $derived(
+		collectHeadings(document, depth, leaf.getEditor()?.computeInlineContent)
+	);
 
-	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the caret as
-	// well as scrolling, so focus never stays where the editor's chords cannot reach it.
+	// One navigation at a time per block (`navigation-queue.ts` says why). `navigateTo` moves
+	// the caret as well as scrolling, so focus never stays somewhere the keyboard cannot reach.
 	const navigation = createNavigationQueue({
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
 	});
 
-	// Suppresses the leaf's reveal-on-pointerdown so an entry activation navigates
-	// instead of folding the block open. View-only, so it works in reading mode too.
+	// Stops the block showing its source on pointerdown, so clicking an entry navigates instead
+	// of opening the source. It only reads, so it works in reading mode too.
 	function onEntryPointerDown(e: PointerEvent): void {
 		e.stopPropagation();
 	}
@@ -74,8 +75,8 @@
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
+	export const afterSourceCommit = leaf.afterSourceCommit;
 
 	void ({
 		editable,
@@ -87,8 +88,8 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		runCommand,
-		insertMarkdown
+		insertMarkdown,
+		afterSourceCommit
 	} satisfies BlockComponent);
 </script>
 
@@ -131,7 +132,7 @@
 {/if}
 
 <style>
-	/* Deltas over the shared .md-source-surface (editor.css). */
+	/* Only the differences from the shared .md-source-surface (editor.css). */
 	.toc-block-source {
 		outline: none;
 		padding: 8px 12px;
@@ -157,8 +158,8 @@
 		list-style: none;
 	}
 
-	/* Native button chrome reset to a plain full-row entry: the accent hover and focus
-	   ring are the only affordances. */
+	/* The browser's button styling is reset to a plain full-width row: the accent hover and
+	   the focus ring are the only cues. */
 	.toc-block-item {
 		display: block;
 		width: 100%;

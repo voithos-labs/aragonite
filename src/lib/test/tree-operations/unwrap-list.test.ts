@@ -119,8 +119,7 @@ describe('unwrapFirstItemFromList', () => {
 		expect(remaining.children?.[0].raw ?? '').toContain('Second');
 	});
 
-	// Miss-analysis: the empty-first-item branch had no case of its own, and children/childIds
-	// parity was asserted for M1 only.
+	// Miss-analysis: the empty-first-item branch had no case; id parity was checked on merges only.
 	it('empty first item: each surviving item keeps its own id in the shrunk list', () => {
 		const list = parseList('- Empty\n- Second\n- Third\n');
 		list.children![0].children = [];

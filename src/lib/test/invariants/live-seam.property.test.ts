@@ -8,6 +8,7 @@ import { displayLength } from '$lib/core/lines';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { isSubsequence } from '$lib/test/harness/live-oracles';
@@ -19,14 +20,11 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /**
- * live-mode.md § 4.5's join seam under random range deletes. DIFFERENTIAL like the split arm: the seam sits on
- * a range delete with divergences of its own. It sees reload shape, round-trip, § 4.1's residue,
- * and that the rewrite only ever REMOVES bytes from the join it was handed. It does not see a
- * delimiter surfacing — measured: the literal join can re-form a construct ACROSS the seam and
- * hide glyphs the two sides showed apart, so it is no upper bound. That claim belongs to the
- * cleanup's own render-path oracle, the unit suite and the e2e rows.
+ * The join of live-mode.md § 4.5 under random range deletes, compared with the literal join for
+ * reload shape, round-trip and § 4.1's leftovers; what shows on screen is the unit suite's job.
  */
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
@@ -49,9 +47,8 @@ const arbInlineDoc = fc
 	.array(arbInlineSource, { minLength: 1, maxLength: 3 })
 	.map((paragraphs) => paragraphs.join('\n\n') + '\n');
 
-/** The drawn cut wrapped into the document, ordered, and clamped to each block's CONTENT — the
- *  endpoints a selection can actually produce, so the draws land inside constructs rather than
- *  past them. Null when the document has nothing to cut. */
+/** The drawn cut, ordered and clamped to each block's content, so the endpoints are ones a
+ *  selection can produce and land inside constructs; null when there is nothing to cut. */
 function endpointsIn(doc: Document, cut: Cut): { start: number[]; end: number[] } | null {
 	const count = doc.children.length;
 	if (count === 0) return null;
@@ -84,12 +81,17 @@ function deleteRange(
 	if (!points) return null;
 	rangeDelete(
 		doc,
-		{ path: points.start.slice(0, 1), offset: points.start[1] },
-		{ path: points.end.slice(0, 1), offset: points.end[1] },
+		rangeCoverage(
+			doc,
+			coverRange(
+				doc,
+				{ path: points.start.slice(0, 1), offset: points.start[1] },
+				{ path: points.end.slice(0, 1), offset: points.end[1] }
+			)
+		),
 		createSharingState(),
-		undefined,
-		mode,
-		undefined
+		fixtureReading({}, mode),
+		'keyless'
 	);
 	const bytes = serialize(doc);
 	return {
@@ -103,10 +105,15 @@ function deleteRange(
 function visibleTextOf(node: Document['children'][number]): string {
 	const range = getContentRange(node);
 	if (range.end > displayLength(node.raw)) return node.raw;
-	return renderedText(parseInline(node.raw, range.start, range.end), node.raw, CONTENT_VISIBILITY);
+	return renderedText(
+		parseInline(node.raw, range.start, range.end),
+		node.raw,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 }
 
-describe('live-mode join seams over random range deletes', () => {
+describe('live-mode joins over random range deletes', () => {
 	beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
@@ -119,7 +126,7 @@ describe('live-mode join seams over random range deletes', () => {
 				const live = deleteRange(source, cut, 'live');
 				if (live === null) return;
 				if (live.shape !== null) {
-					throw new Error(`${JSON.stringify(source)}: reload shape — ${live.shape}`);
+					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
 				}
 				if (serialize(parse(live.bytes)) !== live.bytes) {
 					throw new Error(
@@ -131,7 +138,7 @@ describe('live-mode join seams over random range deletes', () => {
 		);
 	});
 
-	it('a live delete only ever drops bytes, and never mints unpainted residue', () => {
+	it('a live delete only ever drops bytes, and never creates unpainted residue', () => {
 		fc.assert(
 			fc.property(arbInlineDoc, arbCut, (source, cut) => {
 				const literal = deleteRange(source, cut, undefined);
@@ -143,12 +150,11 @@ describe('live-mode join seams over random range deletes', () => {
 							`subsequence of ${JSON.stringify(literal.bytes)}`
 					);
 				}
-				// Neither baseline alone: the twin can re-form a construct by accident and swallow
-				// residue the document already carried, and it can equally produce residue of its own
-				// that live is then judged against. What live owns is what exceeds both.
+				// Neither baseline alone: the literal cut can swallow leftovers the document already
+				// carried or add its own, so live mode answers only for what exceeds both.
 				if (live.residue > Math.max(unpaintedResidue(parse(source)), literal.residue)) {
 					throw new Error(
-						`${JSON.stringify(source)}: live minted residue in ${JSON.stringify(live.bytes)} ` +
+						`${JSON.stringify(source)}: live mode left residue in ${JSON.stringify(live.bytes)} ` +
 							`against ${JSON.stringify(literal.bytes)}`
 					);
 				}
@@ -157,8 +163,8 @@ describe('live-mode join seams over random range deletes', () => {
 		);
 	});
 
-	// Non-vacuity: a differential property over draws that never rewrite proves nothing about the
-	// rewrite, and a glyph budget nobody spends is a guard that guards nothing.
+	// A comparison over draws that never rewrite proves nothing about the rewrite, and a glyph
+	// budget nobody spends checks nothing.
 	it('the corpus reaches the rewrite, and the rewrite takes glyphs off the screen', () => {
 		let rewritten = 0;
 		let cleaned = 0;

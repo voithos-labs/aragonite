@@ -1,16 +1,19 @@
 // @vitest-environment jsdom
-// Miss: every card key test pressed plain keys; no row ever carried `isComposing`, so the IME
-// confirm/cancel keystrokes (which arrive as Enter/Tab/Escape mid-composition) reached the
-// card's handlers as if the user had pressed them.
+// The link card ignores Enter, Tab and Escape while an IME composition is open.
+// Miss-analysis: no card key test carried `isComposing`, so IME confirm and cancel keys acted.
+import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { describe, it, expect, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents } from '$lib/editor-events';
 import LinkCard from '$lib/components/link-card/LinkCard.svelte';
 import LinkCardHost from '$lib/components/link-card/LinkCardHost.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import type { UndoController } from '$lib/editor-actions/deps';
+import type { InlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
 import type { CaretRestore } from '$lib/selection/caret-restore';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { commandContext } from '../../support/command-context';
 
 function key(name: string, isComposing: boolean): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key: name, isComposing, bubbles: true, cancelable: true });
@@ -31,6 +34,7 @@ function mountCard() {
 			onCommit,
 			onOpenLink: vi.fn(),
 			onRemove: vi.fn(),
+			opensCard: () => false,
 			resolveHref: (raw: string) => raw
 		}
 	});
@@ -62,7 +66,7 @@ describe('IME keystrokes never operate the card', () => {
 
 // ── The host's document-level Escape ────────────────────────────────────────
 
-function mountHost() {
+async function mountHost() {
 	const card = createLinkCardState({
 		onOpen: () => {},
 		canOpen: () => true,
@@ -76,25 +80,31 @@ function mountHost() {
 		target,
 		props: {
 			card,
-			controller: {} as UndoController,
+			inlineRange: {} as InlineRangeCommit,
 			events: createEditorEvents(),
 			getDoc: () => parse('Visit [example](https://example.com) now\n'),
 			getEditorEl: () => target,
 			measureRange: () => [],
-			landCaret: async () => true,
 			activateLink: vi.fn(),
 			resolveLinkUrl: (u: string) => u,
-			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore
+			reading: fixtureReading(),
+			grammar: defaultGrammarView,
+			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore,
+			menuPresence: createMenuPresence(),
+			commands: commandContext()
 		}
 	});
 	card.enter({ path: [0], sourceStart: 6 });
 	flushSync();
+	// The card takes focus a tick after its anchor is placed, so the Escape that restores the
+	// caret finds the card holding it.
+	await tick();
 	return { card, restore, destroy: () => unmount(app) };
 }
 
 describe('Escape cancelling a conversion does not close the card', () => {
-	it('the composing Escape is ignored; the plain one closes and restores the caret', () => {
-		const { card, restore, destroy } = mountHost();
+	it('the composing Escape is ignored; the plain one closes and restores the caret', async () => {
+		const { card, restore, destroy } = await mountHost();
 		expect(card.getTarget()).not.toBeNull();
 		document.dispatchEvent(key('Escape', true));
 		flushSync();

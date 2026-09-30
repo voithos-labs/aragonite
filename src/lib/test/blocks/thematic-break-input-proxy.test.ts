@@ -1,16 +1,12 @@
 // @vitest-environment jsdom
-//
-// Regression pin for #144: a printable that arrives as `beforeinput` rather than a plain keydown
-// — an AltGr production, an IME commit — was dropped whole at a whole-block-focused kind, whose
-// focused element was a bare `tabindex=0` div with no editing host under it.
-//
-// Miss-analysis: `whole-block-keys.test.ts` pinned every branch of the keydown tail, and the tail
-// IS the whole mint; no test asked whether the other input door existed at all.
+// A printable that arrives as `beforeinput` with no keydown behind it (an AltGr production, an
+// IME commit) reaches a whole-block-focused kind through the editing host under its focus.
+// Miss-analysis: every test went through keydown; none sent a bare `beforeinput` (GH #144).
 import { describe, it, expect, afterEach } from 'vitest';
 import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-break';
 
 /** The shape an AltGr production arrives in: no keydown branch admits it, so the editing host is
- *  the only door it has. */
+ *  the only input path it has. */
 function beforeInput(host: HTMLElement, data: string): InputEvent {
 	const event = new InputEvent('beforeinput', {
 		bubbles: true,
@@ -34,7 +30,7 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe('thematic break — the hidden editing host', () => {
+describe('thematic break: the hidden editing host', () => {
 	it('mounts inside the block and takes the whole-block focus landing', () => {
 		mounted = mountBreak();
 		expect(mounted.host).not.toBeNull();
@@ -46,7 +42,7 @@ describe('thematic break — the hidden editing host', () => {
 		expect(mounted.instance.getCursorOffset()).toBe(0);
 	});
 
-	it('mints a paragraph below carrying an AltGr production the keydown gate drops', () => {
+	it('creates a paragraph below carrying an AltGr production the keydown gate drops', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 
@@ -56,7 +52,7 @@ describe('thematic break — the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('mints the composed text on commit and leaves the host empty', () => {
+	it('creates the composed text on commit and leaves the host empty', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 
@@ -66,9 +62,9 @@ describe('thematic break — the hidden editing host', () => {
 		expect(mounted.host.textContent).toBe('');
 	});
 
-	// An aborted composition ends with nothing committed; minting there would leave an empty
+	// An aborted composition ends with nothing committed; inserting there would leave an empty
 	// paragraph behind every cancelled IME session.
-	it('mints nothing when a composition ends with no text', () => {
+	it('creates nothing when a composition ends with no text', () => {
 		mounted = mountBreak();
 		mounted.instance.parkCaret(0);
 
@@ -88,13 +84,12 @@ describe('thematic break — the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(false);
 	});
 
-	it('reading mode takes the keystroke and writes no byte', () => {
+	// The write itself is refused at the commit (`whole-block-input-proxy.test.ts`).
+	it('reading mode makes the host inert and still takes the keystroke', () => {
 		mounted = mountBreak('reading');
 		mounted.instance.parkCaret(0);
 
 		expect(mounted.host.getAttribute('contenteditable')).toBe('false');
-		beforeInput(mounted.host, '€');
-
-		expect(mounted.blockEdit.insertParagraph).not.toHaveBeenCalled();
+		expect(beforeInput(mounted.host, '€').defaultPrevented).toBe(true);
 	});
 });
