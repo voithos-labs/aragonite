@@ -50,6 +50,14 @@ describe('splitRowCells', () => {
 		expect(splitRowCells('| a b c | d  e |')).toEqual(['a b c', 'd  e']);
 	});
 
+	// Miss-analysis: the escape rows all escaped an inner pipe, so none met GFM's reading of an
+	// escaped last pipe as cell text, and the split closed the row there instead.
+	it('keeps an escaped last pipe as the last cell’s text, as GFM does', () => {
+		expect(splitRowCells('|1|x\\|')).toEqual(['1', 'x\\|']);
+		expect(splitRowCells('|1|x\\\\|')).toEqual(['1', 'x\\\\']);
+		expect(matchTableDelimiterRow('|-|-\\|')).toBeNull();
+	});
+
 	it('handles rows without leading or trailing pipes', () => {
 		expect(splitRowCells('a | b | c')).toEqual(['a', 'b', 'c']);
 	});

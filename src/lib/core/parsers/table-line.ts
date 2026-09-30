@@ -28,8 +28,8 @@ export function rowCellSpans(rowText: string): CellSpan[] {
 	while (lo < hi && isWhitespaceChar(rowText[lo])) lo++;
 	while (hi > lo && isWhitespaceChar(rowText[hi - 1])) hi--;
 	if (lo < hi && rowText[lo] === '|') lo++;
-	// Escaped or not, a last pipe closes the row, as GFM's own table extension reads it.
-	if (hi > lo && rowText[hi - 1] === '|') hi--;
+	// An escaped last pipe is the last cell's text, as GFM reads it (`|1|x\|` holds `x|`).
+	if (hi > lo && rowText[hi - 1] === '|' && !endsInEscape(rowText, hi - 1, lo)) hi--;
 	const cells: CellSpan[] = [];
 	let from = lo;
 	let escaped = false;
@@ -46,6 +46,14 @@ export function rowCellSpans(rowText: string): CellSpan[] {
 		from = i + 1;
 	}
 	return cells;
+}
+
+/** Whether `text` before `end` ends in an odd run of backslashes, which escapes a pipe at `end`;
+ *  the run stops at `start`. */
+export function endsInEscape(text: string, end = text.length, start = 0): boolean {
+	let i = end;
+	while (i > start && text[i - 1] === '\\') i--;
+	return (end - i) % 2 === 1;
 }
 
 export function splitRowCells(rowText: string): string[] {

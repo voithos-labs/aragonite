@@ -15,18 +15,21 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
 
-/** `source` with `Q` typed at the end of the cell at `[row, column]` of its first table, through
+/** `source` with the cell at `[row, column]` of its first table written to `text(raw)`, through
  *  the keystroke's in-place route. */
-function typeQ(source: string, row: number, column: number) {
+function writeCell(source: string, row: number, column: number, text: (raw: string) => string) {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createLeafTyping(deps, createUndoController(deps));
 	const leaf = [0, row, column];
 	const owner = blockNodeAt(deps.doc, [0, row]) as CstNode;
 	const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-	const write = legalizeWrite(body, column, owner.children![column].raw + 'Q', 'authored');
+	const write = legalizeWrite(body, column, text(owner.children![column].raw), 'authored');
 	expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	return deps.doc;
 }
+
+const typeQ = (source: string, row: number, column: number) =>
+	writeCell(source, row, column, (raw) => raw + 'Q');
 
 const KEYSTROKES: Array<[name: string, source: string, cell: [number, number], after: string]> = [
 	['a tight body row', '|a|b|\n|-|-|\n|1|2|\n', [1, 0], '|a|b|\n|-|-|\n|1Q|2|\n'],
@@ -77,6 +80,56 @@ const KEYSTROKES: Array<[name: string, source: string, cell: [number, number], a
 describe('a keystroke in a table cell', () => {
 	it.each(KEYSTROKES)('%s changes that cell only', (_name, source, [row, column], after) => {
 		const doc = typeQ(source, row, column);
+		expect(serialize(doc)).toBe(after);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+});
+
+// Miss-analysis: every keystroke row typed a letter, so no write left a backslash against a pipe
+// or emptied the cell a pipe-less row starts or ends with, and the read-back had no test at all.
+const READ_BACK: Array<
+	[name: string, source: string, cell: [number, number], text: string, after: string]
+> = [
+	[
+		'a backslash ending a tight last cell keeps a space before the pipe',
+		'|a|b|\n|-|-|\n|1|x|\n',
+		[1, 1],
+		'x\\',
+		'|a|b|\n|-|-|\n|1|x\\ |\n'
+	],
+	[
+		'a backslash ending a tight inner cell keeps a space before the pipe',
+		'|a|b|\n|-|-|\n|1|x|\n',
+		[1, 0],
+		'1\\',
+		'|a|b|\n|-|-|\n|1\\ |x|\n'
+	],
+	[
+		'an even backslash run needs no space',
+		'|a|b|\n|-|-|\n|1|x|\n',
+		[1, 1],
+		'x\\\\',
+		'|a|b|\n|-|-|\n|1|x\\\\|\n'
+	],
+	[
+		'clearing the first cell of a row with no leading pipe',
+		'a | b\n--|--\n1 | 2\n',
+		[1, 0],
+		'',
+		'a | b\n--|--\n|  | 2 |\n'
+	],
+	[
+		'clearing the last cell of a header with no trailing pipe',
+		'a | b\n--|--\n1 | 2\n',
+		[0, 1],
+		'',
+		'| a |  |\n--|--\n1 | 2\n'
+	]
+];
+
+describe('a cell write the row’s own bytes would misread, in the editor or in GFM', () => {
+	it.each(READ_BACK)('%s', (_name, source, [row, column], text, after) => {
+		const doc = writeCell(source, row, column, () => text);
 		expect(serialize(doc)).toBe(after);
 		expect(describeConvergence(doc)).toBeNull();
 	});

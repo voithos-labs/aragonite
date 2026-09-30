@@ -17,6 +17,7 @@ import {
 } from '../core/lines';
 import {
 	delimiterCellAlignment,
+	endsInEscape,
 	matchTableDelimiterRow,
 	rowCellSpans,
 	splitRowCells,
@@ -266,7 +267,10 @@ function spliceCells<T>(text: string, spans: CellSpan[], write: CellWrite<T>): s
 function rewriteCell(text: string, span: CellSpan, value: string): string {
 	const { from, start, end, to } = span;
 	const at = start < end ? start : Math.min(from + 1, to);
-	return text.slice(from, at) + value + text.slice(start < end ? end : at, to);
+	const after = text.slice(start < end ? end : at, to);
+	// A trailing backslash against the next pipe would escape it and join the two cells.
+	const gap = after === '' && text[to] === '|' && endsInEscape(value) ? ' ' : '';
+	return text.slice(from, at) + value + gap + after;
 }
 
 /** The second line of `raw`, its ending included, or null when it has none. */
