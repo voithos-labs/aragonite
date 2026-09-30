@@ -388,8 +388,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!deps.getComposing()) preEditOffset = deps.backend.getRaw() ?? 0;
 	};
 
-	const lineEnding = (): LineEnding =>
-		trailingLineEnding(deps.getNode().raw, documentLineEnding(deps.getDoc()));
+	// The one place new text typed into the block picks its ending.
+	function lineEnding(): LineEnding {
+		return trailingLineEnding(deps.getNode().raw, documentLineEnding(deps.getDoc()));
+	}
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,

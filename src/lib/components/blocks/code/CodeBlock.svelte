@@ -55,12 +55,8 @@
 		orderedRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
-	import {
-		documentLineEnding,
-		isBlankText,
-		trimTrailingLineEnding,
-		trailingLineEnding
-	} from '../../../core/lines';
+	import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
+	import { withOwnEnding } from '../surface-write';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
@@ -83,8 +79,8 @@
 		events: editorEvents,
 		reading
 	} = wiring.deps;
-	// The ending a line written into this block takes: its own, else the document's.
-	const blockEnding = () => trailingLineEnding(node.raw, documentLineEnding(getDoc()));
+	// The ending a line typed into this block takes: its own, else the document's.
+	const blockEnding = () => editableSurface.lineEnding();
 	const { menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { onPasteImage, onRunCode, codeMenuItems } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -153,7 +149,7 @@
 	function commitDisplay(display: string, undoAnchor: number, caret: number): number | null {
 		const write = blockEdit.updateBlockContent(
 			index,
-			display + blockEnding(),
+			withOwnEnding(node, display),
 			'authored',
 			undoAnchor,
 			caret

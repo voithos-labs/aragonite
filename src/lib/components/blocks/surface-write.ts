@@ -61,18 +61,17 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.
-			write.text + ownTrailingLineEnding(node.raw),
+			withOwnEnding(node, write.text),
 			write.mode,
 			write.sessionAnchor ?? deps.getPreEditOffset(),
 			write.caretAfter
 		);
 		if (!written.admitted) return written;
-		// Ends the record once the pair it wrote no longer stands in the new bytes.
+		// Ends the auto-pair's record when the pair it wrote isn't standing in the new bytes.
 		deps.ownPairs?.consult(write.text, write.caretAfter);
-		if (!write.leavesCaret) deps.requestCaret(written.caret, { source: write.source });
-		if (!typed) return written;
 		// An in-place write has already landed, so whether a completer takes the line is known now.
 		const completes =
+			typed &&
 			written.keepsCaret &&
 			planTypedCompletion(
 				deps.getNode(),
@@ -80,17 +79,24 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 				deps.reading.grammar,
 				deps.lineEnding()
 			) !== null;
+		// A new kind, a merge or a completion lands the caret itself, so the block puts none back.
+		const keepsCaret = written.keepsCaret && !completes;
+		if (keepsCaret && !write.leavesCaret) {
+			deps.requestCaret(written.caret, { source: write.source });
+		}
+		if (!typed) return written;
 		const landed = written.then(
 			async (wrote) => (await deps.blockEdit.completeLineOnType(index, written.caret)) || wrote
 		);
 		void deps.kindCue.afterTypedWrite(landed, deps.getPath(), before);
-		return withStoredCaret(
-			landed,
-			written.caret,
-			written.storedOffset,
-			written.keepsCaret && !completes
-		);
+		return withStoredCaret(landed, written.caret, written.storedOffset, keepsCaret);
 	};
+}
+
+/** `text` as the block's bytes: the rule `writeText` follows, for a write to the block's own
+ *  text that does not go through it yet (a command, a clipboard edit, a shown source). */
+export function withOwnEnding(node: NodeView, text: string): string {
+	return text + ownTrailingLineEnding(node.raw);
 }
 
 /** A range edit as the text a surface write takes: its bytes, less the ending the write adds. */

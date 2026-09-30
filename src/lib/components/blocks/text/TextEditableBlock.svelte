@@ -21,11 +21,7 @@
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
-	import {
-		documentLineEnding,
-		trimTrailingLineEnding,
-		trailingLineEnding
-	} from '../../../core/lines';
+	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatInElement } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -66,7 +62,7 @@
 		createEditableSurface,
 		consumePendingRestore
 	} from '../editable-surface';
-	import { rangeWrite } from '../surface-write';
+	import { rangeWrite, withOwnEnding } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		landableStartAbutsIsland,
@@ -137,10 +133,6 @@
 		reading
 	} = wiring.deps;
 	const { grammar } = reading;
-	// A block with no line ending of its own is the document's last line; a write gives it the
-	// document's.
-	const documentEnding = () => documentLineEnding(getDoc());
-	const blockEnding = () => trailingLineEnding(node.raw, documentEnding());
 	// Made per gesture, never derived: a derived value would subscribe the block to the tree.
 	const storedAs = () => storedAsAt(getDoc(), myPath, reading);
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
@@ -252,7 +244,6 @@
 	const sharedCtx = editableSurface.sharedCtx;
 
 	const widgetInteraction = createWidgetInteraction({
-		getLineEnding: documentEnding,
 		storedAs,
 		get node() {
 			return node;
@@ -488,7 +479,7 @@
 					const { newRaw, caretOffset } = insertHardBreak(
 						node.raw,
 						offset,
-						documentEnding(),
+						editableSurface.lineEnding(),
 						getContentRange(node)
 					);
 					const write = blockEdit.updateBlockContent(
@@ -1020,7 +1011,7 @@
 
 		const write = blockEdit.updateBlockContent(
 			index,
-			newDisplay + blockEnding(),
+			withOwnEnding(node, newDisplay),
 			'literal',
 			range.start,
 			newSelStart

@@ -97,7 +97,6 @@ export function widgetInteractionDeps(
 		get myPath() {
 			return [0];
 		},
-		getLineEnding: () => '\n',
 		getEl: () => base.el,
 		getEditorContentWidth: () => 800,
 		widgetSelection: createWidgetSelectionState(createSelectionState()),

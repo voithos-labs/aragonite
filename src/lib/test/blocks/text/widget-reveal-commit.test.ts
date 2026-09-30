@@ -16,7 +16,7 @@ installMathInline();
 // "Before $x^2$ after" as TextEditableBlock renders it, math between two text nodes. The write
 // hands back its caret moved by `shift`, as a kind's rule inserting bytes ahead of it would.
 function mountMathBlock(shift = 0) {
-	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
+	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after\n', MATH_INLINE);
 	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];

@@ -1772,8 +1772,36 @@ const SELECTION_WRITERS: ManifestRule[] = [
 	}
 ];
 
+// ── G4.101 what a typed write asks, it asks through the surface write ────────
+
+const ROGUE_WRITER = 'src/lib/components/blocks/x/rogue-writer.ts';
+
+const TYPED_WRITE_ASKS: ManifestRule[] = [
+	{
+		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
+		population: under('src/lib/components/', 'src/lib/selection/'),
+		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
+		declared: {
+			'src/lib/components/blocks/surface-write.ts':
+				'`writeText`, which asks both for a `typed` write and for no other'
+		},
+		reason:
+			'a surface route that asks the kind cue or the on-type completer itself gets them for a command, a paste or a repair too, or misses them for a key: write through `writeText` with the typed intent',
+		hits: [
+			at(ROGUE_WRITER, 'void kindCue.afterTypedWrite(write, myPath, before);'),
+			at(ROGUE_WRITER, 'await deps.blockEdit.completeLineOnType(index, caret);')
+		],
+		misses: [
+			at(ROGUE_WRITER, 'afterTypedWrite(write, path, before) {}'),
+			at(ROGUE_WRITER, '// `kindCue.afterTypedWrite(write)` is the surface write’s.\nconst a = 1;'),
+			at('src/lib/editor-actions/x.ts', 'await blockEdit.completeLineOnType(index, caret);')
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
+describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
 describeFileRules([HELD_BRANDS], SOURCES);

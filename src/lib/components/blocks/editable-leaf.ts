@@ -41,12 +41,8 @@ import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import {
-	documentLineEnding,
-	isBlankText,
-	trimTrailingLineEnding,
-	trailingLineEnding
-} from '../../core/lines';
+import { isBlankText, trimTrailingLineEnding } from '../../core/lines';
+import { withOwnEnding } from './surface-write';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
@@ -317,7 +313,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function commitSource(edited: string): Promise<boolean> {
 		return blockEdit.updateBlockContent(
 			deps.getIndex(),
-			edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
+			withOwnEnding(deps.getNode(), edited),
 			'authored',
 			editableSurface.getPreEditOffset(),
 			edited.length

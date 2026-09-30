@@ -8,7 +8,6 @@ import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
 import {
 	displayLength,
 	ownTrailingLineEnding,
-	trailingLineEnding,
 	trimTrailingLineEnding,
 	type LineEnding
 } from '../../../core/lines';
@@ -65,10 +64,8 @@ export function cycleHeading(
 	};
 }
 
-/**
- * Insert a GFM hard break (a backslash at end of line) at `offset`. At the content's end, the
- * line ending after the content stands in for the break's own until the next key adds the line.
- */
+/** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's.
+ *  At the content's end, the block's own ending stands in for it until the next key adds the line. */
 export function insertHardBreak(
 	raw: string,
 	offset: number,
@@ -94,16 +91,13 @@ export function insertHardBreak(
 
 	/** `head`, the break's line ending, then `rest` on the new line. */
 	function breakBeforeLine(head: string, rest: string): TextEditResult {
-		// The break carries the block's own ending, else the document's `ending`: CommonMark reads
-		// a backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
-		const breakEnding = trailingLineEnding(raw, ending);
-		const newDisplay = head + breakEnding + rest;
+		const newDisplay = head + ending + rest;
 		// With nothing after the break, the inserted ending is itself the trailing ending;
 		// reattaching the original would double it into a blank line and break list continuation.
 		const newRaw = rest === '' ? newDisplay : newDisplay + trailing;
 		return {
 			newRaw,
-			caretOffset: Math.min(head.length + breakEnding.length, displayLength(newRaw))
+			caretOffset: Math.min(head.length + ending.length, displayLength(newRaw))
 		};
 	}
 }

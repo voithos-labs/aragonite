@@ -19,7 +19,7 @@ import {
 	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { trimTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import { asRawOffset } from '../../../cursor/coordinate-spaces';
 import {
 	extendSelectionToRaw as extendSelectionToRawIn,
@@ -53,13 +53,11 @@ import {
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
 import type { Reading } from '../../../schema/reading';
-import { rangeWrite, type TextWrite } from '../surface-write';
+import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
 	get index(): number;
-	/** The document's line ending, which a commit takes where the block has none of its own. */
-	getLineEnding: () => LineEnding;
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
 	getEditorContentWidth: () => number;
@@ -386,7 +384,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		const write = deps.blockEdit.updateBlockContent(
 			deps.index,
-			editedDisplay + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+			withOwnEnding(deps.node, editedDisplay),
 			'authored',
 			caretBefore,
 			caretAfter

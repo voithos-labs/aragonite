@@ -23,11 +23,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
-	import {
-		documentLineEnding,
-		normalizeLineEndings,
-		trimTrailingLineEnding
-	} from '../../../core/lines';
+	import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
@@ -182,11 +178,6 @@
 		pendingCursorOffset = offset;
 	}
 
-	// A refused write landed no bytes, so it parks no caret.
-	function parkWrite(write: ContentWrite): void {
-		if (write.admitted) parkCursor(write.caret);
-	}
-
 	// Y matters for the hit test: a click at the same column on another visual line
 	// must not open a source.
 	let lastClickClientX: number | null = null;
@@ -236,7 +227,6 @@
 	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
 	// no snap indicator, since cells render no image widgets.
 	const widgetInteraction = createWidgetInteraction({
-		getLineEnding: () => documentLineEnding(getDoc()),
 		storedAs,
 		get node() {
 			return node;
@@ -920,7 +910,8 @@
 	function deleteCellRange(start: number, end: number): void {
 		const cut = replaceRangeInLeaf(node, { start, end }, '', storedAs());
 		const display = trimTrailingLineEnding(cut.raw);
-		parkWrite(blockEdit.updateBlockContent(index, display, 'literal', start, cut.caret));
+		const write = blockEdit.updateBlockContent(index, display, 'literal', start, cut.caret);
+		if (write.admitted) parkCursor(write.caret);
 	}
 
 	async function applyCellPaste(

@@ -22,8 +22,9 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(4);
 	});
 
+	// A CRLF block's typed break takes CRLF, the ending the block's getter hands over.
 	it('keeps the CRLF ending at end-of-display, caret clamped', () => {
-		const r = insertHardBreak('abc\r\n', 3, '\n', { start: 0, end: 3 });
+		const r = insertHardBreak('abc\r\n', 3, '\r\n', { start: 0, end: 3 });
 		expect(r.newRaw).toBe('abc\\\r\n');
 		expect(r.caretOffset).toBe(4);
 	});
@@ -35,7 +36,7 @@ describe('insertHardBreak', () => {
 	});
 
 	it('gives a mid-display break the block CRLF ending, caret past it', () => {
-		const r = insertHardBreak('abc\r\n', 1, '\n', { start: 0, end: 3 });
+		const r = insertHardBreak('abc\r\n', 1, '\r\n', { start: 0, end: 3 });
 		expect(r.newRaw).toBe('a\\\r\nbc\r\n');
 		expect(r.caretOffset).toBe(4);
 	});

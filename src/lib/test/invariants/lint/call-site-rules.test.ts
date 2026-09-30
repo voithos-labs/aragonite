@@ -5,7 +5,7 @@
 
 import { callArguments, collectEditorSources } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
-import { notUnder } from './file-rule';
+import { notUnder, type Probe } from './file-rule';
 
 // ── G4.1 createBlockListState ────────────────────────────────────────────────
 
@@ -15,6 +15,11 @@ function isFunctionArgument(arg: string): boolean {
 	if (arg.includes('=>') || /\bget\b/.test(arg) || arg.startsWith('{')) return true;
 	return /(?:^|\.)get[A-Z]\w*$/.test(arg);
 }
+
+// ── G4.100 a block's own line ending ─────────────────────────────────────────
+
+const ROGUE_BLOCK = 'src/lib/components/blocks/x/rogue.ts';
+const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
 // ── The rules ────────────────────────────────────────────────────────────────
 
@@ -55,6 +60,40 @@ const RULES: CallSiteRule[] = [
 			'parse(unclosed(")"), { scope: \'fragment\' })',
 			'parseInline(raw); JSON.parse(raw); doc.parse(raw); reparse(raw);',
 			'export function parse(source: string): Document {'
+		]
+	},
+	{
+		id: 'G4.100 a block’s own trailing line ending is added only by the surface write',
+		population: (file) =>
+			file.relPath.startsWith('src/lib/components/blocks/') &&
+			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+		calls: ['trailingLineEnding', 'ownTrailingLineEnding'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/editable-surface.ts :: lineEnding':
+				'the ending a typed line break takes, the one place new text picks it: its own, else the document’s',
+			'src/lib/components/blocks/text/text-keydown.ts :: insertHardBreak':
+				'a hard break at the content’s end reuses the block’s trailing ending as its own line’s, until the pending break takes that branch',
+			'src/lib/components/blocks/code/code-paste-surface.ts :: onInlinePaste':
+				'a paste’s own write, which moves onto the surface write with the other clipboard edits',
+			'src/lib/components/blocks/code/code-context-actions.ts :: run':
+				'the dissolve action hands `replaceRaw` new text, whose ending is the document’s',
+			'src/lib/components/blocks/code/code-fence-exit.ts :: computeFenceExit':
+				'reads the body’s last line ending to put the closer after it, writing no block’s trailing ending',
+			'src/lib/components/blocks/code/code-renderer.ts :: fenceBodyAsDrawn':
+				'a render read of the body’s last line ending'
+		},
+		reason:
+			'a write to a block’s own text goes through `surface-write.ts` (`writeText`, or `withOwnEnding` for a route not on it yet), which keeps the block’s own ending: a last line saved without one keeps none',
+		hits: [
+			at(ROGUE_BLOCK, 'const raw = text + trailingLineEnding(node.raw, documentLineEnding(doc));'),
+			at(ROGUE_BLOCK, 'const raw = text + ownTrailingLineEnding(node.raw);')
+		],
+		misses: [
+			at(ROGUE_BLOCK, 'const raw = withOwnEnding(node, text);'),
+			at(ROGUE_BLOCK, 'const display = trimTrailingLineEnding(node.raw);'),
+			at(ROGUE_BLOCK, '// text + trailingLineEnding(node.raw) was the old append'),
+			at('src/lib/tree-operations/rogue.ts', 'const raw = text + ownTrailingLineEnding(node.raw);')
 		]
 	}
 ];
