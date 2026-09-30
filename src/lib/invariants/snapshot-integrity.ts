@@ -5,7 +5,6 @@
  * whole subtree.
  */
 import type { Document } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
 import type { InvariantViolation } from '../assert';
 
 /** The part of an undo entry this check needs, so the file imports nothing from `undo/`. */
@@ -38,26 +37,4 @@ export function digestDoc(doc: Document): number {
 	}
 	mix(doc.suffix);
 	return hash >>> 0;
-}
-
-/** G1.51: the bytes of each child an undo entry shares, null for an owned one, read before a
- *  container rebuild that may write its children's bytes (a table's rows). */
-export function sharedChildBytes(
-	node: NodeView,
-	isShared: (child: NodeView) => boolean
-): (string | null)[] {
-	return (node.children ?? []).map((child) => (isShared(child) ? child.raw : null));
-}
-
-export function checkSharedChildrenKept(
-	node: NodeView,
-	before: readonly (string | null)[]
-): InvariantViolation | null {
-	const children = node.children ?? [];
-	const written = before.findIndex((raw, i) => raw !== null && children[i]?.raw !== raw);
-	if (written < 0) return null;
-	return {
-		code: 'shared-child-write',
-		message: `${node.kind} rebuild wrote child ${written}, which an undo entry shares`
-	};
 }

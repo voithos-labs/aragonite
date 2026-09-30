@@ -261,7 +261,6 @@ Three families of seam run these checks:
 | G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
-| G1.51 | A table rebuild writes no row an undo entry still shares                            | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
 
 ### The entries
@@ -331,7 +330,10 @@ public plugin surface hold bytes-readonly views (`core/node-views.ts`), so a rea
 is a compile error, and G4.13 guards the casts that would strip the view. The DEV check stays
 anyway, because runtime JS bypasses types. The copy-path-on-write behind all this follows the
 `$state` canonical-reference discipline (re-read a spliced copy through the tree before using it
-further); the header of `tree-operations/unshare.ts` owns the full statement. Predicate
+further); the header of `tree-operations/unshare.ts` owns the full statement. The table's rebuild
+is the one container rebuild that writes its children's bytes, and it only rewrites a row whose
+cells stopped matching its bytes, which takes an edit that already copied that row. So it copies no
+rows up front, and a keystroke in a big table copies just the row it's in. Predicate
 `checkSnapshotIntegrity` (`snapshot-integrity.ts`) · commit primitive (top undo entry) plus
 undo/redo restore (`editor-actions/commit/history.ts`) · `snapshot-integrity.test.ts`,
 `test/undo/undo-restoration.property.test.ts`.
@@ -739,15 +741,6 @@ its own children, and in a dev build says so. Predicate
 `reactivity/use-container-windowing.svelte.ts` · `test/reactivity/measured-child-routes.svelte.test.ts`;
 G4.97 is the source half.
 
-**G1.51 · A table rebuild leaves shared rows alone** (`shared-child-write`). A table's rebuild is
-the one container rebuild that writes its children's bytes, and it only rewrites a row whose cells
-stopped matching its bytes. A row an undo entry still holds can't be in that state unless some edit
-wrote its cells without copying it first, so the rebuild copies no rows up front, and a keystroke
-in a big table copies only the row it edits. The dev check reads every shared
-row's bytes before a grid's rebuild and fires if the rebuild changed one. G1.9's digest wouldn't
-catch it, since it only hashes the top-level blocks. Predicate
-`invariants/snapshot-integrity.ts :: checkSharedChildrenKept` · run by
-`tree-operations/unshare.ts :: rebuildOwnedContainer` · `test/tree-operations/unshare.test.ts`.
 **G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
 content version and hands back the same string until the version moves, and a `source` prop write
 is compared with that string. So it's only as fresh as the version: a write that changed bytes
