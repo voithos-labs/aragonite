@@ -1,6 +1,6 @@
 # Plugin Author Guide
 
-This guide is for teaching the editor your own block or inline content. The authoring API all comes from one import, `@voithos-labs/aragonite/plugin`. The package root, `@voithos-labs/aragonite`, is the embedding side, what a host app mounts the editor with (you'll borrow its `installPlugins` once or twice), and your test suite imports from `@voithos-labs/aragonite/testing`.
+This guide is for teaching the editor your own block or inline content. All of the authoring API comes from one import, `@voithos-labs/aragonite/plugin`. The package root, `@voithos-labs/aragonite`, is the embedding side, what a host app mounts the editor with (you'll borrow its `installPlugins` once or twice), and your test suite imports from `@voithos-labs/aragonite/testing`.
 
 Four neighbouring docs carry what this one doesn't:
 
@@ -135,7 +135,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Most of 
 
 - `gapEdges` is required so a caret can always reach the space beside your block. Answering `'none'` is a decision, not an omission ([Editable-content tiers](#editable-content-tiers) has the full story).
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
-- `conformanceFixture` is optional: the Markdown the conformance kit (a bundled suite of checks every registered kind is run through, [plugin-testing.md](plugin-testing.md)) parses and round-trips. Without one, those headless checks have nothing to parse and leave the kind to the browser sweep.
+- `conformanceFixture` is optional, but the conformance kits ([plugin-testing.md](plugin-testing.md)) need it: it's the Markdown their headless checks parse and round-trip. Without one, the kind checkup reports those cells `boundary` (unchecked), and the container checkup fails outright.
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click on the folded view reveals the source at its first byte, which is a letdown when you clicked halfway into the caption.
 
@@ -485,7 +485,7 @@ installPlugins([parrot]); // no-op (a fresh parrotPlugin() here would no-op too,
 
 The API is going to freeze, and you deserve to know which half of it has settled already.
 
-- **The registration base, settled.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the probes above. The model won't change: which calls exist, that each registers once, what a kind is. The exact shapes those calls take (a descriptor field, what an opener returns) have still changed before the freeze, and freeze with everything else at the public release.
+- **The registration base, settled.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the probes above. The model won't change: which calls exist, that each registers once, what a kind is. The exact shapes those calls take (a descriptor field, what an opener returns) can still change before the freeze, and freeze with everything else at the public release.
 - **Pre-freeze, still moving.** Everything else. The [API reference](plugin-api.md) carries the list rather than this sentence: a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze. Those labels are copied from the section headers of the `@voithos-labs/aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository). The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each is being refined against real consumers, and each freezes at the public release.
 
 After the freeze the version number carries the promise: a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
@@ -766,8 +766,8 @@ function registerConspiracy(): void {
 			unwrapRole: { middleChildBackspace: 'default-merge' }
 			// Declare `reorderChildren` here if your container's direct children should
 			// reorder among themselves (drag, or Alt+ArrowUp/ArrowDown). Absent, a direct
-			// child's reorder declines at an opaque container like this one (a strip
-			// container passes it up to the nearest ancestor that declares one). The closure
+			// child's reorder declines at an opaque container like this one (a strip container
+			// passes it up to the nearest ancestor that declares one, or the root). The closure
 			// block does not ask about this axis, and a behavioural test passes either way.
 		},
 		// The Markdown the conformance kits parse: a top-level conspiracy with a title and a body.
@@ -777,8 +777,8 @@ function registerConspiracy(): void {
 			{ chord: 'Mod+8', command: setVerdict, arg: 'debunked' } // debunk
 		],
 		// Required: how this kind behaves under every cross-cutting editor system. A missing
-		// cell or column is a compile error, and a dev build warns on four more rules when the
-		// kind registers. See the guide's "The closure block" section for all of them.
+		// cell or column is a compile error, and a dev build warns on four more rules when an
+		// editor mounts. See the guide's "The closure block" section for all of them.
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildConspiracyRaw' },
 			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
@@ -1005,7 +1005,7 @@ Want a collapse toggle? Give `reservedChrome` an `isCollapsed` probe over the no
 - `{ mode: 'inherit-default' }`: the generic editor behaviour, nothing kind-specific.
 - `{ mode: 'not-supported', reason }`: the subsystem is structurally absent, so name the degradation.
 
-The type does the nagging: `Record<ClosureColumn, …>` makes a missing column a compile error, and the required field makes a missing block one. Four coherence rules are checked too, by dev-build warnings when the kind registers (nothing throws, and a production build doesn't check):
+The type does the nagging: `Record<ClosureColumn, …>` makes a missing column a compile error, and the required field makes a missing block one. Four coherence rules are checked too, by dev-build warnings when an editor mounts (or, for a kind registered after that, at the next parse). Nothing throws, a production build doesn't check, and a kind only ever registered in a headless test or an `installPlugins` + `parse` pipeline is never checked at all:
 
 1. A container can't declare `roundTrip: inherit-default`; its `rebuildRaw` is the mechanism.
 2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
@@ -1254,7 +1254,7 @@ Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plu
 
 **The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor isn't permanently the marker-always source view (a **marker** is the syntax itself, the `**` around bold or the `#` before a heading, which the editor shows dimmed). A consumer can flip the editor into any of five modes, and a plugin that assumes source mode renders wrong the day its host flips the prop. What each mode looks like to a user is the [consumer guide's table](consumer-guide.md#presentation-modes); this section is what each asks of a plugin.
 
-Two facts about the type first. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live'`, and every read below reports the **effective** mode, which is the requested prop except for the moment a switch commits the outgoing mode's open edit (the reads still say the outgoing mode then). And the union **grows by addition**, so handle it non-exhaustively: read the one property your rendering depends on (does this mode paint markers, does it write bytes) and default the rest, or the next mode renders your kind wrong the day it lands.
+Two facts about the type first. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live'`, and every read below reports the **effective** mode, which is the requested prop except for the moment a switch commits the outgoing mode's open edit (the getters still say the outgoing mode then; the `data-presentation` attribute already has the new one). And the union **grows by addition**, so handle it non-exhaustively: read the one property your rendering depends on (does this mode paint markers, does it write bytes) and default the rest, or the next mode renders your kind wrong the day it lands.
 
 How each tier reads it:
 
@@ -1445,8 +1445,8 @@ The three together, for a `:shortcode:` kind:
 
 ```ts
 const shortcode = declarePluginInlineKind('shortcode'); // 'shortcode', branded
-// A bare trigger. `:` is shared with the directive text tier at the default
-// INLINE_PRIORITIES.plugin (100) and the bundled emoji at plugin + 10, so take a slot of your own.
+// A bare trigger. Once directives or the bundled emoji are on, `:` is shared with the
+// directive text tier (the default, INLINE_PRIORITIES.plugin) and emoji (plugin + 10).
 registerInlineSyntax(':', recognizeShortcode, { priority: INLINE_PRIORITIES.plugin + 20 });
 registerInlineWidgetKind(shortcode, {
 	isWidget: (node) => node.kind === shortcode,
