@@ -30,6 +30,8 @@ And a map, so you can jump straight at your question:
 
 ## Verifying your plugin
 
+The checks, cheapest first, one section each.
+
 ### Round-trip is the contract
 
 The one promise your plugin has to keep is the one the README makes: `serialize(parse(source)) === source`. Check it three ways.
