@@ -113,8 +113,9 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// A menu opened in one mode offers that mode's edits.
-			deps.menus.closeAll();
+			// A menu opened in one mode offers that mode's edits. First, since a close may write, and
+			// the caret restore below must read the tree it leaves.
+			deps.menus.closeAll('mode-change');
 			// The caret memory and measured heights belong to the outgoing mode's markers.
 			deps.caretMemory.forget();
 			deps.layout.forgetMeasuredHeights();

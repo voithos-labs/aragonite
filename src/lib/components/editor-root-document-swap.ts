@@ -87,7 +87,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.layout.forgetMeasuredHeights();
 			deps.undoManager.clear();
 			deps.caretMemory.forget();
-			deps.menus.closeAll();
+			deps.menus.closeAll('document-swap');
 			deps.widgetSelection.clear();
 			// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
 			// would keep the outgoing document's selection. Batched, so a real range emits once.

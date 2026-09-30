@@ -422,11 +422,15 @@
 			<MenuIcon name="trash" />
 		</button>
 	{/if}
+	<!-- A mode change saves the draft, as every close but Escape does; a swap drops it, since the
+		new document is already in place. -->
 	{#if fieldOpen}
 		<label
 			class="md-image-field"
 			{@attach keepFieldOnScreen}
-			{@attach menuPresence.track(() => closeField(false), { edits: true })}
+			{@attach menuPresence.track((cause) => closeField(cause === 'mode-change'), {
+				edits: true
+			})}
 		>
 			<span class="md-image-field-label">Alt</span>
 			<input

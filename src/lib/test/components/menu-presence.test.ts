@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	createMenuPresence,
 	MENU_OPENED_IN_READING,
+	type MenuCloseCause,
 	type MenuPresence
 } from '$lib/components/menu/menu-presence.svelte';
 import { takeDevWarns } from '../support/warn-gate';
@@ -10,7 +11,7 @@ import { takeDevWarns } from '../support/warn-gate';
 /** Mounts one menu element with `close`, returning its unmount. */
 function mountMenu(
 	presence: MenuPresence,
-	close: () => void = () => {},
+	close: (cause: MenuCloseCause) => void = () => {},
 	opts?: { edits?: boolean }
 ): () => void {
 	return presence.track(close, opts)(document.createElement('div')) as () => void;
@@ -32,19 +33,26 @@ describe('menu presence', () => {
 		expect(presence.isOpen).toBe(false);
 	});
 
-	it('closeAll calls the close of every mounted menu, and of none that unmounted', () => {
-		const presence = createMenuPresence({ isReading: () => false });
-		const menu = vi.fn();
-		const flyout = vi.fn();
-		const gone = vi.fn();
-		mountMenu(presence, menu);
-		mountMenu(presence, flyout);
-		mountMenu(presence, gone)();
+	it.each(['mode-change', 'document-swap'] as const)(
+		'closeAll(%s) hands that cause to every mounted menu, and to none that unmounted',
+		(cause) => {
+			const presence = createMenuPresence({ isReading: () => false });
+			const menu = vi.fn();
+			const flyout = vi.fn();
+			const gone = vi.fn();
+			mountMenu(presence, menu);
+			mountMenu(presence, flyout);
+			mountMenu(presence, gone)();
 
-		presence.closeAll();
+			presence.closeAll(cause);
 
-		expect([menu, flyout, gone].map((close) => close.mock.calls.length)).toEqual([1, 1, 0]);
-	});
+			expect([menu, flyout, gone].map((close) => close.mock.calls)).toEqual([
+				[[cause]],
+				[[cause]],
+				[]
+			]);
+		}
+	);
 });
 
 // Miss-analysis: each menu checked reading mode at its own open, and nothing caught one that forgot.

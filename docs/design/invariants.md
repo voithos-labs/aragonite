@@ -1002,7 +1002,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.64 | The tree-ops ladder has no upward import                                                  | L       |
 | G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm                       | L       |
 | G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta                    | L       |
-| G4.67 | Every editor menu counts itself on `menuChange` and hands the registry its close          | T·L·A   |
+| G4.67 | Every editor menu counts itself on `menuChange` and hands the registry its close          | T·L     |
 | G4.68 | Every plugin registry read outside its module passes the editor's grammar                 | L       |
 | G4.69 | Only entry points, kits and editor-free code read with the default grammar                | L       |
 | G4.70 | A decoration can't set a data attribute the editor uses on a block's own element          | L       |
@@ -1638,14 +1638,17 @@ because the lossy spelling type-checks. `lint/file-rules.test.ts`.
 **G4.67 · Menu presence census.** Every open menu is in one registry
 (`components/menu/menu-presence.svelte.ts`): a menu joins it by attaching `menuPresence.track(close)`
 to its root element, so `menuChange` reads it open for exactly as long as it's mounted (#370), and
-`closeAll`, which a document swap and a mode change call, can close it. Every menu element (the
+`closeAll`, which a document swap and a mode change call, can close it. The close is told which of
+the two it is, so a menu holding a draft (the image alt field) saves it on a mode change and drops
+it on a swap, whose new document is already in place. Every menu element (the
 shared menu class, or a menu, listbox or dialog role) carries that attach, with its close as the
 argument, in its own opening tag, or is listed with the reason it doesn't, so a second menu in a
 file that already counts one is still checked. The listed ones are the selection toolbar, which
 hides itself on the event, the list inside the counted language picker, the link card its host
 counts, and the mermaid focus view, which a plugin owns. A menu whose rows write also passes
-`{ edits: true }`, and one of those mounting in reading mode closes at once and fires the dev
-warning `menu-opened-in-reading`, behind each menu's own reading check.
+`{ edits: true }`. Each of those already refuses to open in reading mode, and the registry is the
+backstop: one that mounts there anyway closes at once and fires the dev warning
+`menu-opened-in-reading`.
 `lint/menu-presence-census.test.ts`, `components/menu-presence.test.ts`.
 
 **G4.68 · Registry reads take the editor's grammar.** The inline syntax, widget kind, directive

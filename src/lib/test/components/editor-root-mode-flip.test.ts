@@ -35,11 +35,16 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		gapClears: 0,
 		selectionEmits: 0,
 		modeEmits: [] as PresentationMode[],
-		restores: [] as [number[], number][]
+		restores: [] as [number[], number][],
+		/** The post half's steps in the order they ran. */
+		order: [] as string[]
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	events.on('presentationModeChange', (next) => calls.modeEmits.push(next));
+	events.on('presentationModeChange', (next) => {
+		calls.modeEmits.push(next);
+		calls.order.push('mode');
+	});
 	const flip = createModeFlip({
 		get editorEl() {
 			return root;
@@ -52,12 +57,28 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		announceSelection: () => calls.selectionEmits++,
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
-		caretMemory: { forget: () => calls.caretForgets++ },
-		layout: { forgetMeasuredHeights: () => calls.measuredDrops++ },
-		menus: { closeAll: () => calls.menuCloses++ },
+		caretMemory: {
+			forget: () => {
+				calls.caretForgets++;
+				calls.order.push('caret');
+			}
+		},
+		layout: {
+			forgetMeasuredHeights: () => {
+				calls.measuredDrops++;
+				calls.order.push('heights');
+			}
+		},
+		menus: {
+			closeAll: (cause) => {
+				calls.menuCloses++;
+				calls.order.push(`menus:${cause}`);
+			}
+		},
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
+			calls.order.push('restore');
 		},
 		holdOutgoingMode: (next) => {
 			held = next;
@@ -146,6 +167,14 @@ describe('editor-root mode flip: the caret carry', () => {
 		h.flipTo('live');
 		await settleEditor();
 		expect(h.calls.restores).toEqual([[[1], 3]]);
+	});
+
+	// Miss-analysis: the post half's steps were only counted, and a menu's close can write.
+	it('closes the menus before anything else, so the restore reads the tree a close left', async () => {
+		const h = harness({ selection: caretAt([1], 3) });
+		h.flipTo('live');
+		await settleEditor();
+		expect(h.calls.order).toEqual(['menus:mode-change', 'caret', 'heights', 'mode', 'restore']);
 	});
 
 	it('entering reading clears the gap caret and restores nothing', async () => {

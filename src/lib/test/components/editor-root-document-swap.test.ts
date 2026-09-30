@@ -50,7 +50,7 @@ describe('the swap commit sequence', () => {
 			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },
 			caretMemory: { forget: step('caret') },
-			menus: { closeAll: step('menus') },
+			menus: { closeAll: (cause) => void order.push(`menus:${cause}`) },
 			widgetSelection: { clear: step('widget') },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
@@ -81,7 +81,7 @@ describe('the swap commit sequence', () => {
 			'heights',
 			'undo',
 			'caret',
-			'menus',
+			'menus:document-swap',
 			'widget',
 			'announce',
 			'links',
