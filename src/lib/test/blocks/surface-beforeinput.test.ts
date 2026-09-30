@@ -82,6 +82,32 @@ describe("a plugin leaf's beforeinput runs the shared step", () => {
 	});
 });
 
+// Miss-analysis: every type-replace row typed a letter, which no block handles itself, so the
+// block's handler could run before the cross-block step and every suite stayed green.
+describe('a key typed over a range across blocks', () => {
+	it('replaces the range, even a key the block pairs itself', async () => {
+		const editor = mountEditor({ source: 'hello\n\nworld\n' });
+		await editor.instance.setSelection({
+			anchor: { path: [0], offset: 2 },
+			focus: { path: [1], offset: 2 }
+		});
+		await editor.settle();
+		const el = surfaceAt(editor, [1]);
+
+		el.dispatchEvent(
+			new InputEvent('beforeinput', {
+				inputType: 'insertText',
+				data: '`',
+				bubbles: true,
+				cancelable: true
+			})
+		);
+		await editor.settle();
+
+		expect(editor.source()).toBe('he`rld\n');
+	});
+});
+
 describe('a block handling a beforeinput cancels it before the dispatch returns', () => {
 	const firstBlock = (editor: MountedEditor) => surfaceAt(editor, [0]);
 	it.each([

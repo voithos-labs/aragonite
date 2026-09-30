@@ -708,10 +708,11 @@ export function rawAssignments(
 
 /**
  * A call to `name`. A spread (`...name(`) counts as one, since a result spread into an array is
- * still a call site; a property access (`x.name(`) does not.
+ * still a call site; a property access (`x.name(`) does not, unless `name` spells it (`x.name`).
  */
 function callSiteRegex(name: string): RegExp {
-	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
+	const literal = name.replace(/[.$]/g, '\\$&');
+	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${literal}\\s*\\(`, 'g');
 }
 
 export interface CallSite {

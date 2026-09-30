@@ -388,7 +388,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!deps.getComposing()) preEditOffset = deps.backend.getRaw() ?? 0;
 	};
 
-	// The one place new text typed into the block picks its ending.
+	// For a typed line break only: a rewrite of the block's own text keeps the ending it has
+	// (`withOwnEnding`), since this one falls back to the document's.
 	function lineEnding(): LineEnding {
 		return trailingLineEnding(deps.getNode().raw, documentLineEnding(deps.getDoc()));
 	}

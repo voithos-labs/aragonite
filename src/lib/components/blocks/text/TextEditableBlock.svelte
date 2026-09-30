@@ -460,6 +460,19 @@
 		return demoteToParagraph(node.raw, getContentRange(node), offset);
 	}
 
+	function writeHardBreak(offset: number): void {
+		const { newRaw, caretOffset } = insertHardBreak(
+			node.raw,
+			offset,
+			editableSurface.lineEnding(),
+			getContentRange(node)
+		);
+		const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset, caretOffset);
+		if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
+	}
+
+	type SplitCommand = { applies: () => boolean; perform: () => void };
+
 	/** Split so hiding a shown source fits between the halves: `applies` reads only the DOM, and
 	 *  `perform` reads `node.raw`, valid only after the source is hidden. */
 	function blockCommand(
@@ -467,7 +480,7 @@
 		arg: unknown,
 		offset: number,
 		selected: { start: number; end: number } | null
-	): { applies: () => boolean; perform: () => void } | null {
+	): SplitCommand | null {
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
@@ -475,22 +488,7 @@
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
-				return always(() => {
-					const { newRaw, caretOffset } = insertHardBreak(
-						node.raw,
-						offset,
-						editableSurface.lineEnding(),
-						getContentRange(node)
-					);
-					const write = blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						'authored',
-						offset,
-						caretOffset
-					);
-					if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
-				});
+				return always(() => writeHardBreak(offset));
 			case 'block.insertTab':
 				return {
 					// Inside a list item Tab is the list's indent, so decline and let it bubble.

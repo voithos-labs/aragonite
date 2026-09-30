@@ -79,8 +79,6 @@
 		events: editorEvents,
 		reading
 	} = wiring.deps;
-	// The ending a line typed into this block takes: its own, else the document's.
-	const blockEnding = () => editableSurface.lineEnding();
 	const { menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { onPasteImage, onRunCode, codeMenuItems } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -247,7 +245,7 @@
 		const meta = metadataOf(node, 'fencedCode');
 		const slice = sliceFencedCode(node);
 		const text = getDisplayText();
-		const ending = blockEnding();
+		const ending = editableSurface.lineEnding();
 		const offset = backend.getRaw() ?? 0;
 		if (!meta.closed) {
 			if (!isBlankText(slice.body)) return false;
@@ -337,7 +335,7 @@
 				display: getDisplayText(),
 				selection: enterSpliceSpan(currentRange()),
 				mode: 'soft',
-				ending: blockEnding()
+				ending: editableSurface.lineEnding()
 			});
 			pendingCursorOffset = commitDisplay(
 				result.newText,
@@ -497,11 +495,13 @@
 			case 'insertText':
 				return e.data ?? '';
 			case 'insertLineBreak':
-				return blockEnding();
+				return editableSurface.lineEnding();
 			// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or
 			// IME insertParagraph is the same gesture arriving without a keydown.
 			case 'insertParagraph':
-				return blockEnding() + getLineLeadingWhitespace(getDisplayText(), span.start);
+				return (
+					editableSurface.lineEnding() + getLineLeadingWhitespace(getDisplayText(), span.start)
+				);
 			default:
 				return null;
 		}
@@ -626,7 +626,7 @@
 
 		// Electric indent: between an empty bracket pair, expand into three lines with an
 		// extra indent on the middle. Quote pairs stay inline; a selection is replaced.
-		const ending = blockEnding();
+		const ending = editableSurface.lineEnding();
 		if (span.start === span.end && isBetweenEmptyBracketPair(text, span.start)) {
 			const at = span.start;
 			const indent = getLineLeadingWhitespace(text, at);
@@ -660,7 +660,7 @@
 	// absorbing the blocks below into it. Closer and new paragraph land as one commit.
 	function closeUnclosedFenceAndDescend(closedDisplay: string, caretBefore: number): void {
 		const meta = metadataOf(node, 'fencedCode');
-		const lineEnding = blockEnding();
+		const lineEnding = editableSurface.lineEnding();
 		const closedFence: CstNode = {
 			kind: 'fencedCode',
 			leadingTrivia: '',

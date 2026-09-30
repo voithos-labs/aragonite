@@ -71,13 +71,13 @@ const RULES: CallSiteRule[] = [
 		holds: () => false,
 		allowed: {
 			'src/lib/components/blocks/editable-surface.ts :: lineEnding':
-				'the ending a typed line break takes, the one place new text picks it: its own, else the document’s',
+				'the getter for the ending a typed line break takes: its own, else the document’s',
 			'src/lib/components/blocks/text/text-keydown.ts :: insertHardBreak':
 				'a hard break at the content’s end reuses the block’s trailing ending as its own line’s, until the pending break takes that branch',
 			'src/lib/components/blocks/code/code-paste-surface.ts :: onInlinePaste':
 				'a paste’s own write, which moves onto the surface write with the other clipboard edits',
 			'src/lib/components/blocks/code/code-context-actions.ts :: run':
-				'the dissolve action hands `replaceRaw` new text, whose ending is the document’s',
+				'a second new-text ending, beside the typed line break’s: the dissolve action’s prose replaces the fence, so it takes the document’s ending (the two share one home under #648)',
 			'src/lib/components/blocks/code/code-fence-exit.ts :: computeFenceExit':
 				'reads the body’s last line ending to put the closer after it, writing no block’s trailing ending',
 			'src/lib/components/blocks/code/code-renderer.ts :: fenceBodyAsDrawn':
@@ -94,6 +94,41 @@ const RULES: CallSiteRule[] = [
 			at(ROGUE_BLOCK, 'const display = trimTrailingLineEnding(node.raw);'),
 			at(ROGUE_BLOCK, '// text + trailingLineEnding(node.raw) was the old append'),
 			at('src/lib/tree-operations/rogue.ts', 'const raw = text + ownTrailingLineEnding(node.raw);')
+		]
+	},
+	{
+		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
+		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
+		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/code/CodeBlock.svelte :: codeNewline':
+				'Enter types a new line, and an electric indent two',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: onBeforeInput':
+				'a soft break (Shift+Enter, or a line break with no key) types a new line',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
+				'the line break a key types over a selection',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: completeBareFence':
+				'Enter on a bare fence adds its body and closing lines',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: closeUnclosedFenceAndDescend':
+				'Enter past an unclosed fence adds the closing line and the paragraph below',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
+				'Shift+Enter types a new line',
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
+				'Shift+Enter beside a widget types a new line',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: handleDelimiterAutoPair':
+				'asks whether a completion is planned, and writes nothing'
+		},
+		reason:
+			'the getter gives a new line an ending, the document’s where the block has none; a write to the block’s own text keeps the ending it has (`withOwnEnding`), so the getter inside one adds a break a last line saved without one never had',
+		hits: [
+			at(ROGUE_BLOCK, 'const raw = display + editableSurface.lineEnding();'),
+			at(ROGUE_BLOCK, 'openLine(text, deps.lineEnding());')
+		],
+		misses: [
+			at(ROGUE_BLOCK, 'const ending = parent.containerEdit.lineEnding();'),
+			at(ROGUE_BLOCK, 'const raw = withOwnEnding(node, display);'),
+			at('src/lib/editor-actions/rogue.ts', 'const raw = display + editableSurface.lineEnding();')
 		]
 	}
 ];
