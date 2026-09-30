@@ -52,6 +52,15 @@ export class EditorPage {
 		});
 	}
 
+	/** Reparses the editor's own text as a fresh load. A `source` write equal to that text is no
+	 *  change, so the document is emptied first. */
+	async reloadContent(): Promise<string> {
+		const text = await this.bridge.getSource();
+		await this.loadContent('');
+		await this.loadContent(text);
+		return text;
+	}
+
 	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
 	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
 	async setPresentationMode(mode: string): Promise<void> {

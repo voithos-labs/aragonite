@@ -32,7 +32,7 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.bridge.waitForSourceEquals('alpha\n\nlie\n');
 
 		// The failure only shows on reload: without that line the bytes reparse as one paragraph.
-		await editor.loadContent(await editor.bridge.getSource());
+		await editor.reloadContent();
 		expect(await editor.getDomBlockCount()).toBe(2);
 	});
 
