@@ -14,7 +14,8 @@
 	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
-	import { sliceWindow, windowFloor } from '../reactivity/window-slice';
+	import { sliceWindow } from '../reactivity/window-slice';
+	import { useWindowFloor } from '../reactivity/use-window-floor.svelte';
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
 
@@ -44,6 +45,12 @@
 	let end = $derived(bounds.end);
 	let slice = $derived(children.slice(start, end));
 
+	let listEl: HTMLElement | undefined = $state();
+	useWindowFloor(
+		() => listEl,
+		() => win
+	);
+
 	// Optional, like BlockHost's reads: a list mounted alone in a test has no editor context.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const focusActions = getContext<FocusActions | undefined>(FOCUS_KEY);
@@ -69,7 +76,7 @@
 <div
 	class="block-list"
 	data-reorder-scope={reorderable && parentPath.length > 0 ? '' : undefined}
-	style:min-height={windowFloor(win)}
+	bind:this={listEl}
 >
 	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>

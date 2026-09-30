@@ -6,7 +6,8 @@
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow, windowFloor } from '../../../reactivity/window-slice';
+	import { sliceWindow } from '../../../reactivity/window-slice';
+	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -60,6 +61,10 @@
 	});
 
 	let win = $derived(windowing.window);
+	useWindowFloor(
+		() => boxEl,
+		() => win
+	);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
 	const childList: ChildList = {
@@ -84,7 +89,7 @@
 </script>
 
 <!-- The items reorder among themselves, which the drag reads off this mark. -->
-<div class="list-block" data-reorder-scope bind:this={boxEl} style:min-height={windowFloor(win)}>
+<div class="list-block" data-reorder-scope bind:this={boxEl}>
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}

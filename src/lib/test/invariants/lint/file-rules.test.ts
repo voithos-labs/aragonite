@@ -460,10 +460,9 @@ const RULES: FileRule[] = [
 		id: 'G4.99 a windowed list keeps its table height while blocks mount',
 		population: svelteOnly,
 		matches: (file) =>
-			/class="vr-spacer"/.test(file.code) &&
-			!/style:min-height=\{windowFloor\(\w+\)\}/.test(file.code),
+			/class="vr-spacer"/.test(file.code) && !/\buseWindowFloor\s*\(/.test(file.code),
 		reason:
-			'a list that renders spacers mounts its new blocks one by one, and a layout read in between clamps the scroll at the document end: put `style:min-height={windowFloor(win)}` on the box around the spacers',
+			'a list that renders spacers mounts its new blocks one by one, and a layout read in between clamps the scroll at the document end: call `useWindowFloor` with the box around the spacers',
 		reaches: [
 			'src/lib/components/BlockList.svelte',
 			'src/lib/components/blocks/list/ListBlock.svelte',
@@ -473,7 +472,7 @@ const RULES: FileRule[] = [
 		misses: [
 			at(
 				'x.svelte',
-				'<div class="rows" style:min-height={windowFloor(win)}>\n<div class="vr-spacer"></div>'
+				'useWindowFloor(() => rowsEl, () => win);\n<div class="rows">\n<div class="vr-spacer"></div>'
 			),
 			at('x.svelte', '<div class="rows"></div>'),
 			'const spacer = \'<div class="vr-spacer"></div>\';'

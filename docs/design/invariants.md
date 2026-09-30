@@ -1974,10 +1974,10 @@ to live included, and the three changes that keep the heights.
 **G4.99 · A windowed list keeps its table height while blocks mount.** When the window grows,
 Svelte mounts the new blocks one at a time, and a layout read between two of them sees a list
 short by the rest; at the end of the document the browser pulls the scroll up to fit and never
-gives it back. So every component that renders spacers puts
-`style:min-height={windowFloor(win)}` (`reactivity/window-slice.ts`) on the box around them, which
-keeps that box at its table's whole height. `lint/file-rules.test.ts` fails a component that
-renders spacers without it; `e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps
+gives it back. So every component that renders spacers calls
+`reactivity/use-window-floor.svelte.ts :: useWindowFloor` with the box around them, which holds
+that box at its table's whole height until the render ends. `lint/file-rules.test.ts` fails a
+component that renders spacers without it; `e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps
 that hit it, in both scroll modes and on the showcase (VR-16).
 
 ## Accessibility
