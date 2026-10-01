@@ -17,6 +17,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 let titled: ReturnType<typeof testChromeContainer>;
 beforeEach(() => {
@@ -43,6 +44,7 @@ function env(node: CstNode) {
 		path: [CONTAINER_INDEX],
 		caretMemory: makeCaretMemory(),
 		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		parent
 	};
 	return { blockEdit: createNestedBlockEdit(state, deps), parent, node };

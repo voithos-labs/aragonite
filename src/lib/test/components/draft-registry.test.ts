@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { createDraftRegistry, type DraftCloseCause } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+
+function setup() {
+	const stamps = createDocumentStamps();
+	const registry = createDraftRegistry(stamps);
+	/** What the document swap does: the outgoing document dies, then its drafts close. */
+	const swap = () => {
+		stamps.retire();
+		registry.closeAll('document-swap');
+	};
+	return { registry, swap };
+}
 
 function openOn(registry: ReturnType<typeof createDraftRegistry>, bytes: { now: string }) {
 	const closes: DraftCloseCause[] = [];
@@ -13,38 +25,35 @@ function openOn(registry: ReturnType<typeof createDraftRegistry>, bytes: { now: 
 
 describe('a draft held outside the document', () => {
 	it('may write while its document and its bytes are the ones it opened on', () => {
-		const { draft } = openOn(createDraftRegistry(), { now: 'x' });
+		const { draft } = openOn(setup().registry, { now: 'x' });
 		expect(draft.canWrite()).toBe(true);
 	});
 
 	it('is dropped by a write to its bytes', () => {
 		const bytes = { now: 'x' };
-		const { draft } = openOn(createDraftRegistry(), bytes);
+		const { draft } = openOn(setup().registry, bytes);
 		bytes.now = 'y';
 		expect(draft.canWrite()).toBe(false);
 	});
 
 	// The torn-down block's blur reads the handle after the swap, ended or not.
 	it('is dropped by a swap, and stays dropped once its owner ends it', () => {
-		const registry = createDraftRegistry();
+		const { registry, swap } = setup();
 		const { draft, closes } = openOn(registry, { now: 'x' });
-		registry.closeAll('document-swap');
+		swap();
 		draft.end();
 		expect(closes).toEqual(['document-swap']);
 		expect(draft.canWrite()).toBe(false);
 	});
 
-	it('a swap leaves the next document’s drafts and life alive', () => {
-		const registry = createDraftRegistry();
-		const before = registry.documentLife();
-		registry.closeAll('document-swap');
-		expect(before.live).toBe(false);
-		expect(registry.documentLife().live).toBe(true);
+	it('a draft opened after a swap belongs to the next document', () => {
+		const { registry, swap } = setup();
+		swap();
 		expect(openOn(registry, { now: 'x' }).draft.canWrite()).toBe(true);
 	});
 
 	it('a mode change closes a draft still open, once, and keeps it writable', () => {
-		const registry = createDraftRegistry();
+		const { registry } = setup();
 		const { draft, closes } = openOn(registry, { now: 'x' });
 		registry.closeAll('mode-change');
 		registry.closeAll('mode-change');
@@ -53,11 +62,11 @@ describe('a draft held outside the document', () => {
 	});
 
 	it('an ended draft is never closed', () => {
-		const registry = createDraftRegistry();
+		const { registry, swap } = setup();
 		const { draft, closes } = openOn(registry, { now: 'x' });
 		draft.end();
 		registry.closeAll('mode-change');
-		registry.closeAll('document-swap');
+		swap();
 		expect(closes).toEqual([]);
 	});
 });

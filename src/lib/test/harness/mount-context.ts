@@ -23,6 +23,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
@@ -61,6 +62,7 @@ export interface MountContextOverrides {
  *  when a component reaches one more member; the rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
+	const stamps = createDocumentStamps();
 	return {
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
@@ -88,7 +90,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		inlineMenuCombobox: () => null,
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		menuPresence: {} as EditorServices['menuPresence'],
-		drafts: createDraftRegistry(),
+		stamps,
+		drafts: createDraftRegistry(stamps),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},

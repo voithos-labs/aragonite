@@ -247,7 +247,7 @@ export function createUndoController(
 	// A push inside a step after its first returns before the snapshot, so it neither marks the
 	// tree shared nor clears the redo stack.
 	function pushCommitSnapshot(fallbackPath: number[], offset: number): void {
-		if (isJoinedPush() || !admitsSnapshot(deps.reading)) return;
+		if (isJoinedPush() || !admitsSnapshot(deps)) return;
 		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
@@ -421,7 +421,7 @@ export function createUndoController(
 		const target = args.op?.eventPath ?? args.snapshot.path;
 		// A refused write lands nothing, while a discarded no-op still lands: whether a commit
 		// lands is its own question, not whether it wrote.
-		if (!admitsWrite(deps.reading, op, () => blockNodeAt(deps.doc, target)?.kind)) return false;
+		if (!admitsWrite(deps, op, () => blockNodeAt(deps.doc, target)?.kind)) return false;
 		// Read before any await, so an undo or swap during the landing's mount makes it give up.
 		const stamp = deps.caretLanding.generation();
 		beginCommit();
@@ -853,7 +853,7 @@ export function createUndoController(
 	return {
 		sharing: deps.sharing,
 		pushUndoSnapshotDebounced: (leafPath, offset, batchKey) => {
-			if (admitsSnapshot(deps.reading)) textBatch.keystroke(leafPath, offset, batchKey);
+			if (admitsSnapshot(deps)) textBatch.keystroke(leafPath, offset, batchKey);
 		},
 		armUndoPause: textBatch.armPause,
 		commitStructural,

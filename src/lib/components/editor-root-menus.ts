@@ -26,6 +26,7 @@ import { isProseLeaf } from '../schema/page-role';
 import type { Reading } from '../schema/reading';
 import { readBlockPath } from '../selection/path-lookup';
 import { documentLineEnding } from '../core/lines';
+import { stampWrites, type DocumentStamps } from '../editor-actions/commit/document-stamp';
 
 export interface BlockMenuModel {
 	x: number;
@@ -56,6 +57,8 @@ export interface RootMenusDeps {
 	activation: PluginActivation;
 	/** The editor's reading, which tells a paragraph of pictures from prose. */
 	reading: Reading;
+	/** A block menu's writes are stamped with the document it opened over. */
+	stamps: DocumentStamps;
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -139,16 +142,21 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const actions = blockContextActionsFor(node, path, deps.activation, noun);
 		if (actions.length === 0) return;
 		const index = path[0];
-		const ctx: BlockActionContext = {
-			node,
-			path,
-			deleteBlock: async () => {
-				await deps.blockEdit.deleteBlock(index, 'keyless');
+		// A row may write after a slow clipboard read; one a `source` swap outran writes nothing.
+		const ctx: BlockActionContext = stampWrites(
+			{
+				node,
+				path,
+				deleteBlock: async () => {
+					await deps.blockEdit.deleteBlock(index, 'keyless');
+				},
+				replaceRaw: (raw: string) => deps.replaceRaw(index, raw),
+				transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+				lineEnding: documentLineEnding(deps.getDoc())
 			},
-			replaceRaw: (raw: string) => deps.replaceRaw(index, raw),
-			transformPaste: (text) => applyPasteTransforms(text, deps.activation),
-			lineEnding: documentLineEnding(deps.getDoc())
-		};
+			deps.stamps.current(),
+			deps.stamps
+		);
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),

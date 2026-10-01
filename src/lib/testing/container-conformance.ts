@@ -65,6 +65,7 @@ import {
 	type ConformanceCoverage,
 	type KitCell
 } from './conformance-core';
+import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -292,6 +293,7 @@ export async function checkStripLocalIndexAddressing(
 			},
 			caretMemory: stubCaretMemory(),
 			reading: kitReading(),
+			stamps: createDocumentStamps(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
 				focus: parentBundle?.focus ?? recordingFocus(),
@@ -395,6 +397,7 @@ export async function checkFocusBubbleTermination(
 				path: [index],
 				caretMemory: stubCaretMemory(),
 				reading: kitReading(),
+				stamps: createDocumentStamps(),
 				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
 			}
 		);

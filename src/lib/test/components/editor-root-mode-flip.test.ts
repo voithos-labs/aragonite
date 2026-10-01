@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createModeFlip } from '$lib/components/editor-root-mode-flip';
 import { createEditorEvents } from '$lib/editor-events';
 import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
 import { settleEditor } from '$lib/test/harness/settle';
@@ -42,7 +43,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	const drafts = createDraftRegistry();
+	const drafts = createDraftRegistry(createDocumentStamps());
 	events.on('presentationModeChange', (next) => {
 		calls.modeEmits.push(next);
 		calls.order.push('mode');

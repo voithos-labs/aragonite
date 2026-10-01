@@ -12,6 +12,7 @@ import {
 	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 const COUNT = 30;
 
@@ -40,6 +41,7 @@ function windowedContainer(target: BlockComponent) {
 			path: [4],
 			caretMemory: makeCaretMemory(),
 			reading: fixtureReading(),
+			stamps: createDocumentStamps(),
 			childList: () => childList,
 			parent: { blockEdit: {} as never, focus: parentFocus, containerEdit: {} as never }
 		}

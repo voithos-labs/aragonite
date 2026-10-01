@@ -977,6 +977,8 @@
 			} catch {
 				return;
 			}
+			// The cell can unmount while the read waits (a delete, a `source` swap).
+			if (!el) return;
 			const text = normalizeLineEndings(raw);
 			if (text) await applyCellPaste(text, sel);
 			return;

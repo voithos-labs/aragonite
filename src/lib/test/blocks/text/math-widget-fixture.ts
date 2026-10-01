@@ -15,6 +15,7 @@ import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-i
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -101,7 +102,7 @@ export function widgetInteractionDeps(
 		getEl: () => base.el,
 		getEditorContentWidth: () => 800,
 		widgetSelection: createWidgetSelectionState(createSelectionState()),
-		drafts: createDraftRegistry(),
+		drafts: createDraftRegistry(createDocumentStamps()),
 		setSnapTarget: () => {},
 		readRawText: () =>
 			Array.from(base.el.childNodes).reduce(

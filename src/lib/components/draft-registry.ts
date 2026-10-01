@@ -5,6 +5,8 @@
  * down still blurs, and so still tries to commit, after the swap has returned.
  */
 
+import type { DocumentStamp, DocumentStamps } from '../editor-actions/commit/document-stamp';
+
 /** Why the editor closes its drafts: a swap drops them, a mode change can still save them. */
 export type DraftCloseCause = 'mode-change' | 'document-swap';
 
@@ -24,37 +26,28 @@ export interface Draft {
 	end(): void;
 }
 
-/** The document the editor holds now; `live` turns false once a swap replaces it. */
-export interface DocumentLife {
-	readonly live: boolean;
-}
-
 export interface DraftRegistry {
 	open(spec: DraftSpec): Draft;
 	/** For a blur write that holds no draft (a tidy-up of the block's own bytes). */
-	documentLife(): DocumentLife;
+	documentLife(): DocumentStamp;
 	/** A document swap and a mode change call it. */
 	closeAll(cause: DraftCloseCause): void;
 }
 
-export function createDraftRegistry(): DraftRegistry {
-	let life = { live: true };
+/** A draft is opened on the document `stamps` has in place, and dies with it. */
+export function createDraftRegistry(stamps: Pick<DocumentStamps, 'current'>): DraftRegistry {
 	const open = new Set<DraftSpec>();
 	return {
 		open(spec) {
-			const openedOn = life;
+			const openedOn = stamps.current();
 			open.add(spec);
 			return {
 				canWrite: () => openedOn.live && spec.current() === spec.seed,
 				end: () => void open.delete(spec)
 			};
 		},
-		documentLife: () => life,
+		documentLife: stamps.current,
 		closeAll(cause) {
-			if (cause === 'document-swap') {
-				life.live = false;
-				life = { live: true };
-			}
 			for (const spec of [...open]) {
 				open.delete(spec);
 				spec.close(cause);

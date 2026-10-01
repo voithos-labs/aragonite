@@ -48,6 +48,7 @@
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
 	import { createDraftRegistry } from './draft-registry';
+	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { imageAtTarget } from './image/image-edit-commit';
@@ -353,8 +354,9 @@
 	// ── Open menus ──────────────────────────────────────────────────────
 
 	const menuPresence = createMenuPresence({ isReading: () => effectiveMode === 'reading' });
+	const stamps = createDocumentStamps();
 	// Apart from the menus, so a shown source fires no `menuChange`.
-	const drafts = createDraftRegistry();
+	const drafts = createDraftRegistry(stamps);
 	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
 	let menuWasOpen = false;
 	$effect(() => {
@@ -384,6 +386,7 @@
 		undoManager,
 		caretMemory,
 		menus: menuPresence,
+		stamps,
 		drafts,
 		widgetSelection,
 		selection: selectionState,
@@ -563,7 +566,8 @@
 		getBlockElByPath,
 		caretLanding,
 		events,
-		reading
+		reading,
+		stamps
 	};
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
 		editorActionsDeps,
@@ -755,6 +759,7 @@
 		commands,
 		menuPresence,
 		drafts,
+		stamps,
 		kindCue
 	} satisfies EditorServices);
 
@@ -871,6 +876,7 @@
 		insertCatalogue: getInsertCatalogue,
 		activation: activePlugins,
 		reading,
+		stamps,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 

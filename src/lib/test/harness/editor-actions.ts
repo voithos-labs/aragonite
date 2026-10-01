@@ -69,6 +69,7 @@ import {
 	type HeadlessActionsOptions,
 	type RecordedLanding
 } from '$lib/testing/headless-actions';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ export function makeCommitScopeStub(
 	const scope: CommitScope = {
 		path: asDocPath([]),
 		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		caretMemory: stubCaretMemory(),
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
@@ -482,6 +484,7 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 		},
 		caretMemory: input.caretMemory ?? makeCaretMemory(),
 		reading: input.reading ?? fixtureReading(),
+		stamps: createDocumentStamps(),
 		parent: input.parent
 	};
 }

@@ -61,7 +61,7 @@ export function createHistoryActions(
 
 	return {
 		async requestUndo(): Promise<void> {
-			if (!admitsWrite(deps.reading, 'undo')) return;
+			if (!admitsWrite(deps, 'undo')) return;
 			beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
@@ -72,7 +72,7 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
-			if (!admitsWrite(deps.reading, 'redo')) return;
+			if (!admitsWrite(deps, 'redo')) return;
 			beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());

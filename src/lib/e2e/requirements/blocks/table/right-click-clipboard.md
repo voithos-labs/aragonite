@@ -17,8 +17,7 @@ caret as it stood when the menu opened, the same as the browser's items would.
 - Cut is a single undo entry.
 
 - Paste picked while the host loads another document (the clipboard read held until the swap
-  is done): the text lands nowhere, the next document is exactly what was loaded, and a dev
-  build reports the refused write
+  is done): the text lands nowhere, and the next document is exactly what was loaded
 
 ## Menu surface
 

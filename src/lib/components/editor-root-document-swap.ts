@@ -3,7 +3,6 @@
  * in one fixed order, so a swap cannot skip a step.
  */
 
-import { tick } from 'svelte';
 import type { Document } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import { readBlocks } from '../core/parser';
@@ -18,12 +17,10 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
 import type { EditorEvents } from '../editor-events';
-import { assertInvariant } from '../assert';
-import { isDevChecks } from '../env';
-import { checkSwapFiresNoEdit } from '../invariants/swap-fires-no-edit';
 import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
 import type { DraftRegistry } from './draft-registry';
+import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -51,8 +48,9 @@ export interface DocumentSwapDeps {
 	currentSource(): string;
 	/** Ends the typing batch: it groups the outgoing document's undo steps, which go with it. */
 	flushDebouncedCheckpoint(): void;
-	/** Dropped first: a draft belongs to the outgoing document, and the blur of a block the swap
-	 *  tears down would otherwise commit it into the incoming one. */
+	/** Retired first: from here on, a write made for the outgoing document is refused. */
+	stamps: Pick<DocumentStamps, 'retire'>;
+	/** Then dropped, so a block the swap tears down blurs without trying to commit its draft. */
 	drafts: Pick<DraftRegistry, 'closeAll'>;
 	/** Called before the tree changes, so a caret landing still waiting gives up. */
 	noteTreeSwap(): void;
@@ -70,7 +68,7 @@ export interface DocumentSwapDeps {
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
 	adoptLinkReferences(resolver: LinkReferenceResolver, signature: string): void;
-	events: Pick<EditorEvents, 'emit' | 'on'>;
+	events: Pick<EditorEvents, 'emit'>;
 }
 
 export interface DocumentSwap {
@@ -89,7 +87,6 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			if (source === deps.currentSource()) return;
-			if (isDevChecks()) watchForEdits();
 			replace(source);
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
@@ -97,17 +94,8 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		generation: () => generation
 	};
 
-	// Through the render after the swap, where the outgoing blocks unmount and a blur commit lands.
-	function watchForEdits(): void {
-		const edits: string[] = [];
-		const stop = deps.events.on('edit', (e) => edits.push(e.op));
-		void tick().then(() => {
-			stop();
-			assertInvariant('swap-fires-no-edit', () => checkSwapFiresNoEdit(edits));
-		});
-	}
-
 	function replace(source: string): void {
+		deps.stamps.retire();
 		deps.drafts.closeAll('document-swap');
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();

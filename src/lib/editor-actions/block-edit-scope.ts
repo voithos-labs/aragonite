@@ -20,6 +20,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { TrackedPosition } from '../tree-operations/settle';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import type { Reading } from '../schema/reading';
+import type { DocumentStamps } from './commit/document-stamp';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
@@ -73,6 +74,8 @@ export interface CommitScope {
 	readonly path: DocPath;
 	/** How the editor reads its bytes: the reading-mode check and the reparse grammar. */
 	readonly reading: Reading;
+	/** Which document the write being made was stamped with, for the write gate. */
+	readonly stamps: DocumentStamps;
 	/** How the caret arrived; a keystroke's write forgets it. */
 	readonly caretMemory: Pick<CaretMemory, 'forget'>;
 	/** Read only; mutation goes through the commit's copied view, never this. */
@@ -111,6 +114,7 @@ export function createTopLevelScope(
 		get reading() {
 			return deps.reading;
 		},
+		stamps: deps.stamps,
 		caretMemory: deps.caretMemory,
 		children: () => deps.doc.children,
 		target: () => deps.doc,
@@ -164,6 +168,7 @@ interface ContainerParts {
 	path(): number[];
 	state: MultiScopeTarget['state'];
 	reading(): Reading;
+	stamps: DocumentStamps;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	containerEdit: ContainerEditActions;
 }
@@ -174,6 +179,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		path: () => deps.path,
 		state,
 		reading: () => deps.reading,
+		stamps: deps.stamps,
 		caretMemory: deps.caretMemory,
 		containerEdit: deps.parent.containerEdit
 	});
@@ -191,6 +197,7 @@ export function createPathScope(root: EditorRoot, parentPath: DocPath): CommitSc
 		path: () => parentPath,
 		state: containerScopeState({ resolveState: getStateForNode }, node),
 		reading: () => deps.reading,
+		stamps: deps.stamps,
 		caretMemory: deps.caretMemory,
 		containerEdit: createContainerEditActions(deps, controller)
 	});
@@ -204,6 +211,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 		get reading() {
 			return parts.reading();
 		},
+		stamps: parts.stamps,
 		caretMemory: parts.caretMemory,
 		// A collapse at this container's own index detaches it (`tree-operations/chain-rebuild.ts`),
 		// so a post-commit read can find the container gone rather than merely empty.

@@ -25,6 +25,7 @@ import {
 import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
+import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -177,7 +178,8 @@ export function createHeadlessActions(
 		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		reading: options.reading ?? kitReading()
+		reading: options.reading ?? kitReading(),
+		stamps: createDocumentStamps()
 	};
 	// No render window: nothing mounts later, so an empty entry counts as out of range.
 	const rootList: ChildList = {

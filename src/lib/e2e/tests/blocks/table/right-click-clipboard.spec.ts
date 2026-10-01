@@ -128,11 +128,9 @@ test.describe('table block: cell right-click clipboard', () => {
 	});
 });
 
-// The cell menu's Paste waits on the clipboard read, and the document it was picked in can be gone
-// by the time the text arrives: the paste is then refused rather than landing in the next one.
+// The cell menu's Paste waits on the clipboard read, and the cell it was picked in can be gone by
+// the time the text arrives: the paste then lands nowhere rather than in the next document.
 test.describe('table block: cell menu paste across a source swap', () => {
-	test.use({ expectInvariants: ['stale-document-write'] });
-
 	test('lands nowhere', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();

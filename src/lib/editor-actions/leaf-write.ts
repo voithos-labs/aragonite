@@ -46,7 +46,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 		writeLeafInPlace(leafPath, write, caret) {
 			const kindOf = () => blockNodeAt(deps.doc, leafPath)?.kind;
 			// A backstop: the keystroke asks the reading-mode check before it picks this route.
-			if (!admitsWrite(deps.reading, 'updateContent', kindOf)) return { wrote: false };
+			if (!admitsWrite(deps, 'updateContent', kindOf)) return { wrote: false };
 			const chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 			// A shorter chain would leave the leaf's container shared with an undo entry, and
 			// writing it would rewrite that entry.
