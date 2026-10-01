@@ -143,9 +143,7 @@ describe('the swap commit sequence', () => {
 	});
 
 	it('G1.53: says so in a dev build when an edit fires during the swap', async () => {
-		const h = harness((events) =>
-			events.emit('edit', { op: 'input', path: [0], detail: { byteLength: 5 }, timestamp: 0 })
-		);
+		const h = harness((events) => events.emit('edit', { op: 'input', path: [0], timestamp: 0 }));
 		h.swap.swapTo('b\n');
 		await tick();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:swap-fires-no-edit']);
@@ -155,7 +153,7 @@ describe('the swap commit sequence', () => {
 	it('G1.53: and when one fires in the render after it', async () => {
 		const h = harness();
 		h.swap.swapTo('b\n');
-		h.events.emit('edit', { op: 'input', path: [0], detail: { byteLength: 5 }, timestamp: 0 });
+		h.events.emit('edit', { op: 'input', path: [0], timestamp: 0 });
 		await tick();
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:swap-fires-no-edit']);
 	});

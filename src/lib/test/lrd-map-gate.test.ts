@@ -11,7 +11,7 @@ function event(op: EditEvent['op'], path: number[], detail?: unknown): EditEvent
 describe('lrdMapCouldChange', () => {
 	it('skips the rebuild for an ordinary paragraph keystroke', () => {
 		const doc = parse('hello world\n');
-		expect(lrdMapCouldChange(doc, event('input', [0], { byteLength: 1 }))).toBe(false);
+		expect(lrdMapCouldChange(doc, event('input', [0]))).toBe(false);
 	});
 
 	it('skips the rebuild for a paragraph keystroke even when the doc holds LRDs', () => {
@@ -19,13 +19,13 @@ describe('lrdMapCouldChange', () => {
 		// never change the set of definitions, so it must not traverse the document.
 		const doc = parse('use [d][d]\n\n[d]: https://example.com\n');
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('input', [0], { byteLength: 1 }))).toBe(false);
+		expect(lrdMapCouldChange(doc, event('input', [0]))).toBe(false);
 	});
 
 	it('rebuilds when a kind-stable edit targets a definition node', () => {
 		const doc = parse('see [d][d]\n\n[d]: https://example.com\n');
 		expect(doc.children[1].kind).toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('input', [1], { byteLength: 1 }))).toBe(true);
+		expect(lrdMapCouldChange(doc, event('input', [1]))).toBe(true);
 	});
 
 	it('rebuilds on a kind change that creates a definition (commits as updateContent)', () => {

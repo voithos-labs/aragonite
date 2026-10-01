@@ -68,6 +68,9 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
   stranding it: the card addresses its link by path plus construct start, never by element
 - that re-anchoring follows each key typed, not the typing pause: with the page clock stopped, the
   card still moves down as the link does
+- an undo or a redo of that typing puts the card back at its distance from the link: an undo
+  announces itself before its document renders, so the card measures a tick after any edit
+  (miss-analysis: every re-anchor row typed forward, and none undid what it typed)
 - an edit that moves the start of the card's own construct closes it, and it stays closed through
   the `Mod+Z` that puts those bytes back: a card left holding a target it no longer renders would
   come back with the draft it had before

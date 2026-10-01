@@ -13,7 +13,7 @@ export interface HighlightOccurrencesOptions {
 	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
-/** How long typing stops before the marks come back: the editor's own undo pause. */
+/** How long typing stops before the marks come back: this plugin's own quarter second. */
 export const TYPING_PAUSE_MS = 250;
 
 export function highlightOccurrencesPlugin(

@@ -96,12 +96,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 			// The content version bumps after the tree write, and the `edit` after that, in the
 			// order a commit uses; the trial reparse kept the leaf's kind, which `input` promises.
 			deps.bumpContentVersion();
-			deps.events.emit('edit', {
-				op: 'input',
-				path: [...leafPath],
-				detail: { byteLength: write.text.length },
-				timestamp: Date.now()
-			});
+			deps.events.emit('edit', { op: 'input', path: [...leafPath], timestamp: Date.now() });
 			const moved = settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 			return {
 				wrote: true,

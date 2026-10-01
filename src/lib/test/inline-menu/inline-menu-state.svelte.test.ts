@@ -30,8 +30,7 @@ const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
 
 const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
 
-const typedEdit = (path: number[]): EditEvent =>
-	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
+const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
 /** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. `writeFails`
  *  makes the range splice throw; `writeDeclines` makes it write nothing, as reading mode does. */

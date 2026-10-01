@@ -6,11 +6,11 @@ const ops = (edits: EditEvent[]) => edits.map((e) => [e.op, e.path]);
 
 // A typed write fires its own `input` edit as it lands; the undo batch's pause decides nothing.
 describe('typing fires one input edit per write', () => {
-	it('each keystroke fires before the next one is typed, with its leaf and its own length', async () => {
+	it('each keystroke fires before the next one is typed, with its leaf', async () => {
 		const { actions, edits } = makeTopHarness('aaa\n\nbbb\n');
 
 		await actions.updateBlockContent(0, 'aaax\n', 'authored', 3);
-		expect(edits.map((e) => [e.op, e.path, e.detail])).toEqual([['input', [0], { byteLength: 5 }]]);
+		expect(ops(edits)).toEqual([['input', [0]]]);
 
 		await actions.updateBlockContent(0, 'aaaxy\n', 'authored', 4);
 		await actions.updateBlockContent(1, 'bbbz\n', 'authored', 3);

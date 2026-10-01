@@ -25,8 +25,7 @@ import { normalizePluginEntries } from '$lib/schema/plugin-install';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { pluginContextDeps } from '../../support/plugin-context-deps';
 
-const typedEdit = (path: number[]): EditEvent =>
-	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
+const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
 /** What a harness hands the code that attaches the `/` source. */
 interface HarnessHost {

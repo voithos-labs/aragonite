@@ -210,6 +210,22 @@ test.describe('live-mode link card', () => {
 			.toBeGreaterThan(beforeBox.y);
 	});
 
+	test('the card keeps its distance from the link through an undo and a redo', async ({ page }) => {
+		await openCardOn(ep, page, 'docs');
+		const link = page.locator('a.md-link-content', { hasText: 'docs' });
+		const gap = async () =>
+			(await page.locator(CARD).boundingBox())!.y - (await link.boundingBox())!.y;
+		const before = await gap();
+		await stepToBlockStart(ep, page, 0);
+		await ep.typeText('padding words '.repeat(60));
+		await ep.waitForRenderFlush();
+
+		await ep.undo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
+		await ep.redo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
+	});
+
 	test('a reference link’s URL edit inlines the destination and leaves the definition alone', async ({
 		page
 	}) => {

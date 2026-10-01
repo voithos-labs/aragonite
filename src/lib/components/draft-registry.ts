@@ -20,7 +20,7 @@ export interface DraftSpec {
 export interface Draft {
 	/** Whether the commit may write: the document it opened on is still in place, its bytes too. */
 	canWrite(): boolean;
-	/** The owner committed or dropped it, so the editor no longer closes it. Safe to repeat. */
+	/** Unregister it once the owner closes it, so the editor won't close it again; safe to repeat. */
 	end(): void;
 }
 
