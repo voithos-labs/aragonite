@@ -84,8 +84,8 @@ export interface EdgePolicyDispatchDeps {
 	/** The block's one write to its own text, which anchors undo and puts the caret back. */
 	writeText: (write: TextWrite) => ContentWrite;
 	/** Write the space that finishes the container's marker in front of this block, as one write
-	 *  of the container's own line; absent where no such container holds the block (a cell). */
-	completeMarker?: () => void;
+	 *  of the container's own line. */
+	completeMarker: () => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -590,7 +590,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const claim = markerCompletion.claimSpace(node, containerParent, index, caretOffset);
 		if (claim === null) return false;
 		e.preventDefault();
-		if (claim === 'bare-marker') deps.completeMarker?.();
+		if (claim === 'bare-marker') deps.completeMarker();
 		return true;
 	}
 
