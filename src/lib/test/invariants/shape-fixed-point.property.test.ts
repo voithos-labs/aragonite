@@ -366,7 +366,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// G2.16. Miss-analysis (GH #589): the retype checked content bytes only, and the generator drew
+	// G2.16. Miss-analysis: the retype checked content bytes only, and the generator drew
 	// every container line in the rebuild's own spelling, so a respelled item never reached it.
 	it('writing a leaf its own bytes leaves them and the shape as they were', () => {
 		fc.assert(

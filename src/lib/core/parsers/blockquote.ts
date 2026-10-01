@@ -5,6 +5,7 @@
 
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
+import { INNER_LINE, type LineCodec } from '../strip-lines';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
@@ -17,9 +18,26 @@ export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
 }
 
-function stripBlockquotePrefix(text: string): string {
-	return text.replace(/^ {0,3}>[ \t]?/, '');
-}
+const QUOTE_PREFIX = /^ {0,3}>[ \t]?/;
+
+/** A quote line: up to three spaces, `>`, then one optional space or tab; a line with no `>`
+ *  is a lazy continuation. */
+export const quoteLines: LineCodec = {
+	read(line, place) {
+		const prefix = QUOTE_PREFIX.exec(line)?.[0];
+		if (prefix === undefined) {
+			return place.first || isBlankLine(line) ? null : { text: line, prefix: '', lazy: true };
+		}
+		const text = line.slice(prefix.length);
+		// A `>` with nothing between it and the text is a marker the user may still be finishing
+		// (`contentStartSpace`), so a rewritten line takes the marker's space.
+		const waiting = prefix.endsWith('>') && text !== '' && !text.startsWith('>');
+		return { text, prefix: waiting ? null : prefix, lazy: false };
+	},
+	write: (text) => (text === '' ? '>' : '> ' + text)
+};
+
+const stripBlockquotePrefix = (text: string): string => quoteLines.read(text, INNER_LINE)!.text;
 
 /** Lazy continuation extends only an open paragraph, not an open list or other container. */
 function wouldKeepParagraphOpen(strippedText: string): boolean {
