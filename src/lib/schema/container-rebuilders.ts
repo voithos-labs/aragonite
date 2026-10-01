@@ -8,6 +8,7 @@
 import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import { assertInvariant } from '../assert';
 import {
 	firstLineEnding,
 	isBlankLine,
@@ -16,6 +17,7 @@ import {
 	type LineEnding
 } from '../core/lines';
 import {
+	cellText,
 	delimiterCellAlignment,
 	endsInEscape,
 	matchTableDelimiterRow,
@@ -155,7 +157,8 @@ function tableRowBytes(
 ): string {
 	const meta = row.metadata ? metadataOf(row, 'tableRow') : undefined;
 	const children = row.children!;
-	const cells = [...children.map((c) => c.raw), ...(meta?.surplusCells ?? [])];
+	// A typed edge space is padding to a reader, so the row writes it once, as padding.
+	const cells = [...children.map((c) => cellText(c.raw)), ...(meta?.surplusCells ?? [])];
 	const text = trimTrailingLineEnding(row.raw);
 	const own = ownTrailingLineEnding(row.raw);
 	const ending = own || (followed ? lineEnding : '');
@@ -171,8 +174,19 @@ function tableRowBytes(
 		mayStayMissing: !isHeader && spans.length < columnsBefore
 	});
 	if (written === text) return text + ending;
-	const reads = readsAsRow(written, cells, children.length, isHeader);
-	return (reads && opensAsBefore(written, text, spans) ? written : plain) + ending;
+	if (
+		readsAsRow(written, cells, children.length, isHeader) &&
+		opensAsBefore(written, text, spans)
+	) {
+		return written + ending;
+	}
+	// The plain spelling is the fallback, so cells it can't hold are cells no row reads back.
+	assertInvariant('table-row-reads-back', () =>
+		readsAsRow(plain, cells, children.length, isHeader)
+			? null
+			: { code: 'table-row-reads-back', message: `a reader takes "${plain}" as other cells` }
+	);
+	return plain + ending;
 }
 
 /** Whether a reader takes `line`'s cells as `cells`: a body row's missing cells read empty, and

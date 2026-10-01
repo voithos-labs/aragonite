@@ -870,7 +870,11 @@ what lets the first edit in a table change only the cells it edits. The generato
 every way GFM reads the same (tight, over-padded, `:--`, no edge pipes, escaped pipes, short rows,
 surplus cells, some inside a quote), and a second property writes one cell and checks that only
 that row's line moved and a reload reads the cells the tree holds. Tables only for now; the list
-and quote rebuilds still respell their prefixes. `rebuild-keeps-bytes.property.test.ts`.
+and quote rebuilds still respell their prefixes. `rebuild-keeps-bytes.property.test.ts`. The row
+writer reads a cell's text the way the row's reader does (`core/parsers/table-line.ts ::
+cellText`), so a space typed at a cell's edge is padding, written once. When it falls back to the
+plain spelling, a dev check (`table-row-reads-back`) fails if even that doesn't read back as the
+cells.
 
 ## Group 3: compile time
 

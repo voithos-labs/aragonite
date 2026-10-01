@@ -15,18 +15,29 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
 
-/** `source` with the cell at `[row, column]` of its first table written to `text(raw)`, through
- *  the keystroke's in-place route. */
-function writeCell(source: string, row: number, column: number, text: (raw: string) => string) {
+/** `source` with the cell at `[row, column]` of its first table written to each of `texts` in
+ *  turn, given the cell's raw, through the keystroke's in-place route. */
+function writeCell(
+	source: string,
+	row: number,
+	column: number,
+	...texts: Array<(raw: string) => string>
+) {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createLeafTyping(deps, createUndoController(deps));
 	const leaf = [0, row, column];
-	const owner = blockNodeAt(deps.doc, [0, row]) as CstNode;
-	const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-	const write = legalizeWrite(body, column, text(owner.children![column].raw), 'authored');
-	expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+	for (const text of texts) {
+		const owner = blockNodeAt(deps.doc, [0, row]) as CstNode;
+		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
+		const write = legalizeWrite(body, column, text(owner.children![column].raw), 'authored');
+		expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+	}
 	return deps.doc;
 }
+
+/** Each key of `keys` typed at the end of the cell, one write per key. */
+const typeKeys = (source: string, row: number, column: number, keys: string) =>
+	writeCell(source, row, column, ...[...keys].map((key) => (raw: string) => raw + key));
 
 const typeQ = (source: string, row: number, column: number) =>
 	writeCell(source, row, column, (raw) => raw + 'Q');
@@ -130,6 +141,25 @@ const READ_BACK: Array<
 describe('a cell write the row’s own bytes would misread, in the editor or in GFM', () => {
 	it.each(READ_BACK)('%s', (_name, source, [row, column], text, after) => {
 		const doc = writeCell(source, row, column, () => text);
+		expect(serialize(doc)).toBe(after);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+});
+
+// Miss-analysis: every keystroke row typed one key, so no row typed a space and then the next
+// letter, which wrote the space into the cell's text and its padding both.
+describe('keys typed one at a time into a cell', () => {
+	it.each([
+		[
+			'a word after a space',
+			'| a |\n| - |\n| plain |\n',
+			'*ab* z',
+			'| a |\n| - |\n| plain*ab* z |\n'
+		],
+		['a word after two spaces', '|a|\n|-|\n|plain|\n', '  z', '|a|\n|-|\n|plain  z|\n'],
+		['a trailing space alone', '| a |\n| - |\n| plain |\n', ' ', '| a |\n| - |\n| plain |\n']
+	])('%s grows no padding', (_name, source, keys, after) => {
+		const doc = typeKeys(source, 1, 0, keys);
 		expect(serialize(doc)).toBe(after);
 		expect(describeConvergence(doc)).toBeNull();
 	});

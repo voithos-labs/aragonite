@@ -38,14 +38,25 @@ export function rowCellSpans(rowText: string): CellSpan[] {
 			escaped = rowText[i] === '\\' && !escaped;
 			continue;
 		}
-		let start = from;
-		let end = i;
-		while (start < end && isWhitespaceChar(rowText[start])) start++;
-		while (end > start && isWhitespaceChar(rowText[end - 1])) end--;
+		const [start, end] = contentBounds(rowText, from, i);
 		cells.push({ text: rowText.slice(start, end), from, start, end, to: i });
 		from = i + 1;
 	}
 	return cells;
+}
+
+/** A cell's text as its row reads it: a cell's edge whitespace is padding, whatever wrote it. */
+export function cellText(raw: string): string {
+	const [start, end] = contentBounds(raw, 0, raw.length);
+	return start === 0 && end === raw.length ? raw : raw.slice(start, end);
+}
+
+function contentBounds(text: string, from: number, to: number): [number, number] {
+	let start = from;
+	let end = to;
+	while (start < end && isWhitespaceChar(text[start])) start++;
+	while (end > start && isWhitespaceChar(text[end - 1])) end--;
+	return [start, end];
 }
 
 /** Whether `text` before `end` ends in an odd run of backslashes, which escapes a pipe at `end`;
