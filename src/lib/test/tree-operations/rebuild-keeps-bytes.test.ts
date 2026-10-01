@@ -8,6 +8,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode, Document } from '$lib/core/nodes';
+import type { ListContext } from '$lib/action-contracts';
 import { displayLength, documentLineEnding } from '$lib/core/lines';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
@@ -260,6 +261,23 @@ describe('a container built from another keeps its source’s bytes', () => {
 		await listContext.splitItemAtOffset(0, 0, 1);
 
 		expect(serialize(deps.doc)).toBe('- a\n- b\n\n\tc\n');
+		expect(describeConvergence(deps.doc)).toBeNull();
+	});
+
+	// Miss-analysis: every Enter row split a list at column zero, so a new item made with no
+	// indent beside indented siblings looked right, while a reload nested the next item under it.
+	it.each([
+		['after an item', (c: ListContext) => c.insertItemAfter(0)],
+		['by splitting an item at its end', (c: ListContext) => c.splitItemAtOffset(0, 0, 1)]
+	])('a new item made %s takes its siblings’ indent', async (_name, enter) => {
+		const { deps } = makeEditorActionsDeps(parse('  - a\n  - b\n').children);
+		const liveItem = () => deps.doc.children[0].children![0];
+		registerBlockListState(liveItem(), makeBlockListState(liveItem));
+		const { listContext } = makeListContextAt(deps, 0);
+
+		await enter(listContext);
+
+		expect(serialize(deps.doc)).toBe('  - a\n  - \n  - b\n');
 		expect(describeConvergence(deps.doc)).toBeNull();
 	});
 

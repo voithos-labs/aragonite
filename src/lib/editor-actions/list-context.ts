@@ -51,11 +51,11 @@ export interface ListContextDeps {
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
- *  unchecked; `source` is the item `children` were cut from, whose line bytes they keep. */
+ *  unchecked; it starts from `source`'s bytes, so its marker line takes the item's indent. */
 function mintFollowerItem(
 	prevMeta: ListItemMetadata | undefined,
 	children: CstNode[],
-	source?: CstNode
+	source?: NodeView
 ): CstNode {
 	const inheritTask = prevMeta?.taskItem === true;
 	return buildListItem(
@@ -185,7 +185,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				newItem = mintFollowerItem(
 					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
 					// rebuildListItemRaw derives the item's raw from its body's line ending.
-					[emptyParagraph('', deps.getLineEnding())]
+					[emptyParagraph('', deps.getLineEnding())],
+					prevItem
 				);
 			}
 

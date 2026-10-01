@@ -26,5 +26,19 @@ test.describe('typing in an indented list', () => {
 			await editor.waitForListItemCount(2);
 			expect(await editor.parseConverged()).toBe(true);
 		});
+
+		test(`Enter makes an item with its siblings' indent (${mode})`, async ({ page }) => {
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('  - a\n  - b\n');
+			await editor.clickBlockAtPath([0, 0, 0], 0);
+			await page.keyboard.press('End');
+
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('x');
+
+			await expect.poll(() => editor.bridge.getSource()).toBe('  - a\n  - x\n  - b\n');
+			await editor.waitForListItemCount(3);
+			expect(await editor.parseConverged()).toBe(true);
+		});
 	}
 });
