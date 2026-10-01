@@ -1,7 +1,7 @@
 /**
  * A decoration source built on public API alone: `onEditor` wires a mark source to the
- * selection, edit and source-swap events; the scan, its cache and the pause-while-typing rule
- * stay pure in the sibling modules.
+ * selection, edit and source-swap events, and times the typing pause that brings the marks back;
+ * the scan, its cache and the pause-while-typing rule stay pure in the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
@@ -13,6 +13,9 @@ export interface HighlightOccurrencesOptions {
 	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
+/** How long typing stops before the marks come back: the editor's own undo pause. */
+export const TYPING_PAUSE_MS = 250;
+
 export function highlightOccurrencesPlugin(
 	options: HighlightOccurrencesOptions = {}
 ): EditorPlugin {
@@ -22,17 +25,27 @@ export function highlightOccurrencesPlugin(
 			ctx.onEditor((editor) => {
 				const occurrences = createOccurrenceSource({ onScan: options.onScan });
 				const handle = editor.decorations.addSource(occurrences.source);
+				let pause: ReturnType<typeof setTimeout> | undefined;
 				const offSelection = editor.events.on('selectionChange', (selection) => {
 					occurrences.setSelection(selection);
 					handle.invalidate();
 				});
 				const offEdit = editor.events.on('edit', ({ op }) => {
+					clearTimeout(pause);
+					if (op === 'input') {
+						// A real-time pause (G4.4 allowlist): no event says the author stopped typing.
+						pause = setTimeout(() => {
+							if (occurrences.noteTypingPause()) handle.invalidate();
+						}, TYPING_PAUSE_MS);
+					}
 					if (occurrences.noteEdit(op)) handle.invalidate();
 				});
 				const offSourceSwap = editor.events.on('sourceSwap', () => {
+					clearTimeout(pause);
 					if (occurrences.noteSourceSwap()) handle.invalidate();
 				});
 				return () => {
+					clearTimeout(pause);
 					offSelection();
 					offEdit();
 					offSourceSwap();

@@ -339,8 +339,8 @@
 		return () => dispose();
 	});
 
-	// The one place `editEpoch` is bumped, off the content version because the `edit` event
-	// batches a typing burst; the tick keeps decoration sources off a half-applied tree.
+	// The one place `editEpoch` is bumped: off the content version, since a swap changes bytes with
+	// no `edit`; the tick keeps decoration sources off a half-applied tree.
 	let notifiedVersion = contentVersion.read();
 	$effect(() => {
 		const version = contentVersion.read();
@@ -641,7 +641,7 @@
 	// Aborted on unmount; document-level listeners observe it to cancel mid-operation work.
 	const lifetimeController = new AbortController();
 	$effect(() => () => {
-		// A pending checkpoint timer would otherwise emit for a document that is gone.
+		// Cancels the typing batch's pause timer, which would outlive the editor.
 		controller.flushDebouncedCheckpoint();
 		lifetimeController.abort();
 	});

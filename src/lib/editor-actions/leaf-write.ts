@@ -1,7 +1,7 @@
 /**
  * The two parts of a keystroke only the editor root can do: grouping it with its typing burst in
- * the undo history, and writing the leaf in place outside a commit. Containers reach both through
- * `ContainerEditActions`.
+ * the undo history, and writing the leaf in place outside a commit, which announces its own
+ * `input` edit. Containers reach both through `ContainerEditActions`.
  */
 
 import type { ContainerEditActions, InPlaceResult, Relanding } from '../action-contracts';
@@ -93,8 +93,15 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 				// Raw written outside a commit reaches the view once Svelte re-reads doc.children.
 				deps.doc.children = [...deps.doc.children];
 			}
-			// The content version bumps after the tree write, in the order a commit uses.
+			// The content version bumps after the tree write, and the `edit` after that, in the
+			// order a commit uses; the trial reparse kept the leaf's kind, which `input` promises.
 			deps.bumpContentVersion();
+			deps.events.emit('edit', {
+				op: 'input',
+				path: [...leafPath],
+				detail: { byteLength: write.text.length },
+				timestamp: Date.now()
+			});
 			const moved = settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 			return {
 				wrote: true,

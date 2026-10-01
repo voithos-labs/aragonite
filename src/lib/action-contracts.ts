@@ -279,8 +279,8 @@ export interface CommitController {
 	/** The document root as a `MultiScopeTarget`, so a multi-scope commit can include root-level
 	 *  changes (a cross-block delete whose common ancestor is the root). */
 	getDocScope(): MultiScopeTarget;
-	/** Flush the pending keystroke batch (emit its `input` event and clear the debounce
-	 *  timer) before an undo or redo, so the batch's bytes aren't lost. */
+	/** End the keystroke batch and its pause timer, so the next keystroke opens its own undo
+	 *  entry. */
 	flushDebouncedCheckpoint(): void;
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */

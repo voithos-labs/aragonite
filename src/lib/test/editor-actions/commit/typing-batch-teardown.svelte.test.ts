@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// A debounce timer that survives a `source` swap or an unmount would fire `edit { op: 'input' }`
-// with the outgoing document's path against the incoming one. The mounted component drives
-// the case, since only its lifecycle hooks interrupt the batch.
+// Typing's `edit` fires at the keystroke, so an editor that unmounts mid-batch has nothing left to
+// report: its pause timer must fire nothing and schedule nothing for the document it tore down.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import {
@@ -28,30 +27,8 @@ function mountTracking(source: string) {
 	return { ...mounted, inputs };
 }
 
-describe('the typing debounce is interrupted before the document it addresses goes away', () => {
-	it('fires no input edit against the document that replaced the one typed in', async () => {
-		const { props, target, inputs } = mountTracking('alpha\n\nbeta\n');
-		vi.useFakeTimers();
-
-		typeInFirstBlock(target, 'alpha!');
-		await tick();
-		expect(inputs).toHaveLength(0);
-
-		props.source = 'gamma\n';
-		flushSync();
-		await tick();
-		const flushedDuringSwap = inputs.length;
-
-		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
-
-		// Whatever the swap chose to emit, the timer must contribute nothing after it.
-		expect(inputs).toHaveLength(flushedDuringSwap);
-		expect(flushedDuringSwap).toBe(1);
-		expect(inputs[0].path).toEqual([0]);
-	});
-
-	// The flush emits `edit`, which the editor's own subscriber defers into a decoration
-	// run: at teardown, against a getter closed over dead state.
+describe('an editor unmounted inside the typing pause', () => {
+	// A decoration run at teardown would read a getter closed over dead state.
 	it('schedules no decoration work for the document it just tore down', async () => {
 		const { instance: editor, target, inputs } = mountTracking('alpha\n\nbeta\n');
 		const provided: number[] = [];
@@ -81,20 +58,19 @@ describe('the typing debounce is interrupted before the document it addresses go
 		expect(provided).toHaveLength(providedBeforeTeardown);
 	});
 
-	it('fires no input edit after the editor unmounts mid-batch', async () => {
+	it('fires no input edit after the editor unmounts', async () => {
 		const { target, inputs } = mountTracking('alpha\n\nbeta\n');
 		vi.useFakeTimers();
 
 		typeInFirstBlock(target, 'alpha!');
 		await tick();
 
+		expect(inputs).toHaveLength(1);
+
 		void destroyMountedEditors();
 		flushSync();
-		const flushedDuringTeardown = inputs.length;
-
 		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
 
-		expect(inputs).toHaveLength(flushedDuringTeardown);
-		expect(flushedDuringTeardown).toBe(1);
+		expect(inputs).toHaveLength(1);
 	});
 });

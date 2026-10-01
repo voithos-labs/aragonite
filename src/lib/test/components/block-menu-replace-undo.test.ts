@@ -81,13 +81,13 @@ describe('a block menu rewrite inside a typing burst', () => {
 		expect(serialize(editor.doc)).toBe(TYPED);
 	});
 
-	it('counts only the typed byte as input', async () => {
+	it('reports only the typed write as input', async () => {
 		const editor = await typeThenRewrite();
 		await vi.runAllTimersAsync();
 
 		const inputs = editor.edits.filter(
 			(e): e is Extract<EditEvent, { op: 'input' }> => e.op === 'input'
 		);
-		expect(inputs.map((e) => e.detail.byteLength)).toEqual([1]);
+		expect(inputs.map((e) => e.detail.byteLength)).toEqual([TYPED.length]);
 	});
 });

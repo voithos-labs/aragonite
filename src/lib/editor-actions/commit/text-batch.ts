@@ -1,14 +1,12 @@
 /**
  * Keystroke batching: one undo entry per burst of typing, ended by a pause, a change of
- * batch key, or a structural commit. Snapshot capture stays with the controller, injected.
+ * batch key, or a structural commit. The batch groups undo steps only; each keystroke's `edit`
+ * fires at its own write (`leaf-write.ts`). Snapshot capture stays with the controller, injected.
  */
 
 export interface TextBatchDeps {
 	/** Capture the pre-edit snapshot for the first keystroke of a batch. */
 	pushSnapshot(leafPath: number[], offset: number): void;
-	/** Emit the batched `input` edit event when a batch flushes. Omitted by a batch with no edit
-	 *  events of its own: a revealed source's bytes are reported once, when it collapses. */
-	emitInput?(leafPath: number[], byteLength: number): void;
 }
 
 export interface TextBatch {
@@ -22,10 +20,7 @@ export interface TextBatch {
 	 * work never counts as the user's pause. Does nothing without a live batch.
 	 */
 	armPause(): void;
-	/**
-	 * Called by a structural commit: cancel the pause timer, flush the pending input event,
-	 * and make the next keystroke push a fresh snapshot.
-	 */
+	/** End the batch now: cancel the pause timer, and make the next keystroke push a fresh snapshot. */
 	interrupt(): void;
 }
 
@@ -36,20 +31,6 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let lastBatchKey: string | number = -1;
 	let needsCheckpoint = true;
-	let batchPath: number[] | null = null;
-	let batchByteLength = 0;
-
-	/**
-	 * Must run before the batch is repointed or reset, or edit-event listeners never see
-	 * the batch's `input` event and under-count keystrokes.
-	 */
-	function flushPendingInput(): void {
-		if (batchByteLength > 0 && batchPath) {
-			deps.emitInput?.(batchPath, batchByteLength);
-		}
-		batchPath = null;
-		batchByteLength = 0;
-	}
 
 	function clearTimer(): void {
 		if (timer) {
@@ -62,13 +43,10 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 		keystroke(leafPath, offset, batchKey) {
 			const key = batchKey ?? leafPath.join('.');
 			if (lastBatchKey !== key || needsCheckpoint) {
-				flushPendingInput();
 				deps.pushSnapshot(leafPath, offset);
 				lastBatchKey = key;
-				batchPath = leafPath.slice();
 				needsCheckpoint = false;
 			}
-			batchByteLength++;
 		},
 		armPause() {
 			if (needsCheckpoint) return;
@@ -78,12 +56,10 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 			timer = setTimeout(() => {
 				needsCheckpoint = true;
 				timer = null;
-				flushPendingInput();
 			}, UNDO_DEBOUNCE_MS);
 		},
 		interrupt() {
 			clearTimer();
-			flushPendingInput();
 			needsCheckpoint = true;
 		}
 	};

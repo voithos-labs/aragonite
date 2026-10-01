@@ -7,6 +7,8 @@ import type { Document } from '$lib/core/nodes';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createRegistryView } from '$lib/schema/registry-view';
+import { createEditorEvents, type EditorEvents } from '$lib/editor-events';
+import { takeDevWarns } from '../support/warn-gate';
 
 // Miss-analysis: the swap was tested one consequence at a time, so a dropped middle step passed.
 
@@ -31,8 +33,9 @@ describe('initDocument', () => {
 
 describe('the swap commit sequence', () => {
 	/** An editor holding `held\n` until the first swap adopts a document. */
-	function harness() {
+	function harness(duringFlush?: (events: EditorEvents) => void) {
 		const order: string[] = [];
+		const channel = createEditorEvents();
 		const step = (name: string) => () => void order.push(name);
 		const selection = createSelectionState({ onChange: step('announce') });
 		let adopted: Document | null = null;
@@ -41,7 +44,10 @@ describe('the swap commit sequence', () => {
 		const swap = createDocumentSwap({
 			grammar: defaultGrammarView,
 			currentSource: () => (adopted ? serialize(adopted) : 'held\n'),
-			flushDebouncedCheckpoint: step('flush'),
+			flushDebouncedCheckpoint: () => {
+				order.push('flush');
+				duringFlush?.(channel);
+			},
 			noteTreeSwap: step('landings'),
 			adoptDocument: (doc) => {
 				adopted = doc;
@@ -65,7 +71,9 @@ describe('the swap commit sequence', () => {
 					// What a subscriber reads inside its handler: the document already adopted.
 					if (event === 'sourceSwap')
 						swaps.push({ ...(payload as { generation: number }), source: serialize(adopted!) });
-				}
+					channel.emit(event, payload);
+				},
+				on: channel.on
 			}
 		});
 		return { swap, selection, order, swaps, adopted: () => adopted, links: () => links };
@@ -121,5 +129,18 @@ describe('the swap commit sequence', () => {
 			{ generation: 1, source: 'a\n' },
 			{ generation: 2, source: 'b\n' }
 		]);
+	});
+
+	it('G1.53: says so in a dev build when an edit fires during the swap', () => {
+		const h = harness((events) =>
+			events.emit('edit', { op: 'input', path: [0], detail: { byteLength: 5 }, timestamp: 0 })
+		);
+		h.swap.swapTo('b\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:swap-fires-no-edit']);
+	});
+
+	it('G1.53: stays quiet for a swap that fires no edit', () => {
+		harness().swap.swapTo('b\n');
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

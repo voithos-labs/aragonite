@@ -144,24 +144,23 @@ describe('history swap: the restored selection notifies once, after the placemen
 	});
 });
 
-// Flush, not discard: the pending `input` event must reach edit listeners (discarding
-// drops those bytes) and the debounce timer must be cleared.
-describe('history swap: batch flush', () => {
-	it('flushes a pending batch exactly once: emits its input event and clears the timer', async () => {
+describe('history swap: the typing batch ends', () => {
+	it('the keystroke after an undo opens its own entry, and the batch fires no edit', async () => {
 		vi.useFakeTimers();
 		try {
-			const { events, controller, history } = makeSetup();
-			const inputs: string[] = [];
-			events.on('edit', (e) => {
-				if (e.op === 'input') inputs.push(e.op);
-			});
+			const { deps, events, controller, history } = makeSetup();
+			const ops: string[] = [];
+			events.on('edit', (e) => ops.push(e.op));
 
-			// Starts a batch: the first keystroke pushes a snapshot and opens the pending input batch.
 			controller.pushUndoSnapshotDebounced([0], 1);
+			controller.armUndoPause();
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
+			expect(ops).toEqual(['undo']);
+			expect(deps.undoManager.canUndo).toBe(false);
 
-			expect(inputs).toHaveLength(1);
+			controller.pushUndoSnapshotDebounced([0], 1);
+			expect(deps.undoManager.canUndo).toBe(true);
 		} finally {
 			vi.useRealTimers();
 		}

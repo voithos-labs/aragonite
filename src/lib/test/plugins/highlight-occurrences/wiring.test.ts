@@ -13,6 +13,7 @@ import {
 	highlightOccurrencesPlugin,
 	type HighlightOccurrencesOptions
 } from '$lib/plugins/highlight-occurrences';
+import { TYPING_PAUSE_MS } from '$lib/plugins/highlight-occurrences/highlight-occurrences-plugin';
 import { OCCURRENCE_CLASS } from '$lib/plugins/highlight-occurrences/occurrences';
 import { onEditorCallbacks } from '$lib/schema/plugin-install';
 
@@ -115,17 +116,40 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		expect(wired.offSourceSwap).toHaveBeenCalledTimes(1);
 	});
 
-	it('holds the marks back while typing and paints them when the burst flushes', () => {
-		const wired = attach();
-		wired.fireSelection(caret([0], 0));
-		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
+	// The editor fires `input` per keystroke, ahead of the keystroke's `editEpoch`.
+	it('holds the marks back while typing and paints them once typing pauses', () => {
+		vi.useFakeTimers();
+		try {
+			const wired = attach();
+			wired.fireSelection(caret([0], 0));
+			expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
 
-		// A keystroke: `editEpoch` bumps with no `edit` event before it.
-		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
+			wired.fireEdit('input');
+			expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
+			vi.advanceTimersByTime(TYPING_PAUSE_MS - 1);
+			wired.fireEdit('input');
+			expect(wired.source()!.provide(DOC, { editEpoch: 2 })).toEqual([]);
+			vi.advanceTimersByTime(TYPING_PAUSE_MS - 1);
+			expect(wired.invalidate).toHaveBeenCalledTimes(1); // the selection change alone
 
-		wired.fireEdit('input');
-		expect(wired.invalidate).toHaveBeenCalledTimes(2); // the selection change, then the flush
-		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
+			vi.advanceTimersByTime(1);
+			expect(wired.invalidate).toHaveBeenCalledTimes(2);
+			expect(wired.source()!.provide(DOC, { editEpoch: 2 })).toHaveLength(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('times no pause past its cleanup', () => {
+		vi.useFakeTimers();
+		try {
+			const wired = attach();
+			wired.fireEdit('input');
+			wired.cleanup!();
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it('reads a structural op as an immediate repaint, not a typing burst', () => {

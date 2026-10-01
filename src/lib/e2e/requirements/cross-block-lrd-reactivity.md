@@ -11,3 +11,9 @@ referencing block.
   keystroke edit that changes the document's LRD signature) converts an
   unresolved reference in a different block from a dimmed unresolved marker into
   a live link whose `href` matches the new definition
+
+## Edge cases
+
+- typing into a definition re-resolves the references at each key, with no wait for the typing
+  pause: with the page clock stopped, a reference's `href` follows every character typed into its
+  definition

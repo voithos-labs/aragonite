@@ -33,6 +33,9 @@ export function createHistoryActions(
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
+		// Before the awaits below, so a host that loads another document meanwhile never hears
+		// this undo after its own swap.
+		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
@@ -47,11 +50,10 @@ export function createHistoryActions(
 				deps.selectionState.announceSelection();
 			});
 		}
-		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Flush, not discard: the pending batch's `input` event must still be emitted, and its timer
-	// must not push a stale snapshot after the stack moves.
+	// Ends the typing batch, so the next keystroke snapshots the restored tree rather than joining
+	// an entry that has moved to the other stack.
 	function beginHistorySwap(): void {
 		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();

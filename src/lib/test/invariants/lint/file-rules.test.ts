@@ -326,6 +326,8 @@ const RULES: FileRule[] = [
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
 				'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
+			'src/lib/plugins/highlight-occurrences/highlight-occurrences-plugin.ts':
+				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
 			'src/lib/search/regex-executor.ts':
 				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec'
 		},

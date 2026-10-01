@@ -5,8 +5,8 @@
 // had a host react to it.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { settleEditor } from '$lib/test/harness/settle';
+import { installLayoutStubs, placeCaret } from '$lib/test/harness/mount-editor.svelte';
+import { dispatchKey, settleEditor } from '$lib/test/harness/settle';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import type { EditEvent } from '$lib/editor-events';
 import SourceHost from './fixtures/SourceHost.svelte';
@@ -28,16 +28,17 @@ function mountHost(text: string, echo = false) {
 	const editor = host.getEditor();
 	const edits: EditEvent[] = [];
 	editor.getEvents().on('edit', (e) => edits.push(e));
+	const surface = () => target.querySelector<HTMLElement>('.text-editable-block')!;
 	return {
 		host,
 		editor,
 		edits,
+		surface,
 		/** One keystroke, with the pause timer held so it cannot end the batch on its own. */
 		async type(blockText: string) {
 			vi.useFakeTimers();
-			const surface = target.querySelector<HTMLElement>('.text-editable-block')!;
-			surface.textContent = blockText;
-			surface.dispatchEvent(new InputEvent('input', { bubbles: true }));
+			surface().textContent = blockText;
+			surface().dispatchEvent(new InputEvent('input', { bubbles: true }));
 			await tick();
 		},
 		/** Loads `next`, then lets the pause run out. */
@@ -45,11 +46,16 @@ function mountHost(text: string, echo = false) {
 			host.load(next);
 			flushSync();
 			await tick();
-			vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
-			vi.useRealTimers();
-			await settleEditor();
-		}
+			await pause();
+		},
+		pause
 	};
+}
+
+async function pause() {
+	vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
+	vi.useRealTimers();
+	await settleEditor();
 }
 
 describe('a document swap inside the typing pause', () => {
@@ -78,5 +84,26 @@ describe('a document swap inside the typing pause', () => {
 		await h.loadThenPause(notes.B);
 
 		expect(notes).toEqual({ A: 'ab\n', B: 'other\n' });
+	});
+
+	it('an undo still placing its caret fires its edit before the host loads another document', async () => {
+		const h = mountHost('a\n');
+		await h.type('ab');
+		await h.pause();
+		placeCaret(h.surface(), 2);
+		h.edits.length = 0;
+
+		dispatchKey(h.surface(), { key: 'z', ctrlKey: true });
+		// The swap goes in as soon as the undo has written, while its caret placement still waits.
+		for (let i = 0; i < 50 && h.editor.getSource() === 'ab\n'; i++) await Promise.resolve();
+		expect(h.editor.getSource()).toBe('a\n');
+		const beforeSwap = h.edits.map((e) => e.op);
+		h.host.load('other\n');
+		flushSync();
+		await settleEditor();
+
+		expect(h.editor.getSource()).toBe('other\n');
+		expect(beforeSwap).toEqual(['undo']);
+		expect(h.edits.map((e) => e.op)).toEqual(['undo']);
 	});
 });

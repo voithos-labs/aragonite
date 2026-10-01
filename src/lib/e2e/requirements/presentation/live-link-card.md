@@ -66,6 +66,8 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 - pressing Enter with the URL unchanged writes nothing and adds no undo entry
 - an edit landing elsewhere in the document while the card is open re-anchors it rather than
   stranding it: the card addresses its link by path plus construct start, never by element
+- that re-anchoring follows each key typed, not the typing pause: with the page clock stopped, the
+  card still moves down as the link does
 - an edit that moves the start of the card's own construct closes it, and it stays closed through
   the `Mod+Z` that puts those bytes back: a card left holding a target it no longer renders would
   come back with the draft it had before

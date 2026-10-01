@@ -279,16 +279,7 @@ export function createUndoController(
 		typingEntry = entry;
 	}
 
-	const textBatch = createTextBatch({
-		pushSnapshot: pushTypingSnapshot,
-		emitInput: (leafPath, byteLength) =>
-			deps.events.emit('edit', {
-				op: 'input',
-				path: leafPath,
-				detail: { byteLength },
-				timestamp: Date.now()
-			})
-	});
+	const textBatch = createTextBatch({ pushSnapshot: pushTypingSnapshot });
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 

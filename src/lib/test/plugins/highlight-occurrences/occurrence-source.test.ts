@@ -114,26 +114,29 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(provideMarks(source, doc, 2)).toEqual([]);
 	});
 
-	it('paints them again when the typing burst flushes its input event', () => {
-		const { source, setSelection, noteEdit } = createOccurrenceSource();
+	it('keeps them hidden through the next keystroke, and paints them again when typing pauses', () => {
+		const { source, setSelection, noteEdit, noteTypingPause } = createOccurrenceSource();
 		setSelection(caret([0], 0));
 		provideMarks(source, doc, 1);
+		expect(noteEdit('input')).toBe(false);
 		expect(provideMarks(source, doc, 2)).toEqual([]);
+		expect(noteEdit('input')).toBe(false);
+		expect(provideMarks(source, doc, 3)).toEqual([]);
 
-		expect(noteEdit('input')).toBe(true); // asks the wiring for the repaint
-		expect(provideMarks(source, doc, 2)).toHaveLength(2);
-		expect(noteEdit('input')).toBe(false); // already painted, nothing to reveal
+		expect(noteTypingPause()).toBe(true); // asks the wiring for the repaint
+		expect(provideMarks(source, doc, 3)).toHaveLength(2);
+		expect(noteTypingPause()).toBe(false); // already painted, nothing to reveal
 	});
 
-	// Undo bumps the content version before it emits, so its op can arrive after the
-	// `editEpoch` it caused. The marks must come back on the op, not only on the next one.
+	// A replace-all names its one op after its commits' epochs have arrived. The marks must come
+	// back on the op, not only on the next one.
 	it('paints them again when a structural op lands after its own epoch', () => {
 		const { source, setSelection, noteEdit } = createOccurrenceSource();
 		setSelection(caret([0], 0));
 		provideMarks(source, doc, 1);
 		expect(provideMarks(source, doc, 2)).toEqual([]);
 
-		expect(noteEdit('undo')).toBe(true);
+		expect(noteEdit('replaceBlock')).toBe(true);
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 
@@ -168,9 +171,9 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(provideMarks(source, doc, 2)).toHaveLength(2);
 	});
 
-	it('rebuilds the index on every hidden epoch, so the flush paints fresh marks', () => {
+	it('rebuilds the index on every hidden epoch, so the pause paints fresh marks', () => {
 		const tokenized: number[] = [];
-		const { source, setSelection, noteEdit } = createOccurrenceSource({
+		const { source, setSelection, noteTypingPause } = createOccurrenceSource({
 			onScan: (stats) => tokenized.push(stats.tokenizedLeaves)
 		});
 		setSelection(caret([0], 0));
@@ -180,8 +183,8 @@ describe('createOccurrenceSource typing gate', () => {
 		expect(provideMarks(source, typed, 2)).toEqual([]);
 		expect(tokenized).toEqual([2, 1]); // the hidden epoch still re-tokenized its leaf
 
-		noteEdit('input');
+		noteTypingPause();
 		expect(provideMarks(source, typed, 2)).toHaveLength(2);
-		expect(tokenized).toEqual([2, 1]); // and the flush reused that rebuild
+		expect(tokenized).toEqual([2, 1]); // and the pause reused that rebuild
 	});
 });

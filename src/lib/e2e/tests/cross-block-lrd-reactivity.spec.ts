@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { freezeInPageClock } from '../page-probes';
 
 test.describe('cross-block LRD reactivity', () => {
 	let editor: EditorPage;
@@ -27,5 +28,19 @@ test.describe('cross-block LRD reactivity', () => {
 		await expect(link).toHaveCount(1);
 		await expect(link).toHaveAttribute('href', 'https://example.com');
 		await expect(block0.locator('span.md-unresolved-ref')).toHaveCount(0);
+	});
+
+	test('a definition typed with the clock stopped re-resolves the reference at each key', async ({
+		page
+	}) => {
+		await editor.loadContent('see [docs][d]\n\n[d]: https://example.com\n');
+		const link = editor.getBlock(0).locator('a.md-link-content');
+		await expect(link).toHaveAttribute('href', 'https://example.com');
+
+		await editor.focusBlockEnd(1);
+		await freezeInPageClock(page);
+		await editor.typeSlowly('/x');
+
+		await expect(link).toHaveAttribute('href', 'https://example.com/x');
 	});
 });
