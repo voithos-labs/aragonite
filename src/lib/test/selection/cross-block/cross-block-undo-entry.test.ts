@@ -20,6 +20,8 @@ const WHOLE: SelectionEndpoint = { path: [1], wholeBlock: true };
 const COVERED_ANCHOR: SelectionPoint = { path: [1], offset: 0 };
 const COVERED_FOCUS: SelectionPoint = { path: [1], offset: 4 };
 
+type Env = ReturnType<typeof makeEnv>;
+
 function onlyEntry(undo: UndoEntry[]): UndoEntry {
 	expect(undo).toHaveLength(1);
 	return undo[0];
@@ -65,6 +67,37 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 
 		expect(serialize(env.doc)).toBe('alかんma\n');
 		expectStateBefore(onlyEntry(env.deps.undoManager.getStacks().undo), ANCHOR, FOCUS);
+	});
+
+	// Miss-analysis: the composition row always typed its text next, so no test let the batch end
+	// first and saw the removal's entry reach a later, unrelated write.
+	describe('a composition that writes nothing leaves the next typing its own entry', () => {
+		const FOUR = 'alpha\n\nbeta\n\ngamma\n\ndelta\n';
+		const typing = [
+			['typing in another block', () => {}, 1, 'deltax\n', 5, 6],
+			[
+				'typing after the batch ends',
+				(env: Env) => env.controller.flushDebouncedCheckpoint(),
+				0,
+				'alxma\n',
+				2,
+				3
+			]
+		] as const;
+
+		for (const [name, between, index, text, before, after] of typing) {
+			it(name, async () => {
+				const env = makeEnv(FOUR);
+				env.selectionState.enterCrossBlock(ANCHOR, FOCUS);
+				makeHandlers(env, [0]).handleCompositionStart();
+				await settleEditor();
+				between(env);
+
+				await env.blockEdit.updateBlockContent(index, text, 'authored', before, after);
+
+				expect(env.deps.undoManager.getStacks().undo).toHaveLength(2);
+			});
+		}
 	});
 
 	it('Enter over a range: the delete and the split are one entry', async () => {

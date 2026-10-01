@@ -4,6 +4,7 @@
 // survives.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { dragBetweenCells } from '../blocks/table/helpers';
 
 test.describe('cross-block destructive-key dispatch (A1)', () => {
 	let editor: EditorPage;
@@ -150,4 +151,49 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('| h1 | h2 | h3 |');
 	});
+});
+
+// Miss-analysis: every command-key row here drew prose or a range leaving a table, so no test
+// pressed a command key over a whole table, row or column, where it cleared the cells instead.
+test.describe('a command key over a whole table, row or column', () => {
+	const SOURCE =
+		'lead\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\ntail\n';
+	// Cells count row by row from the header: 0-2 the header, 3-5 the first body row.
+	const COVERAGES: [string, (editor: EditorPage) => Promise<void>][] = [
+		['a whole row', (editor) => dragBetweenCells(editor.page, 3, 5)],
+		['a whole column', (editor) => dragBetweenCells(editor.page, 1, 7)],
+		['a whole table', (editor) => dragBetweenCells(editor.page, 0, 8)]
+	];
+
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+	});
+
+	// A fresh page each time: loading the source the editor was last given changes nothing.
+	async function pressOver(select: (editor: EditorPage) => Promise<void>, keys: string[]) {
+		await editor.goto();
+		await editor.loadContent(SOURCE);
+		await select(editor);
+		await editor.waitForCrossBlock(true);
+		for (const key of keys) await editor.page.keyboard.press(key);
+		await editor.waitForCrossBlock(false);
+		await editor.waitForRenderFlush();
+		return editor.bridge.getSource();
+	}
+
+	for (const key of ['Enter', 'Tab', 'ControlOrMeta+2']) {
+		for (const [coverage, select] of COVERAGES) {
+			test(`${key} over ${coverage} ends as Backspace then ${key}, one undo`, async () => {
+				const expected = await pressOver(select, ['Backspace', key]);
+
+				await pressOver(select, [key]);
+				await expect.poll(() => editor.bridge.getSource()).toBe(expected);
+
+				await editor.undo();
+				await editor.bridge.waitForSourceEquals(SOURCE);
+			});
+		}
+	}
 });

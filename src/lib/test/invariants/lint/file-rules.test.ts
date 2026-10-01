@@ -1815,7 +1815,8 @@ const RANGE_REPLACE: ManifestRule[] = [
 			'a gesture that removes a range itself skips what every other one gets: the removal picked by what the range covers, one undo entry and one caret landing; call `replaceRange` with the gesture’s insertion',
 		hits: [
 			at(ROGUE_RANGE_ROUTE, 'const removed = rangeDelete(doc, coverage, sharing, reading, "cut");'),
-			at(ROGUE_RANGE_ROUTE, 'remove: (sharing) => removeHeldWhole(doc, coverage, sharing, r, g),')
+			at(ROGUE_RANGE_ROUTE, 'remove: (sharing) => removeHeldWhole(doc, coverage, sharing, r, g),'),
+			at(ROGUE_RANGE_ROUTE, 'const caret = await commitGridLineDelete(ctx, grid);')
 		],
 		misses: [
 			at(ROGUE_RANGE_ROUTE, "import { rangeDelete, removeHeldWhole } from '../range-delete';"),
@@ -1853,7 +1854,12 @@ const REF_FOCUS: FileRule = {
 	hits: [
 		'blockRefs[i]?.focus(offset);',
 		'refAt(list, i)?.parkCaret(0);',
-		'state.innerBlockRefs[colIdx]?.focusByPath(path, at);'
+		'state.innerBlockRefs[colIdx]?.focusByPath(path, at);',
+		// The optional members of `BlockComponent` type-check only as optional calls.
+		'blockRefs[0]?.parkCaret?.(0);',
+		'state.innerBlockRefs[i]?.focusByPath?.(rest, at);',
+		'cellRefAt(rowIdx, colIdx)?.parkCaret?.(at);',
+		'rowRefAt(rowIdx)?.focus(0);'
 	],
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };

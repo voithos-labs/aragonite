@@ -149,3 +149,53 @@ test.describe('table block: cell menu paste across a source swap', () => {
 		expect(await editor.bridge.getSource()).toBe(next);
 	});
 });
+
+// Miss-analysis: the menu's Paste was only ever picked at a caret or a selection inside one cell,
+// so nothing saw it write into the clicked cell beside a live range.
+test.describe('table block: cell menu Paste over a live range', () => {
+	const GRID = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+	const RANGES: [string, (editor: EditorPage) => Promise<void>][] = [
+		['a cell rectangle', (editor) => dragBetweenCells(editor.page, 2, 5)],
+		[
+			'a whole table',
+			async (editor) => {
+				await editor.page.locator('.table-cell').nth(2).click();
+				await editor.page.keyboard.press('ControlOrMeta+a');
+				await editor.page.keyboard.press('ControlOrMeta+a');
+			}
+		]
+	];
+
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+	});
+
+	// A fresh page each time: loading the source the editor was last given changes nothing.
+	async function selectOver(select: (editor: EditorPage) => Promise<void>): Promise<void> {
+		await editor.goto();
+		await editor.seedClipboard('P');
+		await editor.loadContent(GRID);
+		await select(editor);
+		await editor.waitForCrossBlock(true);
+	}
+
+	for (const [name, select] of RANGES) {
+		test(`over ${name} it ends as Ctrl+V does, the range gone`, async ({ page }) => {
+			await selectOver(select);
+			await page.keyboard.press('ControlOrMeta+v');
+			await editor.waitForCrossBlock(false);
+			await editor.waitForRenderFlush();
+			const pasted = await editor.bridge.getSource();
+			expect(pasted).not.toBe(GRID);
+
+			await selectOver(select);
+			await page.locator('.table-cell').nth(3).click({ button: 'right' });
+			await page.getByRole('menuitem', { name: /^paste$/i }).click();
+
+			await editor.bridge.waitForSourceEquals(pasted);
+			await editor.waitForCrossBlock(false);
+		});
+	}
+});

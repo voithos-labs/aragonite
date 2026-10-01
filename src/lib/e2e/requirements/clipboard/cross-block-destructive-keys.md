@@ -70,3 +70,12 @@ body rows are removed) and the dispatcher mounts the caret the delete left,
 a cell deep in the table, so the cell's Enter command runs
 (a row is inserted below) instead of being silently dropped at the table
 wrapper. The grid stays well-formed and the next keystroke lands in a cell.
+
+### 9. A command key over a whole table, row or column removes it first
+
+Drag over a whole body row, a whole column, or every cell of the table, then press
+Enter, Tab or Ctrl+2. The row, column or table goes the way it goes on Backspace, and the key
+runs at the caret that's left, so each ends exactly as Backspace and then the key would. One
+Ctrl+Z puts the document back as it was. Miss-analysis: every scenario above drew prose or a
+range leaving a table, so nothing pressed a command key over a grid held whole, where the key
+cleared the cells and ran in the first one instead.
