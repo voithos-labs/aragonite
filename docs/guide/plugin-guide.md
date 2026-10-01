@@ -1728,6 +1728,8 @@ setup(ctx) {
 }
 ```
 
+A handler that waits on something before it writes (a fetch, a dialog) should read `editor.documentGeneration` before the wait and compare it after: if the host loaded another note meanwhile, a write through `editor` lands in that one.
+
 The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](consumer-guide.md#rebinding-chords) lays out. Three consequences:
 
 - A plugin chord never shadows a built-in, and the reverse shadow is by design: a built-in kind's own chord beats your plugin chord **on that kind, not elsewhere**.
