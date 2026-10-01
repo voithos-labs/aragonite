@@ -26,16 +26,16 @@ test.describe('text editing, an edit inside a quote or list leaves its other lin
 			expect(await editor.parseConverged()).toBe(true);
 		});
 
-		test(`Enter in a list item leaves its tab-indented lines (${mode})`, async ({ page }) => {
+		test(`Enter in a list item keeps the tab of a line it moves (${mode})`, async ({ page }) => {
 			await editor.setPresentationMode(mode);
-			await editor.loadContent('- a\n\tb\n\n\tc\n');
+			await editor.loadContent('- ab\n\n\tc\n');
 			await editor.clickBlockAtPath([0, 0, 0], 0);
-			await page.keyboard.press('ArrowDown');
-			await page.keyboard.press('End');
+			await page.keyboard.press('Home');
+			await page.keyboard.press('ArrowRight');
 
 			await page.keyboard.press('Enter');
 
-			await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\tb\n- \n\n\tc\n');
+			await expect.poll(() => editor.bridge.getSource()).toBe('- a\n- b\n\n\tc\n');
 			expect(await editor.parseConverged()).toBe(true);
 		});
 	}

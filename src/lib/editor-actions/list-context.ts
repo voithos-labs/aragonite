@@ -51,8 +51,12 @@ export interface ListContextDeps {
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
- *  unchecked. */
-function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstNode[]): CstNode {
+ *  unchecked; `source` is the item `children` were cut from, whose line bytes they keep. */
+function mintFollowerItem(
+	prevMeta: ListItemMetadata | undefined,
+	children: CstNode[],
+	source?: CstNode
+): CstNode {
 	const inheritTask = prevMeta?.taskItem === true;
 	return buildListItem(
 		{
@@ -61,7 +65,8 @@ function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstN
 			taskChecked: false,
 			taskMarker: inheritTask ? '[ ] ' : null
 		},
-		children
+		children,
+		source
 	);
 }
 
@@ -251,7 +256,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const newItem = mintFollowerItem(metadataOf(itemScope.node, 'listItem'), secondHalf);
+					const newItem = mintFollowerItem(
+						metadataOf(itemScope.node, 'listItem'),
+						secondHalf,
+						itemScope.node
+					);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);

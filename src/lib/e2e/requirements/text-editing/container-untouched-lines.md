@@ -5,7 +5,7 @@ Typing, Enter or Backspace inside a quote or a list item changes the lines it ed
 ## Happy paths
 
 - `> a\n>b\n`, click `a`, End, type `Q`: `> aQ\n>b\n`
-- `- a\n\tb\n\n\tc\n`, click `b`, End, Enter: a new item opens below `b` and takes `c` with it, and both tab-indented lines keep their tab (`- a\n\tb\n- \n\n\tc\n`)
+- `- ab\n\n\tc\n`, Enter between `a` and `b`: the new item takes `b` and the `c` below it, and `c` keeps its tab (`- a\n- b\n\n\tc\n`)
 - Both of the above in live mode, with the same bytes
 
 ## Edge cases

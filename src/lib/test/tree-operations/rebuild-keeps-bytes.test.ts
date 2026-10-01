@@ -17,7 +17,14 @@ import { buildQuoteExitReplacement, plainQuote } from '$lib/tree-operations/bloc
 import { liftFirstChild } from '$lib/tree-operations/container-lift';
 import { buildExitReplacement } from '$lib/tree-operations/list/exit-replacement';
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import {
+	makeBlockListState,
+	makeContainerHarness,
+	makeEditorActionsDeps,
+	makeListContextAt,
+	makeTopHarness
+} from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 type Bundle = ReturnType<typeof makeContainerHarness>['bundle'];
@@ -195,6 +202,18 @@ describe('a container built from another keeps its source’s bytes', () => {
 		expect(alert.kind).toBe('githubAlert');
 		const [, rest] = liftFirstChild(alert, plainQuote(defaultGrammarView));
 		expect(rest.raw).toBe('>b\n');
+	});
+
+	it('the item Enter splits off keeps the lines it took', async () => {
+		const { deps } = makeEditorActionsDeps(parse('- ab\n\n\tc\n').children);
+		const liveItem = () => deps.doc.children[0].children![0];
+		registerBlockListState(liveItem(), makeBlockListState(liveItem));
+		const { listContext } = makeListContextAt(deps, 0);
+
+		await listContext.splitItemAtOffset(0, 0, 1);
+
+		expect(serialize(deps.doc)).toBe('- a\n- b\n\n\tc\n');
+		expect(describeConvergence(deps.doc)).toBeNull();
 	});
 
 	it('a list exit keeps the items it leaves', () => {

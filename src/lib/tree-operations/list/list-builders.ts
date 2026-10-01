@@ -54,12 +54,18 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
 	return mintListItem(metadata, template, children);
 }
 
-/**
- * A listItem from explicit metadata with empty affixes, for sites deriving a fresh marker
- * rather than mirroring a source item. `children` are placed verbatim.
- */
-export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): CstNode {
-	return mintListItem(metadata, { raw: '', innerPrefix: '', innerSuffix: '' }, children);
+/** A listItem from explicit metadata with empty affixes, starting from the bytes of `source` when
+ *  `children` came out of it. `children` are placed verbatim. */
+export function buildListItem(
+	metadata: ListItemMetadata,
+	children: CstNode[],
+	source?: NodeView
+): CstNode {
+	return mintListItem(
+		metadata,
+		{ raw: source?.raw ?? '', innerPrefix: '', innerSuffix: '' },
+		children
+	);
 }
 
 // Affixes are set before the rebuild, which derives the item's raw from them and `source.raw`.
