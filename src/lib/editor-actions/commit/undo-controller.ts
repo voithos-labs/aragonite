@@ -44,6 +44,7 @@ import type {
 	CommitAnnouncement,
 	CommitLanding,
 	CommitContainerStructuralArgs,
+	HeldLanding,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
 	CommitStructuralArgs,
@@ -453,7 +454,9 @@ export function createUndoController(
 		// throw: the commit succeeded and the tree is correct, so it is reported and the next runs.
 		try {
 			const landing = readLanding(args.landing);
-			if (landing) await landOrRestore(landing, { stamp, reveal: args.reveal });
+			const placement = landing && placementOf(args, landing, stamp);
+			if (placement && heldDepth > 0) held = placement;
+			else if (placement) await placement.place();
 		} catch (err) {
 			reportCommitError(args, err);
 		}
@@ -462,9 +465,37 @@ export function createUndoController(
 		return true;
 	}
 
-	async function landOrRestore(landing: Landing, opts: LandOptions): Promise<void> {
-		if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
-		else await deps.caretLanding.land(landing, opts);
+	function placementOf(args: CommitArgs, landing: Landing, stamp: number): HeldLanding {
+		const opts: LandOptions = { stamp, reveal: args.reveal };
+		return {
+			async place() {
+				try {
+					if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
+					else await deps.caretLanding.land(landing, opts);
+				} catch (err) {
+					reportCommitError(args, err);
+				}
+			}
+		};
+	}
+
+	// ── Held landings ────────────────────────────────────────────────────────
+
+	// While a hold runs, a commit keeps its caret here instead of putting it down; the newest wins.
+	let heldDepth = 0;
+	let held: HeldLanding | null = null;
+
+	async function holdLandings<T>(run: () => Promise<T>): Promise<[T, HeldLanding | null]> {
+		const outer = held;
+		held = null;
+		heldDepth++;
+		try {
+			const result = await run();
+			return [result, held];
+		} finally {
+			heldDepth--;
+			held = outer;
+		}
 	}
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
@@ -879,6 +910,7 @@ export function createUndoController(
 		joinTypingBatch,
 		endUndoStep,
 		continueTypingBurst,
+		holdLandings,
 		// The snapshot's answer is the write gate's, with no warning.
 		admitsGesture: (op) => (op === null ? admitsSnapshot(deps) : admitsWrite(deps, op)),
 		isolateUndoEntry: (write) => {

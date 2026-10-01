@@ -42,6 +42,12 @@ export type DiscardIfNoop = boolean;
  */
 export type CommitLanding = () => Landing | null;
 
+/** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
+ *  undo or a document swap came in since the commit. */
+export interface HeldLanding {
+	place(): Promise<void>;
+}
+
 /**
  * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
  * region, read after the caret lands and only when bytes landed. That region hears nothing else, so a
@@ -282,6 +288,9 @@ export interface CommitController {
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
+	/** Runs `run` with each commit's caret kept rather than put down, and resolves to `run`'s
+	 *  result and the last caret kept, so a gesture of several commits places one. */
+	holdLandings<T>(run: () => Promise<T>): Promise<[result: T, landing: HeldLanding | null]>;
 	/** The next typing write joins the entry the last commit wrote, if that entry is still the
 	 *  newest: a composition's text joins the removal its start made. */
 	continueTypingBurst(): void;

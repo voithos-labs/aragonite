@@ -101,29 +101,43 @@ export function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 
 // ── The step ───────────────────────────────────────────────────────────────
 
+/** Every commit's caret is held, so the gesture puts down one: the last commit's that wrote, else
+ *  the removal's. A command runs outside the hold, and the block that takes it places its own. */
 async function replaceInStep(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
 	insertion: RangeInsertion
 ): Promise<RangeReplaceOutcome> {
-	const text = insertedText(insertion);
-	const unit = text ? unitHeldWhole(coverage) : null;
-	if (unit) return replaceUnit(ctx, unit, insertion, text);
+	const family = familyOf(insertion);
+	const removal = REMOVAL[family][reachOf(coverage)];
+	if (removal === 'replace-in-slot') {
+		const [outcome, landing] = await ctx.controller.holdLandings(() =>
+			replaceUnit(ctx, coverage.wholeRoots[0].slice(), insertion)
+		);
+		await landing?.place();
+		return outcome;
+	}
 
-	// Typed text and a paste land their own caret; the removal lands it for the rest, but a
-	// composition, whose caret the IME owns.
-	const removalLands = !text && insertion.kind !== 'composition';
-	const removing = removeRange(ctx, coverage, insertion, removalLands);
-	if (insertion.kind === 'composition') ctx.controller.continueTypingBurst();
-	const removed = await removing;
+	const holding = ctx.controller.holdLandings(() => removeRange(ctx, coverage, removal, insertion));
+	// Before the first await, so the composed text joins the entry the removal just pushed.
+	if (family === 'composition') ctx.controller.continueTypingBurst();
+	const [removed, removalLanding] = await holding;
 	if (!removed.wrote) return 'nothing';
+	// The IME owns a composition's caret.
+	if (family === 'composition') return 'written';
 
-	const caret = removed.caret;
+	const at = removed.caret;
 	if (insertion.kind === 'command') {
-		await runCommandAt(ctx, caret?.path ?? coverage.range.start.path, insertion.chord);
-	} else if (text && caret) {
-		await (insertion.kind === 'paste' ? pasteAt(ctx, caret, text) : typeAt(ctx, caret, text));
-	} else if (text && insertion.kind === 'paste') {
+		const ran = await runCommandAt(ctx, at, at?.path ?? coverage.range.start.path, insertion.chord);
+		if (!ran) await removalLanding?.place();
+		return 'written';
+	}
+	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
+	const [, insertionLanding] = await ctx.controller.holdLandings(() =>
+		insertAt(ctx, at, insertion, text)
+	);
+	await (insertionLanding ?? removalLanding)?.place();
+	if (text && !at && insertion.kind === 'paste') {
 		// Consumed with nowhere to go: an imported image isn't on the clipboard, so say so.
 		emitClipboardError(ctx.events, {
 			error: new Error('cross-block paste resolved no caret; nothing inserted'),
@@ -141,19 +155,44 @@ function refusalName(insertion: RangeInsertion): string | null {
 	return `rangeReplace:${insertion.kind}`;
 }
 
-function insertedText(insertion: RangeInsertion): string {
-	return insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
+// ── The removal, picked by insertion family and coverage ───────────────────
+
+/** Structural gestures remove what Backspace removes, content ones put text where the range was,
+ *  and a composition never changes block structure: the IME composes in the element it started in. */
+type Family = 'structural' | 'content' | 'composition';
+
+/** What the range holds: one block whole (a table, a rule), whole rows or columns of one table,
+ *  a rectangle of its cells, or anything else. */
+type Reach = 'unit' | 'lines' | 'cells' | 'other';
+
+type Removal = 'replace-in-slot' | 'remove-whole' | 'remove-lines' | 'delete';
+
+const REMOVAL: Record<Family, Record<Reach, Removal>> = {
+	structural: { unit: 'remove-whole', lines: 'remove-lines', cells: 'delete', other: 'delete' },
+	content: { unit: 'replace-in-slot', lines: 'delete', cells: 'delete', other: 'delete' },
+	composition: { unit: 'delete', lines: 'delete', cells: 'delete', other: 'delete' }
+};
+
+/** Typing nothing is a keyless delete. */
+function familyOf(insertion: RangeInsertion): Family {
+	switch (insertion.kind) {
+		case 'none':
+		case 'command':
+			return 'structural';
+		case 'text':
+		case 'paste':
+			return insertion.text ? 'content' : 'structural';
+		case 'composition':
+			return 'composition';
+	}
 }
 
-/** The one block both endpoints sit in and the range holds whole, a table included: no leaf
- *  survives it to take the text, so the text replaces it in its slot. */
-function unitHeldWhole(coverage: RangeCoverage): number[] | null {
+function reachOf(coverage: RangeCoverage): Reach {
 	const { start, end } = coverage.range;
-	if (!pathsEqual(start.path, end.path) || coverage.wholeRoots.length !== 1) return null;
-	return coverage.wholeRoots[0].slice();
+	if (pathsEqual(start.path, end.path) && coverage.wholeRoots.length === 1) return 'unit';
+	if (coverage.grid?.kind === 'row' || coverage.grid?.kind === 'column') return 'lines';
+	return coverage.grid ? 'cells' : 'other';
 }
-
-// ── The removal ────────────────────────────────────────────────────────────
 
 interface Removed {
 	wrote: boolean;
@@ -161,27 +200,21 @@ interface Removed {
 	caret: SelectionPoint | null;
 }
 
-/** Picked by what the range covers: with nothing to insert, a whole row or column and a table
- *  held whole go structurally; everything else, a grid's cells included, goes by `rangeDelete`. */
 function removeRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	insertion: RangeInsertion,
-	lands: boolean
+	removal: Exclude<Removal, 'replace-in-slot'>,
+	insertion: RangeInsertion
 ): Promise<Removed> {
 	const gesture = insertion.kind === 'none' ? insertion.gesture : 'keyless';
-	const grid = insertion.kind === 'none' ? coverage.grid : null;
-	if (grid?.kind === 'row' || grid?.kind === 'column') {
+	const grid = coverage.grid;
+	if (removal === 'remove-lines' && (grid?.kind === 'row' || grid?.kind === 'column')) {
 		return commitGridLineDelete(ctx, grid).then((caret) => ({ wrote: caret !== null, caret }));
 	}
-	return commitRemoval(
-		ctx,
-		coverage,
-		(body, sharing) =>
-			grid?.kind === 'table'
-				? removeHeldWhole(body, coverage, sharing, ctx.reading, gesture)
-				: rangeDelete(body, coverage, sharing, ctx.reading, gesture),
-		lands
+	return commitRemoval(ctx, coverage, (body, sharing) =>
+		removal === 'remove-whole'
+			? removeHeldWhole(body, coverage, sharing, ctx.reading, gesture)
+			: rangeDelete(body, coverage, sharing, ctx.reading, gesture)
 	);
 }
 
@@ -189,8 +222,7 @@ function removeRange(
 async function commitRemoval(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	remove: (body: Document, sharing: SharingState) => RangeDeleteResult,
-	lands: boolean
+	remove: (body: Document, sharing: SharingState) => RangeDeleteResult
 ): Promise<Removed> {
 	const { start, end } = coverage.range;
 	const doc = ctx.getDoc();
@@ -226,12 +258,10 @@ async function commitRemoval(
 			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		landing: lands
-			? () => {
-					const at = caret();
-					return at && { path: docPathFrom(at.path), offset: at.offset };
-				}
-			: undefined
+		landing: () => {
+			const at = caret();
+			return at && { path: docPathFrom(at.path), offset: at.offset };
+		}
 	});
 	return { wrote, caret: caret() };
 }
@@ -281,14 +311,16 @@ function comparePathOrder(a: number[], b: number[]): number {
 async function replaceUnit(
 	ctx: CrossBlockMutationContext,
 	unitPath: number[],
-	insertion: RangeInsertion,
-	text: string
+	insertion: RangeInsertion
 ): Promise<RangeReplaceOutcome> {
 	const doc = ctx.getDoc();
 	const unit = blockNodeAt(doc, unitPath);
-	if (!unit) return 'nothing';
+	if (!unit || (insertion.kind !== 'text' && insertion.kind !== 'paste')) return 'nothing';
 	// This route skips `pasteDispatch`, so a paste runs the editor's transforms here.
-	const bytes = insertion.kind === 'paste' ? applyPasteTransforms(text, ctx.activePlugins) : text;
+	const bytes =
+		insertion.kind === 'paste'
+			? applyPasteTransforms(insertion.text, ctx.activePlugins)
+			: insertion.text;
 	const read = slotReaderAt(doc, unitPath, ctx.reading.grammar);
 	const parsed = parseReplacement(unit, bytes, documentLineEnding(doc), read);
 	if (!parsed) return 'nothing';
@@ -304,15 +336,34 @@ async function replaceUnit(
 	return landed === null ? 'nothing' : 'written';
 }
 
-/** Through the write every keystroke takes, so a marker typed at offset 0 makes the kind and the
- *  container's rule escapes what it must. */
-async function typeAt(
+/** Typed text goes through the write every keystroke takes, so a marker typed at offset 0 makes
+ *  the kind and the container's rule escapes what it must; a paste goes through the paste dispatch. */
+async function insertAt(
 	ctx: CrossBlockMutationContext,
-	caret: SelectionPoint,
+	caret: SelectionPoint | null,
+	insertion: RangeInsertion,
 	text: string
 ): Promise<void> {
-	const leaf = blockNodeAt(ctx.getDoc(), caret.path);
-	if (!leaf) return;
+	const leaf = caret && blockNodeAt(ctx.getDoc(), caret.path);
+	if (!text || !caret || !leaf) return;
+	if (insertion.kind === 'paste') {
+		await pasteDispatch(
+			{
+				pastedText: text,
+				targetPath: caret.path,
+				offset: charOffsetOf(caret, 'range-replace:paste')
+			},
+			{
+				doc: ctx.getDoc(),
+				blockEdit: ctx.blockEdit,
+				controller: ctx.pasteCoordinator,
+				crossBlock: true,
+				reading: ctx.reading,
+				activePlugins: ctx.activePlugins
+			}
+		);
+		return;
+	}
 	const at = charOffsetOf(caret, 'range-replace:type');
 	await ctx.pasteCoordinator.commitLeafText(
 		caret.path,
@@ -325,39 +376,18 @@ async function typeAt(
 	);
 }
 
-/** Every paste route lands its own caret, from the dispatch's own commits. */
-async function pasteAt(
-	ctx: CrossBlockMutationContext,
-	caret: SelectionPoint,
-	text: string
-): Promise<void> {
-	await pasteDispatch(
-		{
-			pastedText: text,
-			targetPath: caret.path,
-			offset: charOffsetOf(caret, 'range-replace:paste')
-		},
-		{
-			doc: ctx.getDoc(),
-			blockEdit: ctx.blockEdit,
-			controller: ctx.pasteCoordinator,
-			crossBlock: true,
-			reading: ctx.reading,
-			activePlugins: ctx.activePlugins
-		}
-	);
-}
-
-/** At the caret the removal landed, never over stale block indices: a table endpoint's caret is
- *  a cell, which has a `runCommand` where the table has none. */
+/** Parks the caret where the removal left it, since the block reads it to run the command (a
+ *  table's endpoint caret is a cell, which has the `runCommand`); false when no block took the key. */
 async function runCommandAt(
 	ctx: CrossBlockMutationContext,
+	caret: SelectionPoint | null,
 	path: number[],
 	chord: string
-): Promise<void> {
+): Promise<boolean> {
+	if (caret) await ctx.caretLanding.park({ path: docPathFrom(caret.path), offset: caret.offset });
 	const target = await ctx.caretLanding.mount(path);
-	if (!target?.runCommand) return;
-	dispatchKeyCommand(
+	if (!target?.runCommand) return false;
+	return dispatchKeyCommand(
 		chord,
 		{ kind: kindOfPath(path, ctx.getDoc()), runCommand: target.runCommand, getPath: () => path },
 		ctx.commands

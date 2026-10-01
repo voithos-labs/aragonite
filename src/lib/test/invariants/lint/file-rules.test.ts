@@ -1806,7 +1806,7 @@ const RANGE_REPLACE: ManifestRule[] = [
 	{
 		id: 'G4.108 only the range replace removes a live range',
 		population: notUnder('src/lib/selection/range-delete'),
-		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole)\s*\(/,
+		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole|commitGridLineDelete)\s*\(/,
 		declared: {
 			[RANGE_REPLACE_HOME]:
 				'picks the removal from what the range covers, for every destructive gesture over it'
