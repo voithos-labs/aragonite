@@ -82,8 +82,8 @@ cleared the cells and ran in the first one instead.
 
 ### 10. After a range longer than the screen, the caret's block is in view
 
-Put the caret in the first of 160 one-line paragraphs, press Shift+ArrowDown 70 times, then press
+Put the caret in the first of 160 one-line paragraphs, press Shift+ArrowDown 40 times, then press
 Tab or Shift+Enter. Both write in place, so neither key places a caret of its own, and the block
 holding the caret is on screen afterwards. Miss-analysis: every range in this file fit on one
-screen, so nothing noticed a key that writes in place leave its caret ~1000px above the viewport
+screen, so nothing noticed a key that writes in place leave its caret hundreds of pixels above the viewport
 once the removal stopped landing its caret.

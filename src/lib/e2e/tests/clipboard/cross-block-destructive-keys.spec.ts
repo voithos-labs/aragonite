@@ -201,28 +201,44 @@ test.describe('a command key over a whole table, row or column', () => {
 // Miss-analysis: every range here fit on one screen, so no test saw a key that writes in place
 // leave its caret where a long removal had scrolled away from.
 test.describe('a command key over a range longer than the screen', () => {
-	const LONG = Array.from({ length: 160 }, (_, i) => `p${i}`).join('\n\n') + '\n';
+	const LONG = Array.from({ length: 160 }, (_, i) => `para number ${i}`).join('\n\n') + '\n';
+	// What each key writes in place at the caret, so the check waits on the key's own write.
+	const WRITES = [
+		['Tab', 'para\t'],
+		['Shift+Enter', 'para\\']
+	] as const;
 
-	for (const key of ['Tab', 'Shift+Enter']) {
+	for (const [key, written] of WRITES) {
 		test(`${key} leaves the caret's block in view`, async ({ page }) => {
 			const editor = new EditorPage(page);
 			await editor.goto();
 			await editor.loadContent(LONG);
-			await editor.focusBlockAtPath([0], 1);
-			for (let i = 0; i < 70; i++) await page.keyboard.press('Shift+ArrowDown');
+			await editor.focusBlockAtPath([0], 4);
+			for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowDown');
 			await editor.waitForCrossBlock(true);
-
-			await page.keyboard.press(key);
-			await editor.waitForCrossBlock(false);
-
+			// The extend's own scroll, done before the key: the caret's block is still rendered, but
+			// off screen. A block outside the render window comes back into view as it mounts.
 			await expect
 				.poll(() =>
 					page.evaluate(() => {
-						const box = document.activeElement?.getBoundingClientRect();
-						return !!box && box.top >= 0 && box.bottom <= window.innerHeight;
+						const box = document.querySelector(`[data-block-path='[0]']`)?.getBoundingClientRect();
+						return !!box && box.bottom < 0;
 					})
 				)
 				.toBe(true);
+
+			await page.keyboard.press(key);
+			await editor.waitForCrossBlock(false);
+			await editor.bridge.waitForSourceContains(written);
+			await editor.waitForRenderFlush();
+			await editor.waitForRenderFlush();
+
+			// Read once: a later scroll from elsewhere must not stand in for the landing.
+			const [top, bottom, height] = await page.evaluate(() => {
+				const box = document.activeElement?.getBoundingClientRect();
+				return [box?.top ?? NaN, box?.bottom ?? NaN, window.innerHeight];
+			});
+			expect(top >= 0 && bottom <= height, `block at ${top}..${bottom} of ${height}`).toBe(true);
 		});
 	}
 });
