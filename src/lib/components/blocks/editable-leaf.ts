@@ -57,9 +57,9 @@ import type { Draft } from '../../schema/drafts';
 export type EditableLeafMode = 'plain' | 'render-primary';
 
 /**
- * What the host component passes in. A function-valued field is read on every use, so a
- * structural edit or an undo is seen rather than snapshotted; `mode` and `singleLine` are read
- * once, at the factory call. A render-primary leaf owns its swap, so it passes both halves of it.
+ * What the host component passes in. A function-valued field is read on every use, so an edit or
+ * an undo is seen rather than snapshotted; `mode` and `singleLine` are read once. A render-primary
+ * leaf owns its swap and passes both halves; a cast or JavaScript caller without them gets a throw.
  */
 export type EditableLeafDeps = PlainLeafDeps | RenderPrimaryLeafDeps;
 
@@ -141,9 +141,9 @@ export interface EditableLeafRenderProps {
 }
 
 export interface EditableLeaf {
-	/** The block's whole surface, published as the component's one export:
+	/** Everything the editor calls on this block, published as the component's one export:
 	 *  `export const blockApi = leaf.blockApi;`. */
-	readonly blockApi: BlockComponent;
+	readonly blockApi: EditableLeafBlockApi;
 
 	/** The block's source minus its trailing line ending, which is the editable text. */
 	readonly sourceText: string;
@@ -182,9 +182,9 @@ export interface EditableLeaf {
 	commitSource(edited: string): void;
 }
 
-/** Every optional member the factory implements, required here so none drops out of `blockApi`
- *  unseen: each one is how an editor route reaches the leaf. */
-type LeafBlockApi = BlockComponent &
+/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
+ *  so none drops out unseen, and a caller reaches each one without a guard. */
+export type EditableLeafBlockApi = BlockComponent &
 	Required<
 		Pick<
 			BlockComponent,
@@ -214,6 +214,12 @@ export function buildLeafCommandContext(
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
 	const singleLine = deps.singleLine ?? false;
+	if (
+		deps.mode === 'render-primary' &&
+		(typeof deps.isRevealed !== 'function' || typeof deps.setRevealed !== 'function')
+	) {
+		throw new Error('createEditableLeaf: render-primary mode requires isRevealed and setRevealed');
+	}
 	const isRevealed = deps.mode === 'render-primary' ? deps.isRevealed : () => true;
 
 	const wiring = wireSurfaceContexts();
@@ -776,7 +782,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		insertMarkdown: clipboard.insertMarkdown,
 		afterSourceCommit
-	} satisfies LeafBlockApi;
+	} satisfies EditableLeafBlockApi;
 
 	return {
 		blockApi,

@@ -329,7 +329,7 @@ export type ContainerBlockComponent = BlockComponent &
 	>;
 
 /**
- * What a mounted block component publishes through `bind:this`: a built-in leaf its members
+ * What a mounted block component publishes through `bind:this`: a hand-built leaf its members
  * themselves, a component built on the editable leaf its `blockApi`, a container its
  * `containerApi`. Svelte 5 instance exports have no spread, so the factories hand over one object
  * rather than a dozen members to copy by hand. A component publishing none of the three, or a

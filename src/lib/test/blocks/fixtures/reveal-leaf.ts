@@ -65,7 +65,7 @@ export function mountRevealLeaf(
 		...mounted,
 		/** Reveal the source with the caret at the end of the block's bytes. */
 		async revealAtEnd(): Promise<HTMLElement> {
-			mounted.instance.blockApi.parkCaret?.(trimTrailingLineEnding(doc.children[0].raw).length);
+			mounted.instance.blockApi.parkCaret(trimTrailingLineEnding(doc.children[0].raw).length);
 			await settleEditor();
 			const el = mounted.target.querySelector<HTMLElement>('.reveal-leaf-source');
 			expect(el, 'the reveal mounted no source element').not.toBeNull();

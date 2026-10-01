@@ -290,6 +290,7 @@ export { isCollapsedContainer } from './schema/reserved-chrome';
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
 	EditableLeaf,
+	EditableLeafBlockApi,
 	EditableLeafDeps,
 	EditableLeafMode,
 	EditableLeafSurfaceProps,
