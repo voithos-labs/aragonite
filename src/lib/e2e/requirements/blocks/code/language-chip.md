@@ -142,6 +142,12 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
 - one Mod+Z after a chip commit then a typed character reverts the character and keeps the
   info string
 
+## Across a source swap
+
+- the field typed into and still open at `setSource` is dropped: the next document keeps its own
+  info string and no `edit` fires (the field's blur cancels, so this holds on its own; the row
+  keeps it that way)
+
 ## Miss-analysis
 
 - The commit that changes nothing: every commit scenario typed a new language onto an unpadded

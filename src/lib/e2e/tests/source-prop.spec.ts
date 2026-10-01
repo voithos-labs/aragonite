@@ -67,4 +67,20 @@ test.describe('source prop change', () => {
 		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
 		expect(await editor.bridge.getSource()).toBe('other\n');
 	});
+
+	test('an empty heading holding the caret at a swap is not demoted into the next document', async ({
+		page
+	}) => {
+		await editor.loadContent('# \n\nafter\n');
+		await editor.focusBlockEnd(0);
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+
+		const next = '# Title\n\nbody\n';
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe(next);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
 });

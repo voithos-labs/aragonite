@@ -15,6 +15,8 @@ Editor re-initialization when the `source` prop changes (async document load, sh
 - a key typed just before `setSource`, inside the undo batch's pause: its `edit` fires as the key
   lands, and the swap fires none, so a host echoing `getSource()` on `edit` never writes the
   outgoing text back over the document it just loaded
+- an empty heading holding the caret at `setSource`: the swap's teardown blurs it, and the blur's
+  tidy-up (an empty `#` turns back into a paragraph) writes nothing into the next document
 
 - `setSource` while cross-block selection is active: cross-block state clears (no stale anchor/focus paths against the new doc), `data-cross-block` removed from editor root, typing inserts visible characters at the collapsed caret
 - `setSource` while undo stack has entries: stack clears (already covered by existing init behavior; listed here for completeness)
@@ -30,3 +32,5 @@ Editor re-initialization when the `source` prop changes (async document load, sh
   and nothing subscribed to the events a host or a plugin would use to tell a swap from a keystroke.
 - The held typing `edit` firing inside a swap (#683) shipped because every swap row loaded its
   document long after the last key, so the typing pause had always run out first.
+- The heading tidy-up landing in the next document shipped because no swap row left the caret
+  in a block whose blur writes; every blur write was tested against the document it came from.

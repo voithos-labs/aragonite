@@ -297,3 +297,20 @@ test.describe('code language chip: one undo entry', () => {
 		expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
 	});
 });
+
+test.describe('code language chip: across a source swap', () => {
+	test('a typed field is dropped, not written into the next document', async ({ page }) => {
+		const editor = await loadLive(page);
+		await openChip(editor);
+		await page.keyboard.type('py');
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+
+		const next = '```rust\nfn main() {}\n```\n\nbody\n';
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe(next);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
+});
