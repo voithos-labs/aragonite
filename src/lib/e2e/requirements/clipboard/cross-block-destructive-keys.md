@@ -9,7 +9,7 @@ selection stayed painted over stale block indices.
 
 The invariant asserted by these tests: when a cross-block selection is
 active and the user presses a delete-then-dispatch key, the selection
-collapses (range deleted), the caret lands at the merge target, and the
+collapses (range deleted), the caret goes to the merge target, and the
 key's normal block-level behavior runs at the collapsed caret, producing
 the same end state as (a) pressing Backspace and then (b) pressing the
 key, in one undo unit.

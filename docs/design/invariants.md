@@ -2085,10 +2085,10 @@ fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under 
 **G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut,
 typing, an IME composition, paste and a command key over a cross-block range all go through
 `selection/cross-block/range-replace.ts :: replaceRange`, which picks the removal from what the range
-covers and keeps the gesture one undo entry with one caret landing. A route that called `rangeDelete`
-or `removeHeldWhole` itself, or opened its own `undoStep` under `selection/cross-block/`, would skip
-the pick, the entry or the landing, so the scan allows those calls in the range replace only (the
-range delete's own files aside). `lint/file-rules.test.ts`.
+covers and keeps the gesture one undo entry with one caret landing. A route that called `rangeDelete`,
+`removeHeldWhole` or `commitGridLineDelete` itself, or opened its own `undoStep` under
+`selection/cross-block/`, would skip the pick, the entry or the landing, so the scan allows those
+calls in the range replace only (the range delete's own files aside). `lint/file-rules.test.ts`.
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for

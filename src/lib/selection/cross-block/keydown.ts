@@ -85,8 +85,8 @@ async function handleCrossBlockActive(
 	// Ctrl+C and Ctrl+X pass through to the copy and cut events, which write the clipboard
 	// synchronously; Tauri's webview refuses `navigator.clipboard.writeText`.
 
-	// Extend, collapse and copy stay live in reading mode. Each reading-mode check below goes once
-	// one check in front of every key handler refuses the key first; until then the key is quiet.
+	// Extend, collapse and copy stay live in reading mode. The reading-mode checks below keep a key
+	// quiet, and go once one check in front of every key handler refuses it.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;

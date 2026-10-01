@@ -102,8 +102,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		ctx.selection.isCrossBlock && e.inputType === 'insertText';
 
 	const insertText = async (text: string): Promise<boolean> => {
-		// Goes once one check in front of every key handler refuses reading mode: the range replace
-		// refuses the write, but with a warning a key the editor lets through shouldn't raise.
+		// Refused quietly here, since the range replace's refusal warns about a key the editor lets
+		// through; this check goes once one reading-mode check sits in front of every key handler.
 		if (isReadingMode(ctx.reading.mode)) return true;
 		if (!ctx.selection.isCrossBlock) return false;
 		await replaceRange(ctx, { kind: 'text', text });
