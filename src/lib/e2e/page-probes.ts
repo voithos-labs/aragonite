@@ -93,3 +93,17 @@ export function focusedBlockSurface(
 		};
 	});
 }
+
+/** Make the page's next clipboard read wait until `releaseClipboardRead`, so a spec can swap the
+ *  document while a paste is still reading, with no timing in the spec. */
+export async function holdClipboardRead(page: Page): Promise<void> {
+	await page.evaluate(() => {
+		navigator.clipboard.readText = () =>
+			new Promise<string>((resolve) => ((window as any).__releaseClipboardRead = resolve));
+	});
+}
+
+/** Resolve the held clipboard read with `text`. */
+export async function releaseClipboardRead(page: Page, text: string): Promise<void> {
+	await page.evaluate((t) => (window as any).__releaseClipboardRead(t), text);
+}

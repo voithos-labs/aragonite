@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { dragBetweenCells } from './helpers';
+import { holdClipboardRead, releaseClipboardRead } from '../../../page-probes';
 
 // Cells render row-major: 0=A 1=B (header) · 2="hello" 3="world" (body row).
 const TABLE = '| A | B |\n| --- | --- |\n| hello | world |\n';
@@ -124,5 +125,29 @@ test.describe('table block: cell right-click clipboard', () => {
 		await cell.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^paste$/i }).click();
 		await editor.bridge.waitForSourceContains('| bye | world |');
+	});
+});
+
+// The cell menu's Paste waits on the clipboard read, and the document it was picked in can be gone
+// by the time the text arrives: the paste is then refused rather than landing in the next one.
+test.describe('table block: cell menu paste across a source swap', () => {
+	test.use({ expectInvariants: ['stale-document-write'] });
+
+	test('lands nowhere', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(TABLE);
+		await holdClipboardRead(page);
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^paste$/i }).click();
+
+		const next = '| C | D |\n| --- | --- |\n| other | cells |\n';
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.bridge.waitForSourceEquals(next);
+		await releaseClipboardRead(page, 'CLIP');
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe(next);
 	});
 });

@@ -1,5 +1,7 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { holdClipboardRead, releaseClipboardRead } from '../page-probes';
 
 test.describe('source prop change', () => {
 	let editor: EditorPage;
@@ -82,5 +84,54 @@ test.describe('source prop change', () => {
 
 		expect(await editor.bridge.getSource()).toBe(next);
 		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
+});
+
+// A paste picked from a menu waits on the clipboard read; the document it was picked in can be
+// gone by the time the text arrives, and the paste is then refused rather than landing in B.
+test.describe('source prop change: a menu paste waiting on the clipboard', () => {
+	test.use({ expectInvariants: ['stale-document-write'] });
+	let editor: EditorPage;
+	const next = 'note b one\n\nnote b two\n';
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	async function swapThenRelease(page: Page): Promise<void> {
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.bridge.waitForSourceEquals(next);
+		await releaseClipboardRead(page, 'CLIP');
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+	}
+
+	test('the prose menu’s Paste lands nowhere', async ({ page }) => {
+		await editor.loadContent('note a one\n\nnote a two\n');
+		await holdClipboardRead(page);
+		await editor.getBlock(1).click({ button: 'right' });
+		await page
+			.getByRole('menu', { name: 'Block actions' })
+			.getByRole('menuitem', { name: 'Paste', exact: true })
+			.click();
+
+		await swapThenRelease(page);
+
+		expect(await editor.bridge.getSource()).toBe(next);
+	});
+
+	test('the block menu’s Replace with clipboard lands nowhere', async ({ page }) => {
+		await editor.loadContent('note a one\n\n```\ncode\n```\n');
+		await holdClipboardRead(page);
+		await page.locator('[data-block-kind="fencedCode"]').first().click({ button: 'right' });
+		await page
+			.getByRole('menu', { name: 'Block actions' })
+			.getByRole('menuitem', { name: 'Replace with clipboard' })
+			.click();
+
+		await swapThenRelease(page);
+
+		expect(await editor.bridge.getSource()).toBe(next);
 	});
 });
