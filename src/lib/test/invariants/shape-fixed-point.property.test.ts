@@ -15,14 +15,28 @@ import { isMergeEligible } from '$lib/schema/merge-rules';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import { keepsEveryByte } from '$lib/test/harness/live-oracles';
-import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
+import {
+	arbBlankSeparatedGfmDoc,
+	arbInlineSource,
+	arbRespelledContainerDoc,
+	freshOrFixedSeed
+} from './arbitraries';
 import {
 	displayLength,
 	documentLineEnding,
+	firstDisplayLine,
 	firstLineEnding,
+	isBlankText,
+	splitLines,
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '$lib/core/lines';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createLeafTyping } from '$lib/editor-actions/leaf-write';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import { blockNodeAt, documentBody } from '$lib/tree-operations/node-primitives';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerLiveSplitRebalancer,
@@ -188,6 +202,45 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 	rebuildUnsharedChain(doc, chain, createSharingState(), null, defaultGrammarView);
 }
 
+/** Every non-blank prose leaf's path, at any depth. */
+function proseLeafPaths(nodes: readonly CstNode[], path: number[] = []): number[][] {
+	return nodes.flatMap((node, i) => {
+		if (node.children !== undefined) return proseLeafPaths(node.children, [...path, i]);
+		const prose = getBlockKindDescriptor(node.kind).supportsInline === true;
+		return prose && !isBlankText(node.raw) ? [[...path, i]] : [];
+	});
+}
+
+/** A letter typed into a drawn leaf's first line through the keystroke's in-place route: one
+ *  line of the document moves, and the tree reloads as itself. */
+function keystrokeMovesOneLine(source: string, pick: number, offset: number): void {
+	const { deps } = makeEditorActionsDeps(source);
+	const leaves = proseLeafPaths(deps.doc.children);
+	if (leaves.length === 0) return;
+	const leaf = leaves[pick % leaves.length];
+	const owner = leaf.length > 1 ? (blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode) : null;
+	const raw = (blockNodeAt(deps.doc, leaf) as CstNode).raw;
+	const at = offset % (displayLength(firstDisplayLine(raw).text) + 1);
+	const body = owner
+		? { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) }
+		: documentBody(deps.doc);
+	const write = legalizeWrite(
+		body,
+		leaf.at(-1)!,
+		raw.slice(0, at) + 'Q' + raw.slice(at),
+		'authored'
+	);
+	const before = splitLines(serialize(deps.doc)).map((line) => line.raw);
+	createLeafTyping(deps, createUndoController(deps)).writeLeafInPlace(docPathFrom(leaf), write, at);
+
+	const after = splitLines(serialize(deps.doc)).map((line) => line.raw);
+	const moved = after.filter((line, i) => line !== before[i]);
+	if (after.length !== before.length || moved.length > 1) {
+		throw new Error(`${JSON.stringify(source)} at ${leaf}: ${JSON.stringify(after)}`);
+	}
+	expect(describeConvergence(deps.doc)).toBeNull();
+}
+
 /** What a split may not touch: every byte that is not a line ending survives. A sorted multiset,
  *  because the setext rule moves the underline up to follow the first half. */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
@@ -252,8 +305,7 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && !keptBytes) {
 		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
-	// Content bytes only: a list item's rebuild may change the indentation of its blank lines.
-	if (gesture.op === 'retype' && !keepsEveryContentByte(before, bytes)) {
+	if (gesture.op === 'retype' && bytes !== before) {
 		return `retype changed the bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
@@ -314,12 +366,37 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
+	// G2.16. Miss-analysis (GH #589): the retype checked content bytes only, and the generator drew
+	// every container line in the rebuild's own spelling, so a respelled item never reached it.
 	it('writing a leaf its own bytes leaves them and the shape as they were', () => {
 		fc.assert(
-			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
+			fc.property(fc.oneof(arbDoc, arbRespelledContainerDoc), fc.nat({ max: 6 }), (source, at) => {
 				const divergence = divergenceAfterEdit(source, { op: 'retype', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
+			PARAMS
+		);
+	});
+
+	it.each(['retype', 'empty'] as const)(
+		'%s keeps the shape of a tab-indented item holding a table (#589)',
+		(op) => {
+			const source =
+				'- | H0 |\n\t| --- |\n\tplain words\n\t\n\t\n\t\n\t- foo@bar.com\n\t  \n\t  \n\t  \n\t      code\n\t\n  \n**b**\n';
+			expect(divergenceAfterEdit(source, { op, at: 4, offset: 0 })).toBeNull();
+		}
+	);
+
+	// G2.16. Miss-analysis: no property typed into a container, so a keystroke that respelled every
+	// line of its container passed every shape and round-trip check.
+	it('a keystroke changes only the line it types on', () => {
+		fc.assert(
+			fc.property(
+				fc.oneof(arbDoc, arbRespelledContainerDoc),
+				fc.nat(),
+				fc.nat(),
+				keystrokeMovesOneLine
+			),
 			PARAMS
 		);
 	});

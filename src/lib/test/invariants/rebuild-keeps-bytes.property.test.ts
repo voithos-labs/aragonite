@@ -1,6 +1,5 @@
-// G2.15: a rebuild of a parsed table writes back the bytes it read, so the first edit changes
-// only the lines it edits. Tables only for now; the strip containers join once their rebuild
-// keeps bytes too.
+// G2.15: a rebuild of a parsed container writes back the bytes it read, so the first edit changes
+// only the lines it edits.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '$lib/core/parser';
@@ -10,7 +9,14 @@ import { metadataOf } from '$lib/core/nodes';
 import { splitLines } from '$lib/core/lines';
 import { walkBlocks } from '$lib/core/paths';
 import { rebuildTableRaw, rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
-import { arbGfmDoc, arbRespelledTableDoc, freshOrFixedSeed } from './arbitraries';
+import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
+import {
+	arbGfmDoc,
+	arbIndentedGfmDoc,
+	arbRespelledContainerDoc,
+	arbRespelledTableDoc,
+	freshOrFixedSeed
+} from './arbitraries';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(151515) } as const;
 
@@ -36,6 +42,25 @@ function rebuildsToItsBytes(source: string): void {
 		rebuild(table);
 		expect(bytesOf(table)).toEqual(before);
 	}
+}
+
+/** Every node's bytes, children first. */
+function containerBytes(nodes: readonly CstNode[]): string[] {
+	return nodes.flatMap((node) => [...containerBytes(node.children ?? []), node.raw]);
+}
+
+/** Every container rebuilt innermost first, as a chain rebuild runs them: none moves a byte. */
+function everyContainerRebuildsToItsBytes(source: string): void {
+	const doc = parse(source);
+	const before = containerBytes(doc.children);
+	const rebuildAll = (nodes: readonly CstNode[]) => {
+		for (const node of nodes) {
+			rebuildAll(node.children ?? []);
+			rebuildContainerRawIfContainer(node);
+		}
+	};
+	rebuildAll(doc.children);
+	expect(containerBytes(doc.children)).toEqual(before);
 }
 
 /** The cells a reader takes from a row, surplus included. */
@@ -86,6 +111,16 @@ describe('G2.15 a rebuild of a parsed table is the identity', () => {
 		['rows with no trailing pipe, at the top and in a quote', '|a\n|-\n\n> a\n> -\n']
 	])('pins %s', (_name, source) => {
 		rebuildsToItsBytes(source);
+	});
+});
+
+describe('G2.15 a rebuild of any parsed container is the identity', () => {
+	it.each([
+		['valid-ish GFM docs', arbGfmDoc],
+		['indented GFM docs', arbIndentedGfmDoc],
+		['quotes and lists spelled every way GFM reads the same', arbRespelledContainerDoc]
+	])('over %s', (_name, arbitrary) => {
+		fc.assert(fc.property(arbitrary, everyContainerRebuildsToItsBytes), PARAMS);
 	});
 });
 

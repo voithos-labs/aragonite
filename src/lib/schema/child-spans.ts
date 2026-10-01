@@ -8,7 +8,7 @@
 import { isDevChecks } from '../env';
 import { makeBlockNode, type CstNode } from '../core/nodes';
 import { assertInvariant } from '../assert';
-import { perfEnabled } from '../perf/instruments';
+import { perfEnabled, recordStripLinesRead } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
 import { isBlankLine, splitLines } from '../core/lines';
 
@@ -166,6 +166,7 @@ function renderPrefixed(
 	if (text === '') return '';
 	let out = '';
 	const lines = splitLines(text);
+	if (perfEnabled()) recordStripLinesRead(lines.length);
 	let lastContent = lines.length - 1;
 	while (lastContent >= 0 && isBlankLine(lines[lastContent].text)) lastContent--;
 	const endsBlank = lastContent < lines.length - 1 && inBlankTail();

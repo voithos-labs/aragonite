@@ -17,6 +17,8 @@ export interface PerfSnapshot {
 	containerReparseBytes: number;
 	/** Reads of a rebuilt container's first line alone, to re-derive its kind or metadata. */
 	openerLineReads: number;
+	/** Lines a quote or list item rebuild wrote, or read from its previous bytes. */
+	stripLinesRead: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
@@ -54,6 +56,7 @@ function emptySnapshot(): PerfSnapshot {
 		containerKindReparses: 0,
 		containerReparseBytes: 0,
 		openerLineReads: 0,
+		stripLinesRead: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
@@ -126,6 +129,11 @@ export function recordContainerKindReparse(bytes: number): void {
 export function recordOpenerLineRead(): void {
 	if (!enabled) return;
 	counters.openerLineReads++;
+}
+
+export function recordStripLinesRead(lines: number): void {
+	if (!enabled) return;
+	counters.stripLinesRead += lines;
 }
 
 export function recordParse(ms: number, blockCount: number, bytes: number): void {
