@@ -38,14 +38,18 @@ function typeInto(h: ReturnType<typeof makeTopHarness>, leaf: number[], text: st
 	createLeafTyping(h.deps, h.controller).writeLeafInPlace(docPathFrom(leaf), write, at + 1);
 }
 
-/** Counts every read of a top-level block's children, except the one at `skip`. */
+/** Counts every read of a top-level container's children, except the one at `skip`. The undo
+ *  digest (G1.9) walks every node of a commit's snapshot by design, so its reads don't count. */
 function countChildReads(doc: Document, skip: number): () => number {
 	let reads = 0;
+	const count = () => {
+		if (!new Error().stack?.includes('digestDoc')) reads++;
+	};
 	doc.children.forEach((top, i) => {
-		if (i === skip) return;
+		if (i === skip || top.children === undefined) return;
 		let children = top.children;
 		Object.defineProperty(top, 'children', {
-			get: () => (reads++, children),
+			get: () => (count(), children),
 			set: (next) => (children = next),
 			enumerable: true,
 			configurable: true
@@ -110,6 +114,18 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 		typeInto(h, [200, 0], 'Q');
 
 		expect(h.deps.doc.children[200].raw).toBe('> q200Q\n');
+		expect(reads()).toBe(0);
+	});
+
+	it('looks inside no container but the one a commit rebuilt', async () => {
+		// A paragraph last, since the last-line check (G1.41) reads the document's last block.
+		const quotes = Array.from({ length: 400 }, (_, i) => `> q${i}\n>\n> r${i}\n`).join('\n');
+		const h = makeContainerHarness(`${quotes}\ntail\n`, [200]);
+		const reads = countChildReads(h.deps.doc, 200);
+
+		await h.bundle.blockEdit.splitBlock(0, 1);
+
+		expect(h.deps.doc.children[200].raw).toBe('> q\n>\n> 200\n>\n> r200\n');
 		expect(reads()).toBe(0);
 	});
 
