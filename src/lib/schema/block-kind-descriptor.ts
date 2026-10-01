@@ -173,9 +173,6 @@ export interface BlockKindDescriptor {
 	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
 	 */
 	contextDependentKind?: boolean;
-	/** `false` when the kind's reading tries a construct spanning more lines and backs out if they
-	 *  don't complete it (a link definition's title). Absent: a join below reads one line of it. */
-	settledAtLastLine?: boolean;
 	/**
 	 * Make `raw` legal as this kind's own bytes (`schema/fenced-code-raw.ts` is the worked example).
 	 * `ctx.node` is the block as it stood before the write.
@@ -261,7 +258,6 @@ export const DESCRIPTOR_FIELDS = [
 	'bodyWrap',
 	'lastLineChild',
 	'contextDependentKind',
-	'settledAtLastLine',
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',

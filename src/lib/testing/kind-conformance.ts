@@ -53,13 +53,11 @@ import { assertParseConverged } from './parse-convergence';
 
 // ── Report + profile ─────────────────────────────────────────────────────────
 
-/** A closure column, plus the two cells that read the descriptor rather than the closure block. */
-export type KindCell = ClosureColumn | DescriptorCell;
-
-type DescriptorCell = 'rawWrite' | 'declarations';
+/** A closure column, plus `rawWrite`, which reads the descriptor rather than the closure block. */
+export type KindCell = ClosureColumn | 'rawWrite';
 
 export interface KindCellReport extends CellReport<KindCell> {
-	/** The closure mode the kind declared for the cell; absent on `rawWrite` and `declarations`. */
+	/** The closure mode the kind declared for the cell; absent on `rawWrite`. */
 	mode?: ClosureCell['mode'];
 }
 
@@ -118,8 +116,7 @@ export async function runKindConformance(
 					: () => executeCell(column, descriptor.closure[column], run)
 			};
 		}),
-		{ cell: 'rawWrite', run: execRawWrite },
-		{ cell: 'declarations', run: execDeclarations }
+		{ cell: 'rawWrite', run: execRawWrite }
 	];
 	const reports = await runCells(cells, run, {
 		subject: kind,
@@ -128,15 +125,12 @@ export async function runKindConformance(
 	return {
 		kind,
 		cells: reports.map((report) =>
-			isDescriptorCell(report.cell)
+			report.cell === 'rawWrite'
 				? report
 				: { ...report, mode: descriptor.closure[report.cell].mode }
 		)
 	};
 }
-
-const isDescriptorCell = (cell: KindCell): cell is DescriptorCell =>
-	cell === 'rawWrite' || cell === 'declarations';
 
 function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): KindCellContext | null {
 	const fixture = descriptor.conformanceFixture;
@@ -392,49 +386,7 @@ function execRawWrite({ kind, descriptor, parsed: ctx }: KindRun): CellOutcome {
 	return 'five writes, each idempotent, leaving the next block its own, caret map agreeing';
 }
 
-function execDeclarations({ kind, descriptor, parsed: ctx }: KindRun): CellOutcome {
-	if (descriptor.settledAtLastLine === false) {
-		return {
-			status: 'exempt',
-			detail: 'declares its reading unsettled at its last line, the answer that is never wrong'
-		};
-	}
-	if (ctx === null || ctx.nodePath.length !== 1) {
-		return {
-			status: 'boundary',
-			detail: 'reads as settled at its last line but has no top-level conformanceFixture to probe'
-		};
-	}
-	checkSettledAtLastLine(kind, ctx.fixture);
-	return 'no probe line below the fixture is taken back once a later line completes it';
-}
-
 // ── Exported executors (direct-drive for regression tests) ───────────────────
-
-/** Lines a reading that backs out would try to take below a block, each with the line completing
- *  it: the quoted and bracketed titles a link definition reads, the shape the probe can guess. */
-const READ_ON_PROBES: readonly [string, string][] = [
-	['"probe', 'probe"'],
-	["'probe", "probe'"],
-	['(probe', 'probe)']
-];
-
-/** Asserts the fixture's first block, read with a probe line below it, keeps its reading once a
- *  later line completes the probe, which is what leaving `settledAtLastLine` out claims. */
-export function checkSettledAtLastLine(kind: AnyBlockKind, fixture: string): void {
-	const block = trimTrailingLineEnding(parse(fixture).children[0].raw) + '\n';
-	for (const [opens, closes] of READ_ON_PROBES) {
-		const cut = parse(`${block}${opens}\n`).children;
-		// The block reads the probe line on, so a one-line read never stops at it.
-		if (cut.length < 2) continue;
-		const whole = parse(`${block}${opens}\n${closes}\n`).children;
-		assert(
-			whole.length >= 2 && whole[0].raw === cut[0].raw,
-			`${kind} leaves settledAtLastLine out, but "${opens}" under ${show(block)} stays its own ` +
-				`block until "${closes}" completes it; declare settledAtLastLine: false`
-		);
-	}
-}
 
 const TRAILING_SENTINEL = '\n\nclipboard sentinel\n';
 const LEADING_SENTINEL = 'clipboard lead\n\n';

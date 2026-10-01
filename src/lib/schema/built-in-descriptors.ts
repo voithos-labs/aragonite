@@ -378,7 +378,6 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '[id]: /url "title"\n',
-		settledAtLastLine: false,
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {

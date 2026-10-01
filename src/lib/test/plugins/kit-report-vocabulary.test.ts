@@ -42,17 +42,14 @@ describe('conformance kit reports share one vocabulary', () => {
 		});
 	});
 
-	it('the kind kit reports its descriptor cells bare and the declared mode on the rest', async () => {
+	it('the kind kit reports raw-write as a cell and the declared mode on the rest', async () => {
 		const { cells } = await runKindConformance('fencedCode');
 		expectVocabulary(cells, ['mode']);
-		const descriptorCells = ['rawWrite', 'declarations'];
-		for (const cell of descriptorCells) {
-			const report = cells.find((c) => c.cell === cell);
-			expect(report?.status).toBe('asserted');
-			expect(report).not.toHaveProperty('mode');
-		}
+		const rawWrite = cells.find((c) => c.cell === 'rawWrite');
+		expect(rawWrite?.status).toBe('asserted');
+		expect(rawWrite).not.toHaveProperty('mode');
 		const { closure } = getBlockKindDescriptor('fencedCode');
-		for (const report of cells.filter((c) => !descriptorCells.includes(c.cell))) {
+		for (const report of cells.filter((c) => c.cell !== 'rawWrite')) {
 			expect(report.mode).toBe(closure[report.cell as keyof typeof closure].mode);
 		}
 	});
