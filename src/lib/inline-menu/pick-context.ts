@@ -11,7 +11,7 @@ import type { InlineMenuCommit } from './types';
 
 export interface PendingPick {
 	editor: InlineMenuCommit;
-	/** The commit settled, so the editor no longer closes the pick. */
+	/** Call once the commit settles: the editor stops closing the pick from then on. */
 	end(): void;
 }
 
