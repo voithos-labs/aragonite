@@ -17,7 +17,7 @@ import {
 	parseHtmlBlock,
 	canInterruptParagraph as htmlCanInterrupt
 } from './html-block';
-import { parseLinkReferenceDefinition } from './link-reference';
+import { opensDefinitionLabel, parseLinkReferenceDefinition } from './link-reference';
 
 // Idempotence guard, not a registry bypass: a dev-server re-eval resets it so
 // the register-once dev path still replaces.
@@ -139,6 +139,8 @@ export function registerBuiltInOpeners(): void {
 		tryOpen(ctx) {
 			return parseLinkReferenceDefinition(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 		},
-		interruptsParagraph: false
+		interruptsParagraph: false,
+		// A title on the lines below is dropped when its quote never closes.
+		mayBackOut: opensDefinitionLabel
 	});
 }

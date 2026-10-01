@@ -142,6 +142,9 @@ function skipSpaces(text: string, pos: number): number {
 // ── Label ───────────────────────────────────────────────────────────────────
 
 /** Where the definition's `[` sits, up to three spaces in, or -1. */
+/** Whether a definition could open at this line, the only line its opener backs out from. */
+export const opensDefinitionLabel = (line: string): boolean => labelOpenerOffset(line) >= 0;
+
 function labelOpenerOffset(line: string): number {
 	let pos = 0;
 	while (pos < 3 && line[pos] === ' ') pos++;

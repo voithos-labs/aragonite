@@ -19,7 +19,7 @@ import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { GrammarView } from '../schema/block-openers';
+import { opensWithBackOut, type GrammarView } from '../schema/block-openers';
 import { dropChildSpans } from '../schema/child-spans';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -490,7 +490,7 @@ export function absorbSeamReading(
 		if (separateTableFollower(body, right, sharing, grammar)) break;
 		// A context-dependent kind has no standalone reading, so a join touching it cannot be asked.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
-		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
+		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read, grammar)) break;
 		probe = undefined;
 		const bytes = joinedWindowBytes(window, window.length);
 		const reparsed = read(bytes);
@@ -568,12 +568,13 @@ function readsAsItselfAlone(node: CstNode, read: (bytes: string) => Document): b
 function declinesOnHeadLine(
 	window: readonly CstNode[],
 	member: number,
-	read: (bytes: string) => Document
+	read: (bytes: string) => Document,
+	grammar: GrammarView
 ): boolean {
 	const last = window.length - 1;
 	if (member !== 0 && member !== last) return false;
-	// A block whose reading backs out when the lines completing it are cut off misreads the cut.
-	if (tryGetBlockKindDescriptor(window[last - 1].kind)?.settledAtLastLine === false) return false;
+	// An opener that read on and backed out (an unclosed `$$`) may not back out of the full join.
+	if (window.slice(0, last).some((node) => opensWithBackOut(node.raw, grammar))) return false;
 	const raw = window[last].raw;
 	const nl = raw.indexOf('\n');
 	const joined =

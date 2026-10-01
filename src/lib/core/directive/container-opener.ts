@@ -31,6 +31,8 @@ export function registerDirectiveOpeners(): void {
 		// moves this with it. A colon fence collides with no built-in matcher; it only needs a gap.
 		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
+		// It reads on for its `:::` closer and becomes a paragraph when none comes.
+		mayBackOut: (line) => matchDirectiveOpener(line) !== null,
 		tryOpen(ctx) {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;

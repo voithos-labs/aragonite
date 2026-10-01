@@ -53,6 +53,9 @@ export interface BlockOpener {
 	tryOpen(ctx: OpenContext): BlockOpenerResult | null;
 	/** Whether a line of this kind interrupts an open paragraph (GFM continuation rules); `false` = never. */
 	interruptsParagraph: ((lineText: string) => boolean) | false;
+	/** Whether an attempt at this line may read the lines after it and still decline (an unclosed
+	 *  `$$` becomes a paragraph). Absent: the opener never backs out once it has read on. */
+	mayBackOut?: (lineText: string) => boolean;
 }
 
 type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
@@ -142,6 +145,14 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 		if (predicate(lineText)) return true;
 	}
 	return false;
+}
+
+/** Whether an opener in `grammar` may read on from the block's first line and then decline, so how
+ *  the block reads depends on lines further down than a one-line read of what follows sees. */
+export function opensWithBackOut(raw: string, grammar: GrammarView): boolean {
+	const nl = raw.indexOf('\n');
+	const line = (nl < 0 ? raw : raw.slice(0, nl)).replace(/\r$/, '');
+	return grammar.orderedOpeners().some((opener) => opener.mayBackOut?.(line) === true);
 }
 
 /**

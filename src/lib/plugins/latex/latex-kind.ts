@@ -256,6 +256,8 @@ export function registerMathBlock(): void {
 		// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
+		// A lone `$$` reads on for its closer and becomes a paragraph when none comes.
+		mayBackOut: (line) => line === BLOCK_FENCE,
 		tryOpen(ctx) {
 			const text = ctx.line.text;
 			if (!text.startsWith(BLOCK_FENCE)) return null;

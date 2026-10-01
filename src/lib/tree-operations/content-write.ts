@@ -8,7 +8,11 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
-import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
+import {
+	isBlockOpenerRegistered,
+	opensWithBackOut,
+	type GrammarView
+} from '../schema/block-openers';
 import {
 	lineOpensAs,
 	parseContainerRaw,
@@ -183,13 +187,14 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing asks the join above only when the block sits flush under its neighbour, the
-	// first line's indent moved, or a blank line stays blank (editor.md § 8).
+	// Same-kind typing asks the join above only when it's flush, the block above backed out of a
+	// construct, the indent moved, or a blank line stays blank (editor.md § 8).
 	if (
 		change.op === 'noop' &&
 		!wasBlank &&
 		!indentMoved &&
-		!flushAbove(parent.children, blockIndex)
+		!flushAbove(parent.children, blockIndex) &&
+		!backedOutAbove(parent.children, blockIndex, grammar)
 	) {
 		// The join below is asked whatever parts it: an HTML block left open reads on past blank lines.
 		if (blockIndex + 1 >= parent.children.length) return { change, textStart: 0 };
@@ -211,6 +216,18 @@ const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 /** Whether no blank line parts the block from the one above it; a first child has none above. */
 const flushAbove = (children: readonly CstNode[], index: number): boolean =>
 	index > 0 && children[index].leadingTrivia === '';
+
+/** Whether the nearest block above opens with a line an opener read on from and backed out of (an
+ *  unclosed `$$`), which a closer written below can still complete across blank lines. */
+function backedOutAbove(
+	children: readonly CstNode[],
+	index: number,
+	grammar: GrammarView
+): boolean {
+	let above = index - 1;
+	while (above >= 0 && isBlankParagraph(children[above])) above--;
+	return above >= 0 && opensWithBackOut(children[above].raw, grammar);
+}
 
 /**
  * Merge across the joins from the one above `firstJoin` to the one below the last written block,
