@@ -8,6 +8,7 @@ import {
 	blockNodeAt,
 	isBlankText,
 	type EditorContext,
+	type InlineMenuCommit,
 	type InlineMenuSource,
 	type InsertEntry,
 	type MenuIconName
@@ -32,7 +33,7 @@ export type SlashCommandEntry = SlashCommandEntryBase &
 		| {
 				/** Runs after the `/query` bytes are gone, with the argument typed after a space. `editor`
 				 *  writes nothing once the host loads another note, so a `run` that awaits uses it. */
-				run: (editor: EditorContext, argument?: string) => void | Promise<void>;
+				run: (editor: InlineMenuCommit, argument?: string) => void | Promise<void>;
 				/** Lets the list survive a space, so `/name word` hands `word` to `run`. */
 				takesArgument?: boolean;
 				insert?: never;
@@ -52,7 +53,7 @@ type BuiltInsert = ReturnType<NonNullable<InsertEntry['withArgument']>>;
 type SlashAction =
 	| { kind: 'insert'; build: (argument: string | null) => BuiltInsert }
 	| { kind: 'heading'; level: number }
-	| { kind: 'run'; run: (editor: EditorContext, argument?: string) => void | Promise<void> };
+	| { kind: 'run'; run: (editor: InlineMenuCommit, argument?: string) => void | Promise<void> };
 
 interface SlashRow extends FilterableEntry {
 	id: string;

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPlugins } from '$lib';
-import { definePlugin, registerInsertEntry, type InsertEntry } from '$lib/plugin';
+import {
+	definePlugin,
+	registerInsertEntry,
+	type EditorContext,
+	type InsertEntry
+} from '$lib/plugin';
 import type { SlashCommandEntry } from '$lib/plugins/slash-commands';
 import { slashHarness } from './slash-harness';
 
@@ -165,3 +170,13 @@ describe('leaving the list', () => {
 export const both: SlashCommandEntry = { id: 'x', label: 'X', insert: 'a', run: () => {} };
 // @ts-expect-error neither insert nor run
 export const neither: SlashCommandEntry = { id: 'y', label: 'Y' };
+
+// A row's `run` takes the pick's context: one written against plain `EditorContext` still fits, and
+// one that reads `signal` needs no cast. `npm run check` holds both.
+const contextRun = (editor: EditorContext) => void editor.editorId;
+export const plainRow: SlashCommandEntry = { id: 'p', label: 'P', run: contextRun };
+export const signalRow: SlashCommandEntry = {
+	id: 's',
+	label: 'S',
+	run: (editor) => void editor.signal.aborted
+};
