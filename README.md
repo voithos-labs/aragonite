@@ -124,7 +124,7 @@ And, also importantly:
 1. Syntax the parser doesn't understand will still round-trip losslessly (including syntax from a plugin you have since uninstalled)
 2. The worst case for a parser bug is bad styling, not a corrupted file
 3. Partial syntax is handled for free: a half-typed `**bold` is just a string in someone's raw, not an invalid tree state every keystroke has to worry about
-4. Saving rewrites nothing you didn't touch, so a git diff (or your sync tool, or a merge) sees exactly your edit, never a whole file re-serialization. One exception: the first time you edit inside a quote or list, that block's own punctuation gets tidied to a standard spelling [^9]
+4. Saving rewrites nothing you didn't touch, so a git diff (or your sync tool, or a merge) sees exactly your edit, never a whole file re-serialization. The fine print: a line whose indent cuts a tab in half gets that indent back as spaces, and footnotes and GitHub alerts still tidy every line on the first edit [^9]
 5. This will be explained in depth later, but this architecture meshes well with the block editor model, which opens a whole range of possibilities, including windowing and a naturally more capable plugin system
 
 Reading what I told you, you might think to yourself: _surely complex operations need a rich tree to operate on._ They do not. Aragonite proves this to you, that semantic editing never needed the tree to be the truth; it only needs the tree to know where things are.
@@ -340,7 +340,7 @@ Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use i
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: Parse then serialize returns the same text every time. Unfortunately, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, `>b` in a quote becomes `> b`, and a list item's tab indentation can turn into spaces. Tables don't do this: an edit there changes only the rows you touch. docs/design/syntax-tree.md covers why the alternative is worse.
+[^9]: Parse then serialize returns the same text every time. Editing is close: inside a quote or a list, an edit keeps every line it didn't touch byte for byte, and the line you edited keeps its spelling too, so `>b` stays `>b`. The one catch there is an indent that cuts a tab in half, which comes back as spaces on that line. Tables work the same way, an edit changes only the rows you touch. Footnote definitions and alerts still respell their own lines on the first edit; that's being fixed.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
