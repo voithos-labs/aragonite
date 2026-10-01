@@ -26,6 +26,9 @@ import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
+import { checkReadsBack, rebuiltTopContainers } from './reads-back';
+import { isDevChecks } from '../env';
+import { perfEnabled } from '../perf/instruments';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
  *  container's raw is that rebuild's output. */
@@ -72,6 +75,19 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 /** G1.41, after every structural commit publishes: `wasOpen` is `endsOpen` read before it mutated. */
 export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 	assertInvariant('last-line-kept', () => checkLastLineKept(doc, wasOpen));
+}
+
+/** G1.55, after a keystroke's or a commit's rebuild: every top-level container holding a node in
+ *  `touched` reads back as itself. Skipped under the perf instruments, which would time it. */
+export function assertReadsBack(
+	doc: Document,
+	touched: readonly CstNode[],
+	grammar: GrammarView
+): void {
+	if (!isDevChecks() || perfEnabled()) return;
+	for (const top of rebuiltTopContainers(doc, touched)) {
+		assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+	}
 }
 
 /** G1.44, after every structural commit publishes: `touched` is what the commit wrote. */

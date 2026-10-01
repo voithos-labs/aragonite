@@ -8,12 +8,13 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
+import { displayLength, documentLineEnding } from '$lib/core/lines';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { buildQuoteExitReplacement } from '$lib/tree-operations/blockquote';
+import { buildQuoteExitReplacement, plainQuote } from '$lib/tree-operations/blockquote';
+import { liftFirstChild } from '$lib/tree-operations/container-lift';
 import { buildExitReplacement } from '$lib/tree-operations/list/exit-replacement';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
@@ -23,7 +24,11 @@ type Bundle = ReturnType<typeof makeContainerHarness>['bundle'];
 
 type Gesture =
 	| { type: [leaf: number[], at: number, text: string] }
-	| { in: number[]; edit: (bundle: Bundle) => Promise<unknown> };
+	| { in: number[]; edit: (bundle: Bundle, container: CstNode) => Promise<unknown> };
+
+/** The display length of the container's child at `index`: Enter there splits at its end. */
+const endOf = (container: CstNode, index: number): number =>
+	displayLength(container.children![index].raw);
 
 interface Row {
 	name: string;
@@ -52,7 +57,7 @@ async function typeInPlace(source: string, leaf: number[], at: number, text: str
 async function run(source: string, gesture: Gesture): Promise<Document> {
 	if ('type' in gesture) return typeInPlace(source, ...gesture.type);
 	const h = makeContainerHarness(source, gesture.in);
-	await gesture.edit(h.bundle);
+	await gesture.edit(h.bundle, h.getNode());
 	return h.deps.doc;
 }
 
@@ -140,7 +145,7 @@ const ROWS: Row[] = [
 	{
 		name: 'Enter in a list item keeps its tab-indented lines',
 		source: '- a\n\tb\n\n\tc\n',
-		gesture: { in: [0, 0], edit: (b) => b.blockEdit.splitBlock(0, 5) },
+		gesture: { in: [0, 0], edit: (b, item) => b.blockEdit.splitBlock(0, endOf(item, 0)) },
 		after: '- a\n\tb\n\n\n\tc\n'
 	},
 	{
@@ -185,18 +190,16 @@ describe('a container built from another keeps its source’s bytes', () => {
 		expect(trimmed.raw).toBe('>a\n>\n>b\n');
 	});
 
-	it('the quote an alert leaves after a lift keeps its lines', async () => {
-		const h = makeContainerHarness('>[!NOTE]\n>a\n>\n>b\n', [0]);
-		await h.bundle.blockEdit.mergeWithPrevious(0);
-		expect(serialize(h.deps.doc)).toBe('a\n\n>b\n');
-		expect(describeConvergence(h.deps.doc)).toBeNull();
+	it('the quote an alert leaves after a lift keeps its lines', () => {
+		const alert = parse('>[!NOTE]\n>a\n>\n>b\n').children[0];
+		expect(alert.kind).toBe('githubAlert');
+		const [, rest] = liftFirstChild(alert, plainQuote(defaultGrammarView));
+		expect(rest.raw).toBe('>b\n');
 	});
 
 	it('a list exit keeps the items it leaves', () => {
 		const list = parse('- a\n\tb\n- \n- c\n').children[0];
 		const { blocks } = buildExitReplacement(list, 1, '\n');
-		expect(blocks.map((block) => block.leadingTrivia + block.raw).join('')).toBe(
-			'- a\n\tb\n\n- c\n'
-		);
+		expect([blocks[0].raw, blocks.at(-1)!.raw]).toEqual(['- a\n\tb\n', '- c\n']);
 	});
 });

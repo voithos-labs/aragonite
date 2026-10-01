@@ -1,8 +1,8 @@
 /**
  * The space that finishes a container's marker. The parser creates the container on the bare
  * marker byte (`>`), before the space arrives, so that space belongs to the marker and not to
- * the child the caret landed in. The container declares this with `contentStartSpace`; nothing
- * here is keyed on a kind name.
+ * the child the caret landed in; the container writes it when it next rewrites that line. The
+ * container declares this with `contentStartSpace`; nothing here is keyed on a kind name.
  */
 
 import { displayLength } from '../../../core/lines';

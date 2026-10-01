@@ -5,7 +5,7 @@
 
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { INNER_LINE, type LineCodec } from '../strip-lines';
+import { INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
@@ -34,7 +34,9 @@ export const quoteLines: LineCodec = {
 		const waiting = prefix.endsWith('>') && text !== '' && !text.startsWith('>');
 		return { text, prefix: waiting ? null : prefix, lazy: false };
 	},
-	write: (text) => (text === '' ? '>' : '> ' + text)
+	write: (text) => (text === '' ? '>' : '> ' + text),
+	continuesLazily: (above, line) =>
+		wouldKeepParagraphOpen(above) && wouldKeepParagraphOpen(line) && !opensOuterBlock(line)
 };
 
 const stripBlockquotePrefix = (text: string): string => quoteLines.read(text, INNER_LINE)!.text;

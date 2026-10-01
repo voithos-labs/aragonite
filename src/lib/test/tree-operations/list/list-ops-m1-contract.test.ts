@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
+import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import { metadataOf } from '$lib/core/nodes';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';

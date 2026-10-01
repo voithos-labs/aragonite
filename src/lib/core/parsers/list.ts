@@ -7,7 +7,7 @@
 import type { CstNode } from '../nodes';
 import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
-import { INNER_LINE, type LineCodec, type LinePlace } from '../strip-lines';
+import { INNER_LINE, opensOuterBlock, type LineCodec, type LinePlace } from '../strip-lines';
 import {
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
@@ -104,7 +104,12 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 		write(text, place) {
 			if (place.first) return opener + text;
 			return text === '' && !place.trailingBlank ? '' : ' '.repeat(column) + text;
-		}
+		},
+		// The parser asks the opening line with its task marker still on it.
+		continuesLazily: (above, line, aboveFirst) =>
+			wouldKeepParagraphOpen(aboveFirst ? (shape.taskMarker ?? '') + above : above) &&
+			wouldKeepParagraphOpen(line) &&
+			!opensOuterBlock(line)
 	};
 }
 

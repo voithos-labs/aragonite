@@ -9,6 +9,7 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 import { gridOf, registerPluginGrid } from './plugin-grid-kind';
 import { makeKeydownEnv, press } from './keydown-env';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // `head` first in both fixtures: the dispatch context's focused block is [0], and a container
 // there never reaches the toggle.
@@ -58,5 +59,7 @@ describe('the updateContent a toggle emits for a grid start endpoint', () => {
 		const update = lastUpdate(events);
 		expect(update.path).toEqual([1, 0, 1]);
 		expect(update.detail.length).toBe('**b**'.length);
+		// The test grid registers no opener, so its bytes read back as a paragraph.
+		allowDevWarns(['invariant:reads-back']);
 	});
 });

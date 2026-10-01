@@ -13,9 +13,9 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 
-// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
-// reads them as stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The container fixtures are hand-built, not parser output, so the dev-mode stale-raw and
+// read-back checks read them as stale.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'invariant:reads-back']));
 
 // The one primitive both the image popover and the link card write through: splice bytes over
 // a raw range in the leaf at `path`, as one undo entry, at any depth.

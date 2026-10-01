@@ -1,8 +1,8 @@
 /**
- * Byte offsets of each child's rendered region inside its container's own `raw`, so a typing
- * rewrite replaces one region instead of re-joining every child. Bookkeeping only: a span left
- * stale fails the region check below and falls back to the full rebuild. A `Uint32Array` because
- * Svelte proxies plain arrays, one reactive source per element.
+ * The two shared container rebuilds, a joined body (list, table) and a line-prefixed one (quote,
+ * list item), and each child's byte span in its container's `raw`, so a keystroke rewrites one
+ * region instead of every child. A span left stale fails the region check and falls back to the
+ * full rebuild; a `Uint32Array` because Svelte proxies plain arrays.
  */
 
 import { isDevChecks } from '../env';
@@ -10,32 +10,14 @@ import { makeBlockNode, type CstNode } from '../core/nodes';
 import { assertInvariant } from '../assert';
 import { perfEnabled, recordStripLinesRead } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
-import { isBlankLine, splitLines } from '../core/lines';
+import { isBlankLine, isBlankText, splitLines } from '../core/lines';
+import type { LineCodec, LinePlace } from '../core/strip-lines';
 
 /** The child a rebuild is re-rendering, and the bytes its region currently holds. */
 export interface ChildRawChange {
 	index: number;
 	previousRaw: string;
 }
-
-/**
- * A strip container's per-line transform. `first` marks the container's own opening line, and
- * `trailingBlank` a blank line, other than a separator, with nothing but blank lines after it in
- * the body.
- */
-export type LinePrefix = (text: string, first: boolean, trailingBlank: boolean) => string;
-
-/**
- * One child's separator lines, then its own bytes. `tailIsBlank` asks whether only blank lines
- * follow it in the body; a `leaf`'s blank lines are its own, not a nested rebuild's separators.
- */
-type RenderChild = (
-	trivia: string,
-	raw: string,
-	first: boolean,
-	tailIsBlank: () => boolean,
-	leaf: boolean
-) => string;
 
 /** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
@@ -72,109 +54,257 @@ export function spliceVerbatimChild(
 	changed: ChildRawChange,
 	rebuildFull: (scratch: CstNode) => void
 ): boolean {
-	return (
-		spliceChildRegion(node, node.children!, changed, renderVerbatim) &&
-		spliceIsFaithful(node, rebuildFull)
-	);
+	const rewrite: RegionRewrite = (region, { trivia, child }) =>
+		region === trivia + changed.previousRaw ? trivia + child.raw : null;
+	return spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, rebuildFull);
 }
 
-/**
- * A container whose raw re-prefixes every line of its body (blockquote, list item). Its body opens
- * on its own first line, so no parse fills `innerPrefix` and it is not read here (G1.5).
- */
-export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
-	const children = node.children!;
-	// A separator line stays bare, as the parser reads it. A blank line that belongs to a leaf and
-	// ends the body keeps the body's indent, or a reload would read it as outside the container.
-	const render: RenderChild = (trivia, raw, first, tailIsBlank, leaf) => {
-		const separators = renderPrefixed(trivia, prefix, first, () => false);
-		return (
-			separators +
-			renderPrefixed(raw, prefix, first && separators === '', () => leaf && tailIsBlank())
-		);
-	};
-	if (
-		changed &&
-		spliceChildRegion(node, children, changed, render) &&
-		spliceIsFaithful(node, (scratch) => rebuildStripRaw(scratch, prefix))
-	) {
-		return;
+/** A quote or list item, each line written from its pair in the previous bytes while that still
+ *  reads the same text; `previous` reads those bytes when their metadata has since changed. */
+export function rebuildStripRaw(
+	node: CstNode,
+	lines: LineCodec,
+	changed?: ChildRawChange,
+	previous: LineCodec = lines
+): void {
+	if (changed && previous === lines) {
+		const rewrite: RegionRewrite = (region, at) => rewriteStripRegion(region, at, changed, lines);
+		const full = (scratch: CstNode) => rebuildStripRaw(scratch, lines);
+		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return;
 	}
 
 	// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
-	const parts = children.map((child) => ({
-		trivia: child.leadingTrivia,
-		raw: child.raw,
-		leaf: child.children === undefined
-	}));
+	const children = node.children!.map((child) => child);
 	const suffix = node.innerSuffix ?? '';
 	// Every child from `blankTail` on, and the suffix, holds whitespace only.
-	let blankTail = parts.length;
-	if (isWhitespaceOnly(suffix)) {
-		while (blankTail > 0 && isWhitespaceOnly(parts[blankTail - 1].raw)) blankTail--;
+	let blankTail = children.length;
+	if (isBlankText(suffix)) {
+		while (blankTail > 0 && isBlankText(children[blankTail - 1].raw)) blankTail--;
 	} else {
-		blankTail = parts.length + 1;
+		blankTail = children.length + 1;
 	}
 
-	const spans = new Uint32Array(children.length * 2);
-	let out = '';
-	// A child ending mid-line shares that line with whatever follows, so the two would be
-	// prefixed separately: the whole-body rebuild is the only faithful answer for that shape.
+	const fresh: BodyLineOut[] = [];
+	const bounds: number[] = [];
+	// A child ending mid-line shares that line with whatever follows, so its lines can't be told
+	// apart from the next child's: the whole body is written as one text.
 	let openLine = false;
-	for (let i = 0; i < parts.length; i++) {
-		const { trivia, raw, leaf } = parts[i];
-		const text = trivia + raw;
-		if (openLine && text !== '') return rebuildWholeStrip(node, prefix);
-		spans[i * 2] = out.length;
-		out += render(trivia, raw, out.length === 0, () => blankTail <= i + 1, leaf);
-		spans[i * 2 + 1] = out.length;
+	for (let i = 0; i < children.length; i++) {
+		const child = children[i];
+		const text = child.leadingTrivia + child.raw;
+		if (openLine && text !== '') return rebuildWholeStrip(node, lines, previous);
+		bounds.push(fresh.length);
+		pushChildLines(fresh, child.leadingTrivia, child.raw, fresh.length === 0, {
+			child,
+			tailIsBlank: () => blankTail <= i + 1
+		});
+		bounds.push(fresh.length);
 		if (text !== '') openLine = !text.endsWith('\n');
 	}
-
 	if (suffix !== '') {
-		if (openLine) return rebuildWholeStrip(node, prefix);
-		out += renderPrefixed(suffix, prefix, out.length === 0, () => true);
+		if (openLine) return rebuildWholeStrip(node, lines, previous);
+		pushLines(fresh, suffix, fresh.length === 0, () => true);
 	}
-	node.raw = out;
+
+	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines);
+	const spans = new Uint32Array(children.length * 2);
+	bounds.forEach((line, i) => (spans[i] = written.offsets[line]));
+	node.raw = written.out;
 	node.childSpans = spans;
 }
 
-function rebuildWholeStrip(node: CstNode, prefix: LinePrefix): void {
+function rebuildWholeStrip(node: CstNode, lines: LineCodec, previous: LineCodec): void {
+	const fresh: BodyLineOut[] = [];
+	pushLines(fresh, concatChildren(node.children!) + (node.innerSuffix ?? ''), true, () => true);
 	node.childSpans = undefined;
-	node.raw = renderPrefixed(
-		concatChildren(node.children!) + (node.innerSuffix ?? ''),
-		prefix,
-		true,
-		() => true
-	);
+	node.raw = writeLines(readOldLines(node.raw, previous, true), fresh, lines).out;
 }
 
-// ── Rendering ────────────────────────────────────────────────────────────────
+// ── Lines ────────────────────────────────────────────────────────────────────
 
-const renderVerbatim: RenderChild = (trivia, raw) => trivia + raw;
+/** A body line the rebuild writes. */
+interface BodyLineOut {
+	text: string;
+	ending: string;
+	place: LinePlace;
+}
 
-const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
+/** A line of the container's previous bytes, and the body line it held. */
+interface OldLine {
+	text: string;
+	ending: string;
+	body: ReturnType<LineCodec['read']>;
+}
 
-/** `inBlankTail` says whether the blank lines after the text's last content line end the body;
- *  it is asked only when there are some, since answering can read every later sibling. */
-function renderPrefixed(
+interface ChildAt {
+	child: CstNode;
+	/** Whether only blank lines follow the child in the body; asked only when it ends blank. */
+	tailIsBlank: () => boolean;
+}
+
+/** A child's separator lines, which stay bare, then its own; a leaf's blank lines that end the
+ *  body keep the body's indent, or a reload would read them outside the container. */
+function pushChildLines(
+	out: BodyLineOut[],
+	trivia: string,
+	raw: string,
+	first: boolean,
+	at: ChildAt
+): void {
+	const before = out.length;
+	pushLines(out, trivia, first, () => false);
+	const leaf = at.child.children === undefined;
+	pushLines(out, raw, first && out.length === before, () => leaf && at.tailIsBlank());
+}
+
+function pushLines(
+	out: BodyLineOut[],
 	text: string,
-	prefix: LinePrefix,
 	first: boolean,
 	inBlankTail: () => boolean
-): string {
-	if (text === '') return '';
-	let out = '';
+): void {
+	if (text === '') return;
 	const lines = splitLines(text);
-	if (perfEnabled()) recordStripLinesRead(lines.length);
 	let lastContent = lines.length - 1;
 	while (lastContent >= 0 && isBlankLine(lines[lastContent].text)) lastContent--;
 	const endsBlank = lastContent < lines.length - 1 && inBlankTail();
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		out += prefix(line.text, first && i === 0, endsBlank && i > lastContent) + line.lineEnding;
+	lines.forEach((line, i) =>
+		out.push({
+			text: line.text,
+			ending: line.lineEnding,
+			place: { first: first && i === 0, trailingBlank: endsBlank && i > lastContent }
+		})
+	);
+}
+
+function readOldLines(raw: string, codec: LineCodec, opensContainer: boolean): OldLine[] {
+	const lines = splitLines(raw);
+	if (perfEnabled()) recordStripLinesRead(lines.length);
+	return lines.map((line, i) => ({
+		text: line.text,
+		ending: line.lineEnding,
+		body: codec.read(line.text, { first: opensContainer && i === 0, trailingBlank: false })
+	}));
+}
+
+/** `fresh` written over `old`, lines with equal text paired from the top, then the bottom, the
+ *  rest in order (`docs/design/editor.md` § The container `raw` contract). */
+function writeLines(
+	old: OldLine[],
+	fresh: BodyLineOut[],
+	lines: LineCodec
+): { out: string; offsets: number[] } {
+	const same = (o: OldLine, n: BodyLineOut) =>
+		o.body !== null && o.body.text === n.text && o.ending === n.ending;
+	let head = 0;
+	while (head < old.length && head < fresh.length && same(old[head], fresh[head])) head++;
+	let tail = 0;
+	while (
+		tail < old.length - head &&
+		tail < fresh.length - head &&
+		same(old[old.length - 1 - tail], fresh[fresh.length - 1 - tail])
+	) {
+		tail++;
 	}
-	return out;
+	const pairOf = (j: number): number => {
+		if (j < head) return j;
+		if (j >= fresh.length - tail) return old.length - (fresh.length - j);
+		return j - head < old.length - head - tail ? j : -1;
+	};
+	// Last line first: a blank line in the run that ends the body may stay bare only while a line
+	// below it holds the run in the body.
+	const written: string[] = [];
+	let heldBelow = false;
+	for (let j = fresh.length - 1; j >= 0; j--) {
+		const line = fresh[j];
+		const { trailingBlank } = line.place;
+		const place: LinePlace =
+			trailingBlank && heldBelow ? { ...line.place, trailingBlank: false } : line.place;
+		const i = pairOf(j);
+		const above = j > 0 ? fresh[j - 1].text : null;
+		// A lazy line continues whatever paragraph the line above leaves open, so it is asked again
+		// only when that line changed.
+		const continues = (lazyLine: string) =>
+			above !== null &&
+			((i > 0 && old[i - 1].body?.text === above && old[i].text === lazyLine) ||
+				lines.continuesLazily(above, lazyLine, fresh[j - 1].place.first));
+		const bytes: string =
+			(i >= 0 ? kept(old[i], line, place, lines, continues) : null) ??
+			lines.write(line.text, line.place) + line.ending;
+		written[j] = bytes;
+		const text: string = bytes.slice(0, bytes.length - line.ending.length);
+		if (trailingBlank && !heldBelow) heldBelow = lines.read(text, line.place) !== null;
+	}
+	const offsets: number[] = [];
+	let out = '';
+	for (const bytes of written) {
+		offsets.push(out.length);
+		out += bytes;
+	}
+	offsets.push(out.length);
+	return { out, offsets };
+}
+
+/** The old line's bytes, or its prefix before the new text, where they read that text at `place`;
+ *  null when the line takes the container's own spelling. */
+function kept(
+	old: OldLine,
+	line: BodyLineOut,
+	place: LinePlace,
+	lines: LineCodec,
+	continues: (lazyLine: string) => boolean
+): string | null {
+	const body = old.body;
+	if (body === null) return null;
+	if (body.text === line.text && old.ending === line.ending && readsAs(old.text, body.lazy)) {
+		return old.text + old.ending;
+	}
+	// A blank line is spelled the container's way, so a prefix passes only between text lines.
+	if (body.prefix === null || isBlankLine(body.text) || isBlankLine(line.text)) return null;
+	const candidate = body.prefix + line.text;
+	return readsAs(candidate, body.lazy) ? candidate + line.ending : null;
+
+	function readsAs(bytes: string, lazy: boolean): boolean {
+		const read = lines.read(bytes, place);
+		return (
+			read !== null && read.text === line.text && read.lazy === lazy && (!lazy || continues(bytes))
+		);
+	}
+}
+
+// ── The splice ───────────────────────────────────────────────────────────────
+
+interface RegionAt {
+	trivia: string;
+	child: CstNode;
+	first: boolean;
+	tailIsBlank: () => boolean;
+}
+
+/** The child's new region written over its current one, or null when the region no longer holds
+ *  the child's previous bytes. */
+type RegionRewrite = (region: string, at: RegionAt) => string | null;
+
+/** The region read back as the child's previous bytes, then written over with its new ones. */
+function rewriteStripRegion(
+	region: string,
+	at: RegionAt,
+	changed: ChildRawChange,
+	lines: LineCodec
+): string | null {
+	const before: BodyLineOut[] = [];
+	pushChildLines(before, at.trivia, changed.previousRaw, at.first, at);
+	const old = readOldLines(region, lines, at.first);
+	if (old.length !== before.length) return null;
+	for (let i = 0; i < old.length; i++) {
+		const read = old[i].body;
+		if (read === null || read.text !== before[i].text || old[i].ending !== before[i].ending) {
+			return null;
+		}
+	}
+	const fresh: BodyLineOut[] = [];
+	pushChildLines(fresh, at.trivia, at.child.raw, at.first, at);
+	return writeLines(old, fresh, lines).out;
 }
 
 /**
@@ -202,18 +332,16 @@ function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void
 	return false;
 }
 
-// ── The splice ───────────────────────────────────────────────────────────────
-
 /**
  * Rewrite one child's region in place, or decline so the caller rebuilds from scratch: a span that
  * stopped describing `raw` costs a slower rebuild, never corrupted bytes.
  */
 function spliceChildRegion(
 	node: CstNode,
-	children: CstNode[],
 	changed: ChildRawChange,
-	render: RenderChild
+	rewrite: RegionRewrite
 ): boolean {
+	const children = node.children!;
 	const spans = node.childSpans;
 	if (!spans || spans.length !== children.length * 2) return false;
 
@@ -224,21 +352,21 @@ function spliceChildRegion(
 	const raw = node.raw;
 	if (start > end || end > raw.length) return false;
 
-	const first = start === 0;
-	const trivia = child.leadingTrivia;
 	// A child turning blank, or back, decides whether the empty blocks before it end the body.
-	if (isWhitespaceOnly(changed.previousRaw) !== isWhitespaceOnly(child.raw)) return false;
+	if (isBlankText(changed.previousRaw) !== isBlankText(child.raw)) return false;
 	const tailIsBlank = () =>
-		isWhitespaceOnly(node.innerSuffix ?? '') &&
+		isBlankText(node.innerSuffix ?? '') &&
 		children
 			.slice(changed.index + 1)
-			.every((later) => isWhitespaceOnly(later.leadingTrivia + later.raw));
-	const leaf = child.children === undefined;
-	if (raw.slice(start, end) !== render(trivia, changed.previousRaw, first, tailIsBlank, leaf)) {
-		return false;
-	}
-
-	const rendered = render(trivia, child.raw, first, tailIsBlank, leaf);
+			.every((later) => isBlankText(later.leadingTrivia + later.raw));
+	const first = start === 0;
+	const rendered = rewrite(raw.slice(start, end), {
+		trivia: child.leadingTrivia,
+		child,
+		first,
+		tailIsBlank
+	});
+	if (rendered === null) return false;
 	if (end < raw.length) {
 		// Nothing may run into the regions that follow: a child not ending in a line ending would
 		// share its last line, and an emptied first region hands line 0 to the next child.

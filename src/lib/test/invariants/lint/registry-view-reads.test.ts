@@ -128,7 +128,9 @@ const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
 	'src/lib/core/inline/index.ts :: parseInline':
 		'the published parseInline takes an optional grammar',
 	'src/lib/core/directive/activate.ts :: activateDirectiveGrammar':
-		'the published recognizer type takes an optional grammar'
+		'the published recognizer type takes an optional grammar',
+	'src/lib/core/strip-lines.ts :: opensOuterBlock':
+		'a quote or list item rebuild asks whether a kept lazy line still continues, under every plugin as the parsers’ extent scans do'
 };
 
 const FALLBACK_EXEMPT = notUnder(

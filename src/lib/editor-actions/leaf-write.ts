@@ -8,6 +8,7 @@ import type { ContainerEditActions, InPlaceResult, Relanding } from '../action-c
 import type { CstNode } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import { assertInvariant } from '../assert';
+import { assertReadsBack } from '../invariants/install';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { caretTargetFor } from '../selection/caret-target';
 import type { CaretPosition } from '../selection/primitives';
@@ -90,6 +91,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 					{ path: leafPath, leafPreviousRaw }
 				);
 				publishAncestryFolds(deps, folds);
+				assertReadsBack(deps.doc, chain, deps.reading.grammar);
 				// Raw written outside a commit reaches the view once Svelte re-reads doc.children.
 				deps.doc.children = [...deps.doc.children];
 			}

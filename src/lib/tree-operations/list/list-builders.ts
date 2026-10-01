@@ -18,8 +18,8 @@ import type { GrammarView } from '../../schema/block-openers';
 // ── List / item construction ─────────────────────────────────────────────────
 
 /**
- * A list node carrying `items`, mirroring `template`'s metadata and affixes and
- * renumbering ordered markers from `startNumber`. Items are mutated in place.
+ * A list node carrying `items`, which keep their own bytes, mirroring `template`'s metadata and
+ * affixes and renumbering ordered markers from `startNumber`. Items are mutated in place.
  */
 export function assembleListHalf(
 	template: NodeView,
@@ -39,22 +39,19 @@ export function assembleListHalf(
 		innerSuffix: template.innerSuffix ?? ''
 	};
 	if (items[0]) items[0].leadingTrivia = '';
-	for (const item of items) rebuildListItemRaw(item);
 	// The caller owns the items, so a fresh sharing state copies none of them.
 	renumberOrderedListFrom(half, startNumber, createSharingState());
 	rebuildListRaw(half);
 	return half;
 }
 
-/**
- * A listItem mirroring `template`'s metadata/affixes. `children` are placed verbatim, so
- * clone them before passing if they are still referenced from the source tree.
- */
+/** A listItem mirroring `template`'s metadata, affixes and bytes, so lines it keeps keep their
+ *  spelling. `children` are placed verbatim: clone any the source tree still holds. */
 export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
 	const metadata = template.metadata
 		? (cloneMetadata(template.metadata) as ListItemMetadata)
 		: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null };
-	return mintListItem(metadata, template.innerPrefix ?? '', template.innerSuffix ?? '', children);
+	return mintListItem(metadata, template, children);
 }
 
 /**
@@ -62,25 +59,24 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
  * rather than mirroring a source item. `children` are placed verbatim.
  */
 export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): CstNode {
-	return mintListItem(metadata, '', '', children);
+	return mintListItem(metadata, { raw: '', innerPrefix: '', innerSuffix: '' }, children);
 }
 
-// Affixes are set before the rebuild, which derives the item's raw from them.
+// Affixes are set before the rebuild, which derives the item's raw from them and `source.raw`.
 function mintListItem(
 	metadata: ListItemMetadata,
-	innerPrefix: string,
-	innerSuffix: string,
+	source: Pick<NodeView, 'raw' | 'innerPrefix' | 'innerSuffix'>,
 	children: CstNode[]
 ): CstNode {
 	const item: CstNode = {
 		kind: 'listItem',
 		leadingTrivia: '',
-		raw: '',
+		raw: source.raw,
 		metadata,
-		innerPrefix,
+		innerPrefix: source.innerPrefix ?? '',
 		children,
 		childIds: assignIds(children),
-		innerSuffix
+		innerSuffix: source.innerSuffix ?? ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
 	rebuildListItemRaw(item);

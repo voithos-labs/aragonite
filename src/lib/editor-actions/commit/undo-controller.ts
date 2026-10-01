@@ -64,6 +64,7 @@ import {
 	assertIdsInLockstep,
 	assertKeepsABlock,
 	assertLastLineKept,
+	assertReadsBack,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
 import { dropChildSpans } from '../../schema/child-spans';
@@ -371,6 +372,7 @@ export function createUndoController(
 				assertCommittedNodes(touched, deps.reading.grammar);
 				assertLastLineKept(deps.doc, wasOpen);
 				assertKeepsABlock(deps.doc, touched);
+				assertReadsBack(deps.doc, touched, deps.reading.grammar);
 			}
 			if (!discarded && isDevChecks()) {
 				// A missed copy before write corrupts the newest undo entry, so the commit catches it

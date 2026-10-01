@@ -28,6 +28,7 @@ import {
 	firstLineEnding,
 	isBlankText,
 	splitLines,
+	ownTrailingLineEnding,
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '$lib/core/lines';
@@ -168,16 +169,15 @@ function applyEmpty(doc: Document, at: number): void {
 	);
 }
 
-/** A prose leaf's bytes written back as the page holds them, plus its line ending; list items are
- *  included because a task item's first paragraph reads its text differently. */
+/** A prose leaf's bytes written back as the page holds them, plus its own ending as the surface
+ *  write adds it; list items are in, since a task item's first paragraph reads its text apart. */
 function applyRetype(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	const node = slot.holder.children![slot.index];
 	// The page holds the whole display, a setext underline included.
-	const domText = trimTrailingLineEnding(node.raw);
-	writeLeaf(doc, slot, domText + trailingLineEnding(node.raw, documentLineEnding(doc)));
+	writeLeaf(doc, slot, trimTrailingLineEnding(node.raw) + ownTrailingLineEnding(node.raw));
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {

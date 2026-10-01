@@ -12,7 +12,7 @@ import { serialize } from '$lib/core/serializer';
 import { paragraphNode } from '$lib/tree-operations';
 import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { drainDevWarns } from '../support/warn-gate';
+import { allowDevWarns, drainDevWarns } from '../support/warn-gate';
 
 type Edit = (actions: BlockEditActions) => Promise<boolean>;
 
@@ -78,6 +78,8 @@ describe.each(Object.keys(LEVELS) as Level[])('every block edit at %s', (level) 
 			expect(await WRITES[member](h.actions)).toBe(true);
 			// An undo entry, not the bytes: a metadata write can leave the bytes as they were.
 			expect(h.entries()).toBe(1);
+			// The metadata write stores a field no reload gives a paragraph.
+			if (member === 'updateBlockMetadata') allowDevWarns(['invariant:reads-back']);
 		}
 	);
 

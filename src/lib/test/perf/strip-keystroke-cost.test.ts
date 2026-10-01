@@ -28,14 +28,17 @@ function longQuote(lazy: boolean): string {
 	).join('');
 }
 
-/** `Q` typed at the end of the target paragraph's first line, twice, through the keystroke's route. */
+/** `Q` typed at the end of the target paragraph's first line, twice, through the keystroke's route;
+ *  only the second is counted, since the first after a load writes every line's region down. */
 function typeTwice(source: string): CstNode {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createLeafTyping(deps, createUndoController(deps));
 	const leaf = [0, TARGET];
-	resetPerfInstruments();
-	enablePerfInstruments();
 	for (let n = 0; n < 2; n++) {
+		if (n === 1) {
+			resetPerfInstruments();
+			enablePerfInstruments();
+		}
 		const owner = blockNodeAt(deps.doc, [0]) as CstNode;
 		const raw = owner.children![TARGET].raw;
 		const at = raw.indexOf('\n');
@@ -54,8 +57,8 @@ describe('a keystroke in a long quote', () => {
 		const leaf = typeTwice(longQuote(false));
 
 		expect(leaf.raw).toBe(`line ${TARGET}QQ\n`);
-		// Each key reads the child's line before and after it, and the separator line above it.
-		expect(perfSnapshot().stripLinesRead).toBeLessThanOrEqual(2 * 4);
+		// The child's region: the separator line above it and its own line.
+		expect(perfSnapshot().stripLinesRead).toBeLessThanOrEqual(4);
 	});
 
 	it('parses nothing beyond the leaf beside a lazy line', () => {
@@ -63,6 +66,6 @@ describe('a keystroke in a long quote', () => {
 
 		expect(leaf.raw).toBe(`line ${TARGET}QQ\nlazy ${TARGET}\n`);
 		expect(perfSnapshot().containerKindReparses).toBe(0);
-		expect(perfSnapshot().parseBytes).toBeLessThanOrEqual(2 * 4 * leaf.raw.length);
+		expect(perfSnapshot().parseBytes).toBeLessThanOrEqual(4 * leaf.raw.length);
 	});
 });
