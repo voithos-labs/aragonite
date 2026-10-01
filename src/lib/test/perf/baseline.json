@@ -456,6 +456,10 @@
 			"keystrokeP50Ms": 5.4,
 			"keystrokeP95Ms": 692.5
 		},
+		"giant-single-table-interior-1MB": {
+			"keystrokeP50Ms": 4.1,
+			"keystrokeP95Ms": 5.5
+		},
 		"flat-prose-10MB-structural": {
 			"loadMs": 423.8,
 			"keystrokeP50Ms": 108.1,
