@@ -527,7 +527,7 @@ These ship today and are part of what plugins observe. They're frozen _as the cu
 
 ```ts
 editor.events.on('edit', (e) => e);
-// { op: 'input', path: [2], detail: { byteLength: 23 }, timestamp: 1788390000412 }
+// { op: 'input', path: [2], timestamp: 1788390000412 }
 // { op: 'split', path: [2], detail: { at: 14 }, timestamp: 1788390001033 }
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 

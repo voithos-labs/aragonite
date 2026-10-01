@@ -765,12 +765,16 @@ it on every keystroke. Predicate
 
 **G1.53 · A swap fires no `edit`** (`swap-fires-no-edit`). A host that hears an `edit` while a
 `source` swap runs reads the outgoing document, and one that echoes `getSource()` writes that
-text back over the document it just loaded. Every `edit` fires at its own write (G4.107), so
-nothing in the swap's steps should emit one; in a dev build the swap listens for `edit` while it
-runs and says so if one fires. Predicate `invariants/swap-fires-no-edit.ts :: checkSwapFiresNoEdit`
-· run by `components/editor-root-document-swap.ts :: createDocumentSwap` ·
+text back over the document it just loaded. Every `edit` fires at its own write (G4.107), and
+the swap drops every draft held outside the document before the tree changes, so nothing should
+emit one: not the swap's steps, and not the blur of a block it tears down, which lands in the
+render after. In a dev build the swap listens for `edit` until that render is done and says so if
+one fires, so a new draft site that skips the draft registry goes red the first time a test swaps
+over it. Predicate `invariants/swap-fires-no-edit.ts :: checkSwapFiresNoEdit` · run by
+`components/editor-root-document-swap.ts :: createDocumentSwap` ·
 `test/components/editor-root-document-swap.test.ts`, with the host's side in
-`test/components/source-swap-mid-typing.svelte.test.ts`.
+`test/components/source-swap-mid-typing.svelte.test.ts` and the drafts' in
+`e2e/tests/plugins/draft-across-swap.spec.ts`.
 
 ## Group 2: property and regression tested
 
@@ -2084,8 +2088,8 @@ later, since a held one fires against whatever document is there by then (G1.53 
 half). The typing batch only groups undo steps and has no way to emit. `input` also promises the
 block kept its kind, which `components/lrd-map-gate.ts` relies on and can't check, so only the
 in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
-it. `lint/edit-emitters.test.ts` fails an `edit` emit in any other file and a second `input`
-declaration anywhere.
+it. `lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere
+else, a second one beside an allowed one, or a second `input` declaration fails it.
 
 ## Accessibility
 
