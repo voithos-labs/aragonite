@@ -19,7 +19,7 @@ import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { opensWithBackOut, type GrammarView } from '../schema/block-openers';
+import { blockReadingNotFinal, type GrammarView } from '../schema/block-openers';
 import { dropChildSpans } from '../schema/child-spans';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -573,8 +573,8 @@ function declinesOnHeadLine(
 ): boolean {
 	const last = window.length - 1;
 	if (member !== 0 && member !== last) return false;
-	// An opener that read on and backed out (an unclosed `$$`) may not back out of the full join.
-	if (window.slice(0, last).some((node) => opensWithBackOut(node.raw, grammar))) return false;
+	// A block whose reading isn't final (an unclosed `$$`) can read differently in the full join.
+	if (window.slice(0, last).some((node) => blockReadingNotFinal(node.raw, grammar))) return false;
 	const raw = window[last].raw;
 	const nl = raw.indexOf('\n');
 	const joined =

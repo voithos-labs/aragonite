@@ -9,6 +9,10 @@ import { createLeafTyping } from '$lib/editor-actions/leaf-write';
 import { legalizeWrite, type WriteTarget } from '$lib/tree-operations/content-write';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { installPlugins } from '$lib';
+import { latexPlugin } from '$lib/plugins/latex';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { detailsPlugin } from '$lib/plugins/details';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -89,5 +93,46 @@ describe('a same-kind keystroke parses the block below one line deep, and a flus
 
 		// The list and item rebuilds read their first line, and the join below one line of the sublist.
 		read.forEach((bytes) => expect(bytes).toBeLessThan(100));
+	});
+});
+
+const TABLE = BELOW_A_HEADING[0][1];
+const TABLE_HEADER = '| a | b |\n';
+const BODY = lines((i) => `line ${i}\n`);
+
+// A block whose reading is final makes no join read further, and checking that is a scan of the
+// block's own bytes, never a parse of them.
+describe('a block above that only looks unfinished costs the same one line', () => {
+	beforeEach(() => {
+		installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
+	});
+
+	it.each([
+		['a paragraph starting with a link, flush over a list', '', LIST, FIRST_ITEM],
+		['a paragraph starting with a link, a blank line over a table', '\n', TABLE, TABLE_HEADER]
+	])('reads one line below %s', (_, gap, below, firstLine) => {
+		const raws = ['[a](b) foox\n', '[a](b) fooxy\n'];
+		const read = bytesPerKeystroke(`[a](b) foo\n${gap}${below}`, [0], raws);
+
+		expect(read).toEqual(raws.map((raw) => 2 * raw.length + gap.length + firstLine.length));
+	});
+
+	it('reads one line below a closed `$$` block flush over a table', () => {
+		const raws = ['$$\nxy\n$$\n', '$$\nxyz\n$$\n'];
+		const read = bytesPerKeystroke(`$$\nx\n$$\n${TABLE}`, [0], raws);
+
+		expect(read).toEqual(raws.map((raw) => 2 * raw.length + TABLE_HEADER.length));
+	});
+
+	it.each([
+		['an admonition', `:::note\n${BODY}:::\n`],
+		['a details block', `<details>\n<summary>s</summary>\n${BODY}</details>\n`],
+		['a `$$` block', `$$\n${BODY}$$\n`],
+		['a paragraph starting with a link label', `[a] ${BODY}`]
+	])('reads nothing above a heading a blank line under %s of 5,000 lines', (_, above) => {
+		const raws = ['# hx\n', '# hxy\n'];
+		const read = bytesPerKeystroke(`${above}\n# h\n`, [1], raws);
+
+		expect(read).toEqual(raws.map((raw) => raw.length));
 	});
 });

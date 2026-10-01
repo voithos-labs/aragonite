@@ -9,8 +9,8 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import {
+	blockReadingNotFinal,
 	isBlockOpenerRegistered,
-	opensWithBackOut,
 	type GrammarView
 } from '../schema/block-openers';
 import {
@@ -187,14 +187,14 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing asks the join above only when it's flush, the block above backed out of a
-	// construct, the indent moved, or a blank line stays blank (editor.md § 8).
+	// Same-kind typing asks the join above only when it's flush, the block above's reading isn't
+	// final, the indent moved, or a blank line stays blank (editor.md § 8).
 	if (
 		change.op === 'noop' &&
 		!wasBlank &&
 		!indentMoved &&
 		!flushAbove(parent.children, blockIndex) &&
-		!backedOutAbove(parent.children, blockIndex, grammar)
+		!unfinishedAbove(parent.children, blockIndex, grammar)
 	) {
 		// The join below is asked whatever parts it: an HTML block left open reads on past blank lines.
 		if (blockIndex + 1 >= parent.children.length) return { change, textStart: 0 };
@@ -217,16 +217,16 @@ const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 const flushAbove = (children: readonly CstNode[], index: number): boolean =>
 	index > 0 && children[index].leadingTrivia === '';
 
-/** Whether the nearest block above opens with a line an opener read on from and backed out of (an
- *  unclosed `$$`), which a closer written below can still complete across blank lines. */
-function backedOutAbove(
+/** Whether the nearest block above may still read differently (an unclosed `$$`), which a closer
+ *  written below can complete across blank lines. */
+function unfinishedAbove(
 	children: readonly CstNode[],
 	index: number,
 	grammar: GrammarView
 ): boolean {
 	let above = index - 1;
 	while (above >= 0 && isBlankParagraph(children[above])) above--;
-	return above >= 0 && opensWithBackOut(children[above].raw, grammar);
+	return above >= 0 && blockReadingNotFinal(children[above].raw, grammar);
 }
 
 /**

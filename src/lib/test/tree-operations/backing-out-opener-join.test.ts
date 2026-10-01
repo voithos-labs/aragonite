@@ -1,6 +1,5 @@
-// A join's one-line read is trusted only where no opener that reads on and backs out (an unclosed
-// `$$` becomes a paragraph) starts a block above the cut, since that block can read differently
-// once the lines below complete it.
+// A join's one-line read is trusted only where no block above the cut has a reading that isn't
+// final (an unclosed `$$` left as a paragraph), since lines below can still complete it.
 // Miss-analysis: the rows pinning the one-line read wrote under blocks whose reading ends at their
 // own last line, so no row put a backed-out `$$` or `:::` above a block that later closes it.
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -75,10 +74,14 @@ describe('a construct backed out above a join completes once a write below close
 
 /** A `fence`-bounded block that, unclosed, backs out to paragraphs, as `$$` does. */
 function fencedOpener(kind: string, fence: string, declared: boolean): BlockOpener {
+	const awaitsCloser = (raw: string) => {
+		const [opener, ...rest] = raw.split('\n');
+		return opener === fence && !rest.includes(fence);
+	};
 	return {
 		priority: OPENER_PRIORITIES.fencedCode + 7,
 		interruptsParagraph: (line) => line === fence,
-		...(declared ? { mayBackOut: (line: string) => line === fence } : {}),
+		...(declared ? { readingNotFinal: awaitsCloser } : {}),
 		tryOpen(ctx): BlockOpenerResult | null {
 			if (ctx.line.text !== fence) return null;
 			let close = ctx.index + 1;

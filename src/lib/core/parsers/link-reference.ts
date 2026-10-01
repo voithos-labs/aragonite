@@ -5,7 +5,7 @@
  * (`[^...]:`) stay paragraphs.
  */
 
-import { isBlankLine, isWhitespaceChar, type ParsedLine } from '../lines';
+import { isBlankLine, isWhitespaceChar, splitLines, type ParsedLine } from '../lines';
 import { joinRaw } from '../parser';
 import {
 	linkTitleValue,
@@ -141,10 +141,21 @@ function skipSpaces(text: string, pos: number): number {
 
 // ── Label ───────────────────────────────────────────────────────────────────
 
-/** Where the definition's `[` sits, up to three spaces in, or -1. */
-/** Whether a definition could open at this line, the only line its opener backs out from. */
-export const opensDefinitionLabel = (line: string): boolean => labelOpenerOffset(line) >= 0;
+/** Whether lines below a block with these bytes could still change it: a label not closed yet, a
+ *  `]:` awaiting its destination, or a definition with no title, which takes one from below. */
+export function definitionReadingNotFinal(raw: string): boolean {
+	const lines = splitLines(raw);
+	const labelStart = lines.length > 0 ? labelOpenerOffset(lines[0].text) : -1;
+	if (labelStart < 0) return false;
+	const window = new DefinitionWindow(lines, 0, lines.length);
+	const labelEnd = readSpan(window, labelStart, scanLinkLabel);
+	// A label that never closed may still close below; one followed by anything but `:` is a link.
+	if (labelEnd >= 0 && window.text[labelEnd] !== ':') return false;
+	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '');
+	return definition === null || !('title' in (definition.node.metadata ?? {}));
+}
 
+/** Where the definition's `[` sits, up to three spaces in, or -1. */
 function labelOpenerOffset(line: string): number {
 	let pos = 0;
 	while (pos < 3 && line[pos] === ' ') pos++;

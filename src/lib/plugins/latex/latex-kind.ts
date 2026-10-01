@@ -205,6 +205,14 @@ const mathBlockWrite: WriteRule = {
 
 const BLOCK_FENCE = '$$';
 
+/** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
+ *  became a paragraph, and a closer typed below still makes it math. */
+function awaitsBlockFenceCloser(raw: string): boolean {
+	if (!raw.startsWith(BLOCK_FENCE)) return false;
+	const [opener, ...rest] = displayLines(raw);
+	return opener.text === BLOCK_FENCE && !rest.some((line) => line.text === BLOCK_FENCE);
+}
+
 /** The length ≥ 4 test keeps the open/close pair disjoint; anything else `$$`-prefixed
  *  (`$$ x` with no same-line close) is not an opener and falls to a paragraph. */
 function isBlockMathOpener(text: string): boolean {
@@ -256,8 +264,7 @@ export function registerMathBlock(): void {
 		// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
-		// A lone `$$` reads on for its closer and becomes a paragraph when none comes.
-		mayBackOut: (line) => line === BLOCK_FENCE,
+		readingNotFinal: awaitsBlockFenceCloser,
 		tryOpen(ctx) {
 			const text = ctx.line.text;
 			if (!text.startsWith(BLOCK_FENCE)) return null;

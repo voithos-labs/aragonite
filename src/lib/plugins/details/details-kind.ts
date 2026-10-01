@@ -18,6 +18,7 @@ import {
 	parseContainerBody,
 	serializeChildren,
 	trimTrailingLineEnding,
+	displayLines,
 	matchFenceOpen,
 	findFenceCloser,
 	htmlBlockTagLineMatcher,
@@ -74,6 +75,30 @@ function visitTagLines(
 		}
 		if (visit(i, tagLine(lines[i].text))) return;
 	}
+}
+
+/** The `</details>` line closing the element whose body starts at `from`, or -1; depth-counted, so
+ *  a nested element's closer doesn't end the outer one. */
+function closingTagLine(lines: readonly { text: string }[], from: number, end: number): number {
+	let depth = 1;
+	let closeIdx = -1;
+	visitTagLines(lines, from, end, canonicalTagLine, (i, tag) => {
+		if (tag === 'open') depth++;
+		else if (tag === 'close' && --depth === 0) closeIdx = i;
+		return closeIdx !== -1;
+	});
+	return closeIdx;
+}
+
+/** The opener read on for `</details>` in vain, or its summary line is still to come: the block
+ *  became an HTML block, and a closer typed below can still complete it. */
+function awaitsClosingTag(raw: string): boolean {
+	if (!raw.startsWith('<details')) return false;
+	const lines = displayLines(raw);
+	if (!OPEN_LINE.test(lines[0].text)) return false;
+	const summary = lines[1];
+	if (summary === undefined || (summary.text === '' && lines.length === 2)) return true;
+	return SUMMARY_LINE.test(summary.text) && closingTagLine(lines, 2, lines.length) === -1;
 }
 
 function unpairedTagLines(
@@ -219,8 +244,7 @@ export function registerDetailsKind(): void {
 		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
 		// so this opener's paragraph behavior does not depend on that priority order.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
-		// It reads on for `</details>` and becomes an HTML block, ending at a blank line, when none comes.
-		mayBackOut: (line) => OPEN_LINE.test(line),
+		readingNotFinal: awaitsClosingTag,
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
 			if (!openMatch) return null;
@@ -230,14 +254,7 @@ export function registerDetailsKind(): void {
 			const summaryMatch = ctx.lines[summaryIdx].text.match(SUMMARY_LINE);
 			if (!summaryMatch) return null;
 
-			// Depth-counted so nested details recurse via parse rather than closing early.
-			let depth = 1;
-			let closeIdx = -1;
-			visitTagLines(ctx.lines, summaryIdx + 1, ctx.end, canonicalTagLine, (i, tag) => {
-				if (tag === 'open') depth++;
-				else if (tag === 'close' && --depth === 0) closeIdx = i;
-				return closeIdx !== -1;
-			});
+			const closeIdx = closingTagLine(ctx.lines, summaryIdx + 1, ctx.end);
 			if (closeIdx === -1) return null; // unterminated declines to htmlBlock
 
 			const bodyText = ctx.lines
