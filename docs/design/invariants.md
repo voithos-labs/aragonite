@@ -771,7 +771,9 @@ keystroke's rebuild and after every commit, dev parses each top-level container 
 on its own, and compares that parse's shape (kinds, child counts, metadata) with the tree's. A
 keystroke that dropped an indented list's leading spaces passed every byte check while the reload
 nested its second item; this is the check that sees it. It skips a container over 16 KB, so typing
-in a giant one costs nothing, and anything the perf instruments time. Predicate
+in a giant one costs nothing, and anything the perf instruments time. It also skips a container
+with no bytes at all, which can't read back as anything; that bound hides a bullet whose source a
+range delete emptied, an open defect. Predicate
 `invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 

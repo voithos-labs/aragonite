@@ -168,7 +168,7 @@ export function parseList(
 				wouldKeepParagraphOpen(lines[i].text) &&
 				!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 			) {
-				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
+				// Lazy continuation: the verbatim bytes stay in raw, and the item's line reading
 				// feeds the paragraph parser one continuous paragraph.
 				i++;
 			} else {
