@@ -14,7 +14,8 @@ const ALL_CELLS = [
 	'undo',
 	'clipboard',
 	'simOracle',
-	'rawWrite'
+	'rawWrite',
+	'declarations'
 ];
 
 describe('footnote definition conformance', () => {
@@ -22,7 +23,7 @@ describe('footnote definition conformance', () => {
 		installPlugins([footnotesPlugin()]);
 	});
 
-	it('answers every closure column and the raw-write cell as a container with real children', async () => {
+	it('answers every closure column and both descriptor cells as a container with real children', async () => {
 		const report = await runKindConformance(declaredPluginKind(FOOTNOTE_DEF_KIND));
 		expect(report.cells.map((c) => c.cell).sort()).toEqual([...ALL_CELLS].sort());
 	});

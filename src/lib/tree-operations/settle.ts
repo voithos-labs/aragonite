@@ -19,7 +19,7 @@ import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { lineInterruptsParagraph, type GrammarView } from '../schema/block-openers';
+import type { GrammarView } from '../schema/block-openers';
 import { dropChildSpans } from '../schema/child-spans';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -572,13 +572,14 @@ function declinesOnHeadLine(
 ): boolean {
 	const last = window.length - 1;
 	if (member !== 0 && member !== last) return false;
+	// A block whose reading backs out when the lines completing it are cut off misreads the cut.
+	if (tryGetBlockKindDescriptor(window[last - 1].kind)?.settledAtLastLine === false) return false;
 	const raw = window[last].raw;
 	const nl = raw.indexOf('\n');
-	const headLine = nl < 0 ? raw : raw.slice(0, nl + 1);
-	// A block reads ahead only over lines a paragraph continues onto (a definition's title), so
-	// only a line that interrupts one is a line past which the reading above can't change.
-	if (!lineInterruptsParagraph(trimTrailingLineEnding(headLine))) return false;
-	const joined = joinedWindowBytes(window, last) + window[last].leadingTrivia + headLine;
+	const joined =
+		joinedWindowBytes(window, last) +
+		window[last].leadingTrivia +
+		(nl < 0 ? raw : raw.slice(0, nl + 1));
 	return read(joined).children.length >= window.length;
 }
 

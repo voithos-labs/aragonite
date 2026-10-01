@@ -15,7 +15,7 @@ describe.each(builtinKinds)('kind conformance — %s', (kind) => {
 	it('every headless closure cell holds or is recorded', async () => {
 		const report = await runKindConformance(kind, BUILTIN_KIND_PROFILES[kind]);
 		expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-			new Set([...Object.keys(getBlockKindDescriptor(kind).closure), 'rawWrite'])
+			new Set([...Object.keys(getBlockKindDescriptor(kind).closure), 'rawWrite', 'declarations'])
 		);
 		for (const cell of report.cells) expect(cell.detail?.length).toBeGreaterThan(0);
 	});

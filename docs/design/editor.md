@@ -231,6 +231,7 @@ What the fields are for, by the section that explains each:
 
 - `mergeRole` and `editable` (§ 8), `supportsInline` (whether the kind's content gets inline-parsed), and `blockFocus`, the whole-block focus policy (§ 8). A whole-block kind can't parse inline syntax, so it declares `supportsInline: false`;
 - `contextDependentKind`: no standalone recognizer, so a content edit keeps the kind rather than re-deriving it (a table cell);
+- `settledAtLastLine: false`: the kind's reading can still change after its last line, because it tries a construct that spans more lines and backs out when they don't complete it (a link definition's title). The join below one of those gets its neighbour read whole instead of one line deep (§ 8);
 - `keymap`, the declarative keybindings (next subsection), and `contentStart`, where the editable slice of `raw` sits (a heading's text after its `## `), plus what Backspace does at its start (in a mode that hides the markers at the caret, a heading drops its `## ` first). The editor reads the two back as `getContentRange` and `contentStartBackspace`;
 - the two point-to-internals hooks a coordinate-addressed kind declares separately: `foreignDragHitTest`, the exact drag hit test, and `caretTargetAtPoint`, the nearest caret target a caret-placing gesture asks for (§ 4);
 - `gapEdges`, which edges of the block a caret may park against from outside (§ 10);

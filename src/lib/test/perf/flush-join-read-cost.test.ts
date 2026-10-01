@@ -16,8 +16,16 @@ import {
 	resetPerfInstruments
 } from '$lib/perf/instruments';
 
-const LIST = Array.from({ length: 5000 }, (_, i) => `- item ${i}\n`).join('');
+const lines = (line: (i: number) => string): string =>
+	Array.from({ length: 5000 }, (_, i) => line(i)).join('');
+const LIST = lines((i) => `- item ${i}\n`);
 const FIRST_ITEM = '- item 0\n';
+/** Big neighbours whose first line doesn't cut a paragraph off, so only the block above decides. */
+const BELOW_A_HEADING: [string, string][] = [
+	['a 5,000-row table', `| a | b |\n| - | - |\n${lines((i) => `| ${i} | x |\n`)}`],
+	['a 5,000-item list starting at 2', lines((i) => `${i + 2}. item\n`)],
+	['a 50 KB paragraph', 'words in a long paragraph\n'.repeat(1925)]
+];
 
 /** The bytes each of `raws` parses, written into the leaf at `leaf` through the keystroke route. */
 function bytesPerKeystroke(source: string, leaf: number[], raws: string[]): number[] {
@@ -48,6 +56,15 @@ describe('a same-kind keystroke parses the block below one line deep, and a flus
 		read.forEach((bytes, i) => {
 			expect(bytes).toBeLessThanOrEqual(2 * raws[i].length + FIRST_ITEM.length);
 		});
+	});
+
+	it.each(BELOW_A_HEADING)('reads one line of %s flush below the written heading', (_, below) => {
+		const raws = ['# hx\n', '# hxy\n'];
+		const read = bytesPerKeystroke(`# h\n${below}`, [0], raws);
+		const firstLine = below.slice(0, below.indexOf('\n') + 1);
+
+		// The heading's own reparse, then the heading and the neighbour's first line together.
+		expect(read).toEqual(raws.map((raw) => 2 * raw.length + firstLine.length));
 	});
 
 	it('reads the whole list flush above the written heading, once a keystroke', () => {

@@ -20,7 +20,7 @@ export interface PerfSnapshot {
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
-	/** The bytes every block parse read, what a keystroke's neighbour reads cost. */
+	/** Bytes every block parse read; what a keystroke's join ask costs. */
 	parseBytes: number;
 	inlineComputeCount: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */

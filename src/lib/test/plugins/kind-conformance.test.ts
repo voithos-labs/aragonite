@@ -69,7 +69,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-				new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite'])
+				new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite', 'declarations'])
 			);
 		}
 	});
@@ -103,9 +103,9 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 			expect(registered).toContain(declaredPluginKind(kind));
 			for (const k of registered) {
 				const report = await runKindConformance(k);
-				// One recorded cell per declared closure column plus the raw-write cell, so none is dropped.
+				// One recorded cell per declared closure column plus the two descriptor cells.
 				expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-					new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite'])
+					new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite', 'declarations'])
 				);
 			}
 			const report = await runKindConformance(declaredPluginKind(kind));

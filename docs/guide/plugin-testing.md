@@ -211,11 +211,12 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
 - An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell, which reads your descriptor's `rawWrite` rule rather than your closure block (so it comes last in the report and carries no `mode`):
+- The raw-write cell, which reads your descriptor's `rawWrite` rule rather than your closure block (so it comes after the closure cells in the report and carries no `mode`):
   - With no `rawWrite`, it cuts the fixture's closing line and checks the block after it stays its own. It fails if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule.
   - With one, it drives the rule through the closing line cut, everything past the first line cut, and an empty write, plus, for a fixture of two or more lines, the first line cut (the opener gone, the closer left behind) and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind.
   - Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards.
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
+- The declarations cell, last in the report and also without a `mode`. Leaving `settledAtLastLine` out says your kind's reading never backs out of a construct the lines below it would complete, so the cell puts a line that opens a title under your fixture (`"probe`, `'probe` or `(probe`), and fails if that line stays its own block until a second line closes it and then gets pulled into yours. It only catches what it can guess: a construct that opens some other way, or a fixture that already has its title, slips past, which is why the built-in link definition declares `settledAtLastLine: false` by hand. It's `exempt` for a kind declaring `false` (that answer is never wrong, only slower) and `boundary` without a top-level fixture.
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job (aragonite's repository runs a sweep like that over the kinds it registers itself, but it never sees yours). For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
@@ -225,7 +226,7 @@ it('parrot conforms', async () => {
 });
 ```
 
-It resolves with a report, one cell per closure column and then the raw-write cell. For the parrot exactly as the guide declares it:
+It resolves with a report, one cell per closure column and then the raw-write and declarations cells. For the parrot exactly as the guide declares it:
 
 ```ts
 const report = await runKindConformance(declaredPluginKind(PARROT));
@@ -240,7 +241,8 @@ report.cells.map((c) => `${c.cell}: ${c.status}`);
 //   'undo: boundary',           // implemented too, so the kit can't drive it generically
 //   'clipboard: asserted',      // copy is a raw byte slice
 //   'simOracle: boundary',      // aragonite's own simulation, never this runner
-//   'rawWrite: asserted'        // no rule, and cutting the closing line swallows nothing
+//   'rawWrite: asserted',       // no rule, and cutting the closing line swallows nothing
+//   'declarations: asserted'    // no probe line below it gets pulled in later
 // ]
 ```
 
