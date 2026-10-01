@@ -1,7 +1,7 @@
 /**
  * Every entry point that writes the document asks here first. A write in reading mode is declined,
- * and so is one made for a document a `source` swap replaced; a dev build names either. Ask
- * synchronously, before the first await, or the report loses the caller and the write's stamp.
+ * and a dev build names it; one made for a document a `source` swap replaced is declined quietly.
+ * Ask synchronously, before the first await, or the report loses the caller and the write's stamp.
  */
 
 import { splitLines } from '../../core/lines';
@@ -9,8 +9,6 @@ import { devWarn } from '../../dev-warn';
 import { editorEnv } from '../../env';
 import { isReadingMode } from '../../presentation-mode';
 import type { Reading } from '../../schema/reading';
-import { assertInvariant } from '../../assert';
-import { checkDocumentStamp } from '../../invariants/stale-document-write';
 import type { DocumentStamps } from './document-stamp';
 
 export const READING_WRITE_TAG = 'reading-write';
@@ -23,20 +21,14 @@ export interface WriteGate {
 	readonly stamps: DocumentStamps;
 }
 
-/**
- * Whether a write naming `op` may land: false for a document a swap replaced (G1.53), and false in
- * reading mode, with a dev warning that names the block kind `kindOf` answers.
- */
+/** Whether a write naming `op` may land: quietly false for a document a swap replaced, and false
+ *  in reading mode, with a dev warning naming the block kind `kindOf` answers. */
 export function admitsWrite(
 	gate: WriteGate,
 	op: string,
 	kindOf?: () => string | undefined
 ): boolean {
-	const stamp = gate.stamps.active();
-	if (stamp && !stamp.live) {
-		assertInvariant('stale-document-write', () => checkDocumentStamp(stamp, op));
-		return false;
-	}
+	if (gate.stamps.active()?.live === false) return false;
 	if (!isReadOnly(gate.reading)) return true;
 	if (editorEnv.isDev) {
 		const kind = kindOf?.();

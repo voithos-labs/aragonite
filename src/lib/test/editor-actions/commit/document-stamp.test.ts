@@ -4,7 +4,7 @@ import { createDocumentStamps, stampWrites } from '$lib/editor-actions/commit/do
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '../../support/warn-gate';
 
-// A write made for a document a swap replaced is refused at the write gate (G1.53), whichever
+// A write made for a document a swap replaced is refused at the write gate, quietly, whichever
 // route it takes, and a write made for the document in place is not.
 function stampedTop(source: string) {
 	const h = makeTopHarness(source);
@@ -30,8 +30,8 @@ describe('stampWrites', () => {
 	});
 });
 
-describe('G1.53 a write made for a swapped-out document', () => {
-	it('is refused on the in-place keystroke route, and says so in a dev build', async () => {
+describe('a write made for a swapped-out document', () => {
+	it('is refused on the in-place keystroke route, with no warning', async () => {
 		const h = stampedTop('a\n');
 		h.stamps.retire();
 
@@ -42,7 +42,7 @@ describe('G1.53 a write made for a swapped-out document', () => {
 		expect(serialize(h.deps.doc)).toBe('a\n');
 		expect(h.edits).toEqual([]);
 		expect(h.deps.undoManager.canUndo).toBe(false);
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:stale-document-write']);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('is refused on the commit route', async () => {
@@ -51,7 +51,7 @@ describe('G1.53 a write made for a swapped-out document', () => {
 
 		expect(await h.stamped.splitBlock(0, 1)).toBe(false);
 		expect(serialize(h.deps.doc)).toBe('ab\n');
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:stale-document-write']);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('lands when made for the document in place, stamped or not', async () => {

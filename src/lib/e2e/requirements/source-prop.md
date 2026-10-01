@@ -17,10 +17,9 @@ Editor re-initialization when the `source` prop changes (async document load, sh
   outgoing text back over the document it just loaded
 - an empty heading holding the caret at `setSource`: the swap's teardown blurs it, and the blur's
   tidy-up (an empty `#` turns back into a paragraph) is refused rather than written into the next
-  document; a dev build reports the refused write
+  document
 - a menu paste still reading the clipboard at `setSource` (the prose menu's Paste, the block
-  menu's Replace with clipboard): the read finishes after the swap, and its text lands nowhere;
-  a dev build reports the refused write
+  menu's Replace with clipboard): the read finishes after the swap, and its text lands nowhere
 
 - `setSource` while cross-block selection is active: cross-block state clears (no stale anchor/focus paths against the new doc), `data-cross-block` removed from editor root, typing inserts visible characters at the collapsed caret
 - `setSource` while undo stack has entries: stack clears (already covered by existing init behavior; listed here for completeness)

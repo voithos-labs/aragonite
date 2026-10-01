@@ -262,7 +262,6 @@ Three families of seam run these checks:
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
-| G1.53 | A write made for a document a `source` swap replaced is refused                     | A·N     |
 
 ### The entries
 
@@ -762,19 +761,6 @@ instruments are armed, and the swap check reads the cache unchecked, since an ec
 it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
-
-**G1.53 · A write for a replaced document is refused** (`stale-document-write`). A write can
-outlive the document it was made for: a menu paste waiting on a slow clipboard read, the blur of a
-block a `source` swap tore down. Landing anyway, it writes into the incoming document at the same
-place and fires an `edit` a host saves into the wrong note. So each write carries the document it
-was made for: `BlockHost` stamps every write handle its block reaches through context, a block
-menu stamps its context when it opens, and the swap retires the outgoing stamp first thing.
-`admitsWrite`, which every write route asks, refuses a stale one in every build, and a dev build
-says so. A draft drops itself at a swap before its commit gets that far, so the warning means a
-write path that didn't. Predicate `invariants/stale-document-write.ts :: checkDocumentStamp` · run
-by `editor-actions/commit/reading-write-gate.ts :: admitsWrite` ·
-`test/editor-actions/commit/document-stamp.test.ts`, with the host's side in
-`e2e/tests/source-prop.spec.ts` and the drafts' in `e2e/tests/plugins/draft-across-swap.spec.ts`.
 
 ## Group 2: property and regression tested
 
@@ -2084,8 +2070,8 @@ fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under 
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
-later, since a held one fires against whatever document is there by then (G1.53 is the swap's
-half). The typing batch only groups undo steps and has no way to emit. `input` also promises the
+later, since a held one fires against whatever document is there by then (the write gate refuses
+a write made for a swapped-out document, `editor.md` § The commit primitive). The typing batch only groups undo steps and has no way to emit. `input` also promises the
 block kept its kind, which `components/lrd-map-gate.ts` relies on and can't check, so only the
 in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
 it. `lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere

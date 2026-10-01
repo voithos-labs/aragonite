@@ -74,7 +74,6 @@ test.describe('source prop change', () => {
 // A write made for the outgoing document, arriving after the swap: a blur's tidy-up, or a menu
 // paste that waited on the clipboard read. Each is refused rather than landing in the next one.
 test.describe('source prop change: a write that outlives its document', () => {
-	test.use({ expectInvariants: ['stale-document-write'] });
 	let editor: EditorPage;
 	const next = 'note b one\n\nnote b two\n';
 
