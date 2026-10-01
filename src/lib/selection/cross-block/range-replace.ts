@@ -42,7 +42,8 @@ export type RangeInsertion =
 	| { kind: 'none'; gesture: RemovalGesture }
 	| { kind: 'text'; text: string }
 	| { kind: 'paste'; text: string }
-	| { kind: 'composition' }
+	/** `leafPath`: the leaf the IME composes in. */
+	| { kind: 'composition'; leafPath: readonly number[] }
 	| { kind: 'command'; chord: string };
 
 /** `refused`: reading mode, or a document a `source` swap replaced. */
@@ -80,11 +81,16 @@ export async function replaceRange(
 
 	const doc = ctx.getDoc();
 	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
-	let outcome: RangeReplaceOutcome = 'nothing';
+	// Widened, since the step assigns it inside a callback the compiler can't follow.
+	let outcome = 'nothing' as RangeReplaceOutcome;
 	// Seeded with the range, so one Ctrl+Z puts it back as it stood.
 	await ctx.controller.undoStep(deleteSnapshot(start.path, start.offset), async () => {
 		outcome = await replaceInStep(ctx, coverage, insertion);
 	});
+	// After the step, whose end starts a new typing batch: the composed text joins the removal.
+	if (insertion.kind === 'composition' && outcome === 'written') {
+		ctx.controller.continueTypingBurst(insertion.leafPath);
+	}
 	return outcome;
 }
 
@@ -118,10 +124,9 @@ async function replaceInStep(
 		return outcome;
 	}
 
-	const holding = ctx.controller.holdLandings(() => removeRange(ctx, coverage, removal, insertion));
-	// Before the first await, so the composed text joins the entry the removal just pushed.
-	if (family === 'composition') ctx.controller.continueTypingBurst();
-	const [removed, removalLanding] = await holding;
+	const [removed, removalLanding] = await ctx.controller.holdLandings(() =>
+		removeRange(ctx, coverage, removal, insertion)
+	);
 	if (!removed.wrote) return 'nothing';
 	// The IME owns a composition's caret.
 	if (family === 'composition') return 'written';

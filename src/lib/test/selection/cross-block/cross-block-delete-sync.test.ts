@@ -34,7 +34,7 @@ describe('a composition’s removal, before any await: commit-primitive converge
 		const env = makeEnv('# A\n\npara B\n\npara C\n');
 		selectAcross(env, [0], [2]);
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 
 		expect(env.doc.children).toHaveLength(1);
 		expect(env.getBlockIds()).toHaveLength(env.doc.children.length);
@@ -47,7 +47,7 @@ describe('a composition’s removal, before any await: commit-primitive converge
 		env.events.on('edit', (e) => editEvents.push(e));
 		selectAcross(env, [0], [2]);
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 
 		expect(editEvents.map((e) => e.op)).toEqual(['delete']);
 	});
@@ -57,7 +57,7 @@ describe('a composition’s removal, before any await: commit-primitive converge
 		const original = serialize(env.deps.doc);
 		selectAcross(env, [0], [2]);
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 		expect(env.deps.undoManager.getStacks().undo).toHaveLength(1);
 
 		await tick();
@@ -73,7 +73,7 @@ describe('a composition’s removal, before any await: commit-primitive converge
 		);
 		selectAcross(env, [0, 0], [1]);
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 
 		const quote = env.deps.doc.children[0];
 		expect(quote.children).toHaveLength(1);
@@ -90,7 +90,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		env.doc.suffix = parse('alpha\n\nbeta\n\n').suffix;
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 4 });
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 		await tick();
 
 		expect(env.doc.children).toHaveLength(2);
@@ -109,7 +109,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		const idsBefore = [...env.getBlockIds()];
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 0], offset: 1 });
 
-		void replaceRange(env.mutCtx, { kind: 'composition' });
+		void replaceRange(env.mutCtx, { kind: 'composition', leafPath: [0] });
 		await tick();
 
 		expect(env.doc.children).toHaveLength(2);

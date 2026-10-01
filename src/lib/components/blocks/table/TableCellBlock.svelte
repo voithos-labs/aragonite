@@ -70,6 +70,7 @@
 	import { tableAxisCommand } from './cell-table-commands';
 	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
+	import { pasteTextInto } from '../../menu/clipboard-actions';
 	import {
 		installCellDragListener,
 		handleCellShiftClick,
@@ -980,7 +981,9 @@
 			// The cell can unmount while the read waits (a delete, a `source` swap).
 			if (!el) return;
 			const text = normalizeLineEndings(raw);
-			if (text) await applyCellPaste(text, sel);
+			// Over a live range, as a paste event, so it takes the route Ctrl+V does.
+			if (text && selection.isCrossBlock) pasteTextInto(el, text);
+			else if (text) await applyCellPaste(text, sel);
 			return;
 		}
 		if (hasRect) {

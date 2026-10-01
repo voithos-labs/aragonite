@@ -1844,10 +1844,12 @@ const RANGE_REPLACE: ManifestRule[] = [
 const REF_FOCUS: FileRule = {
 	id: 'a caret goes down through the caret landing, never a block ref’s own focus',
 	matches:
-		/(?:refAt\([^)]*\)|(?:innerBlockRefs|blockRefs)\[[^\]]*\])\s*\??\.\s*(?:focus|focusByPath|parkCaret)\s*\(/,
+		/(?:\b(?:refAt|cellRefAt|rowRefAt)\([^)]*\)|(?:innerBlockRefs|blockRefs)\[[^\]]*\])\s*\??\.\s*(?:focus|focusByPath|parkCaret)\s*(?:\?\.\s*)?\(/,
 	allowed: {
 		'src/lib/components/blocks/table/TableRowBlock.svelte':
-			'an arrow move to the next cell of its own row, inside the table’s own navigation'
+			'the row’s own `focus` and `parkCaret` handing the caret to its edge cell, which the landing calls',
+		'src/lib/components/blocks/table/TableBlock.svelte':
+			'the table’s own `focus`, `parkCaret` and `focusByPath` handing the caret to a cell, which the landing calls; a cell’s Tab or arrow move to its neighbour shares `focusCell`'
 	},
 	reason:
 		'a ref focused by hand skips what the landing does: the mount, the check that no undo or swap came in between, the scroll; hand the commit a `landing`, or call the landing',

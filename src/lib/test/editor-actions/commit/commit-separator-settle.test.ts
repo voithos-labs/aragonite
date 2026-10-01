@@ -68,7 +68,8 @@ describe('a delete that crosses both shared entries in one commit', () => {
 		);
 		// A composition's removal, which commits before the replace's first await.
 		void replaceRange(rangeContext(harness.deps, controller, fixtureReading()), {
-			kind: 'composition'
+			kind: 'composition',
+			leafPath: anchor
 		});
 		return harness;
 	}

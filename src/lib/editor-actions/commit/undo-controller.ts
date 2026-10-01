@@ -181,9 +181,9 @@ export function createUndoController(
 	let typingEntry: UndoEntry | null = null;
 	let joiningTyping = false;
 	// The entry the newest commit wrote (null when it was refused), and the one the next typing
-	// write joins instead of pushing its own.
+	// write in `leafPath` joins instead of pushing its own, until the typing batch ends.
 	let lastCommitEntry: UndoEntry | null = null;
-	let continuedEntry: UndoEntry | null = null;
+	let continued: { entry: UndoEntry; leafPath: readonly number[] } | null = null;
 
 	const inOpenStep = () => stepDepth > 0 && !stepEnded;
 	const isTop = (entry: UndoEntry | null) =>
@@ -193,7 +193,7 @@ export function createUndoController(
 	const isJoinedPush = () => (joiningTyping && isTop(typingEntry)) || joinsStep();
 
 	function pushEntry(entry: UndoEntry): void {
-		continuedEntry = null;
+		continued = null;
 		deps.undoManager.push(entry);
 		if (inOpenStep()) {
 			stepEntry = entry;
@@ -248,8 +248,8 @@ export function createUndoController(
 		stepEntry = null;
 	}
 
-	function continueTypingBurst(): void {
-		continuedEntry = lastCommitEntry;
+	function continueTypingBurst(leafPath: readonly number[]): void {
+		continued = lastCommitEntry && { entry: lastCommitEntry, leafPath: [...leafPath] };
 	}
 
 	// ── Entry pushes ─────────────────────────────────────────────────────────
@@ -270,10 +270,11 @@ export function createUndoController(
 	// Path from the live focused leaf, offset from the caller: the live caret is already
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
-		const continued = continuedEntry;
-		continuedEntry = null;
-		if (isTop(continued)) {
-			typingEntry = continued;
+		const joins = continued;
+		continued = null;
+		// A write in another leaf is a focus move, which ends any typing batch.
+		if (joins && isTop(joins.entry) && pathsEqual(joins.leafPath, leafPath)) {
+			typingEntry = joins.entry;
 			return;
 		}
 		if (joinsStep()) {
@@ -295,7 +296,12 @@ export function createUndoController(
 		typingEntry = entry;
 	}
 
-	const textBatch = createTextBatch({ pushSnapshot: pushTypingSnapshot });
+	const textBatch = createTextBatch({
+		pushSnapshot: pushTypingSnapshot,
+		onEnd: () => {
+			continued = null;
+		}
+	});
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 

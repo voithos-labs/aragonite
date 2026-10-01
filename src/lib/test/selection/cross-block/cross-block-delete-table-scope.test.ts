@@ -9,7 +9,11 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	makeTableStateAt
+} from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
@@ -36,9 +40,7 @@ function makeEnv(source: string) {
 }
 
 function registerTableState(env: ReturnType<typeof makeEnv>, index: number): BlockListState {
-	const state = makeBlockListState(() => env.deps.doc.children[index]);
-	registerBlockListState(env.deps.doc.children[index], state);
-	return state;
+	return makeTableStateAt(() => env.deps.doc, index);
 }
 
 function expectLockstep(state: BlockListState, node: CstNode): void {

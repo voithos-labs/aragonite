@@ -192,7 +192,7 @@ test.describe('a command key over a whole table, row or column', () => {
 				await expect.poll(() => editor.bridge.getSource()).toBe(expected);
 
 				await editor.undo();
-				await editor.bridge.waitForSourceEquals(SOURCE);
+				await expect.poll(() => editor.bridge.getSource()).toBe(SOURCE);
 			});
 		}
 	}

@@ -7,9 +7,8 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { CURSOR_EXACT_START } from '$lib/block-component';
 import { cellPoint, type SelectionEndpoint } from '$lib/selection/primitives';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { registerPasteTransform } from '$lib/tree-operations/paste/paste-transforms';
-import { makeBlockListState, stubBlockComponent } from '../../harness/editor-actions';
+import { makeTableStateAt, stubBlockComponent } from '../../harness/editor-actions';
 import { settleEditor } from '../../harness/settle';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { press } from './keydown-env';
@@ -127,12 +126,7 @@ async function perform(gesture: Gesture, shape: Shape) {
 	const handlers = makeHandlers(env, [0]);
 	// Every table is mounted, as one a range was drawn over is.
 	env.doc.children.forEach((node, i) => {
-		if (node.kind === 'table') {
-			registerBlockListState(
-				node,
-				makeBlockListState(() => env.deps.doc.children[i])
-			);
-		}
+		if (node.kind === 'table') makeTableStateAt(() => env.deps.doc, i);
 	});
 	// The paragraph the prose's Enter reaches splits where the removal left the caret.
 	if (shape.source === PROSE) {

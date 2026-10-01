@@ -29,7 +29,7 @@ const GESTURES: [name: string, insertion: RangeInsertion, warns: boolean][] = [
 	['Backspace', { kind: 'none', gesture: 'Backspace' }, true],
 	['a typed character', { kind: 'text', text: 'x' }, true],
 	['Enter', { kind: 'command', chord: 'Enter' }, true],
-	['a composition', { kind: 'composition' }, true],
+	['a composition', { kind: 'composition', leafPath: [0] }, true],
 	['a cut', { kind: 'none', gesture: 'cut' }, false],
 	['a paste', { kind: 'paste', text: 'P' }, false]
 ];

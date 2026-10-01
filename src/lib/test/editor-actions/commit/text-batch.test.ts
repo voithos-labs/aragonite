@@ -3,8 +3,9 @@ import { createTextBatch, UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/te
 
 function harness() {
 	const pushSnapshot = vi.fn();
-	const batch = createTextBatch({ pushSnapshot });
-	return { batch, pushSnapshot };
+	const onEnd = vi.fn();
+	const batch = createTextBatch({ pushSnapshot, onEnd });
+	return { batch, pushSnapshot, onEnd };
 }
 
 describe('text-batch lifecycle', () => {
@@ -21,7 +22,7 @@ describe('text-batch lifecycle', () => {
 	});
 
 	it('a pause ends the batch, so the next keystroke re-snapshots', () => {
-		const { batch, pushSnapshot } = harness();
+		const { batch, pushSnapshot, onEnd } = harness();
 		batch.keystroke([1], 0);
 		batch.armPause();
 		batch.keystroke([1], 1);
@@ -32,6 +33,7 @@ describe('text-batch lifecycle', () => {
 
 		batch.armPause();
 		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS);
+		expect(onEnd).toHaveBeenCalledTimes(1);
 		batch.keystroke([1], 3);
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
 	});
@@ -72,11 +74,12 @@ describe('text-batch lifecycle', () => {
 	});
 
 	it('interrupt cancels the pause timer and forces a fresh snapshot', () => {
-		const { batch, pushSnapshot } = harness();
+		const { batch, pushSnapshot, onEnd } = harness();
 		batch.keystroke([3], 4);
 		batch.armPause();
 		batch.interrupt();
 		expect(vi.getTimerCount()).toBe(0);
+		expect(onEnd).toHaveBeenCalledTimes(1);
 		batch.keystroke([3], 5);
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
 	});

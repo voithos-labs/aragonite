@@ -134,6 +134,16 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 	return mountBlockListState(getNode, { ids, refAt: () => undefined });
 }
 
+/** The state of the table at top-level `index`, following the copy a commit puts there; once a
+ *  removal takes the table, it keeps the one it was built on, as an unmounted table's state would. */
+export function makeTableStateAt(getDoc: () => Document, index: number): BlockListState {
+	const built = getDoc().children[index];
+	return makeBlockListState(() => {
+		const live = getDoc().children[index];
+		return live?.kind === 'table' ? live : built;
+	});
+}
+
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
 /** Runs the real mutate against a live children array, recording commits and landing each one's

@@ -7,6 +7,8 @@
 export interface TextBatchDeps {
 	/** Capture the pre-edit snapshot for the first keystroke of a batch. */
 	pushSnapshot(leafPath: number[], offset: number): void;
+	/** Told when a batch ends on an interrupt or a pause. */
+	onEnd?(): void;
 }
 
 export interface TextBatch {
@@ -56,11 +58,13 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 			timer = setTimeout(() => {
 				needsCheckpoint = true;
 				timer = null;
+				deps.onEnd?.();
 			}, UNDO_DEBOUNCE_MS);
 		},
 		interrupt() {
 			clearTimer();
 			needsCheckpoint = true;
+			deps.onEnd?.();
 		}
 	};
 }

@@ -346,6 +346,6 @@ async function handleDocEdgeExtend(
 function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
 	ctx.caretMemory.forget();
 	if (!ctx.selection.isCrossBlock) return false;
-	void replaceRange(ctx, { kind: 'composition' });
+	void replaceRange(ctx, { kind: 'composition', leafPath: ctx.getMyPath() });
 	return true;
 }
