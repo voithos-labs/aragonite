@@ -100,6 +100,25 @@ test.describe('IME composition', () => {
 		await editor.bridge.waitForSourceEquals('hello かん\n');
 	});
 
+	test('a composition over a range across blocks undoes with its removal in one step', async ({
+		page
+	}) => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		// Drawn downward, so the caret stays in the first block, the one the removal keeps.
+		await editor.focusBlock(0, 2);
+		await page.keyboard.press('ControlOrMeta+Shift+End');
+		await editor.waitForCrossBlock(true);
+		const ime = await attachIme(page);
+
+		await ime.compose('かん');
+		await ime.commit('かん');
+		await editor.bridge.waitForSourceContains('かん');
+		expect(countOf(await editor.bridge.getSource(), 'かん')).toBe(1);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('alpha\n\nbeta\n');
+	});
+
 	test('undo after a composed commit restores the pre-composition text in one step', async ({
 		page
 	}) => {

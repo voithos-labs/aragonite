@@ -17,13 +17,14 @@ import { commandContext } from '../../support/command-context';
 
 /** `reading` is the editor's own, which every write reads off the root. */
 export function makeEnv(source: string, reading?: Reading) {
-	const { deps, doc, events } = makeEditorActionsDeps(source, { reading });
+	const { deps, doc, events, landings } = makeEditorActionsDeps(source, { reading });
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	return {
 		doc,
 		deps,
 		events,
+		landings,
 		selectionState: deps.selectionState,
 		controller,
 		blockEdit,

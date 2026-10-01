@@ -62,6 +62,53 @@ test.describe('table block: clipboard cut', () => {
 		await expect(page.locator('.table-cell')).toHaveCount(9);
 	});
 
+	// Miss-analysis: every rectangle cut here held part of a row, so a whole row or column never
+	// met the cut's own removal.
+	test('Ctrl+X over a whole row removes the row', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+x');
+
+		await expect.poll(() => editor.readClipboard()).toContain('| 1 | 2 | 3 |');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
+		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
+		await expect(page.locator('.table-cell')).toHaveCount(6);
+	});
+
+	test('Ctrl+X over a whole column removes the column', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 1, 7);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+x');
+
+		await editor.bridge.waitForSourceContains('| A | C |');
+		await editor.bridge.waitForSourceContains('| 1 | 3 |');
+		await editor.bridge.waitForSourceContains('| 4 | 6 |');
+		await expect(page.locator('.table-cell')).toHaveCount(6);
+	});
+
+	test('typing over a whole row clears its cells and types into the first', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.type('x');
+
+		await editor.bridge.waitForSourceContains('| x |  |  |');
+		await expect(page.locator('.table-cell')).toHaveCount(9);
+	});
+
+	test('pasting over a whole row clears its cells and pastes into the first', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await editor.seedClipboard('P');
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+v');
+
+		await editor.bridge.waitForSourceContains('| P |  |  |');
+		await expect(page.locator('.table-cell')).toHaveCount(9);
+	});
+
 	test('cross-block Ctrl+X originating in a cell writes the range to clipboard and clears the source', async ({
 		page
 	}) => {

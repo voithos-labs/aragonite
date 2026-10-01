@@ -10,6 +10,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { makeKeydownEnv, press } from './keydown-env';
+import { settleEditor } from '../../harness/settle';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 const ANCHOR: SelectionPoint = { path: [0], offset: 2 };
@@ -51,6 +52,20 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 			expectStateBefore(onlyEntry(env.deps.undoManager.getStacks().undo), anchor, focus);
 		});
 	}
+
+	// Miss-analysis: the composition's suites composed inside one block, where no removal ran first.
+	it('a composition over a range: the removal and the composed text are one entry', async () => {
+		const env = makeEnv(SOURCE);
+		env.selectionState.enterCrossBlock(ANCHOR, FOCUS);
+		makeHandlers(env, [0]).handleCompositionStart();
+		await settleEditor();
+
+		// The composed text arrives as the block's own typing write.
+		await env.blockEdit.updateBlockContent(0, 'alかんma\n', 'authored', 2, 4);
+
+		expect(serialize(env.doc)).toBe('alかんma\n');
+		expectStateBefore(onlyEntry(env.deps.undoManager.getStacks().undo), ANCHOR, FOCUS);
+	});
 
 	it('Enter over a range: the delete and the split are one entry', async () => {
 		const env = makeKeydownEnv(SOURCE);

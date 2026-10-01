@@ -49,6 +49,11 @@ Intra-table Backspace dispatches by what the selection covers:
   points, so a typed `x` opens it.
   - Miss-analysis: only Backspace was ever pressed over a whole table, and the whole-table route
     picked its side on its own, so it kept Backspace's side for Delete too.
+- Typing over a whole table (a second Ctrl+A in a table that's the document's only block, then
+  `x`) replaces the table with a paragraph holding `x`. A cut over it removes the table, the way
+  Backspace does.
+  - Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range
+    kept clearing the cells and nobody looked.
 - Whole-row coverage (every cell of one row, no cells from other rows): delete the row. It does
   nothing when only the header row would survive (≥1 body row required), mirroring Ctrl+Shift+Backspace.
   Deleting the header row promotes the next row to header.

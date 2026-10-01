@@ -1801,8 +1801,50 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 	}
 ];
 
+// ── G4.108 one replace for every destructive gesture over a range ──────────
+
+const ROGUE_RANGE_ROUTE = 'src/lib/selection/cross-block/rogue.ts';
+const RANGE_REPLACE_HOME = 'src/lib/selection/cross-block/range-replace.ts';
+
+const RANGE_REPLACE: ManifestRule[] = [
+	{
+		id: 'G4.108 only the range replace removes a live range',
+		population: notUnder('src/lib/selection/range-delete'),
+		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole)\s*\(/,
+		declared: {
+			[RANGE_REPLACE_HOME]:
+				'picks the removal from what the range covers, for every destructive gesture over it'
+		},
+		reason:
+			'a gesture that removes a range itself skips what every other one gets: the removal picked by what the range covers, one undo entry and one caret landing; call `replaceRange` with the gesture’s insertion',
+		hits: [
+			at(ROGUE_RANGE_ROUTE, 'const removed = rangeDelete(doc, coverage, sharing, reading, "cut");'),
+			at(ROGUE_RANGE_ROUTE, 'remove: (sharing) => removeHeldWhole(doc, coverage, sharing, r, g),')
+		],
+		misses: [
+			at(ROGUE_RANGE_ROUTE, "import { rangeDelete, removeHeldWhole } from '../range-delete';"),
+			at(ROGUE_RANGE_ROUTE, 'return tableAwareRangeDelete(doc, coverage, sharing, reading);')
+		]
+	},
+	{
+		id: 'G4.108 a gesture over a range opens its undo entry in the range replace only',
+		population: under('src/lib/selection/cross-block/'),
+		matches: /\.undoStep\s*\(/,
+		declared: {
+			[RANGE_REPLACE_HOME]: 'opens the one undo entry a destructive gesture over a range writes'
+		},
+		reason:
+			'a range gesture that opens its own undo entry writes its removal and its insertion around the range replace, so one Ctrl+Z no longer takes back the gesture: call `replaceRange`',
+		hits: [at(ROGUE_RANGE_ROUTE, 'await ctx.controller.undoStep(seed, async () => {});')],
+		misses: [
+			at(ROGUE_RANGE_ROUTE, 'undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>);')
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
+describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
