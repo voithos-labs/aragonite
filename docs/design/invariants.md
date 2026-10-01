@@ -262,7 +262,7 @@ Three families of seam run these checks:
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
-| G1.53 | A `source` swap fires no `edit`                                                     | A·N     |
+| G1.53 | A write made for a document a `source` swap replaced is refused                     | A·N     |
 
 ### The entries
 
@@ -763,18 +763,18 @@ it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
 
-**G1.53 · A swap fires no `edit`** (`swap-fires-no-edit`). A host that hears an `edit` while a
-`source` swap runs reads the outgoing document, and one that echoes `getSource()` writes that
-text back over the document it just loaded. Every `edit` fires at its own write (G4.107), and
-the swap drops every draft held outside the document before the tree changes, so nothing should
-emit one: not the swap's steps, and not the blur of a block it tears down, which lands in the
-render after. In a dev build the swap listens for `edit` until that render is done and says so if
-one fires, so a new draft site that skips the draft registry goes red the first time a test swaps
-over it. Predicate `invariants/swap-fires-no-edit.ts :: checkSwapFiresNoEdit` · run by
-`components/editor-root-document-swap.ts :: createDocumentSwap` ·
-`test/components/editor-root-document-swap.test.ts`, with the host's side in
-`test/components/source-swap-mid-typing.svelte.test.ts` and the drafts' in
-`e2e/tests/plugins/draft-across-swap.spec.ts`.
+**G1.53 · A write for a replaced document is refused** (`stale-document-write`). A write can
+outlive the document it was made for: a menu paste waiting on a slow clipboard read, the blur of a
+block a `source` swap tore down. Landing anyway, it writes into the incoming document at the same
+place and fires an `edit` a host saves into the wrong note. So each write carries the document it
+was made for: `BlockHost` stamps every write handle its block reaches through context, a block
+menu stamps its context when it opens, and the swap retires the outgoing stamp first thing.
+`admitsWrite`, which every write route asks, refuses a stale one in every build, and a dev build
+says so. A draft drops itself at a swap before its commit gets that far, so the warning means a
+write path that didn't. Predicate `invariants/stale-document-write.ts :: checkDocumentStamp` · run
+by `editor-actions/commit/reading-write-gate.ts :: admitsWrite` ·
+`test/editor-actions/commit/document-stamp.test.ts`, with the host's side in
+`e2e/tests/source-prop.spec.ts` and the drafts' in `e2e/tests/plugins/draft-across-swap.spec.ts`.
 
 ## Group 2: property and regression tested
 
