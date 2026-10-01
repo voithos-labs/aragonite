@@ -5,7 +5,7 @@
  * down still blurs, and so still tries to commit, after the swap has returned.
  */
 
-import type { DocumentStamp, DocumentStamps } from '../editor-actions/commit/document-stamp';
+import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
 
 /** Why the editor closes its drafts: a swap drops them, a mode change can still save them. */
 export type DraftCloseCause = 'mode-change' | 'document-swap';
@@ -28,8 +28,6 @@ export interface Draft {
 
 export interface DraftRegistry {
 	open(spec: DraftSpec): Draft;
-	/** For a blur write that holds no draft (a tidy-up of the block's own bytes). */
-	documentLife(): DocumentStamp;
 	/** A document swap and a mode change call it. */
 	closeAll(cause: DraftCloseCause): void;
 }
@@ -46,7 +44,6 @@ export function createDraftRegistry(stamps: Pick<DocumentStamps, 'current'>): Dr
 				end: () => void open.delete(spec)
 			};
 		},
-		documentLife: stamps.current,
 		closeAll(cause) {
 			for (const spec of [...open]) {
 				open.delete(spec);

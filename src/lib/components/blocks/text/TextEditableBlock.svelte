@@ -947,12 +947,8 @@
 		demoteEmptyHeadingOnBlur();
 	}
 
-	// A block a `source` swap tore down still blurs, and its bytes are the outgoing document's.
-	const documentLife = drafts.documentLife();
-
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
-		if (!documentLife.live) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
 		if (!demoted) return;
 		void writeText({

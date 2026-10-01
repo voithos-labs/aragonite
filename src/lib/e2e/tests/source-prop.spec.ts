@@ -69,27 +69,11 @@ test.describe('source prop change', () => {
 		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
 		expect(await editor.bridge.getSource()).toBe('other\n');
 	});
-
-	test('an empty heading holding the caret at a swap is not demoted into the next document', async ({
-		page
-	}) => {
-		await editor.loadContent('# \n\nafter\n');
-		await editor.focusBlockEnd(0);
-		await page.evaluate(() => (window as any).__test.startEditOpCapture());
-
-		const next = '# Title\n\nbody\n';
-		await page.evaluate((md) => (window as any).__test.setSource(md), next);
-		await editor.waitForRenderFlush();
-		await editor.waitForRenderFlush();
-
-		expect(await editor.bridge.getSource()).toBe(next);
-		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
-	});
 });
 
-// A paste picked from a menu waits on the clipboard read; the document it was picked in can be
-// gone by the time the text arrives, and the paste is then refused rather than landing in B.
-test.describe('source prop change: a menu paste waiting on the clipboard', () => {
+// A write made for the outgoing document, arriving after the swap: a blur's tidy-up, or a menu
+// paste that waited on the clipboard read. Each is refused rather than landing in the next one.
+test.describe('source prop change: a write that outlives its document', () => {
 	test.use({ expectInvariants: ['stale-document-write'] });
 	let editor: EditorPage;
 	const next = 'note b one\n\nnote b two\n';
@@ -106,6 +90,22 @@ test.describe('source prop change: a menu paste waiting on the clipboard', () =>
 		await editor.waitForRenderFlush();
 		await editor.waitForRenderFlush();
 	}
+
+	test('an empty heading holding the caret at a swap is not demoted into the next document', async ({
+		page
+	}) => {
+		await editor.loadContent('# \n\nafter\n');
+		await editor.focusBlockEnd(0);
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+
+		const title = '# Title\n\nbody\n';
+		await page.evaluate((md) => (window as any).__test.setSource(md), title);
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe(title);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
 
 	test('the prose menu’s Paste lands nowhere', async ({ page }) => {
 		await editor.loadContent('note a one\n\nnote a two\n');

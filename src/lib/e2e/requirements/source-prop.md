@@ -16,7 +16,8 @@ Editor re-initialization when the `source` prop changes (async document load, sh
   lands, and the swap fires none, so a host echoing `getSource()` on `edit` never writes the
   outgoing text back over the document it just loaded
 - an empty heading holding the caret at `setSource`: the swap's teardown blurs it, and the blur's
-  tidy-up (an empty `#` turns back into a paragraph) writes nothing into the next document
+  tidy-up (an empty `#` turns back into a paragraph) is refused rather than written into the next
+  document; a dev build reports the refused write
 - a menu paste still reading the clipboard at `setSource` (the prose menu's Paste, the block
   menu's Replace with clipboard): the read finishes after the swap, and its text lands nowhere;
   a dev build reports the refused write
