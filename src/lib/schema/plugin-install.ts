@@ -12,6 +12,7 @@ import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import type { InsertEntry } from './insert-catalogue';
+import type { Draft, DraftSpec } from './drafts';
 
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
@@ -61,6 +62,9 @@ export interface EditorContext<Options = unknown> {
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	readonly runCommand: (commandId: string, arg?: unknown) => boolean;
+	/** Hold an edit outside the document (a field's text) as a draft of `seed`. Its commit asks
+	 *  `canWrite()` first, since a `source` swap or a write to those bytes drops it. */
+	readonly openDraft: (spec: DraftSpec) => Draft;
 	/** Inline-parse a prose leaf as this editor draws it, reference links included. Uncached, and a
 	 *  new function whenever the document's definitions change, so a cache keyed on it refreshes. */
 	readonly computeInlineContent: (node: NodeView) => InlineNode[];

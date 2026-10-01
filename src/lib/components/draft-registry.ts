@@ -6,25 +6,7 @@
  */
 
 import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
-
-/** Why the editor closes its drafts: a swap drops them, a mode change can still save them. */
-export type DraftCloseCause = 'mode-change' | 'document-swap';
-
-export interface DraftSpec {
-	/** The bytes the draft was opened on. */
-	seed: string;
-	/** Those bytes now: a draft whose bytes moved under it writes nothing. */
-	current(): string;
-	/** Runs when the editor closes a draft still open; at a swap it must write nothing. */
-	close(cause: DraftCloseCause): void;
-}
-
-export interface Draft {
-	/** Whether the commit may write: the document it opened on is still in place, its bytes too. */
-	canWrite(): boolean;
-	/** Unregister it once the owner closes it, so the editor won't close it again; safe to repeat. */
-	end(): void;
-}
+import type { Draft, DraftCloseCause, DraftSpec } from '../schema/drafts';
 
 export interface DraftRegistry {
 	open(spec: DraftSpec): Draft;

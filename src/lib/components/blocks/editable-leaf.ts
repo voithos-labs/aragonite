@@ -49,7 +49,7 @@ import { type BlockTargetContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { componentPluginEditor } from '../../schema/block-component-registry';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
-import type { Draft } from '../draft-registry';
+import type { Draft } from '../../schema/drafts';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 

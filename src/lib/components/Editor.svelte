@@ -630,6 +630,7 @@
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
 		runCommand: (commandId, arg) => runCommand(commandId, arg),
+		openDraft: drafts.open,
 		reading
 	});
 

@@ -52,7 +52,7 @@ import {
 } from '../whole-block-focus-surface';
 import type { NestedActionsOverrideFactory } from '../nested/nested-actions';
 import { createContainerActions } from '../nested/container-actions';
-import type { Draft, DraftSpec } from '../../components/draft-registry';
+import type { Draft, DraftSpec } from '../../schema/drafts';
 
 /**
  * The inputs the host component feeds in. A function-valued field is a live read,
@@ -148,8 +148,7 @@ export interface ContainerBlock {
 	/** Read the scroll position before swapping this block's view for one of another height, and
 	 *  await the returned restore after the swap renders. A scroll-into-view in progress wins. */
 	captureScrollPosition(): () => Promise<void>;
-	/** Hold an edit outside the document as a draft of `seed`. Its commit asks `canWrite()` first,
-	 *  since a `source` swap or a write to those bytes drops it; `end()` it once it closes. */
+	/** `EditorContext.openDraft`, passed through so a component needs no context to hold one. */
 	openDraft(spec: DraftSpec): Draft;
 }
 

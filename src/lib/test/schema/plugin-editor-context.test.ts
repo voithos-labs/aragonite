@@ -71,6 +71,18 @@ describe('createEditorPluginContexts', () => {
 	});
 
 	// Miss-analysis: no test asked the plugin context to reach the editor instance.
+	it('openDraft opens the draft in this editor’s registry', () => {
+		const specs: unknown[] = [];
+		const draft = { canWrite: () => true, end: () => {} };
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			openDraft: (spec) => (specs.push(spec), draft)
+		});
+		const spec = { seed: 'x', current: () => 'x', close: () => {} };
+		expect(ctxs.get('p')!.openDraft(spec)).toBe(draft);
+		expect(specs).toEqual([spec]);
+	});
+
 	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
 		const inserted: unknown[][] = [];
 		const ran: unknown[][] = [];

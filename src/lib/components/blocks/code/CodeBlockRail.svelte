@@ -11,7 +11,8 @@
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
 	import type { MenuPresence } from '../../menu/menu-presence.svelte';
-	import type { Draft, DraftRegistry } from '../../draft-registry';
+	import type { DraftRegistry } from '../../draft-registry';
+	import type { Draft } from '../../../schema/drafts';
 	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
 	import { fenceLanguage } from '../../../core/parsers/fence-syntax';

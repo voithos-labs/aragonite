@@ -54,7 +54,8 @@ import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
 import type { Reading } from '../../../schema/reading';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
-import type { Draft, DraftRegistry } from '../../draft-registry';
+import type { DraftRegistry } from '../../draft-registry';
+import type { Draft } from '../../../schema/drafts';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;

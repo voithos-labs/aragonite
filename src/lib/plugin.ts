@@ -270,7 +270,7 @@ export type {
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
-export type { Draft, DraftCloseCause, DraftSpec } from './components/draft-registry';
+export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
 export type { RefSlots } from './reactivity/publish-ref.svelte';
 export type { ChildList } from './reactivity/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
