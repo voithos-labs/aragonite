@@ -262,6 +262,7 @@ Three families of seam run these checks:
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
+| G1.53 | A `source` swap fires no `edit`                                                     | A·N     |
 
 ### The entries
 
@@ -762,6 +763,15 @@ it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
 
+**G1.53 · A swap fires no `edit`** (`swap-fires-no-edit`). A host that hears an `edit` while a
+`source` swap runs reads the outgoing document, and one that echoes `getSource()` writes that
+text back over the document it just loaded. Every `edit` fires at its own write (G4.107), so
+nothing in the swap's steps should emit one; in a dev build the swap listens for `edit` while it
+runs and says so if one fires. Predicate `invariants/swap-fires-no-edit.ts :: checkSwapFiresNoEdit`
+· run by `components/editor-root-document-swap.ts :: createDocumentSwap` ·
+`test/components/editor-root-document-swap.test.ts`, with the host's side in
+`test/components/source-swap-mid-typing.svelte.test.ts`.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1077,6 +1087,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.100 | A block's own trailing line ending is added only by the surface write                     | L       |
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
 | G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
+| G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
 
 ### The entries
 
@@ -1103,7 +1114,8 @@ rAF placement in `components/drag-handle.ts` (the handle waits for its block to 
 start of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is
 skipped and logged as a loop error); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
-typing"); and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation
+typing") and the occurrence plugin's own typing pause in
+`plugins/highlight-occurrences/highlight-occurrences-plugin.ts`, for the same reason; and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation
 budget, not an ordering primitive, since nothing awaits the timer). `lint/file-rules.test.ts`.
 The unit suites follow the same rule, held by a row of `lint/suite-file-rules.test.ts`. A test
 waits for the editor with `src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock
@@ -2065,6 +2077,15 @@ is no change (G1.52 has the text it's compared with), so `loadContent(await getS
 nothing, and whatever the spec checks next passes against the document it never reloaded.
 `e2e/editor-page.ts :: reloadContent` empties the document first. `lint/suite-file-rules.test.ts`
 fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under `src/lib/e2e/`.
+
+**G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
+and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
+later, since a held one fires against whatever document is there by then (G1.53 is the swap's
+half). The typing batch only groups undo steps and has no way to emit. `input` also promises the
+block kept its kind, which `components/lrd-map-gate.ts` relies on and can't check, so only the
+in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
+it. `lint/edit-emitters.test.ts` fails an `edit` emit in any other file and a second `input`
+declaration anywhere.
 
 ## Accessibility
 

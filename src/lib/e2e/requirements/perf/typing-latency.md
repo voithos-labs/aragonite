@@ -126,7 +126,7 @@ what budget, is `perf-gate.md`.
 ## Bridge sanity
 
 - perf bridge round-trip: enabling instruments via `__test.perf`, typing one
-  character in a small document, and polling past the debounced input flush
+  character in a small document, and polling until the counter moves
   yields `inlineComputeCount >= 1`: the first end-to-end check that the edited
   block's inline recompute is recorded in the perf counters
 

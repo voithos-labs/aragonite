@@ -139,7 +139,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 **Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
-**`source` after mount:** a write replaces the document, clearing undo, when it differs from `getSource()`, and does nothing when it doesn't. One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor. If `source` still holds the text you loaded and the user has typed since, writing that same text back (say, to revert) does nothing. Hold the loaded document in an object you replace on each load (`note = { text }`, then `source={note.text}`) and the prop re-reads on every load, same text or not.
+**`source` after mount:** a write replaces the document, clearing undo, when it differs from `getSource()`, and does nothing when it doesn't. One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor. If `source` still holds the text you loaded and the user has typed since, writing that same text back (say, to revert) does nothing. Hold the loaded document in an object you replace on each load (`note = { text }`, then `source={note.text}`) and the prop re-reads on every load, same text or not. Writing `getSource()` back into `source` on every `edit` works too, since each `edit` fires as its own write lands and never after you've loaded something else, but it reads the whole document back on every keystroke, so the object is the cheaper fix.
 
 ### Switching a syntax off
 
@@ -389,7 +389,7 @@ Seven channels:
 
 | Channel                  | Fires                                                                                                                                                                                                                                          |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo                                                                                                                     |
+| `edit`                   | After every applied edit: a structural operation, a keystroke (each one, as it's written), an undo or redo                                                                                                                                     |
 | `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                                                                                                                                         |
 | `error`                  | On a failure the editor contained rather than threw                                                                                                                                                                                            |
 | `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                                                                                                                     |
@@ -405,14 +405,14 @@ What each channel hands you:
 
 ```ts
 events.on('edit', (e) => e);
-// { op: 'input', path: [2], detail: { byteLength: 1 }, timestamp: 1788390000412 }
+// { op: 'input', path: [2], detail: { byteLength: 23 }, timestamp: 1788390000412 }
 // { op: 'split', path: [2], detail: { at: 14 }, timestamp: 1788390001033 }
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 ```
 
-A typing flush's `byteLength` counts every keystroke in the burst, at any depth. That includes a last key that changed its block's kind (the space that makes `#` a heading, say), which also fires its own `updateContent` right after the flush.
+A keystroke fires its `input` as it's written, one per key, and `byteLength` is the typed block's length after it. A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end.
 
-`path` is document-absolute for every operation, nested ones and the typing flush included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
+`path` is document-absolute for every operation, nested ones and typing included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
 **`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused. While an image is selected whole, the snapshot is a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and `setSelection` of that snapshot puts a caret back without selecting the image again.
 

@@ -1,15 +1,14 @@
 # Feature: the decoration edit epoch follows the keystroke, not the typing batch
 
-A decoration source runs on every document change. The `input` event the edit path listens
-to is deliberately batched (one undo entry per typing burst), so an edit epoch (the counter
-bumped once per document change) driven by that event only advances when the burst ends, and
-until then every source keeps serving the previous document's decorations. The overlays
-measure those stale offsets, so marks visibly drag behind the text the user just moved.
+A decoration source runs on every document change. The edit epoch (the counter bumped once
+per document change) follows the content version, which every keystroke moves, not the undo
+batch, which groups a burst of typing into one entry. An epoch that waited for the burst to
+end would leave every source serving the previous document's decorations, and the overlays
+would measure those stale offsets, so marks visibly drag behind the text the user just moved.
 
-The occurrence highlight reads that same batching from the other side. Its marks step aside
-on the keystroke and come back on the `input` flush, so what these scenarios pin is a source
-that keeps re-running per keystroke underneath a mark set that stays empty until the burst
-ends.
+The occurrence highlight steps aside on purpose. Its marks hide on the keystroke and come back
+once typing pauses, so what these scenarios pin is a source that keeps re-running per
+keystroke underneath a mark set that stays empty until the pause.
 
 Scenarios run on `/test/plugins?seed=hloccur-memo`, whose seed publishes the plugin's
 index-rebuild count to `window.__hloccurScans`. Block [0] is the paragraph
@@ -33,13 +32,12 @@ overlay's own offset mapping, so an overlay drawn off its word matched its own r
 
 - typing a space in front of the anchored word, with the clock frozen, clears every overlay
   in the block: the marks step aside for the burst
-- advancing the frozen clock past the typing pause flushes the batched `input` event and
-  paints the overlays back onto the words they mark: every overlay's left and right edge
+- advancing the frozen clock past the typing pause paints the overlays back onto the words they mark: every overlay's left and right edge
   sits within a pixel of the word's painted text, measured off the text node itself rather
   than through the offset mapping the overlay paints with, and no extra overlay is painted
 - the same keystroke rebuilds the cached index exactly once (`__hloccurScans` increases
-  by one) while the clock is frozen, so the counter reached the source without the typing
-  batch flushing
+  by one) while the clock is frozen, so the counter reached the source without waiting for
+  the typing pause
 
 ## Edge cases
 

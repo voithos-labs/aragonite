@@ -839,13 +839,13 @@ The editor exposes an observer surface via `getEvents()`: seven channels, where 
 
 ```ts
 const off = editor.getEvents().on('edit', (e) => e);
-// { op: 'input', path: [2], detail: { byteLength: 1 }, timestamp: 1788390000412 }
+// { op: 'input', path: [2], detail: { byteLength: 23 }, timestamp: 1788390000412 }
 // { op: 'split', path: [2], detail: { at: 14 }, timestamp: 1788390001033 }
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 off();
 ```
 
-- **`edit`.** After every commit that names an `op`. The payload is a discriminated union keyed by `op` (`schema/operations.ts` lists every variant and its `detail`): the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`, and find/replace emits one `replaceBlock` for a whole replace-all (its per-block commits name no `op`). **`path` is doc-absolute for every op**, including `input` (the edited leaf) and every nested container op, and resolves from the document root to the operated node, or to the one-past-end slot an append creates. Column-shaped table ops target the table and carry the column index in `detail`; undo, redo and a replace-all across several blocks carry the root path `[]`.
+- **`edit`.** At every write, as it lands. The payload is a discriminated union keyed by `op` (`schema/operations.ts` lists every variant and its `detail`): a commit that names an `op` emits its structural variant, a keystroke written in place (`src/lib/editor-actions/leaf-write.ts`) emits `input` with the block's new length, the history layer emits `undo` / `redo` as it puts the entry back (before the caret's placed), and find/replace emits one `replaceBlock` for a whole replace-all (its per-block commits name no `op`). The typing batch only groups undo steps, so a keystroke never waits for a pause to be heard. That timing is what lets a host echo or save on `edit`: no `edit` fires during a `source` swap (G1.53), and only those writes emit one (G4.107). **`path` is doc-absolute for every op**, including `input` (the edited leaf) and every nested container op, and resolves from the document root to the operated node, or to the one-past-end slot an append creates. Column-shaped table ops target the table and carry the column index in `detail`; undo, redo and a replace-all across several blocks carry the root path `[]`.
 - **`selectionChange`.** The selection snapshot, or `null`. Everything that emits it goes through one announcer (`selection/selection-announcer.ts`), which remembers what it last sent, so a placement or the browser bridge can drop a repeat; a state write or an explicit announce always sends. What feeds it:
   - the editor's own caret placements, which announce where they put the caret as they put it (the one entry point every placement passes, plus the column landing a vertical arrow uses);
   - writes to the selection state (a range, a clear, a gap caret, a widget selected whole), and a few announces of their own: focus leaving the editor, a document swap, a mode switch's blur, an undo whose selection no longer resolves;
