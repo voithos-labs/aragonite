@@ -65,9 +65,9 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'handlePaste',
 		why: 'the image-import handler reads the attachment payload and hands the hook’s markdown to the cross-block paste route'
 	},
-	'src/lib/selection/cross-block/paste.ts': {
-		handoff: 'applyPasteTransforms',
-		why: 'a declared route itself: runs the transforms before parsing the pasted slice'
+	'src/lib/selection/cross-block/dispatch.ts': {
+		handoff: 'replaceRange',
+		why: 'a paste over a range hands its text to the range replace, which runs the transforms or hands it to the paste tree-op'
 	}
 };
 
@@ -426,8 +426,8 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/components/editor-root-menus.ts':
 				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
-			'src/lib/selection/cross-block/paste.ts':
-				'cross-block selection paste parses the pasted slice',
+			'src/lib/selection/cross-block/range-replace.ts':
+				'a paste over a block a range holds whole parses the pasted text in its place',
 			'src/lib/selection/selection-drop.ts':
 				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite',
 			'src/lib/tree-operations/paste/dispatch.ts':

@@ -3,12 +3,10 @@ import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { commitGridLineDelete } from '$lib/selection/range-delete-table-coverage';
 import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '$lib/editor-events';
-import { fixtureReading } from '../harness/fixture-grammar';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits
@@ -67,14 +65,7 @@ function makeColumnCoverageEnv() {
 	const controller = createUndoController(deps);
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
-	const ctx: CrossBlockMutationContext = {
-		selection: deps.selectionState,
-		getDoc: () => deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: (path) => deps.caretLanding.mount(path),
-		controller,
-		reading: fixtureReading()
-	};
+	const ctx = { selection: deps.selectionState, getDoc: () => deps.doc, controller };
 	return { deps, ctx, edits };
 }
 
@@ -89,7 +80,7 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 		const { grid } = rangeCoverage(deps.doc, coverRange(deps.doc, start!, end!));
 		if (grid?.kind !== 'column') throw new Error(`expected a whole column, got ${grid?.kind}`);
 
-		const caret = await commitGridLineDelete(ctx, grid, false);
+		const caret = await commitGridLineDelete(ctx, grid);
 
 		expect(caret).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');

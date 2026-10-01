@@ -291,6 +291,12 @@ export interface CommitController {
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
+	/** The next typing write joins the entry the last commit wrote, if that entry is still the
+	 *  newest: a composition's text joins the removal its start made. */
+	continueTypingBurst(): void;
+	/** Whether a gesture may write now: false in reading mode, or for a document a `source` swap
+	 *  replaced. A reading-mode refusal names `op` in a dev warning; a null `op` is refused quietly. */
+	admitsGesture(op: string | null): boolean;
 }
 
 /** What a container reaches the editor root for, forwarded unchanged through nested containers.
@@ -350,6 +356,8 @@ export interface LeafWriteLanded extends Relanding {
 export interface LeafTextOptions {
 	caret: number;
 	snapshotOffset: number;
+	/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
+	landing?: (landed: LeafWriteLanded) => Landing | null;
 	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
 	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 }

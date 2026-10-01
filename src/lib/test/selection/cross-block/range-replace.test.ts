@@ -7,10 +7,13 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { CURSOR_EXACT_START } from '$lib/block-component';
 import { cellPoint, type SelectionEndpoint } from '$lib/selection/primitives';
-import { stubBlockComponent } from '../../harness/editor-actions';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { makeBlockListState, stubBlockComponent } from '../../harness/editor-actions';
 import { settleEditor } from '../../harness/settle';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { press } from './keydown-env';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
+import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 
 type Gesture = 'Backspace' | 'cut' | 'type' | 'paste' | 'compose' | 'Enter';
 
@@ -96,8 +99,19 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 };
 
 async function perform(gesture: Gesture, shape: Shape) {
+	// The cell's paste rules, which the editor registers with its built-in blocks.
+	ensurePasteSurface(tableCellPasteSurface);
 	const env = makeEnv(shape.source);
 	const handlers = makeHandlers(env, [0]);
+	// Every table is mounted, as one a range was drawn over is.
+	env.doc.children.forEach((node, i) => {
+		if (node.kind === 'table') {
+			registerBlockListState(
+				node,
+				makeBlockListState(() => env.deps.doc.children[i])
+			);
+		}
+	});
 	// The paragraph the prose's Enter reaches splits where the removal left the caret.
 	if (shape.source === PROSE) {
 		env.deps.blockRefs[0] = stubBlockComponent({

@@ -223,6 +223,7 @@ export async function commitLeafTextAt(
 	return commitLeafText(scope, index, write, {
 		snapshotOffset: opts.snapshotOffset,
 		caret: write.storedOffset(opts.caret),
+		landing: opts.landing,
 		afterTick: opts.afterTick
 	});
 }

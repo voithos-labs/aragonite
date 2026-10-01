@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import {
-	performCrossBlockDeleteSync,
-	type CrossBlockMutationContext
-} from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from './range-context';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { parse } from '$lib/core/parser';
@@ -18,14 +16,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	const controller = createUndoController(harness.deps);
-	const mutCtx: CrossBlockMutationContext = {
-		selection: harness.deps.selectionState,
-		getDoc: () => harness.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: (path) => harness.deps.caretLanding.mount(path),
-		controller,
-		reading: fixtureReading()
-	};
+	const mutCtx = rangeContext(harness.deps, controller, fixtureReading());
 	return {
 		...harness,
 		controller,
@@ -38,12 +29,12 @@ function selectAcross(env: ReturnType<typeof makeEnv>, anchor: number[], focus: 
 	env.deps.selectionState.enterCrossBlock({ path: anchor, offset: 1 }, { path: focus, offset: 2 });
 }
 
-describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
+describe('a composition’s removal, before any await: commit-primitive convergence', () => {
 	it('keeps blockIds in lockstep with doc.children synchronously after the call', () => {
 		const env = makeEnv('# A\n\npara B\n\npara C\n');
 		selectAcross(env, [0], [2]);
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 
 		expect(env.doc.children).toHaveLength(1);
 		expect(env.getBlockIds()).toHaveLength(env.doc.children.length);
@@ -56,7 +47,7 @@ describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
 		env.events.on('edit', (e) => editEvents.push(e));
 		selectAcross(env, [0], [2]);
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 
 		expect(editEvents.map((e) => e.op)).toEqual(['delete']);
 	});
@@ -66,7 +57,7 @@ describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
 		const original = serialize(env.deps.doc);
 		selectAcross(env, [0], [2]);
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 		expect(env.deps.undoManager.getStacks().undo).toHaveLength(1);
 
 		await tick();
@@ -82,7 +73,7 @@ describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
 		);
 		selectAcross(env, [0, 0], [1]);
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 
 		const quote = env.deps.doc.children[0];
 		expect(quote.children).toHaveLength(1);
@@ -99,7 +90,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		env.doc.suffix = parse('alpha\n\nbeta\n\n').suffix;
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 4 });
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 		await tick();
 
 		expect(env.doc.children).toHaveLength(2);
@@ -118,7 +109,7 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		const idsBefore = [...env.getBlockIds()];
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 0], offset: 1 });
 
-		performCrossBlockDeleteSync(env.mutCtx);
+		void replaceRange(env.mutCtx, { kind: 'composition' });
 		await tick();
 
 		expect(env.doc.children).toHaveLength(2);

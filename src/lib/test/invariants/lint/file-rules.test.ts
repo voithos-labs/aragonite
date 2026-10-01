@@ -1293,8 +1293,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a drop inserts at the drop point; its cut goes through the range replace',
 			'src/lib/selection/range-delete.ts':
 				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
-			'src/lib/selection/cross-block/type-replace.ts':
-				'a key typed after a cross-block delete, a known gap until the text rides into the join (T18 slice 4)'
+			'src/lib/selection/cross-block/range-replace.ts':
+				'a key typed over a range lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
 		},
 		reason:
 			'a splice of a leaf’s own bytes that cuts a range can strand the delimiter runs around it; call `replaceRangeInLeaf`, or declare why the splice cuts nothing',
@@ -1429,8 +1429,6 @@ const BARE_FOCUSES: ManifestRule[] = [
 				'a native range re-made in a block the keyboard is already on',
 			'src/lib/selection/native-bridge.ts':
 				'`focusCollapsedCaret`, which the cross-block delete, typing and paste still lean on until they land through the caret landing',
-			'src/lib/selection/cross-block/paste.ts':
-				'a cross-block paste that still puts its own caret down, until it lands through the caret landing',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram’s own surface takes focus back after a redraw or an edit, and the focus view its overlay',
 			'src/lib/components/blocks/code/CodeBlockRail.svelte':

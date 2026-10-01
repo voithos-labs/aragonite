@@ -64,16 +64,13 @@ describe('cross-block keydown: destructive branch', () => {
 		for (const { key, landsAt } of SIDES) {
 			it(`${key} over a rule held whole lands in block ${landsAt}`, async () => {
 				const env = makeKeydownEnv('lead\n\n---\n\ntail\n');
-				const lookup = env.mutCtx.getBlockElByPath;
-				const placed: number[][] = [];
-				env.mutCtx.getBlockElByPath = (path) => (placed.push(path.slice()), lookup(path));
 				const whole = { path: [1], wholeBlock: true as const };
 				env.selection.enterCrossBlock(whole, whole);
 
 				await env.keydown.handleKeyDown(press(key));
 
 				expect(env.source()).toBe('lead\n\ntail\n');
-				expect(placed.at(-1)).toEqual(landsAt);
+				expect(env.landings.at(-1)?.leafPath).toEqual(landsAt);
 			});
 
 			it(`${key} over a whole table lands in block ${landsAt}`, async () => {
