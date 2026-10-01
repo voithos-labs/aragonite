@@ -1,11 +1,12 @@
 /**
- * Maps between a byte offset in a block's `raw` and a caret position in one of its leaves, for a
- * fix-up that tracks the caret through a merge. A container's raw re-prefixes its children's lines
- * (`> `, an item's indent), so the map goes line by line; only a `'strip'` container's is known.
+ * Maps between a byte offset in a block's `raw` and a caret position in one of its leaves, and
+ * finds where a container's marker takes its space. A container's raw re-prefixes its children's
+ * lines (`> `, an item's indent), so the map goes line by line; only a `'strip'` container's is
+ * known.
  */
 
 import type { NodeView } from '../core/node-views';
-import { displayLength, splitLines, type ParsedLine } from '../core/lines';
+import { displayLength, isWhitespaceChar, splitLines, type ParsedLine } from '../core/lines';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 export interface LeafPosition {
@@ -64,6 +65,22 @@ export function rawOffsetOfLeaf(
 		inner += children[i].leadingTrivia.length + children[i].raw.length;
 	inner += children[path[0]].leadingTrivia.length + inChild;
 	return rawOffsetOfBody(node, inner);
+}
+
+// ── Marker space ─────────────────────────────────────────────────────────────
+
+/** Whether a space typed at the start of a child of `container` belongs to its marker: the kind
+ *  declares `contentStartSpace`. */
+export function takesMarkerSpace(container: NodeView): boolean {
+	return tryGetBlockKindDescriptor(container.kind)?.contentStartSpace === 'complete-marker';
+}
+
+/** Where the space that finishes `container`'s marker goes in front of child `index` (`>abc`), or
+ *  null when the kind takes no such space or the marker already ends in whitespace. */
+export function markerSpaceAt(container: NodeView, index: number): number | null {
+	if (!takesMarkerSpace(container)) return null;
+	const at = rawOffsetOfLeaf(container, [index], 0);
+	return at === null || at === 0 || isWhitespaceChar(container.raw[at - 1]) ? null : at;
 }
 
 // ── Line mapping ─────────────────────────────────────────────────────────────
