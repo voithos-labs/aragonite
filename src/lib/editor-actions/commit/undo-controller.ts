@@ -79,6 +79,13 @@ type EntrySelection = UndoEntry['selection'];
 
 // ── Dev invariant scoping (dev-only paths) ────────────────────────────────────
 
+/** What a commit wrote, for the dev checks: `tops` are the top-level blocks holding it, so the
+ *  read-back check never searches the document for them. */
+interface WrittenNodes {
+	nodes: CstNode[];
+	tops: CstNode[];
+}
+
 /** Direct children go along: a container's rebuild concatenates them into its raw. */
 function withDirectChildren(containers: readonly CstNode[]): CstNode[] {
 	const out: CstNode[] = [];
@@ -298,7 +305,7 @@ export function createUndoController(
 		reveal?: RevealPolicy;
 		announce?: CommitAnnouncement;
 		/** A function, since the copied nodes only exist once `mutate` has made them. */
-		touchedNodes: () => CstNode[];
+		written: () => WrittenNodes;
 		/** Restores what `mutate` wrote, the top-level array included. */
 		rollback: () => void;
 		discardIfNoop?: boolean;
@@ -368,11 +375,11 @@ export function createUndoController(
 				rollback.restore();
 				discarded = true;
 			} else if (isDevChecks()) {
-				const touched = args.touchedNodes();
-				assertCommittedNodes(touched, deps.reading.grammar);
+				const written = args.written();
+				assertCommittedNodes(written.nodes, deps.reading.grammar);
 				assertLastLineKept(deps.doc, wasOpen);
-				assertKeepsABlock(deps.doc, touched);
-				assertReadsBack(deps.doc, touched, deps.reading.grammar);
+				assertKeepsABlock(deps.doc, written.nodes);
+				assertReadsBack(written.tops, deps.reading.grammar);
 			}
 			if (!discarded && isDevChecks()) {
 				// A missed copy before write corrupts the newest undo entry, so the commit catches it
@@ -763,27 +770,40 @@ export function createUndoController(
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
-			touchedNodes: () => {
-				const touched: CstNode[] = [];
+			written: () => {
+				const nodes: CstNode[] = [];
+				// A set: a doc scope's caller can name a block the scope's change already placed.
+				const tops = new Set<CstNode>();
 				// Appended one by one, never spread: a giant table's row list outnumbers an argument
 				// list (G4.60).
-				const add = (nodes: readonly CstNode[]) => nodes.forEach((node) => touched.push(node));
+				const add = (into: CstNode[], from: readonly CstNode[]) =>
+					from.forEach((node) => into.push(node));
 				prepared.forEach((p, i) => {
 					if (p.isDoc) {
-						add(
-							writtenTopLevel(p.owned.children!, p.savedChildren ?? [], settled[i], deps.sharing)
+						const placed = writtenTopLevel(
+							p.owned.children!,
+							p.savedChildren ?? [],
+							settled[i],
+							deps.sharing
 						);
 						// The caller's list names nodes from before any merge, so it holds only for `noop`.
-						if (settled[i].op === 'noop') add(args.touchedNodes ?? []);
+						if (settled[i].op === 'noop') add(placed, args.touchedNodes ?? []);
+						add(nodes, placed);
+						placed.forEach((node) => tops.add(node));
 						return;
 					}
 					// A detached scope is outside the tree, and checking it would fire stale-raw on a node
 					// the document does not contain.
-					const attached = attachedChainPrefix(deps.doc, p.chain).length === p.chain.length;
-					if (attached) add(withDirectChildren([p.owned]));
+					const attached = attachedChainPrefix(deps.doc, p.chain);
+					if (attached.length === p.chain.length) add(nodes, withDirectChildren([p.owned]));
+					if (attached.length > 0) tops.add(p.chain[0]);
 				});
-				add(withDirectChildren(reclassified.map((r) => r.replacement)));
-				return touched;
+				add(nodes, withDirectChildren(reclassified.map((r) => r.replacement)));
+				// A chain's top whose kind the rebuild changed sits in the document as its replacement.
+				for (const r of reclassified) {
+					if (prepared.some((p) => p.chain[0] === r.previous)) tops.add(r.replacement);
+				}
+				return { nodes, tops: [...tops] };
 			},
 			rollback: () => {
 				// Collapses unwind first: each restores a whole parent array, which the kind

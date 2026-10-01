@@ -767,13 +767,16 @@ it on every keystroke. Predicate
 
 **G1.55 · A rebuilt container reads back as itself** (`reads-back`). A container rebuild keeps the
 bytes of every line it can, so its bytes are only as right as its reading of each line. After a
-keystroke's rebuild and after every commit, dev parses each top-level container the edit touched,
-on its own, and compares that parse's shape (kinds, child counts, metadata) with the tree's. A
-keystroke that dropped an indented list's leading spaces passed every byte check while the reload
-nested its second item; this is the check that sees it. It skips a container over 16 KB, so typing
-in a giant one costs nothing, and anything the perf instruments time. It also skips a container
-with no bytes at all, which can't read back as anything; that bound hides a bullet whose source a
-range delete emptied, an open defect. Predicate
+keystroke's rebuild and after every commit, dev parses each top-level container the edit wrote in,
+on its own, and compares that parse's shape (kinds, child counts, metadata) with the tree's. The
+edit hands over those containers itself: a keystroke names the top block it typed under, a commit
+the top block of each place it wrote. The check never searches the document for them, so a
+keystroke costs it the same in a 500 KB file as in a short one. A keystroke that dropped an
+indented list's leading spaces passed every byte check while the reload nested its second item;
+this is the check that sees it. It skips a container over 16 KB, so typing in a giant one costs
+nothing, and anything the perf instruments time. It also skips a container with no bytes at all,
+which can't read back as anything; that bound hides a bullet whose source a range delete emptied,
+an open defect. Predicate
 `invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 

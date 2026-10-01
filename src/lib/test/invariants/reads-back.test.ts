@@ -1,10 +1,11 @@
 // G1.55: a rebuilt container whose bytes read back as another tree fails the check, the keystroke
-// and the commit both run it, and a container past its size bound costs it nothing.
+// and the commit both run it on the containers they name, looking inside no other, and a container
+// past its size bound costs it nothing.
 // Miss-analysis: the in-place keystroke ran no read-back check at all, and the commit compares
 // bytes, which a list whose second item a reload nests under the first still passes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import type { CstNode, Document } from '$lib/core/nodes';
 import { documentLineEnding } from '$lib/core/lines';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
@@ -12,11 +13,18 @@ import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { checkReadsBack, READ_BACK_LIMIT, takeReadBackBytes } from '$lib/invariants/reads-back';
+import { installPlugins } from '$lib/schema/plugin-install';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { makeContainerHarness, makeTopHarness } from '../harness/editor-actions';
 
-/** `text` typed at the end of the leaf at `leaf`'s first line, through the keystroke's route. */
 function typeAtEnd(source: string, leaf: number[], text: string) {
 	const h = makeTopHarness(source);
+	typeInto(h, leaf, text);
+	return h.deps.doc;
+}
+
+/** `text` typed at the end of the leaf at `leaf`'s first line, through the keystroke's route. */
+function typeInto(h: ReturnType<typeof makeTopHarness>, leaf: number[], text: string): void {
 	const owner = blockNodeAt(h.deps.doc, leaf.slice(0, -1)) as CstNode;
 	const raw = owner.children![leaf[leaf.length - 1]].raw;
 	const at = raw.search(/\r?\n|$/);
@@ -28,7 +36,22 @@ function typeAtEnd(source: string, leaf: number[], text: string) {
 		'authored'
 	);
 	createLeafTyping(h.deps, h.controller).writeLeafInPlace(docPathFrom(leaf), write, at + 1);
-	return h.deps.doc;
+}
+
+/** Counts every read of a top-level block's children, except the one at `skip`. */
+function countChildReads(doc: Document, skip: number): () => number {
+	let reads = 0;
+	doc.children.forEach((top, i) => {
+		if (i === skip) return;
+		let children = top.children;
+		Object.defineProperty(top, 'children', {
+			get: () => (reads++, children),
+			set: (next) => (children = next),
+			enumerable: true,
+			configurable: true
+		});
+	});
+	return () => reads;
 }
 
 beforeEach(() => {
@@ -68,6 +91,26 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 		await h.bundle.blockEdit.splitBlock(0, 1);
 
 		expect(takeReadBackBytes()).toBe(h.deps.doc.children[1].raw.length);
+	});
+
+	it('reads the new container when a commit changes the kind of the one it wrote in', async () => {
+		installPlugins([admonitionsPlugin()]);
+		const h = makeContainerHarness('> x\n', [0]);
+
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 'authored', 1, 13);
+
+		expect(h.deps.doc.children[0].kind).toBe('githubAlert');
+		expect(takeReadBackBytes()).toBe(h.deps.doc.children[0].raw.length);
+	});
+
+	it('looks inside no container but the one a keystroke rebuilt', () => {
+		const h = makeTopHarness(Array.from({ length: 400 }, (_, i) => `> q${i}\n`).join('\n'));
+		const reads = countChildReads(h.deps.doc, 200);
+
+		typeInto(h, [200, 0], 'Q');
+
+		expect(h.deps.doc.children[200].raw).toBe('> q200Q\n');
+		expect(reads()).toBe(0);
 	});
 
 	it('reads nothing of a container past the bound', () => {
