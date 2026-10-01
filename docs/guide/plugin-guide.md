@@ -1069,7 +1069,7 @@ A container that synthesizes content on copy overrides the baked `clipboard` cel
 
 ## Teaching the parser
 
-The parrot opener at the top of this guide left two numbers unexplained (`priority: 25` and `consumed: 1`), and skipped two questions every real grammar eventually meets: how an opener knows where in the document it is, and how a construct whose lines must sit adjacent ever gets typed. This section is all four.
+The parrot opener at the top of this guide left two numbers unexplained (`priority: 25` and `consumed: 1`), and skipped two questions every real grammar eventually meets: how an opener knows where in the document it is, and how a construct whose lines must sit adjacent ever gets typed. This section is all four, plus the one thing an opener that gives up halfway has to tell the editor.
 
 ### What an opener returns
 
@@ -1117,6 +1117,25 @@ Ties break by kind name, never by registration order. A shared priority is a sme
 **Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It's uninstall-safe by construction, because the built-in opener never left the priority order: remove your plugin and it takes the bytes back unchanged. There's no registry-level override of a built-in's component or descriptor, deliberately. Registries are process-global, so an override would be global and last-writer-wins.
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
+
+### An opener that backs out
+
+Some openers read past their first line looking for something and decline when it isn't there. The `$$` math block hunts down the page for its closing `$$` and gives up without one, so its line ends up a plain paragraph. If yours works like that, say so with `mayBackOut`, a predicate on the line your `tryOpen` starts from:
+
+```ts
+registerBlockOpener(mathBlock, {
+	priority: OPENER_PRIORITIES.fencedCode + 5,
+	interruptsParagraph: (text) => text === '$$',
+	mayBackOut: (text) => text === '$$',
+	tryOpen(ctx) {
+		// scans for the closing `$$`, and returns null when there isn't one
+	}
+});
+```
+
+Here's why the editor cares. Each keystroke checks whether a reload still reads the edited block and its neighbours the way the editor does, and to keep that cheap it reads the block below a join one line deep. That's fine until the block above is a backed-out `$$`, because the line that makes it a math block after all can be anywhere further down. Leave `mayBackOut` out on an opener like that and typing the closing `$$` a few lines below leaves two blocks on screen where a reload shows one. Declaring it costs a full read of the block below, and only when the block above starts on one of your lines.
+
+An opener that reads on and never backs out doesn't need it. A fence left open runs to the end of the document, like the built-in code block, and the one-line read already sees that.
 
 ### Openers and document position
 
