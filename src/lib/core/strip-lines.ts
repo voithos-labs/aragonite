@@ -14,8 +14,8 @@ export interface LinePlace {
 /** A container line read as a body line. */
 export interface BodyLine {
 	text: string;
-	/** The bytes before `text`, or null when they are no spelling to put in front of other text:
-	 *  a strip that cut through a tab, or a marker still waiting for its space. */
+	/** The bytes before `text`, or null when the strip cut through a tab, so that no bytes of the
+	 *  line stand in front of the text as they are. */
 	prefix: string | null;
 	/** The line has no prefix, so it reads in the body only as a paragraph's continuation. */
 	lazy: boolean;

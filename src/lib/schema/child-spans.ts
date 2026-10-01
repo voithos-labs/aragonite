@@ -19,6 +19,13 @@ export interface ChildRawChange {
 	previousRaw: string;
 }
 
+/** The space a container's marker lacks, written into its own bytes at `at`, the start of the
+ *  child behind the marker; the next rebuild keeps the line as written. */
+export function writeMarkerSpace(container: CstNode, at: number): void {
+	container.raw = container.raw.slice(0, at) + ' ' + container.raw.slice(at);
+	dropChildSpans(container);
+}
+
 /** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
 	// Checked before writing: an unconditional write would add the field to every node passed in.

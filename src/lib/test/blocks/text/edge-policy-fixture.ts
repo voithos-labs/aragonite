@@ -28,6 +28,8 @@ export interface EdgeDispatchHarness {
 	dispatch: ReturnType<typeof createEdgePolicyDispatch>;
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
 	edits: EditTuple[];
+	/** The block each container-marker write was asked for, newest last. */
+	markerWrites: CstNode[];
 }
 
 /** What the block's surface write goes through, for a case that watches the list or the caret. */
@@ -47,6 +49,7 @@ export function makeEdgeDispatch(
 ): EdgeDispatchHarness {
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
+	const markerWrites: CstNode[] = [];
 	// The block records the caret a key was dispatched at, which every write it makes anchors on.
 	let keyCaret = 0;
 	const blockEdit: BlockEditActions = {
@@ -91,6 +94,7 @@ export function makeEdgeDispatch(
 			getPreEditOffset: () => keyCaret,
 			requestCaret
 		}),
+		completeMarker: () => markerWrites.push(readNode()),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
@@ -106,7 +110,7 @@ export function makeEdgeDispatch(
 		keyCaret = deps.getRawSelection()?.start ?? caret ?? 0;
 		return dispatch.handleKeydown(e, caret);
 	};
-	return { dispatch, handleKeydown, edits };
+	return { dispatch, handleKeydown, edits, markerWrites };
 }
 
 // ── DOM scaffolding ──────────────────────────────────────────────────────────

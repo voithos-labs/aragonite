@@ -83,6 +83,9 @@ export interface EdgePolicyDispatchDeps {
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	/** The block's one write to its own text, which anchors undo and puts the caret back. */
 	writeText: (write: TextWrite) => ContentWrite;
+	/** Write the space that finishes the container's marker in front of this block, as one write
+	 *  of the container's own line; absent where no such container holds the block (a cell). */
+	completeMarker?: () => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -579,13 +582,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Container marker completion ────────────────────────────────────────────
 
 	/** A bare space at a child's content start, while its container's marker lacks its space, is
-	 *  consumed once: the line's next rewrite writes it as the marker's, so writing it here doubles it. */
+	 *  the marker's, once: written into the container's line, or left for an empty line's text. */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
 		if (!bareSpace || caretOffset === null || heldRange()) return false;
 		const { node, containerParent, index } = deps;
-		if (!markerCompletion.claimSpace(node, containerParent, index, caretOffset)) return false;
+		const claim = markerCompletion.claimSpace(node, containerParent, index, caretOffset);
+		if (claim === null) return false;
 		e.preventDefault();
+		if (claim === 'bare-marker') deps.completeMarker?.();
 		return true;
 	}
 

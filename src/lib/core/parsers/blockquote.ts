@@ -28,11 +28,7 @@ export const quoteLines: LineCodec = {
 		if (prefix === undefined) {
 			return place.first || isBlankLine(line) ? null : { text: line, prefix: '', lazy: true };
 		}
-		const text = line.slice(prefix.length);
-		// A `>` with nothing between it and the text is a marker the user may still be finishing
-		// (`contentStartSpace`), so a rewritten line takes the marker's space.
-		const waiting = prefix.endsWith('>') && text !== '' && !text.startsWith('>');
-		return { text, prefix: waiting ? null : prefix, lazy: false };
+		return { text: line.slice(prefix.length), prefix, lazy: false };
 	},
 	write: (text) => (text === '' ? '>' : '> ' + text),
 	continuesLazily: (above, line) =>

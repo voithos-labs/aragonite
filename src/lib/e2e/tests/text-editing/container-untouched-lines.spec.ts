@@ -26,6 +26,20 @@ test.describe('text editing, an edit inside a quote or list leaves its other lin
 			expect(await editor.parseConverged()).toBe(true);
 		});
 
+		test(`typing on a line after a bare marker keeps the marker bare (${mode})`, async ({
+			page
+		}) => {
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('>a\n');
+			await editor.clickBlockAtPath([0, 0], 0);
+			await page.keyboard.press('End');
+
+			await page.keyboard.type('Q');
+
+			await expect.poll(() => editor.bridge.getSource()).toBe('>aQ\n');
+			expect(await editor.parseConverged()).toBe(true);
+		});
+
 		test(`Enter in a list item keeps the tab of a line it moves (${mode})`, async ({ page }) => {
 			await editor.setPresentationMode(mode);
 			await editor.loadContent('- ab\n\n\tc\n');

@@ -44,11 +44,13 @@ interface Row {
 	after: string;
 }
 
-/** `text` typed into the leaf at `leaf` at display offset `at`, through the keystroke's route. */
-async function typeInPlace(source: string, leaf: number[], at: number, text: string) {
+/** `text` typed into the leaf at `leaf` at display offset `offset` (-1 for its end), through the
+ *  keystroke's route. */
+async function typeInPlace(source: string, leaf: number[], offset: number, text: string) {
 	const h = makeTopHarness(source);
 	const owner = blockNodeAt(h.deps.doc, leaf.slice(0, -1)) as CstNode;
 	const raw = owner.children![leaf[leaf.length - 1]].raw;
+	const at = offset < 0 ? displayLength(raw) : offset;
 	const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
 	const write = legalizeWrite(
 		body,
@@ -130,11 +132,37 @@ const ROWS: Row[] = [
 		gesture: { type: [[0, 0, 0], 1, 'Q'] },
 		after: '> > aQ\n>b\n'
 	},
+	// Miss-analysis: every typed quote row had a space after its marker, so a rule respelling the
+	// line typed on after a bare `>` passed them all.
 	{
-		name: 'a line typed after a marker with no space takes the space',
-		source: '>abcdef\n',
-		gesture: { type: [[0, 0], 0, 'Q'] },
-		after: '> Qabcdef\n'
+		name: 'a line typed on after a bare marker keeps it',
+		source: '>a\n',
+		gesture: { type: [[0, 0], 1, 'Q'] },
+		after: '>aQ\n'
+	},
+	{
+		name: 'an indented bare marker keeps its indent',
+		source: '  >a\n',
+		gesture: { type: [[0, 0], 1, 'Q'] },
+		after: '  >aQ\n'
+	},
+	{
+		name: 'a nested quote of bare markers keeps them',
+		source: '>>a\n',
+		gesture: { type: [[0, 0, 0], 1, 'Q'] },
+		after: '>>aQ\n'
+	},
+	{
+		name: 'a lazy-continued line behind a bare marker keeps it',
+		source: '> > a\n>b\n',
+		gesture: { type: [[0, 0, 0], -1, 'Q'] },
+		after: '> > a\n>bQ\n'
+	},
+	{
+		name: 'a bare marker inside a list item keeps it',
+		source: '- >a\n',
+		gesture: { type: [[0, 0, 0, 0], 1, 'Q'] },
+		after: '- >aQ\n'
 	},
 	{
 		name: 'an empty quote line gaining text takes the marker’s space',
@@ -186,6 +214,25 @@ describe('an edit inside a quote or list item keeps its untouched lines', () => 
 			expect(describeConvergence(doc)).toBeNull();
 		});
 	}
+});
+
+// Miss-analysis: the press wrote nothing and a rule respelled the line's next rewrite, so no test
+// held the press to a write of its own.
+describe('the space that finishes a bare `>`', () => {
+	it('is written into the quote’s line as one undo entry, and the next key lands after it', async () => {
+		const h = makeContainerHarness('>abcdef\n', [0]);
+
+		expect(await h.bundle.blockEdit.completeMarker(0)).toBe(true);
+		expect(serialize(h.deps.doc)).toBe('> abcdef\n');
+		expect(h.deps.undoManager.getStacks().undo).toHaveLength(1);
+
+		const owner = h.deps.doc.children[0];
+		const body = { children: owner.children!, owner, lineEnding: '\n' as const };
+		const write = legalizeWrite(body, 0, 'Qabcdef\n', 'authored');
+		createLeafTyping(h.deps, h.controller).writeLeafInPlace(docPathFrom([0, 0]), write, 1);
+		expect(serialize(h.deps.doc)).toBe('> Qabcdef\n');
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+	});
 });
 
 describe('a container built from another keeps its source’s bytes', () => {

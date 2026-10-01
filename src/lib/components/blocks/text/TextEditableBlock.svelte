@@ -347,6 +347,7 @@
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		writeText,
+		completeMarker: () => void blockEdit.completeMarker(index),
 		setSnapTarget: (offset) => {
 			armSnapTarget(offset);
 		},
