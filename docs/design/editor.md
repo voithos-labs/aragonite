@@ -453,7 +453,7 @@ Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a 
 A write that keeps its block's kind still asks the join below it whenever there's a block down there, blank line or not. An HTML comment, `<pre>`, `<?` or `<![CDATA[` block reads on until its closer, blank lines included, so breaking `-->` with one Backspace makes the comment swallow the paragraph two lines down. The join above is asked only when:
 
 - the block sits right under its neighbour. A flush pair can move without either kind changing: retype a `<div>` under a paragraph as `<span>` and the two read as one paragraph (only some tags can cut a paragraph off), close a `"` under a link definition and the paragraph becomes its title. A first child has nothing above it inside its container, so that side doesn't count;
-- the block above starts with a construct that read on and backed out, like a lone `$$` that never found its closing `$$` and became a paragraph. Type that `$$` into a block a blank line further down and the two become one math block, blank line and all;
+- the block above's reading isn't final yet, like a lone `$$` that never found its closing `$$` and became a paragraph. Type that `$$` into a block a blank line further down and the two become one math block, blank line and all;
 - the write changes the first line's indent, which alone decides whether a list item above takes the block in;
 - a blank line stays blank.
 

@@ -1118,22 +1118,28 @@ Ties break by kind name, never by registration order. A shared priority is a sme
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 
-### An opener that backs out
+### A reading that isn't final
 
-Some openers read past their first line looking for something and decline when it isn't there. The `$$` math block hunts down the page for its closing `$$` and gives up without one, so its line ends up a plain paragraph. If yours works like that, say so with `mayBackOut`, a predicate on the line your `tryOpen` starts from:
+Some openers read past their first line looking for something and decline when it isn't there. The `$$` math block hunts down the page for its closing `$$` and gives up without one, so its line ends up a plain paragraph, which a `$$` typed further down can still turn into math. If yours works like that, give it `readingNotFinal`. It gets a block's own bytes and answers one question: is my reading of these bytes final, or could more lines below change it?
 
 ```ts
 registerBlockOpener(mathBlock, {
 	priority: OPENER_PRIORITIES.fencedCode + 5,
 	interruptsParagraph: (text) => text === '$$',
-	mayBackOut: (text) => text === '$$',
+	// A lone `$$` with no closing `$$` under it is still waiting
+	readingNotFinal: (raw) => {
+		const [first, ...rest] = displayLines(raw);
+		return first.text === '$$' && !rest.some((line) => line.text === '$$');
+	},
 	tryOpen(ctx) {
 		// scans for the closing `$$`, and returns null when there isn't one
 	}
 });
 ```
 
-Here's why the editor cares. Each keystroke checks whether a reload still reads the edited block and its neighbours the way the editor does, and to keep that cheap it reads the block below a join one line deep. That's fine until the block above is a backed-out `$$`, because the line that makes it a math block after all can be anywhere further down. Leave `mayBackOut` out on an opener like that and typing the closing `$$` a few lines below leaves two blocks on screen where a reload shows one. Declaring it costs a full read of the block below, and only when the block above starts on one of your lines.
+Here's why the editor cares. Each keystroke checks whether a reload still reads the edited block and its neighbours the way the editor does, and to keep that cheap it reads the block below a join one line deep. That's fine until the block above is a `$$` still waiting, because the line that makes it a math block after all can be anywhere further down. Leave `readingNotFinal` out on an opener like that and typing the closing `$$` a few lines below leaves two blocks on screen where a reload shows one.
+
+Answer true only while the reading really isn't final. A closed `$$` block is done, and so is any block whose first line isn't yours, so check the first line before scanning the rest (a string scan, never a parse). Every true costs a full read on both sides of the join, the block below and the block above, across blank lines too.
 
 An opener that reads on and never backs out doesn't need it. A fence left open runs to the end of the document, like the built-in code block, and the one-line read already sees that.
 
