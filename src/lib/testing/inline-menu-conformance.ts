@@ -5,6 +5,7 @@
  */
 
 import { parse } from '../core/parser';
+import type { DocumentView } from '../core/node-views';
 import { createDraftRegistry } from '../components/draft-registry';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { openPick } from '../inline-menu/pick-context';
@@ -23,12 +24,13 @@ export interface InlineMenuCommitCase {
 }
 
 /** Picks `item`, swaps the document while the commit waits, releases it, and throws if the commit
- *  wrote anything after the swap: a source must write through the context `onCommit` hands it. */
+ *  wrote anything after the swap, through the context `onCommit` hands it or its own. */
 export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): Promise<void> {
 	const writes: string[] = [];
 	const stamps = createDocumentStamps();
 	const drafts = createDraftRegistry(stamps);
-	const editor = recordingContext(writes, drafts.open);
+	const host = { generation: 0, document: parse('\n') };
+	const editor = recordingContext(writes, drafts.open, host);
 	const source = c.source(editor);
 	const query = c.query ?? '';
 	const range = { query, path: [0], start: 0, end: source.trigger.length + query.length };
@@ -36,6 +38,9 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 	const committed = source.onCommit?.(c.item, range, pick.editor);
 	stamps.retire();
 	drafts.closeAll('document-swap');
+	// What a real swap changes, so a source that compares the generation across its wait sees it.
+	host.generation++;
+	host.document = parse('another note\n');
 	const before = writes.length;
 	c.release();
 	try {
@@ -47,20 +52,29 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 	if (late.length > 0) {
 		throw new Error(
 			`inline-menu source '${source.name}': its commit wrote ${late.join(', ')} after the host ` +
-				`loaded another document; write through the context onCommit hands you, not onEditor's`
+				`loaded another document; write through the context onCommit hands you, or compare ` +
+				`documentGeneration across the wait`
 		);
 	}
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** An editor context that records each write; the rest answers as an empty editor would. */
-function recordingContext(writes: string[], openDraft: EditorContext['openDraft']): EditorContext {
-	const document = parse('\n');
+/** An editor context that records each write and reads `host` live; the rest answers as an empty
+ *  editor would. */
+function recordingContext(
+	writes: string[],
+	openDraft: EditorContext['openDraft'],
+	host: { generation: number; document: DocumentView }
+): EditorContext {
 	return {
 		editorId: 'inline-menu-conformance',
-		document,
-		documentGeneration: 0,
+		get document() {
+			return host.document;
+		},
+		get documentGeneration() {
+			return host.generation;
+		},
 		events: { on: () => () => {} },
 		options: undefined,
 		decorations: { addSource: () => ({ invalidate() {}, dispose() {} }) },

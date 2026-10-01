@@ -28,7 +28,25 @@ describe('checkInlineMenuCommitAcrossSwap', () => {
 		});
 	});
 
-	it('fails a source whose waiting commit writes through its onEditor context', async () => {
+	it('passes a source that writes through its onEditor context only if the note is unchanged', async () => {
+		const gate = held();
+		await checkInlineMenuCommitAcrossSwap({
+			source: (editor) => ({
+				name: 'guarded',
+				trigger: '@',
+				items: () => [],
+				onCommit: async () => {
+					const generation = editor.documentGeneration;
+					await gate.wait;
+					if (editor.documentGeneration === generation) await editor.insertMarkdown('> card');
+				}
+			}),
+			item: { id: 'a', label: 'A', insert: '' },
+			release: gate.release
+		});
+	});
+
+	it('fails a source whose waiting commit writes through its onEditor context unguarded', async () => {
 		const gate = held();
 		await expect(
 			checkInlineMenuCommitAcrossSwap({
