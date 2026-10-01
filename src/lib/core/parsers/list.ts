@@ -7,7 +7,7 @@
 import type { CstNode } from '../nodes';
 import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
-import { INNER_LINE, opensOuterBlock, type LineCodec, type LinePlace } from '../strip-lines';
+import { FIRST_LINE, INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
 import {
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
@@ -56,8 +56,6 @@ export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: 
 	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 
-const FIRST_LINE: LinePlace = { first: true, trailingBlank: false };
-
 /** What a list item's lines are written under, all of it read off the item's first line. */
 export interface ItemLineShape {
 	/** The up to three spaces before the marker. */
@@ -93,7 +91,9 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 			}
 			const text = stripIndentColumns(line, column);
 			if (indentColumns(line) >= column) {
-				const prefix = line.endsWith(text) ? line.slice(0, line.length - text.length) : null;
+				const cut = line.length - text.length;
+				// Compared as a slice: V8's `endsWith` steps through the text a character at a time.
+				const prefix = cut >= 0 && line.slice(cut) === text ? line.slice(0, cut) : null;
 				return { text, prefix, lazy: false };
 			}
 			// Below the content column a blank line still separates, but can't end the body.

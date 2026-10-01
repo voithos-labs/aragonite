@@ -34,6 +34,9 @@ export interface LineCodec {
 /** A line read anywhere but a body's opening or blank-tail line. */
 export const INNER_LINE: LinePlace = { first: false, trailingBlank: false };
 
+/** A body's opening line. */
+export const FIRST_LINE: LinePlace = { first: true, trailingBlank: false };
+
 /** Whether `line` opens a block at the outer level under every installed plugin, which ends a
  *  lazy continuation. */
 export function opensOuterBlock(line: string): boolean {

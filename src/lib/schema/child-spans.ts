@@ -11,7 +11,13 @@ import { assertInvariant } from '../assert';
 import { perfEnabled, recordStripLinesRead } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
 import { isBlankLine, isBlankText, splitLines } from '../core/lines';
-import type { LineCodec, LinePlace } from '../core/strip-lines';
+import {
+	FIRST_LINE,
+	INNER_LINE,
+	type BodyLine,
+	type LineCodec,
+	type LinePlace
+} from '../core/strip-lines';
 
 /** The child a rebuild is re-rendering, and the bytes its region currently holds. */
 export interface ChildRawChange {
@@ -150,11 +156,16 @@ interface BodyLineOut {
 	place: LinePlace;
 }
 
-/** A line of the container's previous bytes, and the body line it held. */
+/** A line of the container's previous bytes, and the body line it held where it was read. */
 interface OldLine {
 	text: string;
 	ending: string;
-	body: ReturnType<LineCodec['read']>;
+	/** `text` and `ending` together. */
+	raw: string;
+	/** The syntax and place the line was read under. */
+	codec: LineCodec;
+	place: LinePlace;
+	body: BodyLine | null;
 }
 
 interface ChildAt {
@@ -199,13 +210,17 @@ function pushLines(
 }
 
 function readOldLines(raw: string, codec: LineCodec, opensContainer: boolean): OldLine[] {
-	const lines = splitLines(raw);
-	if (perfEnabled()) recordStripLinesRead(lines.length);
-	return lines.map((line, i) => ({
-		text: line.text,
-		ending: line.lineEnding,
-		body: codec.read(line.text, { first: opensContainer && i === 0, trailingBlank: false })
-	}));
+	return splitLines(raw).map((line, i) => {
+		const place = opensContainer && i === 0 ? FIRST_LINE : INNER_LINE;
+		const body = readLine(codec, line.text, place);
+		return { text: line.text, ending: line.lineEnding, raw: line.raw, codec, place, body };
+	});
+}
+
+/** One container line read through its syntax, counted under the perf instruments. */
+function readLine(codec: LineCodec, line: string, place: LinePlace): BodyLine | null {
+	if (perfEnabled()) recordStripLinesRead(1);
+	return codec.read(line, place);
 }
 
 /** `fresh` written over `old`, lines with equal text paired from the top, then the bottom, the
@@ -244,19 +259,33 @@ function writeLines(
 		const place: LinePlace =
 			trailingBlank && heldBelow ? { ...line.place, trailingBlank: false } : line.place;
 		const i = pairOf(j);
-		const above = j > 0 ? fresh[j - 1].text : null;
+		const paired = i >= 0 ? old[i] : null;
+		// A head or tail pair already reads as this line where it was read, so unless lazy it
+		// keeps its bytes without a second reading.
+		if (
+			paired !== null &&
+			(j < head || j >= fresh.length - tail) &&
+			!paired.body!.lazy &&
+			readsAsBefore(paired, lines, place)
+		) {
+			written[j] = paired.raw;
+			if (trailingBlank && !heldBelow)
+				heldBelow = readLine(lines, paired.text, line.place) !== null;
+			continue;
+		}
 		// A lazy line continues whatever paragraph the line above leaves open, so it is asked again
 		// only when that line changed.
+		const above = j > 0 ? fresh[j - 1].text : null;
 		const continues = (lazyLine: string) =>
 			above !== null &&
 			((i > 0 && old[i - 1].body?.text === above && old[i].text === lazyLine) ||
 				lines.continuesLazily(above, lazyLine, fresh[j - 1].place.first));
 		const bytes: string =
-			(i >= 0 ? kept(old[i], line, place, lines, continues, reread) : null) ??
+			(paired !== null ? kept(paired, line, place, lines, continues, reread) : null) ??
 			lines.write(line.text, line.place) + line.ending;
 		written[j] = bytes;
 		const text: string = bytes.slice(0, bytes.length - line.ending.length);
-		if (trailingBlank && !heldBelow) heldBelow = lines.read(text, line.place) !== null;
+		if (trailingBlank && !heldBelow) heldBelow = readLine(lines, text, line.place) !== null;
 	}
 	const offsets: number[] = [];
 	let out = '';
@@ -280,11 +309,15 @@ function kept(
 ): string | null {
 	const body = old.body;
 	if (body === null) return null;
-	if (body.text === line.text && old.ending === line.ending && readsAs(old.text, body.lazy)) {
+	if (
+		body.text === line.text &&
+		old.ending === line.ending &&
+		(readsAsBefore(old, lines, place) || readsAs(old.text, body.lazy))
+	) {
 		// A lazy line the edit didn't touch keeps its bytes even once it stops continuing, and the
 		// tree then takes the reading a reload gives them.
 		if (body.lazy && !continues(old.text)) reread();
-		return old.text + old.ending;
+		return old.raw;
 	}
 	// A blank line is spelled the container's way, so a prefix passes only between text lines.
 	if (body.prefix === null || isBlankLine(body.text) || isBlankLine(line.text)) return null;
@@ -294,9 +327,18 @@ function kept(
 		: null;
 
 	function readsAs(bytes: string, lazy: boolean): boolean {
-		const read = lines.read(bytes, place);
+		const read = readLine(lines, bytes, place);
 		return read !== null && read.text === line.text && read.lazy === lazy;
 	}
+}
+
+/** Whether reading `old` under `codec` at `place` repeats the reading it was taken with. */
+function readsAsBefore(old: OldLine, codec: LineCodec, place: LinePlace): boolean {
+	return (
+		old.codec === codec &&
+		old.place.first === place.first &&
+		old.place.trailingBlank === place.trailingBlank
+	);
 }
 
 // ── The splice ───────────────────────────────────────────────────────────────
