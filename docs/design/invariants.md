@@ -263,6 +263,7 @@ Three families of seam run these checks:
 | G1.47 | A windowed child measures into its own block list                                          | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document             | A·N     |
 | G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | —       |
+| G1.54 | A commit's mutation leaves the tree's own top-level array as it found it                   | A·N     |
 
 ### The entries
 
@@ -351,10 +352,11 @@ wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), e
 `error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production.
 
 Every commit keeps the tree intact the same way. It holds on to the top-level array it started from,
-and a throw puts that one back. A `commitMultiScope` swaps a fresh array in before its mutation
-runs, since a container's copies land in the live tree (a scope view is a window onto live nodes).
-`commitStructural` hands its mutation a plain copy instead, which goes live when the scope
-publishes. Copy-path-on-write means the old array still reaches an intact tree
+and a throw puts that one back. A commit over the document hands its mutation a plain copy of that
+array, which goes live when the scope publishes; its container scopes copy their ancestors into
+the tree's own array first, so the copy holds them, and a throw puts back the slots they took. A
+commit over containers alone swaps a fresh array in before its mutation runs, since a container's
+copies land in the live tree (a scope view is a window onto live nodes). Copy-path-on-write means the old array still reaches an intact tree
 at every depth, so every copy the mutation dirtied goes out with the new one. That old array is
 the whole rollback of a commit over the document, so one saves no block's bytes, however long the
 document is.
@@ -362,8 +364,8 @@ document is.
 The array swap alone can't reach a container commit that joins an open undo step when its scope
 node was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the
 mutation's structural splice lands in place on a node the pre-mutation array still references.
-That's reachable through cross-block paste, whose delete and paste are two structural commits in one
-step. The commit closes it by also capturing each prepared container scope's pre-mutate
+That's reachable through a paste or a character typed over a cross-block range, whose removal and
+insert are two structural commits in one step. The commit closes it by also capturing each prepared container scope's pre-mutate
 children/childIds arrays and reinstating them on throw.
 
 One residual is open by design. The frame's byte registers reach each container scope's spine and
@@ -763,6 +765,17 @@ it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
 
+**G1.54 · The tree's top-level array comes back untouched** (`top-level-untouched`). A commit with
+the document among its scopes hands its mutation a plain copy of the top-level array and installs
+that copy once it publishes, since splicing the tree's own array pays a tracked write for every
+block it shifts. A mutation that writes the tree instead (the live document rather than its scope
+view) has its splice thrown away at the publish, so in a dev build the commit compares the tree's
+array with what it held before the mutation ran, and fails here if it was replaced or written. It
+skips that while the perf instruments are armed. Predicate
+`invariants/top-level-untouched.ts :: checkTopLevelUntouched` · run by
+`editor-actions/commit/undo-controller.ts` · `test/invariants/top-level-untouched.test.ts`,
+`test/perf/top-level-splice-writes.test.ts`.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1079,6 +1092,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
 | G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
+| G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
 
 ### The entries
 
@@ -1943,8 +1957,7 @@ element into view on its own, a scroll writer G4.87 can't see. So a caret's focu
 `focus()` with no arguments, or with options that leave out `preventScroll`; a block component's
 `focus(offset)` takes a number and doesn't count. Every file it flags is declared with its reason,
 among them a click that reveals a widget's source, an arrow arriving on a gap caret, a menu or
-popout moving focus among its own controls, and `focusCollapsedCaret`, which the cross-block
-delete, typing and paste lean on until they land through the caret landing. The manifest is per
+popout moving focus among its own controls. The manifest is per
 file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
 
@@ -2068,6 +2081,14 @@ is no change (G1.52 has the text it's compared with), so `loadContent(await getS
 nothing, and whatever the spec checks next passes against the document it never reloaded.
 `e2e/editor-page.ts :: reloadContent` empties the document first. `lint/suite-file-rules.test.ts`
 fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under `src/lib/e2e/`.
+
+**G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut,
+typing, an IME composition, paste and a command key over a cross-block range all go through
+`selection/cross-block/range-replace.ts :: replaceRange`, which picks the removal from what the range
+covers and keeps the gesture one undo entry with one caret landing. A route that called `rangeDelete`
+or `removeHeldWhole` itself, or opened its own `undoStep` under `selection/cross-block/`, would skip
+the pick, the entry or the landing, so the scan allows those calls in the range replace only (the
+range delete's own files aside). `lint/file-rules.test.ts`.
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for

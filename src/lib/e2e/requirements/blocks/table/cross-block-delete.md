@@ -35,7 +35,7 @@ all of them flag the table endpoints as cell coordinates.
 
 ## Coverage-driven intra-table delete
 
-Intra-table Backspace dispatches by what the selection covers:
+Backspace, Delete and cut over cells of one table go by what the selection covers:
 
 - Whole-table coverage (every cell selected, by a second Ctrl+A press, say): delete the table block. When
   the table is the document's only block, the commit leaves an empty paragraph in its place (every

@@ -1,7 +1,7 @@
 # Feature: cross-block delete, BlockListState consistency (0.5.5.3 regression guard)
 
 Regression guard for the 0.5.5.3 multi-scope commit rework. The defect:
-`performCrossBlockDelete` synced only the top-level doc's
+the cross-block delete synced only the top-level doc's
 `innerBlockIds`/`innerBlockRefs` after a range delete, so when the delete
 reached into a nested container, that container's registered `BlockListState`
 still held the ids and refs from the children array before the delete. The

@@ -3,7 +3,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { SimContext } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
+import { attachIme } from '../../simulation/ime';
 import {
+	composeOverSelection,
 	cutSelection,
 	deleteSelection,
 	extendSelectionAcross,
@@ -95,6 +97,23 @@ test.describe('sim gesture reachability: cross-block', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('pha');
 		expect(source).toContain('Z');
+	});
+
+	test('a composition over the range replaces the covered content in one undo entry', async ({
+		page
+	}) => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		await editor.focusBlockAtPath([0], 2);
+		const ctx = await makeSimContext(page, editor, 'reach', { ime: await attachIme(page) });
+		// By keyboard, so the caret stays in the first block, the one the removal keeps.
+		await extendSelectionAcross(ctx, 'down');
+		await composeOverSelection(ctx, 'かん');
+		await editor.bridge.waitForSourceContains('かん');
+		const source = await editor.bridge.getSource();
+		expect(source).not.toContain('pha');
+		expect(source).toContain('かん');
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('alpha\n\nbeta\n');
 	});
 
 	test('paste-over replaces the covered content with the clipboard', async ({ page }) => {
