@@ -860,7 +860,8 @@ declarations still apply), the park verb's caller allowlist (legitimacy is the c
 no position test separates the uses), and the park verb's presence on every LEAF that forwards a
 shared caret seam (the method is optional on the contract, so a missing forward type-checks).
 Containers left that class: each publishes its whole surface as one `containerApi` instance export,
-so the scan asserts that publication instead of a per-member pairing. Behavioral complement: the
+so the scan asserts that publication instead of a per-member pairing. A leaf built on
+`createEditableLeaf` left it too, through its `blockApi`. Behavioral complement: the
 simulation's range-interrupt family drives the same precondition through real gestures.
 `lint/caret-gesture-range-reset.test.ts`, plus
 `src/lib/e2e/tests/simulation/range-interrupt-ops.spec.ts` (outside this group's root).
@@ -912,7 +913,7 @@ Each entry says what the type retired, since that list is the receipts.
 | ID    | What no longer compiles                                                           | Codes |
 | ----- | --------------------------------------------------------------------------------- | ----- |
 | G3.1  | An untyped metadata access (`as` cast) on a block node                            | T     |
-| G3.2  | A component publishing anything but the two sanctioned export shapes              | T     |
+| G3.2  | A component publishing anything but the three sanctioned export shapes            | T     |
 | G3.3  | A cell selection point where a character point belongs, or the reverse            | T     |
 | G3.4  | A magic number standing in for "end of block"                                     | T     |
 | G3.5  | A container without a declared contract                                           | T     |
@@ -927,10 +928,11 @@ Each entry says what the type retired, since that list is the receipts.
 **G3.1 · Typed per-kind metadata.** `BlockMetadataByKind` plus `metadataOf<K>`. Retired: `as`
 metadata casts.
 
-**G3.2 · Sanctioned component exports.** `defineBlockComponent`, whose exports parameter is the two
-sanctioned publication shapes (`BlockComponentExports`): a leaf's own surface, or a container's
-single `containerApi`. Retired: `as unknown as` casts, and a container that publishes no surface at
-all.
+**G3.2 · Sanctioned component exports.** `defineBlockComponent`, whose exports parameter is the
+three sanctioned publication shapes (`BlockComponentExports`): a built-in leaf's own surface, a
+factory-built leaf's single `blockApi`, or a container's single `containerApi`. Retired: `as unknown
+as` casts, a container that publishes no surface at all, and a factory-built leaf copying its
+members out by hand (G4.73), since `EditableLeaf` carries them only inside `blockApi`.
 
 **G3.3 · Discriminated selection points.** `SelectionPoint` is a discriminated union
 (`CharSelectionPoint | CellSelectionPoint`) on `cellCoordinate`: a cell point needs the literal
@@ -1077,7 +1079,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.70  | A decoration can't set a data attribute the editor uses on a block's own element          | L       |
 | G4.71  | An emptiness test on text reads GFM's blank, not `String.trim()`                          | L       |
 | G4.72  | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`                      | L       |
-| G4.73  | Every editable-leaf component publishes `afterSourceCommit`                               | L       |
+| G4.73  | _Retired upward_: a factory-built leaf publishes its whole surface as one `blockApi`      | T       |
 | G4.74  | Only the commit's open-tail steps write the document's last line ending                   | L       |
 | G4.75  | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
 | G4.76  | Every join into a leaf, and every other text built from two sources, is declared          | L       |
@@ -1461,13 +1463,15 @@ would paint a marker-only block as an empty line nobody can reach. Both lists ar
 files naming a renderer that mounts nothing carry a per-file reason.
 `lint/manifest-rules.test.ts`.
 
-**G4.38 · Insertion surface parity.** Every component mounting an editable surface
-(`createEditableSurface`, `createEditableLeaf`) publishes `insertMarkdown` through the channel its
-own mount reads: an instance export, or the surface literal it hands `publishRefSlot` where nothing
-binds to the instance. The shared clipboard skeleton builds the method for all of them, but Svelte 5
+**G4.38 · Insertion surface parity.** Every component mounting the text surface
+(`createEditableSurface`) publishes `insertMarkdown` through the channel its own mount reads: an
+instance export, or the surface literal it hands `publishRefSlot` where nothing binds to the
+instance. The shared clipboard skeleton builds the method for all of them, but Svelte 5
 instance exports have no spread and `BlockComponent` declares the method optional, so the last hop
 is hand-written per component. Surface N+1 would compile clean and silently decline every
-`editor.insertMarkdown()` on its blocks. `lint/insert-door-surface-parity.test.ts`.
+`editor.insertMarkdown()` on its blocks. A leaf built on `createEditableLeaf` is outside the scan:
+it publishes the factory's `blockApi`, whose type requires the method.
+`lint/insert-door-surface-parity.test.ts`.
 
 **G4.39 · Command surface parity.** Every component mounting the text surface
 (`createEditableSurface`) publishes `runCommand` as an instance export, since that's where the
@@ -1786,13 +1790,11 @@ isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX erro
 with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
 emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
 
-**G4.73 · Leaf source-commit parity.** Every component mounting an editable leaf
-(`createEditableLeaf`) publishes `afterSourceCommit` as an instance export. A render-primary leaf
-holds an open source's edit in the DOM until blur. A move chord gets the hook from the leaf itself,
-but a host's `editor.runCommand('block.moveDown')` reaches the component, so it waits on the export
-to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
-and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
-the plugin guide. `lint/file-rules.test.ts`.
+**G4.73 · Retired upward.** The rule was: every component mounting an editable leaf
+(`createEditableLeaf`) publishes `afterSourceCommit`, or a host's
+`editor.runCommand('block.moveDown')` moves the block with its open source unwritten. The leaf now hands its block methods over only as
+one `blockApi` object, typed to carry every member the factory implements, and the component
+exports that object, so the scan is deleted. Superseded by G3.2.
 
 **G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
 block's last line, down through every container holding that line, is private to
