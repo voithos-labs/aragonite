@@ -263,6 +263,7 @@ Three families of seam run these checks:
 | G1.47 | A windowed child measures into its own block list                                          | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document             | A·N     |
 | G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | —       |
+| G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
 
 ### The entries
 
@@ -629,8 +630,9 @@ one never reads them. Predicate `checkDescriptorFieldCoherence` (`registry.ts`) 
 
 **G1.38 · Faithful container splices.** After every one-region splice, dev re-derives the whole
 container raw on a scratch node and refuses the splice on any difference: the node takes the full
-rebuild instead, and the guard names the kind. The region check inside the splice reads the NAMED
-child only, and the bytes a container holds beside it move for reasons no hint carries (a sibling
+rebuild instead, and the guard names the kind. The full rebuild pairs its lines with the spliced
+bytes, so over a faithful splice it writes them back unchanged. The region check inside the splice
+reads the NAMED child only, and the bytes a container holds beside it move for reasons no hint carries (a sibling
 separating line a settle retires, a wrap slot it borrows). Those seams retire the spans themselves
 (`schema/child-spans.ts`); this is the backstop under them, and the only guard that sees a stale
 container raw living BETWEEN commits, where G1.1 never runs. Dev pays one re-derive per spliced
@@ -763,29 +765,40 @@ it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
 
+**G1.55 · A rebuilt container reads back as itself** (`reads-back`). A container rebuild keeps the
+bytes of every line it can, so its bytes are only as right as its reading of each line. After a
+keystroke's rebuild and after every commit, dev parses each top-level container the edit touched,
+on its own, and compares that parse's shape (kinds, child counts, metadata) with the tree's. A
+keystroke that dropped an indented list's leading spaces passed every byte check while the reload
+nested its second item; this is the check that sees it. It skips a container over 16 KB, so typing
+in a giant one costs nothing, and anything the perf instruments time. Predicate
+`invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
+`editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
 `test/invariants/`, and the arbitraries they draw random documents from live in
 `test/invariants/arbitraries/`.
 
-| ID    | What stays true                                                             | Codes |
-| ----- | --------------------------------------------------------------------------- | ----- |
-| G2.1  | Any string parses without throwing and serializes back to itself            | P·N   |
-| G2.2  | The end-of-file edge states round-trip                                      | P·N   |
-| G2.3  | The inline parser holds against its conformance corpus                      | P     |
-| G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw          | P     |
-| G2.5  | The inline tree's offsets partition the block's raw                         | P·N   |
-| G2.6  | Serialization ignores metadata and editor-level fields                      | P     |
-| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it | P     |
-| G2.8  | Split and merge round-trip; ids, refs and children stay aligned             | P·N   |
-| G2.9  | Paste emits its op kind by strategy, never by target depth                  | P     |
-| G2.10 | Every keydown path hands its key to the caret memory's classifier           | P·A   |
-| G2.11 | The inline scan covers every byte with known construct kinds, tiled         | P     |
-| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend  | L     |
-| G2.13 | An edit leaves a tree whose serialization reparses to the same block shape  | P·N   |
-| G2.14 | A format toggle applies exactly where the active-read says it isn't applied | N     |
-| G2.15 | A table rebuilt right after a parse writes back the bytes it read           | P·N   |
+| ID    | What stays true                                                              | Codes |
+| ----- | ---------------------------------------------------------------------------- | ----- |
+| G2.1  | Any string parses without throwing and serializes back to itself             | P·N   |
+| G2.2  | The end-of-file edge states round-trip                                       | P·N   |
+| G2.3  | The inline parser holds against its conformance corpus                       | P     |
+| G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw           | P     |
+| G2.5  | The inline tree's offsets partition the block's raw                          | P·N   |
+| G2.6  | Serialization ignores metadata and editor-level fields                       | P     |
+| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it  | P     |
+| G2.8  | Split and merge round-trip; ids, refs and children stay aligned              | P·N   |
+| G2.9  | Paste emits its op kind by strategy, never by target depth                   | P     |
+| G2.10 | Every keydown path hands its key to the caret memory's classifier            | P·A   |
+| G2.11 | The inline scan covers every byte with known construct kinds, tiled          | P     |
+| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend   | L     |
+| G2.13 | An edit leaves a tree whose serialization reparses to the same block shape   | P·N   |
+| G2.14 | A format toggle applies exactly where the active-read says it isn't applied  | N     |
+| G2.15 | A container rebuilt right after a parse writes back the bytes it read        | P·N   |
+| G2.16 | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
 
 ### The entries
 
@@ -851,7 +864,8 @@ simulation's range-interrupt family drives the same precondition through real ge
 reparses to the SAME block shape. It's the complement of G2.1, which a shape loss passes untouched
 (the bytes were exact and one block was gone). Two lanes of input, two suites: blank-line-separated
 documents under the split, delete and commit gestures, the surface the blank-line rule governs; and
-inline-source paragraphs under the live split, the differential that judges the rebalancer.
+inline-source paragraphs under the live split, the differential that judges the rebalancer. The
+retype gesture holds the bytes too, as G2.16.
 `shape-fixed-point.property.test.ts`, `parse-convergence.test.ts`.
 
 **G2.14 · Toggle and active-read equivalence.** Over a RANGE, the toggle and `isInlineFormatActive`
@@ -865,17 +879,25 @@ coverage in no mode: it fires only where the block's own parse holds the constru
 selection and no second run of that kind covers it, with a screen check where the delimiters don't
 paint. A collapsed caret is a different ladder entirely. `format-toggle-ladder.test.ts`.
 
-**G2.15 · A table rebuild keeps its bytes.** Rebuild every table of a freshly parsed document and
-you get the same bytes back, padding, pipes, delimiter spelling and line endings included. That's
-what lets the first edit in a table change only the cells it edits. The generator spells tables
-every way GFM reads the same (tight, over-padded, `:--`, no edge pipes, escaped pipes, short rows,
-surplus cells, some inside a quote), and a second property writes one cell and checks that only
-that row's line moved and a reload reads the cells the tree holds. Tables only for now; the list
-and quote rebuilds still respell their prefixes. `rebuild-keeps-bytes.property.test.ts`. The row
+**G2.15 · A container rebuild keeps its bytes.** Rebuild every container of a freshly parsed
+document, innermost first, and you get the same bytes back, line endings included. That's what lets
+the first edit in a container change only the lines it edits. One generator spells tables every way
+GFM reads the same (tight, over-padded, `:--`, no edge pipes, escaped pipes, short rows, surplus
+cells, some inside a quote), and a second property writes one cell and checks that only that row's
+line moved and a reload reads the cells the tree holds. Another spells quotes and list items every
+way: `>` with or without its space, a tab, up to three spaces in front, indents in tabs or past the
+content column, separators bare or indented, lazy lines two deep, CRLF.
+`rebuild-keeps-bytes.property.test.ts`. The row
 writer reads a cell's text the way the row's reader does (`core/parsers/table-line.ts ::
 cellText`), so a space typed at a cell's edge is padding, written once. When it falls back to the
 plain spelling, a dev check (`table-row-reads-back`) fails if even that doesn't read back as the
 cells.
+
+**G2.16 · An edit moves only its own lines.** Writing a leaf the bytes it already holds leaves the
+document byte for byte as it was, and one letter typed through the keystroke's route changes one
+line of the document and leaves a tree that reloads as itself. Both draw the blank-separated
+corpus and the respelled quotes and lists, and a named row pins the retype of a tab-indented item
+holding a table. `shape-fixed-point.property.test.ts`.
 
 ## Group 3: compile time
 
@@ -1079,6 +1101,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
 | G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
+| G4.109 | A container built around another's children starts from that container's bytes            | L       |
 
 ### The entries
 
@@ -2077,6 +2100,14 @@ block kept its kind, which `components/lrd-map-gate.ts` relies on and can't chec
 in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
 it. `lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere
 else, a second one beside an allowed one, or a second `input` declaration fails it.
+
+**G4.109 · A rebuilt container starts from its source's bytes.** A strip rebuild keeps a line by
+pairing it with the container's previous bytes, so a container built around children lifted out of
+another (the quote an alert leaves after a lift, a list item made from a template) starts with that
+container's `raw`. Built with an empty `raw`, its first rebuild respells every line.
+`lint/fresh-container-bytes.test.ts` fails an object literal holding both `raw: ''` and `children`
+under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
+genuinely new containers, each with its reason.
 
 ## Accessibility
 

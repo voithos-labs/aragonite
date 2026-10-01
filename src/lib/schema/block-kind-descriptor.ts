@@ -187,8 +187,8 @@ export interface BlockKindDescriptor {
 	containerPaste?: ContainerPaste;
 	unwrapRole?: UnwrapRole;
 	/**
-	 * Takes the first space typed at a child's content start while its marker lacks one. `rebuildRaw`
-	 * must restore the marker's trailing space, or the taken space never appears.
+	 * The first space typed at a child's content start, while its marker lacks one, is taken as the
+	 * marker's: `rebuildRaw` must write the marker with its space on the line's next rewrite.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */

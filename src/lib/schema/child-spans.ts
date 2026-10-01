@@ -61,7 +61,7 @@ export function spliceVerbatimChild(
 
 /** What a strip rebuild tells the chain above it. */
 export interface StripRebuild {
-	/** A kept lazy line no longer continues a paragraph, so the node's bytes must be read whole. */
+	/** A kept lazy line stopped continuing a paragraph, so the node's bytes must be read whole. */
 	rereads: boolean;
 }
 

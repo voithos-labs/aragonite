@@ -128,9 +128,9 @@ export function assertExemptionDocumented(cell: ConformanceCoverage, label: stri
 	assertReasonDocumented(cell.reason, `${label} ${cell.mode} reason`);
 }
 
-/** A rebuild of a freshly parsed node must reproduce the parsed bytes. Writes `node.raw` in place:
- *  pass a fresh parse, never a node a cell shares. */
-export function assertRebuildIsParseCanonical(
+/** A rebuild of a freshly parsed node keeps the parsed bytes. Writes `node.raw` in place: pass a
+ *  fresh parse, never a node a cell shares. */
+export function assertRebuildKeepsParsedBytes(
 	descriptor: BlockKindDescriptor,
 	node: CstNode,
 	label: string
@@ -141,7 +141,7 @@ export function assertRebuildIsParseCanonical(
 	} catch (error) {
 		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
 	}
-	assertIs(node.raw, before, `${label} rebuildRaw reproduces the parse-canonical raw`);
+	assertIs(node.raw, before, `${label} rebuildRaw keeps the bytes it was parsed from`);
 }
 
 // ── Cell subjects ────────────────────────────────────────────────────────────
