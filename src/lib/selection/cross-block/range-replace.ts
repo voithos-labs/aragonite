@@ -43,8 +43,7 @@ export type RangeInsertion =
 	| { kind: 'none'; gesture: RemovalGesture }
 	| { kind: 'text'; text: string }
 	| { kind: 'paste'; text: string }
-	/** `leafPath`: the leaf the IME composes in. */
-	| { kind: 'composition'; leafPath: readonly number[] }
+	| { kind: 'composition' }
 	| { kind: 'command'; chord: string };
 
 /** `refused`: reading mode, or a document a `source` swap replaced. */
@@ -90,7 +89,7 @@ export async function replaceRange(
 	});
 	// After the step, whose end starts a new typing batch: the composed text joins the removal.
 	if (insertion.kind === 'composition' && outcome === 'written') {
-		ctx.controller.continueTypingBurst(insertion.leafPath);
+		ctx.controller.continueTypingBurst();
 	}
 	return outcome;
 }
@@ -108,8 +107,8 @@ export function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 
 // ── The step ───────────────────────────────────────────────────────────────
 
-/** Every commit's caret is held, so the gesture puts down one: the last commit's that wrote, else
- *  the removal's. A command runs outside the hold, and the block that takes it places its own. */
+/** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else
+ *  the removal's. A command key is Backspace and then the key, so its block lands its own too. */
 async function replaceInStep(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
@@ -134,8 +133,9 @@ async function replaceInStep(
 
 	const at = removed.caret;
 	if (insertion.kind === 'command') {
-		const ran = await runCommandAt(ctx, at, at?.path ?? coverage.range.start.path, insertion.chord);
-		if (!ran) await removalLanding?.place();
+		// Before the command runs, since the block reads the caret to run it.
+		await removalLanding?.place();
+		await runCommandAt(ctx, at?.path ?? coverage.range.start.path, insertion.chord);
 		return 'written';
 	}
 	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
@@ -382,18 +382,16 @@ async function insertAt(
 	);
 }
 
-/** Parks the caret where the removal left it, since the block reads it to run the command (a
- *  table's endpoint caret is a cell, which has the `runCommand`); false when no block took the key. */
+/** At the caret the removal left, never over stale block indices: a table's endpoint caret is a
+ *  cell, which has a `runCommand` where the table has none. */
 async function runCommandAt(
 	ctx: CrossBlockMutationContext,
-	caret: SelectionPoint | null,
 	path: number[],
 	chord: string
-): Promise<boolean> {
-	if (caret) await ctx.caretLanding.park({ path: docPathFrom(caret.path), offset: caret.offset });
+): Promise<void> {
 	const target = await ctx.caretLanding.mount(path);
-	if (!target?.runCommand) return false;
-	return dispatchKeyCommand(
+	if (!target?.runCommand) return;
+	dispatchKeyCommand(
 		chord,
 		{ kind: kindOfPath(path, ctx.getDoc()), runCommand: target.runCommand, getPath: () => path },
 		ctx.commands

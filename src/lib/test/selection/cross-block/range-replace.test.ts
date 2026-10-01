@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Every destructive gesture over a live range is one undo entry holding the document as it stood,
-// and puts exactly one caret down (none for a composition, whose caret the IME owns).
+// and the replace puts one caret down (none for a composition; a command's block lands its own).
 // Miss-analysis: no suite counted the carets a gesture put down, or set a command key's removal
 // over a grid beside Backspace's.
 import { describe, it, expect } from 'vitest';
@@ -23,8 +23,10 @@ interface Shape {
 	focus: SelectionEndpoint;
 }
 
-/** What a gesture leaves: the bytes, and the leaf and offset the caret lands at (null: none). */
-type Outcome = [bytes: string, lands: [leafPath: number[], offset: number] | null];
+type Landed = [leafPath: number[], offset: number];
+/** What a gesture leaves: the bytes, the replace's one landing (null: none), and a command's own
+ *  landing when its block commits. */
+type Outcome = [bytes: string, lands: Landed | null, commandLands?: Landed];
 
 const PROSE = 'alpha\n\nbeta\n\ngamma\n';
 const RULE = 'lead\n\n---\n\ntail\n';
@@ -69,7 +71,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: ['alxma\n', [[0], 3]],
 		paste: ['alPma\n', [[0], 3]],
 		compose: ['alma\n', null],
-		Enter: ['al\n\nma\n', [[1], CURSOR_EXACT_START]],
+		Enter: ['al\n\nma\n', [[0], 2], [[1], CURSOR_EXACT_START]],
 		Tab: ['alma\n', [[0], 2]]
 	},
 	'a rule held whole': {
@@ -151,7 +153,7 @@ const landedAt = (env: Awaited<ReturnType<typeof perform>>) =>
 
 describe('a destructive gesture over a live range', () => {
 	for (const [shapeName, shape] of Object.entries(SHAPES)) {
-		for (const [gesture, [bytes, lands]] of Object.entries(OUTCOMES[shapeName])) {
+		for (const [gesture, [bytes, lands, commandLands]] of Object.entries(OUTCOMES[shapeName])) {
 			it(`${gesture} over ${shapeName}: one undo entry, ${lands ? 'one landing' : 'no landing'}`, async () => {
 				const env = await perform(gesture as Gesture, shape);
 
@@ -159,7 +161,7 @@ describe('a destructive gesture over a live range', () => {
 				const undo = env.deps.undoManager.getStacks().undo;
 				expect(undo).toHaveLength(1);
 				expect(serialize(undo[0].snapshot)).toBe(shape.source);
-				expect(landedAt(env)).toEqual(lands ? [lands] : []);
+				expect(landedAt(env)).toEqual([lands, commandLands].filter(Boolean));
 			});
 		}
 	}

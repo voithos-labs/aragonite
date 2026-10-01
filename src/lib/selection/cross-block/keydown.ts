@@ -30,12 +30,15 @@ import { selectInBlock } from '../caret-doors';
 export interface CrossBlockKeydown {
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
+	handleCompositionEnd(): void;
 }
 
 export function createCrossBlockKeydown(ctx: CrossBlockDispatchContext): CrossBlockKeydown {
 	return {
 		handleKeyDown: (e) => handleKeyDown(ctx, e),
-		handleCompositionStart: () => handleCompositionStart(ctx)
+		handleCompositionStart: () => handleCompositionStart(ctx),
+		// The composition's own write is done, so a later write never joins its removal.
+		handleCompositionEnd: () => ctx.controller.endContinuedBurst()
 	};
 }
 
@@ -346,6 +349,6 @@ async function handleDocEdgeExtend(
 function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
 	ctx.caretMemory.forget();
 	if (!ctx.selection.isCrossBlock) return false;
-	void replaceRange(ctx, { kind: 'composition', leafPath: ctx.getMyPath() });
+	void replaceRange(ctx, { kind: 'composition' });
 	return true;
 }

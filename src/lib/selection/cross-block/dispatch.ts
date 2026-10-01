@@ -90,6 +90,8 @@ export interface CrossBlockHandlers {
 	 *  range over a block with no character position leaves no element for `beforeinput`. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
+	/** After the composed text's write, whether or not there was one. */
+	handleCompositionEnd(): void;
 	/** The delete half of a cut, run once the handler wrote the clipboard synchronously. */
 	performCrossBlockCut(): Promise<void>;
 }
@@ -113,6 +115,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
+		handleCompositionEnd: keydown.handleCompositionEnd,
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
 			if (!ctx.selection.isCrossBlock) return false;

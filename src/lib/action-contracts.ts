@@ -291,9 +291,11 @@ export interface CommitController {
 	/** Runs `run` with each commit's caret kept rather than put down, and resolves to `run`'s
 	 *  result and the last caret kept, so a gesture of several commits places one. */
 	holdLandings<T>(run: () => Promise<T>): Promise<[result: T, landing: HeldLanding | null]>;
-	/** The next typing write in `leafPath` joins the last commit's entry while it is the newest and
-	 *  no typing batch has ended since: a composition's text joins the removal its start made. */
-	continueTypingBurst(leafPath: readonly number[]): void;
+	/** The next typing write joins the last commit's entry while it is the newest, until
+	 *  `endContinuedBurst`: a composition's text joins the removal its start made. */
+	continueTypingBurst(): void;
+	/** Ends what `continueTypingBurst` armed, written to or not; called at compositionend. */
+	endContinuedBurst(): void;
 	/** Whether a gesture may write now: false in reading mode, or for a document a `source` swap
 	 *  replaced. A reading-mode refusal names `op` in a dev warning; a null `op` is refused quietly. */
 	admitsGesture(op: string | null): boolean;

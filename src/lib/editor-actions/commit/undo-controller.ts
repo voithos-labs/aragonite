@@ -181,9 +181,9 @@ export function createUndoController(
 	let typingEntry: UndoEntry | null = null;
 	let joiningTyping = false;
 	// The entry the newest commit wrote (null when it was refused), and the one the next typing
-	// write in `leafPath` joins instead of pushing its own, until the typing batch ends.
+	// write joins instead of pushing its own, until a composition or the typing batch ends.
 	let lastCommitEntry: UndoEntry | null = null;
-	let continued: { entry: UndoEntry; leafPath: readonly number[] } | null = null;
+	let continued: UndoEntry | null = null;
 
 	const inOpenStep = () => stepDepth > 0 && !stepEnded;
 	const isTop = (entry: UndoEntry | null) =>
@@ -248,8 +248,8 @@ export function createUndoController(
 		stepEntry = null;
 	}
 
-	function continueTypingBurst(leafPath: readonly number[]): void {
-		continued = lastCommitEntry && { entry: lastCommitEntry, leafPath: [...leafPath] };
+	function continueTypingBurst(): void {
+		continued = lastCommitEntry;
 	}
 
 	// ── Entry pushes ─────────────────────────────────────────────────────────
@@ -272,9 +272,8 @@ export function createUndoController(
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
 		const joins = continued;
 		continued = null;
-		// A write in another leaf is a focus move, which ends any typing batch.
-		if (joins && isTop(joins.entry) && pathsEqual(joins.leafPath, leafPath)) {
-			typingEntry = joins.entry;
+		if (isTop(joins)) {
+			typingEntry = joins;
 			return;
 		}
 		if (joinsStep()) {
@@ -916,6 +915,9 @@ export function createUndoController(
 		joinTypingBatch,
 		endUndoStep,
 		continueTypingBurst,
+		endContinuedBurst: () => {
+			continued = null;
+		},
 		holdLandings,
 		// The snapshot's answer is the write gate's, with no warning.
 		admitsGesture: (op) => (op === null ? admitsSnapshot(deps) : admitsWrite(deps, op)),

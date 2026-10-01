@@ -485,6 +485,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		traceCompositionEnd();
 		deps.setComposing(false);
 		commitDomRead(true);
+		crossBlock.handleCompositionEnd();
 	}
 
 	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };

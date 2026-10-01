@@ -95,7 +95,7 @@ export function makeSurface(
 		getEditorLifetime: () => null,
 		containerEdit: {},
 		blockEdit: options.blockEdit ?? recording,
-		controller: {},
+		controller: { endContinuedBurst: () => {} },
 		history: {},
 		getPresentationMode: () => 'source' as const,
 		reading: fixtureReading(),
