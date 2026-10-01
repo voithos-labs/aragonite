@@ -72,8 +72,8 @@ export type {
 } from './schema/block-kind-descriptor';
 // What `estimateHeight` reads besides the block: the width and the editor's type metrics.
 export type { HeightEstimateEnv } from './schema/height-estimates';
-// `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
-// re-emits that child's region alone. Ignoring it re-derives the whole raw, which is correct.
+// `rebuildRaw`'s optional second argument, the one child whose raw moved (ignoring it is correct);
+// a rebuild returns `{ rereads: true }` when its bytes must then be read whole.
 export type { ChildRawChange } from './schema/child-spans';
 // The closure block every registration must answer the cross-cutting systems with.
 // `simpleLeafClosure` and `containerClosure` fill in the fixed columns for a leaf and a container.

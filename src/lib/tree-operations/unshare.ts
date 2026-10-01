@@ -11,7 +11,7 @@ import type { NodeParent } from './node-primitives';
 import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
-import type { ChildRawChange } from '../schema/child-spans';
+import type { ChildRawChange, StripRebuild } from '../schema/child-spans';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
@@ -117,6 +117,9 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 
 /** Rebuild one owned container's raw. A table's rebuild writes a row only when its cells or its
  *  place changed, which only an edit that already copied the row causes; the undo digest checks. */
-export function rebuildOwnedContainer(node: CstNode, changed?: ChildRawChange): void {
-	rebuildContainerRawIfContainer(node, changed);
+export function rebuildOwnedContainer(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
+	return rebuildContainerRawIfContainer(node, changed);
 }

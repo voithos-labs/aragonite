@@ -37,11 +37,17 @@ const ROUTES: [string, Route][] = [
 	]
 ];
 
+// The line leaves the container it was lazy in: the item or quote at the top, the inner quote two
+// deep, where the outer quote's own marker still holds it.
 const ROWS: [name: string, source: string, leaf: number[], written: string, after: string][] = [
 	['in a list item', '- a\nlazy\n', [0, 0, 0], '# a\nlazy\n', '- # a\nlazy\n'],
 	['in a quote', '> a\nlazy\n', [0, 0], '# a\nlazy\n', '> # a\nlazy\n'],
-	['two quotes deep', '> > a\nlazy\n', [0, 0, 0], '# a\nlazy\n', '> > # a\nlazy\n']
+	['two quotes deep', '> > a\n> lazy\n', [0, 0, 0], '# a\nlazy\n', '> > # a\n> lazy\n']
 ];
+
+/** Every node's kind and children, which the edited tree and its reload must share. */
+const kindsOf = (nodes: readonly CstNode[]): unknown[] =>
+	nodes.map((node) => [node.kind, kindsOf(node.children ?? [])]);
 
 const toCrlf = (bytes: string): string => bytes.replace(/\n/g, '\r\n');
 
@@ -55,10 +61,7 @@ describe('a heading typed over the line a lazy line continued', () => {
 				await route(h, leaf, mirror(written));
 
 				expect(serialize(h.deps.doc)).toBe(mirror(after));
-				expect(h.deps.doc.children.map((block) => block.kind)).toEqual(
-					parse(mirror(after)).children.map((block) => block.kind)
-				);
-				expect(h.deps.doc.children).toHaveLength(2);
+				expect(kindsOf(h.deps.doc.children)).toEqual(kindsOf(parse(mirror(after)).children));
 				expect(describeConvergence(h.deps.doc)).toBeNull();
 			});
 		}

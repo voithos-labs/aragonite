@@ -59,6 +59,12 @@ export function spliceVerbatimChild(
 	return spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, rebuildFull);
 }
 
+/** What a strip rebuild tells the chain above it. */
+export interface StripRebuild {
+	/** A kept lazy line no longer continues a paragraph, so the node's bytes must be read whole. */
+	rereads: boolean;
+}
+
 /** A quote or list item, each line written from its pair in the previous bytes while that still
  *  reads the same text; `previous` reads those bytes when their metadata has since changed. */
 export function rebuildStripRaw(
@@ -66,11 +72,16 @@ export function rebuildStripRaw(
 	lines: LineCodec,
 	changed?: ChildRawChange,
 	previous: LineCodec = lines
-): void {
+): StripRebuild {
 	if (changed && previous === lines) {
-		const rewrite: RegionRewrite = (region, at) => rewriteStripRegion(region, at, changed, lines);
+		const outcome = { rereads: false };
+		const rewrite: RegionRewrite = (region, at) => {
+			const written = rewriteStripRegion(region, at, changed, lines);
+			outcome.rereads = written?.rereads ?? false;
+			return written?.out ?? null;
+		};
 		const full = (scratch: CstNode) => rebuildStripRaw(scratch, lines);
-		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return;
+		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return outcome;
 	}
 
 	// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
@@ -111,13 +122,16 @@ export function rebuildStripRaw(
 	bounds.forEach((line, i) => (spans[i] = written.offsets[line]));
 	node.raw = written.out;
 	node.childSpans = spans;
+	return { rereads: written.rereads };
 }
 
-function rebuildWholeStrip(node: CstNode, lines: LineCodec, previous: LineCodec): void {
+function rebuildWholeStrip(node: CstNode, lines: LineCodec, previous: LineCodec): StripRebuild {
 	const fresh: BodyLineOut[] = [];
 	pushLines(fresh, concatChildren(node.children!) + (node.innerSuffix ?? ''), true, () => true);
+	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines);
 	node.childSpans = undefined;
-	node.raw = writeLines(readOldLines(node.raw, previous, true), fresh, lines).out;
+	node.raw = written.out;
+	return { rereads: written.rereads };
 }
 
 // ── Lines ────────────────────────────────────────────────────────────────────
@@ -193,7 +207,7 @@ function writeLines(
 	old: OldLine[],
 	fresh: BodyLineOut[],
 	lines: LineCodec
-): { out: string; offsets: number[] } {
+): { out: string; offsets: number[]; rereads: boolean } {
 	const same = (o: OldLine, n: BodyLineOut) =>
 		o.body !== null && o.body.text === n.text && o.ending === n.ending;
 	let head = 0;
@@ -215,6 +229,8 @@ function writeLines(
 	// below it holds the run in the body.
 	const written: string[] = [];
 	let heldBelow = false;
+	let rereads = false;
+	const reread = () => (rereads = true);
 	for (let j = fresh.length - 1; j >= 0; j--) {
 		const line = fresh[j];
 		const { trailingBlank } = line.place;
@@ -229,7 +245,7 @@ function writeLines(
 			((i > 0 && old[i - 1].body?.text === above && old[i].text === lazyLine) ||
 				lines.continuesLazily(above, lazyLine, fresh[j - 1].place.first));
 		const bytes: string =
-			(i >= 0 ? kept(old[i], line, place, lines, continues) : null) ??
+			(i >= 0 ? kept(old[i], line, place, lines, continues, reread) : null) ??
 			lines.write(line.text, line.place) + line.ending;
 		written[j] = bytes;
 		const text: string = bytes.slice(0, bytes.length - line.ending.length);
@@ -242,33 +258,37 @@ function writeLines(
 		out += bytes;
 	}
 	offsets.push(out.length);
-	return { out, offsets };
+	return { out, offsets, rereads };
 }
 
-/** The old line's bytes, or its prefix before the new text, where they read that text at `place`;
- *  null when the line takes the container's own spelling. */
+/** The paired line's bytes, or its prefix before the new text, where they read that text at
+ *  `place`; null when the line takes the container's own spelling. */
 function kept(
 	old: OldLine,
 	line: BodyLineOut,
 	place: LinePlace,
 	lines: LineCodec,
-	continues: (lazyLine: string) => boolean
+	continues: (lazyLine: string) => boolean,
+	reread: () => void
 ): string | null {
 	const body = old.body;
 	if (body === null) return null;
 	if (body.text === line.text && old.ending === line.ending && readsAs(old.text, body.lazy)) {
+		// A lazy line the edit didn't touch keeps its bytes even once it stops continuing, and the
+		// tree then takes the reading a reload gives them.
+		if (body.lazy && !continues(old.text)) reread();
 		return old.text + old.ending;
 	}
 	// A blank line is spelled the container's way, so a prefix passes only between text lines.
 	if (body.prefix === null || isBlankLine(body.text) || isBlankLine(line.text)) return null;
 	const candidate = body.prefix + line.text;
-	return readsAs(candidate, body.lazy) ? candidate + line.ending : null;
+	return readsAs(candidate, body.lazy) && (!body.lazy || continues(candidate))
+		? candidate + line.ending
+		: null;
 
 	function readsAs(bytes: string, lazy: boolean): boolean {
 		const read = lines.read(bytes, place);
-		return (
-			read !== null && read.text === line.text && read.lazy === lazy && (!lazy || continues(bytes))
-		);
+		return read !== null && read.text === line.text && read.lazy === lazy;
 	}
 }
 
@@ -281,7 +301,7 @@ interface RegionAt {
 	tailIsBlank: () => boolean;
 }
 
-/** The child's new region written over its current one, or null when the region no longer holds
+/** The child's new region written over its current one, or null when the region doesn't hold
  *  the child's previous bytes. */
 type RegionRewrite = (region: string, at: RegionAt) => string | null;
 
@@ -291,7 +311,7 @@ function rewriteStripRegion(
 	at: RegionAt,
 	changed: ChildRawChange,
 	lines: LineCodec
-): string | null {
+): { out: string; rereads: boolean } | null {
 	const before: BodyLineOut[] = [];
 	pushChildLines(before, at.trivia, changed.previousRaw, at.first, at);
 	const old = readOldLines(region, lines, at.first);
@@ -304,7 +324,7 @@ function rewriteStripRegion(
 	}
 	const fresh: BodyLineOut[] = [];
 	pushChildLines(fresh, at.trivia, at.child.raw, at.first, at);
-	return writeLines(old, fresh, lines).out;
+	return writeLines(old, fresh, lines);
 }
 
 /**

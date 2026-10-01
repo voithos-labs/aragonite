@@ -5,7 +5,7 @@ import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
 import { createBlockKindRegistry } from './plugin-registry';
-import type { ChildRawChange } from './child-spans';
+import type { ChildRawChange, StripRebuild } from './child-spans';
 import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
@@ -203,10 +203,10 @@ export interface BlockKindDescriptor {
 	/** The registration's `contentStart.backspace`. */
 	contentStartBackspace?: ContentStart['backspace'];
 	/**
-	 * Recompute `raw` from children and metadata. `changed` names the one child whose raw moved, for
-	 * a rebuilder that rewrites only its region; ignoring it is always correct.
+	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
+	 * (ignoring it is correct). Return `{ rereads: true }` to have the new bytes read whole.
 	 */
-	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void;
+	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
 	/**
@@ -305,7 +305,7 @@ export interface ContentStart {
  *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
 interface ContainerBase {
 	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void;
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	bodyWrap?: ContainerBodyWrap;
 	lastLineChild?: (node: NodeView) => number;
 	containerPaste?: ContainerPaste;

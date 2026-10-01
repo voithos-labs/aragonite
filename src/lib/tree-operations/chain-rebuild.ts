@@ -129,12 +129,12 @@ export function rebuildUnsharedChain(
 			child && childPreviousRaw !== undefined
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
 				: undefined;
-		rebuildOwnedContainer(node, changed);
+		const rereads = rebuildOwnedContainer(node, changed)?.rereads ?? false;
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
-		const whole = spilled !== null || (shared?.readsWhole.has(node) ?? false);
+		const whole = rereads || spilled !== null || (shared?.readsWhole.has(node) ?? false);
 		spilled = null;
 		if (!openerMoved && !closerMoved && !whole) continue;
 

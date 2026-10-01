@@ -32,21 +32,28 @@ import {
 	rebuildConcatRaw,
 	rebuildStripRaw,
 	spliceVerbatimChild,
-	type ChildRawChange
+	type ChildRawChange,
+	type StripRebuild
 } from './child-spans';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
-export function rebuildBlockquoteRaw(node: CstNode, changed?: ChildRawChange): void {
+export function rebuildBlockquoteRaw(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
 	if (!node.children) return;
-	rebuildStripRaw(node, quoteLines, changed);
+	return rebuildStripRaw(node, quoteLines, changed);
 }
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /** The item's lines written under its metadata, at the indent its own first line had; its
  *  previous bytes are read under the shape that first line was written in. */
-export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
+export function rebuildListItemRaw(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
 	if (!node.children || !node.metadata) return;
 	const meta = metadataOf(node, 'listItem');
 	const previous = readItemShape(firstDisplayLine(node.raw).text);
@@ -58,7 +65,7 @@ export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): voi
 	const lines = listItemLines(shape);
 	const unchanged =
 		!previous || (previous.marker === shape.marker && previous.taskMarker === shape.taskMarker);
-	rebuildStripRaw(node, lines, changed, unchanged ? lines : listItemLines(previous));
+	return rebuildStripRaw(node, lines, changed, unchanged ? lines : listItemLines(previous));
 }
 
 export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {
