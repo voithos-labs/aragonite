@@ -37,6 +37,8 @@ export function makeSurface(
 		caretMemory?: CaretMemory;
 		blockEdit?: BlockEditActions;
 		getNode?: () => NodeView;
+		/** Real collaborators in place of the stubs, for a block wired to a live document. */
+		overrides?: Partial<EditableSurfaceDeps>;
 	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
@@ -104,7 +106,8 @@ export function makeSurface(
 		readText: () => el.textContent ?? '',
 		relocateComposedText: options.relocateComposedText,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
-		handleBeforeInput: options.handleBeforeInput
+		handleBeforeInput: options.handleBeforeInput,
+		...options.overrides
 	} as unknown as EditableSurfaceDeps;
 
 	return {

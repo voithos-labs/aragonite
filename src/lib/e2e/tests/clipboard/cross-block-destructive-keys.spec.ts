@@ -197,3 +197,32 @@ test.describe('a command key over a whole table, row or column', () => {
 		}
 	}
 });
+
+// Miss-analysis: every range here fit on one screen, so no test saw a key that writes in place
+// leave its caret where a long removal had scrolled away from.
+test.describe('a command key over a range longer than the screen', () => {
+	const LONG = Array.from({ length: 160 }, (_, i) => `p${i}`).join('\n\n') + '\n';
+
+	for (const key of ['Tab', 'Shift+Enter']) {
+		test(`${key} leaves the caret's block in view`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.loadContent(LONG);
+			await editor.focusBlockAtPath([0], 1);
+			for (let i = 0; i < 70; i++) await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+
+			await page.keyboard.press(key);
+			await editor.waitForCrossBlock(false);
+
+			await expect
+				.poll(() =>
+					page.evaluate(() => {
+						const box = document.activeElement?.getBoundingClientRect();
+						return !!box && box.top >= 0 && box.bottom <= window.innerHeight;
+					})
+				)
+				.toBe(true);
+		});
+	}
+});

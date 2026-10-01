@@ -11,6 +11,9 @@ import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { makeKeydownEnv, press } from './keydown-env';
 import { settleEditor } from '../../harness/settle';
+import { makeSurface } from '../../harness/editable-surface';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 const ANCHOR: SelectionPoint = { path: [0], offset: 2 };
@@ -69,15 +72,45 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 		expectStateBefore(onlyEntry(env.deps.undoManager.getStacks().undo), ANCHOR, FOCUS);
 	});
 
-	// Miss-analysis: the composition row always typed its text next, so no test let the batch end
-	// first and saw the removal's entry reach a later, unrelated write.
+	// Miss-analysis: the composition row always typed its text next, so no test ended the
+	// composition with nothing written and saw the removal's entry take the next, unrelated write.
 	describe('a composition that writes nothing leaves the next typing its own entry', () => {
 		const FOUR = 'alpha\n\nbeta\n\ngamma\n\ndelta\n';
+
+		/** The block the IME composes in, its element gone by compositionend, so nothing is written. */
+		async function composeNothing(env: Env): Promise<void> {
+			let el: HTMLElement | null = document.createElement('div');
+			const { surface } = makeSurface({
+				blockEdit: env.blockEdit,
+				overrides: {
+					getEl: () => el,
+					selection: env.selectionState,
+					controller: env.controller,
+					getDoc: () => env.doc,
+					caretLanding: env.deps.caretLanding,
+					caretMemory: env.caretMemory,
+					events: env.events,
+					reading: env.deps.reading,
+					pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
+					activePlugins: everyInstalledPlugin
+				}
+			});
+			surface.onCompositionStart();
+			await settleEditor();
+			el = null;
+			surface.onCompositionEnd();
+		}
+
 		const typing = [
-			['typing in another block', () => {}, 1, 'deltax\n', 5, 6],
+			['typing in the same block', composeNothing, 0, 'alxma\n', 2, 3],
+			['typing in another block', composeNothing, 1, 'deltax\n', 5, 6],
 			[
-				'typing after the batch ends',
-				(env: Env) => env.controller.flushDebouncedCheckpoint(),
+				'typing after the batch ends, before compositionend',
+				async (env: Env) => {
+					makeHandlers(env, [0]).handleCompositionStart();
+					await settleEditor();
+					env.controller.flushDebouncedCheckpoint();
+				},
 				0,
 				'alxma\n',
 				2,
@@ -85,13 +118,11 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 			]
 		] as const;
 
-		for (const [name, between, index, text, before, after] of typing) {
+		for (const [name, compose, index, text, before, after] of typing) {
 			it(name, async () => {
 				const env = makeEnv(FOUR);
 				env.selectionState.enterCrossBlock(ANCHOR, FOCUS);
-				makeHandlers(env, [0]).handleCompositionStart();
-				await settleEditor();
-				between(env);
+				await compose(env);
 
 				await env.blockEdit.updateBlockContent(index, text, 'authored', before, after);
 
