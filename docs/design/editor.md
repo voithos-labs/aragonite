@@ -450,13 +450,13 @@ Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a 
 
 **Settling a disturbed join.** To _settle_ is to re-derive the blank-line separators around a splice. A mutation can invalidate an adjacency that was correct before it, and adjacent bytes that re-read as **fewer** blocks, or as the same count with the upper block holding content from the lower, are the reload's own reading, so the tree converges to that reading rather than inventing separator bytes into an untouched neighbour. Everything that disturbs a join has to ask it that question, at the commit's settle step (§ 11) and at the two splice entries in `tree-operations/settle.ts`; the one join no scope-local ask can see, a container's own slot in its grandparent's array, is asked on the way out of the ancestry rebuild (§ 9). Which caller asks through which entry is [`../contributing/codebase-map.md`](../contributing/codebase-map.md) § Blank lines and separators.
 
-A write that keeps its block's kind skips the ask when there's a blank line on both sides of the block, so a keystroke in a paragraph like that never pays for it. It asks anyway when:
+A write that keeps its block's kind still asks the join below it whenever there's a block down there, blank line or not. An HTML comment, `<pre>`, `<?` or `<![CDATA[` block reads on until its closer, blank lines included, so breaking `-->` with one Backspace makes the comment swallow the paragraph two lines down. The join above is asked only when:
 
+- the block sits right under its neighbour. A flush pair can move without either kind changing: retype a `<div>` under a paragraph as `<span>` and the two read as one paragraph (only some tags can cut a paragraph off), close a `"` under a link definition and the paragraph becomes its title. A first child has nothing above it inside its container, so that side doesn't count;
 - the write changes the first line's indent, which alone decides whether a list item above takes the block in;
-- a blank line stays blank;
-- a neighbour sits right against the block. Any flush pair can move without either kind changing: retype a `<div>` under a paragraph as `<span>` and the two read as one paragraph (only some tags can cut a paragraph off), close a `"` under a link definition and the paragraph becomes its title. A first child has nothing above it inside its container, and a last child has nothing below, so neither counts.
+- a blank line stays blank.
 
-The ask reads the block above a join whole and the block below one line deep when it can (`performance.md` § 4 has the rule and what it costs).
+So the only keystroke that asks nothing is one in the last block of its container (or the document) with a blank line above it. The ask reads the block above a join whole and the block below one line deep when it can ([`performance.md`](performance.md) § 4 has the rule and what it costs).
 
 A write that leaves its own construct open is closed first (§ 6).
 

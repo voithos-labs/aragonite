@@ -173,7 +173,7 @@ function writeAndSettleContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
-		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
 	}
 	// The reverse transition: the block is the separating line now, so the run it joins gives
 	// back the second one. The last block created is the one that meets the follower.
@@ -181,38 +181,45 @@ function writeAndSettleContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing skips the neighbour reparse unless the first line's indent moved, a blank line
-	// stays blank, or the block sits flush against a neighbour (editor.md § 8).
+	// Same-kind typing asks the join above only when the block sits flush under its neighbour, the
+	// first line's indent moved, or a blank line stays blank (editor.md § 8).
 	if (
 		change.op === 'noop' &&
 		!wasBlank &&
 		!indentMoved &&
-		!sitsFlush(parent.children, blockIndex)
+		!flushAbove(parent.children, blockIndex)
 	) {
-		return { change, textStart: 0 };
+		// The join below is asked whatever parts it: an HTML block left open reads on past blank lines.
+		if (blockIndex + 1 >= parent.children.length) return { change, textStart: 0 };
+		return settleWriteSeams(
+			parent,
+			blockIndex,
+			blockIndex + 1,
+			lastWritten,
+			change,
+			sharing,
+			grammar
+		);
 	}
-	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
+	return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
 }
 
 const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 
-/** Whether no blank line parts the block from the one above or below it. A first child has no
- *  block above it in its body, and a last child none below. */
-function sitsFlush(children: readonly CstNode[], index: number): boolean {
-	return (
-		(index > 0 && children[index].leadingTrivia === '') || children[index + 1]?.leadingTrivia === ''
-	);
-}
+/** Whether no blank line parts the block from the one above it; a first child has none above. */
+const flushAbove = (children: readonly CstNode[], index: number): boolean =>
+	index > 0 && children[index].leadingTrivia === '';
 
 /**
- * Merge across every join the write disturbed, and report where the written text ended up, since
- * a merge into the block above puts that block's bytes in front of it.
+ * Merge across the joins from the one above `firstJoin` to the one below the last written block,
+ * and report where the written text ended up once a merge above put bytes in front of it.
  */
 function settleWriteSeams(
 	parent: BodyParent,
 	blockIndex: number,
+	firstJoin: number,
 	lastWritten: number,
 	change: StructuralChange,
 	sharing: SharingState,
@@ -221,8 +228,8 @@ function settleWriteSeams(
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
 		parent,
-		blockIndex,
-		lastWritten - blockIndex + 1,
+		firstJoin,
+		lastWritten - firstJoin + 1,
 		blockIndex,
 		change,
 		grammar,

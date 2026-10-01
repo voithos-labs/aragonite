@@ -18,8 +18,6 @@ import {
 
 const LIST = Array.from({ length: 5000 }, (_, i) => `- item ${i}\n`).join('');
 const FIRST_ITEM = '- item 0\n';
-/** A long paragraph, the neighbour a join below the written block would read whole. */
-const PROSE = 'word '.repeat(2000).trimEnd();
 
 /** The bytes each of `raws` parses, written into the leaf at `leaf` through the keystroke route. */
 function bytesPerKeystroke(source: string, leaf: number[], raws: string[]): number[] {
@@ -41,7 +39,7 @@ function bytesPerKeystroke(source: string, leaf: number[], raws: string[]): numb
 beforeEach(() => resetPerfInstruments());
 afterEach(() => disablePerfInstruments());
 
-describe('a same-kind keystroke parses a flush neighbour one line deep, or whole above it', () => {
+describe('a same-kind keystroke parses the block below one line deep, and a flush one above whole', () => {
 	it('reads one line of a long list flush below the written paragraph', () => {
 		const raws = ['foox\n', 'fooxy\n'];
 		const read = bytesPerKeystroke(`foo\n${LIST}`, [0], raws);
@@ -60,18 +58,19 @@ describe('a same-kind keystroke parses a flush neighbour one line deep, or whole
 		expect(read).toEqual(raws.map((raw) => 2 * raw.length + LIST.length));
 	});
 
-	it('reads no neighbour for the document’s first block, which has none above', () => {
+	it('reads nothing above the document’s first block, and one line of the list a blank line below', () => {
 		const raws = ['foox\n', 'fooxy\n'];
-		const read = bytesPerKeystroke(`foo\n\n${PROSE}\n`, [0], raws);
+		const read = bytesPerKeystroke(`foo\n\n${LIST}`, [0], raws);
 
-		expect(read).toEqual(raws.map((raw) => raw.length));
+		expect(read).toEqual(raws.map((raw) => 2 * raw.length + '\n'.length + FIRST_ITEM.length));
 	});
 
-	it('reads no neighbour for a list item’s first paragraph, which has none above', () => {
+	it('reads nothing above a list item’s first paragraph, and one line of its sublist below', () => {
 		const raws = ['firstx\n', 'firstxy\n'];
-		const read = bytesPerKeystroke(`- first\n\n  ${PROSE}\n${LIST}`, [0, 0, 0], raws);
+		const sublist = LIST.replace(/^/gm, '  ');
+		const read = bytesPerKeystroke(`- first\n\n${sublist}`, [0, 0, 0], raws);
 
-		// The list and item rebuilds read their first line; the paragraph below stays unread.
-		read.forEach((bytes) => expect(bytes).toBeLessThan(PROSE.length));
+		// The list and item rebuilds read their first line, and the join below one line of the sublist.
+		read.forEach((bytes) => expect(bytes).toBeLessThan(100));
 	});
 });

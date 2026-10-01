@@ -59,7 +59,7 @@ How the cost got this small, for the curious:
 
 ### 4. A join under a large block
 
-When an edit may have moved a join (two blocks with no blank line between them), the editor asks whether they're still the blocks a reload reads there. That ask parses the block above the join whole. The block below gets its first line read and no more when that line interrupts a paragraph (a list marker, a `>`, a fence, a heading): a block that opens there opens in the full parse too, so the pair stands. Any other first line means parsing the lower block whole as well, since a line a paragraph would continue onto can still end up as a link definition's title a few lines down.
+When an edit may have moved a join (where two blocks meet, blank lines or not), the editor asks whether they're still the blocks a reload reads there. That ask parses the block above the join whole. The block below gets its first line read and no more when that line interrupts a paragraph (a list marker, a `>`, a fence, a heading): a block that opens there opens in the full parse too, so the pair stands. Any other first line means parsing the lower block whole as well, since a line a paragraph would continue onto can still end up as a link definition's title a few lines down.
 
 So a keystroke pays for the size of whatever sits right above the join it touches. Two routes do that today:
 
