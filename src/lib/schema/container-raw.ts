@@ -19,7 +19,7 @@ import {
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
-import type { ChildRawChange } from './child-spans';
+import type { ChildRawChange, StripRebuild } from './child-spans';
 
 /**
  * Rebuild `raw` for every container along `path`, innermost first. The leaf at the end of `path`
@@ -56,8 +56,8 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 		);
 	}
 	const rawBefore = node.raw;
-	rebuild(node);
-	const reading = followBytes(node, rawBefore, grammar);
+	const whole = rebuild(node)?.rereads ?? false;
+	const reading = followBytes(node, rawBefore, grammar, { whole });
 	// No position to put a new node at, so the node takes its reading in place.
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
 }
@@ -66,8 +66,11 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
  * The chain rebuild's step, which re-derives kind and metadata itself once it knows whether an
  * outer line moved; a rebuild outside the chain uses {@link rebuildContainerRaw}.
  */
-export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRawChange): void {
-	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed);
+export function rebuildContainerRawIfContainer(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
+	return tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
 // ── Metadata that follows the bytes ──────────────────────────────────────────

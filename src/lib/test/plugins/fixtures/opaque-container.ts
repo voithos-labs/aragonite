@@ -26,7 +26,7 @@ export function registerOpaqueKind(): void {
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
-		container: { contract: 'opaque', rebuildRaw: (node) => node.raw },
+		container: { contract: 'opaque', rebuildRaw: () => {} },
 		closure: containerClosure({
 			roundTripVia: 'opaque — raw is authoritative, rebuilt verbatim',
 			focus: { mode: 'implemented', via: 'blockFocus=whole-block via the container shim' },

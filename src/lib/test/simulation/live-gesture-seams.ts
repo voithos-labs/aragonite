@@ -399,6 +399,7 @@ async function pressEdgeKey(
 			getPreEditOffset: () => offset,
 			requestCaret: () => {}
 		}),
+		completeMarker: () => void leaf.blockEdit.completeMarker(leaf.index),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},

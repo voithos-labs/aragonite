@@ -68,15 +68,15 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/selection/range-delete.ts': {
 		calls: { rebuildUnsharedAncestry: 2 },
-		why: 'the range delete rebuilds the joined start’s chain: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one (T29 slice 2)'
+		why: 'the range delete rebuilds the joined start’s chain: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one, which keeps bytes and so writes the same (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		calls: { rebuildUnsharedChain: 2 },
-		why: 'the same range delete, for what is left of each removed subtree’s parents and a cleared title line’s container (T29 slice 2)'
+		why: 'the same range delete, for what is left of each removed subtree’s parents and a cleared title line’s container (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
 		calls: { rebuildUnsharedChain: 2 },
-		why: 'the same range delete, for the endpoints it truncates without joining them (T29 slice 2)'
+		why: 'the same range delete, for the endpoints it truncates without joining them (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		calls: { rebuildUnsharedChain: 2, rebuildTableRowRaw: 2 },
@@ -91,7 +91,7 @@ const PINNED: Record<string, Pin> = {
 			rebuildUnsharedAncestry: 2,
 			rebuildUnsharedChain: 1,
 			rebuildContainerRawIfContainer: 1,
-			'.rebuildRaw': 6
+			'.rebuildRaw': 7
 		},
 		why: 'the conformance kit drives rebuilds directly, outside any commit'
 	},
@@ -120,20 +120,20 @@ const PINNED: Record<string, Pin> = {
 		why: 'a reparse that backfilled an empty container, a new node below the scope'
 	},
 	'src/lib/tree-operations/list/list-builders.ts': {
-		calls: { rebuildListItemRaw: 2, rebuildListRaw: 1 },
+		calls: { rebuildListItemRaw: 1, rebuildListRaw: 1 },
 		why: 'builds new items and list halves, nodes no commit has seen'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
 		calls: { rebuildListItemRaw: 4 },
-		why: 'a renumber rewrites items below the scope (T29 slice 2 keeps their lines)'
+		why: 'a renumber rewrites items below the scope, keeping each line its new number still reads'
 	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {
 		calls: { rebuildListItemRaw: 1 },
 		why: 'a trial item, read back once and dropped'
 	},
 	'src/lib/tree-operations/list/unwrap-merge.ts': {
-		calls: { rebuildListRaw: 4, rebuildAncestryRaw: 1 },
-		why: 'an item merge leaves its list current for callers outside a commit, so the Backspace commit rebuilds that list again (T29 slice 2)'
+		calls: { rebuildListRaw: 3, rebuildAncestryRaw: 1 },
+		why: 'an unwrap builds new list shells, and an item merge rebuilds the target item and a sublist below the list the commit rebuilds'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
 		calls: { rebuildAncestryRaw: 1 },
@@ -141,7 +141,7 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/tree-operations/paste/container-match.ts': {
 		calls: { rebuildUnsharedChain: 2, rebuildContainerRaw: 1 },
-		why: 'the merged leaf’s whole chain, which the paste’s commit rebuilds again from the scope up, and the last pasted item (T29 slice 2)'
+		why: 'the merged leaf’s whole chain, which the paste’s commit rebuilds again from the scope up, writing the same bytes now that rebuilds keep them, and the last pasted item (T18 slice 6 retires it)'
 	},
 	'src/lib/tree-operations/paste/table-slice.ts': {
 		calls: { rebuildTableRaw: 2 },

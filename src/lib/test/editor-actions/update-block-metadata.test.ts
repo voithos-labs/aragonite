@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import {
 	makeNestedHarness,
@@ -6,6 +7,9 @@ import {
 	makeTopHarness,
 	mountEveryBlock
 } from '$lib/test/harness/editor-actions';
+
+// The fixtures patch fields onto nodes a reload would read without them.
+afterEach(() => allowDevWarns(['invariant:reads-back']));
 
 // rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {

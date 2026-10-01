@@ -51,7 +51,7 @@ import {
 	assert,
 	assertIndices,
 	assertIs,
-	assertRebuildIsParseCanonical,
+	assertRebuildKeepsParsedBytes,
 	assertReasonDocumented,
 	fail,
 	findFirstOfKind,
@@ -553,7 +553,7 @@ export function checkDeclarationSanity(
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertLastLineChildHoldsIt(kind, node);
 	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
-	assertRebuildIsParseCanonical(descriptor, node, kind);
+	assertRebuildKeepsParsedBytes(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
@@ -622,8 +622,8 @@ function assertHintedRebuildMatchesFull(
  *  ends in it by accident. */
 const CONTENT_START_PROBE = 'probe';
 
-/** `container.contentStartSpace` swallows the user's space, so the rebuild must write it back on a
- *  content line or the keystroke is lost. */
+/** `container.contentStartSpace` swallows the user's space, so a line that was empty and gains
+ *  text must be written with the marker's space, or the keystroke is lost. */
 function assertContentStartSpaceIsRebuilt(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor
@@ -640,7 +640,11 @@ function assertContentStartSpaceIsRebuilt(
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
 	const last = node.children[node.children.length - 1];
-	last.raw = CONTENT_START_PROBE + trailingLineEnding(last.raw, documentLineEnding(doc));
+	const ending = trailingLineEnding(last.raw, documentLineEnding(doc));
+	// Emptied first, the way a bare marker opens its container with an empty child.
+	last.raw = ending;
+	descriptor.rebuildRaw!(node);
+	last.raw = CONTENT_START_PROBE + ending;
 	descriptor.rebuildRaw!(node);
 
 	const lines = splitLines(node.raw)
@@ -650,9 +654,9 @@ function assertContentStartSpaceIsRebuilt(
 	const line = lines[0];
 	assert(
 		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
-		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for a body ` +
-			`child holding "${CONTENT_START_PROBE}" — the consumed space is only deferred where the ` +
-			`rebuild re-emits the marker's own trailing space on a content line`
+		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for an ` +
+			`empty body child given "${CONTENT_START_PROBE}": the consumed space only appears where ` +
+			`the rebuild writes the marker's own space on a line that gains text`
 	);
 }
 

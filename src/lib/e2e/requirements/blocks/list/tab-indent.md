@@ -9,8 +9,9 @@ A tab in the indentation counts to the next multiple of four columns, as CommonM
 
 ## User interactions
 
-- Type one character after `a` in `- a\n\n  \tb\n`: the item keeps both paragraphs, the source reloads as the tree the editor holds, and the item's rewritten indentation is spaces (`- ax\n\n    b\n`)
+- Type one character after `a` in `- a\n\n  \tb\n`: the item keeps both paragraphs, the source reloads as the tree the editor holds, and the line nobody typed on keeps its tab (`- ax\n\n  \tb\n`)
 
 ## Miss-analysis
 
 - GH #437: every body-membership pin indented with spaces, so a tab counted as no indentation and was never checked against CommonMark.
+- The first edit rewrote the tab as spaces: this spec pinned that respelling as the expected bytes, so it guarded the bug instead of catching it.

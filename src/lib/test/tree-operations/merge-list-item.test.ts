@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { mergeListItemIntoPrevious } from '../../tree-operations';
+import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';

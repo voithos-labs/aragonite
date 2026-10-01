@@ -28,7 +28,7 @@ test.describe('a tab in a list item’s indentation', () => {
 		await page.keyboard.type('x');
 
 		await editor.bridge.waitForSourceContains('x');
-		expect(await editor.bridge.getSource()).toBe('- ax\n\n    b\n');
+		expect(await editor.bridge.getSource()).toBe('- ax\n\n  \tb\n');
 		expect(await editor.parseConverged()).toBe(true);
 	});
 });

@@ -35,7 +35,7 @@ import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
 	assert,
 	assertIs,
-	assertRebuildIsParseCanonical,
+	assertRebuildKeepsParsedBytes,
 	fail,
 	nodeAtPath,
 	runCells,
@@ -235,7 +235,7 @@ function execRoundTrip(
 		const first = rebuildRawOf(ctx, descriptor);
 		const second = rebuildRawOf(ctx, descriptor);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
-		assertRebuildIsParseCanonical(descriptor, freshSubject(ctx), `"${kind}"`);
+		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
 		return 'byte round-trip + rebuildRaw parse-identity + determinism';
 	}
 	return 'byte round-trip';

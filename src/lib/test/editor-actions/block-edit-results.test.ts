@@ -10,9 +10,11 @@ import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { serialize } from '$lib/core/serializer';
 import { paragraphNode } from '$lib/tree-operations';
-import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { makeContainerHarness, makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { drainDevWarns } from '../support/warn-gate';
+import { allowDevWarns, drainDevWarns } from '../support/warn-gate';
 
 type Edit = (actions: BlockEditActions) => Promise<boolean>;
 
@@ -31,8 +33,9 @@ beforeEach(() => {
 	installPlugins([twoBox]);
 });
 
-/** One call per member, each a real write on the second of two paragraphs. */
-const WRITES: Record<keyof BlockEditActions, Edit> = {
+/** One call per member, each a real write on the second of two paragraphs; the marker's space has
+ *  a fixture of its own, below. */
+const WRITES: Record<Exclude<keyof BlockEditActions, 'completeMarker'>, Edit> = {
 	splitBlock: (a) => a.splitBlock(1, 1),
 	descendToBody: (a) => a.descendToBody(1),
 	insertParagraph: (a) => a.insertParagraph(2, 'new'),
@@ -71,17 +74,19 @@ function actionsAt(level: Level, source: string, mode: PresentationMode = 'sourc
 describe.each(Object.keys(LEVELS) as Level[])('every block edit at %s', (level) => {
 	const { source, focusOnly } = LEVELS[level];
 
-	it.each(Object.keys(WRITES) as (keyof BlockEditActions)[])(
+	it.each(Object.keys(WRITES) as (keyof typeof WRITES)[])(
 		'%s resolves true when it writes',
 		async (member) => {
 			const h = actionsAt(level, source);
 			expect(await WRITES[member](h.actions)).toBe(true);
 			// An undo entry, not the bytes: a metadata write can leave the bytes as they were.
 			expect(h.entries()).toBe(1);
+			// The metadata write stores a field no reload gives a paragraph.
+			if (member === 'updateBlockMetadata') allowDevWarns(['invariant:reads-back']);
 		}
 	);
 
-	it.each(Object.keys(WRITES) as (keyof BlockEditActions)[])(
+	it.each(Object.keys(WRITES) as (keyof typeof WRITES)[])(
 		'%s resolves false when reading mode refuses it',
 		async (member) => {
 			const h = actionsAt(level, source, 'reading');
@@ -102,4 +107,40 @@ describe.each(Object.keys(LEVELS) as Level[])('every block edit at %s', (level) 
 		expect(await h.actions.mergeWithPrevious(1)).toBe(false);
 		expect(h.bytes()).toBe(focusOnly);
 	});
+});
+
+describe('completeMarker, the space that finishes a container marker', () => {
+	it('writes the space as one undo entry where the marker lacks it', async () => {
+		const h = actionsAt('a container', '>abc\n');
+		expect(await h.actions.completeMarker(0)).toBe(true);
+		expect(h.bytes()).toBe('> abc\n');
+		expect(h.entries()).toBe(1);
+	});
+
+	it.each([
+		['at the document root', 'the document root', 'abc\n', 'source'],
+		['where the marker has its space', 'a container', '> abc\n', 'source'],
+		['in reading mode', 'a container', '>abc\n', 'reading']
+	] as const)('resolves false %s', async (_name, level, source, mode) => {
+		const h = actionsAt(level, source, mode);
+		expect(await h.actions.completeMarker(0)).toBe(false);
+		expect(h.bytes()).toBe(source);
+		drainDevWarns();
+	});
+
+	// Miss-analysis: the press and this action each tested the marker their own way and only the
+	// press asked the kind, so no row drove the action in a kind that takes no space.
+	it.each([
+		['a footnote definition', '[^1]:abc\n'],
+		['a GitHub alert', '> [!NOTE]\n>abc\n']
+	])(
+		'resolves false and writes nothing in %s, whose marker takes no space',
+		async (_name, source) => {
+			installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+			const h = makeContainerHarness(source, [0]);
+			expect(await h.bundle.blockEdit.completeMarker(0)).toBe(false);
+			expect(serialize(h.deps.doc)).toBe(source);
+			expect(h.deps.undoManager.getStacks().undo).toHaveLength(0);
+		}
+	);
 });

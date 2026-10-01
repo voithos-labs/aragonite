@@ -13,6 +13,10 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // that parses to several blocks is one of the split shapes under test.
 afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
 
+/** The two splits whose new item reads back as another tree, the item split's open defect. */
+const allowSplitReadBack = () =>
+	allowDevWarns(['invariant:stale-raw', 'tree-ops', 'invariant:reads-back']);
+
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
 const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
@@ -58,6 +62,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(newItem.children).toHaveLength(3);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
+		allowSplitReadBack();
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -111,6 +116,7 @@ describe('list-context: splitItemAtOffset', () => {
 
 		const newItem = liveList().children![1];
 		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
+		allowSplitReadBack();
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {

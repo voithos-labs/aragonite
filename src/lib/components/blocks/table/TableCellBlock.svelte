@@ -284,6 +284,8 @@
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		writeText,
+		// A cell's row has no marker, so a space at the cell's start finishes nothing.
+		completeMarker: () => {},
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		// A widget that cannot show its source, reached this way, was reached by an arrow

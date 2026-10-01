@@ -9,7 +9,10 @@ import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { assertInvariant } from '../assert';
+import { quoteLines } from '../core/parsers/blockquote';
+import { listItemLines, readItemShape } from '../core/parsers/list';
 import {
+	firstDisplayLine,
 	firstLineEnding,
 	isBlankLine,
 	ownTrailingLineEnding,
@@ -29,41 +32,40 @@ import {
 	rebuildConcatRaw,
 	rebuildStripRaw,
 	spliceVerbatimChild,
-	type ChildRawChange
+	type ChildRawChange,
+	type StripRebuild
 } from './child-spans';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
-/** Rebuild a blockquote's `raw`: `> ` on content lines, `>` on blank lines. */
-export function rebuildBlockquoteRaw(node: CstNode, changed?: ChildRawChange): void {
+export function rebuildBlockquoteRaw(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
 	if (!node.children) return;
-	rebuildStripRaw(node, quoteLine, changed);
+	return rebuildStripRaw(node, quoteLines, changed);
 }
-
-const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
-/**
- * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Separator
- * lines stay bare, but a blank line at the body's end is indented to stay in the item.
- */
-export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
+/** The item's lines written under its metadata, at the indent its own first line had; its
+ *  previous bytes are read under the shape that first line was written in. */
+export function rebuildListItemRaw(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
 	if (!node.children || !node.metadata) return;
-
 	const meta = metadataOf(node, 'listItem');
-	const marker = meta.marker ?? '- ';
-	const taskMarker = meta.taskMarker ?? '';
-	const indent = ' '.repeat(marker.length);
-
-	rebuildStripRaw(
-		node,
-		(text, first, trailingBlank) => {
-			if (first) return marker + taskMarker + text;
-			return text === '' && !trailingBlank ? '' : indent + text;
-		},
-		changed
-	);
+	const previous = readItemShape(firstDisplayLine(node.raw).text);
+	const shape = {
+		indent: previous?.indent ?? '',
+		marker: meta.marker ?? '- ',
+		taskMarker: meta.taskMarker ?? null
+	};
+	const lines = listItemLines(shape);
+	const unchanged =
+		!previous || (previous.marker === shape.marker && previous.taskMarker === shape.taskMarker);
+	return rebuildStripRaw(node, lines, changed, unchanged ? lines : listItemLines(previous));
 }
 
 export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {

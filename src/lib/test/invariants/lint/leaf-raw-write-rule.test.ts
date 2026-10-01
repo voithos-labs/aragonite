@@ -76,8 +76,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
 	},
 	'src/lib/schema/child-spans.ts': {
-		count: 4,
-		why: 'the strip and concat container shapes re-emitting their own bytes from their children: the two span-seeding rebuilds, the whole-body fallback, and the one-region splice'
+		count: 5,
+		why: 'the strip and concat container shapes re-emitting their own bytes from their children: the two span-seeding rebuilds, the whole-body fallback, and the one-region splice; and a marker gaining its space in its own line'
 	},
 	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
 	'src/lib/editor-actions/plugin/directive-container.ts': {
@@ -129,7 +129,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits, and an opaque container re-reads its metadata after the write; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
-		count: 6,
+		count: 7,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
 	},
 	'src/lib/testing/kind-conformance.ts': {

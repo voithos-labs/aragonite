@@ -185,13 +185,13 @@ export function mergeListItemIntoPrevious(
 	// final write to state.
 	list.children = children;
 
-	rebuildAncestryRaw(list, targetPath, reading.grammar);
+	// The target item sits below the commit's chain, which rebuilds the list itself.
+	rebuildAncestryRaw(list.children[targetPath[0]], targetPath.slice(1), reading.grammar);
 
 	if (metadataOf(list, 'list')?.ordered) {
 		// The merge only removes a non-first item, so children[0] keeps the list's starting number;
 		// renumber from 1 to continue it rather than resetting the sequence.
 		renumberOrderedList(list, 1, sharing);
-		rebuildListRaw(list);
 	}
 
 	return { mergePoint: { targetPath, offset: joined.joinOffset } };

@@ -1,0 +1,20 @@
+# Feature: an edit inside a quote or list leaves its other lines alone
+
+Typing or Enter inside a quote or a list item changes the lines it edits. Every other line of that container keeps the bytes the file had: a tab stays a tab, `>b` stays `>b`, and a lazy line (a paragraph's continuation written with no prefix at all) stays bare.
+
+## Happy paths
+
+- `> a\n>b\n`, click `a`, End, type `Q`: `> aQ\n>b\n`
+- `>a\n`, click `a`, End, type `Q`: `>aQ\n`, the line you typed on keeps its bare marker too (regression: `> aQ`; miss-analysis: every typed line already had its marker's space, so a rule that respelled the line under the caret passed)
+- `- ab\n\n\tc\n`, Enter between `a` and `b`: the new item takes `b` and the `c` below it, and `c` keeps its tab (`- a\n- b\n\n\tc\n`)
+- All three in live mode, with the same bytes
+
+## Edge cases
+
+- `- a\nlazy\n`, click `a`, Home, type `# `: the item's paragraph turns into a heading and `lazy` stays bare, so the reload reads a list and a paragraph below it, and that's what the editor holds too (`- # a\nlazy\n`)
+
+- `> a\nlazy\n`, start of `lazy`, type `- `: the line can't continue a paragraph as a list, so it takes the quote's `> ` and the list lands inside the quote (`> a\n> - lazy\n`), which is what a reload reads too (miss-analysis: every lazy row edited the line above it, never the lazy line itself)
+
+## Miss-analysis
+
+- Every container rebuild respelled the whole container in its canonical form, and every container fixture was already written that way, so no spec ever watched an untouched line move.

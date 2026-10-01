@@ -42,7 +42,9 @@ export function createBlockEditActions(
 		replaceBlock: async (blockIndex, replacement, focus, options) =>
 			(await core.replaceBlock(blockIndex, replacement, focus, options)) !== null,
 
-		updateBlockContent: contentUpdate(scope)
+		updateBlockContent: contentUpdate(scope),
+		// The document root has no container whose marker a block could finish.
+		completeMarker: async () => false
 	};
 
 	return withEnterCompletion(
