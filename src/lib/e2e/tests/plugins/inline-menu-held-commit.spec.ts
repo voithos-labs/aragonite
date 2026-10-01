@@ -105,3 +105,22 @@ test.describe('an inline-menu pick whose commit waits across a source swap', () 
 		expect(await editor.bridge.getSource()).not.toContain('> card');
 	});
 });
+
+// A mode change replaces no document, so it leaves a waiting pick alone: the commit still lands.
+test('an inline-menu pick whose commit waits across a mode change still lands', async ({
+	page
+}) => {
+	const editor = new PluginsPage(page);
+	await editor.gotoPlugins('inline-menu');
+	await editor.focusBlockEnd(TARGET);
+	await editor.typeText(' @ad');
+	await expect(page.locator('[data-inline-menu]')).toBeVisible();
+	await page.keyboard.press('Enter');
+	await editor.bridge.waitForSourceContains('Type here @Ada');
+
+	await editor.setPresentationMode('live');
+	await editor.focusBlockEnd(TARGET);
+	await page.evaluate(() => window.__releaseHeldCommit?.());
+
+	await editor.bridge.waitForSourceContains('> card');
+});

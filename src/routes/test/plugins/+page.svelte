@@ -27,7 +27,6 @@
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { HELD_SLASH_ENTRIES } from './inline-menu/held-slash-entries';
 	import '../../demo-tags/tag-marks.css';
-	import type { EditorPlugin } from '$lib/plugin';
 	import type { EditorPluginEntry } from '$lib';
 
 	// docStatsPlugin is a bare entry (no options), so it runs on its defaults.

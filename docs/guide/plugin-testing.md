@@ -16,17 +16,18 @@ Everything test-specific imports from one subpath, `@voithos-labs/aragonite/test
 
 And a map, so you can jump straight at your question:
 
-| Section                                                                   | What it covers                                                                                             |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [Round-trip is the contract](#round-trip-is-the-contract)                 | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled   |
-| [A blank slate per test](#a-blank-slate-per-test)                         | Why a plugin registers only once per process, and the reset that lets a test suite live with that          |
-| [Turning warnings into failures](#turning-warnings-into-failures)         | Making the editor's dev-mode warnings fail your suite instead of scrolling by                              |
-| [Proving a paste transform is wired](#proving-a-paste-transform-is-wired) | Driving the real paste pipeline over a string, no clipboard involved                                       |
-| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)       | Rendering your component in a simulated browser, and the helper that fills the gaps                        |
-| [The conformance kits](#the-conformance-kits)                             | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share      |
-| [The kind checkup](#the-kind-checkup-runkindconformance)                  | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
-| [The container checkup](#the-container-checkup-runcontainerconformance)   | Extra checks for a block that holds other blocks, starring the body line that ends the container early     |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance)        | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's              |
+| Section                                                                                               | What it covers                                                                                               |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [Round-trip is the contract](#round-trip-is-the-contract)                                             | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled     |
+| [A blank slate per test](#a-blank-slate-per-test)                                                     | Why a plugin registers only once per process, and the reset that lets a test suite live with that            |
+| [Turning warnings into failures](#turning-warnings-into-failures)                                     | Making the editor's dev-mode warnings fail your suite instead of scrolling by                                |
+| [Proving a paste transform is wired](#proving-a-paste-transform-is-wired)                             | Driving the real paste pipeline over a string, no clipboard involved                                         |
+| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)                                   | Rendering your component in a simulated browser, and the helper that fills the gaps                          |
+| [The conformance kits](#the-conformance-kits)                                                         | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share        |
+| [The kind checkup](#the-kind-checkup-runkindconformance)                                              | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing   |
+| [The container checkup](#the-container-checkup-runcontainerconformance)                               | Extra checks for a block that holds other blocks, starring the body line that ends the container early       |
+| [The inline checkup](#the-inline-checkup-runinlinekindconformance)                                    | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's                |
+| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
 
 ## Verifying your plugin
 
@@ -475,3 +476,26 @@ Two things worth knowing about `widget`. It asserts your claimed slice is **self
 - on a trigger no built-in owns, the scan actually visits that character.
 
 `registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
+
+### A menu pick across a note switch: `checkInlineMenuCommitAcrossSwap`
+
+**`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
+
+One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it is the bug this cell catches.
+
+Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
+
+```ts
+import { checkInlineMenuCommitAcrossSwap } from '@voithos-labs/aragonite/testing';
+
+let release = () => {};
+const titleFetched = new Promise<void>((r) => (release = r));
+
+await checkInlineMenuCommitAcrossSwap({
+	source: (editor) => createMentionSource(editor, { fetchTitle: () => titleFetched }),
+	item: { id: 'ada', label: 'Ada', insert: '@Ada' },
+	release
+});
+// Error: inline-menu source 'mentions': its commit wrote insertMarkdown("> card") after the host
+// loaded another document; write through the context onCommit hands you, not onEditor's
+```

@@ -23,3 +23,5 @@ inserts a card below.
   the commit into the note it was picked in.
 - Pick, the host loads another note and writes into it itself, then the commit is released: the
   host's write lands, and the pick's card doesn't
+- Pick, switch to live mode while the commit waits, release it: a mode change replaces no
+  document, so the pick is left alone and the card lands

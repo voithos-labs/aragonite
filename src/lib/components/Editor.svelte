@@ -610,8 +610,8 @@
 		commitRange: (path, start, end, bytes, caretAfter) =>
 			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
-		// Called at use: the method is declared further down this component.
-		insertMarkdown: (md, options) => insertMarkdown(md, options),
+		// A source added outside any plugin's `onEditor` is the editor's own: the base context.
+		ownerOfNewSource: () => pluginContexts.attaching() ?? pluginContexts.get('')!,
 		drafts
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;

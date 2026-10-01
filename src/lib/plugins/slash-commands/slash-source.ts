@@ -30,8 +30,9 @@ export type SlashCommandEntry = SlashCommandEntryBase &
 	(
 		| { insert: string; run?: never; takesArgument?: never }
 		| {
-				/** Runs after the `/query` bytes are gone, with the argument typed after a space. */
-				run: (editor: EditorContext, argument?: string) => void;
+				/** Runs after the `/query` bytes are gone, with the argument typed after a space. `editor`
+				 *  writes nothing once the host loads another note, so a `run` that awaits uses it. */
+				run: (editor: EditorContext, argument?: string) => void | Promise<void>;
 				/** Lets the list survive a space, so `/name word` hands `word` to `run`. */
 				takesArgument?: boolean;
 				insert?: never;
@@ -51,7 +52,7 @@ type BuiltInsert = ReturnType<NonNullable<InsertEntry['withArgument']>>;
 type SlashAction =
 	| { kind: 'insert'; build: (argument: string | null) => BuiltInsert }
 	| { kind: 'heading'; level: number }
-	| { kind: 'run'; run: (editor: EditorContext, argument?: string) => void };
+	| { kind: 'run'; run: (editor: EditorContext, argument?: string) => void | Promise<void> };
 
 interface SlashRow extends FilterableEntry {
 	id: string;
@@ -89,21 +90,24 @@ export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): 
 				insert: ''
 			}));
 		},
-		onCommit: async (item, commit) => {
+		// `pick` is the editor's context for this pick: it writes nothing once the host loads another
+		// note, so a `run` that waits on a picker is safe through it.
+		onCommit: async (item, range, pick) => {
 			const row = rows().find((candidate) => candidate.id === item.id);
 			if (!row) return;
-			const { argument } = splitQuery(commit.query);
+			const { argument } = splitQuery(range.query);
 			const action = row.action;
 			if (action.kind === 'heading') {
-				editor.runCommand('heading.cycle', action.level);
+				pick.runCommand('heading.cycle', action.level);
 			} else if (action.kind === 'run') {
-				action.run(editor, argument ?? undefined);
+				// Awaited, so what a waiting run writes lands inside the pick's undo entry.
+				await action.run(pick, argument ?? undefined);
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				// Copied because `blockNodeAt` takes a mutable path and the commit's is readonly.
-				const empty = isBlankText(blockNodeAt(editor.document, [...commit.path])?.raw ?? '');
+				// Copied because `blockNodeAt` takes a mutable path and the range's is readonly.
+				const empty = isBlankText(blockNodeAt(pick.document, [...range.path])?.raw ?? '');
 				// Awaited, so the block lands inside the pick's undo entry.
-				await commit.insertMarkdown(action.build(argument).markdown, {
+				await pick.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'
 				});
 			}

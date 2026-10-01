@@ -114,7 +114,7 @@ describe('a pick', () => {
 		expect(h.inserted).toEqual([{ markdown: '```js\n\n```\n', placement: 'caret' }]);
 	});
 
-	it('a host run entry receives the argument, and an insert entry its Markdown', async () => {
+	it('a host run entry receives the pick’s context and the argument, an insert entry its Markdown', async () => {
 		const run = vi.fn();
 		const entries: SlashCommandEntry[] = [
 			{ id: 'cite', label: 'Cite', run, takesArgument: true },
@@ -123,7 +123,11 @@ describe('a pick', () => {
 		const h = slashHarness('', { entries });
 		await h.type('/cite knuth');
 		await h.pick();
-		expect(run).toHaveBeenCalledWith(h.editor, 'knuth');
+		// The editor's context scoped to the pick, so a run that waits writes nothing after a swap.
+		const [pick, argument] = run.mock.calls[0];
+		expect(Object.getPrototypeOf(pick)).toBe(h.editor);
+		expect(pick.signal).toBeInstanceOf(AbortSignal);
+		expect(argument).toBe('knuth');
 		await h.type('/stamp');
 		await h.pick();
 		expect(h.inserted).toEqual([{ markdown: '**ok**', placement: 'caret' }]);

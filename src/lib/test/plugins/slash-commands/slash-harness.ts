@@ -34,6 +34,8 @@ interface HarnessHost {
 	inlineMenus: InlineMenuRegistry;
 	insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (id: string, arg?: unknown) => boolean;
+	/** The context the sources added next belong to, as an editor's `onEditor` hands it. */
+	ownSources: (editor: EditorContext) => void;
 }
 
 export function slashHarness(initial: string, options: SlashCommandsOptions = {}) {
@@ -52,6 +54,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			insertMarkdown: host.insertMarkdown,
 			runCommand: host.runCommand
 		} as unknown as EditorContext<SlashCommandsOptions>;
+		host.ownSources(editor);
 		host.inlineMenus.addSource(createSlashSource(editor));
 		return editor;
 	});
@@ -73,6 +76,7 @@ export function slashPluginHarness(
 			...host,
 			optionsFor: (name) => optionsByName.get(name)
 		});
+		host.ownSources(contexts.get(plugins[0].name)!);
 		contexts.attachAll(({ error }) => onError(error));
 		return contexts.get(plugins[0].name)!;
 	});
@@ -99,6 +103,7 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		return Promise.resolve(true);
 	};
 
+	let owner: EditorContext | undefined;
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
 		getSelection: () => ({
@@ -119,7 +124,7 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 			return true;
 		},
 		undoStep: async (_path, _offset, run) => void (await run()),
-		insertMarkdown,
+		ownerOfNewSource: () => owner!,
 		// No swap happens here, so a pick's draft can always write.
 		drafts: { open: () => ({ canWrite: () => true, end: () => {} }) }
 	});
@@ -129,7 +134,8 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		events,
 		inlineMenus: menu.registry,
 		insertMarkdown,
-		runCommand: (id, arg) => (ran.push({ id, arg }), true)
+		runCommand: (id, arg) => (ran.push({ id, arg }), true),
+		ownSources: (context) => (owner = context)
 	});
 
 	let arrived = false;

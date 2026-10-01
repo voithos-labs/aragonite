@@ -32,6 +32,9 @@ export interface EditorPluginContexts {
 	get(pluginName: string): EditorContext | undefined;
 	/** Also receives any options error reported before it was called. */
 	attachAll(onError: (report: ErrorReport) => void): void;
+	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
+	 *  sources; undefined outside one. */
+	attaching(): EditorContext | undefined;
 	dispose(): void;
 }
 
@@ -65,6 +68,7 @@ export function createEditorPluginContexts(deps: {
 	// A block reads its options while it renders, which is before `attachAll` sets a handler.
 	const early: ErrorReport[] = [];
 	let report: (r: ErrorReport) => void = (r) => void early.push(r);
+	let attaching: EditorContext | undefined;
 
 	function optionsFor(pluginName: string): unknown {
 		const plugin = installedPlugin(pluginName) ?? {};
@@ -121,17 +125,21 @@ export function createEditorPluginContexts(deps: {
 
 	return {
 		get,
+		attaching: () => attaching,
 		attachAll(onError) {
 			report = onError;
 			for (const r of early.splice(0)) onError(r);
 			for (const plugin of installedPluginNames()) {
 				if (!resolvesIn(deps.activation, plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
+					attaching = get(plugin)!;
 					try {
-						const dispose = cb(get(plugin)!);
+						const dispose = cb(attaching);
 						if (typeof dispose === 'function') disposers.push({ plugin, dispose });
 					} catch (error) {
 						onError({ plugin, error });
+					} finally {
+						attaching = undefined;
 					}
 				}
 			}

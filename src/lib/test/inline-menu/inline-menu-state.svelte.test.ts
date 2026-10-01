@@ -13,6 +13,13 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
 import { createDraftRegistry } from '$lib/components/draft-registry';
 import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import type { EditorContext } from '$lib/schema/plugin-install';
+
+/** The context a pick's commit is handed here; these suites never write through it. */
+const noWrites = {
+	insertMarkdown: async () => false,
+	runCommand: () => false
+} as unknown as EditorContext;
 
 // `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
 const masker = definePlugin({
@@ -95,7 +102,7 @@ function harness(
 				joinDepth--;
 			}
 		},
-		insertMarkdown: async () => false,
+		ownerOfNewSource: () => noWrites,
 		drafts: createDraftRegistry(createDocumentStamps())
 	});
 
@@ -749,7 +756,7 @@ describe('a table cell', () => {
 				return true;
 			},
 			undoStep: async (_path, _offset, run) => void (await run()),
-			insertMarkdown: async () => false,
+			ownerOfNewSource: () => noWrites,
 			drafts: createDraftRegistry(createDocumentStamps())
 		});
 		menu.registry.addSource(tags());

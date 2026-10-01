@@ -30,8 +30,9 @@ import type {
 	InlineMenuSourceHandle
 } from './types';
 import type { Reading } from '../schema/reading';
-import type { InsertMarkdownOptions } from '../editor-props';
 import type { DraftRegistry } from '../components/draft-registry';
+import type { EditorContext } from '../schema/plugin-install';
+import { openPick } from './pick-context';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
@@ -54,8 +55,8 @@ export interface InlineMenuStateDeps {
 	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
 	 *  puts the caret back when nothing is focused. */
 	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
-	/** The editor's own insert, which a pick's commit writes through. */
-	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
+	/** The context of the plugin adding a source now; a pick's commit writes through a copy of it. */
+	ownerOfNewSource: () => EditorContext;
 	/** A pick waiting on its commit is a draft of the note it was made in. */
 	drafts: Pick<DraftRegistry, 'open'>;
 }
@@ -113,6 +114,8 @@ function isGridCell(doc: DocumentView, path: readonly number[]): boolean {
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
+	/** Whose `EditorContext` each source's commit is handed. */
+	const owners = new Map<string, EditorContext>();
 	const listboxId = `${deps.editorId}-inline-menu`;
 	// A row is named after its own item, not its place in the list, so the row a narrower query
 	// leaves active keeps the id the attribute pointing at it already held.
@@ -369,29 +372,17 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			writing = false;
 			resnap();
 		}
-		const pick = openPick();
+		const owner = owners.get(live.source);
+		if (!source?.onCommit || !owner) return;
+		// A commit can wait on a fetch past a `source` swap; what it writes then belongs to no document.
+		const pick = openPick(owner, deps.drafts);
 		try {
-			await source?.onCommit?.(item, { ...range, ...pick.commit });
+			await source.onCommit(item, range, pick.editor);
 		} catch (error) {
 			report(error, live.source);
 		} finally {
-			pick.draft.end();
+			pick.end();
 		}
-	}
-
-	// A commit can wait on a fetch past a `source` swap; what it writes then belongs to no document.
-	function openPick() {
-		const aborted = new AbortController();
-		const draft = deps.drafts.open({
-			seed: '',
-			current: () => '',
-			close: (cause) => {
-				if (cause === 'document-swap') aborted.abort();
-			}
-		});
-		const insertMarkdown = (md: string, options?: InsertMarkdownOptions) =>
-			draft.canWrite() ? deps.insertMarkdown(md, options) : Promise.resolve(false);
-		return { draft, commit: { signal: aborted.signal, insertMarkdown } };
 	}
 
 	function open(name: string, options?: InlineMenuOpenOptions): boolean {
@@ -444,10 +435,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 				heldBack = false;
 			}
 			sources.set(source.name, source);
+			owners.set(source.name, deps.ownerOfNewSource());
 			return {
 				dispose: () => {
 					if (sources.get(source.name) !== source) return;
 					sources.delete(source.name);
+					owners.delete(source.name);
 					if (session?.source === source.name) close();
 				}
 			};
