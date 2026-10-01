@@ -87,6 +87,8 @@ export interface InlineMenuOpenOptions {
 }
 
 export interface InlineMenuRegistry {
+	/** Add from `onEditor` itself, not after an `await` in it: a pick's commit context is built on
+	 *  the context whose callback added the source, and a late one gets the editor's own `options`. */
 	addSource(source: InlineMenuSource): InlineMenuSourceHandle;
 	/** Types the source's trigger and `options.query` at the caret as one undo entry and opens the
 	 *  menu. False, writing nothing, for an unknown name, reading mode, no prose caret, or a newline. */

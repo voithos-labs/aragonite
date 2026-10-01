@@ -481,7 +481,7 @@ Two things worth knowing about `widget`. It asserts your claimed slice is **self
 
 **`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
 
-One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it is the bug this cell catches.
+One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait, without checking `documentGeneration` first, is the bug this cell catches. A source that compares the generation across its wait passes.
 
 Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
 
@@ -497,5 +497,6 @@ await checkInlineMenuCommitAcrossSwap({
 	release
 });
 // Error: inline-menu source 'mentions': its commit wrote insertMarkdown("> card") after the host
-// loaded another document; write through the context onCommit hands you, not onEditor's
+// loaded another document; write through the context onCommit hands you, or compare
+// documentGeneration across the wait
 ```
