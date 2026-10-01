@@ -180,7 +180,7 @@ The caret surface reads as three layers, and a new gesture composes them rather 
 
 [`caret-placement.md`](caret-placement.md) walks one click through all three layers, and then through what the caret does on the next keystroke, one file per stage.
 
-A block publishes the shape one of two ways, and `BlockHost` resolves both at the single point it stores a ref: a leaf as its own instance exports, a container under one `containerApi` export. Why two: Svelte 5 instance exports are individual top-level declarations with no spread, and forwarding a dozen members by hand made every member a place to drop one. The component registry types the two shapes as a union, so a block publishing neither doesn't compile.
+A block publishes the shape one of three ways, and `BlockHost` resolves all three at the single point it stores a ref (`resolveBlockSurface`): a hand-built leaf as its own instance exports, a plugin leaf built on `createEditableLeaf` under one `blockApi` export, a container under one `containerApi` export. The two factories hand their surface over as one object because Svelte 5 instance exports are individual top-level declarations with no spread, and forwarding a dozen members by hand made every member a place to drop one. The component registry types the three shapes as a union, so a block publishing none of them doesn't compile.
 
 ## 5. Schema
 

@@ -133,11 +133,6 @@ function surfaceParity(
 const COMMAND_SURFACE_RE = /\bcreateEditableSurface\s*\(/;
 const PUBLISHES_RUN_COMMAND_RE = /\bexport\s+(?:const|function)\s+runCommand\b/;
 
-// ── G4.73 editable leaves ────────────────────────────────────────────────────
-
-const LEAF_SURFACE_RE = /\bcreateEditableLeaf\s*\(/;
-const PUBLISHES_SOURCE_COMMIT_RE = /\bexport\s+(?:const|function)\s+afterSourceCommit\b/;
-
 // ── G4.47 whole-block editing host ───────────────────────────────────────────
 
 /** The predicate that knows the host, plus the attribute a selector-level reader excludes by. */
@@ -757,27 +752,6 @@ const RULES: FileRule[] = [
 				'createEditableSurface({}); export function runCommand(id: CommandId): boolean {'
 			),
 			'const s = createEditableSurface({'
-		]
-	},
-	{
-		id: 'G4.73 every component mounting an editable leaf publishes afterSourceCommit',
-		population: (file) => svelteOnly(file) && LEAF_SURFACE_RE.test(file.code),
-		matches: (file) => !PUBLISHES_SOURCE_COMMIT_RE.test(file.code),
-		reason:
-			'without an instance export of afterSourceCommit, editor.runCommand moves the block with its open source unwritten and the edit is lost; a bound chord gets the hook from the leaf itself',
-		reaches: ['src/lib/plugins/latex/BlockMath.svelte'],
-		atLeast: 4,
-		hits: [
-			at('x.svelte', 'const leaf = createEditableLeaf({'),
-			at('x.svelte', 'createEditableLeaf({}); const run = leaf.afterSourceCommit;')
-		],
-		misses: [
-			at(
-				'x.svelte',
-				'createEditableLeaf({}); export const afterSourceCommit = leaf.afterSourceCommit;'
-			),
-			at('x.svelte', 'const s = createEditableSurface({'),
-			'const leaf = createEditableLeaf({'
 		]
 	},
 	{

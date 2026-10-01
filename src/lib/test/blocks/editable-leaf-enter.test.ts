@@ -83,7 +83,7 @@ describe('Enter in an editable leaf', () => {
 		const el = await mounted.revealAtEnd();
 		// A draft the reveal holds and the CST has not seen; the caret goes back to its end.
 		el.textContent = '@@ two';
-		mounted.instance.parkCaret(6);
+		mounted.instance.blockApi.parkCaret(6);
 		await settleEditor();
 		await pressKey(el, { key: 'Enter' });
 

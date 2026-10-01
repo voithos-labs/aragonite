@@ -38,11 +38,7 @@
 		setRevealed: (next) => (revealed = next)
 	});
 
-	export const editable = true;
-	export const focusable = true;
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const getCursorOffset = leaf.getCursorOffset;
+	export const blockApi = leaf.blockApi;
 </script>
 
 <!-- The spread sits on a wrapper that stays mounted while the source shows, as the guide says. -->

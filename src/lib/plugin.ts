@@ -295,7 +295,7 @@ export type {
 	EditableLeafSurfaceProps,
 	EditableLeafRenderProps
 } from './components/blocks/editable-leaf';
-export type { StickyColumnDirection } from './block-component';
+export type { EditableLeafBlockApi, StickyColumnDirection } from './block-component';
 
 // ── Directive authoring (pre-freeze) ─────────────────────────────────────────
 // `activateDirectives()` takes over `:::`; call it once at startup, before the editor

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A plain-mode editable leaf: every editing behavior lives in `createEditableLeaf`, and
 	// spreading `leaf.surfaceProps` sets up the whole editable element.
-	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -15,34 +15,7 @@
 		mode: 'plain'
 	});
 
-	// ── BlockComponent interface ────────────────────────────────────────────────
-
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		getSelectedText,
-		setSelection,
-		measurePartialRects,
-		insertMarkdown,
-		afterSourceCommit
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
 <!-- The reference wiring for a leaf: one spread supplies every handler, attribute and

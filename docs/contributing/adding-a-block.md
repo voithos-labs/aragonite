@@ -184,7 +184,7 @@ function headingExtraProps(node: NodeView): Record<string, unknown> {
 }
 ```
 
-Go through `defineBlockComponent` rather than building the entry object by hand. It's the typed constructor, and it checks at the call site that your component publishes one of the two surface shapes and that its props are a subset of what BlockHost passes, so a wrong shape is something `npm run check` tells you about rather than a user. The two shapes: a leaf exports its surface as instance exports and ends with `satisfies BlockComponent`, a container exports a single `containerApi`. The thematic break's tail, as a leaf:
+Go through `defineBlockComponent` rather than building the entry object by hand. It's the typed constructor, and it checks at the call site that your component publishes a surface shape the registry knows and that its props are a subset of what BlockHost passes, so a wrong shape is something `npm run check` tells you about rather than a user. A built-in uses one of two: a hand-built leaf exports its surface as instance exports and ends with `satisfies BlockComponent`, a container exports a single `containerApi`. (The third, one `blockApi` export, is for a plugin leaf built on `createEditableLeaf`.) The thematic break's tail, as a leaf:
 
 ```ts
 // components/blocks/ThematicBreakBlock.svelte

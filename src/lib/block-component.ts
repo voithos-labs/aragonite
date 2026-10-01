@@ -328,24 +328,43 @@ export type ContainerBlockComponent = BlockComponent &
 		>
 	>;
 
-/**
- * What a mounted block component publishes through `bind:this`: a leaf publishes the object
- * itself, a container publishes it under the one `containerApi` export (Svelte 5 instance
- * exports are separate declarations with no spread, so re-exporting a dozen members by hand
- * drops one). The union is what enforces it: a container publishing only a leaf's members is
- * a type error where `defineBlockComponent` registers it.
- */
-export type BlockComponentExports =
-	BlockComponent | { readonly containerApi: ContainerBlockComponent };
+/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
+ *  so none drops out unseen, and a caller reaches each one without a guard. */
+export type EditableLeafBlockApi = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'parkCaret'
+			| 'focusAtColumn'
+			| 'getSelectedText'
+			| 'setSelection'
+			| 'measurePartialRects'
+			| 'insertMarkdown'
+			| 'afterSourceCommit'
+		>
+	>;
 
 /**
- * The `BlockComponent` behind a published instance: the one place that knows a container's
- * object hides under `containerApi`. Returns the object it was handed, never a wrapper,
+ * What a mounted block component publishes through `bind:this`: a hand-built leaf its members
+ * themselves, a component built on the editable leaf its `blockApi`, a container its
+ * `containerApi`. Svelte 5 instance exports have no spread, so the factories hand over one object
+ * rather than a dozen members to copy by hand. A component publishing none of the three, or a
+ * container publishing only a leaf's members, fails where `defineBlockComponent` registers it.
+ */
+export type BlockComponentExports =
+	| BlockComponent
+	| { readonly blockApi: EditableLeafBlockApi }
+	| { readonly containerApi: ContainerBlockComponent };
+
+/**
+ * The `BlockComponent` behind a published instance: the one place that knows a factory's object
+ * sits under `blockApi` or `containerApi`. Returns the object it was handed, never a wrapper,
  * because `publishRefSlot` compares identity and a new object would overwrite the stored one.
  */
 export function resolveBlockSurface(
 	exports: BlockComponentExports | undefined
 ): BlockComponent | undefined {
 	if (!exports) return undefined;
+	if ('blockApi' in exports) return exports.blockApi;
 	return 'containerApi' in exports ? exports.containerApi : exports;
 }

@@ -225,17 +225,7 @@ cNo.....................................oc
 
 	const caption = $derived(parrotCaption(node.raw));
 
-	export const editable = true;
-	export const focusable = true;
-	export const focus = leaf.focus;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
+	export const blockApi = leaf.blockApi;
 </script>
 
 <div
@@ -344,11 +334,11 @@ cNo.....................................oc
 
 The component has an editing half and a parrot half, and the parrot half never touches the editor.
 
-The editing half is the factory call, the `revealed` flag, two spreads, and the one-line re-exports:
+The editing half is the factory call, the `revealed` flag, two spreads, and one export:
 
 - `revealed` is yours. The factory flips it through `setRevealed` (on when a click or an arrow lands in the block, off when the caret leaves), and the `{#if}` swaps the two views on it.
 - `surfaceProps` goes on the source line. `renderProps` goes on the block wrapper, so a click anywhere in the block reveals, bird included, and lands where `caretTargetAtPoint` said. Spread both; a folded view that takes the click but not the keys swallows undo while it holds focus.
-- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The next six are how `insertMarkdown` and a selection landing reach your block, and `afterSourceCommit` writes the open source before a move, so `editor.runCommand('block.moveDown')` with the caret in your source doesn't leave the edit behind. Keep all of them.
+- `blockApi` is everything the editor calls on your block: focus, the caret and selection reads, `insertMarkdown`, and the hook that writes your open source before `editor.runCommand('block.moveDown')` moves the block. It's one object, so whatever the factory learns later reaches your parrot without an edit, and a component that exports nothing doesn't typecheck where it's registered.
 - The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
 - `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](#the-editable-leaf) explains.
 
@@ -923,7 +913,7 @@ Your component supplies only its own chrome: the border, the title styling, an i
 
 Three rules for that file, each earned the hard way:
 
-- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
+- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as a leaf surface (a hand-built leaf's own members, or a factory leaf's `blockApi`) or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read (`var(--color-ui-muted, #93938d)`), so the block still renders outside the editor's own style scope. Match the fallback to the token's dark value; dark is the base theme. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
@@ -1232,13 +1222,14 @@ const leaf = createEditableLeaf({
 	getEl: () => sourceEl ?? null, // null while a render-primary view is folded
 	mode: 'render-primary', // 'plain' is the default
 	singleLine: true, // a one-line kind: Enter splits the block instead of typing a newline
-	isRevealed: () => revealed, // render-primary only, and required there: you own the swap flag
+	isRevealed: () => revealed, // render-primary only; leaving it out there won't compile, or throws
 	setRevealed: (next) => (revealed = next)
 	// optional too: commandHooks, handed to your block commands as ctx.hooks (see Block commands)
 });
+leaf.blockApi; // everything the editor calls on your block: your component's one export
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
-leaf.getOptions(); // this editor's options for your plugin, defaults included, typed unknown
+leaf.getOptions<MyOptions>(); // this editor's options for your plugin, defaults included
 leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a bare harness
 ```
 
@@ -1255,7 +1246,7 @@ A leaf whose bytes are one line (the parrot's opener claims exactly one) declare
 Beyond the spread you add only your own `class` / `aria-label`, plus **`bind:this` in both modes**: the factory reaches your element only through `getEl()`, so both modes read it the same way, and they differ only in that render-primary's `getEl()` returns null while the view is folded. The two modes:
 
 - **`'plain'`**: the source is always the editable view, and every keystroke commits to the tree (with prose-like undo batching). The spread's sync mirrors external rewrites (an undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret quirk and the caret restore.
-- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it. A move while the source is up writes it first. A move chord your keymap binds does that on its own; a host's `editor.runCommand('block.moveDown')` only does it if your component re-exports `afterSourceCommit`.
+- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it. A move while the source is up writes it first, whether it came from a chord or from a host's `editor.runCommand('block.moveDown')`.
 
 **Render-primary gets a second spread.** `renderProps` goes on the folded view, and it carries the reveal click and the chord dispatch together; a view that takes the click but not the keys swallows undo while it holds focus. Put it on a wrapper the reveal never unmounts (both handlers do nothing while the source is up) and the whole folded surface, chrome included, is one click target. Where in the source that click lands is your kind's `caretTargetAtPoint`; declare none and every click reveals at the first byte.
 
@@ -1271,9 +1262,9 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the round-trip holds through every commit.
 
-**Per-instance configuration.** `leaf.getOptions()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. It's typed `unknown`, so cast it to your options type, and it's `undefined` only with no editor around (a component mounted bare in a unit test). It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
+**Per-instance configuration.** `leaf.getOptions<MyOptions>()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. You name the type, and nothing checks it against your plugin, so pass the one your `defaults` has. With no editor around (a component mounted bare in a unit test) it's just your `defaults`, once your plugin is installed. It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
-Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `completeBareSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `completeBareSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and the one `blockApi` export. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 
 ## Presentation modes
 

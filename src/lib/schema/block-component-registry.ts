@@ -8,21 +8,24 @@ import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 import type { PluginActivation } from './plugin-activation';
-import { pluginEditorFor, type EditorContext } from './plugin-install';
+import {
+	installedPlugin,
+	pluginEditorFor,
+	resolvePluginOptions,
+	type EditorContext
+} from './plugin-install';
 import { createBlockKindRegistry } from './plugin-registry';
 
 export interface BlockComponentEntry {
-	/**
-	 * Typed with `BlockComponentExports` so BlockHost's `bind:this` type-checks a component picked
-	 * at runtime, which must expose a leaf's editable element or a container's `containerApi`.
-	 */
+	/** Typed with `BlockComponentExports` so BlockHost's `bind:this` type-checks a component
+	 *  picked at runtime. */
 	component: Component<Record<string, unknown>, BlockComponentExports>;
 	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
- * Typed constructor for a registry entry, so a container that forgot its `containerApi`, or props
- * BlockHost never passes, fail to compile rather than mount as a block nothing can focus.
+ * Typed constructor for a registry entry, so a component publishing no surface, or props BlockHost
+ * never passes, fail to compile rather than mount as a block nothing can focus.
  */
 export function defineBlockComponent<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
@@ -61,6 +64,18 @@ export function componentPluginEditor(
 	kind: AnyBlockKind
 ): EditorContext | undefined {
 	return pluginEditorFor(pluginEditor, registry.ownerOf(kind));
+}
+
+/** The options the kind's component reads: its editor's, or the owning plugin's `defaults` when
+ *  no editor is mounted, resolved as an editor with no entry for the plugin would. */
+export function componentPluginOptions(
+	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
+	kind: AnyBlockKind
+): unknown {
+	const editor = componentPluginEditor(pluginEditor, kind);
+	if (editor) return editor.options;
+	const owner = installedPlugin(registry.ownerOf(kind) ?? '') ?? {};
+	return resolvePluginOptions(owner, undefined);
 }
 
 /** `registerBlockComponent` throws on a duplicate, so a plugin that may register twice (hot

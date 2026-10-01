@@ -1,14 +1,14 @@
 /**
- * Every editable block publishes `insertMarkdown` (G4.38). Svelte 5 instance exports cannot be
- * spread and `BlockComponent` declares the member optional, so a block missing it would compile
- * and quietly ignore every `editor.insertMarkdown`. The scan reads whichever route the component
- * uses: an instance export, or the object it hands `publishRefSlot`.
+ * Every editable block publishes `insertMarkdown` (G4.38). `BlockComponent` declares the member
+ * optional, so a block missing it would compile and quietly ignore every `editor.insertMarkdown`.
+ * A leaf built on `createEditableLeaf` exports the factory's `blockApi` (G4.73), whose type requires
+ * it, so the scan reads the components that build their own text area, by whichever route each uses.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 
-/** A component owning an editable element: the two factories that create one. */
-const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
+/** A component building its own editable element. */
+const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
 
 /** The exported step: an instance export, not a mention. */
 const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+insertMarkdown\b/;
@@ -53,7 +53,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
 
 	it('found the editable-surface components to inspect', () => {
-		expect(components.length).toBeGreaterThanOrEqual(4);
+		expect(components.length).toBeGreaterThanOrEqual(3);
 	});
 
 	it('every editable-surface component publishes insertMarkdown', () => {
@@ -75,10 +75,10 @@ describe('G4.38 insertion entry-point surface parity', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the factory matcher covers both surface factories and nothing else', () => {
+	it('the factory matcher covers the surface factory and nothing else', () => {
 		expect(SURFACE_FACTORY_RE.test('const s = createEditableSurface({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('import type { EditableLeaf } from')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('import type { EditableSurface } from')).toBe(false);
 	});
 
 	it('the publish matcher demands an export, not a mention', () => {

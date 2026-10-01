@@ -3,12 +3,11 @@
 	// this component owns only the swap between the list and the source, and navigation.
 	import {
 		createEditableLeaf,
-		type BlockComponent,
 		type DocumentView,
 		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
-	import { collectHeadings, MAX_HEADING_DEPTH } from './heading-outline';
+	import { collectHeadings } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
 	import type { TocOptions } from './toc-plugin';
 
@@ -41,9 +40,7 @@
 		}
 	});
 
-	// Undefined only for a block mounted with no editor, as the unit tests mount it.
-	const options = leaf.getOptions() as Required<TocOptions> | undefined;
-	const depth = options?.maxDepth ?? MAX_HEADING_DEPTH;
+	const depth = leaf.getOptions<Required<TocOptions>>().maxDepth;
 
 	// This reads heading bytes through the prop, subscribing to the CST's $state proxy, so an
 	// edit above re-runs it; left uncached so the derived stays reactive.
@@ -63,34 +60,7 @@
 		e.stopPropagation();
 	}
 
-	// ── BlockComponent interface ────────────────────────────────────────────────
-
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		getSelectedText,
-		setSelection,
-		measurePartialRects,
-		insertMarkdown,
-		afterSourceCommit
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
 {#if revealed}

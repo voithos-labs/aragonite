@@ -8,7 +8,7 @@
 import { getContext, onDestroy } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions } from '../../action-contracts';
-import type { StickyColumnDirection } from '../../block-component';
+import type { EditableLeafBlockApi, StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
 	EDITOR_POLICIES_KEY,
@@ -47,30 +47,44 @@ import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
-import { componentPluginEditor } from '../../schema/block-component-registry';
+import {
+	componentPluginEditor,
+	componentPluginOptions
+} from '../../schema/block-component-registry';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 import type { Draft } from '../../schema/drafts';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
 /**
- * What the host component passes in. A function-valued field is read on every use, so a
- * structural edit or an undo is seen rather than snapshotted; `mode` and `singleLine` are read
- * once, at the factory call.
+ * What the host component passes in. A function-valued field is read on every use, so an edit or
+ * an undo is seen rather than snapshotted; `mode` and `singleLine` are read once. A render-primary
+ * leaf owns its swap and passes both halves; a cast or JavaScript caller without them gets a throw.
  */
-export interface EditableLeafDeps {
+export type EditableLeafDeps = PlainLeafDeps | RenderPrimaryLeafDeps;
+
+interface PlainLeafDeps extends LeafDepsBase {
+	mode?: 'plain';
+	/** A plain leaf's source is always the editable view, so it has no swap to own. */
+	isRevealed?: never;
+	setRevealed?: never;
+}
+
+interface RenderPrimaryLeafDeps extends LeafDepsBase {
+	mode: 'render-primary';
+	/** The component owns the swap flag and both views. */
+	isRevealed(): boolean;
+	setRevealed(revealed: boolean): void;
+}
+
+interface LeafDepsBase {
 	getNode(): NodeView;
 	getIndex(): number;
 	getPath(): number[];
 	/** The source contenteditable; null while unmounted (render-primary's rendered view). */
 	getEl(): HTMLElement | null;
-	mode?: EditableLeafMode;
 	/** A kind whose bytes are one line: Enter splits the block rather than typing a newline. */
 	singleLine?: boolean;
-
-	/** render-primary only: the component owns the swap flag and both views. */
-	isRevealed?(): boolean;
-	setRevealed?(revealed: boolean): void;
 	/** The component's view-state hooks, handed to a block command as `ctx.hooks` and read at
 	 *  dispatch, so return live values. Typed `unknown`; the plugin casts it. */
 	commandHooks?: () => unknown;
@@ -127,6 +141,10 @@ export interface EditableLeafRenderProps {
 }
 
 export interface EditableLeaf {
+	/** Everything the editor calls on this block, published as the component's one export:
+	 *  `export const blockApi = leaf.blockApi;`. */
+	readonly blockApi: EditableLeafBlockApi;
+
 	/** The block's source minus its trailing line ending, which is the editable text. */
 	readonly sourceText: string;
 
@@ -151,39 +169,23 @@ export interface EditableLeaf {
 	getTheme(): string;
 
 	/** This editor's options for the plugin owning this kind, so two editors can configure one
-	 *  kind differently. `unknown`, like `commandHooks`: the plugin narrows it. */
-	getOptions(): unknown;
+	 *  kind differently; the plugin's `defaults` when no editor is mounted. */
+	getOptions<Options>(): Options;
 	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
 	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
 	getEditor(): EditorContext | undefined;
 
-	// ── BlockComponent methods (do nothing while the source is hidden) ────────
-	focus(offset: number): void;
-	parkCaret(offset: number): void;
-	focusAtColumn(x: number, from: StickyColumnDirection): void;
-	getCursorOffset(): number | null;
-	getSelectedText(): string;
-	setSelection(start: number, end: number): void;
-	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
-
-	// ── Programmatic edits ─────────────────────────────────────────────────────
-	/** Insert Markdown at the caret as a paste would; export it as the component's
-	 *  `insertMarkdown`. Resolves once the paste lands, false when it declined. */
-	insertMarkdown(md: string): Promise<boolean>;
 	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
 	reveal(offset?: number): Promise<void>;
 	/** Commit edited source as one undo entry, fire and forget; the parse decides update / kind
 	 *  change / structural split. */
 	commitSource(edited: string): void;
-	/** Run `run` once a shown source is hidden and written, so a move from outside the block takes
-	 *  the edit along: publish it as the component's `afterSourceCommit`. */
-	afterSourceCommit(run: () => void): void;
 }
 
 /** What a plugin block command runs against on a leaf, read through `deps` at dispatch so a
  *  node swap is seen; the leaf's counterpart of `buildContainerKindTarget`. */
 export function buildLeafCommandContext(
-	deps: Pick<EditableLeafDeps, 'getNode' | 'getIndex' | 'commandHooks'>,
+	deps: Pick<LeafDepsBase, 'getNode' | 'getIndex' | 'commandHooks'>,
 	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
 ): BlockTargetContext {
 	return {
@@ -196,11 +198,13 @@ export function buildLeafCommandContext(
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
 	const singleLine = deps.singleLine ?? false;
-	if (mode === 'render-primary' && (!deps.isRevealed || !deps.setRevealed)) {
-		throw new Error('createEditableLeaf: render-primary mode requires isRevealed + setRevealed');
+	if (
+		deps.mode === 'render-primary' &&
+		(typeof deps.isRevealed !== 'function' || typeof deps.setRevealed !== 'function')
+	) {
+		throw new Error('createEditableLeaf: render-primary mode requires isRevealed and setRevealed');
 	}
-	// Plain mode's source is always the editable view.
-	const isRevealed = mode === 'render-primary' ? deps.isRevealed! : () => true;
+	const isRevealed = deps.mode === 'render-primary' ? deps.isRevealed : () => true;
 
 	const wiring = wireSurfaceContexts();
 	const {
@@ -220,7 +224,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const getPresentationMode = reading.mode;
 	const getEditor = (): EditorContext | undefined =>
 		componentPluginEditor(pluginEditor, deps.getNode().kind);
-	const getOptions = (): unknown => getEditor()?.options;
+	const getOptions = <Options>(): Options =>
+		componentPluginOptions(pluginEditor, deps.getNode().kind) as Options;
 	const isReading = () => getPresentationMode() === 'reading';
 
 	let composing = false;
@@ -739,22 +744,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		[parkKey]: parkAttachment
 	});
 
-	return {
-		get sourceText() {
-			return sourceText();
+	const blockApi = {
+		get editable() {
+			return tryGetBlockKindDescriptor(deps.getNode().kind)?.editable ?? true;
 		},
-		repaintSource,
-
-		get surfaceProps() {
-			return buildSurfaceProps();
-		},
-		renderProps,
-
-		getPresentationMode,
-		getTheme,
-		getOptions,
-		getEditor,
-
+		focusable: true,
 		focus,
 		parkCaret,
 		focusAtColumn,
@@ -770,14 +764,31 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			const box = getBlockElByPath(deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
-
 		insertMarkdown: clipboard.insertMarkdown,
+		afterSourceCommit
+	} satisfies EditableLeafBlockApi;
+
+	return {
+		blockApi,
+		get sourceText() {
+			return sourceText();
+		},
+		repaintSource,
+
+		get surfaceProps() {
+			return buildSurfaceProps();
+		},
+		renderProps,
+
+		getPresentationMode,
+		getTheme,
+		getOptions,
+		getEditor,
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
 			return isReading() ? Promise.resolve() : revealSource(offset);
 		},
-		commitSource: (edited) => void commitSource(edited),
-		afterSourceCommit
+		commitSource: (edited) => void commitSource(edited)
 	};
 }
