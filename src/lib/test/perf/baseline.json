@@ -2,7 +2,7 @@
 	"recorded": "2026-08-26",
 	"reVerified": "2026-08-26 — the e2e rows are one epoch measured on the PRODUCTION build (the `perf:check` route), replacing the 2026-07-24 dev-build epoch: the instrument changed, so the values were re-recorded rather than re-verified. Container-interior rows fell from 52.1/29.1 ms (dev, pre child-spans) to 3.3/3.0 ms; every other keystroke row read at or below its dev value; the giant-single-paragraph rows were re-measured after a bisected toolbar regression was fixed the same day. giant-single-list-interior-10MB is blessed from the gate's own run (its p95 is the first keystroke after load, which seeds the spans once); its loadMs is the same fixture's giant-single-list-10MB load. flat-prose-10MB-structural was blessed 2026-09-24 from the gate's own production run (its first value was a dev-server stand-in); its loadMs is the same run's flat-prose-10MB load.",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`, which builds and previews the app and measures that) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-08-26, measured with the perf instruments armed, which keeps the dev-only splice belt out of them; the two `interior of a 1MB list` rows were recorded the same day and are the hinted-vs-full comparison for the child-spans rebuild (6.3x on plain objects; the browser gap is larger, since the proxy reads it removes do not exist in node).",
+	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`, which builds and previews the app and measures that) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-10-01, each the median of three runs of container-raw.bench.ts, measured with the perf instruments armed, which keeps the dev-only splice belt out of them; on that machine the flat breadth rows read the same before and after the strip rebuild fix, so their move from the 2026-08-26 epoch is the machine. The two `interior of a 1MB list` rows are the hinted-vs-full comparison for the child-spans rebuild (6.1x on plain objects; the browser gap is larger, since the proxy reads it removes do not exist in node).",
 	"parse": {
 		"flat-prose-100KB": {
 			"mean-ms": 0.2944,
@@ -208,84 +208,84 @@
 	},
 	"ancestryRebuild": {
 		"depth-8-many-tiny-lists-1MB": {
-			"mean-ms": 0.0048,
-			"rme-pct": 6.71,
-			"samples": 104137
+			"mean-ms": 0.0126,
+			"rme-pct": 3.13,
+			"samples": 79233
 		},
 		"breadth-single-100KB-list": {
-			"mean-ms": 0.0719,
-			"rme-pct": 1.63,
-			"samples": 6954
+			"mean-ms": 0.09,
+			"rme-pct": 1.2,
+			"samples": 11110
 		},
 		"breadth-single-1MB-list": {
-			"mean-ms": 1.3117,
-			"rme-pct": 3.87,
-			"samples": 382
+			"mean-ms": 1.475,
+			"rme-pct": 3.07,
+			"samples": 678
 		},
 		"breadth-single-10MB-list": {
-			"mean-ms": 20.8644,
-			"rme-pct": 3.89,
-			"samples": 144
+			"mean-ms": 22.7947,
+			"rme-pct": 3.78,
+			"samples": 132
 		},
 		"combined-depth-4x1KB-per-level": {
-			"mean-ms": 0.0272,
-			"rme-pct": 15.83,
-			"samples": 19028
+			"mean-ms": 0.0193,
+			"rme-pct": 4.43,
+			"samples": 51932
 		},
 		"combined-depth-4x10KB-per-level": {
-			"mean-ms": 0.1859,
-			"rme-pct": 3.61,
-			"samples": 2690
+			"mean-ms": 0.0507,
+			"rme-pct": 6.31,
+			"samples": 19706
 		},
 		"combined-depth-4x50KB-per-level": {
-			"mean-ms": 1.0994,
-			"rme-pct": 4.38,
-			"samples": 456
+			"mean-ms": 0.2991,
+			"rme-pct": 20.36,
+			"samples": 3344
 		},
 		"combined-depth-8x1KB-per-level": {
-			"mean-ms": 0.0822,
-			"rme-pct": 6.31,
-			"samples": 6080
+			"mean-ms": 0.0552,
+			"rme-pct": 4.77,
+			"samples": 18113
 		},
 		"combined-depth-8x10KB-per-level": {
-			"mean-ms": 0.6601,
-			"rme-pct": 4.54,
-			"samples": 758
+			"mean-ms": 0.1642,
+			"rme-pct": 6.14,
+			"samples": 6092
 		},
 		"combined-depth-8x50KB-per-level": {
-			"mean-ms": 3.827,
-			"rme-pct": 2.91,
-			"samples": 131
+			"mean-ms": 1.1368,
+			"rme-pct": 3.95,
+			"samples": 880
 		},
 		"combined-depth-12x1KB-per-level": {
-			"mean-ms": 0.2099,
-			"rme-pct": 14.5,
-			"samples": 2382
+			"mean-ms": 0.1254,
+			"rme-pct": 20.95,
+			"samples": 7976
 		},
 		"combined-depth-12x10KB-per-level": {
-			"mean-ms": 1.4112,
-			"rme-pct": 3.78,
-			"samples": 355
+			"mean-ms": 0.3383,
+			"rme-pct": 6.09,
+			"samples": 2956
 		},
 		"combined-depth-12x50KB-per-level": {
-			"mean-ms": 8.1351,
-			"rme-pct": 2.7,
-			"samples": 62
+			"mean-ms": 2.5898,
+			"rme-pct": 8.1,
+			"samples": 387
 		},
 		"combined-depth-16x100KB-per-level-adversarial": {
-			"mean-ms": 27.7084,
-			"rme-pct": 2.75,
-			"samples": 20
+			"mean-ms": 9.2458,
+			"rme-pct": 22.55,
+			"samples": 109
 		},
 		"interior-1MB-list-full": {
-			"mean-ms": 1.7158,
-			"rme-pct": 3.97,
-			"samples": 292
+			"mean-ms": 1.6164,
+			"rme-pct": 2.77,
+			"samples": 619
 		},
 		"interior-1MB-list-spliced": {
-			"mean-ms": 0.2717,
-			"rme-pct": 5.4,
-			"samples": 1841
+			"mean-ms": 0.2651,
+			"rme-pct": 3.71,
+			"samples": 3773
 		}
 	},
 	"counters": {
