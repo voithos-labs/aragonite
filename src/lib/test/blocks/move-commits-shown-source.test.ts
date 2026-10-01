@@ -14,6 +14,8 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey, dispatchKey } from '$lib/test/harness/settle';
 import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
+import { parrotPlugin } from '$lib/plugins/parrot';
+import { revealLeafPlugin } from './fixtures/reveal-leaf';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
@@ -102,7 +104,7 @@ describe('a move from a block showing a widget source', () => {
 
 // Miss-analysis: the block rows above covered the text block and the cell, and no row moved a
 // plugin block built on the editable leaf, whose command target had no hook to write its source.
-describe('a move from a math block showing its source', () => {
+describe('a move from a plugin leaf showing its source', () => {
 	const MOVE_KEY: KeybindingOverride = {
 		chord: 'Alt+ArrowDown',
 		command: 'block.moveDown',
@@ -136,6 +138,44 @@ describe('a move from a math block showing its source', () => {
 			mounted.instance.runCommand('history.undo');
 			await mounted.settle();
 			expect(mounted.source()).toBe('$$\nnew\n$$\n\nnext\n');
+		});
+	}
+
+	// Miss-analysis: the host rows moved only the math block, whose component re-exported the hook
+	// by hand, so a leaf component that didn't lost the edit with every suite green.
+	const LEAVES = [
+		{
+			name: 'the parrot',
+			plugin: () => parrotPlugin(),
+			raw: '%%parrot old',
+			edited: '%%parrot new',
+			sourceSelector: '.parrot-source'
+		},
+		{
+			name: 'a test leaf',
+			plugin: () => revealLeafPlugin('move-leaf'),
+			raw: '@@ old',
+			edited: '@@ new',
+			sourceSelector: '.reveal-leaf-source'
+		}
+	];
+
+	for (const leaf of LEAVES) {
+		it(`writes the source first from runCommand on ${leaf.name}`, async () => {
+			const mounted = mountEditor<Seam>({
+				source: `${leaf.raw}\n\nnext\n`,
+				plugins: [leaf.plugin()]
+			});
+			await mounted.settle();
+			mounted.instance.__test.getBlockComponent([0]).focus?.(3);
+			await mounted.settle();
+			const source = mounted.target.querySelector<HTMLElement>(leaf.sourceSelector);
+			expect(source, 'the leaf source is not showing').not.toBeNull();
+			source!.textContent = leaf.edited;
+
+			await move(mounted, source!, 'host', {});
+
+			expect(mounted.source()).toBe(`next\n\n${leaf.edited}\n`);
 		});
 	}
 
