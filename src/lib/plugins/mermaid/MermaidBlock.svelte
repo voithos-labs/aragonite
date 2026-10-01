@@ -10,6 +10,7 @@
 		trimTrailingLineEnding,
 		normalizeLineEndings,
 		POINTER_GESTURE_ATTR,
+		type Draft,
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
@@ -34,6 +35,7 @@
 		handleKeydown,
 		moveFocusOut,
 		captureScrollPosition,
+		openDraft,
 		getPresentationMode,
 		getTheme
 	} = createContainerBlock({
@@ -188,20 +190,37 @@
 	let textareaEl = $state<HTMLTextAreaElement | undefined>();
 	let draft = $state('');
 	let editSeed = '';
+	// The box's text belongs to the document it was seeded from: a `source` swap drops it.
+	let session: Draft | null = null;
 
 	const editing = $derived(editRequested || (isEmpty && !isReading));
 
 	function seedDraft(): void {
 		editSeed = displayCode;
 		draft = editSeed;
+		session?.end();
+		session = openDraft({
+			seed: editSeed,
+			current: () => displayCode,
+			close: (cause) => {
+				if (cause === 'mode-change') commitEdit(false);
+			}
+		});
+	}
+
+	function endSession(): void {
+		session?.end();
+		session = null;
 	}
 
 	// The document can change under an open box (a host undo, a structural replace), and the
 	// blur commit would then write a draft seeded from bytes that are gone.
 	$effect(() => {
-		if (!editing || displayCode === editSeed) return;
-		seedDraft();
+		if (!editing) return endSession();
+		if (displayCode !== editSeed || !session) seedDraft();
 	});
+	// Unregistered only: the blur of a box a swap tore down still reads the dropped session.
+	$effect(() => () => session?.end());
 
 	// The box follows its text: a textarea has no intrinsic content height, and the inline
 	// height a native resize handle writes dies with the element on every exit from edit mode.
@@ -240,7 +259,9 @@
 	function commitEdit(refocus: boolean): void {
 		if (!editing) return;
 		const value = draft;
+		const writable = session?.canWrite() ?? true;
 		editRequested = false;
+		if (!writable) return;
 		// The textarea value is LF-normalized, so the seed must be compared the same way:
 		// an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;

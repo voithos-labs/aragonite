@@ -54,6 +54,7 @@ import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
 import type { Reading } from '../../../schema/reading';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
+import type { Draft, DraftRegistry } from '../../draft-registry';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -78,6 +79,8 @@ export interface WidgetInteractionDeps {
 	setRevealing: (value: boolean) => void;
 	/** Hiding a shown source mid-selection would strand a selection endpoint anchored in it. */
 	isCrossBlock: () => boolean;
+	/** A shown source is a draft: a `source` swap drops it, and so does a write to its block. */
+	drafts: Pick<DraftRegistry, 'open'>;
 	/** The grammar the widgets were rendered with, and the presentation mode: reading mode shows
 	 *  no source and edits no widget. */
 	get reading(): Reading;
@@ -127,6 +130,8 @@ export interface WidgetInteraction {
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Commit the shown source when focus leaves the block. */
 	commitRevealOnBlur(): void;
+	/** The block is unmounting: its shown source stops answering the editor's closes. */
+	dispose(): void;
 	/** Hide a shown source before any edit, so the edit runs against a CST that matches the DOM.
 	 *  Null if none was shown; otherwise a write the caller must await before editing. */
 	foldRevealBeforeMutation(caretAfter?: number): RevealFold | null;
@@ -247,6 +252,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		settling: boolean;
 	}
 	let revealState: RevealState | null = null;
+	let draft: Draft | null = null;
 
 	// Kept outside the record to survive `resetReveal` for the async restore. The exact element
 	// is kept because two byte-identical widgets share a pool key, so a lookup could return the other.
@@ -277,6 +283,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// The swap handles are left alone: cancel resets the record before awaiting the restore,
 	// which still needs them.
 	function resetReveal(): void {
+		draft?.end();
+		draft = null;
 		revealState = null;
 		deps.setRevealing(false);
 	}
@@ -339,6 +347,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			originalDisplay: trimTrailingLineEnding(deps.node.raw),
 			settling: true
 		};
+		draft = deps.drafts.open({
+			seed: deps.node.raw,
+			current: () => deps.node.raw,
+			close: (cause) => {
+				if (cause === 'mode-change' && revealState) commitReveal('blur');
+			}
+		});
 		deps.widgetSelection.clear();
 		deps.setRevealing(true);
 		try {
@@ -369,6 +384,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			caretOverride ??
 			(el && sourceNode ? rawOffsetAt(el, sourceNode, sourceNode.length) : active.widgetEnd);
 		const { caretBefore, originalDisplay } = active;
+		const writable = draft?.canWrite() ?? true;
 		// The reactive re-render rebuilds the widget, so drop the swap handles without
 		// restoring the DOM, then run the teardown.
 		if (sourceNode) unwashRevealedSource(sourceNode);
@@ -376,8 +392,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		revealedWidget = null;
 		resetReveal();
 		// No edit, so no write: a write that changes nothing still pushes an undo entry, and the
-		// next Ctrl+Z would spend itself on nothing.
-		if (editedDisplay === originalDisplay) {
+		// next Ctrl+Z would spend itself on nothing. A dropped draft writes nothing either.
+		if (editedDisplay === originalDisplay || !writable) {
 			foldParkedCaret = caretAfter;
 			deps.setPendingCursor(caretAfter);
 			return { caret: caretAfter, settled: tick() };
@@ -938,6 +954,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		isRevealing,
 		handleRevealingKeydown,
 		commitRevealOnBlur,
+		dispose: () => draft?.end(),
 		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
 		isPointOnRevealWidget,

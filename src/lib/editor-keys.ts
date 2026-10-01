@@ -6,6 +6,7 @@
  */
 
 import type { MenuPresence } from './components/menu/menu-presence.svelte';
+import type { DraftRegistry } from './components/draft-registry';
 import type { Document } from './core/nodes';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
@@ -176,6 +177,8 @@ export interface EditorServices {
 	commands: CommandDispatchContext;
 	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
 	menuPresence: MenuPresence;
+	/** Edits held outside the document until they commit; a swap drops them (`draft-registry.ts`). */
+	drafts: DraftRegistry;
 	/** The label a typed kind change leaves on its block for a moment (`kind-cue.svelte.ts`). */
 	kindCue: KindCue;
 }

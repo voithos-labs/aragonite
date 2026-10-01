@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createModeFlip } from '$lib/components/editor-root-mode-flip';
 import { createEditorEvents } from '$lib/editor-events';
+import { createDraftRegistry } from '$lib/components/draft-registry';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
 import { settleEditor } from '$lib/test/harness/settle';
@@ -41,6 +42,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
+	const drafts = createDraftRegistry();
 	events.on('presentationModeChange', (next) => {
 		calls.modeEmits.push(next);
 		calls.order.push('mode');
@@ -75,6 +77,12 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 				calls.order.push(`menus:${cause}`);
 			}
 		},
+		drafts: {
+			closeAll: (cause) => {
+				calls.order.push(`drafts:${cause}`);
+				drafts.closeAll(cause);
+			}
+		},
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
@@ -95,6 +103,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	return {
 		leaf,
 		headerField,
+		drafts,
 		flip,
 		calls,
 		selection,
@@ -161,6 +170,41 @@ describe('editor-root mode flip: the two halves', () => {
 	});
 });
 
+// The blur in the first half commits a focused draft and ends it; the drafts close in the second
+// half then reaches only one nothing focused, so no draft is written twice.
+describe('editor-root mode flip: the drafts', () => {
+	function draftOnLeaf(h: ReturnType<typeof harness>) {
+		const writes: string[] = [];
+		const draft = h.drafts.open({
+			seed: 'x',
+			current: () => 'x',
+			close: (cause) => commit(`close:${cause}`)
+		});
+		function commit(how: string) {
+			draft.end();
+			writes.push(how);
+		}
+		h.leaf.addEventListener('blur', () => commit('blur'), { once: true });
+		return writes;
+	}
+
+	it('a focused draft is written once, by its blur', () => {
+		const h = harness();
+		const writes = draftOnLeaf(h);
+		h.leaf.focus();
+		h.flipTo('live');
+		expect(writes).toEqual(['blur']);
+	});
+
+	it('a draft nothing focused is written once, by the close', () => {
+		const h = harness();
+		const writes = draftOnLeaf(h);
+		h.flipTo('live');
+		h.flipTo('source');
+		expect(writes).toEqual(['close:mode-change']);
+	});
+});
+
 describe('editor-root mode flip: the caret carry', () => {
 	it('restores the caret captured on the way out after the flush', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
@@ -174,7 +218,14 @@ describe('editor-root mode flip: the caret carry', () => {
 		const h = harness({ selection: caretAt([1], 3) });
 		h.flipTo('live');
 		await settleEditor();
-		expect(h.calls.order).toEqual(['menus:mode-change', 'caret', 'heights', 'mode', 'restore']);
+		expect(h.calls.order).toEqual([
+			'menus:mode-change',
+			'drafts:mode-change',
+			'caret',
+			'heights',
+			'mode',
+			'restore'
+		]);
 	});
 
 	it('entering reading clears the gap caret and restores nothing', async () => {

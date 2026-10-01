@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, tick, untrack } from 'svelte';
+	import { getContext, onDestroy, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
@@ -142,7 +142,8 @@
 		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
-		decorations: decorationEngine
+		decorations: decorationEngine,
+		drafts
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -270,10 +271,12 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
+		drafts,
 		get reading() {
 			return reading;
 		}
 	});
+	onDestroy(widgetInteraction.dispose);
 
 	// After `widgetInteraction`, because a clipboard edit hides a shown source before it
 	// touches the CST.
@@ -944,8 +947,12 @@
 		demoteEmptyHeadingOnBlur();
 	}
 
+	// A block a `source` swap tore down still blurs, and its bytes are the outgoing document's.
+	const documentLife = drafts.documentLife();
+
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
+		if (!documentLife.live) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
 		if (!demoted) return;
 		void writeText({

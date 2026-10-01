@@ -52,6 +52,7 @@ import {
 } from '../whole-block-focus-surface';
 import type { NestedActionsOverrideFactory } from '../nested/nested-actions';
 import { createContainerActions } from '../nested/container-actions';
+import type { Draft, DraftSpec } from '../../components/draft-registry';
 
 /**
  * The inputs the host component feeds in. A function-valued field is a live read,
@@ -147,6 +148,9 @@ export interface ContainerBlock {
 	/** Read the scroll position before swapping this block's view for one of another height, and
 	 *  await the returned restore after the swap renders. A scroll-into-view in progress wins. */
 	captureScrollPosition(): () => Promise<void>;
+	/** Hold an edit outside the document as a draft of `seed`. Its commit asks `canWrite()` first,
+	 *  since a `source` swap or a write to those bytes drops it; `end()` it once it closes. */
+	openDraft(spec: DraftSpec): Draft;
 }
 
 // ── Collapsed-container checks ───────────────────────────────────────────────
@@ -262,7 +266,7 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, selection, scrollOwner, commands } =
+	const { caretMemory, selection, scrollOwner, commands, drafts } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -459,6 +463,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleKeydown,
 		moveFocusOut,
 		captureScrollPosition: scrollOwner.keep,
+		openDraft: drafts.open,
 		getPresentationMode,
 		getTheme,
 		getOptions,

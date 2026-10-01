@@ -5,7 +5,7 @@
  * synchronously during initialisation; the contract is plugin-guide § The editable leaf.
  */
 
-import { getContext } from 'svelte';
+import { getContext, onDestroy } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
@@ -49,6 +49,7 @@ import { type BlockTargetContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { componentPluginEditor } from '../../schema/block-component-registry';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
+import type { Draft } from '../draft-registry';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -214,7 +215,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		commands
 	} = wiring.deps;
 	const { pluginEditor } = commands;
-	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { inlineMenuCombobox, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getEditor = (): EditorContext | undefined =>
@@ -224,8 +225,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	let composing = false;
 	let pendingCursor: number | null = null;
-	/** The bytes the open reveal was measured against; null while folded. */
-	let revealedBase: string | null = null;
+	/** The open reveal's edit, which writes only over the bytes it opened on; null while folded. */
+	let draft: Draft | null = null;
+	const endDraft = (): void => {
+		draft?.end();
+		draft = null;
+	};
+	// Unregistered only: a swap's teardown blur still has to find the draft it dropped.
+	onDestroy(() => draft?.end());
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
@@ -283,12 +290,19 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Called only when no source is showing, so it fires once per open.
 		showSource: () => {
 			traceRevealOpen('leaf');
-			revealedBase = sourceText();
+			draft?.end();
+			draft = drafts.open({
+				seed: sourceText(),
+				current: sourceText,
+				close: (cause) => {
+					if (cause === 'mode-change') void commitReveal(true);
+				}
+			});
 			clearSourceHistory();
 			deps.setRevealed?.(true);
 		},
 		showRendered: () => {
-			revealedBase = null;
+			endDraft();
 			clearSourceHistory();
 			deps.setRevealed?.(false);
 		}
@@ -341,12 +355,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
-		const base = revealedBase;
-		revealedBase = null;
+		const open = draft;
+		endDraft();
 		deps.setRevealed!(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
-		// component's blur arrives, so write back only over the bytes the source opened on.
-		if (base !== null && base !== sourceText()) return;
+		// component's blur arrives, so the edit lands only where its draft still can.
+		if (open && !open.canWrite()) return;
 		if (edited === sourceText()) return;
 		await commitSource(edited);
 	}
@@ -572,7 +586,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				isBlankText(chromeFreeText(el))
 			) {
 				e.preventDefault();
-				revealedBase = null;
+				endDraft();
 				deps.setRevealed?.(false);
 				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;

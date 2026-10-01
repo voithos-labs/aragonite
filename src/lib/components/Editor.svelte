@@ -47,6 +47,7 @@
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
+	import { createDraftRegistry } from './draft-registry';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { imageAtTarget } from './image/image-edit-commit';
@@ -352,6 +353,8 @@
 	// ── Open menus ──────────────────────────────────────────────────────
 
 	const menuPresence = createMenuPresence({ isReading: () => effectiveMode === 'reading' });
+	// Apart from the menus, so a shown source fires no `menuChange`.
+	const drafts = createDraftRegistry();
 	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
 	let menuWasOpen = false;
 	$effect(() => {
@@ -381,6 +384,7 @@
 		undoManager,
 		caretMemory,
 		menus: menuPresence,
+		drafts,
 		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
@@ -750,6 +754,7 @@
 		rects,
 		commands,
 		menuPresence,
+		drafts,
 		kindCue
 	} satisfies EditorServices);
 
@@ -798,6 +803,7 @@
 			return layout;
 		},
 		menus: menuPresence,
+		drafts,
 		events,
 		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {

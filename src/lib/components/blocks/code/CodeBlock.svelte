@@ -79,7 +79,7 @@
 		events: editorEvents,
 		reading
 	} = wiring.deps;
-	const { menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { menuPresence, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { onPasteImage, onRunCode, codeMenuItems } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(reading.mode());
@@ -827,6 +827,7 @@
 		onCopy={copyBody}
 		menuItems={codeMenuItems ? () => codeMenuItems(runRequest()) : undefined}
 		{menuPresence}
+		{drafts}
 	/>
 {/if}
 

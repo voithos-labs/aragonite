@@ -14,6 +14,7 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createDraftRegistry } from '$lib/components/draft-registry';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -100,6 +101,7 @@ export function widgetInteractionDeps(
 		getEl: () => base.el,
 		getEditorContentWidth: () => 800,
 		widgetSelection: createWidgetSelectionState(createSelectionState()),
+		drafts: createDraftRegistry(),
 		setSnapTarget: () => {},
 		readRawText: () =>
 			Array.from(base.el.childNodes).reduce(

@@ -22,6 +22,7 @@ import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
+import { createDraftRegistry } from '$lib/components/draft-registry';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
@@ -87,6 +88,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		inlineMenuCombobox: () => null,
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		menuPresence: {} as EditorServices['menuPresence'],
+		drafts: createDraftRegistry(),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},

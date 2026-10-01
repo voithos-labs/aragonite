@@ -9,6 +9,7 @@ import { isTextEntrySurface } from '../active-editor';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { LayoutState } from '../reactivity/layout-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
+import type { DraftRegistry } from './draft-registry';
 import { rawOffsetAt } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
@@ -31,6 +32,9 @@ export interface ModeFlipDeps {
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	menus: Pick<MenuPresence, 'closeAll'>;
+	/** The blur in `beforeFlip` already committed the focused draft, which ended it, so this
+	 *  close reaches only a draft nothing focused and writes each draft at most once. */
+	drafts: Pick<DraftRegistry, 'closeAll'>;
 	events: EditorEvents;
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
 	 *  scroll position. */
@@ -116,6 +120,7 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 			// A menu opened in one mode offers that mode's edits. First, since a close may write, and
 			// the caret restore below must read the tree it leaves.
 			deps.menus.closeAll('mode-change');
+			deps.drafts.closeAll('mode-change');
 			// The caret memory and measured heights belong to the outgoing mode's markers.
 			deps.caretMemory.forget();
 			deps.layout.forgetMeasuredHeights();

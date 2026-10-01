@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, tick } from 'svelte';
+	import { getContext, onDestroy, tick } from 'svelte';
 	import type { ContentWrite, TableContext } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
@@ -140,7 +140,8 @@
 		linkCard,
 		rects,
 		decorations: decorationEngine,
-		rangeCoverage
+		rangeCoverage,
+		drafts
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
@@ -251,10 +252,12 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
+		drafts,
 		get reading() {
 			return reading;
 		}
 	});
+	onDestroy(widgetInteraction.dispose);
 
 	// A widget's editing policy under this editor's grammar, the one the cell rendered with.
 	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, grammar);

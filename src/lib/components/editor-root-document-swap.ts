@@ -3,6 +3,7 @@
  * in one fixed order, so a swap cannot skip a step.
  */
 
+import { tick } from 'svelte';
 import type { Document } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import { readBlocks } from '../core/parser';
@@ -22,6 +23,7 @@ import { isDevChecks } from '../env';
 import { checkSwapFiresNoEdit } from '../invariants/swap-fires-no-edit';
 import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
+import type { DraftRegistry } from './draft-registry';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -49,6 +51,9 @@ export interface DocumentSwapDeps {
 	currentSource(): string;
 	/** Ends the typing batch: it groups the outgoing document's undo steps, which go with it. */
 	flushDebouncedCheckpoint(): void;
+	/** Dropped first: a draft belongs to the outgoing document, and the blur of a block the swap
+	 *  tears down would otherwise commit it into the incoming one. */
+	drafts: Pick<DraftRegistry, 'closeAll'>;
 	/** Called before the tree changes, so a caret landing still waiting gives up. */
 	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
@@ -84,21 +89,26 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			if (source === deps.currentSource()) return;
-			const edits: string[] = [];
-			const stopWatching = isDevChecks() ? deps.events.on('edit', (e) => edits.push(e.op)) : null;
-			try {
-				replace(source);
-			} finally {
-				stopWatching?.();
-			}
-			assertInvariant('swap-fires-no-edit', () => checkSwapFiresNoEdit(edits));
+			if (isDevChecks()) watchForEdits();
+			replace(source);
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
 		},
 		generation: () => generation
 	};
 
+	// Through the render after the swap, where the outgoing blocks unmount and a blur commit lands.
+	function watchForEdits(): void {
+		const edits: string[] = [];
+		const stop = deps.events.on('edit', (e) => edits.push(e.op));
+		void tick().then(() => {
+			stop();
+			assertInvariant('swap-fires-no-edit', () => checkSwapFiresNoEdit(edits));
+		});
+	}
+
 	function replace(source: string): void {
+		deps.drafts.closeAll('document-swap');
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
 		const reset = initDocument(source, deps.grammar);
