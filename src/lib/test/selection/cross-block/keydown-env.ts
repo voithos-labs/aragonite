@@ -108,7 +108,6 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.
 		scrollOwner: stubScrollOwner(stubScrollport({ viewportHeight: 500 }), { getBlockElByPath }),
 		caretLanding,
-		revealPath,
 		caretMemory,
 		controller,
 		reading,

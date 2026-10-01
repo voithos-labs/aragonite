@@ -4,7 +4,6 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import type { BlockComponent } from '../../block-component';
 import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
@@ -35,8 +34,6 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
 	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
-	/** A mount for the delete, typing and paste over a range, which still place their own caret. */
-	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
 	 *  window. See `cursor/scroll-ancestors`. */

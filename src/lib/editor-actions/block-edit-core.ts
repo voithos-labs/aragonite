@@ -152,8 +152,6 @@ export async function commitLeafText(
 		/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
 		landing?: (landed: LeafWriteLanded) => Landing | null;
 		reveal?: RevealPolicy;
-		/** Runs after the tick, before the landing. */
-		afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 	}
 ): Promise<LeafWriteResult> {
 	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
@@ -188,12 +186,6 @@ export async function commitLeafText(
 			stampStructuralChange(view.body.children, settled.change, view.sharing);
 			return settled.change;
 		},
-		afterTick:
-			opts.afterTick &&
-			(async () => {
-				landed = readLanded();
-				await opts.afterTick?.(landed);
-			}),
 		landing: () => {
 			landed ??= readLanded();
 			return opts.landing?.(landed) ?? null;
@@ -223,8 +215,7 @@ export async function commitLeafTextAt(
 	return commitLeafText(scope, index, write, {
 		snapshotOffset: opts.snapshotOffset,
 		caret: write.storedOffset(opts.caret),
-		landing: opts.landing,
-		afterTick: opts.afterTick
+		landing: opts.landing
 	});
 }
 

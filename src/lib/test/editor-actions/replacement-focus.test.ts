@@ -58,8 +58,8 @@ describe('focusMovedOutsideReplacement', () => {
 		expect(focusMovedOutsideReplacement([2], 1, 2)).toBe(false);
 	});
 
-	// A plugin may own data-block-path with a non-JSON value, and the parse runs inside
-	// afterTick, outside the commit's catch, so a throw is an unhandled rejection.
+	// A plugin may own data-block-path with a non-JSON value, and a throw in the landing that
+	// parses it would leave the caret where the replace found it.
 	it('restores without throwing when data-block-path is non-JSON', () => {
 		focusHostWithRawPath('plugin-owned-token');
 		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();

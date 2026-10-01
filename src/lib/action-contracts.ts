@@ -43,12 +43,6 @@ export type DiscardIfNoop = boolean;
 export type CommitLanding = () => Landing | null;
 
 /**
- * A callback that places the caret itself after the tick, left only for the delete and the typing
- * over a range that spans blocks, not yet on {@link CommitLanding}. Awaited, before the landing.
- */
-export type CommitAfterTick = () => void | Promise<void>;
-
-/**
  * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
  * region, read after the caret lands and only when bytes landed. That region hears nothing else, so a
  * refused, failed or discarded commit says nothing there.
@@ -206,7 +200,6 @@ export interface CommitMultiScopeArgs<
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
 	landing?: CommitLanding;
 	/** How far the landing moves the viewport; `'into-view'` when absent. */
@@ -222,7 +215,6 @@ export interface CommitStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -247,7 +239,6 @@ export interface CommitContainerStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -358,8 +349,6 @@ export interface LeafTextOptions {
 	snapshotOffset: number;
 	/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
 	landing?: (landed: LeafWriteLanded) => Landing | null;
-	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
-	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 }
 
 // ── Replace ─────────────────────────────────────────────────────────────────

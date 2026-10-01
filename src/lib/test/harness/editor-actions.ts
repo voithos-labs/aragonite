@@ -166,7 +166,6 @@ export function makeCommitScopeStub(
 				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});
-			await args.afterTick?.();
 			const landing = args.landing?.();
 			if (landing && 'path' in landing) await scope.land(landing);
 			return true;

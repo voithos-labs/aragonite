@@ -7,7 +7,6 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/block-component';
 import { type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -33,13 +32,8 @@ export function makeEnv(source: string, reading?: Reading) {
 }
 
 export interface HandlerOptions {
-	/** The caret's element lookup: the dispatch places its post-commit caret through this. */
-	getBlockElByPath?: (path: number[]) => HTMLElement | null;
 	/** Instance grammar the dispatch must forward onto its commit contexts. */
 	grammar?: GrammarView;
-	/** A substitute mount for the dispatch (held, for instance); the paste coordinator keeps the
-	 *  env's own. */
-	revealPath?: (path: number[]) => Promise<BlockComponent | null>;
 }
 
 export function makeHandlers(
@@ -53,9 +47,8 @@ export function makeHandlers(
 		getMyPath: () => myPath,
 		selection: env.selectionState,
 		getDoc: () => env.doc,
-		getBlockElByPath: opts.getBlockElByPath ?? (() => null),
+		getBlockElByPath: () => null,
 		caretLanding: env.deps.caretLanding,
-		revealPath: opts.revealPath ?? ((path) => env.deps.caretLanding.mount(path)),
 		getEditorRoot: () => null,
 		selectedWidget: { range: () => null, clear: () => {} },
 		getScrollHost: () => null,

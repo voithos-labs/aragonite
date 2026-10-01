@@ -41,7 +41,6 @@ import { createTextBatch } from './text-batch';
 import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
-	CommitAfterTick,
 	CommitAnnouncement,
 	CommitLanding,
 	CommitContainerStructuralArgs,
@@ -308,7 +307,6 @@ export function createUndoController(
 		 *  final line break before it. */
 		mutate: (wasOpen: boolean) => boolean;
 		op?: ScopedOpDescriptor;
-		afterTick?: CommitAfterTick;
 		landing?: CommitLanding;
 		reveal?: RevealPolicy;
 		announce?: CommitAnnouncement;
@@ -454,11 +452,6 @@ export function createUndoController(
 		// Awaited, so the promise every caller holds means "the caret is placed". No rollback on a
 		// throw: the commit succeeded and the tree is correct, so it is reported and the next runs.
 		try {
-			await args.afterTick?.();
-		} catch (err) {
-			reportCommitError(args, err);
-		}
-		try {
 			const landing = readLanding(args.landing);
 			if (landing) await landOrRestore(landing, { stamp, reveal: args.reveal });
 		} catch (err) {
@@ -484,7 +477,6 @@ export function createUndoController(
 			snapshot: args.snapshot,
 			mutate: ([doc]) => [args.mutate(doc.children)],
 			op: args.op,
-			afterTick: args.afterTick,
 			landing: args.landing,
 			reveal: args.reveal,
 			announce: args.announce,
@@ -495,13 +487,12 @@ export function createUndoController(
 	}
 
 	function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<boolean> {
-		const { containerNode, path, state, snapshot, mutate, op, afterTick, discardIfNoop } = args;
+		const { containerNode, path, state, snapshot, mutate, op, discardIfNoop } = args;
 		return commitMultiScope({
 			scopes: [{ node: containerNode, state, path }],
 			snapshot,
 			mutate: ([scope]) => [mutate(scope)],
 			op,
-			afterTick,
 			landing: args.landing,
 			reveal: args.reveal,
 			announce: args.announce,
@@ -771,7 +762,6 @@ export function createUndoController(
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			op,
-			afterTick: args.afterTick,
 			// A collapsed container recreated every block in its range, so its position replaces the
 			// caller's rather than following it.
 			landing: () =>

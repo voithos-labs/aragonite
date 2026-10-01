@@ -25,7 +25,7 @@ async function commitAt(scope: 'document' | 'container', writes: Writes, mode: P
 	const common = {
 		snapshot: { path: asDocPath(scope === 'document' ? [0] : [0, 0]), offset: 0 },
 		discardIfNoop: true,
-		afterTick: () => void log.push('caret'),
+		landing: () => (log.push('caret'), null),
 		announce: () => 'Moved'
 	};
 	const say = (message: string) => void log.push(`said ${message}`);

@@ -1427,8 +1427,6 @@ const BARE_FOCUSES: ManifestRule[] = [
 				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
 			'src/lib/selection/keyboard-extend.ts':
 				'a native range re-made in a block the keyboard is already on',
-			'src/lib/selection/native-bridge.ts':
-				'`focusCollapsedCaret`, which the cross-block delete, typing and paste still lean on until they land through the caret landing',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram’s own surface takes focus back after a redraw or an edit, and the focus view its overlay',
 			'src/lib/components/blocks/code/CodeBlockRail.svelte':
@@ -1840,8 +1838,28 @@ const RANGE_REPLACE: ManifestRule[] = [
 	}
 ];
 
+// ── A caret goes down through the caret landing ─────────────────────────────
+
+const REF_FOCUS: FileRule = {
+	id: 'a caret goes down through the caret landing, never a block ref’s own focus',
+	matches:
+		/(?:refAt\([^)]*\)|(?:innerBlockRefs|blockRefs)\[[^\]]*\])\s*\??\.\s*(?:focus|focusByPath|parkCaret)\s*\(/,
+	allowed: {
+		'src/lib/components/blocks/table/TableRowBlock.svelte':
+			'an arrow move to the next cell of its own row, inside the table’s own navigation'
+	},
+	reason:
+		'a ref focused by hand skips what the landing does: the mount, the check that no undo or swap came in between, the scroll; hand the commit a `landing`, or call the landing',
+	hits: [
+		'blockRefs[i]?.focus(offset);',
+		'refAt(list, i)?.parkCaret(0);',
+		'state.innerBlockRefs[colIdx]?.focusByPath(path, at);'
+	],
+	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
+};
+
 const SOURCES = collectEditorSources();
-describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
+describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS], SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
