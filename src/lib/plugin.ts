@@ -379,6 +379,7 @@ export type {
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
+	InlineMenuCommit,
 	InlineMenuRowProps
 } from './inline-menu/types';
 

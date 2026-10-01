@@ -11,6 +11,8 @@ import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
+import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 // `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
 const masker = definePlugin({
@@ -92,7 +94,9 @@ function harness(
 			} finally {
 				joinDepth--;
 			}
-		}
+		},
+		insertMarkdown: async () => false,
+		drafts: createDraftRegistry(createDocumentStamps())
 	});
 
 	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
@@ -452,7 +456,7 @@ describe('navigation and commit', () => {
 		expect(h.landed).toEqual([10]);
 		expect(h.menu.getOpen()).toBeNull();
 		expect(onCommit.mock.calls[0][0]).toMatchObject({ id: 'world' });
-		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
+		expect(onCommit.mock.calls[0][1]).toMatchObject({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
 	// Miss-analysis: every pick here came after the last key's read had run, never ahead of it.
@@ -472,7 +476,7 @@ describe('navigation and commit', () => {
 			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
 
 			expect(h.raw()).toBe('see #work');
-			expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wor', path: [0], start: 4, end: 8 });
+			expect(onCommit.mock.calls[0][1]).toMatchObject({ query: 'wor', path: [0], start: 4, end: 8 });
 		}
 	);
 
@@ -739,7 +743,9 @@ describe('a table cell', () => {
 				commits.push(bytes);
 				return true;
 			},
-			undoStep: async (_path, _offset, run) => void (await run())
+			undoStep: async (_path, _offset, run) => void (await run()),
+			insertMarkdown: async () => false,
+			drafts: createDraftRegistry(createDocumentStamps())
 		});
 		menu.registry.addSource(tags());
 		return {

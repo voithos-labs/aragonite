@@ -94,6 +94,11 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 	const raw = () => doc.children[0]?.raw ?? '';
 	write(initial);
 
+	const insertMarkdown = (markdown: string, opts?: InsertMarkdownOptions) => {
+		inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
+		return Promise.resolve(true);
+	};
+
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
 		getSelection: () => ({
@@ -113,17 +118,17 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 			await tick();
 			return true;
 		},
-		undoStep: async (_path, _offset, run) => void (await run())
+		undoStep: async (_path, _offset, run) => void (await run()),
+		insertMarkdown,
+		// No swap happens here, so a pick's draft can always write.
+		drafts: { open: () => ({ canWrite: () => true, end: () => {} }) }
 	});
 
 	const editor = attach({
 		getDoc: () => doc,
 		events,
 		inlineMenus: menu.registry,
-		insertMarkdown: (markdown, opts) => {
-			inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
-			return Promise.resolve(true);
-		},
+		insertMarkdown,
 		runCommand: (id, arg) => (ran.push({ id, arg }), true)
 	});
 

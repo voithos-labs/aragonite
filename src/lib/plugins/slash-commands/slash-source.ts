@@ -89,10 +89,10 @@ export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): 
 				insert: ''
 			}));
 		},
-		onCommit: async (item, range) => {
+		onCommit: async (item, commit) => {
 			const row = rows().find((candidate) => candidate.id === item.id);
 			if (!row) return;
-			const { argument } = splitQuery(range.query);
+			const { argument } = splitQuery(commit.query);
 			const action = row.action;
 			if (action.kind === 'heading') {
 				editor.runCommand('heading.cycle', action.level);
@@ -100,10 +100,10 @@ export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): 
 				action.run(editor, argument ?? undefined);
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				// Copied because `blockNodeAt` takes a mutable path and the range's is readonly.
-				const empty = isBlankText(blockNodeAt(editor.document, [...range.path])?.raw ?? '');
+				// Copied because `blockNodeAt` takes a mutable path and the commit's is readonly.
+				const empty = isBlankText(blockNodeAt(editor.document, [...commit.path])?.raw ?? '');
 				// Awaited, so the block lands inside the pick's undo entry.
-				await editor.insertMarkdown(action.build(argument).markdown, {
+				await commit.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'
 				});
 			}

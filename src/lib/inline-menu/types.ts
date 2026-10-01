@@ -7,6 +7,7 @@
 
 import type { Component } from 'svelte';
 import type { MenuIconName } from '../menu-icons';
+import type { InsertMarkdownOptions } from '../editor-props';
 
 export interface InlineMenuItem {
 	/** The row's key, unique within one result list. Where two rows share one, the first is kept
@@ -34,6 +35,15 @@ export interface InlineMenuQuery {
 	signal: AbortSignal;
 }
 
+/** What `onCommit` gets: the range the pick replaced, and a way to write that belongs to the pick. */
+export interface InlineMenuCommit extends Omit<InlineMenuQuery, 'signal'> {
+	/** Aborted when the host loads another document before the commit is done. */
+	signal: AbortSignal;
+	/** `EditorContext.insertMarkdown` for this pick: false, nothing written, once the host has
+	 *  loaded another document, so a commit that waits on a fetch can't land in the next one. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
+}
+
 export interface InlineMenuRowProps {
 	item: InlineMenuItem;
 	active: boolean;
@@ -57,8 +67,8 @@ export interface InlineMenuSource {
 	 *  session; a rejected promise reads as empty and is reported on the `error` event. */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	/** Runs after the pick's bytes land, with the caret at `start + insert.length`. Writes made while
-	 *  a returned promise is pending join the pick's undo entry, so await them. */
-	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void | Promise<void>;
+	 *  a returned promise is pending join the pick's undo entry; write through `commit.insertMarkdown`. */
+	onCommit?(item: InlineMenuItem, commit: InlineMenuCommit): void | Promise<void>;
 	/** Paints one row's content in place of the default label and detail. */
 	row?: Component<InlineMenuRowProps>;
 }

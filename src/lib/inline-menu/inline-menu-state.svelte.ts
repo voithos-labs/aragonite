@@ -30,6 +30,8 @@ import type {
 	InlineMenuSourceHandle
 } from './types';
 import type { Reading } from '../schema/reading';
+import type { InsertMarkdownOptions } from '../editor-props';
+import type { DraftRegistry } from '../components/draft-registry';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
@@ -52,6 +54,10 @@ export interface InlineMenuStateDeps {
 	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
 	 *  puts the caret back when nothing is focused. */
 	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
+	/** The editor's own insert, which a pick's commit writes through. */
+	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
+	/** A pick waiting on its commit is a draft of the note it was made in. */
+	drafts: Pick<DraftRegistry, 'open'>;
 }
 
 export interface InlineMenuState {
@@ -363,11 +369,29 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			writing = false;
 			resnap();
 		}
+		const pick = openPick();
 		try {
-			await source?.onCommit?.(item, range);
+			await source?.onCommit?.(item, { ...range, ...pick.commit });
 		} catch (error) {
 			report(error, live.source);
+		} finally {
+			pick.draft.end();
 		}
+	}
+
+	// A commit can wait on a fetch past a `source` swap; what it writes then belongs to no document.
+	function openPick() {
+		const aborted = new AbortController();
+		const draft = deps.drafts.open({
+			seed: '',
+			current: () => '',
+			close: (cause) => {
+				if (cause === 'document-swap') aborted.abort();
+			}
+		});
+		const insertMarkdown = (md: string, options?: InsertMarkdownOptions) =>
+			draft.canWrite() ? deps.insertMarkdown(md, options) : Promise.resolve(false);
+		return { draft, commit: { signal: aborted.signal, insertMarkdown } };
 	}
 
 	function open(name: string, options?: InlineMenuOpenOptions): boolean {

@@ -609,7 +609,10 @@
 		reading,
 		commitRange: (path, start, end, bytes, caretAfter) =>
 			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
-		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
+		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
+		// Called at use: the method is declared further down this component.
+		insertMarkdown: (md, options) => insertMarkdown(md, options),
+		drafts
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());

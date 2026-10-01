@@ -23,9 +23,9 @@ export function heldCommitMenuPlugin(): EditorPlugin {
 					name: HELD_COMMIT_MENU,
 					trigger: '@',
 					items: () => [{ id: 'ada', label: 'Ada', insert: '@Ada' }],
-					onCommit: async () => {
+					onCommit: async (_item, commit) => {
 						await new Promise<void>((release) => (window.__releaseHeldCommit = release));
-						await editor.insertMarkdown('> card', { placement: 'below' });
+						await commit.insertMarkdown('> card', { placement: 'below' });
 					}
 				});
 				return () => handle.dispose();
