@@ -225,17 +225,7 @@ cNo.....................................oc
 
 	const caption = $derived(parrotCaption(node.raw));
 
-	export const editable = true;
-	export const focusable = true;
-	export const focus = leaf.focus;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
+	export const blockApi = leaf.blockApi;
 </script>
 
 <div

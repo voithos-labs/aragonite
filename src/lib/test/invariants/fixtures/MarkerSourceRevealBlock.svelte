@@ -2,7 +2,7 @@
 	// A render-primary leaf whose revealed source paints its bytes as markers: the single-text-node
 	// sync leaves it alone, since the textContent already matches, so the reveal path puts a caret
 	// where the mode paints nothing.
-	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -21,24 +21,7 @@
 		}
 	});
 
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const measurePartialRects = leaf.measurePartialRects;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		measurePartialRects
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
 {#if revealed}

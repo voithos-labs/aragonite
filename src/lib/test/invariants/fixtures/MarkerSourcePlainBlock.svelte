@@ -2,7 +2,7 @@
 	// A plain-mode leaf using the platform's own caret call, painting its bytes as markers: the
 	// single-text-node sync leaves the span alone, since its textContent already matches, so the
 	// shared factory's `parkCaret` puts a caret where the mode paints nothing.
-	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -16,24 +16,7 @@
 		mode: 'plain'
 	});
 
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const measurePartialRects = leaf.measurePartialRects;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		measurePartialRects
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
 <div bind:this={sourceEl} {...leaf.surfaceProps} class="marker-plain-block">

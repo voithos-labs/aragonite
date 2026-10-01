@@ -16,11 +16,7 @@
 		singleLine: true
 	});
 
-	export const editable = true;
-	export const focusable = true;
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const getCursorOffset = leaf.getCursorOffset;
+	export const blockApi = leaf.blockApi;
 </script>
 
 <div bind:this={sourceEl} {...leaf.surfaceProps} class="plain-one-line-source"></div>
