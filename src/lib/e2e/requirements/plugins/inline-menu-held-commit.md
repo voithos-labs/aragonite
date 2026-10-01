@@ -15,3 +15,11 @@ inserts a card below.
   from inside the pick, and no source held its commit open while the author typed.
 - Pick, press and release Shift alone while the commit waits, release it: a bare modifier is not
   input, so one Ctrl+Z takes back the pick and the card together.
+
+## Across a source swap
+
+- Pick, then the host loads another note before the commit is released: the release writes
+  nothing into the new note and fires no `edit`. Miss-analysis: every held-commit row released
+  the commit into the note it was picked in.
+- Pick, the host loads another note and writes into it itself, then the commit is released: the
+  host's write lands, and the pick's card doesn't
