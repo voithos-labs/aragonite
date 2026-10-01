@@ -212,7 +212,7 @@ function proseLeafPaths(nodes: readonly CstNode[], path: number[] = []): number[
 }
 
 /** A letter typed into a drawn leaf's first line through the keystroke's in-place route: one
- *  line of the document moves, and the tree reloads as itself. */
+ *  line of the document moves, by that letter alone, and the tree reloads as itself. */
 function keystrokeMovesOneLine(source: string, pick: number, offset: number): void {
 	const { deps } = makeEditorActionsDeps(source);
 	const leaves = proseLeafPaths(deps.doc.children);
@@ -234,8 +234,22 @@ function keystrokeMovesOneLine(source: string, pick: number, offset: number): vo
 	createLeafTyping(deps, createUndoController(deps)).writeLeafInPlace(docPathFrom(leaf), write, at);
 
 	const after = splitLines(serialize(deps.doc)).map((line) => line.raw);
-	const moved = after.filter((line, i) => line !== before[i]);
-	if (after.length !== before.length || moved.length > 1) {
+	const moved = after.flatMap((line, i) => (line === before[i] ? [] : [i]));
+	const typedInto = (i: number) =>
+		[...after[i].matchAll(/Q/g)].some(
+			({ index: k }) => after[i].slice(0, k) + after[i].slice(k + 1) === before[i]
+		);
+	// A tab the content column cuts can't stay in front of the text, and a table row has its own
+	// spelling rule (a pipe-less first cell gains pipes), so those lines may move further.
+	const cutsTab = (i: number) => /^[ \t>]*\t/.test(before[i]);
+	const inTable = leaf.some(
+		(_, depth) => blockNodeAt(deps.doc, leaf.slice(0, depth))?.kind === 'table'
+	);
+	if (
+		after.length !== before.length ||
+		moved.length > 1 ||
+		moved.some((i) => !typedInto(i) && !cutsTab(i) && !inTable)
+	) {
 		throw new Error(`${JSON.stringify(source)} at ${leaf}: ${JSON.stringify(after)}`);
 	}
 	expect(describeConvergence(deps.doc)).toBeNull();

@@ -54,6 +54,20 @@ test.describe('text editing, an edit inside a quote or list leaves its other lin
 		});
 	}
 
+	test('a list marker typed at a lazy line’s start gives the line the quote’s prefix', async ({
+		page
+	}) => {
+		await editor.loadContent('> a\nlazy\n');
+		await editor.clickBlockAtPath([0, 0], 0);
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Home');
+
+		await page.keyboard.type('- ');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('> a\n> - lazy\n');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('a heading typed over a lazy line’s paragraph leaves the line bare', async ({ page }) => {
 		await editor.loadContent('- a\nlazy\n');
 		await editor.clickBlockAtPath([0, 0, 0], 0);

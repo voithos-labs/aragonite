@@ -9,9 +9,13 @@ import {
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// Hand-built lists read as stale to the stale-raw check, a split's first half may parse to
-// several blocks, and the item a split leaves can read back as another tree (an open defect).
-afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops', 'invariant:reads-back']));
+// Hand-built list fixtures read as stale to the dev-mode stale-raw check, and a first half
+// that parses to several blocks is one of the split shapes under test.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
+
+/** The two splits whose new item reads back as another tree, the item split's open defect. */
+const allowSplitReadBack = () =>
+	allowDevWarns(['invariant:stale-raw', 'tree-ops', 'invariant:reads-back']);
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
@@ -58,6 +62,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(newItem.children).toHaveLength(3);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
+		allowSplitReadBack();
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -111,6 +116,7 @@ describe('list-context: splitItemAtOffset', () => {
 
 		const newItem = liveList().children![1];
 		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
+		allowSplitReadBack();
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {

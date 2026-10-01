@@ -250,7 +250,7 @@ describe('container child spans', () => {
 				const text = c.prose ? 'edited\n' : c.text;
 				await h.bundle.blockEdit.updateBlockContent(at, text, 'authored', 0, text.length);
 				// Bytes with no line ending, written into a quote's first block, join the line below.
-				allowDevWarns(['invariant:reads-back']);
+				if (text === '') allowDevWarns(['invariant:reads-back']);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;

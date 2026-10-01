@@ -13,6 +13,8 @@ Typing, Enter or Backspace inside a quote or a list item changes the lines it ed
 
 - `- a\nlazy\n`, click `a`, Home, type `# `: the heading takes the item and `lazy` stays bare, so the reload reads a list and a paragraph below it, and that's what the editor holds too (`- # a\nlazy\n`)
 
+- `> a\nlazy\n`, start of `lazy`, type `- `: the line can't continue a paragraph as a list, so it takes the quote's `> ` and the list lands inside the quote (`> a\n> - lazy\n`), which is what a reload reads too (miss-analysis: every lazy row edited the line above it, never the lazy line itself)
+
 ## Miss-analysis
 
 - Every container rebuild respelled the whole container in its canonical form, and every container fixture was already written that way, so no spec ever watched an untouched line move.

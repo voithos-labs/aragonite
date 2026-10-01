@@ -76,3 +76,28 @@ describe('a heading typed over the line a lazy line continued', () => {
 		expect(h.deps.doc.children).toHaveLength(1);
 	});
 });
+
+// Miss-analysis: every lazy row edited the line above the lazy one, so no test rewrote a lazy line
+// into one that can't continue, which is the line that has to take the container's prefix.
+describe('a lazy line rewritten into a line that no longer continues', () => {
+	it.each(ROUTES)('takes the quote’s prefix, %s', async (_name, route) => {
+		const h = makeTopHarness('> a\nlazy\n');
+
+		await route(h, [0, 0], 'a\n- lazy\n');
+
+		expect(serialize(h.deps.doc)).toBe('> a\n> - lazy\n');
+		expect(kindsOf(h.deps.doc.children)).toEqual(kindsOf(parse('> a\n> - lazy\n').children));
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+	});
+
+	// The parser asks whether the item's first line keeps its paragraph open with the checkbox
+	// still on it, so `# x` behind a checkbox is text a lazy line continues.
+	it.each(ROUTES)('stays bare behind a checkbox’s first line, %s', async (_name, route) => {
+		const h = makeTopHarness('- [ ] # x\nlazy\n');
+
+		await route(h, [0, 0, 0], '# x\nlazyQ\n');
+
+		expect(serialize(h.deps.doc)).toBe('- [ ] # x\nlazyQ\n');
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+	});
+});
