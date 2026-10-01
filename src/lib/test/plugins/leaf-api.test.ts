@@ -10,7 +10,7 @@ import {
 	type EditableLeaf,
 	type EditableLeafDeps
 } from '$lib/components/blocks/editable-leaf';
-import { resolveBlockSurface, type BlockComponent } from '$lib/block-component';
+import { resolveBlockSurface, type EditableLeafBlockApi } from '$lib/block-component';
 import type { NodeView } from '$lib/core/node-views';
 
 type LeafProps = { node: NodeView; index: number };
@@ -23,8 +23,25 @@ const typePins = (leaf: EditableLeaf, view: NodeView): void => {
 	// @ts-expect-error a component that publishes nothing gives the editor nothing to focus
 	defineBlockComponent(silent);
 
-	const published = null as unknown as Component<LeafProps, { readonly blockApi: BlockComponent }>;
+	const published = null as unknown as Component<
+		LeafProps,
+		{ readonly blockApi: EditableLeafBlockApi }
+	>;
 	defineBlockComponent(published);
+
+	type HandBuilt = Pick<
+		EditableLeafBlockApi,
+		'editable' | 'focusable' | 'focus' | 'getCursorOffset'
+	>;
+	const handBuilt = null as unknown as Component<LeafProps, { readonly blockApi: HandBuilt }>;
+	// @ts-expect-error a hand-built object under the name drops what it skipped
+	defineBlockComponent(handBuilt);
+	type WrittenOver = Omit<EditableLeafBlockApi, 'afterSourceCommit'> & {
+		afterSourceCommit: undefined;
+	};
+	const writtenOver = null as unknown as Component<LeafProps, { readonly blockApi: WrittenOver }>;
+	// @ts-expect-error so does the leaf's object with a member written over
+	defineBlockComponent(writtenOver);
 
 	// @ts-expect-error the block methods sit on `blockApi` only
 	void leaf.focus;
@@ -46,7 +63,7 @@ void typePins;
 describe('the leaf API', () => {
 	// The ref slot compares identity, so a wrapper would overwrite the stored surface on every read.
 	it("resolves a published blockApi to the leaf's own object", () => {
-		const blockApi = { editable: true, focusable: true } as BlockComponent;
+		const blockApi = { editable: true, focusable: true } as EditableLeafBlockApi;
 		expect(resolveBlockSurface({ blockApi })).toBe(blockApi);
 	});
 

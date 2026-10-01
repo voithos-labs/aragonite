@@ -8,7 +8,7 @@
 import { getContext, onDestroy } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions } from '../../action-contracts';
-import type { BlockComponent, StickyColumnDirection } from '../../block-component';
+import type { EditableLeafBlockApi, StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
 	EDITOR_POLICIES_KEY,
@@ -181,22 +181,6 @@ export interface EditableLeaf {
 	 *  change / structural split. */
 	commitSource(edited: string): void;
 }
-
-/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
- *  so none drops out unseen, and a caller reaches each one without a guard. */
-export type EditableLeafBlockApi = BlockComponent &
-	Required<
-		Pick<
-			BlockComponent,
-			| 'parkCaret'
-			| 'focusAtColumn'
-			| 'getSelectedText'
-			| 'setSelection'
-			| 'measurePartialRects'
-			| 'insertMarkdown'
-			| 'afterSourceCommit'
-		>
-	>;
 
 /** What a plugin block command runs against on a leaf, read through `deps` at dispatch so a
  *  node swap is seen; the leaf's counterpart of `buildContainerKindTarget`. */

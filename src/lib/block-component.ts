@@ -328,6 +328,22 @@ export type ContainerBlockComponent = BlockComponent &
 		>
 	>;
 
+/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
+ *  so none drops out unseen, and a caller reaches each one without a guard. */
+export type EditableLeafBlockApi = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'parkCaret'
+			| 'focusAtColumn'
+			| 'getSelectedText'
+			| 'setSelection'
+			| 'measurePartialRects'
+			| 'insertMarkdown'
+			| 'afterSourceCommit'
+		>
+	>;
+
 /**
  * What a mounted block component publishes through `bind:this`: a hand-built leaf its members
  * themselves, a component built on the editable leaf its `blockApi`, a container its
@@ -337,7 +353,7 @@ export type ContainerBlockComponent = BlockComponent &
  */
 export type BlockComponentExports =
 	| BlockComponent
-	| { readonly blockApi: BlockComponent }
+	| { readonly blockApi: EditableLeafBlockApi }
 	| { readonly containerApi: ContainerBlockComponent };
 
 /**
