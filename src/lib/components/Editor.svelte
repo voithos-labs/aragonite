@@ -955,7 +955,6 @@
 		getDoc,
 		getBlockElByPath,
 		caretLanding,
-		revealPath: (path) => caretLanding.mount(path),
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
 		scrollOwner,

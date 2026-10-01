@@ -1293,8 +1293,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a drop inserts at the drop point; its cut goes through the range replace',
 			'src/lib/selection/range-delete.ts':
 				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
-			'src/lib/selection/cross-block/type-replace.ts':
-				'a key typed after a cross-block delete, a known gap until the text rides into the join (T18 slice 4)'
+			'src/lib/selection/cross-block/range-replace.ts':
+				'a key typed over a range lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
 		},
 		reason:
 			'a splice of a leaf’s own bytes that cuts a range can strand the delimiter runs around it; call `replaceRangeInLeaf`, or declare why the splice cuts nothing',
@@ -1427,10 +1427,6 @@ const BARE_FOCUSES: ManifestRule[] = [
 				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
 			'src/lib/selection/keyboard-extend.ts':
 				'a native range re-made in a block the keyboard is already on',
-			'src/lib/selection/native-bridge.ts':
-				'`focusCollapsedCaret`, which the cross-block delete, typing and paste still lean on until they land through the caret landing',
-			'src/lib/selection/cross-block/paste.ts':
-				'a cross-block paste that still puts its own caret down, until it lands through the caret landing',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram’s own surface takes focus back after a redraw or an edit, and the focus view its overlay',
 			'src/lib/components/blocks/code/CodeBlockRail.svelte':
@@ -1801,8 +1797,78 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 	}
 ];
 
+// ── G4.108 one replace for every destructive gesture over a range ──────────
+
+const ROGUE_RANGE_ROUTE = 'src/lib/selection/cross-block/rogue.ts';
+const RANGE_REPLACE_HOME = 'src/lib/selection/cross-block/range-replace.ts';
+
+const RANGE_REPLACE: ManifestRule[] = [
+	{
+		id: 'G4.108 only the range replace removes a live range',
+		population: notUnder('src/lib/selection/range-delete'),
+		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole|commitGridLineDelete)\s*\(/,
+		declared: {
+			[RANGE_REPLACE_HOME]:
+				'picks the removal from what the range covers, for every destructive gesture over it'
+		},
+		reason:
+			'a gesture that removes a range itself skips what every other one gets: the removal picked by what the range covers, one undo entry and one caret landing; call `replaceRange` with the gesture’s insertion',
+		hits: [
+			at(ROGUE_RANGE_ROUTE, 'const removed = rangeDelete(doc, coverage, sharing, reading, "cut");'),
+			at(ROGUE_RANGE_ROUTE, 'remove: (sharing) => removeHeldWhole(doc, coverage, sharing, r, g),'),
+			at(ROGUE_RANGE_ROUTE, 'const caret = await commitGridLineDelete(ctx, grid);')
+		],
+		misses: [
+			at(ROGUE_RANGE_ROUTE, "import { rangeDelete, removeHeldWhole } from '../range-delete';"),
+			at(ROGUE_RANGE_ROUTE, 'return tableAwareRangeDelete(doc, coverage, sharing, reading);')
+		]
+	},
+	{
+		id: 'G4.108 a gesture over a range opens its undo entry in the range replace only',
+		population: under('src/lib/selection/cross-block/'),
+		matches: /\.undoStep\s*\(/,
+		declared: {
+			[RANGE_REPLACE_HOME]: 'opens the one undo entry a destructive gesture over a range writes'
+		},
+		reason:
+			'a range gesture that opens its own undo entry writes its removal and its insertion around the range replace, so one Ctrl+Z no longer takes back the gesture: call `replaceRange`',
+		hits: [at(ROGUE_RANGE_ROUTE, 'await ctx.controller.undoStep(seed, async () => {});')],
+		misses: [
+			at(ROGUE_RANGE_ROUTE, 'undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>);')
+		]
+	}
+];
+
+// ── A caret goes down through the caret landing ─────────────────────────────
+
+const REF_FOCUS: FileRule = {
+	id: 'a caret goes down through the caret landing, never a block ref’s own focus',
+	matches:
+		/(?:\b(?:refAt|cellRefAt|rowRefAt)\([^)]*\)|(?:innerBlockRefs|blockRefs)\[[^\]]*\])\s*\??\.\s*(?:focus|focusByPath|parkCaret)\s*(?:\?\.\s*)?\(/,
+	allowed: {
+		'src/lib/components/blocks/table/TableRowBlock.svelte':
+			'the row’s own `focus` and `parkCaret` handing the caret to its edge cell, which the landing calls',
+		'src/lib/components/blocks/table/TableBlock.svelte':
+			'the table’s own `focus`, `parkCaret` and `focusByPath` handing the caret to a cell, which the landing calls; a cell’s Tab or arrow move to its neighbour shares `focusCell`'
+	},
+	reason:
+		'a ref focused by hand skips what the landing does: the mount, the check that no undo or swap came in between, the scroll; hand the commit a `landing`, or call the landing',
+	hits: [
+		'blockRefs[i]?.focus(offset);',
+		'refAt(list, i)?.parkCaret(0);',
+		'state.innerBlockRefs[colIdx]?.focusByPath(path, at);',
+		// The optional members of `BlockComponent` type-check only as optional calls.
+		'blockRefs[0]?.parkCaret?.(0);',
+		'state.innerBlockRefs[i]?.focusByPath?.(rest, at);',
+		'cellRefAt(rowIdx, colIdx)?.parkCaret?.(at);',
+		'rowRefAt(rowIdx)?.focus(0);'
+	],
+	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
+};
+
 const SOURCES = collectEditorSources();
-describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
+describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS], SOURCES);
+describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);

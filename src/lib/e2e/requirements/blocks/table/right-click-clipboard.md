@@ -14,6 +14,10 @@ caret as it stood when the menu opened, the same as the browser's items would.
 
 - Collapsed caret: Cut and Copy are disabled; Paste stays enabled.
 - Paste over a selection replaces the selected text.
+- Paste over a live range (a cell rectangle, or the whole table): ends exactly as Ctrl+V over the
+  same range does, and the range is gone. Miss-analysis: the list of sites that write over a
+  range named the cell menu's Cut and not its Paste, so the Paste kept writing into the clicked
+  cell with the range still painted, and no test picked it over a range.
 - Cut is a single undo entry.
 
 - Paste picked while the host loads another document (the clipboard read held until the swap

@@ -18,36 +18,36 @@ import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import type { GridCoverage } from './range-coverage';
-import type { CrossBlockMutationContext } from './cross-block/ops';
+import type { CrossBlockMutationContext } from './cross-block/range-replace';
 
 /** A pair inside one table that holds a whole row or a whole column of it. */
 export type GridLineCoverage = Extract<GridCoverage, { kind: 'row' | 'column' }>;
 
-/** The collapsed caret, or null for a refused delete (no body row or one column left), which
- *  clears nothing either; `lands` has the commit put the caret there. */
+type GridLineContext = Pick<CrossBlockMutationContext, 'getDoc' | 'controller' | 'selection'>;
+
+/** The collapsed caret, which the commit lands, or null for a refused delete (no body row or one
+ *  column left), which clears nothing either. */
 export async function commitGridLineDelete(
-	ctx: CrossBlockMutationContext,
-	grid: GridLineCoverage,
-	lands: boolean
+	ctx: GridLineContext,
+	grid: GridLineCoverage
 ): Promise<SelectionPoint | null> {
 	const table = blockNodeAt(ctx.getDoc(), grid.path);
 	if (!table?.children) return null;
 	if (grid.kind === 'row') {
 		if (!canDeleteRow(grid.rect.top, table.children.length)) return null;
-		return commitRowDelete(ctx, table, grid.path, grid.rect.top, lands);
+		return commitRowDelete(ctx, table, grid.path, grid.rect.top);
 	}
 	if (!canDeleteColumn(metadataOf(table, 'table').columnCount)) return null;
-	return commitColumnDelete(ctx, table, grid.path, grid.rect.left, lands);
+	return commitColumnDelete(ctx, table, grid.path, grid.rect.left);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
 async function commitRowDelete(
-	ctx: CrossBlockMutationContext,
+	ctx: GridLineContext,
 	table: CstNode,
 	tablePath: number[],
-	rowIdx: number,
-	lands: boolean
+	rowIdx: number
 ): Promise<SelectionPoint | null> {
 	const snapshot = deleteSnapshot([...tablePath, rowIdx]);
 
@@ -70,17 +70,16 @@ async function commitRowDelete(
 			detail: { rowIdx, crossBlock: true },
 			eventPath: docPathFrom([...tablePath, rowIdx])
 		},
-		landing: lands ? () => cellLanding(collapsedCaret) : undefined
+		landing: () => cellLanding(collapsedCaret)
 	});
 	return collapsedCaret;
 }
 
 async function commitColumnDelete(
-	ctx: CrossBlockMutationContext,
+	ctx: GridLineContext,
 	table: CstNode,
 	tablePath: number[],
-	colIdx: number,
-	lands: boolean
+	colIdx: number
 ): Promise<SelectionPoint | null> {
 	const rows = table.children ?? [];
 	// Only mounted rows have reactive state; `ensureUnsharedChildren` copies every row, so the
@@ -122,7 +121,7 @@ async function commitColumnDelete(
 			detail: { colIdx, crossBlock: true },
 			eventPath: docPathFrom(tablePath)
 		},
-		landing: lands ? () => cellLanding(collapsedCaret) : undefined
+		landing: () => cellLanding(collapsedCaret)
 	});
 	return collapsedCaret;
 }

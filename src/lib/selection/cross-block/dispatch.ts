@@ -4,7 +4,6 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import type { BlockComponent } from '../../block-component';
 import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
@@ -12,17 +11,15 @@ import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { CaretLanding } from '../caret-landing';
-import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import { normalizeLineEndings } from '../../core/lines';
 import { isReadingMode } from '../../presentation-mode';
-import { performCrossBlockDelete } from './ops';
-import { handleCrossBlockPaste } from './paste';
-import { handleCrossBlockTypeReplace } from './type-replace';
+import { replaceRange } from './range-replace';
 import { createCrossBlockKeydown } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
@@ -37,8 +34,6 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
 	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
-	/** A mount for the delete, typing and paste over a range, which still place their own caret. */
-	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
 	 *  window. See `cursor/scroll-ancestors`. */
@@ -50,8 +45,7 @@ export interface CrossBlockDispatchContext {
 	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
-	/** How the editor reads its bytes: the delete's join cleanup and the paste reparse read it, and
-	 *  the destructive branches refuse its reading mode. */
+	/** How the editor reads its bytes: the removal's join cleanup and the paste reparse read it. */
 	reading: Reading;
 	/** The editor's command dispatch, which runs a chord pressed over a range. */
 	commands: CommandDispatchContext;
@@ -92,51 +86,48 @@ export interface CrossBlockHandlers {
 	/** Whether `handleBeforeInput` takes `e`, known before it runs: a character typed over a range. */
 	claimsBeforeInput(e: InputEvent): boolean;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
-	/** Type-replace from a caller with no `InputEvent`: the editor root, where a range over a block
-	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
+	/** A character typed over a range from a caller with no `InputEvent`: the editor root, where a
+	 *  range over a block with no character position leaves no element for `beforeinput`. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
+	/** After the composed text's write, whether or not there was one. */
+	handleCompositionEnd(): void;
 	/** The delete half of a cut, run once the handler wrote the clipboard synchronously. */
 	performCrossBlockCut(): Promise<void>;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
-	const mutationCtx: CrossBlockMutationContext = {
-		selection: ctx.selection,
-		getDoc: ctx.getDoc,
-		getBlockElByPath: ctx.getBlockElByPath,
-		revealPath: ctx.revealPath,
-		controller: ctx.controller,
-		reading: ctx.reading
-	};
-
-	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
+	const keydown = createCrossBlockKeydown(ctx);
 	const pointer = createCrossBlockPointer(ctx);
-
-	// The reading-mode checks for the mutating handlers live here so every caller inherits them;
-	// keydown checks its own destructive branches, since its navigation stays live.
-	const refusesWrites = () => isReadingMode(ctx.reading.mode);
 
 	const claimsBeforeInput = (e: InputEvent): boolean =>
 		ctx.selection.isCrossBlock && e.inputType === 'insertText';
 
 	const insertText = async (text: string): Promise<boolean> => {
-		if (refusesWrites()) return true;
+		// Refused quietly here, since the range replace's refusal warns about a key the editor lets
+		// through; this check goes once one reading-mode check sits in front of every key handler.
+		if (isReadingMode(ctx.reading.mode)) return true;
 		if (!ctx.selection.isCrossBlock) return false;
-		await handleCrossBlockTypeReplace(ctx, mutationCtx, text);
+		await replaceRange(ctx, { kind: 'text', text });
 		return true;
 	};
 
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
+		handleCompositionEnd: keydown.handleCompositionEnd,
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
-			if (refusesWrites()) {
-				e?.preventDefault();
-				return true;
-			}
-			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
+			if (!ctx.selection.isCrossBlock) return false;
+			e?.preventDefault();
+			// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
+			// clipboard read, and `??` would make that depend on callers never passing ''.
+			const text =
+				replacement !== undefined
+					? replacement
+					: normalizeLineEndings(e?.clipboardData?.getData('text/plain') ?? '');
+			await replaceRange(ctx, { kind: 'paste', text });
+			return true;
 		},
 		claimsBeforeInput,
 		handleBeforeInput: async (e) => {
@@ -146,9 +137,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		},
 		insertText,
 		performCrossBlockCut: async () => {
-			// Declining the delete degrades a reading-mode cut to a copy.
-			if (refusesWrites()) return;
-			await performCrossBlockDelete(mutationCtx, 'cut');
+			await replaceRange(ctx, { kind: 'none', gesture: 'cut' });
 		}
 	};
 }

@@ -5,10 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import {
-	performCrossBlockDelete,
-	type CrossBlockMutationContext
-} from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from '../selection/cross-block/range-context';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -42,19 +40,12 @@ describe('a cross-block delete over the document scope on a giant document', () 
 		const harness = makeEditorActionsDeps(parse(`> quoted\n\n${paragraphs}`).children);
 		const { deps } = harness;
 		deps.selectionState = createSelectionState({ getDoc: () => deps.doc });
-		const ctx: CrossBlockMutationContext = {
-			selection: deps.selectionState,
-			getDoc: () => deps.doc,
-			getBlockElByPath: () => null,
-			revealPath: (path) => deps.caretLanding.mount(path),
-			controller: createUndoController(deps),
-			reading: fixtureReading()
-		};
+		const ctx = rangeContext(deps, createUndoController(deps), fixtureReading());
 		const reads = countMetadataReads(deps.doc.children);
 		// From inside the quote into the first paragraph: the document is the common ancestor.
 		deps.selectionState.enterCrossBlock({ path: [0, 0], offset: 1 }, { path: [1], offset: 1 });
 
-		await performCrossBlockDelete(ctx, 'keyless');
+		await replaceRange(ctx, { kind: 'none', gesture: 'Backspace' });
 
 		expect(deps.doc.children).toHaveLength(BLOCKS);
 		expect(reads()).toBeLessThan(100);

@@ -42,11 +42,11 @@ export type DiscardIfNoop = boolean;
  */
 export type CommitLanding = () => Landing | null;
 
-/**
- * A callback that places the caret itself after the tick, left only for the delete and the typing
- * over a range that spans blocks, not yet on {@link CommitLanding}. Awaited, before the landing.
- */
-export type CommitAfterTick = () => void | Promise<void>;
+/** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
+ *  undo or a document swap came in since the commit. */
+export interface HeldLanding {
+	place(): Promise<void>;
+}
 
 /**
  * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
@@ -209,7 +209,6 @@ export interface CommitMultiScopeArgs<
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
 	landing?: CommitLanding;
 	/** How far the landing moves the viewport; `'into-view'` when absent. */
@@ -225,7 +224,6 @@ export interface CommitStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -250,7 +248,6 @@ export interface CommitContainerStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -294,6 +291,17 @@ export interface CommitController {
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
+	/** Runs `run` with each commit's caret kept rather than put down, and resolves to `run`'s
+	 *  result and the last caret kept, so a gesture of several commits places one. */
+	holdLandings<T>(run: () => Promise<T>): Promise<[result: T, landing: HeldLanding | null]>;
+	/** The next typing write joins the last commit's entry while it is the newest, until
+	 *  `endContinuedBurst`: a composition's text joins the removal its start made. */
+	continueTypingBurst(): void;
+	/** Ends what `continueTypingBurst` armed, written to or not; called at compositionend. */
+	endContinuedBurst(): void;
+	/** Whether a gesture may write now: false in reading mode, or for a document a `source` swap
+	 *  replaced. A reading-mode refusal names `op` in a dev warning; a null `op` is refused quietly. */
+	admitsGesture(op: string | null): boolean;
 }
 
 /** What a container reaches the editor root for, forwarded unchanged through nested containers.
@@ -353,8 +361,8 @@ export interface LeafWriteLanded extends Relanding {
 export interface LeafTextOptions {
 	caret: number;
 	snapshotOffset: number;
-	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
-	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
+	/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
+	landing?: (landed: LeafWriteLanded) => Landing | null;
 }
 
 // ── Replace ─────────────────────────────────────────────────────────────────

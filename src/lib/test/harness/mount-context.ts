@@ -92,10 +92,12 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		menuPresence: {} as EditorServices['menuPresence'],
 		stamps,
 		drafts: createDraftRegistry(stamps),
-		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
+		// The members a format toggle or a compositionend reaches on a bare mount; the rest keep the
+		// cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},
-			isolateUndoEntry: (write: () => void) => write()
+			isolateUndoEntry: (write: () => void) => write(),
+			endContinuedBurst: () => {}
 		} as EditorServices['controller'],
 		caretLanding: {} as EditorServices['caretLanding'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],

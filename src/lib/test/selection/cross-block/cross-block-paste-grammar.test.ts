@@ -9,7 +9,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 
 // A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block: pasting `1`
 // completes the marker to `1. item`, and the join reparse must resolve through the grammar.
-describe('handleCrossBlockPaste forwards the instance grammar to the join reparse', () => {
+describe('a cross-block paste forwards the instance grammar to the join reparse', () => {
 	it('a grammar that disables the list opener leaves the completion a paragraph', async () => {
 		const grammar = createGrammarView((kind) => kind !== 'list');
 		const env = makeEnv('x\n\n. item\n', fixtureReading({ grammar }));

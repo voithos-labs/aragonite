@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import {
-	performCrossBlockDelete,
-	type CrossBlockMutationContext
-} from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from './range-context';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -22,14 +20,7 @@ function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	harness.deps.selectionState = createSelectionState({ getDoc: () => harness.deps.doc });
 	const controller = createUndoController(harness.deps);
-	const mutCtx: CrossBlockMutationContext = {
-		selection: harness.deps.selectionState,
-		getDoc: () => harness.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: (path) => harness.deps.caretLanding.mount(path),
-		controller,
-		reading: fixtureReading()
-	};
+	const mutCtx = rangeContext(harness.deps, controller, fixtureReading());
 	return { ...harness, controller, mutCtx };
 }
 
@@ -39,7 +30,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		const listId = env.getBlockIds()[0];
 		env.deps.selectionState.enterCrossBlock({ path: [1], offset: 0 }, { path: [2], offset: 0 });
 
-		await performCrossBlockDelete(env.mutCtx, 'keyless');
+		await replaceRange(env.mutCtx, { kind: 'none', gesture: 'keyless' });
 
 		expect(serialize(env.deps.doc)).toBe('- a\n\n  cd\n\n  ef\n');
 		expect(env.deps.doc.children.map((c) => c.kind)).toEqual(['list']);
@@ -57,7 +48,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 			{ path: [0, 2], offset: 0 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx, 'keyless');
+		await replaceRange(env.mutCtx, { kind: 'none', gesture: 'keyless' });
 
 		expect(serialize(env.deps.doc)).toBe('> - a\n>\n>   cd\n>\n>   ef\n');
 		expect(env.deps.doc.children[0].children!.map((c) => c.kind)).toEqual(['list']);
@@ -75,7 +66,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		);
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 4 }, { path: [1, 0], offset: 6 });
 
-		await performCrossBlockDelete(env.mutCtx, 'keyless');
+		await replaceRange(env.mutCtx, { kind: 'none', gesture: 'keyless' });
 
 		expect(env.getBlockIds()).toHaveLength(env.deps.doc.children.length);
 		expect(env.deps.doc.childIds).toBeUndefined();
@@ -86,7 +77,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		const [firstId, , thirdId] = env.getBlockIds();
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 1 });
 
-		await performCrossBlockDelete(env.mutCtx, 'keyless');
+		await replaceRange(env.mutCtx, { kind: 'none', gesture: 'keyless' });
 
 		expect(serialize(env.deps.doc)).toBe('owo\n\nthree\n');
 		expect(env.getBlockIds()).toEqual([firstId, thirdId]);

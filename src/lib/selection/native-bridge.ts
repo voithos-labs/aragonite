@@ -43,19 +43,6 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
 }
 
-/** A focused collapsed caret in `point`'s mounted block, scrolled to by the focus call itself: kept
- *  for the cross-block delete, typing and paste until they land through the caret landing. */
-export function focusCollapsedCaret(
-	getBlockElByPath: (path: number[]) => HTMLElement | null,
-	point: SelectionPoint
-): boolean {
-	const blockEl = getBlockElByPath(point.path);
-	if (!blockEl) return false;
-	applyCollapsedCaret(blockEl, point);
-	blockEl.focus();
-	return true;
-}
-
 // A restore's caret; the restore's reveal policy decides the scroll.
 function restoreCollapsedCaret(
 	getBlockElByPath: (path: number[]) => HTMLElement | null,

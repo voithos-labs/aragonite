@@ -1,16 +1,17 @@
 // Drives `cross-block/keydown.ts` as a unit. Its branches (destructive, command-candidate, extend,
 // collapse, document-edge, select-all) are module-private, so the only way in is
-// `createCrossBlockKeydown`. The mutation context is real (live document, undo controller and
-// selection), so a reading-mode check is proven by the bytes not moving, which a spy cannot do.
+// `createCrossBlockKeydown`. The document, undo controller and selection are real, so a
+// reading-mode check is proven by the bytes not moving, which a spy cannot do.
 
 import { vi } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispatch';
-import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
 import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
 import {
 	normalizeKeybindingOverrides,
@@ -88,15 +89,6 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		}
 	};
 
-	const mutCtx: CrossBlockMutationContext = {
-		selection,
-		getDoc: () => harness.deps.doc,
-		getBlockElByPath,
-		revealPath,
-		controller,
-		reading
-	};
-
 	// The real handler, so a format chord over a range moves the bytes it would move in production.
 	const crossBlockCommands = createCrossBlockCommands({
 		selection,
@@ -116,10 +108,12 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.
 		scrollOwner: stubScrollOwner(stubScrollport({ viewportHeight: 500 }), { getBlockElByPath }),
 		caretLanding,
-		revealPath,
 		caretMemory,
 		controller,
 		reading,
+		events: harness.deps.events,
+		blockEdit: createBlockEditActions(harness.deps, controller),
+		pasteCoordinator: createPasteCoordinator(harness.deps, controller),
 		commands: commandContextWith(overrides, {
 			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 			getPresentationMode: () => opts.presentationMode ?? 'source',
@@ -137,12 +131,11 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		caretMemory,
 		controller,
 		ctx,
-		mutCtx,
 		revealed,
 		revealPath,
 		crossBlockCommands,
 		onCommandError,
-		keydown: createCrossBlockKeydown(ctx, mutCtx),
+		keydown: createCrossBlockKeydown(ctx),
 		source: () => serialize(harness.deps.doc)
 	};
 }

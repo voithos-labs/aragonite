@@ -114,6 +114,33 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('.table-cell')).toHaveCount(0);
 	});
 
+	// Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range
+	// kept clearing the cells unnoticed.
+	test('whole-table Ctrl+A 2nd press + typing replaces the table with a paragraph', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_3x3);
+		await page.locator('.table-cell').nth(4).click();
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('x');
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+	});
+
+	test('whole-table Ctrl+A 2nd press + Ctrl+X removes the table', async ({ page }) => {
+		await editor.loadContent(TABLE_3x3);
+		await page.locator('.table-cell').nth(4).click();
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+x');
+		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
+		await expect(page.locator('.table-cell')).toHaveCount(0);
+	});
+
 	const WHOLE_TABLE_SIDES = [
 		{ key: 'Backspace', lands: 'at the end of the block above', typed: 'abovex\n\nbelow\n' },
 		{ key: 'Delete', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' }

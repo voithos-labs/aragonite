@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { performCrossBlockDeleteSync } from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from '../../selection/cross-block/range-context';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import {
 	makeBlockListState,
@@ -65,13 +66,9 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			{ path: anchor, offset: offsets[0] },
 			{ path: focus, offset: offsets[1] }
 		);
-		performCrossBlockDeleteSync({
-			selection: harness.deps.selectionState,
-			getDoc: () => harness.deps.doc,
-			getBlockElByPath: () => null,
-			revealPath: (path) => harness.deps.caretLanding.mount(path),
-			controller,
-			reading: fixtureReading()
+		// A composition's removal, which commits before the replace's first await.
+		void replaceRange(rangeContext(harness.deps, controller, fixtureReading()), {
+			kind: 'composition'
 		});
 		return harness;
 	}

@@ -41,10 +41,10 @@ import { createTextBatch } from './text-batch';
 import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
-	CommitAfterTick,
 	CommitAnnouncement,
 	CommitLanding,
 	CommitContainerStructuralArgs,
+	HeldLanding,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
 	CommitStructuralArgs,
@@ -65,6 +65,7 @@ import {
 	assertKeepsABlock,
 	assertLastLineKept,
 	assertReadsBack,
+	assertTopLevelUntouched,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
 import { dropChildSpans } from '../../schema/child-spans';
@@ -187,6 +188,10 @@ export function createUndoController(
 	// commit is being called, which joins it.
 	let typingEntry: UndoEntry | null = null;
 	let joiningTyping = false;
+	// The entry the newest commit wrote (null when it was refused), and the one the next typing
+	// write joins instead of pushing its own, until a composition or the typing batch ends.
+	let lastCommitEntry: UndoEntry | null = null;
+	let continued: UndoEntry | null = null;
 
 	const inOpenStep = () => stepDepth > 0 && !stepEnded;
 	const isTop = (entry: UndoEntry | null) =>
@@ -196,6 +201,7 @@ export function createUndoController(
 	const isJoinedPush = () => (joiningTyping && isTop(typingEntry)) || joinsStep();
 
 	function pushEntry(entry: UndoEntry): void {
+		continued = null;
 		deps.undoManager.push(entry);
 		if (inOpenStep()) {
 			stepEntry = entry;
@@ -250,6 +256,10 @@ export function createUndoController(
 		stepEntry = null;
 	}
 
+	function continueTypingBurst(): void {
+		continued = lastCommitEntry;
+	}
+
 	// ── Entry pushes ─────────────────────────────────────────────────────────
 
 	// A push inside a step after its first returns before the snapshot, so it neither marks the
@@ -268,6 +278,12 @@ export function createUndoController(
 	// Path from the live focused leaf, offset from the caller: the live caret is already
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
+		const joins = continued;
+		continued = null;
+		if (isTop(joins)) {
+			typingEntry = joins;
+			return;
+		}
 		if (joinsStep()) {
 			typingEntry = stepEntry;
 			return;
@@ -287,7 +303,12 @@ export function createUndoController(
 		typingEntry = entry;
 	}
 
-	const textBatch = createTextBatch({ pushSnapshot: pushTypingSnapshot });
+	const textBatch = createTextBatch({
+		pushSnapshot: pushTypingSnapshot,
+		onEnd: () => {
+			continued = null;
+		}
+	});
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 
@@ -300,7 +321,6 @@ export function createUndoController(
 		 *  final line break before it. */
 		mutate: (wasOpen: boolean) => boolean;
 		op?: ScopedOpDescriptor;
-		afterTick?: CommitAfterTick;
 		landing?: CommitLanding;
 		reveal?: RevealPolicy;
 		announce?: CommitAnnouncement;
@@ -368,6 +388,7 @@ export function createUndoController(
 			// Inside the try: readCurrentSelection walks live block refs, plugin leaves included,
 			// so it can throw like every other step.
 			pushCommitSnapshot(args.snapshot.path, args.snapshot.offset);
+			lastCommitEntry = deps.undoManager.peekUndo() ?? null;
 			const wasOpen = endsOpen(deps.doc);
 			const changed = args.mutate(wasOpen);
 			if (args.discardIfNoop && !changed) {
@@ -428,6 +449,7 @@ export function createUndoController(
 	async function __commit(args: CommitArgs): Promise<boolean> {
 		const op = args.op?.kind ?? args.entry;
 		const target = args.op?.eventPath ?? args.snapshot.path;
+		lastCommitEntry = null;
 		// A refused write lands nothing, while a discarded no-op still lands: whether a commit
 		// lands is its own question, not whether it wrote.
 		if (!admitsWrite(deps, op, () => blockNodeAt(deps.doc, target)?.kind)) return false;
@@ -445,13 +467,10 @@ export function createUndoController(
 		// Awaited, so the promise every caller holds means "the caret is placed". No rollback on a
 		// throw: the commit succeeded and the tree is correct, so it is reported and the next runs.
 		try {
-			await args.afterTick?.();
-		} catch (err) {
-			reportCommitError(args, err);
-		}
-		try {
 			const landing = readLanding(args.landing);
-			if (landing) await landOrRestore(landing, { stamp, reveal: args.reveal });
+			const placement = landing && placementOf(args, landing, stamp);
+			if (placement && heldDepth > 0) held = placement;
+			else if (placement) await placement.place();
 		} catch (err) {
 			reportCommitError(args, err);
 		}
@@ -460,9 +479,37 @@ export function createUndoController(
 		return true;
 	}
 
-	async function landOrRestore(landing: Landing, opts: LandOptions): Promise<void> {
-		if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
-		else await deps.caretLanding.land(landing, opts);
+	function placementOf(args: CommitArgs, landing: Landing, stamp: number): HeldLanding {
+		const opts: LandOptions = { stamp, reveal: args.reveal };
+		return {
+			async place() {
+				try {
+					if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
+					else await deps.caretLanding.land(landing, opts);
+				} catch (err) {
+					reportCommitError(args, err);
+				}
+			}
+		};
+	}
+
+	// ── Held landings ────────────────────────────────────────────────────────
+
+	// While a hold runs, a commit keeps its caret here instead of putting it down; the newest wins.
+	let heldDepth = 0;
+	let held: HeldLanding | null = null;
+
+	async function holdLandings<T>(run: () => Promise<T>): Promise<[T, HeldLanding | null]> {
+		const outer = held;
+		held = null;
+		heldDepth++;
+		try {
+			const result = await run();
+			return [result, held];
+		} finally {
+			heldDepth--;
+			held = outer;
+		}
 	}
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
@@ -471,12 +518,10 @@ export function createUndoController(
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
 		return commitScopes({
 			entry: 'commitStructural',
-			topLevelOffTree: true,
 			scopes: [getDocScope()],
 			snapshot: args.snapshot,
 			mutate: ([doc]) => [args.mutate(doc.children)],
 			op: args.op,
-			afterTick: args.afterTick,
 			landing: args.landing,
 			reveal: args.reveal,
 			announce: args.announce,
@@ -487,13 +532,12 @@ export function createUndoController(
 	}
 
 	function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<boolean> {
-		const { containerNode, path, state, snapshot, mutate, op, afterTick, discardIfNoop } = args;
+		const { containerNode, path, state, snapshot, mutate, op, discardIfNoop } = args;
 		return commitMultiScope({
 			scopes: [{ node: containerNode, state, path }],
 			snapshot,
 			mutate: ([scope]) => [mutate(scope)],
 			op,
-			afterTick,
 			landing: args.landing,
 			reveal: args.reveal,
 			announce: args.announce,
@@ -506,9 +550,8 @@ export function createUndoController(
 
 	interface PreparedScope {
 		target: MultiScopeTarget;
-		isDoc: boolean;
 		/** The document's working array is a plain one the publish installs, not the tree's own. */
-		offTree: boolean;
+		isDoc: boolean;
 		chain: CstNode[];
 		owned: CstNode;
 		view: ContainerScope;
@@ -555,16 +598,14 @@ export function createUndoController(
 		);
 	}
 
+	const isDocScope = (s: MultiScopeTarget) => (s.node as unknown) === (deps.doc as unknown);
+
 	/**
 	 * Copies the scope's ancestors and attaches a working children array (`tree-operations/unshare.ts`).
 	 * `topLevelBefore` is the document's array before the commit wrote any.
 	 */
-	function prepareScopeView(
-		s: MultiScopeTarget,
-		topLevelBefore: CstNode[],
-		topLevelOffTree: boolean
-	): PreparedScope {
-		const isDoc = (s.node as unknown) === (deps.doc as unknown);
+	function prepareScopeView(s: MultiScopeTarget, topLevelBefore: CstNode[]): PreparedScope {
+		const isDoc = isDocScope(s);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
 			// A short chain leaves the container node shared with an undo entry, and writing it
@@ -593,14 +634,12 @@ export function createUndoController(
 		const savedChildIds = owned.childIds;
 		const savedRaws = isDoc ? [] : captureScopeRaws(chain, owned);
 		if (!isDoc) owned.children = [...(owned.children ?? [])];
-		const offTree = isDoc && topLevelOffTree;
 		// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
-		const children = offTree ? [...topLevelBefore] : owned.children!;
+		const children = isDoc ? [...topLevelBefore] : owned.children!;
 		const lineEnding = documentLineEnding(deps.doc);
 		return {
 			target: s,
 			isDoc,
-			offTree,
 			chain,
 			owned,
 			view: {
@@ -637,7 +676,7 @@ export function createUndoController(
 	 * because the state's setter would write the stale shared node's property.
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange, entry: string): void {
-		if (p.offTree) {
+		if (p.isDoc) {
 			deps.doc.children = p.view.children;
 			// Re-read through the tree, whose proxy is the array from here on (unshare.ts header).
 			p.view.children = p.view.body.children = deps.doc.children;
@@ -668,9 +707,6 @@ export function createUndoController(
 		entry: CommitArgs['entry'];
 		/** In-place writes a `noop` change names no position for, read once `mutate` returns. */
 		touchedNodes?: readonly CstNode[];
-		/** True when the mutation writes the top level only through the array it's handed, so that
-		 *  array can stay off the tree until the document scope publishes. */
-		topLevelOffTree?: boolean;
 	}
 
 	/** One structural commit across one or more block lists: one undo snapshot, one edit event.
@@ -679,8 +715,9 @@ export function createUndoController(
 		args: ScopedCommitArgs<S>
 	): Promise<boolean> {
 		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret } = args;
-		const offTree = args.topLevelOffTree ?? false;
 		const prepared: PreparedScope[] = [];
+		// Top-level blocks a container scope copied into the tree's own array, with what stood there.
+		const replacedSlots: [index: number, node: CstNode][] = [];
 		let settled: StructuralChange[] = [];
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
 		// checks read, and the index is what an unwind restores.
@@ -696,15 +733,25 @@ export function createUndoController(
 			snapshot,
 			mutate: (wasOpen) => {
 				for (const s of scopes) assertScopeIdentity(s);
+				if (scopes.slice(1).some(isDocScope)) {
+					throw new Error('commitMultiScope: the document scope goes first');
+				}
 				const topLevel = deps.doc.children;
 				topLevelBefore = topLevel;
-				// A container scope's copies land in the live top-level array, so the commit writes a
-				// fresh one, and an unwind puts back the one it replaced.
-				if (!offTree) deps.doc.children = [...topLevel];
-				// Pushed as each resolves, so a scope that fails to prepare still leaves the
-				// rollback holding the state of the scopes prepared before it.
-				for (const s of scopes) prepared.push(prepareScopeView(s, topLevel, offTree));
+				const hasDoc = scopes.length > 0 && isDocScope(scopes[0]);
+				// A container's copied ancestors land in the tree's array: a fresh one the unwind drops,
+				// or, beside a document scope, the tree's own, whose slots the unwind puts back.
+				if (!hasDoc) deps.doc.children = [...topLevel];
+				// Containers first, so the document's working copy holds what they copied. Pushed as
+				// each resolves, so a scope that fails to prepare leaves the earlier ones to the rollback.
+				for (const s of hasDoc ? scopes.slice(1) : scopes) {
+					if (hasDoc) replacedSlots.push([s.path[0], topLevel[s.path[0]]]);
+					prepared.push(prepareScopeView(s, topLevel));
+				}
+				if (hasDoc) prepared.unshift(prepareScopeView(scopes[0], topLevel));
+				const treeAtMutate = hasDoc && isDevChecks() && !perfEnabled() ? [...topLevel] : null;
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
+				if (treeAtMutate) assertTopLevelUntouched(deps.doc.children, topLevel, treeAtMutate);
 				// A scope array built at runtime loses the tuple type, so this runtime check
 				// backs up the types.
 				const changeList: StructuralChange[] = [...changes];
@@ -760,7 +807,6 @@ export function createUndoController(
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			op,
-			afterTick: args.afterTick,
 			// A collapsed container recreated every block in its range, so its position replaces the
 			// caller's rather than following it.
 			landing: () =>
@@ -830,7 +876,10 @@ export function createUndoController(
 					replaceRefs(p.target.state.innerBlockRefs, p.savedStateRefs);
 				}
 				// Last: the restores above write into the working array this one replaces.
-				if (topLevelBefore) deps.doc.children = topLevelBefore;
+				if (topLevelBefore) {
+					deps.doc.children = topLevelBefore;
+					for (const [index, node] of replacedSlots) topLevelBefore[index] = node;
+				}
 			}
 		});
 	}
@@ -887,6 +936,13 @@ export function createUndoController(
 		undoStep,
 		joinTypingBatch,
 		endUndoStep,
+		continueTypingBurst,
+		endContinuedBurst: () => {
+			continued = null;
+		},
+		holdLandings,
+		// The snapshot's answer is the write gate's, with no warning.
+		admitsGesture: (op) => (op === null ? admitsSnapshot(deps) : admitsWrite(deps, op)),
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.

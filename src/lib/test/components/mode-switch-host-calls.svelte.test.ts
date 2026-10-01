@@ -13,6 +13,8 @@ import {
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 beforeEach(() => {
 	installLayoutStubs();
@@ -87,5 +89,7 @@ describe('insertMarkdown across a switch to reading', () => {
 
 		expect(mounted.source()).toBe('para\n');
 		expect(inserted).toBe(false);
+		// The block's own check ran before its await, so the write gate is what refuses it.
+		allowDevWarns([READING_WRITE_TAG]);
 	});
 });

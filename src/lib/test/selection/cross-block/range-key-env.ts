@@ -8,8 +8,6 @@ import { makeHandlers } from './typed-char-env';
 
 export interface RangeKeyEnv {
 	h: TopHarness;
-	/** Every block path a caret was put in: by a commit, or by the range dispatch's focus. */
-	placed: number[][];
 }
 
 export function rangeKeyEnv(source: string): RangeKeyEnv {
@@ -21,7 +19,7 @@ export function rangeKeyEnv(source: string): RangeKeyEnv {
 		if (node?.children) makeBlockListState(() => blockNodeAt(h.deps.doc, path) ?? node);
 	};
 	h.deps.doc.children.forEach((_, i) => mount([i]));
-	return { h, placed: [] };
+	return { h };
 }
 
 export function rangeHandlers(env: RangeKeyEnv) {
@@ -35,12 +33,7 @@ export function rangeHandlers(env: RangeKeyEnv) {
 		blockEdit: h.actions,
 		caretMemory: h.deps.caretMemory
 	};
-	return makeHandlers(handlerEnv as never, [0], {
-		getBlockElByPath: (path) => {
-			env.placed.push(path.slice());
-			return null;
-		}
-	});
+	return makeHandlers(handlerEnv as never, [0]);
 }
 
 export function select(
@@ -55,9 +48,9 @@ export async function rangeKey(env: RangeKeyEnv, key: string): Promise<void> {
 	await rangeHandlers(env).handleKeyDown(new KeyboardEvent('keydown', { key, cancelable: true }));
 }
 
-/** Every caret the delete put down, the commit's first. */
+/** Every block a caret was put down in. */
 export function placedPaths(env: RangeKeyEnv): number[][] {
-	return [...env.h.landings.map((l) => [...l.leafPath]), ...env.placed];
+	return env.h.landings.map((l) => [...l.leafPath]);
 }
 
 export const whole = (path: number[]): SelectionEndpoint => ({ path, wholeBlock: true });

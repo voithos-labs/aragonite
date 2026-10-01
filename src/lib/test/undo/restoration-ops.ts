@@ -20,7 +20,8 @@ import {
 } from '../../editor-actions/nested/nested-actions';
 import { createListContext } from '../../editor-actions/list-context';
 import { createTableMutationsContext } from '../../editor-actions/table-context';
-import { performCrossBlockDelete } from '../../selection/cross-block/ops';
+import { replaceRange } from '../../selection/cross-block/range-replace';
+import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '../../selection/primitives';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import {
@@ -408,17 +409,10 @@ async function runRangeDelete(
 	if (!start || !end) return;
 
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await performCrossBlockDelete(
-		{
-			selection: h.deps.selectionState,
-			getDoc: () => h.deps.doc,
-			getBlockElByPath: () => null,
-			revealPath: (path) => h.deps.caretLanding.mount(path),
-			controller: h.controller,
-			reading: fixtureReading()
-		},
-		'keyless'
-	);
+	await replaceRange(rangeContext(h.deps, h.controller, fixtureReading()), {
+		kind: 'none',
+		gesture: 'keyless'
+	});
 }
 
 /** A made-up selection endpoint inside `block` (top-level index `i`). A table returns null:

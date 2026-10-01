@@ -6,7 +6,6 @@
 
 import type { OpDescriptor } from '../schema/operations';
 import type {
-	CommitAfterTick,
 	CommitLanding,
 	ContainerEditActions,
 	InPlaceResult,
@@ -54,7 +53,6 @@ export interface ScopeCommitArgs {
 	eventTarget: number;
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
-	afterTick?: CommitAfterTick;
 	/** Where the caret goes, read after the commit; built with the scope's `at`. */
 	landing?: CommitLanding;
 	/** How far the landing moves the viewport; `'into-view'` when absent. */
@@ -126,7 +124,6 @@ export function createTopLevelScope(
 			eventTarget,
 			op,
 			mutate,
-			afterTick,
 			landing,
 			reveal,
 			touchedNodes,
@@ -143,7 +140,6 @@ export function createTopLevelScope(
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
-				afterTick,
 				landing,
 				reveal,
 				touchedNodes,
@@ -230,7 +226,6 @@ function containerScope(parts: ContainerParts): CommitScope {
 			eventTarget,
 			op,
 			mutate,
-			afterTick,
 			landing,
 			reveal,
 			discardIfNoop,
@@ -249,7 +244,6 @@ function containerScope(parts: ContainerParts): CommitScope {
 						unshareChild: (i) => ensureUnsharedChild(view.node, i, view.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
-				afterTick,
 				landing,
 				reveal,
 				discardIfNoop,

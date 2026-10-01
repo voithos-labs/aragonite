@@ -34,10 +34,8 @@ export async function applyInlineResult(
 	return write.admitted ? { path: targetPath, offset: write.caret } : undefined;
 }
 
-/**
- * Cross-block inline paste, committed at the parent list so its `childIds` stay aligned. The write
- * goes through the reparse path, so a paste that completes marker syntax changes the block's kind.
- */
+/** Cross-block inline paste, committed at the parent list so its `childIds` stay aligned, through
+ *  the reparse, so a paste completing marker syntax changes the block's kind. */
 async function commitInlineCrossBlock(
 	targetPath: number[],
 	result: InlinePasteResult,
@@ -46,7 +44,8 @@ async function commitInlineCrossBlock(
 ): Promise<InlineCaretLanding | undefined> {
 	const landed = await ctx.controller.commitLeafText(targetPath, result.newRaw, {
 		caret: result.caretOffset,
-		snapshotOffset: start.offset
+		snapshotOffset: start.offset,
+		landing: (written) => written.caret
 	});
 	if (!landed.wrote) return undefined;
 	// The paste can make the block a container, whose caret belongs in the leaf holding the offset.

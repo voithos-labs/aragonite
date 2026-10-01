@@ -271,7 +271,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
 		caretLanding: deps.caretLanding,
-		revealPath: (path) => deps.caretLanding.mount(path),
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
 		scrollOwner: deps.scrollOwner,
@@ -486,6 +485,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		traceCompositionEnd();
 		deps.setComposing(false);
 		commitDomRead(true);
+		crossBlock.handleCompositionEnd();
 	}
 
 	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };
