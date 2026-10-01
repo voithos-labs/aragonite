@@ -1,8 +1,8 @@
 /**
  * Every editable block publishes `insertMarkdown` (G4.38). `BlockComponent` declares the member
  * optional, so a block missing it would compile and quietly ignore every `editor.insertMarkdown`.
- * A leaf built on `createEditableLeaf` publishes the factory's `blockApi`, whose type requires it,
- * so the scan reads the components that build their own surface, by whichever route each uses.
+ * A leaf built on `createEditableLeaf` exports the factory's `blockApi` (G4.73), whose type requires
+ * it, so the scan reads the components that build their own text area, by whichever route each uses.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';

@@ -913,7 +913,7 @@ Your component supplies only its own chrome: the border, the title styling, an i
 
 Three rules for that file, each earned the hard way:
 
-- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as a leaf surface (a built-in leaf's own members, or a factory leaf's `blockApi`) or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
+- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as a leaf surface (a hand-built leaf's own members, or a factory leaf's `blockApi`) or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read (`var(--color-ui-muted, #93938d)`), so the block still renders outside the editor's own style scope. Match the fallback to the token's dark value; dark is the base theme. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
@@ -1222,11 +1222,11 @@ const leaf = createEditableLeaf({
 	getEl: () => sourceEl ?? null, // null while a render-primary view is folded
 	mode: 'render-primary', // 'plain' is the default
 	singleLine: true, // a one-line kind: Enter splits the block instead of typing a newline
-	isRevealed: () => revealed, // render-primary only, and a type error to leave out there
+	isRevealed: () => revealed, // render-primary only; leaving it out there won't compile, or throws
 	setRevealed: (next) => (revealed = next)
 	// optional too: commandHooks, handed to your block commands as ctx.hooks (see Block commands)
 });
-leaf.blockApi; // the block's whole surface: your component's one export
+leaf.blockApi; // everything the editor calls on your block: your component's one export
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
 leaf.getOptions<MyOptions>(); // this editor's options for your plugin, defaults included
@@ -1262,7 +1262,7 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the round-trip holds through every commit.
 
-**Per-instance configuration.** `leaf.getOptions<MyOptions>()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. You name the type, and nothing checks it against your plugin, so pass the one your `defaults` has. With no editor around (a component mounted bare in a unit test) it's just your `defaults`. It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
+**Per-instance configuration.** `leaf.getOptions<MyOptions>()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. You name the type, and nothing checks it against your plugin, so pass the one your `defaults` has. With no editor around (a component mounted bare in a unit test) it's just your `defaults`, once your plugin is installed. It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
 Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `completeBareSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and the one `blockApi` export. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 

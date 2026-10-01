@@ -929,10 +929,10 @@ Each entry says what the type retired, since that list is the receipts.
 metadata casts.
 
 **G3.2 · Sanctioned component exports.** `defineBlockComponent`, whose exports parameter is the
-three sanctioned publication shapes (`BlockComponentExports`): a built-in leaf's own surface, a
+three sanctioned publication shapes (`BlockComponentExports`): a hand-built leaf's own members, a
 factory-built leaf's single `blockApi`, or a container's single `containerApi`. Retired: `as unknown
-as` casts, a container that publishes no surface at all, and a factory-built leaf copying its
-members out by hand (G4.73), since `EditableLeaf` carries them only inside `blockApi`.
+as` casts, and a component that publishes nothing at all. A factory-built leaf that copies its
+members out flat still compiles, since the copy is a hand-built leaf's shape; G4.73 holds that.
 
 **G3.3 · Discriminated selection points.** `SelectionPoint` is a discriminated union
 (`CharSelectionPoint | CellSelectionPoint`) on `cellCoordinate`: a cell point needs the literal
@@ -1079,7 +1079,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.70  | A decoration can't set a data attribute the editor uses on a block's own element          | L       |
 | G4.71  | An emptiness test on text reads GFM's blank, not `String.trim()`                          | L       |
 | G4.72  | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`                      | L       |
-| G4.73  | _Retired upward_: a factory-built leaf publishes its whole surface as one `blockApi`      | T       |
+| G4.73  | A component built on the editable leaf exports `blockApi` and no block method of its own  | L       |
 | G4.74  | Only the commit's open-tail steps write the document's last line ending                   | L       |
 | G4.75  | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
 | G4.76  | Every join into a leaf, and every other text built from two sources, is declared          | L       |
@@ -1469,8 +1469,9 @@ instance export, or the surface literal it hands `publishRefSlot` where nothing 
 instance. The shared clipboard skeleton builds the method for all of them, but Svelte 5
 instance exports have no spread and `BlockComponent` declares the method optional, so the last hop
 is hand-written per component. Surface N+1 would compile clean and silently decline every
-`editor.insertMarkdown()` on its blocks. A leaf built on `createEditableLeaf` is outside the scan:
-it publishes the factory's `blockApi`, whose type requires the method.
+`editor.insertMarkdown()` on its blocks. The scan covers the components building their own text
+surface; a leaf built on `createEditableLeaf` is G4.73's, which holds it to exporting the factory's
+`blockApi`, and that object's type requires the method.
 `lint/insert-door-surface-parity.test.ts`.
 
 **G4.39 · Command surface parity.** Every component mounting the text surface
@@ -1790,11 +1791,16 @@ isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX erro
 with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
 emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
 
-**G4.73 · Retired upward.** The rule was: every component mounting an editable leaf
-(`createEditableLeaf`) publishes `afterSourceCommit`, or a host's
-`editor.runCommand('block.moveDown')` moves the block with its open source unwritten. The leaf now hands its block methods over only as
-one `blockApi` object, typed to carry every member the factory implements, and the component
-exports that object, so the scan is deleted. Superseded by G3.2.
+**G4.73 · A leaf component exports `blockApi`.** Every component calling `createEditableLeaf`, test
+fixtures included, exports `blockApi` and no `BlockComponent` member of its own. The factory's
+object carries every method it implements by type, but a flat copy out of it is still a valid
+`BlockComponent`, so it compiles while dropping what it skipped: without `afterSourceCommit` a
+host's `editor.runCommand('block.moveDown')` moves the block with its open source unwritten, and
+without `insertMarkdown` every `editor.insertMarkdown()` declines. The scan reads the member names
+off `BlockComponent`'s declaration, so a new member joins it. A type can take the rule over at
+registration: once containers publish through `blockApi` too, the plugin-facing registration can
+accept a `{ blockApi }` export alone, keeping the flat shape for the editor's own blocks, and this
+scan retires into it. `lint/leaf-block-api-export.test.ts`.
 
 **G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
 block's last line, down through every container holding that line, is private to
