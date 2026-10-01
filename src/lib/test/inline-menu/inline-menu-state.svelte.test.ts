@@ -476,7 +476,12 @@ describe('navigation and commit', () => {
 			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
 
 			expect(h.raw()).toBe('see #work');
-			expect(onCommit.mock.calls[0][1]).toMatchObject({ query: 'wor', path: [0], start: 4, end: 8 });
+			expect(onCommit.mock.calls[0][1]).toMatchObject({
+				query: 'wor',
+				path: [0],
+				start: 4,
+				end: 8
+			});
 		}
 	);
 
