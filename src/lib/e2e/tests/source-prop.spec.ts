@@ -50,4 +50,21 @@ test.describe('source prop change', () => {
 		expect(generations[1]).toBe(generations[0] + 1);
 		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
 	});
+
+	test('a key typed just before a swap fires its edit at the key, and the swap fires none', async ({
+		page
+	}) => {
+		await editor.loadContent('a\n');
+		await editor.focusBlockEnd(0);
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+
+		await page.keyboard.type('b');
+		const typed = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+		await editor.loadContent('other\n');
+
+		expect(typed).toEqual(['input']);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+		expect(await editor.bridge.getSource()).toBe('other\n');
+	});
 });
