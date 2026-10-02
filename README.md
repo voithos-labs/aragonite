@@ -124,7 +124,7 @@ And, also importantly:
 1. Syntax the parser doesn't understand will still round-trip losslessly (including syntax from a plugin you have since uninstalled)
 2. The worst case for a parser bug is bad styling, not a corrupted file
 3. Partial syntax is handled for free: a half-typed `**bold` is just a string in someone's raw, not an invalid tree state every keystroke has to worry about
-4. Saving rewrites nothing you didn't touch, so a git diff (or your sync tool, or a merge) sees exactly your edit, never a whole file re-serialization. The fine print: a line whose indent cuts a tab in half gets that indent back as spaces, and footnotes and GitHub alerts still tidy every line on the first edit [^9]
+4. Saving rewrites nothing you didn't touch, so a git diff (or your sync tool, or a merge) sees exactly your edit, never a whole file re-serialization [^9]
 5. This will be explained in depth later, but this architecture meshes well with the block editor model, which opens a whole range of possibilities, including windowing and a naturally more capable plugin system
 
 Reading what I told you, you might think to yourself: _surely complex operations need a rich tree to operate on._ They do not. Aragonite proves this to you, that semantic editing never needed the tree to be the truth; it only needs the tree to know where things are.
