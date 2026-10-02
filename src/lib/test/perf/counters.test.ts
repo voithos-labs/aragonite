@@ -62,7 +62,8 @@ describe('perf counter ceilings', () => {
 			.filter((node) => node.kind === 'blockquote' || node.kind === 'listItem')
 			.reduce((sum, node) => sum + splitLines(node.raw).length, 0);
 		const perLine = perfSnapshot().stripLinesRead / stripLines;
-		// Measured 1.0 (baseline.json): the keep rule reads each previous line once.
-		expect(perLine).toBeLessThanOrEqual(1.1);
+		// Measured 0.05 (baseline.json): only each list item's opening line is read, every other
+		// line being its container's own spelling; 0.06 admits no read more.
+		expect(perLine).toBeLessThanOrEqual(0.06);
 	});
 });

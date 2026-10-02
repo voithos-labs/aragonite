@@ -508,8 +508,8 @@ function bodyOf(old: OldLine): BodyLine | null {
 	return old.body;
 }
 
-/** Whether the old line holds `line`; a line in the container's own spelling of the text needs
- *  no reading. */
+/** Whether the previous line holds `line`; one in the container's own spelling of the text is
+ *  matched without a reading. */
 function holds(old: OldLine, line: BodyLineOut): boolean {
 	if (old.ending !== line.ending) return false;
 	return old.codec.spells(old.text, line.text, old.place) || bodyOf(old)?.text === line.text;
