@@ -79,6 +79,7 @@ export function readItemShape(line: string): ItemLineShape | null {
 export function listItemLines(shape: ItemLineShape): LineCodec {
 	const column = shape.indent.length + shape.marker.length;
 	const opener = shape.indent + shape.marker + (shape.taskMarker ?? '');
+	const pad = ' '.repeat(column);
 	return {
 		read(line, place) {
 			if (place.first) {
@@ -103,7 +104,18 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 		},
 		write(text, place) {
 			if (place.first) return opener + text;
-			return text === '' && !place.trailingBlank ? '' : ' '.repeat(column) + text;
+			return text === '' && !place.trailingBlank ? '' : pad + text;
+		},
+		spells(line, text, place) {
+			// The opening line is read for its marker, which the text after it can change.
+			if (place.first) return false;
+			if (text === '' && !place.trailingBlank) return line === '';
+			return (
+				line.length === column + text.length &&
+				line.startsWith(pad) &&
+				line.slice(column) === text &&
+				!(column % 4 !== 0 && leadingTab(text))
+			);
 		},
 		// The parser asks the opening line with its task marker still on it.
 		continuesLazily: (above, line, aboveFirst) =>
@@ -111,6 +123,13 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 			wouldKeepParagraphOpen(line) &&
 			!opensOuterBlock(line)
 	};
+}
+
+/** Whether a tab sits in `text`'s leading whitespace, which a read at a column off the tab stops
+ *  rewrites as spaces. */
+function leadingTab(text: string): boolean {
+	for (let i = 0; text[i] === ' ' || text[i] === '\t'; i++) if (text[i] === '\t') return true;
+	return false;
 }
 
 /** CommonMark §5.2: a marker interrupts a paragraph only as a bullet or at `1`, with a non-empty

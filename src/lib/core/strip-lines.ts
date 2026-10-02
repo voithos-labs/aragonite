@@ -26,6 +26,9 @@ export interface LineCodec {
 	read(line: string, place: LinePlace): BodyLine | null;
 	/** `text` in the container's own spelling at `place`. */
 	write(text: string, place: LinePlace): string;
+	/** Whether `line` is {@link write}'s spelling of `text` at `place` and reads back as `text`,
+	 *  answered without reading `line`; false whenever unsure. */
+	spells(line: string, text: string, place: LinePlace): boolean;
 	/** Whether the parser takes `line`, with no prefix, as continuing a paragraph the body line
 	 *  `above` leaves open; `aboveFirst` when that line is the container's opening one. */
 	continuesLazily(above: string, line: string, aboveFirst: boolean): boolean;

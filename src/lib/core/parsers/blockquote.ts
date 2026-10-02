@@ -31,6 +31,14 @@ export const quoteLines: LineCodec = {
 		return { text: line.slice(prefix.length), prefix, lazy: false };
 	},
 	write: (text) => (text === '' ? '>' : '> ' + text),
+	// The marker's one optional space is the space written, so any text after it reads back.
+	spells: (line, text) =>
+		text === ''
+			? line === '>'
+			: line.length === text.length + 2 &&
+				line[0] === '>' &&
+				line[1] === ' ' &&
+				line.slice(2) === text,
 	continuesLazily: (above, line) =>
 		wouldKeepParagraphOpen(above) && wouldKeepParagraphOpen(line) && !opensOuterBlock(line)
 };
