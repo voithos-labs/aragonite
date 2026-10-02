@@ -75,6 +75,16 @@ test.describe('list Backspace: M1 merge on non-first item', () => {
 		expect(source).toMatch(/extra/);
 	});
 
+	test('M1 row 6: indented code under the merged item keeps its blank line', async () => {
+		await editor.loadContent('- a\n- b\n\n      code\n');
+		await editor.focusBlockAtPath([0, 1, 0], 1);
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('- ab\n\n      code\n');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('M1 ordered list: merged item deletion renumbers remaining', async () => {
 		await editor.loadContent('1. First\n2. Second\n3. Third\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Second' });
@@ -126,9 +136,8 @@ test.describe('list Backspace: M1 merge on non-first item', () => {
 	test('M1 opaque previous leaf (fenced code): no merge, no crash, caret falls back', async ({
 		page
 	}) => {
-		// Backspace at the start of the item after a fenced-code-only item must change no structure
-		// and move the caret into the code block; throwing inside the commit steps crashes in dev
-		// and does nothing at all in production.
+		// Backspace after a fenced-code-only item must change no structure and move the caret into
+		// the code block; a throw inside the commit crashes in dev and does nothing in production.
 		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- ```\n  code\n  ```\n- text\n');

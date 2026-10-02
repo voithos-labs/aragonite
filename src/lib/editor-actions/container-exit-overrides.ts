@@ -1,44 +1,48 @@
 /**
  * The override every plugin container shares: Enter on an empty last child exits the
- * container. Backspace unwrap (rule U2) comes from the kind's declared `unwrapRole`, which
- * picks a strategy in `unwrap-strategies.ts`.
+ * container. Backspace unwrap comes from the kind's declared `unwrapRole`, which picks a
+ * strategy in `unwrap-strategies.ts` (`docs/design/editor.md` § Container unwrap).
  */
 
 import type { BlockEditActions } from '../action-contracts';
-import { displayLength } from '../core/lines';
+import { displayLength, isBlankText } from '../core/lines';
 import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
+import type { Reading } from '../schema/reading';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
 
 export interface ContainerExitOverridesDeps {
 	scope: NodeScope;
 	parentBlockEdit: BlockEditActions;
+	reading: Reading;
 }
 
 export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 	return (defaults: NestedActionsBundle) => ({
 		blockEdit: {
-			// Enter on an empty trailing paragraph exits the container instead of adding another
-			// inner line, and creates the blank paragraph it lands on: Enter never moves down into
-			// an existing block, and a nested container is escaped one level per Enter.
-			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
+			// Enter on an empty last paragraph exits onto a new blank paragraph after the container,
+			// never into an existing block, so nested containers are escaped one level per Enter.
+			splitBlock: async (innerIndex: number, offset: number): Promise<boolean> => {
 				const { parentBlockEdit } = deps;
 				const { node, index } = deps.scope;
-				if (!node.children) return;
+				if (!node.children) return false;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
-				const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
-				if (isLastChild && isEmpty) {
-					if (node.children.length <= 1) {
-						await parentBlockEdit.splitBlock(index, displayLength(node.raw));
-					} else {
-						await parentBlockEdit.replaceBlock(index, buildQuoteExitReplacement(node), {
-							replacementIndex: 1,
-							offset: 0
-						});
-					}
-					return;
+				const isEmpty = child.kind === 'paragraph' && isBlankText(child.raw);
+				if (!isLastChild || !isEmpty) return defaults.blockEdit.splitBlock(innerIndex, offset);
+				if (node.children.length <= 1) {
+					return parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				}
-				return defaults.blockEdit.splitBlock(innerIndex, offset);
+				return parentBlockEdit.replaceBlock(
+					index,
+					buildQuoteExitReplacement(node, deps.reading.grammar),
+					{
+						replacementIndex: 1,
+						offset: 0
+					},
+					// The caret sat in a child leaf, which an offset into the quote can't name; the
+					// live read records it.
+					{ snapshotOffset: 0 }
+				);
 			}
 		}
 	});

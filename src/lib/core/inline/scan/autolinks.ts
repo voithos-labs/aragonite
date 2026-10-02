@@ -1,11 +1,13 @@
 /**
  * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) plus the GFM §6.9 bare/www/email pass
  * over completed text runs. No conformance reference covers the extension: these rules follow
- * the GFM spec text, then cmark-gfm where its prose runs out (`scanEmailDomain`), and diverge
- * from both at `hasValidDomain`: a scheme'd host needs no period, so `http://localhost` links.
+ * the GFM spec text, then cmark-gfm where its prose runs out (the email domain and its `mailto:`
+ * and `xmpp:` prefixes), and diverge from both at `hasValidDomain`: a scheme'd host needs no
+ * period, so `http://localhost` links.
  */
 
 import type { InlineNode } from '../../nodes';
+import { isWhitespaceChar } from '../../lines';
 import { matchHtmlFormAt } from '../html-tag-grammar';
 import { appendNode, type ScanContext } from './scan-state';
 import { percentEncodeUri } from './url';
@@ -56,13 +58,17 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 	return end;
 }
 
+/** GFM §6.9: a bare url runs to whitespace or a `<`, before the trims above apply. */
+function urlRunEnd(raw: string, from: number, end: number): number {
+	let urlEnd = from;
+	while (urlEnd < end && raw[urlEnd] !== '<' && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
+	return urlEnd;
+}
+
 const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
 
-/**
- * GFM §6.9: no underscore in either of a domain's last two dot-separated segments, so
- * `www.xxx._yyy.zzz` stays literal while `www._xxx.yyy.zzz` links. cmark-gfm's extra exemption
- * for 10+-dot hosts is an implementation artifact, deliberately not reproduced (file header).
- */
+/** GFM §6.9: no underscore in a domain's last two dot-separated segments, so `www.xxx._yyy.zzz`
+ *  stays literal while `www._xxx.yyy.zzz` links; cmark-gfm's 10+-dot exemption is left out. */
 function hasValidDomain(raw: string, domainStart: number, limit: number): boolean {
 	let hostEnd = domainStart;
 	while (hostEnd < limit && HOST_CHAR.test(raw[hostEnd])) hostEnd++;
@@ -76,14 +82,12 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 	return true;
 }
 
-/**
- * GFM §6.9: valid only at start-of-region or after whitespace, `*`, `_`, `~`, or `(`. Applied to
- * every bare form here, per the spec text; cmark-gfm applies it to the `www.` form alone.
- */
-export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
-	if (pos <= regionStart) return true;
+/** GFM §6.9: valid at the scan range start or after ASCII whitespace, `*`, `_`, `~` or `(`. Every
+ *  bare form checks it, as the spec text says; cmark-gfm checks it for `www.` alone. */
+export function isValidLeadingBoundary(raw: string, pos: number, scanStart: number): boolean {
+	if (pos <= scanStart) return true;
 	const ch = raw[pos - 1];
-	return /\s/.test(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
+	return isWhitespaceChar(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
 }
 
 // ── `<` handler: spec autolink, then raw HTML tag ───────────────────────────
@@ -129,14 +133,14 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 
 /**
  * Runs before emphasis pairing so a delimiter absorbed into a URL can never pair; consumed
- * delimiters are pruned. Children of already-wrapped link/image nodes are scanned too.
+ * delimiters are pruned. Children of already-built nodes are scanned too, except a link's.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
-	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
+	const matches = spliceBareAutolinks(ctx.raw, ctx.start, ctx.nodes, 0);
 	if (matches.length > 0) {
 		ctx.delimiters = ctx.delimiters.filter((d) => !meetsAMatch(matches, d.node.start, d.node.end));
 	}
-	scanChildren(ctx.raw, ctx.nodes);
+	scanChildren(ctx.raw, ctx.start, ctx.nodes);
 }
 
 /** Matches are disjoint and ascending; the linear alternative is quadratic on a dense block. */
@@ -151,26 +155,34 @@ function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean
 	return lo < matches.length && matches[lo].start < end;
 }
 
-function scanChildren(raw: string, nodes: InlineNode[]): void {
+function scanChildren(raw: string, scanStart: number, nodes: InlineNode[]): void {
 	// Iterative: nesting depth is input-controlled, so per-level recursion overflows the stack.
 	const pending: InlineNode[][] = [nodes];
 	while (pending.length > 0) {
 		for (const node of pending.pop()!) {
+			// Text inside a link never becomes a nested link, as in cmark-gfm; inline and
+			// reference links are both built before this pass, so both skip here.
+			if (node.kind === 'link') continue;
 			if (node.children !== undefined && node.children.length > 0) {
-				spliceBareAutolinks(raw, node.children);
+				// An image's alt sits inside its own open bracket.
+				spliceBareAutolinks(raw, scanStart, node.children, node.kind === 'image' ? 1 : 0);
 				pending.push(node.children);
 			}
 		}
 	}
 }
 
-/**
- * The replacement is accumulated and written back rather than spliced per run: spreading a match
- * array as call arguments hits V8's argument limit past ~65k matches, and the block never heals.
- */
-function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
+/** Written back once rather than spliced per run, since spreading ~65k matches as arguments hits
+ *  V8's argument limit. `openBrackets` counts the `[` still open where `nodes` start. */
+function spliceBareAutolinks(
+	raw: string,
+	scanStart: number,
+	nodes: InlineNode[],
+	openBrackets: number
+): InlineNode[] {
 	const all: InlineNode[] = [];
 	const rebuilt: InlineNode[] = [];
+	const brackets = { open: openBrackets };
 	let i = 0;
 	while (i < nodes.length) {
 		if (nodes[i].kind !== 'text') {
@@ -180,7 +192,7 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 		}
 		let j = i;
 		while (j + 1 < nodes.length && nodes[j + 1].kind === 'text') j++;
-		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end);
+		const matches = scanRunForBareAutolinks(raw, scanStart, nodes[i].start, nodes[j].end, brackets);
 		if (matches.length === 0) {
 			for (let k = i; k <= j; k++) rebuilt.push(nodes[k]);
 		} else {
@@ -229,17 +241,32 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
 	return out;
 }
 
-function scanRunForBareAutolinks(raw: string, start: number, end: number): InlineNode[] {
+/** As in cmark-gfm, the www and url forms match only where no `[` is open, while the email form
+ *  matches anywhere. `brackets.open` carries that count from one run to the next. */
+function scanRunForBareAutolinks(
+	raw: string,
+	scanStart: number,
+	start: number,
+	end: number,
+	brackets: { open: number }
+): InlineNode[] {
 	const out: InlineNode[] = [];
 	let pos = start;
+	// The email form walks backwards from its `@`, so it must stop where the last link ended.
+	let claimedEnd = start;
 	while (pos < end) {
 		const ch = raw[pos];
 		let matched: InlineNode | null = null;
-		if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
-		else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
-		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end);
+		if (ch === '[') brackets.open++;
+		else if (ch === ']') brackets.open = Math.max(0, brackets.open - 1);
+		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, scanStart, end, claimedEnd);
+		else if (brackets.open === 0) {
+			if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, scanStart, end);
+			else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, scanStart, end);
+		}
 		if (matched !== null) {
 			out.push(matched);
+			claimedEnd = matched.end;
 			pos = matched.end;
 			continue;
 		}
@@ -266,14 +293,13 @@ function matchesCI(raw: string, pos: number, lit: string): boolean {
 function matchBareHttpAutolink(
 	raw: string,
 	pos: number,
-	regionStart: number,
+	scanStart: number,
 	end: number
 ): InlineNode | null {
-	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
+	if (!isValidLeadingBoundary(raw, pos, scanStart)) return null;
 	const schemeLen = matchesCI(raw, pos, 'https://') ? 8 : matchesCI(raw, pos, 'http://') ? 7 : 0;
 	if (schemeLen === 0) return null;
-	let urlEnd = pos + schemeLen;
-	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	let urlEnd = urlRunEnd(raw, pos + schemeLen, end);
 	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd <= pos + schemeLen) return null;
@@ -284,17 +310,16 @@ function matchBareHttpAutolink(
 function matchBareWwwAutolink(
 	raw: string,
 	pos: number,
-	regionStart: number,
+	scanStart: number,
 	end: number
 ): InlineNode | null {
-	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
+	if (!isValidLeadingBoundary(raw, pos, scanStart)) return null;
 	if (!matchesCI(raw, pos, 'www.')) return null;
-	let urlEnd = pos + 4;
-	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	let urlEnd = urlRunEnd(raw, pos + 4, end);
 	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	// `.` is trailing punctuation, so the trim can cross the `www.` prefix and leave a bare
-	// `www`, a live link to a host the user never wrote. Hence at-or-below floor checks here.
+	// `.` is trailing punctuation, so the trim can cut into `www.` and leave a bare `www`, a
+	// link to a host the user never wrote; the check below refuses that.
 	if (urlEnd <= pos + 4) return null;
 	if (!hasValidDomain(raw, pos, urlEnd)) return null;
 	// GFM §6.9: a www autolink carries no scheme in its bytes. The raw span stays verbatim;
@@ -307,13 +332,14 @@ const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9_-]/;
 const EMAIL_LABEL_START = /[A-Za-z0-9]/;
 const EMAIL_DOMAIN_END = /[A-Za-z]/;
 
-/**
- * The email domain per GFM §6.9: alphanumerics/`-`/`_` separated by periods, at least one
- * period, no `-`/`_` at the end. Past that prose the rule is cmark-gfm's: the last character
- * must be a LETTER, and a `.` separates labels only when an alphanumeric follows (`a@b._c` and
- * `a@b.c1` stay literal; `a@.b` is accepted). Returns the domain end, or -1.
- */
-function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): number {
+/** GFM §6.9's email domain plus cmark-gfm's rules: it ends in a letter, and a `.` separates labels
+ *  only before an alphanumeric (`a@b._c` is literal). An xmpp address may hold `/`. -1 if none. */
+function scanEmailDomain(
+	raw: string,
+	domainStart: number,
+	regionEnd: number,
+	allowsResource: boolean
+): number {
 	let end = domainStart;
 	let separators = 0;
 	while (end < regionEnd) {
@@ -321,7 +347,7 @@ function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): n
 		if (ch === '.') {
 			if (end + 1 >= regionEnd || !EMAIL_LABEL_START.test(raw[end + 1])) break;
 			separators++;
-		} else if (!EMAIL_DOMAIN_CHAR.test(ch)) {
+		} else if (!EMAIL_DOMAIN_CHAR.test(ch) && !(allowsResource && ch === '/')) {
 			break;
 		}
 		end++;
@@ -331,25 +357,41 @@ function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): n
 	return EMAIL_DOMAIN_END.test(raw[end - 1]) ? end : -1;
 }
 
+/** The scheme a bare address may carry in front of its local part, matched byte for byte and
+ *  lowercase only, as cmark-gfm matches it. */
+const EMAIL_PREFIXES = ['mailto:', 'xmpp:'] as const;
+
+function emailPrefixBefore(raw: string, localStart: number, floor: number) {
+	return EMAIL_PREFIXES.find(
+		(prefix) =>
+			localStart - prefix.length >= floor && raw.startsWith(prefix, localStart - prefix.length)
+	);
+}
+
+/** `claimedEnd` is where the last link in this run ended: no byte before it can join this one. */
 function matchBareEmailAutolink(
 	raw: string,
 	atPos: number,
-	regionStart: number,
-	regionEnd: number
+	scanStart: number,
+	regionEnd: number,
+	claimedEnd: number
 ): InlineNode | null {
 	let localStart = atPos;
-	while (localStart > regionStart && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
-	if (localStart === atPos) return null; // empty local-part
-	// The boundary applies at the URL's start, which for email is the local-part start.
-	if (!isValidLeadingBoundary(raw, localStart, regionStart)) return null;
+	while (localStart > claimedEnd && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
+	if (localStart === atPos) return null;
+	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
+	const linkStart = localStart - (prefix?.length ?? 0);
+	// The boundary applies at the URL's start: the prefix when there is one, else the local part.
+	if (!isValidLeadingBoundary(raw, linkStart, scanStart)) return null;
 
-	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd);
+	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd, prefix === 'xmpp:');
 	if (domainEnd < 0) return null;
 
+	const text = raw.slice(linkStart, domainEnd);
 	return {
 		kind: 'autolink',
-		start: localStart,
+		start: linkStart,
 		end: domainEnd,
-		url: `mailto:${raw.slice(localStart, domainEnd)}`
+		url: prefix ? text : `mailto:${text}`
 	};
 }

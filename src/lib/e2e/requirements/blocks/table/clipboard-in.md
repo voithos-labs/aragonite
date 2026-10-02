@@ -21,7 +21,10 @@ A grid is data for the cells rather than a block to splice between them, which i
 
 ## Happy paths (structural)
 
-- Paste a heading into a body cell: original table splits; the heading appears between the halves.
+- Paste a heading into a body cell: original table splits; the heading appears between the halves,
+  with a blank line on each side, as a paste into a paragraph separates its blocks
+  - Miss-analysis: these pins took halves abutting the pasted blocks as correct, and none put a
+    paragraph last, whose next line the rows below it would continue
 - Paste a multi-block clipboard (paragraph + heading): all blocks are inserted between the halves in order.
 
 ## Edge cases
@@ -40,9 +43,14 @@ A grid is data for the cells rather than a block to splice between them, which i
   it when the rectangle's sides are multiples of the grid's (a 1×2 grid over a 2×2 rectangle
   fills both rows), else placed once.
 - Whole-table selection (a rectangle dragged over every cell; Ctrl+A steps cell → document and offers no table stage) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
+- Undo then redo of that whole-table paste: the undo brings back the table bytes and the cell
+  rectangle, both corners counting cells, and the redo brings back the paragraph with no
+  rectangle left over it.
 
 ## Miss-analysis
 
+- The whole-table paste tests stopped at the undo, and a stale rectangle only meets the wrong
+  tree when the next history step swaps the paragraph back in under it.
 - Moving blank lines onto the blocks turned a copy's whitespace-only edge lines into blocks, which
   sent an ordinary cell paste down the route that breaks the table; the pass that made that change
   picked its e2e projects by the files it touched, so e2e-blocks never ran. Under it sat the real

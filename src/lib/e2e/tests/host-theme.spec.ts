@@ -1,11 +1,10 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady } from '../goto-ready';
 
-// `/test/host-theme` feeds the editor from a page wrapper with no `.aragonite-editor-theme`
-// anywhere, which is the route-level check for G4.6d: the app's own colour tokens must reach
-// the editor's text on their own. Only a real browser can answer it, since computed colours and
-// how `:where()` loses to other rules are what jsdom does not have.
+// `/test/host-theme` feeds the editor from a page wrapper with no `.aragonite-editor-theme`, so
+// the app's own colour tokens must reach the editor's text on their own (G4.6d). Only a real
+// browser has computed colours and `:where()` specificity to answer it.
 // Requirements: e2e/requirements/host-theme.md.
 
 const editorRoot = (page: Page) => page.locator('.editor');
@@ -26,9 +25,8 @@ function colorOf(page: Page, selector: string): Promise<string> {
 }
 
 /**
- * Escalates Mod+A from block text to the whole document, so whole blocks fall inside the
- * selection and paint a full-bleed `.selection-overlay-middle` rather than an endpoint sliver
- * whose rect can be empty at a boundary.
+ * Mod+A twice selects whole blocks, which paint a full-bleed `.selection-overlay-middle` rather
+ * than an endpoint sliver whose rect can be empty at a boundary.
  */
 async function selectWholeDocument(page: Page): Promise<void> {
 	await page.locator('.editor [contenteditable="true"]').first().click();
@@ -59,8 +57,7 @@ const overlayBackground = (page: Page) =>
 
 test.describe('/test/host-theme', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/host-theme');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/test/host-theme');
 	});
 
 	test('the route carries no opt-in theme class anywhere', async ({ page }) => {
@@ -81,16 +78,15 @@ test.describe('/test/host-theme', () => {
 		page
 	}) => {
 		const before = await accentToken(page);
-		// A default declared on the editor itself would beat the value inherited from the app
-		// and hold the editor at the theme's own green whatever the picker says, which is why
-		// this compares against the wrapper rather than against a fixed colour.
-		await page.getByLabel('Accent').selectOption('copper');
+		// A default declared on the editor would beat the app's inherited value and hold the theme's
+		// green, so this compares against the wrapper rather than a fixed colour.
+		await page.getByLabel('Accent', { exact: true }).selectOption('copper');
 
 		const after = await accentToken(page);
 		expect(after).not.toBe(before);
 		expect(after).toBe(await accentToken(page, '.host-page'));
 
-		await page.getByLabel('Accent').selectOption('default');
+		await page.getByLabel('Accent', { exact: true }).selectOption('default');
 		expect(await accentToken(page)).toBe(before);
 	});
 
@@ -103,7 +99,7 @@ test.describe('/test/host-theme', () => {
 		expect(before.link).not.toBe(body);
 		expect(before.footnote).toBe(before.link);
 
-		await page.getByLabel('Accent').selectOption('copper');
+		await page.getByLabel('Accent', { exact: true }).selectOption('copper');
 
 		const after = {
 			link: await colorOf(page, 'a.md-link-content'),
@@ -121,7 +117,7 @@ test.describe('/test/host-theme', () => {
 
 		// Proves something without naming a colour: an overlay held at the editor's own blue
 		// would show that same blue under an app whose selection colour is copper.
-		await page.getByLabel('Theme').selectOption('warm-dark');
+		await page.getByLabel('Theme', { exact: true }).selectOption('warm-dark');
 		await selectWholeDocument(page);
 		const warm = await overlayBackground(page);
 		expect(warm).not.toBe(slate);
@@ -129,12 +125,12 @@ test.describe('/test/host-theme', () => {
 	});
 
 	test('accent and theme are independent axes', async ({ page }) => {
-		await page.getByLabel('Accent').selectOption('teal');
+		await page.getByLabel('Accent', { exact: true }).selectOption('teal');
 		const dark = await accentToken(page);
 
 		// Each preset holds a colour per mode, so the same choice gives a different value once
 		// the app switches palettes: the choice survives, the colour follows the mode.
-		await page.getByLabel('Theme').selectOption('paper-light');
+		await page.getByLabel('Theme', { exact: true }).selectOption('paper-light');
 		await expect(editorRoot(page)).toHaveAttribute('data-editor-theme', 'light');
 		expect(await accentToken(page)).not.toBe(dark);
 	});

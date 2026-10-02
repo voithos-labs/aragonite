@@ -121,40 +121,32 @@ Delete on sight:
 
 ### The gate
 
-The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first fails any comment block over six text lines, or a file header over seven; the slack above the stated budget is for contract prose that needs it. Here's the red line, from a seven-line comment I planted for the occasion:
+The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget. A comment trailing code is its own block. That scan knows a header when it sees one: a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
+
+Every comment in the repo fits the budget now, so the scan is a hard line: one comment over it fails the suite and names its `path:line`. Tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) under a comment don't count as its lines. Here's the red, from a three-line comment I planted mid-file:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
- FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its limit
-AssertionError: expected [ { …(4) } ] to deeply equal []
-+ Received
-+ [
-+   {
-+     "limit": 6,
-+     "line": 3,
-+     "relPath": "src/lib/zz-probe-comment.ts",
-+     "textLines": 7,
-+   },
-+ ]
+ FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its budget
+AssertionError: expected [ 'src/lib/zz-probe.ts:3' ] to deeply equal []
 ```
 
-The second counts the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) in every directory's comments, and pins each count to a baseline that only goes down; the same test pins each design and contributing doc's body text to a baseline of its own. Write a new one and the count passes the baseline; delete some and the baseline is stale until you lower it, a one-number edit in that file. The first case, provoked with one planted `seam`:
+The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's what one planted `seam` gets you:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
- FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 house words in comments stay under the baseline > no directory holds more house words in comments than its baseline
-AssertionError: expected [ { dir: 'src/lib', count: 72, …(1) } ] to deeply equal []
+ FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 no house word in a comment > no comment under src/lib or src/routes holds a house word
+AssertionError: expected [ { …(2) } ] to deeply equal []
 + Received
 + [
 +   {
-+     "baseline": 71,
-+     "count": 72,
-+     "dir": "src/lib",
++     "file": "src/lib/zz-probe-comment.ts",
++     "hits": 1,
 +   },
 + ]
 ```
 
-The same test holds the requirement files under `src/lib/e2e/requirements/` to zero. No baseline there: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count.
+The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each of those docs is pinned to a baseline that only goes down. Delete a few and the test fails until you lower that doc's baseline, a one-number edit in the same test file.
 
 ## Directories
 
@@ -174,7 +166,7 @@ npm run lint     # check
 `npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
 
 1. the Prettier check
-2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide must name a heading its target doc still carries
+2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide (outside code) must name a heading its target doc still carries, slugged the way GitHub renders it
 3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk, and every `<doc>.md § Section name` pointer in the tree must still name a heading that doc carries
 4. ESLint
 

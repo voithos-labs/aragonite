@@ -6,10 +6,11 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const BOLD = 'Some **bold** text';
 
@@ -24,10 +25,11 @@ interface Live {
 	rangeEdits: Array<{ range: { start: number; end: number }; typed: string }>;
 }
 
-function makeSeat(live: Live, pending?: PendingMarksState) {
+function makeSeat(live: Live, pending?: PendingMarks) {
 	return createCompositionSeat({
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
+		reading: fixtureReading(),
 		getAffinity: () => live.affinity,
 		getScreen: () => screenVisibility('live', { chromePaints: false }),
 		consumePendingMarks: () => pending?.consume() ?? live.marks,
@@ -85,9 +87,8 @@ describe('pending marks beat the arrival side', () => {
 	});
 });
 
-// The capture takes the marks at `compositionstart`, which spends them whether or not the
-// composition ever commits. A cancelled IME run inserts nothing, so what the toggle promised is
-// still due to the next insertion.
+// Taking the marks at `compositionstart` spends them even when the composition never commits,
+// so a cancelled IME run must hand them back for the next insertion.
 describe('a composition that commits nothing returns the marks it took', () => {
 	it('hands back a set no commit spent', () => {
 		const live = liveState('hello', 'far');

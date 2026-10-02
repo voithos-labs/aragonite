@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { registerBuiltInBlocks } from '../../../components/built-in-blocks';
+import { TABLE_CELL_SELECTOR } from '../../../components/block-content-selector';
 import { tableDragHitTest } from '../../../components/blocks/table/table-drag-hit-test';
+import { mountTableGrid } from '../../selection/table-grid';
 
 registerBuiltInBlocks();
 import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -12,27 +14,7 @@ describe('table foreignDragHitTest', () => {
 	const origFromPoint = document.elementFromPoint;
 
 	beforeEach(() => {
-		// [data-block-path] wrapper → [role="table"] → 2 rows × 3 cells.
-		wrapper = document.createElement('div');
-		wrapper.setAttribute('data-block-path', '[0]');
-		wrapper.setAttribute('data-block-kind', 'table');
-		const table = document.createElement('div');
-		table.setAttribute('role', 'table');
-		wrapper.appendChild(table);
-		cells = [];
-		for (let r = 0; r < 2; r++) {
-			const row = document.createElement('div');
-			row.setAttribute('data-table-row-idx', String(r));
-			table.appendChild(row);
-			const rowCells: HTMLElement[] = [];
-			for (let c = 0; c < 3; c++) {
-				const cell = document.createElement('div');
-				cell.setAttribute('role', 'cell');
-				row.appendChild(cell);
-				rowCells.push(cell);
-			}
-			cells.push(rowCells);
-		}
+		({ host: wrapper, cells } = mountTableGrid({ path: [0], rows: 2, cols: 3 }));
 		document.body.appendChild(wrapper);
 	});
 
@@ -55,6 +37,13 @@ describe('table foreignDragHitTest', () => {
 		expect(tableDragHitTest(wrapper, 0, 0)).toBe(0);
 	});
 
+	it('hits a column header in row 0 the same as a body cell', () => {
+		expect(cells[0][2].matches('[role="columnheader"]')).toBe(true);
+		expect(wrapper.querySelectorAll(TABLE_CELL_SELECTOR)).toHaveLength(6);
+		pointAt(cells[0][2]);
+		expect(tableDragHitTest(wrapper, 0, 0)).toBe(2);
+	});
+
 	it('returns null when the point is not over a cell of this table', () => {
 		document.elementFromPoint = (() => document.body) as typeof document.elementFromPoint;
 		expect(tableDragHitTest(wrapper, 0, 0)).toBeNull();
@@ -72,8 +61,7 @@ describe('table foreignDragHitTest', () => {
 	});
 
 	it('still encodes the hit when row windowing has unmounted row 0', () => {
-		// Row-windowing scrolls row 0 off-screen and unmounts it; the column count
-		// must come from any mounted row, not the hard-coded row 0 (VR-K1).
+		// The column count must come from any mounted row, not from row 0 (VR-K1).
 		cells[0][0].closest('[data-table-row-idx]')!.remove();
 		pointAt(cells[1][2]); // row 1, col 2 → 1*3 + 2 = 5
 		expect(tableDragHitTest(wrapper, 0, 0)).toBe(5);

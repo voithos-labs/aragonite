@@ -60,10 +60,11 @@ test.describe('image popover commit', () => {
 
 	// An open field holds a copy of bytes the document can move past, and committing on dismiss
 	// would put them back over the change.
-	test('an undo taken while the popover is open re-seeds it, so the dismiss commits nothing stale', async ({
+	test('an undo taken while the popover is open closes it, and nothing stale is committed', async ({
 		page
 	}) => {
-		await editor.loadContent('outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n');
+		const SOURCE = 'outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n';
+		await editor.loadContent(SOURCE);
 		const widget = page.locator('[data-image-widget]').first();
 
 		await widget.click();
@@ -80,6 +81,12 @@ test.describe('image popover commit', () => {
 		await page.keyboard.press('Escape');
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('cat v1');
+		// The undo's caret ends the image, and the popover closing with it must not commit the
+		// draft it held back over the undo.
+		await expect(page.locator('.md-image-properties')).toHaveCount(0);
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+		await widget.click();
 		altInput = await openImageField(page);
 		await expect(altInput).toHaveValue('cat');
 		await page.keyboard.press('Escape');
@@ -105,7 +112,7 @@ test.describe('image popover commit', () => {
 		if (!w1Box || !w2Box) throw new Error('widget boxes missing');
 		await page.mouse.click(w1Box.x + w1Box.width / 2, w1Box.y + w1Box.height / 2);
 		await (await openImageField(page)).fill('EDITED');
-		// Switch to image 2: the old popover unmounts and commits to image 1.
+		// Switching to image 2 unmounts image 1's popover, which commits to image 1.
 		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);
 		await page.locator('[contenteditable="true"]').last().click();
 		await editor.bridge.waitForSourceContains('EDITED');
@@ -158,6 +165,40 @@ test.describe('image popover commit', () => {
 		await expect(page.locator('[data-image-widget]')).toHaveCount(0);
 	});
 
+	// A replace from the find bar rewrites the image's bytes while the toolbar stays up, and an edit
+	// in the alt field builds on the alt the document holds now.
+	test('a replace from the find bar reseeds the open toolbar', async ({ page }) => {
+		await editor.loadContent('![cat](/test-fixtures/sample.png)\n\nafter\n');
+		const toolbar = page.locator('.md-image-properties');
+		await page.locator('[data-image-widget]').first().click();
+		await expect(toolbar).toBeVisible();
+
+		// Keys only: a press anywhere in the bar is a press off the image, which ends it.
+		await page.keyboard.press('ControlOrMeta+h');
+		await page.keyboard.type('cat');
+		const replace = page.getByRole('textbox', { name: 'Replace' });
+		for (
+			let i = 0;
+			i < 8 && !(await replace.evaluate((el) => el === document.activeElement));
+			i++
+		) {
+			await page.keyboard.press('Tab');
+		}
+		await expect(replace).toBeFocused();
+		await page.keyboard.type('dog');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('![dog]');
+		await page.keyboard.press('Escape');
+		await expect(toolbar).toBeVisible();
+
+		const alt = await openImageField(page);
+		await expect(alt).toHaveValue('dog');
+		await alt.press('End');
+		await page.keyboard.type('!');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('![dog!]');
+	});
+
 	test('no-op blur does not add undo entry', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -166,4 +207,28 @@ test.describe('image popover commit', () => {
 		await page.locator('.paragraph-block').first().click();
 		expect(await undoDepth(page)).toBe(undoLengthBefore);
 	});
+
+	// A host shortcut switches the mode with no press, so nothing clicks away from the field first.
+	for (const [from, to] of [
+		['source', 'live'],
+		['live', 'source']
+	] as const) {
+		test(`a switch from ${from} to ${to} closes the alt field and saves its draft`, async ({
+			page
+		}) => {
+			await editor.goto(`?presentationMode=${from}`);
+			await editor.loadContent('![cat](/test-fixtures/sample.png)\n\nbelow.\n');
+			await page.locator('[data-image-widget]').first().click();
+			await (await openImageField(page)).fill('cat v2');
+
+			await editor.setPresentationMode(to);
+
+			await expect(page.locator('.md-image-properties input')).toHaveCount(0);
+			await editor.bridge.waitForSourceEquals('![cat v2](/test-fixtures/sample.png)\n\nbelow.\n');
+			// The caret the switch carried lands back on the image's paragraph.
+			await expect
+				.poll(async () => (await editor.bridge.getSelectionPaths())?.focus.path)
+				.toEqual([0]);
+		});
+	}
 });

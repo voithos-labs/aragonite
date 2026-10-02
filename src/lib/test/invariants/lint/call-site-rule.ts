@@ -1,11 +1,11 @@
 /**
- * The shared per-call scan. A rule names the callees whose call sites it binds and a predicate
- * every call's argument text must satisfy; `describeCallSiteRules` runs a table of rules over one
- * source collection. A call whose parens never close is a violation: the scan could not read it.
+ * The shared per-call scan: a rule names the callees it binds and a predicate every call's
+ * argument text must satisfy, and `describeCallSiteRules` runs a table of rules over one source
+ * collection. A call whose parens never close is a violation, since the scan could not read it.
  */
 
 import { describe, it, expect } from 'vitest';
-import { callSites, type SourceFile } from './scan-source';
+import { callSites, enclosingFunction, fileClasses, type SourceFile } from './scan-source';
 import { probeFile, type Probe } from './file-rule';
 
 export interface CallSiteRule {
@@ -17,7 +17,8 @@ export interface CallSiteRule {
 	calls: readonly string[];
 	/** True when the call's argument text satisfies the rule. */
 	holds: (args: string, callee: string) => boolean;
-	/** Calls allowed to fail, keyed `relPath:line`, each with its reason; a stale key fails. */
+	/** Functions whose calls may fail, keyed `relPath :: function` so an edit above the site keeps
+	 *  the key valid, each with its reason; a key with no failing call left fails. */
 	allowed?: Record<string, string>;
 	/** What a violation means, printed with the offending calls. */
 	reason: string;
@@ -28,7 +29,7 @@ export interface CallSiteRule {
 }
 
 export interface CallSiteReport {
-	/** `relPath:line  callee(args)` per failing call. */
+	/** `relPath :: function (line n)  callee(args)` per failing call. */
 	violations: string[];
 	stale: string[];
 	callers: number;
@@ -40,22 +41,28 @@ function lineOf(code: string, index: number): number {
 
 export function runCallSiteRule(rule: CallSiteRule, sources: SourceFile[]): CallSiteReport {
 	const allowed = rule.allowed ?? {};
-	const failing = new Map<string, string>();
+	const violations: string[] = [];
+	const failing = new Set<string>();
 	let callers = 0;
 	for (const file of sources.filter(rule.population ?? (() => true))) {
 		let calls = 0;
+		let classes: Uint8Array | undefined;
 		for (const callee of rule.calls) {
 			for (const site of callSites(file.code, callee)) {
 				calls += 1;
 				if (site.args !== null && rule.holds(site.args, callee)) continue;
-				const key = `${file.relPath}:${lineOf(file.code, site.index)}`;
-				failing.set(key, `${key}  ${callee}(${site.args ?? '…'})`);
+				classes ??= fileClasses(file);
+				const key = `${file.relPath} :: ${enclosingFunction(file.code, site.index, classes)}`;
+				failing.add(key);
+				if (key in allowed) continue;
+				const line = lineOf(file.code, site.index);
+				violations.push(`${key} (line ${line})  ${callee}(${site.args ?? '…'})`);
 			}
 		}
 		if (calls > 0) callers += 1;
 	}
 	return {
-		violations: [...failing].filter(([key]) => !(key in allowed)).map(([, text]) => text),
+		violations,
 		stale: Object.keys(allowed).filter((key) => !failing.has(key)),
 		callers
 	};

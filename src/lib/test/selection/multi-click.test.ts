@@ -80,14 +80,13 @@ describe('granularityForClickCount', () => {
 	});
 });
 
-// Miss-analysis: the click order's refusals were read off the browser only, where a widget that
-// selects whole ends up selected either way, so nothing named the press it must not take.
+// Miss-analysis: refusals were only read in a browser, where the widget ends up selected anyway.
 describe('installMultiClickSelect: the press the block level declines', () => {
 	function thirdPressOnWidget(widgetSelected: boolean) {
 		const root = document.createElement('div');
 		const surface = document.createElement('div');
 		// The property, not the attribute: jsdom does not reflect one onto the other, and the
-		// surface walk reads the property.
+		// editable-element lookup reads the property.
 		surface.contentEditable = 'true';
 		surface.setAttribute('data-block-path', '[0]');
 		const widget = document.createElement('span');
@@ -97,7 +96,7 @@ describe('installMultiClickSelect: the press the block level declines', () => {
 		surface.append(widget);
 		root.append(surface);
 		document.body.append(root);
-		// jsdom has no hit testing, and the claimed press goes on to look for its drag anchor.
+		// jsdom has no hit testing, and the handled click goes on to look for its drag anchor.
 		const origFromPoint = document.elementFromPoint;
 		document.elementFromPoint = (() => widget) as typeof document.elementFromPoint;
 		const dispose = installMultiClickSelect({

@@ -5,16 +5,10 @@
  * overrun leaves no trace, since the scan loop then exits as if it had finished.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import type { InlineNode } from '../../../core/nodes';
-import {
-	INLINE_PRIORITIES,
-	__resetInlineSyntaxForTests,
-	registerInlineSyntax
-} from '../../../core/inline/scan/plugin-syntax';
-
-afterEach(() => __resetInlineSyntaxForTests());
+import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
 
 const RAW = '@tag@ trailing';
 const SHORT_END = 5; // `@tag@` — the block offers only this much

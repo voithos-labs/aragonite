@@ -7,18 +7,24 @@ import { splitNode } from '$lib/tree-operations/node-ops';
 import { trailingLineEnding } from '$lib/core/lines';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
-// The reverse of the typed-blank-line cases (`typed-blank-lines-reload.test.ts`): a block that
-// becomes blank joins the blank run around it, and a run carries exactly the one separating line
-// its reload produces. Two of them reload as an empty paragraph nobody typed; none merges the
-// run's head into the block above.
-// Miss-analysis: every blank-line case drove the fill direction (a blank block gaining content),
-// so nothing emptied a block, and `updateNodeContent` fixed up one direction of the transition.
+// A block that turns blank joins the blank run around it, and the run carries exactly the one
+// separating line its reload produces; the reverse of `typed-blank-lines-reload.test.ts`.
+// Miss-analysis: every blank-line case drove the fill direction, so no case emptied a block.
 
-/** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw)`, so an
- *  emptied block sends the line ending alone. */
+/** The gesture: typing sends the text plus the block's own line ending, so an emptied block sends
+ *  the line ending alone. */
 function empty(doc: Document, index: number): void {
-	updateNodeContent(doc, index, trailingLineEnding(doc.children[index].raw));
+	updateNodeContent(
+		doc,
+		index,
+		trailingLineEnding(doc.children[index].raw, '\n'),
+		defaultGrammarView,
+		createSharingState()
+	);
 }
 
 function expectReloadsAsItStands(doc: Document, bytes: string): void {
@@ -49,9 +55,9 @@ describe('emptying a block settles the run it joins', () => {
 	// past the block being emptied: a fix-up reaching only `index + 1` finds a blank block with none.
 	it('reaches past a blank follower to the separator a split left below it', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
-		updateNodeContent(doc, 1, 'x\n');
+		splitNode(doc, 0, 5, createSharingState(), fixtureReading());
+		splitNode(doc, 1, 0, createSharingState(), fixtureReading());
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'Hello\n'],
 			['paragraph', '\n', 'x\n'],
@@ -79,16 +85,14 @@ describe('emptying a block settles the run it joins', () => {
 	it('settles the last block a multi-block commit created', () => {
 		const doc = parse('alpha\n\nx\n\ndelta\n');
 
-		updateNodeContent(doc, 1, 'p\n\n\n');
+		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView, createSharingState());
 
 		expectReloadsAsItStands(doc, 'alpha\n\np\n\n\ndelta\n');
 	});
 });
 
-// A fence terminates itself, so the paragraph under it carries no separator, and once that
-// paragraph is blank, the run holds none and the reload swallows the block instead of doubling it.
-// Miss-analysis: the class was filed as doubling, and a doubling-only fix reads the same red as
-// green here; only a check over the run's whole line count sees both signs.
+// A fence ends itself, so once the paragraph under it is blank, the fix-up creates its separator.
+// Miss-analysis: the class was filed as doubling, so no case checked a run left one line short.
 describe('emptying a block the run above cannot separate from', () => {
 	it('creates the separator a self-terminating predecessor never had to supply', () => {
 		const doc = parse('```\nc\n```\nx\n');
@@ -98,9 +102,8 @@ describe('emptying a block the run above cannot separate from', () => {
 		expectReloadsAsItStands(doc, '```\nc\n```\n\n\n');
 	});
 
-	// The run's one line already stands, on the follower rather than the run head. Both
-	// placements are the same bytes and reload alike, so the fix-up leaves it where it is
-	// instead of moving it, hence bytes and convergence here, not a layout match.
+	// The run's one line already sits on the follower, the same bytes as on the run head, so the
+	// fix-up leaves it there, and the check is bytes and convergence, not a layout match.
 	it('leaves the line the follower already holds alone', () => {
 		const doc = parse('```\nc\n```\nx\n\nb\n');
 
@@ -125,18 +128,14 @@ describe('emptying a block that must supply nothing', () => {
 	it('leaves a fill whose own last block is blank converged', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 
-		updateNodeContent(doc, 1, 'p\n\n\n');
+		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView, createSharingState());
 
 		expectReloadsAsItStands(doc, 'alpha\n\np\n\n\ndelta\n');
 	});
 });
 
-// Indentation alone delimits indented code, so a block turning blank puts bytes back to back that
-// re-read as fewer blocks: the join `deleteNode` has always merged, and the content write must
-// too. G2.13's `empty` branch sat behind a `holdsIndentedCode` precondition for exactly these
-// shapes. Miss-analysis: the property branch excluded them by precondition, and its fixed seed
-// does not draw the shape even with the precondition off, so it could not have failed on this
-// class either way, and the deterministic cases are what actually guard the write.
+// A block turning blank beside indented code can join bytes that reread as fewer blocks.
+// Miss-analysis: the shape property excluded these by precondition, and its seed never drew them.
 describe('emptying a block beside indentation-delimited content', () => {
 	it('absorbs the join the two neighbours now make', () => {
 		const doc = parse('**b**\n\n    code\n\n\n**b**\n\n    code\n\n> q\n');
@@ -148,17 +147,31 @@ describe('emptying a block beside indentation-delimited content', () => {
 		expectParseConverged(doc);
 	});
 
-	// The absorbed window's own bytes end in a blank line, which a fragment parse splits off into
-	// its suffix. Leaving it in the last block's raw is only right at the parent's tail; here the
-	// line is a block of its own, exactly as the reload reads it.
-	it('materializes a stripped trailing blank line instead of hiding it in raw', () => {
+	// The code's tab-indented blank line reaches the item's content column, so the list takes it
+	// along with the code, exactly as the reload reads it.
+	it('lets the list take the code’s indented blank line with it', () => {
 		const doc = parse('- - # **b**\n\n| H0 |\n| --- | --- |\n\n    code\n\t\n\n```\n```\n');
 
 		empty(doc, 1);
 
 		expect(serialize(doc)).toBe('- - # **b**\n\n\n    code\n\t\n\n```\n```\n');
 		expect(layout(doc.children)).toEqual([
-			['list', '', '- - # **b**\n\n\n    code\n'],
+			['list', '', '- - # **b**\n\n\n    code\n\t\n'],
+			['fencedCode', '\n', '```\n```\n']
+		]);
+		expectParseConverged(doc);
+	});
+
+	// The tab-indented blank line belongs to the code but stops short of the item's content
+	// column (five), so the joined bytes end in it; here it becomes a block, as the reload reads it.
+	it('materializes a trailing blank line the list leaves behind instead of hiding it in raw', () => {
+		const doc = parse('1.   # **b**\n\n| H0 |\n| --- | --- |\n\n     code\n\t\n\n```\n```\n');
+
+		empty(doc, 1);
+
+		expect(serialize(doc)).toBe('1.   # **b**\n\n\n     code\n\t\n\n```\n```\n');
+		expect(layout(doc.children)).toEqual([
+			['list', '', '1.   # **b**\n\n\n     code\n'],
 			['paragraph', '\t\n', '\n'],
 			['fencedCode', '', '```\n```\n']
 		]);
@@ -167,12 +180,12 @@ describe('emptying a block beside indentation-delimited content', () => {
 
 	// The higher-traffic caller of the same merge: a delete puts the neighbours back to back the
 	// same way, and its window can split off the same trailing line.
-	it('materializes the stripped marker on the delete entry point too', () => {
-		const doc = parse('- - # **b**\n\nmid\n\n    code\n\t\n\n```\n```\n');
+	it('materializes the trailing blank line on the delete entry point too', () => {
+		const doc = parse('1.   # **b**\n\nmid\n\n     code\n\t\n\n```\n```\n');
 
-		deleteNode(doc, 1);
+		deleteNode(doc, 1, defaultGrammarView, createSharingState());
 
-		expect(serialize(doc)).toBe('- - # **b**\n\n    code\n\t\n\n```\n```\n');
+		expect(serialize(doc)).toBe('1.   # **b**\n\n     code\n\t\n\n```\n```\n');
 		expectParseConverged(doc);
 	});
 });

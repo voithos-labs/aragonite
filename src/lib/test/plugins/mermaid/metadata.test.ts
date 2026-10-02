@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, type CstNode } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerMermaidKind,
 	rebuildMermaidRaw,
@@ -9,7 +8,7 @@ import {
 } from '$lib/plugins/mermaid/mermaid-kind';
 
 // An opaque container serializes `raw` verbatim, so the byte round trip passes even when the
-// metadata was captured wrongly. These pin the rebuild instead, which is what every
+// metadata was captured wrongly. The cases pin the rebuild instead, which is what every
 // `updateOwnMetadata` commit goes through.
 
 function parseMermaid(src: string): CstNode {
@@ -26,7 +25,6 @@ function patchCode(node: CstNode, code: string): void {
 
 describe('mermaid metadata → rebuildRaw fidelity', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

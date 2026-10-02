@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// Modifiers on the caret-edge dispatch's CST-widget branch. The rule is that only a plain key at
-// a caret edge comes here; the decoration branch enforces it (see its own suite), and
-// reading only shiftKey would let Ctrl+ArrowLeft enter the widget instead of moving the caret,
-// which for an image is modal, so the next printable key would replace the construct's bytes.
-// Held at the dispatch's own decision, declined with the entry untouched, rather than through
-// the state it would open.
+// The caret-edge dispatch's CST-widget branch takes only a plain key at a caret edge. Reading only
+// shiftKey would let Ctrl+ArrowLeft enter an image widget, which is modal, so the next printable
+// key would replace its bytes. The tests check the dispatch's own decision, entry untouched.
 import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import { mountWidgetBlock } from './math-widget-fixture';
@@ -47,8 +43,7 @@ describe('a modifier chord at a widget edge is not a widget entry', () => {
 		});
 	}
 
-	// Non-vacuity: the same key without the chord still enters the widget, so the
-	// check narrows this branch rather than disabling it.
+	// Without this case, the chord check could pass by disabling the whole branch.
 	it('the same key with no chord still enters the widget', () => {
 		const b = mount('hello ![a](u) world', 'image');
 		const e = key('ArrowLeft');

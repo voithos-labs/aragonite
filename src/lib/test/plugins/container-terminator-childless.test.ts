@@ -1,20 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
-	declarePluginKind,
 	getPluginMetadata,
-	registerBlockKind,
 	registerBlockOpener,
 	setPluginMetadata,
 	OPENER_PRIORITIES,
 	type AnyBlockKind,
 	type CstNode
 } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	checkTerminatorCollision,
 	type ContainerConformanceProfile
 } from '$lib/testing/container-conformance';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // The terminator cell over a childless container: the whole-block shape (mermaid's) whose body
 // lives in metadata, so there is no last child to overwrite. Two kinds share one grammar and
@@ -40,23 +37,15 @@ function escalatedFenceRun(code: string): number {
 }
 
 function registerProbeKind(name: 'probe-wide' | 'probe-fixed'): AnyBlockKind {
-	const kind = declarePluginKind(name);
 	const rebuildRaw = (node: CstNode): void => {
 		const code = getPluginMetadata<ProbeMetadata>(node)?.code ?? '';
 		const fence = '~'.repeat(name === 'probe-wide' ? escalatedFenceRun(code) : 3);
 		node.raw = `${fence}${name}\n${code}${fence}\n`;
 	};
 
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: { contract: 'opaque', rebuildRaw }
-	});
+	const kind = testLeaf(name, { container: { contract: 'opaque', rebuildRaw } });
 	registerBlockOpener(kind, {
-		// The built-in fence matcher accepts `~~~` with any info, so this must price ahead of it.
+		// The built-in fence matcher accepts `~~~` with any info, so the probe opener runs first.
 		priority: OPENER_PRIORITIES.fencedCode - 5,
 		interruptsParagraph: (line) => OPEN.exec(line)?.[2] === name,
 		tryOpen(ctx) {
@@ -103,10 +92,6 @@ const seatCode = (node: CstNode, body: string): void =>
 	setPluginMetadata<ProbeMetadata>(node, { code: body });
 
 describe('G4.3 terminator collision: the childless, metadata-bodied shape', () => {
-	beforeEach(() => {
-		resetPluginPlatformForTests();
-	});
-
 	it('passes a childless container whose rebuild widens its fence past the body', () => {
 		const kind = registerProbeKind('probe-wide');
 		expect(() => checkTerminatorCollision(kind, profileFor('probe-wide', seatCode))).not.toThrow();

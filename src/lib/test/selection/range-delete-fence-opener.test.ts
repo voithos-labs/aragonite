@@ -1,21 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
-// `SelectionState` would have snapped to a cell coordinate.
-afterEach(() => allowDevWarns(['deleteFromTableIntoProse:start']));
-
-// Issue #58, the mirror of #55: a range whose end endpoint sits in a code body consumes the
-// opener, and the surviving closer reparses as a new unclosed fence that eats the siblings below.
-// Miss-analysis: the #55 pins drove ranges starting in a code body, the only shape that loses the
-// closer; the plain merge normalized the joined raw against the start's rule alone, so no pin
-// could reach the end block's rule with an end-side slice.
+// A range ending in a code body takes the opener, and the surviving closer would reopen a fence.
+// Miss-analysis: GH #58; the fence pins only drove ranges that start in a code body.
 
 const sharing = () => createSharingState();
 
@@ -25,20 +19,18 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops the closer the cross-block merge stranded', () => {
 		const doc = parse('para\n\n```js\nbody\n```\n\ntail\n');
 
-		const { collapsedCaret } = rangeDelete(
+		const { caret } = rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1], offset: 8 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
 		// The drop shrinks the end slice past the join, so the caret keeps the start offset.
-		expect(collapsedCaret).toEqual({ path: [0], offset: 2 });
+		expect(caret(doc)).toEqual({ path: [0], offset: 2 });
 		expectParseConverged(doc);
 	});
 
@@ -49,12 +41,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1], offset: 6 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 6 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pa~~~\nbody\n\ntail\n');
@@ -68,12 +58,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1], offset: 8 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -85,12 +73,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1], offset: 9 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 9 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\r\n\r\ntail\r\n');
@@ -102,12 +88,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1, 0], offset: 8 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1, 0], offset: 8 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -121,33 +105,27 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [1], offset: 14 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 14 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pa\n\ntail\n');
 		expectParseConverged(doc);
 	});
 
-	// The same-block branch writes raw in place with no reparse behind it, so the node keeps the
-	// kind its bytes no longer describe. That staleness is the branch's own and applies to every
-	// kind (a heading losing its `#` does the same); what the fence rule must give here is bytes
-	// that stop absorbing the sibling.
+	// The same-block branch writes raw in place with no reparse, so the node keeps a stale kind as
+	// any kind would; the fence rule has to give bytes that stop absorbing the sibling.
 	it('drops it on a range confined to the code block, freeing the sibling', () => {
 		const doc = parse('```js\nbody\n```\n\ntail\n');
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 0 },
-			{ path: [0], offset: 8 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [0], offset: 8 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('dy\n\ntail\n');
@@ -159,12 +137,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 0 },
-			{ path: [1], offset: 8 },
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 8 })),
 			sharing(),
-			undefined,
-			undefined,
-			undefined
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
@@ -179,12 +155,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 			rangeDelete(
 				doc,
-				{ path: [0, 0], offset: 2 },
-				{ path: [1], offset: 8 },
+				rangeCoverage(doc, coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 })),
 				sharing(),
-				undefined,
-				undefined,
-				undefined
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
@@ -199,12 +173,10 @@ describe('range delete that consumes a fenced code opener', () => {
 
 			rangeDelete(
 				doc,
-				{ path: [0, 0], offset: 2 },
-				{ path: [1], offset: 11 },
+				rangeCoverage(doc, coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 11 })),
 				sharing(),
-				undefined,
-				undefined,
-				undefined
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);

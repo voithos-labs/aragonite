@@ -3,12 +3,10 @@ import type { Locator } from '@playwright/test';
 import { PluginsPage, readContainer } from './helpers';
 
 /**
- * The outline dogfood is the named user of `BlockComponentProps.document`
- * (requirements/plugins/toc-document-prop.md). A `[[toc]]` block renders a `<nav>` list of the
- * document's headings read straight off the `document` prop, so these tests prove the prop is
- * delivered, stays current as a heading is edited, and reaches a nested block through the editor's
- * context. Seeds: `toc`, with headings and a top-level `[[toc]]`, and `toc-nested`, with headings
- * and a `[[toc]]` inside a blockquote.
+ * The outline plugin reads `BlockComponentProps.document`
+ * (requirements/plugins/toc-document-prop.md): a `[[toc]]` block lists the document's headings from
+ * the prop, which must arrive, stay current as a heading is edited, and reach a nested block
+ * through context. Seeds: `toc` (top-level `[[toc]]`) and `toc-nested` (inside a blockquote).
  */
 class TocPage extends PluginsPage {
 	async gotoToc(seed: 'toc' | 'toc-nested' = 'toc'): Promise<void> {
@@ -103,9 +101,8 @@ test.describe('toc dogfood: the document prop consumer', () => {
 	});
 });
 
-// The nested case: the prop is delivered through the editor's context, so it must reach a
-// `[[toc]]` inside a container. A top-level scenario alone cannot show that it survives the nested
-// render path, and this is the only test that covers it at runtime.
+// The prop arrives through the editor's context, so it must reach a `[[toc]]` inside a container;
+// this is the only runtime check of the nested render path.
 test.describe('toc dogfood: the document prop reaches nested depth', () => {
 	let editor: TocPage;
 

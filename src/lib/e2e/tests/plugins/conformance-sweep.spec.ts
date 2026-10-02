@@ -18,19 +18,16 @@ interface SweepEntry {
 	};
 }
 
-// Neighbour paragraphs the fixture is sandwiched between. They share the word `filler` (the
-// not-supported search degradation navigates between the two neighbour matches) and carry no letter
-// that collides with a single-char fixture token, so a token drawn from a block is never a
-// substring of a neighbour.
+// Neighbour paragraphs around the fixture. Both hold `filler`, so the not-supported search case
+// has two matches to move between, and no letter a single-character fixture token could match.
 const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
 
 const WALK_LIMIT = 30;
 
-// Every column test iterates whatever the bridge returns, so a kind silently dropped from
-// enrollment (a lost fixture, a broken registrar) would vanish green. Subset, not equality: new
-// kinds enroll without touching this floor.
+// Every column test iterates what the bridge returns, so a kind dropped from enrollment would pass
+// silently. A subset check, so new kinds enroll without touching this floor.
 const ENROLLMENT_FLOOR = [
 	'paragraph',
 	'heading',
@@ -57,10 +54,8 @@ test('enrollment covers the known-kind floor', async ({ page }) => {
 
 // ── Locate ──────────────────────────────────────────────────────────────────
 
-// Clear to empty before every load: the editor reloads on `source !== lastSource`, so two kinds
-// sharing a byte-identical fixture (list/listItem, table/tableRow) would skip the reload and
-// inherit the prior iteration's typed mutation. Every sweep document carries both fillers, so a
-// blank serialization is a state no fixture load can be mistaken for.
+// The editor reloads only on a changed source, so two kinds with byte-identical fixtures would
+// inherit the previous typed mutation; clearing first forces the reload.
 async function clearDocument(page: Page): Promise<void> {
 	await page.evaluate(() => (window as any).__test.setSource(''));
 	await page.waitForFunction(() => (window as any).__test.getSource().trim() === '', null, {
@@ -69,9 +64,8 @@ async function clearDocument(page: Page): Promise<void> {
 	});
 }
 
-// Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is looked for only among
-// the middle blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would
-// match the `BEFORE` neighbour.
+// Only the middle blocks are searched for the kind, since `paragraph`'s fixture is itself a
+// paragraph and would match the `BEFORE` neighbour.
 async function loadAndLocate(
 	page: Page,
 	plugins: PluginsPage,
@@ -132,11 +126,8 @@ async function openSearch(page: Page, plugins: PluginsPage, find: Locator): Prom
 	await find.waitFor({ state: 'visible' });
 }
 
-// fill('') then fill(token): the bar keeps its query across close and open, and a fill with the
-// same value fires no input event, so clearing first forces the re-scan. Wait for the count to
-// reach `expectMatches` before reading any overlay, since a fixed frame yield races the document
-// scan and would leave the not-supported "block stays clean" assertion empty. Returns false rather
-// than throwing, so the caller can name the failure.
+// Clearing first forces a re-scan (a same-value fill fires no input), and the count wait keeps a
+// frame yield from racing the scan. Returns false for the caller to name.
 async function runQuery(
 	page: Page,
 	plugins: PluginsPage,
@@ -163,8 +154,7 @@ async function runQuery(
 	return true;
 }
 
-// Poll, with a bound, until a sized match overlay paints in the block's subtree. It mirrors the
-// selection loop's shape so a slow paint is waited for rather than read once and flaked.
+// Polls, bounded, for a sized match overlay in the block's subtree, so a slow paint is waited for.
 async function waitForMatchOverlayIn(
 	page: Page,
 	topIndex: number,
@@ -285,9 +275,8 @@ test('focus walk enters and exits each kind without trapping', async ({ page }) 
 	expectSweepClean(await sweepFocusWalk(page, plugins));
 });
 
-// The same walk under a marker-hiding mode, where G1.33 watches where the caret rests and where a
-// typed byte lands: a kind that puts marker-only text into its own editable area trips the shared
-// fixture's console watch here rather than in a consumer's document.
+// The same walk under a marker-hiding mode: a kind that puts marker-only text in its editable
+// area trips the caret and typing checks here rather than in a consumer's document (G1.33).
 test('focus walk under live mode enters and exits each kind, tripping no invariant', async ({
 	page
 }) => {
@@ -356,10 +345,8 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await openSearch(page, plugins, find);
 
 		if (entry.cells.searchPaint.mode === 'not-supported') {
-			// Degradation: a token both neighbours share paints on them but never inside the block,
-			// and navigation cycles between them without trapping. Waiting for at least 2 matches
-			// first is what makes "block stays clean" mean something: the neighbours really do
-			// hold matches.
+			// A token both neighbours share paints on them, never inside the block, and navigation cycles
+			// without trapping; waiting for two matches keeps "block stays clean" from passing vacuously.
 			if (!(await runQuery(page, plugins, find, NEIGHBOUR_TOKEN, 2))) {
 				failures.push(
 					`${entry.kind} [searchPaint]: the neighbour matches never appeared — degradation unverifiable`
@@ -381,7 +368,7 @@ test('search paints or degrades per kind', async ({ page }) => {
 			continue;
 		}
 
-		// implemented
+		// A kind that implements search paint.
 		if (!entry.token) {
 			failures.push(
 				`${entry.kind} [searchPaint]: implemented but the fixture yielded no search token`

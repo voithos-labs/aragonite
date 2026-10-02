@@ -14,6 +14,12 @@
 - A list item the range holds whole paints its own box over its marker and its content, though it renders no block host of its own; a nested sub-list under such an item paints no second box
   - Miss-analysis: every overlay test ran over blocks a block host wraps, so an item, the one container that renders none, was the case no test could reach
 
+- A drag from a paragraph into a closed details' title row paints the details as one box, covering
+  the title row end to end, and the title row paints no box of its own. The range takes the
+  hidden body too, so the overlay shows what a delete or a cut would take
+  - Miss-analysis: the overlay read the raw endpoints and painted only the title characters the
+    drag crossed, and every overlay test ran over open blocks, so nothing compared it to the delete
+
 ## Error / degenerate cases
 
 - Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity

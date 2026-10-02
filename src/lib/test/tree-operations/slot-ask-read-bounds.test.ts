@@ -5,10 +5,9 @@ import { createSharingState } from '../../tree-operations/sharing';
 import type { AncestrySeamFold } from '../../tree-operations/chain-rebuild';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// Miss-analysis: the cost of the join check at a container's position was pinned only by the
-// perf gate's wall clock on the pinned host, so an O(children) eager snapshot got in as machine
-// noise; a check that counts element reads fails on the class, not the milliseconds.
+// Miss-analysis: only the perf gate's wall clock timed this check, where O(children) read as noise.
 it('a declined slot ask reads O(window) sibling elements, not O(children)', () => {
 	const count = 2000;
 	const source = Array.from({ length: count }, (_, i) => `- item ${i}\n`).join('');
@@ -30,7 +29,7 @@ it('a declined slot ask reads O(window) sibling elements, not O(children)', () =
 	const leaf = items[0].children![0];
 	leaf.raw = 'item 0 edited\n';
 	const folds: AncestrySeamFold[] = [];
-	rebuildUnsharedAncestry(doc, [0, 0], sharing, folds, undefined);
+	rebuildUnsharedAncestry(doc, [0, 0], sharing, folds, defaultGrammarView);
 
 	expect(folds).toEqual([]);
 	// The copy-on-write walk and the join check's own indexOf pay one pass; a declined check

@@ -49,9 +49,8 @@ test.describe('code block: content the fence cannot hold', () => {
 	});
 });
 
-// A run already in the body is safe until a gesture moves it into terminator position: those
-// gestures rewrite the display without adding a character, reaching the same corruption another
-// way.
+// A run already in the body is safe until a gesture moves it into terminator position, which
+// rewrites the display without adding a character.
 test.describe('code block: gestures that make an existing run a terminator', () => {
 	let editor: EditorPage;
 
@@ -85,8 +84,7 @@ test.describe('code block: gestures that make an existing run a terminator', () 
 	});
 });
 
-// Growing the fence only applies to a closed one, and a typed fence is closed from its first
-// Enter (the bare opener completes to opener, empty body line, closer), so the way out while
+// Only a closed fence grows, and a typed fence is closed from its first Enter, so the way out while
 // writing is Enter on the trailing empty body line rather than a typed closer.
 test.describe('code block, authoring a fence by typing', () => {
 	test('type ```, Enter, code, Enter, Enter yields one closed block and a paragraph below', async ({

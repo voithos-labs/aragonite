@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The way to set a fence's info string in the modes that paint no fence (issue #142).
+// The way to set a fence's info string in the modes that paint no fence.
 // Requirements: `e2e/requirements/blocks/code/language-chip.md`.
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
@@ -11,9 +11,8 @@ const EMPTY_FENCE = '```\n```\n\n# Heading\n';
 const PADDED_FENCE = '```js  \nconst x = 1\n```\n\n# Heading\n';
 const NESTED_FENCE = '> a quote\n>\n> ```js\n> const x = 1\n> ```\n';
 
-// The `.code-rail` (the code block's side gutter) is what appears on hover and carries the
-// fade. The language control is one of its children, named specifically so the buttons beside
-// it (copy, and the host-controlled run and overflow) never match these locators.
+// The `.code-rail` (the code block's side gutter) appears on hover; the language control is named
+// so its sibling buttons (copy, run, overflow) never match these locators.
 const rail = (page: Page) => page.locator('.code-rail');
 const chipButton = (page: Page) => page.locator('.code-lang-button');
 // The field lives in the picker, not in the gutter: the chip is a fixed-width button that
@@ -81,10 +80,8 @@ test.describe('code language chip: when it shows', () => {
 		await expect(chipButton(page)).toHaveText('text');
 	});
 
-	// A fence with no content gets the side gutter like any other. Its own markers paint only
-	// while the caret is inside (`cursor/widget-offset.ts` matches that check), and the caret
-	// arriving completes the bare fence so there is a body line to sit on, then offers a
-	// language: the picker is how a language is set, and a fence with none is where that helps.
+	// A fence with no content gets the side gutter too: the caret arriving completes the bare fence
+	// so there is a body line to sit on, then offers a language through the picker.
 	test('a content-empty fence gets the rail; the caret arriving completes it and asks for a language', async ({
 		page
 	}) => {
@@ -163,7 +160,7 @@ test.describe('code language chip: the commit', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
-	// An alias is a search key, not a row: the list folds `rs` into `rust`, and what the author
+	// An alias is a search key, not a row: the list matches `rs` to `rust`, and what the author
 	// typed is still what lands, so the short forms stay writable here.
 	test('an alias filters to its language, listed once, and commits as typed', async ({ page }) => {
 		const editor = await loadLive(page);
@@ -298,5 +295,22 @@ test.describe('code language chip: one undo entry', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('```ts\nconst');
 		expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
+	});
+});
+
+test.describe('code language chip: across a source swap', () => {
+	test('a typed field is dropped, not written into the next document', async ({ page }) => {
+		const editor = await loadLive(page);
+		await openChip(editor);
+		await page.keyboard.type('py');
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+
+		const next = '```rust\nfn main() {}\n```\n\nbody\n';
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe(next);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
 	});
 });

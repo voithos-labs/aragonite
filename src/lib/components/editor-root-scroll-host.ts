@@ -1,9 +1,7 @@
 /**
- * Editor-root scroll resolution: what a drag autoscrolls, what bounds the visible region, and
- * the scroll container windowing measures and writes, all over the one scroller the mode picks,
- * so nothing downstream branches on the mode. Host mode asks two questions one traversal cannot
- * answer (`cursor/scroll-ancestors` header); both are cached on first read, so a host that swaps
- * its scroller must remount.
+ * Resolves the one scroller the scroll mode picks, so nothing downstream branches on the mode:
+ * what a drag autoscrolls, what bounds the visible region, what the scroll owner opens as its
+ * port. Host-mode answers are cached on first read, so a host that swaps its scroller must remount.
  */
 
 import {
@@ -11,7 +9,6 @@ import {
 	userScrollportFor,
 	type UserScrollport
 } from '../cursor/scroll-ancestors';
-import { createScrollport, type Scrollport } from '../cursor/scrollport';
 
 export interface ScrollHostDeps {
 	/** A getter, never a value: the root binds after construction. */
@@ -28,14 +25,12 @@ export interface ScrollHostResolution {
 	/** Every clipping ancestor; their overlap with the viewport is where a block scrolled into
 	 *  view must end up. Empty in self mode. */
 	getClipBounds(): HTMLElement[];
-	getScrollport(): Scrollport | null;
 }
 
 export function createScrollHostResolution(deps: ScrollHostDeps): ScrollHostResolution {
 	let resolvedScrollHost: UserScrollport | null = null;
 	let resolvedClipBounds: HTMLElement[] = [];
 	let hostResolved = false;
-	let scrollport: Scrollport | null = null;
 
 	function resolveHost(): void {
 		const root = deps.editorEl;
@@ -57,13 +52,6 @@ export function createScrollHostResolution(deps: ScrollHostDeps): ScrollHostReso
 			if (!deps.hostScroll) return [];
 			resolveHost();
 			return resolvedClipBounds;
-		},
-		getScrollport() {
-			if (!scrollport) {
-				const target = getScrollHost();
-				if (target) scrollport = createScrollport(target);
-			}
-			return scrollport;
 		}
 	};
 }

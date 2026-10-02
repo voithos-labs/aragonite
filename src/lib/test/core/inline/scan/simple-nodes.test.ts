@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
 import {
@@ -89,13 +90,13 @@ describeScanCases('unclaimed specials', [
 
 describe('ranges', () => {
 	it('empty range yields no nodes', () => {
-		const nodes = scanInline('abc', 1, 1);
+		const nodes = scanInline('abc', 1, 1, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 1, 1);
 		expect(nodes).toEqual([]);
 	});
 
 	it('offsets stay absolute into raw on a sub-range', () => {
-		const nodes = scanInline('x&copy;y', 1, 8);
+		const nodes = scanInline('x&copy;y', 1, 8, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 1, 8);
 		expect(nodes).toEqual([entityNode(1, 7, '©'), textNode(7, 8, 'y')]);
 	});

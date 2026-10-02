@@ -4,23 +4,35 @@
  * `tree-operations -> reactivity` back-edges out of the graph.
  */
 
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
+import type {
+	CommitMultiScopeArgs,
+	LeafTextOptions,
+	LeafWriteResult,
+	MultiScopeTarget,
+	ReplaceFocus,
+	ReplaceSource
+} from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 
 export type { CommitMultiScopeArgs, MultiScopeTarget };
 
 export interface PasteCommitCoordinator {
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
-	): Promise<void>;
+	): Promise<boolean>;
 	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
-	resolveState(node: CstNode): MultiScopeTarget['state'] | undefined;
-	/**
-	 * Land the caret at a document-absolute path, scrolling an unmounted target into view
-	 * first. A structural paste lands at the end of the pasted run, so its target index scales
-	 * with the clipboard, and a synchronous ref lookup would do nothing past the mounted range
-	 * (VR-12).
-	 */
-	landCaret(path: number[], offset: number): Promise<void>;
+	resolveState(node: NodeView): MultiScopeTarget['state'] | undefined;
+	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
+	 *  every keystroke takes. */
+	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
+	/** Replace the block at `blockPath` as one commit at its parent list, resolving to how many blocks
+	 *  landed or null; `snapshotOffset` is undo's caret in the block when nothing is focused. */
+	replaceBlock(
+		blockPath: number[],
+		replacement: CstNode[],
+		focus: ReplaceFocus,
+		opts: { source: ReplaceSource; trailingBlank?: boolean; snapshotOffset: number }
+	): Promise<number | null>;
 }

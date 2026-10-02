@@ -6,10 +6,10 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
-	stepTo,
-	trailingEdgeOfWord
+	stepTo
 } from './helpers';
 import { attachIme } from '../../simulation/ime';
+import { textRunEnd } from '../../text-runs';
 
 // Which side of a hidden delimiter run a typed byte lands on. The source is the reference: the
 // caret reports the same offset either way, so only the bytes tell the two positions apart.
@@ -110,10 +110,10 @@ test.describe('live mode: a symmetric pair extends by arrival', () => {
 		await ep.bridge.waitForSourceContains('X**Lead** in');
 	});
 
-	// A click clears how the caret arrived, so the default is the click rule: the construct the
-	// caret touches keeps the byte (live-mode.md § 4.2, the Google Docs default).
+	// A click clears how the caret arrived, so the click rule applies: the construct the caret
+	// touches keeps the byte (`docs/design/live-mode.md` § 4.2).
 	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
-		const point = await trailingEdgeOfWord(page, 'bold');
+		const point = await textRunEnd(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(11);
@@ -216,10 +216,8 @@ test.describe('live mode: unstamped marker runs are never typed into', () => {
 	});
 });
 
-// A construct with no children, such as a line-leading escape or an angle autolink, has no
-// content range to split on, yet the first reachable offset legitimately puts the caret against
-// its run: a click at a line's left edge clears the leading hidden run, which is inside a
-// construct that is all delimiters, so the rule must still answer there.
+// A construct with no children (a line-leading escape, an angle autolink) has no content range,
+// yet a click at a line's left edge can put the caret against its run, so the rule answers.
 const CHILDLESS_DOC = [
 	'\\*Lead in',
 	'',
@@ -265,9 +263,8 @@ test.describe('live mode: a childless construct is all delimiters', () => {
 		expect(await ep.bridge.getSource()).toContain('Z<https://example.com> tail');
 	});
 
-	// The gentler sibling: the caret lands at the last reachable offset, inside the closing
-	// bracket, and a byte there rewrites where the link goes. A link never extends at either
-	// edge (live-mode.md § 4.2), and the angle form is a link.
+	// The caret lands at the last reachable offset, inside the closing bracket, where a byte rewrites
+	// the destination: a link never extends at either edge, and the angle form is a link.
 	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
 		await clickBlockSettled(ep, AUTOLINK_TAIL);
 		await page.keyboard.press('End');

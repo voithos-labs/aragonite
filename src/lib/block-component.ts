@@ -1,13 +1,13 @@
 /**
- * The contract every rendered block satisfies, plus the special caret values and the
- * marker-prefix shape blocks produce. The editor reaches a block only through this flat
- * interface, so something a block cannot do is a missing optional member rather than a kind
- * check upstream; `ContainerBlockComponent` is the one stricter version. Authoritative for
- * outside authors: each member's docstring states its own contract.
+ * The contract every rendered block satisfies, plus the special caret values and the marker-prefix
+ * shape blocks produce. The editor reaches a block only through this flat interface, so something
+ * a block cannot do is a missing optional member, not a kind check upstream;
+ * `ContainerBlockComponent` is the stricter version. Each member's docstring states its contract.
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
+import type { ChildList } from './reactivity/child-list';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -48,8 +48,26 @@ export const CURSOR_START = -2 as CursorStart;
  */
 export const CURSOR_EXACT_START = -3 as CursorExactStart;
 
-/** Cascade focus to the last descendant and place the cursor at its start. */
-export const FOCUS_LAST_START = -1;
+/** Which child a caret entering a container takes, and the offset handed on to it. */
+export interface EntryEdge {
+	readonly child: 'first' | 'last';
+	readonly offset: number;
+	/** The offset was a byte inside the container, not an edge: a container that can map its
+	 *  bytes to a child places it there, and any other takes the last child's end. */
+	readonly inside: boolean;
+}
+
+/**
+ * How every container reads a caret offset it is entered with, so a list, a table and a table
+ * row agree: 0 and the two start values enter the first child unchanged, and `CURSOR_END` or a
+ * byte offset the last child at its end.
+ */
+export function entryEdge(offset: number): EntryEdge {
+	if (offset === 0 || offset === CURSOR_START || offset === CURSOR_EXACT_START) {
+		return { child: 'first', offset, inside: false };
+	}
+	return { child: 'last', offset: CURSOR_END, inside: offset !== CURSOR_END };
+}
 
 /**
  * "End of this block's measurable range" for `measurePartialRects`' `endOffset`. Each
@@ -74,12 +92,27 @@ export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: Stick
 
 // ── The container's marker prefix ──────────────────────────────────────────
 
-export interface AmbientInteractiveRange {
+/** A focusable range must say what Enter and Space do, so a tab stop is never a dead key. */
+export type AmbientInteractiveRange = AmbientRangeBase &
+	(
+		| {
+				/** Gives the span a tab stop. Decide by mode: a stop inside an editable block
+				 *  interrupts the caret's Tab, so the footnote marker takes one in reading mode only. */
+				focusable: true;
+				/** Enter or Space on the focused span. */
+				onActivate: () => void;
+		  }
+		| { focusable?: false; onActivate?: () => void }
+	);
+
+interface AmbientRangeBase {
 	start: number;
 	end: number;
 	className: string;
-	role?: 'checkbox';
+	role?: 'checkbox' | 'link' | 'button';
 	ariaChecked?: boolean;
+	/** The span's accessible name, rendered as `aria-label`. */
+	label?: string;
 	/** The block's drag handle centres on this span's box rather than on its text line. */
 	dragAnchor?: boolean;
 	/** The click lands on the range's own span, before the leaf's caret handling; a handler
@@ -107,7 +140,7 @@ export type AmbientPrefix =
  * omits, but a leaf that drops `ambientPrefix` visually deletes its markers.
  */
 export interface BlockComponentProps {
-	/** Bytes-readonly view (G1.9): components render the CST; mutation routes through actions. */
+	/** Bytes-readonly view: components render the CST, and mutation goes through actions (G1.9). */
 	node: NodeView;
 	index: number;
 	myPath: number[];
@@ -124,16 +157,16 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focus the element, and end any live cross-block range: the safe
-	 * default over {@link parkCaret}, since ending the range batches with placing the caret. Also
+	 * Place the caret at `offset`, focus the element, and end whatever the editor had selected (a
+	 * cross-block range, a gap caret, an image selected whole): the safe default over
+	 * {@link parkCaret}, since ending it batches with placing the caret. Also
 	 * takes the four special caret values above, which stay internal (none is on
 	 * `@voithos-labs/aragonite/plugin`). Clamping is required; never throw.
 	 */
 	focus(offset: number): void;
 	/**
-	 * `focus` without the range-ending: place the caret and touch nothing else. For paths
-	 * that extend a selection only (G2.12 checks the callers), where a `focus` would cancel
-	 * the range still being grown; any other caller wants `focus`.
+	 * `focus` without the range-ending: place the caret and touch nothing else. For paths that only
+	 * extend a selection, where a `focus` would cancel the range still being grown (G2.12).
 	 */
 	parkCaret?(offset: number): void;
 	/**
@@ -149,8 +182,9 @@ export interface BlockComponent {
 	 */
 	getSelectedText?(): string;
 	/**
-	 * Select `[start, end)` in the same raw-offset space `getCursorOffset` returns.
-	 * A no-op when the block is unmounted or the range doesn't resolve.
+	 * Select `[start, end)` in the same raw-offset space `getCursorOffset` returns, ending whatever
+	 * the editor had selected first, as `focus` does. A no-op when the block is unmounted or the
+	 * range doesn't resolve.
 	 */
 	setSelection?(start: number, end: number): void;
 	/**
@@ -177,16 +211,10 @@ export interface BlockComponent {
 	 */
 	startDragAtPoint?(clientX: number, clientY: number, event: PointerEvent): boolean;
 	/**
-	 * Descend child indices to the BlockComponent at the leaf, or null if the path
-	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
+	 * This block's children as the editor walks down to one: their refs, the render window that
+	 * mounts them, and the collapse a navigation may open. Containers, tables and rows have one.
 	 */
-	getBlockComponentByPath?(path: number[]): BlockComponent | null;
-	/**
-	 * The async counterpart of `getBlockComponentByPath`: at each nested level, scroll the
-	 * child into the mounted range and await its mount before recursing, so a target outside
-	 * that range resolves instead of returning null.
-	 */
-	revealByPath?(path: number[]): Promise<BlockComponent | null>;
+	childList?(): ChildList;
 	/**
 	 * Deep cursor position for blocks with nested blocks inside (table cells): the path from
 	 * this block to the leaf holding the cursor, plus the offset in it. Preferred over
@@ -236,6 +264,11 @@ export interface BlockComponent {
 	 */
 	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
 	/**
+	 * Run `run` once this block's shown widget source, which lives in the DOM only, is written
+	 * back. A block that never shows one omits it; a command from outside the block waits on it.
+	 */
+	afterSourceCommit?(run: () => void): void;
+	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */
@@ -250,10 +283,12 @@ export interface BlockComponent {
 	claimRootClipboard?(event: ClipboardEvent): void;
 	/**
 	 * Insert markdown at this block's caret exactly as pasting it would, minus the clipboard:
-	 * the block half of `EditorInstance.insertMarkdown`. True means the paste pipeline took
-	 * the text, not that its commit has flushed. Omitted by non-editable blocks.
+	 * the block half of `EditorInstance.insertMarkdown`. Return a promise that resolves once
+	 * the insert has landed, so the editor can keep it in the undo entry of the gesture that
+	 * asked for it; a plain true means only that the text was taken.
+	 * Omitted by non-editable blocks.
 	 */
-	insertMarkdown?(md: string): boolean;
+	insertMarkdown?(md: string): boolean | Promise<boolean>;
 	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
@@ -285,8 +320,7 @@ export type ContainerBlockComponent = BlockComponent &
 			BlockComponent,
 			| 'getCursorPosition'
 			| 'focusByPath'
-			| 'getBlockComponentByPath'
-			| 'revealByPath'
+			| 'childList'
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'
 			| 'enterEdgeWidget'
@@ -294,24 +328,43 @@ export type ContainerBlockComponent = BlockComponent &
 		>
 	>;
 
-/**
- * What a mounted block component publishes through `bind:this`: a leaf publishes the object
- * itself, a container publishes it under the one `containerApi` export (Svelte 5 instance
- * exports are separate declarations with no spread, so re-exporting a dozen members by hand
- * drops one). The union is what enforces it: a container publishing only a leaf's members is
- * a type error where `defineBlockComponent` registers it.
- */
-export type BlockComponentExports =
-	BlockComponent | { readonly containerApi: ContainerBlockComponent };
+/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
+ *  so none drops out unseen, and a caller reaches each one without a guard. */
+export type EditableLeafBlockApi = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'parkCaret'
+			| 'focusAtColumn'
+			| 'getSelectedText'
+			| 'setSelection'
+			| 'measurePartialRects'
+			| 'insertMarkdown'
+			| 'afterSourceCommit'
+		>
+	>;
 
 /**
- * The `BlockComponent` behind a published instance: the one place that knows a container's
- * object hides under `containerApi`. Returns the object it was handed, never a wrapper,
+ * What a mounted block component publishes through `bind:this`: a hand-built leaf its members
+ * themselves, a component built on the editable leaf its `blockApi`, a container its
+ * `containerApi`. Svelte 5 instance exports have no spread, so the factories hand over one object
+ * rather than a dozen members to copy by hand. A component publishing none of the three, or a
+ * container publishing only a leaf's members, fails where `defineBlockComponent` registers it.
+ */
+export type BlockComponentExports =
+	| BlockComponent
+	| { readonly blockApi: EditableLeafBlockApi }
+	| { readonly containerApi: ContainerBlockComponent };
+
+/**
+ * The `BlockComponent` behind a published instance: the one place that knows a factory's object
+ * sits under `blockApi` or `containerApi`. Returns the object it was handed, never a wrapper,
  * because `publishRefSlot` compares identity and a new object would overwrite the stored one.
  */
 export function resolveBlockSurface(
 	exports: BlockComponentExports | undefined
 ): BlockComponent | undefined {
 	if (!exports) return undefined;
+	if ('blockApi' in exports) return exports.blockApi;
 	return 'containerApi' in exports ? exports.containerApi : exports;
 }

@@ -1,15 +1,23 @@
 /**
  * Enter completion: a lone typed line a registered completer recognises becomes the structure
  * it opens instead of splitting. `planEnterCompletion` is pure; `withEnterCompletion` is the
- * one place the plan is applied, wrapped around a composed `splitBlock`.
+ * one place a plan is applied, on Enter and, for the completers that answer as you type, after
+ * a keystroke's write.
  */
 
-import { parse } from '../core/parser';
-import { displayLength, splitLines, trailingLineEnding } from '../core/lines';
+import { readBlocks } from '../core/parser';
+import {
+	displayLength,
+	isBlankText,
+	splitLines,
+	trailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import type { GrammarView } from '../schema/block-openers';
 import {
 	completeLineOnType,
 	completeTypedLine,
@@ -21,50 +29,33 @@ export interface EnterCompletion {
 	caret: { path: number[]; offset: number };
 }
 
-/**
- * Wraps a composed `splitBlock` with the completer check, at the two bundle composition sites
- * only. Above the container overrides rather than inside the split, so a container that
- * replaces `splitBlock` cannot lose the completion for its subtree. One Enter checks once per
- * node: the blockquote exit's call into the parent is a second check on a different node,
- * which always declines, since a container is never a prose line.
- */
+/** Adds the completer check to a composed `splitBlock`, and the on-type completion, above the
+ *  container overrides so a container replacing `splitBlock` keeps the completion for its subtree. */
 export function withEnterCompletion(
-	blockEdit: BlockEditActions,
-	childAt: (index: number) => NodeView | undefined
+	blockEdit: Omit<BlockEditActions, 'completeLineOnType'>,
+	childAt: (index: number) => NodeView | undefined,
+	grammar: GrammarView,
+	getLineEnding: () => LineEnding
 ): BlockEditActions {
+	/** `snapshotOffset` is where the caret was, so one undo restores the typed line with the caret
+	 *  at its end rather than in front of it. */
+	const complete = (index: number, completion: EnterCompletion, snapshotOffset: number) =>
+		blockEdit.replaceBlock(
+			index,
+			completion.replacement,
+			{ replacementIndex: 0, ...completion.caret },
+			{ snapshotOffset }
+		);
 	return {
 		...blockEdit,
-		async splitBlock(index: number, offset: number): Promise<void> {
-			const completion = planEnterCompletion(childAt(index), offset);
-			if (!completion) {
-				await blockEdit.splitBlock(index, offset);
-				return;
-			}
-			// `snapshotOffset` is where the caret was, so one undo restores the typed line with the
-			// caret at its end rather than in front of it.
-			await blockEdit.replaceBlock(
-				index,
-				completion.replacement,
-				{ replacementIndex: 0, ...completion.caret },
-				{ snapshotOffset: offset }
-			);
+		async splitBlock(index: number, offset: number): Promise<boolean> {
+			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
+			if (!completion) return blockEdit.splitBlock(index, offset);
+			return complete(index, completion, offset);
 		},
-		// The typing side: a keystroke that leaves the block as a line an on-type completer
-		// recognises (`BlockCompleter.onType`) forms the structure at once, the way a typed
-		// ` ``` ` is a fence the moment the parser sees it. The write lands first, so the typed
-		// line is its own undo step and the replacement covers the bytes the CST actually holds.
-		async updateBlockContent(index, text, preEditOffset, postEditFocusOffset) {
-			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
-			const offset = postEditFocusOffset ?? preEditOffset;
-			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset);
-			if (!completion) return;
-			await blockEdit.replaceBlock(
-				index,
-				completion.replacement,
-				{ replacementIndex: 0, ...completion.caret },
-				{ snapshotOffset: offset }
-			);
+		async completeLineOnType(index: number, caret: number): Promise<boolean> {
+			const completion = planTypedCompletion(childAt(index), caret, grammar, getLineEnding());
+			return completion ? complete(index, completion, caret) : false;
 		}
 	};
 }
@@ -72,22 +63,33 @@ export function withEnterCompletion(
 /** The completion Enter at `offset` produces, or null when the block or the caret rules it out. */
 export function planEnterCompletion(
 	node: NodeView | undefined,
-	offset: number
+	offset: number,
+	grammar: GrammarView,
+	lineEnding: LineEnding
 ): EnterCompletion | null {
-	return planCompletion(node, offset, completeTypedLine);
+	return planCompletion(node, offset, grammar, lineEnding, (line) =>
+		completeTypedLine(line, grammar)
+	);
 }
 
 /** The completion a keystroke produces, asking only the completers that answer on type. */
 export function planTypedCompletion(
 	node: NodeView | undefined,
-	offset: number
+	offset: number,
+	grammar: GrammarView,
+	lineEnding: LineEnding
 ): EnterCompletion | null {
-	return planCompletion(node, offset, completeLineOnType);
+	return planCompletion(node, offset, grammar, lineEnding, (line) =>
+		completeLineOnType(line, grammar)
+	);
 }
 
+/** `ending` is the document's, for a typed line that has none of its own. */
 function planCompletion(
 	node: NodeView | undefined,
 	offset: number,
+	grammar: GrammarView,
+	ending: LineEnding,
 	consult: (line: string) => CompletionResult | null
 ): EnterCompletion | null {
 	if (!node) return null;
@@ -96,15 +98,14 @@ function planCompletion(
 	const claim = consult(line);
 	if (!claim) return null;
 
-	// Through the parser rather than a hand-built node, so the new blocks are exactly what a
-	// reload of those bytes produces. Global grammar, like every other structural reparse.
-	const lineEnding = trailingLineEnding(node.raw);
+	// Through the parser in the editor's grammar rather than a hand-built node, so the new blocks
+	// are exactly what a reload of those bytes produces.
+	const lineEnding = trailingLineEnding(node.raw, ending);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
-	const replacement = parse(raw, { scope: 'fragment' }).children;
-	// A completion that shows nothing would replace the typed line with a delete, or with blank
-	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
-	// is per node rather than by child count.
-	if (replacement.every((node) => node.raw.trim() === '')) return null;
+	const replacement = readBlocks(raw, { grammar, scope: 'fragment' }).children;
+	// A completion of only blank lines would replace the typed line with a delete; the check is per
+	// node because blank lines parse back as empty paragraphs.
+	if (replacement.every((node) => isBlankText(node.raw))) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }
 

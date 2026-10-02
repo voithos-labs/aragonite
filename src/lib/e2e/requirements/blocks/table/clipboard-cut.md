@@ -24,6 +24,12 @@ of Cut goes through the same paths as Backspace/Delete.
 
 ## Edge cases
 
+- Cut over a whole row or a whole column removes it, the way Backspace does. Typing or pasting
+  over a whole row still clears its cells and puts the text in the first one, since a removed row
+  leaves nowhere to type.
+  - Miss-analysis: every rectangle cut in here held part of a row, so a whole row or column never
+    met the cut's own removal.
+
 - A single Ctrl+Z after any of the three Cut variants restores the
   document as it stood before the cut, in one undo entry.
 - Partial-column cross-block Cut (drag from a block above into a mid-row,

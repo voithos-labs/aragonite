@@ -38,9 +38,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains(':::callout\n');
 
-		// The boundary rule: "Above" keeps its start as its own paragraph, the fully covered title
-		// survives as an empty callout-title, emptied rather than removed, and the body never
-		// moves up into the opener line.
+		// "Above" keeps its start as a paragraph, the covered title is emptied rather than removed, and
+		// the body never moves up into the opener line.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
@@ -70,8 +69,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.bridge.waitForSourceContains('Ab\n');
 
 		// Keeping the column puts the focus at title offset 0, so the range covers no title text:
-		// the boundary truncates "Above" in place and leaves the title alone, where the older path
-		// removed the title node and moved "Body" up into the opener line.
+		// "Above" truncates in place and the title stays.
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
 		expect(callout.childTexts).toEqual(['Title', 'Body']);
@@ -111,10 +109,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// The title was emptied through a copy made before the write (G1.9), so undo restores the
-		// title node itself, not only the container's source bytes, which `getSource` reads and
-		// would look right even with a corrupted title. Poll the child's text so the assertion
-		// waits for the tree to rebuild rather than for the bytes alone to match.
+		// The title was emptied through a copy made before the write (G1.9), so undo restores the node
+		// itself, which `getSource` cannot show; polling the child's text waits for the rebuild.
 		await editor.undo();
 		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
@@ -209,11 +205,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// Drag from the title's start through the body's end: a range wholly inside that covers
-		// the entire subtree without crossing the boundary from outside. The boundary keeps the
-		// container alive, so the title is emptied in place and the fully covered body truncates
-		// to an empty paragraph, leaving child 0 a title row rather than a bare paragraph, which
-		// is what G1.14 requires.
+		// A range from the title's start through the body's end covers the subtree from inside, so the
+		// container stays with an emptied title row and an empty body paragraph (G1.14).
 		await editor.dragFromTo([1, 0], 0, [1, 1], 4);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);

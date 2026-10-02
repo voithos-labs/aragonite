@@ -1,33 +1,31 @@
 /**
- * One windowing unit per block list (the editor root and every nested container that turns
- * it on). It wires up the height estimator, this list's own height table and
- * `createBlockWindow`, maps the editor's one scroll container into this list's coordinates by
- * measuring the DOM, and reports this list's box height upward so the spacers above stay
- * correct. See `docs/design/virtual-rendering.md`.
+ * One windowing unit per block list, the editor root or a nested container: its height table
+ * and mounted range, read against the editor's one scroll container in this list's coordinates.
+ * See `docs/design/virtual-rendering.md` § Nesting.
  */
 import { tick, untrack } from 'svelte';
 import { HeightModel } from '../cursor/height-model';
 import type { HeightOracle } from '../cursor/height-oracle';
-import type { Scrollport } from '../cursor/scrollport';
+import type { ScrollportReader } from '../cursor/scrollport';
+import type { TargetTop } from '../cursor/scroll-owner';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
+import { focusedIndexIn, type HeightTable } from './hold-across';
+import type { ListLevel } from './list-tree';
 import type { NodeView } from '../core/node-views';
-import type { RevealBlock } from '../cursor/reveal-anchor';
+import { recordHeightTableBuild } from '../perf/instruments';
 
-/**
- * The block being scrolled into view, in one list's coordinates. The height table addresses
- * only this list's own children, so a target further down arrives as its top-level ancestor's
- * `index` plus the measured drop to the target, which holds the block the scroll aimed at
- * rather than its container.
- */
-export interface RevealAnchorPlacement {
-	index: number;
-	block: RevealBlock;
-	/** Drop from the ancestor's top to the target's top; 0 when the target is the ancestor. */
-	innerOffset: number;
-	/** The target's own height, for `'center'`; null when it can't be measured. */
-	height: number | null;
+/** How a list reaches the editor's scroll owner. A list writes heights, never a scroll: the owner
+ *  keeps one block still across each flush of them. */
+export interface ListScrollWrites {
+	/** Called before this list's table changes, so the round counts from the table as it was. */
+	beginRound(): void;
+	/** True from a round's first height write until its scroll correction lands. */
+	roundOpen(): boolean;
+	measureSoon(run: () => void): void;
+	/** Scroll so the block at `path` mounts; the owner works out where. */
+	scrollToMount(path: readonly number[]): void;
 }
 
 export interface ListWindowingDeps {
@@ -39,34 +37,20 @@ export interface ListWindowingDeps {
 	getListEl: () => HTMLElement | null;
 	/** The one scroll container every list in this editor windows against: the editor root
 	 *  under `scrollMode="self"`, the host's scroller or the page viewport under `"host"`. */
-	getPort: () => Scrollport | null;
+	getPort: () => ScrollportReader | null;
+	scroll: ListScrollWrites;
 	/** The focused block's full path, so each level knows which block to hold in place. */
 	getFocusPath: () => number[] | null;
-	/** Where the block being scrolled into view sits in this list's coordinates, else null.
-	 *  While set, `correctAnchor` holds that position instead of the block at the top of the
-	 *  viewport. Wired on the root list only: nested lists would fight over one `scrollTop`. */
-	getRevealAnchorTarget?: () => RevealAnchorPlacement | null;
 	/** Counter bumped on an editor width change, after the height estimator's measured cache
 	 *  is cleared. Rebuilds the height table at the new width and re-measures mounted blocks. */
 	getWidthVersion: () => number;
-	/** Counter bumped when the scroll container's height changes. How far the slice reaches
-	 *  comes from a plain DOM height read, which nothing reactive sees; this is that
-	 *  dependency. */
+	/** Bumped when the scroll container's height changes, since the viewport height comes from
+	 *  a plain DOM read that nothing reactive sees. */
 	getViewportHeightVersion: () => number;
 	/** This list's path (the `parentPath` its children render under). `[]` at top level. */
 	getParentPath: () => number[];
-	/** This list's own measurable box; re-measured when its contents reflow, to report a fresh
-	 *  subtotal upward. Absent at top level. */
-	getOwnEl?: () => HTMLElement | null;
-	/** Report this list's box height to the parent list's `setChildSubtotal` (absent at top
-	 *  level). */
-	reportSelfHeight?: (height: number) => void;
-	/** False while the browser's own scroll anchoring holds the user's place instead (host mode
-	 *  below the windowing threshold): two writers on one scroll position correct it twice. */
-	correctsScroll: () => boolean;
-	/** While true this list mounts only its title row, a fixed `[0, 1)` with no spacers. The
-	 *  window math is skipped, not fed a smaller range: collapsing removes height, and a
-	 *  clamped slice through `computeWindow` would emit the body as one giant spacer. */
+	/** While true the list mounts only its title row and skips the window math: collapsing
+	 *  removes height, and a clamped slice would emit the body as one giant spacer. */
 	isCollapsed?: () => boolean;
 	overscan: number;
 	pinExtensionCap: number;
@@ -74,49 +58,39 @@ export interface ListWindowingDeps {
 	deactivateBelowPx: number;
 }
 
+/** A child of this list, measured under its own id at its index. */
+export interface MeasuredChild {
+	index: number;
+	readHeight: () => number;
+}
+
 export interface ListWindowing {
 	readonly window: WindowResult;
-	/** A leaf measured directly: the height estimator by id, the height table by index. It
-	 *  writes no `scrollTop`. */
-	recordMeasuredChild(index: number, id: string, height: number): void;
-	/** A subtotal a child container reported up: the height estimator and the height table,
-	 *  addressed by index. No scroll correction. */
-	setChildSubtotal(index: number, total: number): void;
-	/** Sign a child up for this list's batched measure pass, read after the flush that
-	 *  registered it; returns the function to call when the child unmounts. The list reads every
-	 *  pending child before applying any write, so a fast scroll that mounts many costs one
-	 *  reflow. */
-	registerChild(id: string, child: MeasureEntry): () => void;
+	/** This list as the editor's list tree reads it. */
+	readonly level: ListLevel;
+	/** Queues a child for the batched measure pass after the flush that registered it, so a fast
+	 *  scroll that mounts many costs one reflow. Returns the unregister function. */
+	registerChild(id: string, child: MeasuredChild): () => void;
 	/** Re-measure one registered child immediately, after an edit changed its height. */
 	measureChildNow(id: string): void;
-	/** The ResizeObserver path: compare `observedHeight` in O(1) against the height this list
-	 *  last applied and re-measure only on a real change after mount, so the resize a mount
-	 *  fires for nothing costs no DOM read during a fast scroll. */
+	/** Compares `observedHeight` against the height last applied, with no DOM read, so the
+	 *  no-op resize every mount fires costs nothing during a fast scroll. */
 	measureChildOnResize(id: string, observedHeight: number): void;
-	/**
-	 * True when the scroll position is already where the block being scrolled into view
-	 * belongs. Asked by any writer that would otherwise add a relative delta to the same
-	 * `scrollTop`: this position comes from live geometry, so a delta on top counts twice. A
-	 * question, never a write: moving here would drag the user to the top of that block on a
-	 * resize they only wanted compensated. Root list only; a nested list answers false.
-	 */
-	revealHoldsScroll(): boolean;
+	/** Where child `index`'s top sits in the scroll container's content, by the height table,
+	 *  and its height; null past the end or before the list mounts. */
+	targetTopOf(index: number): TargetTop | null;
+	/** A scripted `scrollTop` write fires no `scroll` event in time, so the window re-reads it. */
+	syncScrollTop(): void;
 	/** Scroll this list so child `index` is inside the mounted range; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
-	/** True when `index` is in the currently mounted range (always true while windowing is
-	 *  off; only the title row while collapsed). Read after `revealChild` to confirm the scroll
-	 *  arrived, before waiting on a mount that can otherwise never come (VR-5). */
+	/** Whether `index` is in the mounted range; read after `revealChild` so a wait for the mount
+	 *  gives up instead of hanging when the scroll didn't bring it in (VR-5). */
 	isInWindow(index: number): boolean;
 	dispose(): void;
 }
 
-/**
- * Whether a resize is worth re-measuring (pure, unit-tested). Decided on the height
- * differing from the recorded one, never on which callback delivered it: a remount from cache
- * can report the grown size in the very first callback, so a rule about callback order would
- * drop it. `recorded === undefined` means this list has applied no height for the block yet,
- * so leave it to the batched pass rather than racing a read into a fast scroll's layout.
- */
+/** Whether a resize is worth re-measuring: only when the height differs from the one this list
+ *  applied. With none applied yet, the batched pass owns the first measure. */
 export function shouldRemeasureOnResize(recorded: number | undefined, observed: number): boolean {
 	if (observed <= 0 || recorded === undefined) return false;
 	return Math.abs(recorded - observed) >= 1;
@@ -126,6 +100,7 @@ interface RegisteredChild extends MeasureEntry {
 	/** What this list last applied for the child: what the resize check compares against,
 	 *  which clearing the height estimator's cache (a mode switch) must not blank. */
 	applied: number | undefined;
+	index: number;
 }
 
 // One shared result backs every collapsed list, frozen so a consumer that mutates its
@@ -135,14 +110,14 @@ const collapsedWindow: WindowResult = Object.freeze({
 	start: 0,
 	end: 1,
 	topSpacerPx: 0,
-	bottomSpacerPx: 0
+	bottomSpacerPx: 0,
+	floorPx: 0
 });
 
-// This list's top within the scroll container's content: the offset that converts the
-// container's `scrollTop` into this list's own range, correct at every depth because the
-// spacers preserve the geometry above the list. Computed in one place, since two callers
-// disagreeing would be a coordinate bug. The arithmetic itself is pure (`scope-geometry`).
-function listTopInPort(port: Scrollport, listEl: HTMLElement): number {
+// The box a nested list's parent measures: a container's block host, or a list item's own box.
+const MEASURED_BOX = '.block-host, .list-item-block';
+
+function listTopInPort(port: ScrollportReader, listEl: HTMLElement): number {
 	return listTopWithinContent(
 		listEl.getBoundingClientRect().top,
 		port.viewportTop(),
@@ -150,198 +125,79 @@ function listTopInPort(port: Scrollport, listEl: HTMLElement): number {
 	);
 }
 
+/** This list's height table and the width it was built at. */
+interface BuiltTable extends HeightTable {
+	widthVersion: number;
+	/** False when the list had no element yet, so every estimate used the scroll container's width. */
+	atListWidth: boolean;
+}
+
+/** The heights a table holds, keyed by id, for the next build to keep. */
+function heightsById(table: HeightTable): Map<string, number> {
+	const carried = new Map<string, number>();
+	const known = Math.min(table.ids.length, table.model.size);
+	for (let i = 0; i < known; i++) carried.set(table.ids[i], table.model.heightOf(i));
+	return carried;
+}
+
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
-	// The ids lined up with the current `model` by index. A snapshot, not read live: a
-	// structural rebuild needs the old ordering to find the held block by id, and by then
-	// `getChildIds()` already shows the new children. Copied, because it is spliced in place.
-	let modelChildIds: string[] = [];
-
-	/** The heights the current table holds, keyed by id, for a rebuild to keep. The two lengths
-	 *  differ for one tick after a child change, and an index past the table's end reads 0. */
-	function heightsById(): Map<string, number> {
-		const carried = new Map<string, number>();
-		const known = Math.min(modelChildIds.length, model.size);
-		for (let i = 0; i < known; i++) carried.set(modelChildIds[i], model.heightOf(i));
-		return carried;
-	}
-
-	/**
-	 * A block that survives a rebuild keeps its measured height (`carried`); re-estimating would
-	 * swap a document of measurements for guesses and scroll the user by the difference (VR-15).
-	 * Null after a width or font-size change, when the old heights are wrong anyway.
-	 */
-	function buildModel(carried: Map<string, number> | null): HeightModel {
-		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
-		const children = deps.getChildren();
-		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
-		modelChildIds = deps.getChildIds().slice();
-		const count = children.length;
-		const heights = new Array<number>(count);
-		for (let i = 0; i < count; i++) {
-			const id = modelChildIds[i];
-			heights[i] =
-				deps.oracle.measured(id) ?? carried?.get(id) ?? deps.oracle.estimate(children[i], width);
-		}
-		return new HeightModel(heights);
-	}
-
-	let model = $state<HeightModel>(buildModel(null));
-	let heightVersion = $state(0);
-
-	// One batched pass owned by this list rather than an effect per child, which would
-	// interleave a layout read with the previous child's write and force one reflow per mounted
-	// block on a fast scroll. `pending` holds ids awaiting a first measure; registering drains it.
+	// One batched pass per list, not an effect per child, which would interleave each layout read
+	// with the previous write and reflow once per mounted block. `pending` awaits a first measure.
 	const registry = new Map<string, RegisteredChild>();
 	const pending = new Set<string>();
 
-	/**
-	 * The `scrollTop` that puts the block being scrolled into view where it was asked to go,
-	 * or null when no such scroll is in progress. The one definition of where that block
-	 * belongs, shared by the writer that moves there and the check that asks whether we are
-	 * there. The ancestor's offset comes from the height table, never `getBoundingClientRect`:
-	 * writing to the table only marks `$state` dirty, so a DOM read here would see stale layout.
-	 */
-	function revealTargetScrollTop(): number | null {
-		const port = deps.getPort();
+	/** A block that survives a rebuild keeps its measured height (`carried`), or the user scrolls by
+	 *  the estimate error (VR-15). Null once a width or font-size change has made them wrong. */
+	function buildTable(carried: Map<string, number> | null, widthVersion: number): BuiltTable {
 		const listEl = deps.getListEl();
-		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !port || !listEl) return null;
-
-		const targetTop =
-			listTopInPort(port, listEl) + model.offsetOf(reveal.index) + reveal.innerOffset;
-		// Centre on the scroll container's own height, not `scopeViewportHeight()`: the
-		// container's is stable while the content shrinks, whereas the per-list intersection reads
-		// `listEl` geometry mid-change and would centre on a briefly tiny viewport.
-		const targetHeight = reveal.height ?? model.heightOf(reveal.index);
-		return reveal.block === 'center'
-			? targetTop - Math.max(0, (port.viewportHeight() - targetHeight) / 2)
-			: targetTop;
+		const width = estimateWidth(listEl, deps.getPort()?.contentWidth() ?? 0);
+		recordHeightTableBuild(deps.getParentPath(), width);
+		const children = deps.getChildren();
+		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
+		const ids = deps.getChildIds().slice();
+		const count = children.length;
+		const heights = new Array<number>(count);
+		for (let i = 0; i < count; i++) {
+			const id = ids[i];
+			heights[i] =
+				deps.oracle.measured(id) ?? carried?.get(id) ?? deps.oracle.estimate(children[i], width);
+		}
+		return { model: new HeightModel(heights), ids, widthVersion, atListWidth: listEl !== null };
 	}
 
-	function placeRevealTarget(): boolean {
-		const targetScrollTop = revealTargetScrollTop();
-		const port = deps.getPort();
-		if (targetScrollTop === null || !port) return false;
-		port.setScrollTop(targetScrollTop);
-		// A scripted `scrollTop` write fires no `scroll` event, so the window's derived scroll
-		// position would stay stale and leave the target unmounted at the very position we just
-		// scrolled it to.
-		win.syncScrollTop();
-		return true;
-	}
-
-	/**
-	 * Runs the change and writes no scroll while the browser's own anchoring holds the user's
-	 * place (host mode below the windowing threshold). It wins even over a scroll into view,
-	 * which would otherwise re-assert an absolute position the browser is already holding: two
-	 * writers on one scroll position correct it twice.
-	 */
-	function skipWhileHostAnchors(mutate: () => void): boolean {
-		if (deps.correctsScroll()) return false;
-		mutate();
-		return true;
-	}
-
-	/**
-	 * A scroll into view wins over either rule for holding a block still: the target's absolute
-	 * position is re-asserted after the change, overriding the browser's own clamping, which
-	 * drags `scrollTop` off the target while undecoded images outside the viewport measure about
-	 * zero. Adding a delta cannot keep up with that clamping. Returns true when it ran the
-	 * change and owns the scroll position; shared because both corrections need it.
-	 */
-	function reassertRevealAnchor(mutate: () => void): boolean {
-		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !deps.getPort()) return false;
-		mutate();
-		placeRevealTarget();
-		return true;
-	}
-
-	/**
-	 * Which block this correction holds still: the one at the top of the viewport by default,
-	 * the focused one when it sits at or below that. Clicking a construct that shows its source
-	 * (a math block, a paragraph with inline math) resizes that block and hides the source of
-	 * whichever showed it before; holding the top of the viewport, both slide the clicked block
-	 * out from under the pointer. Holding the focused block keeps its start where it is, so
-	 * only the content after it reflows.
-	 */
-	function anchorIndexFor(topIndex: number): number {
-		const pinned = pinnedIndex();
-		if (pinned === null || pinned < topIndex || pinned >= model.size) return topIndex;
-		return pinned;
-	}
-
-	// Hold one block's screen position across a height change that would otherwise slide the
-	// visible content (VR-2); the browser's `overflow-anchor` is off wherever this runs, so
-	// nothing else holds it. The delta comes from the height table, not `getBoundingClientRect`:
-	// writing to the table only marks `$state` dirty, so a DOM read here would see the layout
-	// from before the flush and a delta of about zero.
-	function correctAnchor(mutate: () => void): void {
-		if (skipWhileHostAnchors(mutate)) return;
-		if (reassertRevealAnchor(mutate)) return;
-		const port = deps.getPort();
-		const anchorIndex = anchorIndexFor(model.indexAtOffset(localScrollTop()));
-		const before = model.offsetOf(anchorIndex);
-		mutate();
-		const delta = model.offsetOf(anchorIndex) - before;
-		if (delta !== 0 && port) port.scrollBy(delta);
-	}
-
-	// The version of `correctAnchor` for a structural rebuild. A change in the child count
-	// shifts every index after it, so the index-based version would measure a different block at
-	// index N and correct by about one block's height too much (the VR-2 jump on an edit above
-	// the viewport). Find the block by its stable id instead, against the old ordering in
-	// `modelChildIds`; a held block that was deleted has nothing left to hold, so skip.
-	function correctAnchorByStableId(mutate: () => void): void {
-		if (skipWhileHostAnchors(mutate)) return;
-		if (reassertRevealAnchor(mutate)) return;
-		const port = deps.getPort();
-		const lst = localScrollTop();
-		const anchorIndex = model.indexAtOffset(lst);
-		const before = model.offsetOf(anchorIndex);
-		const anchorId = modelChildIds[anchorIndex];
-		mutate();
-		// At `lst === 0` the block at the top of the viewport belongs to a list above this one,
-		// so this list holds nothing: a nonzero delta could only come from the block moving within
-		// this list, and following it would shift the shared `scrollTop` for no reason. The
-		// index-based version needs no such check: `offsetOf` of the same index is 0 here anyway.
-		if (lst === 0) return;
-		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
-		if (newIndex === -1) return;
-		const delta = model.offsetOf(newIndex) - before;
-		if (delta !== 0 && port) port.scrollBy(delta);
-	}
-
-	let lastWidthVersion = deps.getWidthVersion();
-
-	// Rebuild on any structural change to the children or a change in editor width, never per
-	// keystroke. Depending on the sequence of ids rather than their count is required: a reorder
-	// that leaves the count unchanged would skip the rebuild. `untrack` stops the effect
-	// subscribing to every child's raw through the height estimator; the shift in offsets that
-	// follows is corrected by stable id.
-	$effect(() => {
+	// A derived, so new children window from their own table (VR-14); it tracks ids, not estimates,
+	// and the list element, so the first table, built before the element exists, is redone (VR-3).
+	let latestTable: BuiltTable | null = null;
+	const table = $derived.by(() => {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];
 		void deps.getPort();
+		void deps.getListEl();
 		const widthVersion = deps.getWidthVersion();
+		return untrack(() => {
+			const previous = latestTable;
+			if (previous !== null) deps.scroll.beginRound();
+			const keepsHeights =
+				previous !== null && previous.widthVersion === widthVersion && previous.atListWidth;
+			latestTable = buildTable(keepsHeights ? heightsById(previous) : null, widthVersion);
+			return latestTable;
+		});
+	});
+	let heightVersion = $state(0);
+	// Built now, so the tree has a table to count from before anything reads the window.
+	untrack(() => table);
+
+	// Width changes only: re-measuring on a structural edit costs a reflow.
+	let measuredWidth = untrack(() => table.widthVersion);
+	$effect(() => {
+		const next = table;
 		untrack(() => {
-			const widthChanged = widthVersion !== lastWidthVersion;
-			lastWidthVersion = widthVersion;
-			// One correction across one change of table: a delta taken between the new estimates and
-			// the re-measure compares measured-before against estimated-after, and lands a block off
-			// wherever the wrong table names a different top child (#188). Width only: re-measuring
-			// on a structural edit costs a reflow per split. Read off the old table, so the heights
-			// are taken before the rebuild replaces it.
-			const carried = widthChanged ? null : heightsById();
-			correctAnchorByStableId(() => {
-				model = buildModel(carried);
-				heightVersion++;
-				if (widthChanged) remeasureMounted();
-			});
+			if (next.widthVersion === measuredWidth) return;
+			measuredWidth = next.widthVersion;
+			remeasureMounted();
 		});
 	});
 
-	// Convert the scroll container's `scrollTop` into this list's own range.
 	function localScrollTop(): number {
 		const port = deps.getPort();
 		const listEl = deps.getListEl();
@@ -349,10 +205,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return Math.max(0, port.scrollTop() - listTopInPort(port, listEl));
 	}
 
-	// Each list windows against its own slice of the viewport: against the full container
-	// height, N stacked lists would each mount a viewport's worth of blocks. Falls back to the
-	// full height when the list is unmounted. Read only by the window `$derived`, which is why
-	// the height counter is read here and not in `revealTargetScrollTop`.
+	// Each list windows against its own slice of the viewport, or N stacked lists would each
+	// mount a viewport's worth of blocks. The full height stands in while the list is unmounted.
 	function scopeViewportHeight(): number {
 		void deps.getViewportHeightVersion();
 		const port = deps.getPort();
@@ -368,66 +222,35 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		);
 	}
 
-	// The block this list holds: the focus path's index at this list's depth, and only when
-	// the focus path runs through this list.
-	function pinnedIndex(): number | null {
-		const fp = deps.getFocusPath();
-		const pp = deps.getParentPath();
-		if (!fp || fp.length <= pp.length) return null;
-		for (let i = 0; i < pp.length; i++) if (fp[i] !== pp[i]) return null;
-		return fp[pp.length];
+	function focusedIndex(): number | null {
+		return focusedIndexIn(deps.getFocusPath(), deps.getParentPath());
 	}
 
 	const win: BlockWindow = createBlockWindow({
 		getModel: () => {
 			void heightVersion;
-			return model;
+			return table.model;
 		},
 		getPort: deps.getPort,
 		getLocalScrollTop: localScrollTop,
 		getViewportHeight: scopeViewportHeight,
-		getPinnedIndex: pinnedIndex,
+		getPinnedIndex: focusedIndex,
+		holdsRange: deps.scroll.roundOpen,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
 		deactivateBelowPx: deps.deactivateBelowPx
 	});
 
-	// The collapsed window, substituted in what this factory returns. While collapsed it does
-	// not read `win.result`, so the skipped math, and the hysteresis it tracks, never sees the
-	// clamp.
+	// While collapsed `win.result` goes unread, so the window math and its hysteresis never see
+	// the clamp.
 	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
 
-	// Children measuring in resize the spacers, so the box height the parent measured when this
-	// container mounted goes stale. The box height, not `model.total()`, so it matches what this
-	// container's own BlockHost measured; otherwise two writers fight over one entry. Checked
-	// against the box actually moving: without that, the rect read and the upward write chain
-	// through the lists inside the observer's own frame and raise its loop warning (#189).
-	let reportedSelfHeight = 0;
-	$effect(() => {
-		void heightVersion;
-		const el = deps.getOwnEl?.();
-		const report = deps.reportSelfHeight;
-		if (!el || !report) return;
-		// After the flush, like the batch: on this effect's first run the children aren't rendered.
-		let live = true;
-		void tick().then(() => {
-			if (!live) return;
-			const h = el.getBoundingClientRect().height;
-			if (h > 0 && Math.abs(h - reportedSelfHeight) >= 1) {
-				reportedSelfHeight = h;
-				report(h);
-			}
-		});
-		return () => {
-			live = false;
-		};
-	});
-
-	// The batch with no scroll correction: the caller owns that, because nesting a second
-	// correction inside an outer `mutate` counts the delta twice.
+	// A mount batch is a round even when nothing it measures moves, so a held placement is put back
+	// after whatever scrolled the blocks into mounting.
 	function drainMeasurements(): void {
 		if (pending.size === 0) return;
+		deps.scroll.beginRound();
 		const entries: MeasureEntry[] = [];
 		for (const id of pending) {
 			const child = registry.get(id);
@@ -444,69 +267,81 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		drainMeasurements();
 	}
 
-	function flushMeasurements(): void {
-		if (pending.size === 0) return;
-		// The batch writes entries above the viewport too, so the correction keeps the block at
-		// the top of the viewport fixed.
-		correctAnchor(drainMeasurements);
+	// The one write of a child's height into this table. An index that now holds another block
+	// keeps its height; the next build reads this id's measurement.
+	function applyMeasured(index: number, id: string, height: number): void {
+		deps.oracle.recordMeasured(id, height);
+		// A height the table already holds moves nothing, so a keystroke that doesn't re-wrap opens
+		// no round.
+		if (table.ids[index] !== id || table.model.heightOf(index) === height) return;
+		deps.scroll.beginRound();
+		table.model.setHeight(index, height);
+		heightVersion++;
 	}
 
-	// Read the height before `correctAnchor` so no DOM read follows the write to the height
-	// table. The write stops once the height stops changing (`recordMeasuredChild` then does
-	// nothing), so a redundant call cannot spin the reactive graph.
+	// Read before the write so no DOM read follows it; a repeated call writes nothing once the
+	// height is stable, so it cannot spin the reactive graph.
 	function measureOne(id: string): void {
 		const child = registry.get(id);
 		if (!child) return;
 		const h = child.readHeight();
-		if (h > 0) correctAnchor(() => child.applyHeight(h));
+		if (h > 0) child.applyHeight(h);
+	}
+
+	// A nested list's path reads its container's window, which a round opening inside the root
+	// table's build can't read again, so the tree reads the path as of the last flush.
+	let knownPath = untrack(deps.getParentPath);
+	$effect.pre(() => {
+		knownPath = deps.getParentPath();
+	});
+
+	const level: ListLevel = {
+		path: () => knownPath,
+		built: () => latestTable ?? table,
+		current: () => table,
+		contentTop: () => {
+			const port = deps.getPort();
+			const listEl = deps.getListEl();
+			return port && listEl ? listTopInPort(port, listEl) : null;
+		},
+		top: () => {
+			const port = deps.getPort();
+			const listEl = deps.getListEl();
+			if (!port || !listEl) return null;
+			if (knownPath.length === 0) return listTopInPort(port, listEl);
+			const box = listEl.closest(MEASURED_BOX);
+			return box ? listEl.getBoundingClientRect().top - box.getBoundingClientRect().top : null;
+		},
+		isInWindow
+	};
+
+	function isInWindow(index: number): boolean {
+		// The effective window: with windowing off, `win.result` covers every index, so a scroll
+		// into a collapsed body would wait on a mount that never comes (VR-5).
+		const { start, end } = effectiveWindow;
+		return index >= start && index < end;
 	}
 
 	return {
 		get window() {
 			return effectiveWindow;
 		},
-		// No scroll correction here; the page stays steady on the quality of the estimates plus
-		// the spacers.
-		recordMeasuredChild(index, id, height) {
-			deps.oracle.recordMeasured(id, height);
-			if (index < model.size && model.heightOf(index) !== height) {
-				model.setHeight(index, height);
-				heightVersion++;
-			}
-		},
-		// List items aren't BlockHosts and nothing else records their heights, so without this
-		// write a parent rebuild would fall back to estimates for them and the viewport jumps.
-		// Harmless to repeat for hosted children. `modelChildIds`, not the live list, for the same
-		// reason `recordMeasuredChild` takes its id from the caller: both write a table indexed by
-		// the snapshot.
-		setChildSubtotal(index, total) {
-			const id = modelChildIds[index];
-			if (id !== undefined) deps.oracle.recordMeasured(id, total);
-			if (index >= model.size || model.heightOf(index) === total) return;
-			const write = () => {
-				model.setHeight(index, total);
-				heightVersion++;
-			};
-			// No correction unless a scroll into view is in progress; that is the only exception, so
-			// every other write still cascades nothing. Without it, growth inside the target's own
-			// container pushes a target already placed down by its full height (#32).
-			if (!skipWhileHostAnchors(write) && !reassertRevealAnchor(write)) write();
-		},
+		level,
 		// Read after the flush that mounted the child, not inside it: content can land later in
-		// that flush (an inline widget's root flushes after this one), and reading an empty block
-		// is a scroll correction the observer undoes a frame later. Still before paint.
+		// that flush (an inline widget's root), and measuring an empty block costs a correction.
 		registerChild(id, child) {
 			const entry: RegisteredChild = {
 				readHeight: child.readHeight,
 				applyHeight: (h) => {
 					entry.applied = h;
-					child.applyHeight(h);
+					applyMeasured(child.index, id, h);
 				},
-				applied: undefined
+				applied: undefined,
+				index: child.index
 			};
 			registry.set(id, entry);
 			pending.add(id);
-			void tick().then(flushMeasurements);
+			deps.scroll.measureSoon(drainMeasurements);
 			return () => {
 				registry.delete(id);
 				pending.delete(id);
@@ -516,38 +351,31 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		measureChildNow(id) {
 			measureOne(id);
 		},
-		// The ResizeObserver path, for growth that arrives later. The check reads what this list
-		// last applied (O(1), no DOM), so the resize a mount fires for nothing on every block a
-		// fast scroll mounts returns without a rect read on the spacer-dirtied layout (VR-4).
+		// For growth that arrives later. The check reads the last applied height, not the DOM, so
+		// the no-op resize of each freshly mounted block skips a rect read (VR-4).
 		measureChildOnResize(id, observedHeight) {
 			if (shouldRemeasureOnResize(registry.get(id)?.applied, observedHeight)) measureOne(id);
 		},
-		revealHoldsScroll() {
-			const targetScrollTop = revealTargetScrollTop();
+		targetTopOf(index) {
 			const port = deps.getPort();
-			// Sub-pixel tolerance: the refinement loop lands a fraction of a device pixel off the
-			// position the height table gives, and an exact compare would let the delta back in.
-			return (
-				targetScrollTop !== null && !!port && Math.abs(port.scrollTop() - targetScrollTop) <= 1
-			);
+			const listEl = deps.getListEl();
+			if (index >= table.model.size || !port || !listEl) return null;
+			return {
+				top: listTopInPort(port, listEl) + table.model.offsetOf(index),
+				height: table.model.heightOf(index)
+			};
+		},
+		syncScrollTop() {
+			win.syncScrollTop();
 		},
 		async revealChild(index) {
 			// A body child of a collapsed list can never mount, so give up rather than wait.
 			if (index >= 1 && deps.isCollapsed?.()) return;
-			const port = deps.getPort();
-			const listEl = deps.getListEl();
-			if (!port || !listEl) return;
-			port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(index));
+			deps.scroll.scrollToMount([...deps.getParentPath(), index]);
 			win.syncScrollTop();
 			await tick();
 		},
-		isInWindow(index) {
-			// The effective window, always: while windowing is off the unclamped window answers true
-			// for every index, so scrolling into a collapsed body would wait on a mount that can
-			// never come (VR-5).
-			const { start, end } = effectiveWindow;
-			return index >= start && index < end;
-		},
+		isInWindow,
 		dispose() {
 			win.dispose();
 		}

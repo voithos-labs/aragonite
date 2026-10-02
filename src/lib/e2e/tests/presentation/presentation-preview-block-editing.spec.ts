@@ -61,7 +61,7 @@ test.describe('preview-block, editing stays live', () => {
 		await page.keyboard.press('End');
 		await expect(para).toBeVisible();
 
-		// Enter splits: a new empty block takes focus, the old block hides its markers.
+		// Enter splits: the new empty block takes focus and the one it split from hides its markers.
 		await page.keyboard.press('Enter');
 		await ep.waitForRenderFlush();
 		await expect(para).toBeHidden();
@@ -125,9 +125,8 @@ test.describe('preview-block: selection, search, mode flips', () => {
 	});
 
 	test('flipping the prop into preview-block marks the already-focused block', async ({ page }) => {
-		// The header toggles blur the editor, so they clear the mark through focusout rather than
-		// through the mode's own reconcile. A consumer setting the prop keeps focus, and this test
-		// drives that path directly.
+		// The header toggles blur the editor, clearing the mark through focusout; a consumer setting
+		// the prop keeps focus, and this test drives that path directly.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
 		await ep.clickBlock(1);
 		await expect(hostAt(page, [1])).not.toHaveAttribute('data-focused');

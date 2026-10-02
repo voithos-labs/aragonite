@@ -51,9 +51,8 @@ test.describe('clipboard exploration: unusual content', () => {
 		await hr.click();
 
 		await editor.paste();
-		// Pasting a thematic break either does nothing or creates a paragraph, and neither
-		// outcome has a condition to poll on. A small fixed wait lets the source read below
-		// see whichever one happened.
+		// Pasting a thematic break either does nothing or creates a paragraph, and neither has a
+		// condition to poll on, so a short fixed wait lets the read below see which happened.
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.bridge.getSource();

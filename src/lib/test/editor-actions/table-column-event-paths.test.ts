@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
-import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
-import type { SelectionPoint } from '$lib/selection/primitives';
+import { commitGridLineDelete } from '$lib/selection/range-delete-table-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeTableMutations } from './table-mutations-harness';
@@ -66,37 +65,24 @@ function makeColumnCoverageEnv() {
 	const controller = createUndoController(deps);
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
-	const ctx: CrossBlockMutationContext = {
-		selection: deps.selectionState,
-		getDoc: () => deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: deps.revealPath,
-		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
-	};
-	return { deps, table, ctx, edits };
+	const ctx = { selection: deps.selectionState, getDoc: () => deps.doc, controller };
+	return { deps, ctx, edits };
 }
 
 describe('coverage-driven column delete emits the table path with colIdx in the detail', () => {
 	it('a full-column selection targets the table, not the column index', async () => {
-		const { deps, table, ctx, edits } = makeColumnCoverageEnv();
-		const start: SelectionPoint = { path: [0, 0, 0], offset: 0 };
-		const end: SelectionPoint = { path: [0, 1, 0], offset: 2 };
-		deps.selectionState.enterCrossBlock(start, end);
-
-		const result = await maybeCommitTableCoverageDelete(
-			ctx,
-			table,
-			start,
-			end,
-			undefined,
-			undefined
+		const { deps, ctx, edits } = makeColumnCoverageEnv();
+		deps.selectionState.enterCrossBlock(
+			{ path: [0, 0, 0], offset: 0 },
+			{ path: [0, 1, 0], offset: 0 }
 		);
+		const { start, end } = deps.selectionState;
+		const { grid } = rangeCoverage(deps.doc, coverRange(deps.doc, start!, end!));
+		if (grid?.kind !== 'column') throw new Error(`expected a whole column, got ${grid?.kind}`);
 
-		expect(result).not.toBeNull();
+		const caret = await commitGridLineDelete(ctx, grid);
+
+		expect(caret).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');
 		expect(del).toBeDefined();
 		expect(del!.path).toEqual([0]);

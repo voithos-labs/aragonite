@@ -1,18 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
-import { __resetBlockCommandsForTests } from '$lib/schema/block-commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
+import { commandContext, commandContextWith } from '../support/command-context';
 import type { CstNode } from '$lib/core/nodes';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.
-const GATES = {
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-};
-
 const listItemNode = (): CstNode => ({
 	kind: 'listItem',
 	leadingTrivia: '',
@@ -22,7 +16,6 @@ const listItemNode = (): CstNode => ({
 
 describe('container-bubble dispatch over the block-command registry', () => {
 	afterEach(() => {
-		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
 	});
 
@@ -39,8 +32,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -60,14 +52,12 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const first = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 		const second = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(first).toBe(false);
@@ -80,7 +70,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const runCommand = vi.fn(() => true);
 
 		// The built-in listItem keymap binds Tab → list.indent.
-		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, GATES);
+		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, commandContext());
 
 		expect(handled).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined);
@@ -88,15 +78,17 @@ describe('container-bubble dispatch over the block-command registry', () => {
 
 	it('returns false without warning when no binding resolves', () => {
 		const runCommand = vi.fn(() => false);
-		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand }, GATES);
+		const handled = dispatchKindCommand(
+			'Mod+J',
+			{ kind: 'listItem', runCommand },
+			commandContext()
+		);
 		expect(handled).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// Miss-analysis: the bubble's override level had a test per scope but none per class of id it
-	// can resolve, so a global id resolving here fell into `runCommand`'s default branch and looked
-	// like an ordinary decline.
+	// Miss-analysis: the bubble's override tests varied scope, never id class, so no global id ran.
 	it('declines a global id an override resolved here, loudly: the bubble has no global level', () => {
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
 		const runCommand = vi.fn(() => false);
@@ -104,8 +96,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+J',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(false);

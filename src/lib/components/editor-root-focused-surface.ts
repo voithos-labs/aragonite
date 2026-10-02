@@ -7,6 +7,7 @@
 
 import type { BlockComponent } from '../block-component';
 import type { DocumentGetter } from '../editor-keys';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { KindCommandTarget } from '../schema/block-commands';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
@@ -18,16 +19,23 @@ export interface FocusedSurfaceDeps {
 	selection: Pick<SelectionState, 'gapCaret'>;
 	getDoc: DocumentGetter;
 	getBlockComponent(path: number[]): BlockComponent | null;
+	isReading(): boolean;
+	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
+	insertParagraph(boundary: number, text: string): Promise<boolean>;
+	/** One undo entry for the paragraph `below` makes and the paste into it. */
+	undoStep(path: number[], offset: number, run: () => Promise<unknown>): Promise<void>;
+	/** The counter every byte write bumps (`reactivity/content-version.svelte.ts`). */
+	contentVersion(): number;
 }
 
 export interface FocusedSurface {
 	path(): number[] | null;
-	/** Null for a gap caret's stand-in element or a block that runs no commands; global commands
-	 *  still reach the dispatch, exactly as the gap caret's own chord handling does. */
+	/** Null for a gap caret's stand-in element; global commands still reach the dispatch,
+	 *  exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
-	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
-	 *  all live in the block. */
-	insertMarkdown(md: string): boolean;
+	/** Routed like a paste event, so the rules live in the block; `below` pastes into a new
+	 *  paragraph after the top-level block. Resolves once the insert has landed. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 }
 
 export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
@@ -38,6 +46,25 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 		return findSurfacePathForElement(active);
 	}
 
+	// True only when bytes moved: a block answers for the paste it handled, and a write the
+	// commit then refused (a switch to reading mid-insert) moves none.
+	async function insertAtFocus(md: string): Promise<boolean> {
+		const at = path();
+		if (!at) return false;
+		const before = deps.contentVersion();
+		const handled = (await deps.getBlockComponent(at)?.insertMarkdown?.(md)) ?? false;
+		return handled && deps.contentVersion() !== before;
+	}
+
+	async function insertBelow(topIndex: number, md: string): Promise<boolean> {
+		let inserted = false;
+		await deps.undoStep([topIndex], 0, async () => {
+			await deps.insertParagraph(topIndex + 1, '');
+			inserted = await insertAtFocus(md);
+		});
+		return inserted;
+	}
+
 	return {
 		path,
 		commandTarget() {
@@ -45,19 +72,23 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			if (!at) return null;
 			const component = deps.getBlockComponent(at);
 			const node = blockNodeAt(deps.getDoc(), at);
-			if (!component?.runCommand || !node) return null;
+			if (!component || !node) return null;
+			const { runCommand, isCommandActive, afterSourceCommit } = component;
 			return {
 				kind: node.kind,
-				runCommand: (id, arg) => component.runCommand!(id, arg),
-				isCommandActive: component.isCommandActive
-					? (id) => component.isCommandActive!(id)
-					: undefined
+				runCommand: runCommand && ((id, arg) => runCommand.call(component, id, arg)),
+				isCommandActive: isCommandActive && ((id) => isCommandActive.call(component, id)),
+				getPath: () => at,
+				afterSourceCommit: afterSourceCommit && ((run) => afterSourceCommit.call(component, run))
 			};
 		},
-		insertMarkdown(md) {
+		insertMarkdown(md, options) {
+			if (options?.placement !== 'below') return insertAtFocus(md);
 			const at = path();
-			if (!at) return false;
-			return deps.getBlockComponent(at)?.insertMarkdown?.(md) ?? false;
+			if (!at || deps.isReading() || !deps.getBlockComponent(at)?.insertMarkdown) {
+				return Promise.resolve(false);
+			}
+			return insertBelow(at[0], md);
 		}
 	};
 }

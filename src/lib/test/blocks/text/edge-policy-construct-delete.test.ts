@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's destructive branch at an inline construct. A mode that draws no marker
-// puts delimiter bytes beside the caret that no user can aim at, so the key is intercepted and the
-// content character goes instead, along with any pair the cut empties, in the same commit.
-// Miss-analysis: the pure rewrite can be exercised anywhere, but nothing pinned which keys the
-// dispatch hands it, and the mode check is the whole difference between live and the other modes.
+// The caret-edge dispatch's destructive branch at an inline construct. Where no marker is drawn,
+// the key takes the content character instead, and any pair the cut empties, in one commit.
+// Miss-analysis: the pure rewrite had tests, but none pinned which keys and modes reach it.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -54,9 +51,8 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// No safe rewrite exists for `**a **` (a closing run after a space is not right-flanking), and
-	// the browser's version of that key destroys both constructs and shows the stars. This branch
-	// takes the key and writes nothing, the same shape as the hidden-suffix check.
+	// No rewrite of `**a **` parses back, and the browser's own delete wrecks both constructs and
+	// shows the stars, so the destructive branch takes the key and writes nothing.
 	it('takes the press and writes nothing where no rewrite parses back', () => {
 		const h = mount('**a *b*** z\n', 'live');
 		const e = key('Backspace');

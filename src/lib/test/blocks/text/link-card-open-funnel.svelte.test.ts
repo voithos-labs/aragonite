@@ -4,10 +4,8 @@ import { mount, unmount, flushSync } from 'svelte';
 import LinkCard from '$lib/components/link-card/LinkCard.svelte';
 import { resolveHref } from '$lib/core/inline-render';
 
-// The card's Open button calls the consumer's `onLinkActivate`, with the URL the user just typed
-// rather than a rendered node's. Every path into that hook goes through the render's own filter
-// (a consumer rewrite, then the scheme allowlist), and this one shares that filter rather than
-// copying it, so both give the same answer.
+// The card's Open button hands the consumer's `onLinkActivate` the typed URL through the render's
+// own filter (a consumer rewrite, then the scheme allowlist), so a click and Open give one answer.
 
 function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => u) {
 	const onOpenLink = vi.fn();
@@ -22,6 +20,7 @@ function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => 
 			onCommit: vi.fn(),
 			onOpenLink,
 			onRemove: vi.fn(),
+			opensCard: () => false,
 			resolveHref: (raw: string) => resolveHref({ resolveLinkUrl }, raw)
 		}
 	});
@@ -74,8 +73,7 @@ describe('the link card’s Open button rides the render path’s one URL check'
 		void destroy();
 	});
 
-	// Miss-analysis: every case here carried a non-empty draft, and nothing covered the empty
-	// field, whose '' resolves as a relative URL and left Open enabled on a link with nowhere to go.
+	// Miss-analysis: every case carried a non-empty draft, and '' resolves as a relative URL.
 	it('an empty draft disables Open', () => {
 		const { button, destroy } = openCard('');
 		expect(button.disabled).toBe(true);

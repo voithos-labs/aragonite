@@ -1,13 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '$lib/core/nodes';
 import { parseInline } from '$lib/core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 // The label-less `{…}` form isolates the probe: `{`, `}`, `=` are not SPECIAL chars, so
 // only the trigger can force a scan. A `[label]` form would trip needsScan on the `[`.
@@ -37,7 +34,7 @@ describe('needsScan probes a registered ":" trigger', () => {
 });
 
 // `w`/`W` are the `PROBE_WWW` branch, sibling to `:` above: the registry probe must run in
-// both conditional-probe branches (sibling-path parity).
+// both conditional-probe branches.
 describe('needsScan probes a registered "w" trigger', () => {
 	it('empty registry: "wx" stays one byte-identical text node', () => {
 		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);
@@ -58,8 +55,8 @@ describe('needsScan probes a registered "w" trigger', () => {
 	});
 });
 
-// `!` is reserved yet held out of SPECIAL_CHARS, so its prefix handlers need the same probe.
-// `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
+// `!` is reserved, yet the fast bail skips it by default, so a prefix handler on it needs a
+// check of its own: `!{k=v}` carries no `[` to stop the fast bail.
 describe('needsScan probes a registered "!" prefix inline syntax handler', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {
 		expect(parseInline('!{k=v}', 0, 6)).toEqual([

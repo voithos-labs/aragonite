@@ -8,7 +8,7 @@ Some body markdown.
 :::
 ```
 
-Claim the `note` name and you get a real block kind for it: your own component, keymap, commands, the works. A name nobody claimed still parses, renders as a plain labelled box, and saves back byte for byte (i.e. a document written with your plugin survives being opened without it).
+Claim the `note` name and you get a real block kind for it: your own component, keymap, commands, the works. A name nobody claimed, or claimed by a plugin this editor's `plugins` prop leaves out, still parses, renders as a plain labelled box, and saves back byte for byte (i.e. a document written with your plugin survives being opened without it).
 
 ---
 
@@ -23,7 +23,7 @@ This page assumes you have read the [plugin guide](plugin-guide.md). Directives 
 
 ## One opener for everyone
 
-There is exactly one opener (opener /ˈōp(ə)nər/: the part of the aragonite parser that recognizes the syntax a block starts with. Each block kind usually brings its own; a paragraph is what you get when none of them match.) for `:::`, `::` and `:`, and it dispatches on the name. Your plugin never registers an opener of its own.
+There is exactly one opener (opener /ˈōp(ə)nər/: the part of the aragonite parser that recognizes the syntax a block starts with. Each block kind usually brings its own; a paragraph is what you get when none of them match.) for `:::` and `::`, plus one inline recognizer for `:`, and both dispatch on the name. Your plugin never registers an opener of its own.
 
 The reason is the way this feature usually gets built wrong: if every plugin registered its own `:::` opener, the first one to register would greedily claim every `:::whatever` fence, and no second plugin could ever own its own name. One shared opener, a registry lookup by name, done.
 
@@ -62,7 +62,7 @@ inner body
 
 <details>
 <summary>Pasting BS into the Container</summary>
-Don't worry, we've got A-Hole protection. Pasting a ::: into a container won't ruin things - the editor lengthens the note's fence so the paste doesn't close it; delete the line again and the fence shrinks back.
+Don't worry, we've got A-Hole protection. Pasting a ::: into a container won't ruin things - the editor lengthens the note's fence so the paste doesn't close it.
 
 So,
 
@@ -81,7 +81,7 @@ Some text.
 ::::
 ```
 
-so to speak. One thing: the widened fence is what gets saved, so after a reload the container simply is a `::::` container and stays one; the shrink-back only happens while it's live in the editor.
+so to speak. One thing: delete the line again and the fence stays at `::::`. That's what a reload of the saved file gives you anyway, and we'd rather the live editor never show you something a reload wouldn't.
 </details>
 
 ---
@@ -108,7 +108,7 @@ registerDirective('container', 'note', {
 			raw: parsed.raw,
 			innerPrefix: parsed.body?.prefix ?? '',
 			// the title rides as child 0 (a chrome leaf; see the plugin guide)
-			children: [chromeChild(NOTE_TITLE, parsed.fence.info.trim()), ...(parsed.body?.children ?? [])],
+			children: [chromeChild(NOTE_TITLE, trimWhitespace(parsed.fence.info)), ...(parsed.body?.children ?? [])],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata(node, {
@@ -148,7 +148,7 @@ p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest 
 
 ## The info string and attributes
 
-Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it before you show it.
+Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it with `trimWhitespace` (from `@voithos-labs/aragonite/plugin`) before you show it (plain `trim()` would also eat a non-breaking space someone typed on purpose).
 
 If you want the remark-style `[label]{#id .class key=value}` convention, `parseDirectiveAttributes(info)` reads it into `{ label, id, classes, properties }`. It is opt-in and pure: a directive whose "info" is just a title (`:::note My Title`) never calls it.
 
@@ -164,7 +164,7 @@ One limitation though: the helper goes one way, info to structure, not the inver
 
 ## Switching it on
 
-Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the `:::` and `::` block openers, and the inline `:` recognizer).
+Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the block opener for `:::` and `::`, and the inline `:` recognizer).
 
 Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other.
 

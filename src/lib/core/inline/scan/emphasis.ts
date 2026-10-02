@@ -8,6 +8,7 @@
 import type { InlineNode } from '../../nodes';
 import { assertInvariant } from '../../../assert';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
+import { isHighSurrogate, isLowSurrogate } from '../../lines';
 
 // ── Flanking classification (§6.2 phase 1) ──────────────────────────────────
 
@@ -34,10 +35,8 @@ function isWhitespace(ch: string): boolean {
 // Flanking neighbors are read as full code points: a UTF-16 unit read would classify an
 // astral neighbor as a lone surrogate, while the spec defines the classes over code points.
 function codePointBefore(raw: string, pos: number): string {
-	const unit = raw.charCodeAt(pos - 1);
-	if (unit >= 0xdc00 && unit <= 0xdfff && pos >= 2) {
-		const high = raw.charCodeAt(pos - 2);
-		if (high >= 0xd800 && high <= 0xdbff) return raw.slice(pos - 2, pos);
+	if (pos >= 2 && isLowSurrogate(raw.charCodeAt(pos - 1))) {
+		if (isHighSurrogate(raw.charCodeAt(pos - 2))) return raw.slice(pos - 2, pos);
 	}
 	return raw[pos - 1];
 }
@@ -112,7 +111,7 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 	const win = openNodeWindow(ctx, delimiters[floor].node);
 	const slotOf = mapDelimiterSlots(win, delimiters, floor, top);
 	if (slotOf === null) {
-		// Warn rather than throw: the state is unreachable today, and a false positive must not
+		// Warn rather than throw: the state should be unreachable, and a false positive must not
 		// take a real editor's block to the fallback. The runs left behind stay literal text.
 		assertInvariant('emphasis-run-node-live', () => ({
 			code: 'emphasis-run-node-missing',
@@ -196,7 +195,7 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 
 const CHAR_BUCKET: Record<Delimiter['char'], number> = { '*': 0, _: 6, '~': 12 };
 
-/** §6.2 multiple-of-3 rule, on ORIGINAL run lengths (commonmark.js `origdelims`). */
+/** §6.2 multiple-of-3 rule, on the original run lengths (commonmark.js `origdelims`). */
 function isOddMatch(opener: Delimiter, closer: Delimiter): boolean {
 	return (
 		(closer.canOpen || opener.canClose) &&
@@ -206,7 +205,7 @@ function isOddMatch(opener: Delimiter, closer: Delimiter): boolean {
 }
 
 /**
- * cmark-gfm pairs strikethrough runs only at equal length. A gate of its own: the multiple-of-3
+ * cmark-gfm pairs strikethrough runs only at equal length. A check of its own: the multiple-of-3
  * rule misses the flanking-pure `~a~~` / `~~a~` shapes, and `*`/`_` carry no such rule.
  */
 function tildeLengthsAgree(opener: Delimiter, closer: Delimiter): boolean {
@@ -257,11 +256,8 @@ function wrapMatch(
 
 const NONE = -1;
 
-/**
- * Doubly-linked view over the working nodes one pass owns, held beside them rather than on them
- * (an InlineNode is output, not scratch). The array it replaces made an all-pairs paragraph
- * quadratic. Link order, not array order, is node order.
- */
+/** Held beside the working nodes rather than on them, since an InlineNode is output, not scratch;
+ *  linking keeps an all-pairs paragraph linear. Link order, not array order, is node order. */
 interface NodeWindow {
 	slot: InlineNode[];
 	prev: number[];
@@ -314,11 +310,8 @@ function insertNodeAfter(win: NodeWindow, at: number, node: InlineNode): void {
 	if (after !== NONE) win.prev[after] = i;
 }
 
-/**
- * Delimiters and their run nodes are both in scan order, so one merge walk places them all.
- * Null when a run node is missing: the pass's precondition broke upstream, and the caller must
- * drop the pass rather than walk off a linked list that has no end.
- */
+/** Delimiters and their run nodes share scan order, so one merge walk places them all. Null when
+ *  a run node is missing: the caller must drop the pass rather than walk a list with no end. */
 function mapDelimiterSlots(
 	win: NodeWindow,
 	delimiters: Delimiter[],

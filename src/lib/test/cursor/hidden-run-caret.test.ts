@@ -1,22 +1,19 @@
 // @vitest-environment jsdom
-//
-// The caret cannot enter a run of hidden markers: a mode that hides markers and shows none of
-// them back leaves `display:none` text in the traversal, which reads have to move out of and
-// writes must never put a range inside.
-// Miss-analysis: every existing offset suite builds a bare container with no
-// `data-presentation` root, so no test could see a run hidden by the mode at all, and the
-// traversal was only ever exercised in the shape source mode produces.
+// The caret cannot enter a run of hidden markers: a mode that hides markers leaves `display:none`
+// text in the traversal, which reads have to move out of and writes must never put a range inside.
+// Miss-analysis: every offset suite built bare containers with no `data-presentation` root.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
 	domTextOffsetAtNode,
+	findDomTextLanding,
 	findDomTextOffsetTarget,
-	isHiddenMarkerText
+	isHiddenMarkerText,
+	placeCaretAtRaw
 } from '../../cursor/widget-offset';
-import { restoreCaretAtWalkOffset } from '../../cursor/focused-caret';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
+import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
 import { caretIsInTextContent } from '../../components/blocks/text/click-snap-guard';
 
@@ -142,9 +139,8 @@ describe('isHiddenMarkerText: the marker-hiding CSS families, read structurally'
 	});
 
 	it('answers true for an unstamped ref label in a focused preview-inline host', () => {
-		// The stylesheet's rule for a marker with no attribute is limited to `.md-marker`; a
-		// reference label shows only by class. Reachable: a table cell renders inline with no
-		// construct attributes in any mode, so its `[ref]` label has none and is still display:none.
+		// The stylesheet's no-attribute rule covers only `.md-marker`, so a reference label shows
+		// by class alone: a table cell's `[ref]` label has no construct attribute and stays hidden.
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		const label = appendSpan(fx.block, 'md-ref-label', '[ref]');
 		expect(isHiddenMarkerText(label.firstChild!, fx.block)).toBe(true);
@@ -184,9 +180,7 @@ describe('domTextOffsetAtNode: a hidden run has no interior walk positions', () 
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
 	});
 
-	// Miss-analysis (GH #126): every fixture for joining runs used adjacent spans, so the empty
-	// text node Chromium leaves between spans, which contributes nothing but is still a boundary,
-	// was never in a traversal any test watched, and it split the run in two.
+	// Miss-analysis: GH #126; joining fixtures used adjacent spans, never an empty text node.
 	describe('a zero-length text node between hidden spans does not split the run', () => {
 		function mountWithEmptyBetween() {
 			const fx = mount({ mode: 'live', blockPrefix: '## ' });
@@ -208,12 +202,8 @@ describe('domTextOffsetAtNode: a hidden run has no interior walk positions', () 
 	});
 });
 
-// The check lives where all of these place the caret, not as a snap repeated at each call.
-// `[ab](u) text` as the link renders it, both runs inside the link element. A target at the
-// closer's end is the prose's first position, not the slot after the hidden span: Chromium
-// moves that slot back across the run, so a byte typed there landed inside the link.
-// Miss-analysis: every row targeted the inside or the start of a run; none asked where a
-// commit placing the caret past a hidden closer puts the DOM caret.
+// Chromium moves the slot after a hidden closer back across the run, so aim at the next text.
+// Miss-analysis: every row targeted a run's inside or start, never the position past its closer.
 describe('a target past a hidden closer lands in the text that follows', () => {
 	it('prefers the following text node over the slot after the hidden span', () => {
 		const fx = mount({ mode: 'live' });
@@ -244,14 +234,14 @@ function describePosition(pos: { node: Node; offset: number } | null): string {
 }
 
 describe('caret writes never caret position a range in hidden marker text', () => {
-	function cursorIO(block: HTMLElement, ambientLength = 0) {
-		return createAmbientCursorIO({ getEl: () => block, getAmbientLength: () => ambientLength });
+	function cursorIO(block: HTMLElement) {
+		return createSurfaceBackend({ getEl: () => block });
 	}
 
 	it('setRaw lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
 		fx.block.focus();
-		cursorIO(fx.block).setRaw(asRawOffset(1));
+		cursorIO(fx.block).setRaw(asRawOffset(1), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
@@ -259,7 +249,7 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		const fx = mount({ mode: 'live' });
 		fx.block.focus();
 		const io = cursorIO(fx.block);
-		io.setRaw(asRawOffset(0));
+		io.setRaw(asRawOffset(0), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.block, offset: 0 });
 		expect(io.getRaw()).toBe(0);
 	});
@@ -268,8 +258,8 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		// `- **bold**`: the first text node after the marker prefix is the hidden `**`.
 		const fx = mount({ mode: 'live', ambient: '- ' });
 		fx.block.focus();
-		const io = cursorIO(fx.block, 2);
-		io.setRaw(asRawOffset(0));
+		const io = cursorIO(fx.block);
+		io.setRaw(asRawOffset(0), { clamp: 'exact' });
 		expect(isHiddenMarkerText(caretPosition().node, fx.block)).toBe(false);
 		expect(io.getRaw()).toBe(0);
 	});
@@ -280,16 +270,16 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
-	it('restoreCaretAtWalkOffset lands in visible content for a run-interior offset', () => {
+	it('placeCaretAtRaw lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
-		restoreCaretAtWalkOffset(fx.block, asDomTextOffset(1));
+		placeCaretAtRaw(fx.block, 1, { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
 	it('puts the caret carets in marker text in source mode, where markers are visible', () => {
 		const fx = mount();
 		fx.block.focus();
-		cursorIO(fx.block).setRaw(asRawOffset(1));
+		cursorIO(fx.block).setRaw(asRawOffset(1), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.openMarker, offset: 1 });
 	});
 });
@@ -317,4 +307,22 @@ describe('the caret-in-text guards agree that hidden text holds no caret', () =>
 		expect(findFirstTextNode(fx.block)).toBe(fx.openMarker);
 		expect(findLastTextNode(fx.block)).toBe(fx.closeMarker);
 	});
+});
+
+// The sticky-column scan reads a landing in visible text as its own target without walking back.
+describe('a landing in visible text reads back as its own target', () => {
+	for (const mode of ['source', 'live', 'preview-inline']) {
+		it(`in ${mode} mode, behind a list marker`, () => {
+			const fx = mount({ mode, focused: true, blockPrefix: '- ' });
+			let inText = 0;
+			for (let target = 0; target <= 10; target++) {
+				const landing = findDomTextLanding(fx.block, asDomTextOffset(target));
+				if (!landing?.inTextAtTarget) continue;
+				inText++;
+				const { node, offset } = landing.position;
+				expect(domTextOffsetAtNode(fx.block, node, offset)).toBe(target);
+			}
+			expect(inText).toBeGreaterThan(0);
+		});
+	}
 });

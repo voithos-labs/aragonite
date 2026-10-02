@@ -1,9 +1,8 @@
 /**
- * Which editor a document-level chord goes to when no block has focus. The keydown listener
- * sees every editor's keystrokes on the page, so it goes to the last editor the user touched
- * while that one is still mounted, otherwise to the only mounted editor. Two mounted editors
- * and no recent one resolve to neither, since guessing drives the wrong instance.
- * Module-level on purpose: coordinating across instances is the point.
+ * Which editor a document-level chord goes to when no block has focus: the last editor the user
+ * touched while it is still mounted, otherwise the only mounted editor. Two mounted editors and
+ * no recent one resolve to neither, since guessing drives the wrong instance. Module-level on
+ * purpose: coordinating across instances is the point.
  */
 const mountedEditors = new Set<HTMLElement>();
 let lastInteracted: HTMLElement | null = null;

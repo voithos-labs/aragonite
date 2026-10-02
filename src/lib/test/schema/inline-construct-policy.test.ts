@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import {
-	declarePluginInlineKind,
-	__clearDeclaredPluginInlineKindsForTests
-} from '$lib/schema/plugin-kind';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
@@ -16,7 +13,6 @@ import {
 	listInlineMarks,
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
-	__resetInlineConstructPoliciesForTests,
 	__resetLiveSplitRebalancerForTests,
 	type InlineConstructPolicy,
 	type InlineMarkPolicy,
@@ -40,11 +36,9 @@ const atomic: InlineConstructPolicy = {
 const rebalancer = (): LiveSplitRebalancer => () => null;
 
 afterEach(() => {
-	__resetInlineConstructPoliciesForTests();
 	// A separate reset: clearing the rows deliberately leaves this function registered, so only
 	// this suite, which tests that function, clears it between cases.
 	__resetLiveSplitRebalancerForTests();
-	__clearDeclaredPluginInlineKindsForTests();
 });
 
 describe('built-in rows', () => {
@@ -103,7 +97,8 @@ describe('built-in rows', () => {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
-			cardEditable: true
+			cardEditable: true,
+			prose: 'content'
 		});
 	});
 
@@ -112,7 +107,8 @@ describe('built-in rows', () => {
 			edgeAffinity: 'never-extend',
 			autoUnwrapOnEmpty: false,
 			splitBehavior: 'plain',
-			revealable: true
+			revealable: true,
+			prose: 'none'
 		});
 	});
 
@@ -139,9 +135,8 @@ describe('revealable membership', () => {
 		]);
 	});
 
-	// The autolink has a row but is not revealable: its brackets hide with the block rather than
-	// according to where the caret is (a revealable row would hide them for good), and the row is
-	// what the typing code reads to keep a character from landing between them.
+	// The autolink's brackets hide with the block, not by caret position, so its row is not
+	// `revealable`; the typing code still reads the row to keep characters out from between them.
 	it('excludes autolink, which is rowed but not revealable', () => {
 		expect(getInlineConstructPolicy('autolink')?.edgeAffinity).toBe('never-extend');
 		expect(isRevealableInlineKind('autolink')).toBe(false);
@@ -162,9 +157,7 @@ describe('registration lifecycle', () => {
 		expect(() => registerInlineConstructPolicy(kind, atomic)).toThrow(/already registered/i);
 	});
 
-	// Miss-analysis: the combined reset's own test lists the published register-once registries,
-	// and this one is not on the plugin barrel yet, so no case pointed the schema reset at it,
-	// leaving a suite that registers a row unable to re-run its setup.
+	// Miss-analysis: the reset's own test lists only plugin-barrel registries, and this is off it.
 	it('drops its plugin rows through the schema registry reset', () => {
 		const kind = declarePluginInlineKind('policy-schema-reset');
 		registerInlineConstructPolicy(kind, atomic);
@@ -184,8 +177,8 @@ describe('registration lifecycle', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
-	// Registration refuses the row rather than accepting one G1.31 would only warn about. The dev
-	// server forgives a duplicate, never an invalid row: a re-run would submit the same one.
+	// Registration refuses an invalid row rather than leaving it to the mount warning (G1.31). The
+	// dev server forgives a duplicate, never an invalid row: a re-run would submit the same one.
 	const claimsCard = (name: string) => () =>
 		registerInlineConstructPolicy(declarePluginInlineKind(name), {
 			...atomic,
@@ -230,12 +223,11 @@ describe('live split rebalancer slot', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
-	// Miss-analysis: a reset that clears this function silently disables live splits, since
-	// `registerBuiltInBlocks` returns early on its already-registered flag and nothing re-adds it.
+	// Miss-analysis: no test reset and then read this function, which nothing re-adds once cleared.
 	it('survives the plugin-row reset, being a built-in registration', () => {
 		const fn = rebalancer();
 		registerLiveSplitRebalancer(fn);
-		__resetInlineConstructPoliciesForTests();
+		__resetSchemaRegistriesForTests();
 		expect(getLiveSplitRebalancer()).toBe(fn);
 	});
 });
@@ -272,9 +264,8 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')).toEqual([]);
 	});
 
-	// The checks standing in for an exhaustive union of marks: two rows with the same rank leave
-	// which mark wraps the other up to registration order, and two with the same command make one
-	// keypress two toggles. Registration accepts both; a mark on a built-in id it refuses outright.
+	// The mount check stands in for an exhaustive union of marks: a tied rank leaves nesting to
+	// registration order, and a shared command makes one keypress two toggles.
 	const markRow = (mark: InlineMarkPolicy): InlineConstructPolicy => ({
 		...atomic,
 		revealable: true,
@@ -296,8 +287,8 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty('nestingRank');
 	});
 
-	// One plugin's two kinds pointing at the same id it created: the collision still possible now
-	// that a built-in id cannot be taken at all.
+	// One plugin's two kinds pointing at the same id it created: registration refuses a built-in
+	// id outright, so this is the collision left to check.
 	it('fires when two plugin rows claim one command', () => {
 		for (const [name, nestingRank] of [
 			['mark-tie-first', 98],

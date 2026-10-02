@@ -1,26 +1,27 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { setPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { reclassifyContainer } from '$lib/tree-operations';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
-import { createGrammarView } from '$lib/schema/block-openers';
+import { createGrammarView, defaultGrammarView } from '$lib/schema/block-openers';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // The pure half of the container kind-change path: a container whose rebuilt raw opens
 // as a different kind is replaced in its parent's children. Eligibility is the opener
 // registry, since a kind with no standalone recognizer reparses to something else. The
 // editor-driven half is test/plugins/admonitions/github-alert-typed-formation.test.ts.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
 /** Write `raw` into the container's first leaf and rebuild, as an inner edit does. */
 function editFirstLeaf(container: CstNode, raw: string): void {
 	container.children![0].raw = raw;
-	rebuildContainerRaw(container);
+	rebuildContainerRaw(container, fixtureGrammar);
 }
 
 describe('reclassifyContainer', () => {
@@ -28,11 +29,11 @@ describe('reclassifyContainer', () => {
 		const doc: Document = parse('> [!TI\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');
 
-		const replacement = reclassifyContainer(doc, 0);
+		const replacement = reclassifyContainer(doc, 0, defaultGrammarView);
 
 		expect(replacement?.kind).toBe('githubAlert');
 		expect(doc.children[0]).toBe(replacement);
-		expect(checkStaleRaw(doc.children[0])).toBeNull();
+		expect(checkStaleRaw(doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	it('carries the slot leading blank lines onto the replacement', () => {
@@ -42,17 +43,17 @@ describe('reclassifyContainer', () => {
 		expect(trivia).not.toBe('');
 		editFirstLeaf(doc.children[quoteIndex], '[!TIP]\n');
 
-		expect(reclassifyContainer(doc, quoteIndex)?.leadingTrivia).toBe(trivia);
+		expect(reclassifyContainer(doc, quoteIndex, defaultGrammarView)?.leadingTrivia).toBe(trivia);
 	});
 
 	// The mirror direction, reachable only by a metadata write: the pass must not be one-way.
 	it('demotes an alert whose rebuilt marker no longer names an alert type', () => {
 		const doc: Document = parse('> [!TIP]\n> body\n');
 		setPluginMetadata(doc.children[0], { alertType: 'NOPE' });
-		rebuildContainerRaw(doc.children[0]);
+		rebuildContainerRaw(doc.children[0], fixtureGrammar);
 		expect(doc.children[0].raw).toBe('> [!NOPE]\n> body\n');
 
-		expect(reclassifyContainer(doc, 0)?.kind).toBe('blockquote');
+		expect(reclassifyContainer(doc, 0, defaultGrammarView)?.kind).toBe('blockquote');
 	});
 
 	it('leaves a container whose kind is unchanged in place', () => {
@@ -60,7 +61,7 @@ describe('reclassifyContainer', () => {
 		const before = doc.children[0];
 		editFirstLeaf(before, 'edited\n');
 
-		expect(reclassifyContainer(doc, 0)).toBeNull();
+		expect(reclassifyContainer(doc, 0, defaultGrammarView)).toBeNull();
 		expect(doc.children[0]).toBe(before);
 	});
 
@@ -75,9 +76,9 @@ describe('reclassifyContainer', () => {
 		const child = container.children[0];
 		expect(child.kind).toBe(kind);
 		child.children![0].raw = leafRaw;
-		rebuildContainerRaw(child);
+		rebuildContainerRaw(child, fixtureGrammar);
 
-		expect(reclassifyContainer(container, 0)).toBeNull();
+		expect(reclassifyContainer(container, 0, defaultGrammarView)).toBeNull();
 		expect(container.children[0].kind).toBe(kind);
 	});
 
@@ -85,7 +86,7 @@ describe('reclassifyContainer', () => {
 		const doc: Document = parse('plain\n');
 		doc.children[0].raw = '# heading\n';
 
-		expect(reclassifyContainer(doc, 0)).toBeNull();
+		expect(reclassifyContainer(doc, 0, defaultGrammarView)).toBeNull();
 	});
 
 	it('resolves through the instance grammar, not the global registry', () => {
@@ -103,7 +104,7 @@ describe('reclassifyContainer', () => {
 		const doc: Document = parse('> [!TI\n>\n> a\n>\n> b\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');
 
-		const alert = reclassifyContainer(doc, 0);
+		const alert = reclassifyContainer(doc, 0, defaultGrammarView);
 
 		expect(alert?.children).toHaveLength(2);
 		expect(alert?.childIds).toHaveLength(2);
@@ -116,10 +117,10 @@ describe('reclassifyContainer', () => {
 		const doc: Document = parse('> [!TI\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');
 
-		const alert = reclassifyContainer(doc, 0);
+		const alert = reclassifyContainer(doc, 0, defaultGrammarView);
 
 		expect(alert?.children).toHaveLength(1);
 		expect(alert?.raw).toBe('> [!TIP]\n>\n');
-		expect(checkStaleRaw(alert!)).toBeNull();
+		expect(checkStaleRaw(alert!, defaultGrammarView)).toBeNull();
 	});
 });

@@ -1,8 +1,7 @@
 /**
- * G4.50: the cross-block sets are maintained by hand, so a new block command answers the range
- * question in exactly one of three ways: declined outright, routed to the cross-block branch, or
- * recorded as range-safe with the reason. An id in no table fails here the day it is written,
- * rather than at the review that finds the command and the chord path disagreeing over a range.
+ * The cross-block sets are maintained by hand, so a new block command answers the range question
+ * in exactly one of three ways (G4.50): declined outright, routed to the cross-block branch, or
+ * recorded as range-safe with the reason. An id in no table fails here the day it is written.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -34,6 +33,7 @@ const RANGE_SAFE: Record<string, string> = {
 	'code.delete': 'fence-body edit at the caret inside one code block',
 	'list.indent': 'structural: re-parents a list item',
 	'list.unindent': 'structural: re-parents a list item',
+	'list.toggleTask': 'rewrites the focused item’s task marker, never the range',
 	'cell.enter': 'grid navigation, or a row insert; spends no cell offsets',
 	'cell.tab': 'grid navigation between cells',
 	'cell.shiftTab': 'grid navigation between cells',
@@ -79,8 +79,8 @@ describe('G4.50 every block command answers the cross-block range question', () 
 		expect(named.filter((id) => !vocabulary.has(id))).toEqual([]);
 	});
 
-	// A published toolbar id answering "range-safe" is this bug's shape: the button stays live over
-	// a cross-block selection and the click lands on whichever block holds the anchor (#324).
+	// A toolbar id marked range-safe keeps its button live over a cross-block selection, and the
+	// click then lands on whichever block holds the anchor.
 	it('never calls a published toolbar id range-safe', () => {
 		const offered = Object.values(TOOLBAR_COMMANDS);
 		expect(offered.filter((id) => RANGE_SAFE[id] !== undefined)).toEqual([]);

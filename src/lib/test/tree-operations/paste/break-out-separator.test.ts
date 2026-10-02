@@ -3,39 +3,28 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
-import { pasteDispatch, __getDefaultTextSurface } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
 import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
 
-// A break-out replaces the enclosing list with a first-half list, the pasted blocks and a
-// residue half, and the list's own separating line has to survive that swap like every other
-// splice's does (syntax-tree.md § Blank lines).
-// Miss-analysis: `list-break-out.test.ts` covers the pure replacement builder only, over lists
-// drawn with no separator above them, so no case ever put a blank line at the spliced position:
-// the one input whose loss the builder's blanket `leadingTrivia: ''` produces.
+// A break-out keeps the list's separating line (`docs/design/syntax-tree.md` § Blank lines).
+// Miss-analysis: `list-break-out.test.ts` never drew a list with a blank line above it.
 
 /** Paste `clipboard` at `offset` inside the leaf at `targetPath` of a live document. */
 async function pasteInto(doc: Document, targetPath: number[], offset: number, clipboard: string) {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 	const { deps } = makeEditorActionsDeps(doc.children);
 	const controller = createUndoController(deps);
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath, offset },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
-		}
+			controller: createPasteCoordinator(deps, controller)
+		})
 	);
 	return deps.doc;
 }

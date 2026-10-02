@@ -8,21 +8,17 @@ import { CONTENT_EMPTY_ATTR, isHiddenMarkerText } from '../../cursor/widget-offs
 import type { PresentationMode } from '../../presentation-mode';
 import { arbRawString, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
+import { renderOptions } from '../harness/fixture-grammar';
 
-// Two pieces of code answer "which bytes does the user see": the node-space rule every live
-// rewrite verifies through, and the DOM traversal every caret check reads. This compares the two
-// over the same fragment, so a disagreement does not have to be found by a gesture.
+// The node-space rule every live rewrite verifies through and the DOM traversal every caret check
+// reads both answer "which bytes does the user see", so the two are compared over each fragment.
 
-// Miss-analysis: the node-space tests fed it nodes and read a string, and the traversal's tests
-// mounted spans and read offsets, so neither suite ever put the two answers side by side. A
-// construct whose markers paint had the first saying nothing was on screen while the second landed
-// a caret on all five bytes, and both suites stayed green.
+// Miss-analysis: each side was tested on its own inputs, so no test compared the two answers.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(141141) } as const;
 
-/** The constructs the node-space rule covers exactly. The preview pair is here on a container that
- *  is not focused, which is the shape it answers for: showing their markers is per-span DOM state
- *  and belongs to the traversal. */
+/** The modes the node-space rule covers exactly. The preview pair counts on an unfocused container
+ *  only, since showing their markers on focus is per-span DOM state the traversal reads. */
 const MODES: PresentationMode[] = ['source', 'reading', 'live', 'preview-block', 'preview-inline'];
 
 /** How the block is mounted: the mode on an ancestor, the attribute on the traversal container. */
@@ -32,7 +28,7 @@ function mount(raw: string, mode: PresentationMode, contentEmpty: boolean): HTML
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
 	if (contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
-	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	block.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
 	root.appendChild(block);
 	document.body.appendChild(root);
 	// The attribute paints only under focus (the stylesheet's `:focus-within` rule), and the
@@ -55,7 +51,8 @@ function oracleVisibleText(raw: string, mode: PresentationMode, contentEmpty: bo
 	return renderedText(
 		parseInline(raw, 0, raw.length),
 		raw,
-		screenVisibility(mode, { chromePaints: contentEmpty })
+		screenVisibility(mode, { chromePaints: contentEmpty }),
+		renderOptions()
 	);
 }
 
@@ -83,7 +80,12 @@ describe('the node-space check and the DOM walk agree on what the reader sees', 
 	it('a reference label stays hidden even where the rest of the chrome paints', () => {
 		const raw = '[a][ref]\n\n[ref]: u';
 		const nodes = parseInline(raw, 0, 8, () => ({ url: 'u' }));
-		const painted = renderedText(nodes, raw, screenVisibility('live', { chromePaints: true }));
+		const painted = renderedText(
+			nodes,
+			raw,
+			screenVisibility('live', { chromePaints: true }),
+			renderOptions()
+		);
 		expect(painted).toBe('[a]');
 	});
 });

@@ -3,10 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { progressiveScrollTo, spacerCount, UNWINDOWED_PROSE } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Two things writing one scrollTop, made to collide. Scrolling to a block re-asserts an exact
-// position that already includes the header's current height, while the header's resize
-// observer adds a difference on top. A resize that lands mid-scroll therefore applies that
-// difference twice. Windowed deep enough that the scroll really runs its mount-and-settle loop.
+// Two writers to one scrollTop, made to collide: scrolling to a block re-asserts a position that
+// includes the header's height, while the header's resize observer adds the difference on top, so
+// a resize mid-scroll would apply it twice. Windowed deep enough that the scroll runs its mount
+// loop.
 const WINDOWED_BYTES = 500_000;
 const HEADER_DELTA = 160;
 const TARGET = 40;
@@ -21,8 +21,7 @@ test('a header resize landing inside a reveal does not double-apply its delta', 
 	await progressiveScrollTo(editor, 4000);
 	await editor.waitForRenderFlush();
 
-	// The collision in one tick: the scroll starts settling and the header's height changes
-	// before it finishes.
+	// The header's height changes after the scroll starts and before it finishes.
 	const landed = await page.evaluate((target) => {
 		const settled = (window as any).__test.rects.scrollTo([target]) as Promise<boolean>;
 		(document.querySelector('[data-testid="header-height-toggle"]') as HTMLElement).click();
@@ -60,9 +59,8 @@ test('no write unplaces the target once the reveal has placed it', async ({ page
 	await progressiveScrollTo(editor, 4000);
 	await editor.waitForRenderFlush();
 
-	// The cases above measure where the target came to rest, and a wrong write that something
-	// else then corrects still rests correctly. This one watches every write to scrollTop, so a
-	// wrong one that is corrected afterwards still fails.
+	// The cases above check where the target came to rest, which a corrected wrong write still
+	// passes; this one watches every write to scrollTop.
 	const observed = await page.evaluate(
 		async ({ target, delta }) => {
 			const root = document.querySelector('.editor') as HTMLElement;
@@ -109,8 +107,8 @@ test('no write unplaces the target once the reveal has placed it', async ({ page
 	expect(observed.landed).toBe(true);
 	expect(observed.placed).toBe(true);
 	expect(observed.grewBy).toBeCloseTo(HEADER_DELTA, 0);
-	// Before only one of them was allowed to write, this held one entry: the observer's
-	// difference written on top of an exact position that already included the new height.
+	// One entry here would be the observer's difference written on top of a position that already
+	// included the new height.
 	expect(observed.unplaced).toEqual([]);
 	expect(pageErrors).toEqual([]);
 });
@@ -150,11 +148,8 @@ test('a header resize while a landed reveal still holds its pin does not double-
 
 // ── The other side of the rule ──────────────────────────────────────────
 
-// Leaving it to the scroll is right only where the scroll really is holding the position. A
-// `'nearest'` scroll to a block already on screen moves nothing, so a writer that steps back by
-// placing it again turns a header resize into a scroll nobody asked for. Below the windowing
-// threshold on purpose: a windowed document re-asserts on every measure pass and the difference
-// would be invisible.
+// A `'nearest'` scroll to a block already on screen moves nothing, so re-placing it on a header
+// resize would scroll nobody asked for. Unwindowed, since windowing re-asserts every pass.
 
 test('a header resize compensates rather than re-places a reveal the anchor is not holding', async ({
 	page
@@ -189,8 +184,7 @@ test('a header resize compensates rather than re-places a reveal the anchor is n
 	await editor.waitForResizeObserverFlush();
 	await editor.waitForRenderFlush();
 
-	// The correction still handles this one. Stepping back and placing the block again instead
-	// dragged it to the top, hundreds of pixels of scroll nobody asked for.
+	// The correction still handles this case; re-placing the block would drag it to the top.
 	expect(Math.abs((await offsetInPort(visibleTarget)) - beforeReveal)).toBeLessThanOrEqual(2);
 	expect(pageErrors).toEqual([]);
 });

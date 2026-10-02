@@ -2,12 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * In-body tags the other way (`routes/demo-tags/tag-marks-plugin.ts`): a mark decoration
- * over ordinary text instead of an inline widget. A tag's source is its display, so there is
- * nothing for a widget to uncover, and no non-editable widget to cost the caret, the one-press
- * Backspace or any other gesture. Seed `tags-marks` holds the same document as the widget
- * tests (`tags.md`), so the two models are compared on the same bytes.
- * Requirements: e2e/requirements/plugins/tags-marks.md.
+ * In-body tags as a mark decoration over ordinary text (`routes/demo-tags/tag-marks-plugin.ts`)
+ * rather than an inline widget: a tag's source is its display, so no non-editable widget costs the
+ * caret or Backspace anything. Seed `tags-marks` holds the same document as `tags.md`, comparing
+ * the two models on the same bytes. Requirements: e2e/requirements/plugins/tags-marks.md.
  */
 
 const chip = (editor: PluginsPage, name: string) =>
@@ -30,9 +28,8 @@ async function clickInsideChip(editor: PluginsPage, name: string): Promise<void>
 	await editor.waitForRenderFlush();
 }
 
-/** Click the chip, then step the caret `into` characters past the tag's `#` with arrow keys.
- *  Which letter gap a click resolves to is font-metric luck, so a test that names the bytes it
- *  expects walks to the position it means instead of trusting the click. */
+/** Clicks the chip, then arrows `into` characters past the `#`, since which letter gap a click
+ *  resolves to is font-metric luck. */
 async function caretInsideChip(editor: PluginsPage, name: string, into: number): Promise<void> {
 	await clickInsideChip(editor, name);
 	const { start, end } = await tagSpan(editor, name);
@@ -103,7 +100,7 @@ test.describe('in-body tags as mark decorations', () => {
 		for (let step = 0; step < 4; step++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.waitForRenderFlush();
 
-		// Four presses, four characters: the tag is text, so nothing steps over it whole.
+		// Four keypresses, four characters: the tag is text, so nothing steps over it whole.
 		const selected = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selected).toBe('proj');
 	});

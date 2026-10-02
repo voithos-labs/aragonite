@@ -1,9 +1,7 @@
 /**
- * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets alone
- * can't answer it past 2 wrapped lines, so the cursor's line is compared to the edge line's.
- * Collapsed ranges beside non-text children (dimmed markers, atomic widgets) measure to nothing,
- * so the edge line is measured around real text, and a rect-less caret borrows the box it sits
- * against; that borrowed box and the line tolerance are declared here once.
+ * Whether the cursor sits on the first or last visual line of a wrapping element, by comparing
+ * the cursor's line box with the edge line's. A caret beside a non-text child measures to
+ * nothing, so it borrows the box it sits against; that box and the line tolerance live here.
  */
 
 import { domDescendants } from './dom-walk';
@@ -36,11 +34,8 @@ export interface CaretRect {
 	bottom: number;
 }
 
-/**
- * The box a caret with no rect of its own borrows: the widget it precedes, else the one it
- * follows. Null where the caret is not at an element-level position, or the neighbour measures
- * to nothing.
- */
+/** The box a caret with no rect of its own borrows: the widget it precedes, else the one it follows.
+ *  Null off an element-level position, or when the neighbour measures to nothing. */
 export function neighbourCaretRect(range: Range): CaretRect | null {
 	const container = range.startContainer;
 	if (container.nodeType !== Node.ELEMENT_NODE) return null;
@@ -86,20 +81,21 @@ export function findLastTextNode(root: Node): Text | null {
 	return measurableText(root, containerOf(root), true);
 }
 
-/**
- * True if the selection inside `el` sits on the first visual line; empty containers return true.
- * `fallbackOffset` (the snapped caret offset from `ambient-cursor.getRaw`) answers when there is
- * no live range, since Chromium drops the caret range next to atomic contenteditable=false
- * widgets across event-loop yields. It is compared against the block's first offset the caret
- * can sit at, which a leading hidden run moves off raw 0.
- */
+/** The first and last offsets a caret can sit at in a block, which a hidden run moves inward. */
+export interface CaretBounds {
+	start: number;
+	end: number;
+}
+
+/** True if the selection in `el` sits on the first visual line, or holds no range. `fallbackOffset`
+ *  answers without a live range, which Chromium drops beside widgets across event-loop yields. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentStart: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset <= contentStart, {
-		isEmpty: (el.textContent ?? '').length === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset <= bounds.start, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: true,
 		boundaryTop: () => {
 			const firstText = findFirstTextNode(el);
@@ -112,10 +108,10 @@ export function isAtFirstVisualLine(
 export function isAtLastVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentEnd: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset >= contentEnd, {
-		isEmpty: contentEnd === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset >= bounds.end, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: false,
 		boundaryTop: () => {
 			const lastText = findLastTextNode(el);
@@ -127,8 +123,7 @@ export function isAtLastVisualLine(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot (a
- *  dropped range, a caret no box can be found for, an unmeasurable boundary line) and
+/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot, and
  *  `boundaryTop` measures the edge line each side's own way. */
 function isAtEdgeVisualLine(
 	el: HTMLElement,

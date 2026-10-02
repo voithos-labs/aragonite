@@ -1,9 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createListOverrides } from '$lib/editor-actions/list-overrides';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { parse } from '$lib/core/parser';
 import {
@@ -12,30 +11,24 @@ import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
-	mockRef
+	mountEveryBlock
 } from '$lib/test/harness/editor-actions';
-import { CURSOR_START } from '$lib/block-component';
+import { CURSOR_END } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// The delete's afterTick must clamp against the live post-commit children: a node read
-// before the commit is one too long, so deleting the last item indexes past the refs.
+// The delete's caret must be read against the live post-commit children: a node read before the
+// commit is one too long, so deleting the last item would aim past the list's end.
 
-describe('list-overrides deleteBlock: focus after deleting the last item', () => {
-	it('lands the caret on the new last item, not a stale index past the refs', async () => {
-		const { deps } = makeEditorActionsDeps([parse('- a\n- b\n- c\n').children[0]]);
+describe('list-overrides deleteBlock: the caret after deleting the last item', () => {
+	it('lands at the end of the new last item, not a stale index past the list', async () => {
+		const { deps, landings } = makeEditorActionsDeps([parse('- a\n- b\n- c\n').children[0]]);
+		mountEveryBlock(deps);
 		const liveList = () => deps.doc.children[0];
 		const listState = makeBlockListState(liveList, ['item-0', 'item-1', 'item-2']);
 		registerBlockListState(
 			liveList(),
 			listState as unknown as Parameters<typeof registerBlockListState>[1]
 		);
-
-		const refs = [
-			mockRef({ focus: vi.fn() }),
-			mockRef({ focus: vi.fn() }),
-			mockRef({ focus: vi.fn() })
-		];
-		replaceRefs(listState.innerBlockRefs, refs);
 
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);
@@ -66,10 +59,9 @@ describe('list-overrides deleteBlock: focus after deleting the last item', () =>
 			})
 		);
 
-		await bundle.blockEdit.deleteBlock(2);
+		await bundle.blockEdit.deleteBlock(2, 'keyless');
 
 		expect(liveList().children).toHaveLength(2);
-		expect(refs[1].focus).toHaveBeenCalledWith(CURSOR_START);
-		expect(refs[2].focus).not.toHaveBeenCalled();
+		expect(landings).toEqual([{ leafPath: [0, 1, 0], offset: CURSOR_END, outcome: 'placed' }]);
 	});
 });

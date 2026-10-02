@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
 import { createLinkCardCommitter } from '$lib/components/link-card/link-card-commit';
 import type { LinkTarget } from '$lib/components/blocks/text/link-at-point';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { settleEditor } from '$lib/test/harness/settle';
 
 // What the card decides on top of the byte writer: which fields survive a URL edit, and when the
 // reference form is kept. The bytes themselves are the writer's business.
@@ -14,62 +17,54 @@ function makeCard(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	const map = buildLinkReferenceMap(harness.doc.children);
 	const controller = createUndoController(harness.deps);
-	const landCaret = vi.fn().mockResolvedValue(true);
 	const committer = createLinkCardCommitter({
 		getDoc: () => harness.doc,
 		getEditorEl: () => null,
 		getTarget: () => null,
 		getCreateTarget: () => null,
-		controller,
+		inlineRange: createInlineRangeCommit({ deps: harness.deps, controller }),
 		events: harness.events,
 		measureRange: () => [],
-		landCaret,
-		linkRef: { current: map.resolve, signature: map.signature }
+		reading: fixtureReading({ resolver: map.resolve, resolverSignature: map.signature })
 	});
 	const raw = () => harness.doc.children[0].raw;
 	return {
 		committer,
 		raw,
-		landCaret,
+		landings: harness.landings,
 		target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget
 	};
-}
-
-async function settle(): Promise<void> {
-	await Promise.resolve();
-	await Promise.resolve();
 }
 
 describe('link card commit: which fields survive a url edit', () => {
 	it('keeps a title the card never showed', async () => {
 		const card = makeCard('Visit [x](old "Ti") now\n');
 		card.committer.commitUrl(card.target, 'new');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Visit [x](new "Ti") now\n');
 	});
 
 	it('keeps the link text bytes, nested constructs and all', async () => {
 		const card = makeCard('Visit [**b** c](old) now\n');
 		card.committer.commitUrl(card.target, 'new');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Visit [**b** c](new) now\n');
 	});
 
 	it('an unchanged url writes nothing at all', async () => {
 		const card = makeCard('Visit [x](old) now\n');
 		card.committer.commitUrl(card.target, 'old');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Visit [x](old) now\n');
 	});
 
-	// Miss-analysis: the unchanged-URL case above used a destination the serializer reproduces
-	// byte for byte, so the rebuild and rewrite it really did looked like doing nothing.
+	// Miss-analysis: the case above used a URL the serializer reproduces exactly, hiding the rewrite.
 	it('an unchanged url never respells author bytes the serializer would normalize', async () => {
 		const card = makeCard('Visit [x](<a b>) now\n');
 		// What the field shows for the angle form, committed back untouched.
 		expect(card.committer.resolve(card.target)?.url).toBe('a%20b');
 		card.committer.commitUrl(card.target, 'a%20b');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Visit [x](<a b>) now\n');
 	});
 });
@@ -78,18 +73,18 @@ describe('link card commit: the create half', () => {
 	it('creates the wrap over the range and lands the caret at the construct start', async () => {
 		const card = makeCard('Alpha bravo charlie\n');
 		card.committer.commitCreate({ path: [0], start: 6, end: 11 }, 'https://n.test/x');
-		await settle();
-		await settle();
+		await settleEditor();
+		await settleEditor();
 		expect(card.raw()).toBe('Alpha [bravo](https://n.test/x) charlie\n');
-		expect(card.landCaret).toHaveBeenCalledWith([0], 6);
+		expect(card.landings).toMatchObject([{ leafPath: [0], offset: 6 }]);
 	});
 
 	it('a range the join declines writes nothing', async () => {
 		const card = makeCard('Visit [x](old) now\n');
 		card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Visit [x](old) now\n');
-		expect(card.landCaret).not.toHaveBeenCalled();
+		expect(card.landings).toEqual([]);
 	});
 });
 
@@ -104,14 +99,14 @@ describe('link card commit: reference forms', () => {
 	it('a new url inlines the form and leaves the definition alone', async () => {
 		const card = makeCard(DOC);
 		card.committer.commitUrl(card.target, 'https://example.com/new');
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Read [docs](https://example.com/new) later\n');
 	});
 
 	it('remove-link unwraps to the text, definition untouched', async () => {
 		const card = makeCard(DOC);
 		card.committer.removeLink(card.target);
-		await settle();
+		await settleEditor();
 		expect(card.raw()).toBe('Read docs later\n');
 	});
 });

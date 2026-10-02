@@ -43,8 +43,8 @@ function armsOf(code: string): Arm[] {
 	return out;
 }
 
-/** One closure-level declaration's source, up to the next one. Brace-matching would have to tell
- *  a `{ start; end }` return type from a body; the sibling declaration is the simpler boundary. */
+/** One closure-level declaration's source, up to the next one, since brace-matching can't tell a
+ *  `{ start; end }` return type from a body. */
 function sourceOfFunction(code: string, name: string): string {
 	const declared = code.indexOf(`function ${name}(`);
 	if (declared < 0) throw new Error(`no declaration for ${name}`);
@@ -83,7 +83,7 @@ describe('every caret-edge branch asks whether a range is held', () => {
 		expect(sourceOfFunction(code, 'heldRange')).toContain('deps.getRawSelection(');
 	});
 
-	// The DOM selection is the whole document's, so a branch reading it stands down for a range
+	// The DOM selection is the whole document's, so a branch reading it does nothing for a range
 	// another block holds and answers as a caret for one this block's offsets call empty.
 	it('the dispatch never reads the document-wide DOM selection', () => {
 		expect(code).not.toMatch(/\bhasSelection\b/);

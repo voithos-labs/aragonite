@@ -4,30 +4,42 @@ import {
 	createEditableSurface,
 	type EditableSurfaceDeps
 } from '$lib/components/blocks/editable-surface';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import type { BlockEditActions } from '$lib/action-contracts';
+import type { NodeView } from '$lib/core/node-views';
+import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
+import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { fixtureReading } from './fixture-grammar';
+import { stubBlockEdit, stubCaretMemory } from '$lib/testing/headless-actions';
+import type { CaretMemory } from '$lib/cursor/caret-memory';
+import { commandContext } from '../support/command-context';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
-	/** Recorded by the default commitInput; empty when a custom one is passed. */
-	commits: Array<{ text: string; preEdit: number; saved: number }>;
-	/** Every raw offset the editable element wrote through `backend.setRaw`, in order. */
+	/** Every content write, as the block's list received it; empty when a real `blockEdit` is passed. */
+	commits: Array<{ text: string; preEdit: number; saved: number | undefined }>;
+	/** Where each `backend.setRaw` put the caret, read back as a raw offset, in order. */
 	seats: number[];
 	el: HTMLElement;
 	setCaret: (offset: number) => void;
 }
 
-/**
- * A real contenteditable behind the harness, so `readText` reads the DOM honestly: a test
- * simulates the IME by assigning `el.textContent`, which is exactly what the browser hands the
- * input path. The caret is a settable value because jsdom has none. Only the two context reads
- * the composition path touches are real; the rest is built but never called. `presentationMode`
- * mounts the block under a root marked with that mode, which is where the traversal that finds
- * caret positions reads it.
- */
+/** An editable block over a real contenteditable: a test assigns `el.textContent` as an IME does,
+ *  and sets the caret by hand since jsdom has none. The block is an empty last line by default. */
 export function makeSurface(
-	commitInput?: EditableSurfaceDeps['commitInput'],
-	relocateComposedText?: EditableSurfaceDeps['relocateComposedText'],
-	options: { presentationMode?: string } = {}
+	options: {
+		relocateComposedText?: EditableSurfaceDeps['relocateComposedText'];
+		presentationMode?: string;
+		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
+		handleKeydown?: EditableSurfaceDeps['handleKeydown'];
+		/** Inert by default; pass a real memory to see what an input does to it. */
+		caretMemory?: CaretMemory;
+		blockEdit?: BlockEditActions;
+		getNode?: () => NodeView;
+		/** Real collaborators in place of the stubs, for a block wired to a live document. */
+		overrides?: Partial<EditableSurfaceDeps>;
+	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -42,58 +54,60 @@ export function makeSurface(
 
 	let caret = 0;
 	let composing = false;
-	let preEditOffset = 0;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
+	const writer = createSurfaceBackend({ getEl: () => el });
+	const recording: BlockEditActions = {
+		...stubBlockEdit(),
+		updateBlockContent: (_index, text, _mode, preEdit, saved) => {
+			commits.push({ text, preEdit, saved });
+			return withStoredCaret(Promise.resolve(true), saved ?? preEdit);
+		}
+	};
 
 	const deps = {
 		getEl: () => el,
-		getAmbientLength: () => 0,
 		backend: {
 			getRaw: () => asRawOffset(caret),
-			setRaw: (offset: number) => {
-				seats.push(offset);
-			},
-			buildRange: () => null
+			setRaw: (offset: RawOffset, placement: { clamp: CaretClamp }) => {
+				writer.setRaw(offset, placement);
+				const sel = window.getSelection();
+				seats.push(sel?.focusNode ? rawOffsetAt(el, sel.focusNode, sel.focusOffset) : offset);
+			}
 		},
+		getNode: options.getNode ?? (() => ({ kind: 'paragraph', leadingTrivia: '', raw: '' })),
 		getMyPath: () => [0],
 		getIndex: () => 0,
 		getComposing: () => composing,
 		setComposing: (value: boolean) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset: number) => {
-			preEditOffset = offset;
-		},
-		setPendingCursor: () => {},
+		requestCaret: () => {},
 		selection: { isCrossBlock: false },
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
-		focusActions: { revealPath: async () => null },
-		getDoc: () => null,
+		caretMemory: options.caretMemory ?? stubCaretMemory(),
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+		focusActions: {},
+		caretLanding: { mount: async () => null },
+		getDoc: () => ({ kind: 'document', prefix: '', children: [], suffix: '' }),
 		getBlockElByPath: () => null,
+		scrollOwner: { place: () => ({ scroll: async () => true }) },
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		containerEdit: {},
-		blockEdit: {},
-		controller: {},
+		blockEdit: options.blockEdit ?? recording,
+		controller: { endContinuedBurst: () => {} },
 		history: {},
-		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
-		linkRef: undefined,
-		onCommandError: undefined,
-		getKeybindingOverrides: () => ({}),
+		reading: fixtureReading(),
+		commands: commandContext(),
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
-		relocateComposedText,
-		commitInput:
-			commitInput ??
-			((text: string, preEdit: number, saved: number) => {
-				commits.push({ text, preEdit, saved });
-			})
+		relocateComposedText: options.relocateComposedText,
+		handleKeydown: options.handleKeydown ?? (async () => {}),
+		handleBeforeInput: options.handleBeforeInput,
+		...options.overrides
 	} as unknown as EditableSurfaceDeps;
 
 	return {

@@ -64,8 +64,8 @@ test.describe('minting a paragraph at the gap', () => {
 		expect(await editor.bridge.getSource()).toBe(`${QUOTED_FENCE}>\n> x\n`);
 	});
 
-	// v1 refuses every input type but text: a paste has block structure the boundary has no
-	// rule for yet, so it is declined rather than guessed at.
+	// The gap refuses every input type but text: a paste has block structure the boundary has no rule
+	// for, so it is declined rather than guessed at.
 	test('a paste at the gap changes nothing and keeps the gap', async () => {
 		await loadThenArrive(editor);
 		await editor.seedClipboard('pasted\n');
@@ -122,7 +122,7 @@ test.describe('undo and redo across a create', () => {
 		await editor.typeSlowly('EDIT');
 		await editor.bridge.waitForSourceContains('EDITpara');
 		await editor.waitForUndoBatchFlush();
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
 		await editor.typeSlowly('x');
@@ -148,7 +148,7 @@ test.describe('undo onto a windowed-out boundary', () => {
 		expect(await editor.bridge.getBlockKind(100)).toBe('table');
 
 		await page.evaluate(() => (window as any).__test.rects.scrollTo([100]));
-		await page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await page.locator('.table-cell').nth(LAST_CELL).click();
 		await page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_MID);
 		await editor.typeSlowly('x');
@@ -175,7 +175,7 @@ test.describe('editor-global chords at the gap', () => {
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('EDIT');
 		await editor.bridge.waitForSourceContains('EDITpara');
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
 

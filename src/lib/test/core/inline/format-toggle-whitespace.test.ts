@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
-//
 // A wrap trims the selection's boundary whitespace before it writes, in every mode, so the same
-// toggle taken three times over wraps, strips and wraps again. Miss-analysis: every case in these
-// suites toggled once, so the `** word**` a marker-showing mode wrote was never handed to a second
-// toggle: bytes no parse reads as a run, which that toggle doubled into `****`.
+// toggle taken three times over wraps, strips and wraps again.
+// Miss-analysis: every case toggled once, so a wrap's `** word**` never met a second toggle.
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const PLAIN = 'pre word post';
 const MODES: PresentationMode[] = ['source', 'live'];
@@ -30,15 +29,21 @@ function presses(
 	count: number
 ): (string | null)[] {
 	const written: (string | null)[] = [];
-	let edit: InlineFormatEdit = { display: PLAIN, content: whole(PLAIN), selection };
+	let edit: InlineFormatEdit = {
+		display: PLAIN,
+		content: whole(PLAIN),
+		selection,
+		reading: fixtureReading({}, mode)
+	};
 	for (let press = 0; press < count; press++) {
-		const result = toggleInlineFormat(edit, format, mode);
+		const result = toggleInlineFormat(edit, format);
 		written.push(result?.newDisplay ?? null);
 		if (!result) break;
 		edit = {
 			display: result.newDisplay,
 			content: whole(result.newDisplay),
-			selection: { start: result.newSelStart, end: result.newSelEnd }
+			selection: { start: result.newSelStart, end: result.newSelEnd },
+			reading: fixtureReading({}, mode)
 		};
 	}
 	return written;
@@ -65,8 +70,13 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 	// than a second wrap.
 	it.each(MARK_FORMATS)('leaves the run it wrote selected (%s)', (format) => {
 		const m = markersOf(format);
-		const edit = { display: PLAIN, content: whole(PLAIN), selection: SELECTIONS['both spaces'] };
-		const result = toggleInlineFormat(edit, format, mode);
+		const edit = {
+			display: PLAIN,
+			content: whole(PLAIN),
+			selection: SELECTIONS['both spaces'],
+			reading: fixtureReading({}, mode)
+		};
+		const result = toggleInlineFormat(edit, format);
 		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(`${m}word${m}`);
 	});
 });

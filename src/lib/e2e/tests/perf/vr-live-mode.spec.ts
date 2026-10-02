@@ -89,17 +89,19 @@ test('live mode keeps the mounted set bounded while wheel-scrolling a heavy docu
 	expect(pageErrors).toEqual([]);
 });
 
-test('a flip into live keeps the window it entered with', async ({ page }) => {
-	const pageErrors = capturePageErrors(page);
-	const editor = await enterPresentationMode(page, 'source', HEAVY);
-	const blockCount = await cstBlockCount(page);
-	await editor.scrollEditorTo(WHEEL_TICKS * WHEEL_TICK_PX);
-	await expectBoundedWindow(page, blockCount, 'in source');
+test.describe('with mounted blocks resizing at the flip', () => {
+	test('a flip into live keeps the window it entered with', async ({ page }) => {
+		const pageErrors = capturePageErrors(page);
+		const editor = await enterPresentationMode(page, 'source', HEAVY);
+		const blockCount = await cstBlockCount(page);
+		await editor.scrollEditorTo(WHEEL_TICKS * WHEEL_TICK_PX);
+		await expectBoundedWindow(page, blockCount, 'in source');
 
-	await page.getByTestId('live-toggle').click();
-	await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
-	await editor.waitForRenderFlush();
+		await page.getByTestId('live-toggle').click();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await editor.waitForRenderFlush();
 
-	await expectBoundedWindow(page, blockCount, 'in live');
-	expect(pageErrors).toEqual([]);
+		await expectBoundedWindow(page, blockCount, 'in live');
+		expect(pageErrors).toEqual([]);
+	});
 });

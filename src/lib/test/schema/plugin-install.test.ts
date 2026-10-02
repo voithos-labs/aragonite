@@ -1,13 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
 	isPluginInstalled,
-	owningPluginEditor,
-	recordPluginKindOwner,
 	type EditorContext
 } from '$lib/schema/plugin-install';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+import {
+	componentPluginEditor,
+	defineBlockComponent,
+	registerBlockComponent
+} from '$lib/schema/block-component-registry';
+import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
@@ -30,8 +34,6 @@ const minimalRegistration = {
 	supportsInline: false,
 	closure: testClosure
 } as const;
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('installPlugins', () => {
 	it('runs setup once and treats a re-install of the same object as a no-op', () => {
@@ -109,7 +111,6 @@ describe('installPlugins', () => {
 		// The setup-wrap throw carries the version so a two-version collision is legible.
 		expect((firstThrow as Error).message).toMatch(/^plugin 'broken-v@1\.2\.0':/);
 
-		// The blocked-re-install throw carries it too.
 		expect(() => installPlugins([plugin])).toThrow(
 			/plugin 'broken-v@1\.2\.0' failed during a previous install/
 		);
@@ -172,14 +173,25 @@ describe('installPlugins', () => {
 	});
 });
 
-describe('owningPluginEditor', () => {
-	it("resolves the owner's context; an unowned kind takes the base-context '' branch", () => {
-		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
-		recordPluginKindOwner('owned-kind', 'plug-a');
+// Miss-analysis: the component's editor read the kind's declarer while its registry entry read
+// the declarer or the registrant, and every test declared and registered in one plugin.
+describe('componentPluginEditor', () => {
+	const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
+	const entry = defineBlockComponent((() => {}) as never);
 
-		expect(owningPluginEditor(lookup, 'owned-kind')?.editorId).toBe('plug-a');
-		expect(owningPluginEditor(lookup, 'unowned-kind')?.editorId).toBe('');
-		expect(owningPluginEditor(undefined, 'owned-kind')).toBeUndefined();
+	it("resolves the context of the plugin the component answers to, or the base context ''", () => {
+		const owned = declareOwnedKind('plug-a', 'owned-kind');
+		registerBlockComponent(owned, entry);
+		const loose = declarePluginKind('loose-kind');
+		installPlugins([
+			definePlugin({ name: 'plug-b', setup: () => registerBlockComponent(loose, entry) })
+		]);
+		const unregistered = declarePluginKind('unregistered-kind');
+
+		expect(componentPluginEditor(lookup, owned)?.editorId).toBe('plug-a');
+		expect(componentPluginEditor(lookup, loose)?.editorId).toBe('plug-b');
+		expect(componentPluginEditor(lookup, unregistered)?.editorId).toBe('');
+		expect(componentPluginEditor(undefined, owned)).toBeUndefined();
 	});
 });
 

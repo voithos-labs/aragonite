@@ -1,9 +1,7 @@
 /**
  * Which atomic inline widget's raw edge a point lands on: the nearest edge among the widgets the
- * caller measures, so a run of adjacent widgets answers the one the point is actually beside. A
- * point inside a widget reads its kind: one that behaves like a character names the edge on the
- * point's side, while one that selects whole declines and keeps its own click handling. A point
- * above or below a widget, sharing its columns, names the edge on its side too.
+ * caller measures. A point on a widget that behaves like a character names the edge on its side;
+ * one on a widget that selects whole declines, leaving that widget's own click handling.
  */
 
 export interface WidgetEdgeCandidate {
@@ -23,12 +21,8 @@ export interface WidgetEdgeSeat {
 	inside: boolean;
 }
 
-/**
- * The raw offset a point snaps to, in document order for ties. Null where the point snaps to
- * none: inside a widget that selects whole, whose own click handling owns it, or where the
- * caller measured no widget at all. A null `y` is a point with no line to compare against, so
- * vertical distance drops out and horizontal containment alone reads as inside.
- */
+/** The raw offset a point snaps to, ties in document order. Null inside a widget that selects whole
+ *  (its own click handling owns it) or with no widget; a null `y` compares columns alone. */
 export function nearestWidgetEdgeSeat(
 	candidates: Iterable<WidgetEdgeCandidate>,
 	x: number,

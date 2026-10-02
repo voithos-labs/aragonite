@@ -137,14 +137,13 @@ test.describe('image paste: host hook installed', () => {
 		expect(await getCalls(page)).toEqual([]);
 	});
 
-	// One shared branch, but each editable element finishes the insertion its own way (a raw
-	// traversal plus escaping for a cell, `currentRange()` for code), so a passing paragraph
-	// case proves neither.
+	// Each editable element finishes the shared insertion its own way (a raw traversal plus escaping
+	// for a cell, `currentRange()` for code), so a passing paragraph proves neither.
 	test('an image pasted into a table cell lands in that cell', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		await setResponses(page, [{ markdown: '![[cell.png]]' }]);
-		// nth(2): [role="cell"] covers the header row too, so the body cells start at 2.
-		await page.locator('[role="cell"]').nth(2).click();
+		// nth(2): .table-cell covers the header row too, so the body cells start at 2.
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		await pasteFiles(page, [PNG]);
 

@@ -21,6 +21,11 @@ event order and the wiring from the real contenteditable listeners down to the C
 
 - A composition started over a selection replaces it: the browser's own composition window owns
   that delete, so the committed run leaves one copy and the selected bytes are gone.
+- A composition started over a range across two blocks removes the range first, then composes
+  where it was. One Ctrl+Z takes back both the composed text and the removal. The range is drawn
+  downward, so the caret sits in the block the removal keeps.
+  - Miss-analysis: every composition here started inside one block, where nothing gets removed
+    first, so the two undo entries a range composition left behind were never seen.
 - Undo after a composed commit restores the pre-composition text in one step: the whole
   composition is a single undo entry (the commit goes through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { declarePluginKind, declaredPluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('declarePluginKind', () => {
 	it('returns the name, branded, for a valid plugin kind', () => {
@@ -14,8 +14,7 @@ describe('declarePluginKind', () => {
 		expect(() => declarePluginKind('tableRow')).toThrow(/built-in/);
 	});
 
-	// Miss-analysis: `RESERVED_KIND_NAMES` had no test at all, so its membership was pinned
-	// nowhere and a reserved name spelled differently elsewhere could never fail a gate.
+	// Miss-analysis: `RESERVED_KIND_NAMES` had no test, so its membership was pinned nowhere.
 	it('rejects the structural sentinels a live kind would shadow', () => {
 		expect(() => declarePluginKind('document')).toThrow(/reserved/);
 		expect(() => declarePluginKind('global')).toThrow(/reserved/);
@@ -28,13 +27,8 @@ describe('declarePluginKind', () => {
 	});
 
 	it('a declared kind round-trips through the descriptor registry', () => {
-		const kind = declarePluginKind('pluginKindRegistryProbe');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+		const kind = testLeaf('pluginKindRegistryProbe', {
+			editable: false
 		});
 		expect(tryGetBlockKindDescriptor(kind)?.mergeRole).toBe('not-mergeable');
 	});

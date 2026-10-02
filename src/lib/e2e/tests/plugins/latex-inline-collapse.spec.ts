@@ -1,13 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
+import { textRunStart } from '../../text-runs';
 
 /**
- * When an open inline-math source closes again, on the seed with two equations in one paragraph,
- * the showcase shape this came from. Closing follows where the selection is, not blur: any caret
- * move out inside the block closes the source, and clicking the second widget while the first is
- * open is one gesture that closes one and opens the other. That switch is what catches the race,
- * and it only fails under the real rebuild, which is why widget-reveal-collapse.test.ts cannot
- * stand in for it.
+ * When an open inline-math source closes, on a paragraph holding two equations. Closing follows
+ * the selection, not blur: a caret move out closes the source, and clicking the second widget
+ * closes one and opens the other in one gesture. That switch races only under the real rebuild,
+ * so widget-reveal-collapse.test.ts cannot stand in for it.
  */
 
 const EQ1 = '$E=mc^2$';
@@ -24,9 +23,8 @@ class TwoMathPage extends PluginsPage {
 	}
 
 	/**
-	 * Open the first equation and assert it stays open: a single count check passes straight
-	 * through the race where it opens and closes again within about 50ms, on the selectionchange
-	 * the click itself queued.
+	 * Asserts the first equation stays open, since a single count check would pass the race where
+	 * the click's own queued selectionchange closes it again within about 50ms.
 	 */
 	async revealFirstByClick(): Promise<void> {
 		await clickWidgetCenter(this.widgets.first());
@@ -36,29 +34,11 @@ class TwoMathPage extends PluginsPage {
 		expect(await this.getBlockText(0)).toContain(EQ1);
 	}
 
-	/** A real mouse click just left of `needle`'s first character in block [0], so the caret lands
+	/** A real mouse click on `needle`'s first glyph in block [0], so the caret lands
 	 *  at its leading boundary. */
 	async clickTextStart(needle: string): Promise<void> {
-		const rect = await this.page.evaluate((text) => {
-			const wrapper = document.querySelector("[data-block-path='[0]']");
-			const editable = wrapper?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const idx = node.textContent?.indexOf(text) ?? -1;
-				if (idx >= 0) {
-					const range = document.createRange();
-					range.setStart(node, idx);
-					range.setEnd(node, idx + text.length);
-					const r = range.getBoundingClientRect();
-					return { left: r.left, top: r.top, height: r.height };
-				}
-			}
-			return null;
-		}, needle);
-		if (!rect) throw new Error(`no text node containing "${needle}" in block [0]`);
-		await this.page.mouse.click(rect.left + 1, rect.top + rect.height / 2);
+		const start = await textRunStart(this.page, needle, { path: [0] });
+		await this.page.mouse.click(start.x, start.y);
 	}
 }
 

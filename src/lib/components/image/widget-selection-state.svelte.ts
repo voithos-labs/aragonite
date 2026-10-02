@@ -1,53 +1,49 @@
-// Image-widget selection is mutually exclusive with caret and cross-block
-// selection; `select` fires `onSelect` so the editor shell can clear the others.
+// The image and text-block readers' view of the widget the selection state holds. It keeps no state
+// of its own, so it can't disagree with the store. Interim: it goes once those readers read the
+// selection state themselves.
 
+import { selectWidgetWhole } from '../../selection/caret-doors';
 import { pathsEqual } from '../../selection/path-math';
+import { findSurfacePathForElement } from '../../selection/path-lookup';
+import type { WidgetTarget } from '../../selection/primitives';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 
 /** What a click-outside handler must not count as outside: the widget itself and the overlay
- *  controls attached to it. One string, because both handlers have to change together. */
+ *  controls attached to it. */
 export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]';
 
-export interface WidgetTarget {
-	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
-	// must target the image it opened on. Safe to hold because widget selection clears on every
-	// structural edit and navigation, so it cannot outlive a shift of its own path.
-	paragraphPath: number[];
-	sourceStart: number;
-	// The caret's raw offset just before widget selection took over; drives the undo
-	// anchor so Ctrl+Z restores where the user was, not the deleted region's boundary.
-	preSelectOffset: number;
+/** Whether a press should end the image selection, for both click-outside handlers. A Shift-press
+ *  on this editor's text is left to that block, which grows a range from the image and ends it. */
+export function pressLeavesImage(press: PointerEvent, editorRoot: Element | null): boolean {
+	const target = press.target instanceof Element ? press.target : null;
+	if (target?.closest(IMAGE_CHROME_SELECTOR)) return false;
+	const ownedByBlock =
+		press.shiftKey && !!editorRoot?.contains(target) && findSurfacePathForElement(target) !== null;
+	return !ownedByBlock;
 }
 
 export interface WidgetSelectionState {
 	getSelected(): WidgetTarget | null;
 	select(target: WidgetTarget): void;
+	/** Ends a selected widget; with none selected, touches nothing else the store holds. */
 	clear(): void;
+	followEdit(paragraphPath: number[], editEnd: number, delta: number): void;
 	isSelected(paragraphPath: number[], sourceStart: number): boolean;
 }
 
-export interface CreateWidgetSelectionOpts {
-	onSelect: () => void;
-}
-
-export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): WidgetSelectionState {
-	let selected = $state<WidgetTarget | null>(null);
-
+export function createWidgetSelectionState(selection: SelectionState): WidgetSelectionState {
 	return {
-		getSelected: () => selected,
-		select: (target) => {
-			selected = {
-				paragraphPath: [...target.paragraphPath],
-				sourceStart: target.sourceStart,
-				preSelectOffset: target.preSelectOffset
-			};
-			opts.onSelect();
-		},
+		getSelected: () => selection.widget,
+		select: (target) => selectWidgetWhole(selection, target),
 		clear: () => {
-			selected = null;
+			if (selection.widget !== null) selection.clear();
 		},
-		isSelected: (path, start) =>
-			selected !== null &&
-			selected.sourceStart === start &&
-			pathsEqual(selected.paragraphPath, path)
+		followEdit: (path, editEnd, delta) => selection.followWidgetEdit(path, editEnd, delta),
+		isSelected: (path, start) => {
+			const widget = selection.widget;
+			return (
+				widget !== null && widget.sourceStart === start && pathsEqual(widget.paragraphPath, path)
+			);
+		}
 	};
 }

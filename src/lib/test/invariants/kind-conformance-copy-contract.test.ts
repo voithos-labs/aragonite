@@ -3,8 +3,8 @@
 // at either endpoint role.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// A collector that puts an interior offset back on a whole-unit endpoint: the pre-fix bytes.
-// Keyed on the endpoint's own value, so neither side depends on the kit's anchor/focus order.
+// A collector that puts an interior offset back on a whole-unit endpoint, the bytes the cell must
+// reject; keyed on the endpoint's own value, so neither side depends on the kit's anchor order.
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
 vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/selection/clipboard-text')>();
@@ -12,8 +12,10 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const { nodeAt } = await import('$lib/tree-operations/node-primitives');
 	const { getBlockKindDescriptor } = await import('$lib/schema/block-kind-descriptor');
 	const { displayLength } = await import('$lib/core/lines');
+	const { coverRange, rangeCoverage } = await import('$lib/selection/range-coverage');
 	type Args = Parameters<typeof actual.collectCrossBlockText>;
-	const cut = (doc: Args[0], point: Args[1]): Args[1] => {
+	type Point = Args[1]['range']['start'];
+	const cut = (doc: Args[0], point: Point): Point => {
 		const node = nodeAt(doc, point.path);
 		if (!node || !('raw' in node)) return point;
 		if (getBlockKindDescriptor(node.kind).blockFocus !== 'whole-block') return point;
@@ -22,13 +24,16 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	};
 	return {
 		...actual,
-		collectCrossBlockText: (doc: Args[0], anchor: Args[1], focus: Args[2]) =>
-			actual.collectCrossBlockText(doc, cut(doc, anchor), cut(doc, focus))
+		collectCrossBlockText: (doc: Args[0], { range }: Args[1]) =>
+			actual.collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, cut(doc, range.start), cut(doc, range.end)))
+			)
 	};
 });
 
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { checkCopyIsRawByteSlice, resetPluginPlatformForTests } from '$lib/testing';
+import { checkCopyIsRawByteSlice } from '$lib/testing';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { declaredPluginKind } from '$lib/plugin';
 
@@ -40,7 +45,6 @@ function mermaidFixture() {
 
 afterEach(() => {
 	stub.mode = 'off';
-	resetPluginPlatformForTests();
 });
 
 describe('kind conformance: the whole-unit copy contract', () => {

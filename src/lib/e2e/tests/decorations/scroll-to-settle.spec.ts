@@ -34,9 +34,8 @@ type BlockViewport = {
 	viewportHeight: number;
 };
 
-// Geometry measured by the test, not by scrollTo's own visibility check, so the assertion is
-// not circular: `inView` = the block box intersects the editor viewport; `centerOffset` = the
-// signed distance of the block center from the viewport center.
+// Measured by the test, not by scrollTo's own visibility check, so the assertion is not circular:
+// `inView` is box overlap, `centerOffset` the block center's signed distance from the viewport's.
 function blockViewport(page: Page, path: number[]): Promise<BlockViewport> {
 	return page.evaluate((p) => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
@@ -77,9 +76,8 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	const resolved = await scrollTo(page, [last], { block: 'nearest' });
 	await editor.waitForRenderFlush();
 
-	// scrollTo's promise resolves only once the shrink after mounting is done, so the target is
-	// already at its final position here. Resolving earlier lets the document shrink under the
-	// scroll and the browser clamps it away, leaving the block stranded and unmounted.
+	// scrollTo resolves only once the shrink after mounting is done; resolving earlier would let the
+	// browser clamp the scroll away and strand the block unmounted.
 	const view = await blockViewport(page, [last]);
 	expect(view.mounted).toBe(true);
 	expect(view.inView).toBe(true);
@@ -88,10 +86,8 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	expect(pageErrors).toEqual([]);
 });
 
-// The dense image band above the target mounts and collapses when the target is scrolled to,
-// the shrink that strands a centered target. The `room` prose above it stays unmounted at an
-// accurate estimate, so it does not collapse and leaves the half viewport `'center'` needs;
-// the deep prose below keeps the target off max scrollTop.
+// The image band above the target collapses when scrolled to; the `room` prose above it stays
+// unmounted at an accurate estimate, leaving the half viewport `'center'` needs.
 function imageBandDoc(): { md: string; targetIndex: number } {
 	const parts: string[] = [];
 	parts.push('# scrollTo image-band fixture');

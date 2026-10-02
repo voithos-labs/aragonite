@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 
 // The `/` showcase's presentation-mode toggle. This route has no `window.__test` bridge, so the
 // assertions read the rendered DOM only, like showcase-route.spec.ts, and nothing here names a
@@ -27,9 +27,7 @@ async function scrollToEnd(page: Page): Promise<void> {
 
 test.describe('/ showcase presentation toggle', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		// The route is server-rendered: a click on painted but unhydrated UI reaches no handler.
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {
@@ -64,8 +62,8 @@ test.describe('/ showcase presentation toggle', () => {
 			.poll(async () => {
 				const after = await mountedBlockText(page);
 				const shared = Object.keys(before).filter((path) => path in after);
-				// Both texts, not just the path: which block moved is not the same question as
-				// whether it rendered differently or was read mid-frame (#280).
+				// Both texts, not just the path: which block moved is a separate question from whether it
+				// rendered differently or was read mid-frame.
 				const drifted = shared
 					.filter((path) => after[path] !== before[path])
 					.map((path) => `${path} ${trim(before[path])} -> ${trim(after[path])}`);
@@ -82,11 +80,8 @@ test.describe('/ showcase presentation toggle', () => {
 const PENDING_RENDER = '.mermaid-loading';
 
 /**
- * The mounted text once nothing is still rendering and two consecutive reads agree. An async
- * renderer that finishes between the two samples reads as a block the mode change altered, which
- * is the one difference this comparison must not see. Both conditions are checked on the same
- * pass: a diagram sits on a perfectly stable placeholder while it fetches its renderer, and
- * before it mounts at all there is no placeholder to find.
+ * The mounted text once nothing is still rendering and two reads agree, so an async renderer
+ * finishing between samples is not blamed on the mode change.
  */
 async function settledBlockText(page: Page): Promise<Record<string, string>> {
 	let previous = await mountedBlockText(page);
@@ -104,7 +99,7 @@ async function settledBlockText(page: Page): Promise<Record<string, string>> {
 const trim = (text: string) =>
 	JSON.stringify(text.length > 80 ? `${text.slice(0, 40)}…${text.slice(-40)}` : text);
 
-/** Text per mounted block, keyed by path: a windowed editor's text is only its mounted slice. */
+/** Text per mounted block, keyed by path: a windowed editor's text is only its mounted part. */
 function mountedBlockText(page: Page): Promise<Record<string, string>> {
 	return page.evaluate(() =>
 		Object.fromEntries(

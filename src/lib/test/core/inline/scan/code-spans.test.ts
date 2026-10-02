@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
 import {
@@ -59,15 +60,15 @@ describeScanCases('interleaving', [
 
 describe('ranges', () => {
 	it('span offsets stay absolute on a sub-range', () => {
-		const nodes = scanInline('x `a` y', 2, 5);
+		const nodes = scanInline('x `a` y', 2, 5, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 2, 5);
 		expect(nodes).toEqual([codeNode(2, 5, 'a')]);
 	});
 
 	it('escape lookback is clamped to the range start', () => {
-		// Unreachable via any current getContentRange, but pinned so it cannot silently
-		// flip: an out-of-range `\` must not suppress a span inside the range.
-		const nodes = scanInline('x\\`a`', 2, 5);
+		// No getContentRange reaches this, but it is pinned so it cannot silently flip: an
+		// out-of-range `\` must not suppress a span inside the range.
+		const nodes = scanInline('x\\`a`', 2, 5, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 2, 5);
 		expect(nodes).toEqual([codeNode(2, 5, 'a')]);
 	});

@@ -1,28 +1,52 @@
 /**
- * The content write: every byte that enters a node goes through `updateNodeContent`, the one
- * reparse path (editor.md § 6, § 8), and its container counterpart that re-derives a container's
- * kind from its rebuilt raw.
+ * The content write: every byte that enters a node goes through `updateNodeContent` after
+ * `legalizeWrite` makes it legal for its position. Also re-derives a container's kind from its
+ * rebuilt raw (`docs/design/editor.md` § Structural operations).
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, parse } from '../core/parser';
+import type { DocumentView, NodeView } from '../core/node-views';
+import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
-import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
-import { trailingLineEnding } from '../core/lines';
-import { assignChildIdsDeep } from '../block-id';
-import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
-import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import {
+	blockReadingNotFinal,
+	isBlockOpenerRegistered,
+	type GrammarView
+} from '../schema/block-openers';
+import {
+	lineOpensAs,
+	parseContainerRaw,
+	rebuildContainerRaw,
+	type BytesReading
+} from '../schema/container-raw';
+import {
+	displayLines,
+	documentLineEnding,
+	firstLineEnding,
+	joinDisplayLines,
+	ownTrailingLineEnding,
+	type LineEnding
+} from '../core/lines';
+import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import {
+	getBlockKindDescriptor,
+	mustHoldChild,
+	tryGetBlockKindDescriptor,
+	type WriteContext,
+	type WriteMode
+} from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
-import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
+import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-task';
+import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
+	asBody,
 	ensureEditableContainers,
-	forBody,
-	writeOwnRaw,
+	installOwnRaw,
+	type BodyParent,
 	type BodyParentArg,
 	type NodeParent
 } from './node-primitives';
@@ -37,6 +61,75 @@ import {
 	type TrackedPosition
 } from './settle';
 
+// ── Making written bytes legal ──
+
+declare const legalWrite: unique symbol;
+
+/**
+ * Text made legal as a block's bytes by {@link legalizeWrite}, the one place that builds it, so
+ * a write that carries one has passed the kind's rule and its container's exactly once.
+ */
+export interface LegalWrite {
+	readonly text: string;
+	/** Where an offset into the text as the writer wrote it lands in the stored `text`. */
+	storedOffset(offset: number): number;
+	readonly [legalWrite]: true;
+}
+
+/** What {@link legalizeWrite} reads of a block's parent: its container and line ending. */
+export type WriteTarget =
+	| {
+			readonly children: readonly NodeView[];
+			readonly owner: NodeView | undefined;
+			readonly lineEnding: LineEnding;
+	  }
+	| DocumentView;
+
+/**
+ * `text` made legal as the bytes of the block at `index`: its kind's `rawWrite`, then the
+ * container's `bodyWrite`, both reading the tree as it stands before the write.
+ */
+export function legalizeWrite(
+	parent: WriteTarget,
+	index: number,
+	text: string,
+	mode: WriteMode
+): LegalWrite {
+	const node = parent.children[index];
+	const owner = 'owner' in parent ? parent.owner : undefined;
+	const lineEnding = 'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
+	const ownRule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
+	const ownCtx: WriteContext = { node, mode, lineEnding };
+	const own = ownRule ? ownRule.normalize(text, ownCtx) : text;
+	const bodyRule = owner ? tryGetBlockKindDescriptor(owner.kind)?.bodyWrite : undefined;
+	// A child's bytes are never the container's own syntax, so the body rule reads them as content.
+	const bodyCtx: WriteContext | undefined = owner && { node: owner, mode: 'literal', lineEnding };
+	const stored = bodyRule && bodyCtx ? bodyRule.normalize(own, bodyCtx) : own;
+	// A list item takes a typed task marker out of its first paragraph, or gives one back.
+	const markerShift = index === 0 && owner ? taskMarkerCaretShift(owner, stored) : 0;
+	const storedOffset = (offset: number): number => {
+		const inOwn = ownRule ? ownRule.mapOffset(text, offset, ownCtx) : offset;
+		const inBody = bodyRule && bodyCtx ? bodyRule.mapOffset(own, inOwn, bodyCtx) : inOwn;
+		return Math.max(inBody + markerShift, 0);
+	};
+	return { text: stored, storedOffset } as LegalWrite;
+}
+
+/** Writes `text` over the leaf at `index` in place, made legal for its position, for a write that
+ *  moves no block (a format toggle's marks); the caller copies the chain first and rebuilds it. */
+export function rewriteLeafInPlace(
+	parent: BodyParent,
+	index: number,
+	text: string,
+	grammar: GrammarView,
+	sharing: SharingState
+): void {
+	const legal = legalizeWrite(parent, index, text, 'literal');
+	writeKeepingTaskMarker(parent.owner, parent.children, index, sharing, () =>
+		installOwnRaw(parent.children[index], legal.text, grammar)
+	);
+}
+
 // ── Update Content ──
 
 /** What a content write produced once its neighbours were fixed up: its change widened by every
@@ -48,35 +141,34 @@ export interface SettledContent {
 }
 
 /**
- * Update raw and reparse. A kind change puts the reparsed block in the position rather than
- * reassigning `kind` in place, and multi-block text creates every parsed block; only a same-kind
- * single-block edit writes in place, so routine typing keeps the node's object identity.
+ * Write and reparse the block; only a same-kind single-block edit writes in place, so typing keeps
+ * the node's identity. A plain string is made legal here; a {@link LegalWrite} already is.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,
 	blockIndex: number,
-	text: string,
-	grammar?: GrammarView,
-	sharing?: SharingState
+	text: string | LegalWrite,
+	grammar: GrammarView,
+	sharing: SharingState
 ): SettledContent {
-	// Read before the write, which is what can put a block there the marker cannot stand before.
-	const stood = taskMarkerMayStandBefore(parent.children[blockIndex]);
-	const settled = writeAndSettleContent(parent, blockIndex, text, grammar, sharing);
-	// A list item's task marker belongs to its first block, so the write that changed that block
-	// decides whether it keeps it. Before the container's raw rebuild, which writes the marker.
-	const owner = 'owner' in parent ? parent.owner : undefined;
-	if (owner) reconcileTaskMetadata(owner, blockIndex, stood, sharing);
-	return settled;
+	const body = asBody(parent);
+	const legal =
+		typeof text === 'string' ? legalizeWrite(body, blockIndex, text, 'literal').text : text.text;
+	// Reconciled before the container's raw rebuild writes the list item's marker.
+	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () =>
+		writeAndSettleContent(body, blockIndex, legal, grammar, sharing)
+	);
 }
 
 function writeAndSettleContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView,
-	sharing?: SharingState
+	grammar: GrammarView,
+	sharing: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
+	const indentMoved = leadingIndent(parent.children[blockIndex].raw) !== leadingIndent(text);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
 	const lastWritten = lastMintedIndex(change, blockIndex);
 	// One blank line served both sides: it separated this block from the one above and stood in
@@ -85,7 +177,7 @@ function writeAndSettleContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
-		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
 	}
 	// The reverse transition: the block is the separating line now, so the run it joins gives
 	// back the second one. The last block created is the one that meets the follower.
@@ -93,34 +185,75 @@ function writeAndSettleContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing inside content must never pay for a neighbour reparse.
-	if (change.op === 'noop') return { change, textStart: 0 };
-	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+	// Same-kind typing asks the join above only when it's flush, the block above's reading isn't
+	// final, the indent moved, or a blank line stays blank (editor.md § 8).
+	if (
+		change.op === 'noop' &&
+		!wasBlank &&
+		!indentMoved &&
+		!flushAbove(parent.children, blockIndex) &&
+		!unfinishedAbove(parent.children, blockIndex, grammar)
+	) {
+		// The join below is asked whatever parts it: an HTML block left open reads on past blank lines.
+		if (blockIndex + 1 >= parent.children.length) return { change, textStart: 0 };
+		return settleWriteSeams(
+			parent,
+			blockIndex,
+			blockIndex + 1,
+			lastWritten,
+			change,
+			sharing,
+			grammar
+		);
+	}
+	return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
+}
+
+const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
+
+/** Whether no blank line parts the block from the one above it; a first child has none above. */
+const flushAbove = (children: readonly CstNode[], index: number): boolean =>
+	index > 0 && children[index].leadingTrivia === '';
+
+/** Whether the nearest block above may still read differently (an unclosed `$$`), which a closer
+ *  written below can complete across blank lines. */
+function unfinishedAbove(
+	children: readonly CstNode[],
+	index: number,
+	grammar: GrammarView
+): boolean {
+	let above = index - 1;
+	while (above >= 0 && isBlankParagraph(children[above])) above--;
+	return above >= 0 && blockReadingNotFinal(children[above].raw, grammar);
 }
 
 /**
- * Ask every join the write disturbed whether it merges, and report where the written text ended
- * up: a merge into the block above leaves that block standing, so its bytes now sit in front of
- * the text.
+ * Merge across the joins from the one above `firstJoin` to the one below the last written block,
+ * and report where the written text ended up once a merge above put bytes in front of it.
  */
 function settleWriteSeams(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
+	firstJoin: number,
 	lastWritten: number,
 	change: StructuralChange,
-	sharing?: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
 		parent,
-		blockIndex,
-		lastWritten - blockIndex + 1,
+		firstJoin,
+		lastWritten - firstJoin + 1,
 		blockIndex,
 		change,
+		grammar,
 		sharing,
-		tracked
+		tracked,
+		// One written block lets a join beside it be refused on a single line of the neighbour.
+		lastWritten === blockIndex ? blockIndex : undefined
 	);
 	return {
 		change: settled.change,
@@ -158,95 +291,87 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
 }
 
 /**
- * The written bytes parsed, with any construct they leave open closed off first: an unterminated
- * construct reads every block below it as its body at the next parse, and the neighbour merge
- * would bring the live tree to exactly that reading.
+ * The written bytes parsed, with a construct they leave open closed first, or the next parse and
+ * the neighbour merge would read every block below it as its body.
  */
 function closeWrittenConstruct(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	oldKind: AnyBlockKind,
-	grammar: GrammarView | undefined
+	read: FragmentReader
 ): { text: string; parsed: Document } {
-	// Fragment scope: this is one block's bytes, whatever its position, so a kind that depends on
-	// document position must not be produced here.
-	const parsed = parse(text, { grammar, scope: 'fragment' });
+	const parsed = read(text);
 	if (blockIndex + 1 >= parent.children.length) return { text, parsed };
 	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
-	const terminator = openConstructTerminator(text, parsed.children, grammar);
+	const terminator = openConstructTerminator(text, parsed.children, read);
 	if (!terminator) return { text, parsed };
 	const closed = text + terminator;
-	return { text: closed, parsed: parse(closed, { grammar, scope: 'fragment' }) };
+	return { text: closed, parsed: read(closed) };
 }
 
 /**
- * The closing line the written bytes need when their last construct runs to end of file, asked
- * of the grammar rather than a kind list. Null when the bytes close themselves, or when no fence
- * opener explains the run (the one family whose closer its opener determines).
+ * The closing line the bytes need when their last construct runs to end of file; null when they
+ * close themselves, or no fence opener explains the run.
  */
 function openConstructTerminator(
 	text: string,
 	blocks: readonly CstNode[],
-	grammar: GrammarView | undefined
+	read: FragmentReader
 ): string | null {
 	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
-	// put one (the unterminated tail slice of G4.20, which absorbs nothing while it stands alone).
-	if (!text.endsWith('\n') || blocks.length === 0) return null;
-	const ending = trailingLineEnding(text);
-	const probe = parse(text + ending + NEXT_PROSE_LINE + ending, { grammar, scope: 'fragment' });
+	// put one: an unterminated tail slice absorbs nothing while it stands alone.
+	const ending = ownTrailingLineEnding(text);
+	if (ending === '' || blocks.length === 0) return null;
+	const probe = read(text + ending + NEXT_PROSE_LINE + ending);
 	if (probe.children.length !== blocks.length) return null;
-	const raw = blocks[blocks.length - 1].raw;
-	const nl = raw.indexOf('\n');
-	const opener = matchFenceOpen(nl < 0 ? raw : raw.slice(0, nl));
+	const [openerLine, ...bodyLines] = displayLines(blocks[blocks.length - 1].raw);
+	const opener = matchFenceOpen(openerLine.text);
 	if (!opener) return null;
-	const body = nl < 0 ? '' : raw.slice(nl + 1);
+	const body = joinDisplayLines(bodyLines);
 	const run = escalatedFenceLength(body, opener.marker, opener.length);
 	return opener.indent + opener.marker.repeat(run) + ending;
 }
 
 function writeParsedContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	// Before every reparse below, so the write lands on the kind its committed bytes describe,
-	// not the kind the text would parse to before the container's escape (`bodyWrite`).
-	const bodyText = forBody(parent, text);
+	const { lineEnding } = parent;
 
-	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
-	// keep the kind and write raw through its own legality pass.
+	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it.
 	if (oldDescriptor.contextDependentKind) {
-		writeOwnRaw(node, bodyText, grammar);
+		installOwnRaw(node, text, grammar);
 		return { op: 'noop' };
 	}
 
 	const { text: newText, parsed: reparsed } = closeWrittenConstruct(
 		parent,
 		blockIndex,
-		bodyText,
+		text,
 		oldKind,
-		grammar
+		fragmentReaderAt(parent.owner, blockIndex, grammar)
 	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
 	// A marker-consuming container (a GitHub alert) needs its raw rebuilt from the backfilled
 	// body, or raw and children disagree (G1.1).
 	const firstBackfilled = !!first && isEmptyEditableContainer(first);
-	if (first) ensureEditableContainers(first);
+	if (first) ensureEditableContainers(first, lineEnding);
 
 	// Blank lines at the start of the text go into the first block's raw (as in the single-block
 	// case); the rest keep their own separators.
 	if (parsed.length > 1) {
 		const rest = parsed.slice(1);
-		for (const sibling of rest) ensureEditableContainers(sibling);
+		for (const sibling of rest) ensureEditableContainers(sibling, lineEnding);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
-		if (firstBackfilled) reconcileBackfilledRaw(first);
+		if (firstBackfilled) rebuildContainerRaw(first, grammar);
 		// The trailing blank line the parse split off has no follower inside the splice, so it
 		// stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
@@ -261,14 +386,14 @@ function writeParsedContent(
 	if (newKind === oldKind) {
 		node.raw = newText;
 		adoptReparsedFields(node, first);
-		if (firstBackfilled) reconcileBackfilledRaw(node);
+		if (firstBackfilled) rebuildContainerRaw(node, grammar);
 		return { op: 'noop' };
 	}
 
 	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
 	replacement.raw = newText;
 	replacement.leadingTrivia = node.leadingTrivia;
-	if (firstBackfilled) reconcileBackfilledRaw(replacement);
+	if (firstBackfilled) rebuildContainerRaw(replacement, grammar);
 	parent.children.splice(blockIndex, 1, replacement);
 	return replacePreservingFirst(blockIndex, 1, 1);
 }
@@ -288,77 +413,90 @@ export function adoptReparsedFields(target: CstNode, parsed: CstNode | undefined
 
 /** A container `ensureEditableContainers` will backfill; read before the backfill runs. */
 function isEmptyEditableContainer(node: CstNode): boolean {
-	const d = getBlockKindDescriptor(node.kind);
-	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
-}
-
-/**
- * Sync a just-backfilled container's `raw` to its synthesized body. Needed only for a
- * marker-consuming container whose typed raw lacks a blank body line (`> [!TYPE]`).
- */
-function reconcileBackfilledRaw(node: CstNode): void {
-	getBlockKindDescriptor(node.kind).rebuildRaw?.(node);
+	return mustHoldChild(node.kind) && (node.children?.length ?? 0) === 0;
 }
 
 // ── Container kind re-derivation ──
 
-/**
- * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
- * a kind list, so a kind registered later is covered the day it registers.
- */
-export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
-	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
-}
-
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
-export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
+export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
 }
 
 /**
- * Re-derive the container at `index` from its own (already rebuilt) raw, replacing it in the
- * slot when that raw now opens as a different kind (editor.md § 8). Eligibility is the opener
- * registry: registering an opener is exactly the claim that `parse(raw)` reproduces the kind.
+ * Replace the container at `index` when its rebuilt raw parses as a different kind; only a kind
+ * with an opener qualifies, since registering one claims `readBlocks(raw)` reproduces the kind.
  */
 export function reclassifyContainer(
 	parent: NodeParent,
 	index: number,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
-	if (!node) return null;
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
+	if (!node || !tryGetBlockKindDescriptor(node.kind)?.isContainer) return null;
+	if (!isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, parseContainerRaw(node.raw, grammar), grammar);
+}
 
-	if (perfEnabled()) recordContainerKindReparse();
-	const parsed = parse(node.raw, { grammar, scope: 'fragment' }).children;
+/** The container at `index` replaced by what its bytes read as, when its position holds that: the
+ *  same kind over other children, or one block of another kind that has an opener. */
+export function installReading(
+	parent: NodeParent,
+	index: number,
+	reading: BytesReading,
+	grammar: GrammarView
+): CstNode | null {
+	const node = parent.children[index];
+	if (!node || reading.outcome === 'kept') return null;
+	if (reading.outcome === 'reread') {
+		// A child the re-read left alone keeps its id, so the block there stays mounted.
+		const children = reading.node.children ?? [];
+		reading.node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
+		return installReplacement(parent, index, reading.node, grammar);
+	}
+	if (!isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, reading.blocks, grammar);
+}
+
+function replaceWithParse(
+	parent: NodeParent,
+	index: number,
+	parsed: CstNode[],
+	grammar: GrammarView
+): CstNode | null {
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
-	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
+	if (parsed.length !== 1 || parsed[0].kind === parent.children[index].kind) return null;
+	return installReplacement(parent, index, parsed[0], grammar);
+}
 
-	const replacement = parsed[0];
+function installReplacement(
+	parent: NodeParent,
+	index: number,
+	replacement: CstNode,
+	grammar: GrammarView
+): CstNode {
+	const node = parent.children[index];
 	const backfilled = isEmptyEditableContainer(replacement);
-	ensureEditableContainers(replacement);
+	// A container spanning lines holds the document's ending in its bytes; only a one-line
+	// container, the last line of a document, falls back to LF.
+	ensureEditableContainers(replacement, firstLineEnding(node.raw) ?? '\n');
 	// The position's own `leadingTrivia` is authoritative, so restore the bytes before
 	// overwriting it or anything the parse split off the front vanishes with it.
 	replacement.raw = node.raw;
 	replacement.leadingTrivia = node.leadingTrivia;
-	if (backfilled) reconcileBackfilledRaw(replacement);
-	// A freshly parsed node carries no `childIds`, and this swap is written to state under the
-	// position's reused component instance, so undefined keys would reach the nested keyed
-	// `{#each}`.
+	if (backfilled) rebuildContainerRaw(replacement, grammar);
+	// A freshly parsed node carries no `childIds`, and the swap reuses the position's component,
+	// so undefined keys would reach its nested keyed `{#each}`.
 	assignChildIdsDeep(replacement);
 	parent.children[index] = replacement;
 	// Write, then re-read through the tree (`unshare.ts` header).
 	return parent.children[index];
 }
 
-/**
- * Where a caret at `offset` in the written text ends up once {@link updateNodeContent}'s merges
- * are done: a merge into the block above leaves that block holding the bytes, so the position
- * the edit named is gone and the offset includes what that block put in front of it.
- */
-export function settledCaretTarget(
+/** Where a caret at `offset` in the written text ends up after {@link updateNodeContent}'s merges:
+ *  the block holding it and its offset there, counting what a merge above put in front. */
+export function settledCaretPosition(
 	settled: SettledContent,
 	at: number,
 	offset: number,

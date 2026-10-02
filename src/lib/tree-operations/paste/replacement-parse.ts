@@ -1,13 +1,18 @@
 /**
  * The bytes a block is replaced by, parsed the one way every replace-at-parent caller needs them:
- * terminated in the original's own line ending (G4.20), reparsed in the instance grammar, carrying
- * the original's leading blank lines, with editable containers ensured.
+ * their line breaks in the document's ending, terminated in the original's own ending, else the
+ * document's, read the way a reload reads the original's slot, carrying the original's leading
+ * blank lines, with editable containers ensured.
  */
 
 import type { CstNode } from '../../core/nodes';
-import type { GrammarView } from '../../schema/block-openers';
-import { parse } from '../../core/parser';
-import { terminateLine } from '../../core/lines';
+import type { FragmentReader } from '../list/task-paragraph';
+import {
+	terminateLine,
+	trailingLineEnding,
+	withLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../node-primitives';
 
 export interface ParsedReplacement {
@@ -17,19 +22,22 @@ export interface ParsedReplacement {
 }
 
 /**
- * Null where `raw` parses to nothing and the caller named no `fallback`: the block keeps its
- * bytes rather than being replaced by an empty splice.
+ * `read` is the original's slot reader (`fragmentReaderAt`). Null where `raw` parses to nothing
+ * and the caller named no `fallback`: the block keeps its bytes rather than an empty splice.
  */
 export function parseReplacement(
 	original: CstNode,
 	raw: string,
-	grammar: GrammarView | undefined,
+	ending: LineEnding,
+	read: FragmentReader,
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
-	const parsed = parse(terminateLine(raw, original.raw), { grammar, scope: 'fragment' });
+	const lineEnding = trailingLineEnding(original.raw, ending);
+	const bytes = terminateLine(withLineEnding(raw, ending), lineEnding);
+	const parsed = read(bytes);
 	const children = parsed.children.length > 0 ? parsed.children : fallback?.();
 	if (!children || children.length === 0) return null;
 	const replacement = normalizeReplacementTrivia(original, children);
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) ensureEditableContainers(node, lineEnding);
 	return { replacement, suffix: parsed.suffix };
 }

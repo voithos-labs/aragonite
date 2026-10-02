@@ -1,9 +1,9 @@
 # Feature: live-mode demote-first (Backspace at a heading's content start)
 
 A heading's `## ` is unpainted in live mode, so the first Backspace a user can aim at it lands on
-structure they cannot see. The contract: a kind declaring `contentStartBackspace: 'demote-first'`
-gives up its own structural bytes on that keypress, whichever end it keeps them at, and the merge
-cascade takes the second keypress unchanged. Driven on `/test/editor` via `?presentationMode=live`
+structure they cannot see. The contract: a kind registering
+`contentStart: { range, backspace: 'demote-first' }` gives up its own structural bytes on that
+keypress, whichever end it keeps them at, and the merge cascade takes the second keypress unchanged. Driven on `/test/editor` via `?presentationMode=live`
 with real keystrokes and real clicks; the source and the block's kind are what each scenario
 checks against.
 
@@ -32,9 +32,10 @@ checks against.
   without them `[B][r]` is plain text and its `[` is content the bound would stop at
 - a paragraph opening with a reference construct still merges on that keypress: the moved bound
   serves the kinds that declare no demote too
-- `Delete` at a setext heading's content end takes nothing: the merge it would reach concatenates
-  past the underline and would bring it on screen, so the keypress is consumed until the join
-  code keeps a block's own structure across a merge
+- `Delete` at a setext heading's content end joins the next block onto the title line and leaves
+  the underline under the joined text, so the heading stays a heading and the caret sits where the
+  two texts meet (`setext-join.md` drives the same join in every mode). Miss-analysis: the pin on
+  this keypress encoded its refusal as the contract, so the join it declined was never specified
 - source mode never demotes: a keypress inside the painted `## ` takes a marker byte, because
   there the markers are on screen and the user aimed at them
 

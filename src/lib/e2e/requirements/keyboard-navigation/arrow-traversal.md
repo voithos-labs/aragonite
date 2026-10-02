@@ -17,6 +17,9 @@ position rather than logical caret position) that decide when the boundary is re
 - ArrowDown into container block: focus enters first child of the container
 - ArrowUp out of container block: focus exits to the block before the container
 - ArrowDown on empty block moves to next block: empty blocks are a single visual line, so geometry check triggers and focus advances
+- Leaving a code body backward lands outside a hidden closer, in live mode: Backspace at the start
+  of a code block's body moves the caret to the end of the bold paragraph above, and a typed `x`
+  goes after its closing `**`. It runs at the top level and inside a quote
 
 ## User interactions
 
@@ -30,6 +33,9 @@ position rather than logical caret position) that decide when the boundary is re
   where the browser reports no box, so the column read as the block's left edge. A real click
   plus End has always crossed the boundary at the column the caret was on, and no case here ran
   the same assertion after a real gesture.
+- The quote case typed inside the closer: the top level and a quote took different traversals
+  and only the top-level one picked the side, but every hidden-closer case ran at the top level,
+  and the arrow keys that dominate them set the side themselves.
 - The checks run for the caret-geometry change never included the keyboard-navigation project,
   so the two cases went red on the change that made the harness's caret measure like everyone
   else's.

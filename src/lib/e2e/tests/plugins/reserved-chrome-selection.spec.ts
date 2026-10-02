@@ -104,9 +104,8 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// Collapse to the focus end, the title, then type: the character must land in child 0,
-		// which shows the caret can go there. That the callout-title kind survives the edit comes
-		// from contextDependentKind and is covered elsewhere; this is about reaching path [1, 0].
+		// The typed character lands in child 0, showing the caret can reach path [1, 0]; that the title
+		// keeps its kind is covered elsewhere.
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('Z');
@@ -127,9 +126,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await editor.bridge.waitForSourceContains(':::callout Title!');
 		await editor.waitForUndoBatchFlush();
 
-		// Poll the child's text in the CST, not the source bytes: waiting on the bytes here can
-		// finish a beat before the title child is rebuilt, and readCallout then sees a callout
-		// with no children.
+		// Polls the CST child, not the bytes, which can finish before the title child is rebuilt.
 		await editor.undo();
 		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		// Undo restores the selection, so the caret returns to the title row.

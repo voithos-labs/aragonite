@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -24,10 +24,8 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 afterEach(() => allowDevWarns(['plugin-install']));
 
 /**
- * A plugin's setup runs once per process, so a route that installs second inherits whatever
- * grammar the first route registered. One dev/SSR server renders every route from one process
- * while each browser load starts a fresh page; a route whose parse depends on that history
- * ships SSR markup describing different kinds than the client that hydrates it.
+ * A plugin's setup runs once per process, so a route that installs second inherits the first
+ * route's grammar, and its SSR markup can describe different kinds than the hydrating client.
  */
 
 // The parser never renders, so stub renderers stand in for the routes' real ones; only which
@@ -69,8 +67,6 @@ function kindsUnder(installOrder: EditorPlugin[][], source: string): string[] {
 	return parse(source).children.map((block) => block.kind);
 }
 
-afterAll(() => resetPluginPlatformForTests());
-
 describe('a route parses its own document the same however other routes installed first', () => {
 	// Vacuity guard: every case below compares two parses, and two fallback-prose parses
 	// compare equal just as happily as two correct ones.
@@ -98,9 +94,8 @@ describe('a route parses its own document the same however other routes installe
 		);
 	});
 
-	// The harness memo takes every `%%` line, which includes the bundled parrot's `%%parrot`,
-	// so the two openers only sort correctly while the parrot registers below the memo. A tie
-	// would break by kind name and hand `%%parrot` to the memo, in either install order.
+	// The harness memo takes every `%%` line, `%%parrot` included, so the openers sort right only
+	// while the parrot registers below the memo; a tie would hand `%%parrot` to the memo.
 	const BOTH_MARKERS = '%%parrot party responsibly\n\n%% memo text\n';
 	it.each([
 		['demo first', [demoRouteSet(), harnessSet()]],

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { tick } from 'svelte';
 import {
 	installHeaderSlotCompensation,
 	installTypeScaleProbe,
@@ -7,6 +8,7 @@ import {
 	installWidthWatcher
 } from '$lib/components/editor-root-geometry';
 import { ESTIMATE_BASE_FONT_SIZE } from '$lib/cursor/typography-estimates';
+import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 
 // Observable stand-in for the observer jsdom does not implement.
 class FakeResizeObserver {
@@ -119,34 +121,43 @@ describe('editor-root geometry: type-scale probe', () => {
 });
 
 describe('editor-root geometry: header slot compensation', () => {
-	function slot(opts: { scrollTop?: number; owns?: boolean; holds?: boolean } = {}) {
+	// What a held placement does to the header's correction is the scroll owner's, in
+	// `scroll-owner.test.ts`.
+	function slot(opts: { scrollTop?: number; owns?: boolean } = {}) {
 		const box = boxed(400, 40);
-		let top = opts.scrollTop ?? 120;
+		const port = stubScrollport({ viewportHeight: 500 });
+		port.setScrollTop(opts.scrollTop ?? 120);
+		const owner = stubScrollOwner(port, { editorCorrects: () => opts.owns ?? true });
+		const root = owner.resolveTargetsWith({
+			resolve: () => null,
+			holdForRound: () => null,
+			mountTop: () => null,
+			syncScrollTop: () => {}
+		});
 		teardowns.push(
-			installHeaderSlotCompensation({
-				el: box.el,
-				port: { scrollTop: () => top, scrollBy: (delta: number) => (top += delta) },
-				ownsScrollCorrection: () => opts.owns ?? true,
-				revealHoldsScroll: () => opts.holds ?? false
-			})
+			installHeaderSlotCompensation({ el: box.el, port: owner.port, compensate: root.compensate })
 		);
-		return { grow: (by: number) => observer().trigger(borderBox(40 + by)), top: () => top };
+		return {
+			grow: (by: number) => observer().trigger(borderBox(40 + by)),
+			top: () => port.scrollTop()
+		};
 	}
 
-	it('a growing header shifts the port by the delta, keeping the reader in place', () => {
+	it('a growing header shifts the port by the delta, keeping the reader in place', async () => {
 		const s = slot();
 		s.grow(30);
+		await tick();
 		expect(s.top()).toBe(150);
 	});
 
 	it.each([
 		['the port sits at the top', { scrollTop: 0 }],
-		['the host owns the correction', { owns: false }],
-		['a reveal holds the scroll', { holds: true }]
-	])('leaves the port alone when %s', (_label, opts) => {
+		['the host owns the correction', { owns: false }]
+	])('leaves the port alone when %s', async (_label, opts) => {
 		const s = slot(opts);
 		const before = s.top();
 		s.grow(30);
+		await tick();
 		expect(s.top()).toBe(before);
 	});
 });

@@ -1,16 +1,13 @@
-// Mounting one BlockHost the way BlockList does: a node from a live document,
-// its index, and the pair of ref entries the host writes into.
+// Mounting one BlockHost the way BlockList does: a node from a live document, its index, and
+// the pair of ref entries the host writes into.
 
-import { mount, unmount, flushSync, type ComponentProps } from 'svelte';
 import BlockHost from '$lib/components/BlockHost.svelte';
 import type { BlockComponent } from '$lib/block-component';
-import type { Document, PluginBlockKind } from '$lib/core/nodes';
+import type { Document } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
 import { refSlotsOver, type RefSlots } from '$lib/reactivity/publish-ref.svelte';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
-import { editorMountContext, type MountContextOverrides } from '../harness/mount-context';
+import { mountBlock } from '../harness/mount-block';
+import type { MountContextOverrides } from '../harness/mount-context';
 
 /** The props a caller sets; the rest are filled in. Pass a `$state` object to
  *  drive a re-dispatch (index shift, byte change) after mount. */
@@ -39,41 +36,21 @@ export function mountBlockHost(
 	props: HostProps = {},
 	overrides: MountContextOverrides = {}
 ): MountedHost {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
 	const refs: (BlockComponent | undefined)[] = [];
 	props.index ??= 0;
-	props.node ??= doc.children[props.index];
 	props.id ??= `block-${props.index}`;
 	props.slots ??= refSlotsOver(refs);
-	const instance = mount(BlockHost, {
-		target,
-		// The required props are filled above, but only at runtime: the declared shape
-		// stays all-optional so a caller can hand in a partial `$state` object.
-		props: props as unknown as ComponentProps<typeof BlockHost>,
-		context: editorMountContext({ doc: { doc: () => doc }, ...overrides })
+	const mounted = mountBlock(BlockHost, {
+		doc,
+		path: [props.index],
+		// Filled at runtime: the declared shape stays all-optional so a caller can hand in a
+		// partial `$state` object.
+		props: props as Record<string, unknown>,
+		overrides
 	});
-	flushSync();
 	return {
-		el: target.querySelector('.block-host') as HTMLElement,
+		el: mounted.target.querySelector('.block-host') as HTMLElement,
 		refs,
-		dispose: async () => {
-			await unmount(instance);
-			target.remove();
-		}
+		dispose: mounted.dispose
 	};
-}
-
-/** A descriptor-only plugin kind: the reachable shape of BlockHost's "no component"
- *  case, since `registryView.descriptor` throws for a kind that has none at all. */
-export function declareComponentlessKind(name: string): PluginBlockKind {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure
-	});
-	return kind;
 }

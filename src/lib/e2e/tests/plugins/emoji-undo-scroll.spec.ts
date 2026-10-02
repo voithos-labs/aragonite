@@ -49,9 +49,8 @@ async function viewport(page: Page): Promise<{ scrollTop: number; lead: string |
 }
 
 test.describe('an undo that restores a glyph widget leaves the scrollport alone', () => {
-	// Two positions for the shortcode's own list, below the fold and in view: re-estimating the
-	// whole document slides the user by its accumulated error either way, and how far depends on
-	// how much of the document sits above them.
+	// The shortcode's list below the fold and in view: re-estimating the document slides the user by
+	// its accumulated error either way, by an amount that depends on how much sits above.
 	for (const offset of [-40, 80]) {
 		test(`the list ${offset < 0 ? 'below the fold' : 'in view'} holds through delete + undo`, async ({
 			page

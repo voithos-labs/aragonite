@@ -17,7 +17,7 @@ export type RawOffset = number & { readonly [rawOffsetBrand]: true };
 declare const domTextOffsetBrand: unique symbol;
 /**
  * Offset as the DOM walk counts it: the raw offset plus the leading marker prefix's text length.
- * Produced by `cursor/widget-offset.ts`, or `cursor/content-offsets.ts` where no widgets are involved.
+ * Produced only by `cursor/widget-offset.ts`.
  */
 export type DomTextOffset = number & { readonly [domTextOffsetBrand]: true };
 
@@ -82,22 +82,44 @@ export function asCellIndex(n: number): CellIndex {
 
 // ── Cell grid decode ─────────────────────────────────────────────────────────
 
-/**
- * Row-major cell index to `{ row, col }` for a table of `colCount` columns, the one place this
- * divmod lives. Takes a plain number so a `CellIndex` holder and a bare loop counter both reach
- * it without a cast.
- */
+/** Row-major cell index to `{ row, col }` for a table of `colCount` columns. Takes a plain
+ *  number so a `CellIndex` and a bare loop counter both reach it without a cast. */
 export function cellRowCol(cellIdx: number, colCount: number): { row: number; col: number } {
 	const row = Math.floor(cellIdx / colCount);
 	return { row, col: cellIdx - row * colCount };
 }
 
+/** Grid coordinates to the row-major cell index {@link cellRowCol} decodes. */
+export function rowMajorCellIndex(row: number, col: number, colCount: number): CellIndex {
+	return asCellIndex(row * colCount + col);
+}
+
+/** A rectangle of table cells: its top-left cell plus its size. */
+export interface CellRect {
+	top: number;
+	left: number;
+	rows: number;
+	cols: number;
+}
+
+/** The rectangle two cells span as its corners, in either order. */
+export function cellRectBounds(cornerA: number, cornerB: number, colCount: number): CellRect {
+	const a = cellRowCol(cornerA, colCount);
+	const b = cellRowCol(cornerB, colCount);
+	const top = Math.min(a.row, b.row);
+	const left = Math.min(a.col, b.col);
+	return {
+		top,
+		left,
+		rows: Math.max(a.row, b.row) - top + 1,
+		cols: Math.max(a.col, b.col) - left + 1
+	};
+}
+
 // ── DocPath composition (document-absolute path helpers, in a dependency-free module) ──
 //
-// `DocPath`'s type and its branding function live in `selection/path-math.ts`; the composers
-// live here because `tree-operations/` must reach them without depending on `selection/`. Bare
-// `as DocPath` casts for the same reason: importing the runtime function would reopen the
-// cursor-selection import cycle, while a type-only import is erased.
+// Here so `tree-operations/` can compose paths without importing `selection/`; the casts are
+// bare because importing `selection/path-math.ts` at runtime would close an import cycle.
 
 /** Append a child index to a parent path, yielding a document-absolute path. */
 export function extendDocPath(parent: readonly number[], index: number): DocPath {

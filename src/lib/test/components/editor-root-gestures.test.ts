@@ -2,16 +2,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRootGestures } from '$lib/components/editor-root-gestures';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 
-// Miss-analysis: the click test and the margin drag's setup were driven only through Playwright,
-// so no jsdom test named a refusal (a widget that runs its own gesture, a modifier held down,
-// reading mode) or the step that ends the previous range.
+// Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
 
 const BOX = { left: 40, right: 400, top: 20, bottom: 60 };
 /** In the root's left margin, level with the block's first line. */
@@ -82,23 +81,23 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const focus = vi.fn();
 	const component = { focusable: true, focus, startDragAtPoint } as unknown as BlockComponent;
 	const activateLink = vi.fn();
+	const caretMemory = createCaretMemory();
 	const gestures = createRootGestures({
-		get mode() {
-			return mode;
-		},
 		getDoc: () => doc,
 		selection,
-		stickyColumn: createStickyColumnState(),
-		edgeAffinity: createEdgeAffinityState(),
+		caretMemory,
 		getBlockElByPath: () => nearest,
 		getBlockComponent: () => component,
-		revealPath: async () => component,
+		land: async () => 'placed',
 		getScrollHost: () => root,
 		getLifetime: () => new AbortController().signal,
 		isHostChrome: (node) => !!node && header.contains(node),
 		activateLink,
 		linkCard: { open: () => false },
-		linkRef: { current: refs.resolve, signature: refs.signature, epoch: 0 },
+		reading: fixtureReading(
+			{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
+			mode
+		),
 		widgetSelection: { isSelected: () => false }
 	});
 	teardowns.push(gestures.install(root));
@@ -119,6 +118,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		link,
 		headerLink,
 		selection,
+		caretMemory,
 		gestures,
 		startDragAtPoint,
 		focus,
@@ -138,6 +138,18 @@ describe('editor-root gestures: the margin drag', () => {
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.startDragAtPoint).toHaveBeenCalledWith(10, 40, expect.any(MouseEvent));
 		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
+	});
+
+	// A click moves the caret without a key, so the column, the side and the marks go together:
+	// a side left behind would steer the next typed byte by an arrival the click replaced.
+	it('a dead-space press forgets how the caret arrived', () => {
+		const h = harness();
+		h.caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(120));
+		h.caretMemory.pendingMarks.toggle('strong');
+		h.press(h.root);
+		expect(h.caretMemory.column()).toBeNull();
+		expect(h.caretMemory.side()).toBeNull();
+		expect(h.caretMemory.pendingMarks.get()).toBeNull();
 	});
 
 	it.each<[string, MouseEventInit]>([
@@ -181,8 +193,7 @@ describe('editor-root gestures: the margin drag', () => {
 		expect(h.mouseDown(h.root, { detail: 2 }).defaultPrevented).toBe(false);
 	});
 
-	// Miss-analysis: the click test was pinned only through the margin drag's own press, so the
-	// second place it decides, the block a click run outside every editable lands in, had no unit.
+	// Miss-analysis: only the margin drag's press was tested, not where a dead-space click lands.
 	it('a click run on dead space selects in the nearest block; a plain press does not', () => {
 		const h = harness();
 		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
@@ -194,8 +205,7 @@ describe('editor-root gestures: the margin drag', () => {
 		expect(window.getSelection()?.toString()).toBe('');
 	});
 
-	// Miss-analysis: the path read off the surface a click run lands in had its own parse, and no
-	// test ever gave it an attribute a plugin, rather than a block host, had written.
+	// Miss-analysis: no test gave the landing element a block path a plugin, not a host, wrote.
 	it('a click run still lands where the surface carries a foreign block path', () => {
 		const h = harness();
 		h.nearest.setAttribute('data-block-path', 'not-json');

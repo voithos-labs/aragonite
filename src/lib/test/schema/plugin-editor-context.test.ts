@@ -1,46 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests
-} from '$lib/schema/plugin-install';
+	activationFor,
+	everyInstalledPlugin,
+	type PluginActivation
+} from '$lib/schema/plugin-activation';
+import { registerInsertEntry } from '$lib/schema/insert-catalogue';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
 import type { InlineMenuRegistry } from '$lib/inline-menu/types';
+import { noopInlineMenus, noopRects, pluginContextDeps } from '../support/plugin-context-deps';
 
-const fakeEvents = { on: () => () => {} } as never;
-const noopDecorations: DecorationRegistry = {
-	addSource: () => ({ invalidate() {}, dispose() {} })
-};
-const noopRects: EditorRects = {
-	blockRect: () => null,
-	rangeRects: () => [],
-	caretRect: () => null,
-	reveal: async () => false,
-	scrollTo: async () => false,
-	navigateTo: async () => false
-};
-const noopInlineMenus: InlineMenuRegistry = {
-	addSource: () => ({ dispose() {} }),
-	open: () => false,
-	close() {},
-	isOpen: false
-};
 const deps = (doc: { children: unknown[] }) => ({
-	editorId: 'ed-1',
-	getDoc: () => doc as never,
-	events: fakeEvents,
-	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
-	decorations: noopDecorations,
-	rects: noopRects,
-	inlineMenus: noopInlineMenus,
-	getPresentationMode: () => 'source' as const,
-	getTheme: () => 'dark',
-	activation: everyInstalledPlugin
+	...pluginContextDeps(doc),
+	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined)
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */
@@ -57,15 +33,20 @@ function installPair(attached: string[]) {
 	]);
 }
 
-beforeEach(() => __resetInstalledPluginsForTests());
+/** Plugins with nothing to set up, so an editor's context for each name resolves. */
+function installNamed(...names: string[]): void {
+	installPlugins(names.map((name) => definePlugin({ name, setup: () => {} })));
+}
 
 describe('createEditorPluginContexts', () => {
+	beforeEach(() => installNamed('opts', 'other', 'p'));
+
 	it('get() returns one stable identity per plugin, with per-plugin options', () => {
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
 		const a = ctxs.get('opts')!;
 		expect(a).toBe(ctxs.get('opts'));
 		expect(a.options).toEqual({ max: 3 });
-		expect(ctxs.get('other')!.options).toBeUndefined();
+		expect(ctxs.get('other')!.options).toEqual({});
 		expect(a.editorId).toBe('ed-1');
 	});
 
@@ -75,6 +56,78 @@ describe('createEditorPluginContexts', () => {
 		const ctx = ctxs.get('p')!;
 		doc = { children: [1] };
 		expect((ctx.document as never as { children: unknown[] }).children).toHaveLength(1);
+	});
+
+	it('documentGeneration is a live getter, not a snapshot', () => {
+		let generation = 0;
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			getDocumentGeneration: () => generation
+		});
+		const ctx = ctxs.get('p')!;
+		expect(ctx.documentGeneration).toBe(0);
+		generation = 2;
+		expect(ctx.documentGeneration).toBe(2);
+	});
+
+	// Miss-analysis: no test asked the plugin context to reach the editor instance.
+	it('openDraft opens the draft in this editor’s registry', () => {
+		const specs: unknown[] = [];
+		const draft = { canWrite: () => true, end: () => {} };
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			openDraft: (spec) => (specs.push(spec), draft)
+		});
+		const spec = { seed: 'x', current: () => 'x', close: () => {} };
+		expect(ctxs.get('p')!.openDraft(spec)).toBe(draft);
+		expect(specs).toEqual([spec]);
+	});
+
+	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
+		const inserted: unknown[][] = [];
+		const ran: unknown[][] = [];
+		let answer = true;
+		const ctx = createEditorPluginContexts({
+			...deps({ children: [] }),
+			insertMarkdown: async (...args) => (inserted.push(args), answer),
+			runCommand: (...args) => (ran.push(args), answer)
+		}).get('p')!;
+
+		expect(await ctx.insertMarkdown('> ', { placement: 'below' })).toBe(true);
+		expect(ctx.runCommand('heading.cycle', 2)).toBe(true);
+		answer = false;
+		expect(await ctx.insertMarkdown('x')).toBe(false);
+		expect(ctx.runCommand('nope')).toBe(false);
+		expect(inserted).toEqual([
+			['> ', { placement: 'below' }],
+			['x', undefined]
+		]);
+		expect(ran).toEqual([
+			['heading.cycle', 2],
+			['nope', undefined]
+		]);
+	});
+
+	it('insertCatalogue lists a plugin block only where this editor activated its plugin', () => {
+		installPlugins([
+			definePlugin({
+				name: 'blocky',
+				setup: () =>
+					registerInsertEntry({
+						id: 'blocky',
+						label: 'Blocky',
+						icon: 'plus',
+						keywords: [],
+						markdown: ':::blocky\n\n:::\n'
+					})
+			})
+		]);
+		const listed = (activation: PluginActivation) =>
+			createEditorPluginContexts({ ...deps({ children: [] }), activation })
+				.get('')!
+				.insertCatalogue.map((e) => e.id);
+		expect(listed(everyInstalledPlugin)).toContain('blocky');
+		expect(listed(activationFor([]))).not.toContain('blocky');
 	});
 
 	it('presentationMode is a live getter, not a snapshot', () => {

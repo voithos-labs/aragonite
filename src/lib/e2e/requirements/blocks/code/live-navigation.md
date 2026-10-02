@@ -36,11 +36,19 @@ Fixture: `Before` / a two-line `js` fence / `After`, in `?presentationMode=live`
   either side: opener, one empty body line, closer. A caret that stepped in is passing through, so no
   language picker opens to take its focus: ArrowRight from above then types into that line;
   ArrowLeft from below enters it, and a second ArrowLeft leaves to the block above
+- Backspace on that empty body line deletes the whole fence (there's no code to lose) and the
+  caret lands once, at the end of the block above, so typed text joins `Before`. Only `Before`
+  takes focus: a stop in `After` on the way means two carets raced, and the next key goes to
+  whichever won
 - The far side of the empty body line is the hidden closer's line, which nothing paints: the last
   offset the caret can sit at stops before that newline, so ArrowRight and ArrowDown on the empty
   line leave the block instead of putting the caret where the browser cannot show it
 
 ## Miss-analysis
+
+- The empty-fence Backspace deleted the block without waiting for it and then moved the caret up
+  itself, so two carets landed (the delete's in the block below, then the step up). Which one won
+  came down to timing, and no test counted how many times focus moved.
 
 - The exit gestures pinned here were all keys with no bytes of their own (Enter, the arrows), so
   the one that types something a fence line could be read as went unasked in both modes.

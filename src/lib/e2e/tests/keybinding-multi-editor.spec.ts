@@ -1,23 +1,13 @@
 import { test, expect } from '../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
+import { gotoReady } from '../goto-ready';
 
 // Each editor adds its own keydown listener to the shared document, so these cases check that
 // a shortcut reaches only one editor, and that a single editor on a page still takes its own
 // shortcuts, which the check for that must not strand.
 
-async function gotoMulti(page: Page): Promise<{ left: Locator; right: Locator }> {
-	await page.goto('/test/multi-editor');
-	// Waits for hydration, so both editors' mount effects have run, keydown listeners
-	// included, and no shortcut races an editor that is not ready.
-	await page.waitForFunction(
-		() => (window as unknown as { __editorsReady?: boolean }).__editorsReady === true,
-		null,
-		{ timeout: 10_000 }
-	);
-	const editors = page.locator('.editor');
-	return { left: editors.nth(0), right: editors.nth(1) };
-}
+const editorAt = (page: Page, index: number) => page.locator('.editor').nth(index);
 
 const activeEditorIndex = (page: Page) =>
 	page.evaluate(() =>
@@ -35,8 +25,11 @@ async function editEditor(page: Page, editor: Locator, mark: string): Promise<vo
 }
 
 test.describe('multi-editor document-chord containment', () => {
+	test.beforeEach(async ({ page }) => {
+		await gotoReady(page, '/test/multi-editor');
+	});
+
 	test('Ctrl+F with focus outside every editor opens no search bar', async ({ page }) => {
-		await gotoMulti(page);
 		await page.locator('[data-testid="outside-input"]').focus();
 		await page.keyboard.press('ControlOrMeta+f');
 		await page.waitForTimeout(150); // checking nothing happens; there is nothing to wait on
@@ -44,7 +37,7 @@ test.describe('multi-editor document-chord containment', () => {
 	});
 
 	test("an in-focus Ctrl+F opens only the focused editor's search bar", async ({ page }) => {
-		const { left } = await gotoMulti(page);
+		const left = editorAt(page, 0);
 		await left.locator('[contenteditable]').first().click();
 		await expect.poll(() => activeEditorIndex(page)).toBe(0);
 		await page.keyboard.press('ControlOrMeta+f');
@@ -56,38 +49,33 @@ test.describe('multi-editor document-chord containment', () => {
 	});
 
 	test('a body-level Ctrl+Z reverts only the last-interacted editor', async ({ page }) => {
-		const { left, right } = await gotoMulti(page);
+		const [left, right] = [editorAt(page, 0), editorAt(page, 1)];
 		await editEditor(page, right, 'RIGHTMARK'); // right interacted first
 		await editEditor(page, left, 'LEFTMARK'); // left last, so it takes a key sent to <body>
 
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('ControlOrMeta+z');
 
-		// Ignoring keys that arrive on <body> would leave undo dead once the caret's block is
-		// unmounted (perf/vr-reveal F2); taking them always would reach too far, which is what
-		// the last-interacted rule prevents.
+		// Ignoring keys that arrive on <body> would leave undo dead once the caret's block unmounts;
+		// taking them always would reach too far, which the last-interacted rule prevents.
 		await expect(left).not.toContainText('LEFTMARK');
 		await expect(right).toContainText('RIGHTMARK');
 	});
 });
 
 test.describe('single-editor document-chord claim', () => {
-	// What a single editor on a page takes: it takes the key when focus is inside it, on a
-	// control of the app's that is not a text field, or on <body>; it leaves the key alone when
-	// focus is in a text field of the app's, so it never takes a shortcut from a field the user
-	// is typing in.
+	// A single editor takes the key when focus is inside it, on an app control that is not a text
+	// field, or on <body>, and never from an app text field the user is typing in.
 
-	// Focus on a control beside the editor is neither inside it nor on <body>, so a rule that
-	// demands one of those strands the shortcut, and only a single editor taking it can deliver
-	// it. That is what broke Ctrl+H after a click on the reading-mode toggle.
+	// Focus on a control beside the editor is neither inside it nor on <body>, so a rule demanding
+	// one of those would strand the shortcut, as after a click on the reading-mode toggle.
 	test('the sole editor claims Ctrl+F while an outside control holds focus', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('# Title\n\nAlpha paragraph\n');
 
-		// Focus a header control outside the editor without clicking, since a click would
-		// switch the mode. Focus now rests on a real element that is neither <body> nor inside
-		// the editor, which is the state a click on the reading-mode toggle leaves behind.
+		// Focuses a header control without clicking, since a click would switch the mode: focus rests
+		// on an element neither <body> nor inside the editor, as a toggle click leaves it.
 		await page.getByTestId('presentation-toggle').focus();
 		await expect
 			.poll(() =>

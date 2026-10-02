@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// A column edit covers the table plus one state unit per mounted row, resolved from the state
-// registry (`editor-actions/table-context.ts` § mountedColumnScopes): a row registers its
-// `BlockListState` on mount and an unmounted row has none, which is why that list is built by
-// asking. The registration only happens inside the mounted components. The unmounted half is left
-// to e2e, since jsdom boxes are all zero, so `test:e2e:vr` owns that case.
+// A column edit covers the table plus the `BlockListState` of each mounted row, which a row
+// registers on mount (`editor-actions/table-context.ts :: mountedColumnScopes`), so only mounted
+// components show it. Unmounted rows need real layout, so `test:e2e:vr` covers them.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';

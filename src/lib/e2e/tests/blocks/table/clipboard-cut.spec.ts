@@ -19,7 +19,7 @@ test.describe('table block: clipboard cut', () => {
 		page
 	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('ControlOrMeta+x');
@@ -34,7 +34,7 @@ test.describe('table block: clipboard cut', () => {
 	}) => {
 		const source = '| A | B |\n| --- | --- |\n| hello | 2 |\n';
 		await editor.loadContent(source);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('ControlOrMeta+x');
@@ -59,7 +59,54 @@ test.describe('table block: clipboard cut', () => {
 		await editor.bridge.waitForSourceContains('|  |  | C |');
 		await editor.bridge.waitForSourceContains('|  |  | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
-		await expect(page.locator('[role="cell"]')).toHaveCount(9);
+		await expect(page.locator('.table-cell')).toHaveCount(9);
+	});
+
+	// Miss-analysis: every rectangle cut here held part of a row, so a whole row or column never
+	// met the cut's own removal.
+	test('Ctrl+X over a whole row removes the row', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+x');
+
+		await expect.poll(() => editor.readClipboard()).toContain('| 1 | 2 | 3 |');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
+		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
+		await expect(page.locator('.table-cell')).toHaveCount(6);
+	});
+
+	test('Ctrl+X over a whole column removes the column', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 1, 7);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+x');
+
+		await editor.bridge.waitForSourceContains('| A | C |');
+		await editor.bridge.waitForSourceContains('| 1 | 3 |');
+		await editor.bridge.waitForSourceContains('| 4 | 6 |');
+		await expect(page.locator('.table-cell')).toHaveCount(6);
+	});
+
+	test('typing over a whole row clears its cells and types into the first', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.type('x');
+
+		await editor.bridge.waitForSourceContains('| x |  |  |');
+		await expect(page.locator('.table-cell')).toHaveCount(9);
+	});
+
+	test('pasting over a whole row clears its cells and pastes into the first', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await editor.seedClipboard('P');
+		await dragBetweenCells(page, 3, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ControlOrMeta+v');
+
+		await editor.bridge.waitForSourceContains('| P |  |  |');
+		await expect(page.locator('.table-cell')).toHaveCount(9);
 	});
 
 	test('cross-block Ctrl+X originating in a cell writes the range to clipboard and clears the source', async ({
@@ -67,12 +114,12 @@ test.describe('table block: clipboard cut', () => {
 	}) => {
 		await editor.loadContent(`${TABLE_2BODY}\nfollow paragraph\n`);
 		// Anchor inside cell "1" (row 1, col 0), extend down into the paragraph below.
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		// Drag rather than Shift+ArrowDown: keyboard entry from inside a cell routes through the
 		// table's keyboard-extend path, which is not what this test is about.
 		const [cell, paragraph] = await boxesOf(
-			page.locator('[role="cell"]').nth(2),
+			page.locator('.table-cell').nth(2),
 			page.getByText('follow paragraph')
 		);
 		await dragBetweenBoxes(page, cell, paragraph);
@@ -84,8 +131,8 @@ test.describe('table block: clipboard cut', () => {
 		expect(clip).toContain('1');
 		expect(clip).toContain('follow paragraph');
 
-		// Per cross-block-delete Case 2: cells [startCellIdx..lastCell] cleared in row 1,
-		// row 2 removed entirely, paragraph head dropped, anchor row's cells blank.
+		// Cells from the start cell on are cleared in row 1, row 2 goes, the paragraph's head is
+		// dropped, and the anchor row's cells are blank.
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await editor.bridge.waitForSourceContains('| A | B |');
@@ -95,14 +142,12 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// Drag from the paragraph above into a mid-row, mid-column cell (a2). Whole-row snap
-		// captures rows 0..1 in full and the paired delete clears the same rows, so every body cell
-		// is either copied and gone or surviving and not copied. A copy that rounds to whole rows
-		// while the delete clears only columns makes a2 and a3 both.
+		// Dragging into mid-row cell a2 snaps to whole rows 0..1 for both copy and delete, so every
+		// body cell is either copied and gone or kept and not copied.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
-		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('[role="cell"]').nth(4));
+		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('.table-cell').nth(4));
 		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);
 
@@ -124,14 +169,13 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut anchored in a mid-cell keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// The reverse of the test above: the drag starts in the mid-cell (a2) and exits upward, so
-		// the drag's start is the table endpoint. Without `cellCoordinate: true` there, the
-		// whole-row snap never fires and a2 and a3 both land on the clipboard and survive.
+		// The reverse drag starts at a2, so the table endpoint is the drag's start; without
+		// `cellCoordinate: true` there, a2 and a3 are copied and survive.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
 		const [a2, head] = await boxesOf(
-			page.locator('[role="cell"]').nth(4), // a2 (mid-column)
+			page.locator('.table-cell').nth(4), // a2 (mid-column)
 			page.getByText('head')
 		);
 		await dragBetweenBoxes(page, a2, head);
@@ -154,10 +198,10 @@ test.describe('table block: clipboard cut', () => {
 	}) => {
 		const original = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nfollow paragraph\n';
 		await editor.loadContent(original);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		const [cell, paragraph] = await boxesOf(
-			page.locator('[role="cell"]').nth(2),
+			page.locator('.table-cell').nth(2),
 			page.getByText('follow paragraph')
 		);
 		await dragBetweenBoxes(page, cell, paragraph);

@@ -7,7 +7,8 @@ into; nothing reflows mid-drag and the tree changes once, on release.
 The ghost carries a label rather than a sample of the text: a table's cells
 run together into `IngredientAmountWater35 L` and an equation reads as its own
 source, so those kinds name themselves (`Table · 13 × 2`, `Equation`, `Code`,
-`Diagram`, `Divider`, `Image`) and prose keeps its first words.
+`Diagram`, `Divider`, `Details`, `Image`) and everything else keeps its first words. A kind
+names itself by declaring a `dragLabel`; a table goes by its shape.
 
 A drop focuses nothing. Focusing what was dropped would open whatever a caret
 opens there, such as an equation showing its source, which a drag never asked
@@ -24,6 +25,8 @@ for. The keyboard move is the opposite: the caret travels with the block.
 - A block dropped into a gap whose neighbors had no blank line between them (a heading
   interrupting the paragraph above it) arrives with one: the table stays a table under the
   paragraph, and the source reloads to the same three blocks.
+- A drag inside a quote marks the whole quote as its scope, bar and padding included, the way a
+  drag inside a list marks the list.
 - Drop outside any valid sibling gap / release without moving: no change.
 - Escape or pointercancel during a drag: cancelled, no change.
 - Dragging toward the viewport edge in a large document autoscrolls past the blocks windowing has not mounted, so a target off screen comes into reach and the drop still moves the block whole.

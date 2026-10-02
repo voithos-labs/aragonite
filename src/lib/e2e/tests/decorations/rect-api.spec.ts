@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, cstBlockCount } from '../perf/vr-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * Public rect API (requirements/decorations/rect-api.md). E2E, not a unit suite, because
@@ -109,9 +110,8 @@ test.describe('public rect api', () => {
 
 	test('rangeRects on a heading measures raw offsets, marker included', async ({ page }) => {
 		await editor.loadContent('## Heading\n');
-		// Raw offsets: 0..1 is the first dimmed `#`; 3..4 is the visible `H`. Marker-inclusive
-		// offsets put the `#` rect left of the `H` rect. If offsets counted visible text only,
-		// offset 0 would land on `H` and the two lefts would coincide.
+		// Raw offsets: 0..1 is the dimmed `#`, 3..4 the visible `H`, so the `#` rect sits left of the
+		// `H` rect; offsets over visible text only would make the two lefts coincide.
 		const markerRects = await rangeRects(page, [0], 0, 1);
 		const letterRects = await rangeRects(page, [0], 3, 4);
 		expect(markerRects.length).toBeGreaterThan(0);
@@ -130,7 +130,7 @@ test.describe('public rect api', () => {
 
 	test('caretRect lands near a clicked position', async ({ page }) => {
 		await editor.loadContent('measure this caret\n');
-		const point = await editor.pointForOffset([0], 8);
+		const point = await pointAtRaw(editor.page, [0], 8);
 		await page.mouse.click(point.x, point.y);
 		await editor.waitForRenderFlush();
 
@@ -155,9 +155,8 @@ test.describe('public rect api', () => {
 		await editor.loadContent('first block\n\nsecond block\n');
 		await editor.focusBlockEnd(0);
 
-		// The check records `caretRect()` from inside the synchronous event, before the deferred
-		// `data-cross-block` effect writes the attribute: a caretRect that waited on that attribute
-		// would read it unset here and hand back the box of the range the caret left behind.
+		// Records `caretRect()` inside the synchronous event, before the deferred `data-cross-block`
+		// effect runs, so a caretRect waiting on that attribute would return the range the caret left.
 		await page.evaluate(() => (window as any).__test.startCrossBlockCaretProbe());
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -204,9 +203,8 @@ test.describe('public rect api', () => {
 
 	test('scrollTo centers a windowed-out mid-document block in the viewport', async ({ page }) => {
 		const count = await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
-		// A target in the middle of the document cannot be clamped to an edge, which is what
-		// makes the scroll half provable: the last block hits max scrollTop and lands at the
-		// bottom, where a mount that never scrolled would leave it too.
+		// A mid-document target cannot be clamped to an edge, which makes the scroll half provable; the
+		// last block would land at the bottom even from a mount that never scrolled.
 		const mid = Math.floor(count / 2);
 		const sel = JSON.stringify([mid]);
 
@@ -219,9 +217,8 @@ test.describe('public rect api', () => {
 		// First half: `scrollTo` mounted the block.
 		await expect(page.locator(`[data-block-path='${sel}']`)).toHaveCount(1);
 
-		// Second half: the viewport moved far from the top and the target sits near the vertical
-		// center, not at the viewport top, which is where a mount that never scrolled would leave
-		// it, about half a viewport off center.
+		// The viewport moved far from the top and the target sits near the vertical center, not at the
+		// viewport top, where a mount that never scrolled would leave it.
 		const m = await centerMetrics(page, [mid]);
 		expect(m.blockCenter).not.toBeNull();
 		expect(m.scrollTop).toBeGreaterThan(m.viewportHeight);

@@ -1,17 +1,13 @@
 // @vitest-environment jsdom
-//
 // What the plan hands back for a range whose edge is a deep `[grid, row, col]` path: a character
 // offset into a cell the write grows, an endpoint space a table does not have. A text edge
-// follows its own rewrite; this is the sibling that did not.
-//
-// Miss-analysis: every endpoint assertion in these suites used a table endpoint, whose cell-index
-// space no write can move, so none asked what a char-offset endpoint reads after its cell grew.
-import { afterEach, describe, expect, it } from 'vitest';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+// follows its own rewrite, and a deep grid edge must too.
+// Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
+import { describe, expect, it } from 'vitest';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { collectCrossBlockText } from '$lib/selection/clipboard-text';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -21,22 +17,21 @@ const TWO_BY_TWO = [
 ];
 
 describe('a range edge deep inside a plugin grid', () => {
-	it('restores the start over the cell the press marked, not at its pre-write offset', () => {
+	it('restores the start before the opener its own cell grew', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
 		const { plan } = planStored(doc, at([1, 0, 1], 1), at([2], 4));
-		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 1], newDisplay: '**cd**' });
-		expect(plan!.startOffset).toBe(0);
+		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 1], newDisplay: 'c**d**' });
+		expect(plan!.startOffset).toBe(1);
 	});
 
-	// The same staleness at the other edge, where it under-reaches instead: the closer lands after
-	// the content the end offset names.
+	// The closer lands before the end offset, so the end has to move past it.
 	it('restores the end past the closer its own cell grew', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
 		const { plan } = planStored(doc, at([0], 0), at([1, 1, 0], 1));
-		expect(plan!.writes.at(-1)).toMatchObject({ path: [1, 1, 0], newDisplay: '**ef**' });
-		expect(plan!.endOffset).toBe('**ef**'.length);
+		expect(plan!.writes.at(-1)).toMatchObject({ path: [1, 1, 0], newDisplay: '**e**f' });
+		expect(plan!.endOffset).toBe('**e**'.length);
 	});
 
 	// A cell the plan does not write moved no bytes, so its edge is still where it stood.
@@ -54,5 +49,21 @@ describe('a range edge deep inside a plugin grid', () => {
 
 		const { plan } = planStored(doc, at([1], 3), at([2], 4));
 		expect(plan!.startOffset).toBe(3);
+	});
+});
+
+// Miss-analysis: every row here read the format alone, so its whole-cell reading of a grid edge
+// never met the copy's reading of the same range.
+describe('a range starting partway into a plugin grid cell', () => {
+	it('formats the bytes the copy covers, and nothing before the start', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
+
+		const { start, end, plan } = planStored(doc, at([1, 0, 0], 1), at([2], 2));
+		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 0], newDisplay: 'a**b**' });
+		const marked = plan!.writes
+			.flatMap((write) => [...write.newDisplay.matchAll(/\*\*(.+?)\*\*/g)].map((m) => m[1]))
+			.join('');
+		const copied = collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)));
+		expect(marked).toBe(copied.replace(/\s/g, ''));
 	});
 });

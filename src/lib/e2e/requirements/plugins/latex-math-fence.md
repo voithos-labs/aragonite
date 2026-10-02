@@ -15,6 +15,11 @@ between two paragraphs.
 - the block is the `mathFence` kind, its bytes hold the verbatim `math` fence, and it is never
   rewritten to `$$` nor left as a plain `fencedCode`
 
+- the fenced `math` block stands off the blocks above and below it by the same padding as a
+  `$$` block, since both are the same component
+  (miss-analysis: the padding was keyed on the `$$` kind's name, and every layout check seeded
+  only a `$$` block)
+
 ## User interactions
 
 - ArrowRight from the paragraph above shows the source with the caret at its leading edge;

@@ -9,11 +9,8 @@
 /* ── Host-chrome tokens: the consumer's names, defaults behind the class ── */
 
 :where(.aragonite-editor-theme) {
-	/* Two typefaces, because they answer different questions. `--font-editor` is the face of the
-	   text itself (prose, headings, markers), and a host may legitimately set it proportional.
-	   `--font-code` is what must stay monospace whatever that choice is: code blocks, code
-	   spans, raw HTML, revealed source. Both default to the same stack, so a consumer that
-	   never names the second one sees exactly what it saw before. */
+	/* `--font-editor` is the text's own face and a host may set it proportional; `--font-code` is
+	   what stays monospace whatever that choice (code, raw HTML, revealed source). */
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	--font-code: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	/* The menus' and popovers' face: the host's own UI font where it names one. */
@@ -33,12 +30,11 @@
 	--color-text-secondary: #cfcfca;
 	--color-text-primary: #e8e8e5;
 	--color-border: #3e3e3b;
-	--color-ui-muted: #8f8f89;
+	--color-ui-muted: #93938d;
 	--color-ui-dulled: #a3a39d;
 	--color-accent: #567b67;
-	/* The base the selection, search-match and reorder tints derive from, so one declaration
-	   moves all of them; the tints themselves stay editor-owned. Following the accent means
-	   a host that recolors one recolors all four. */
+	/* The base the selection, search-match and reorder tints derive from, following the accent,
+	   so one declaration recolors them all; the tints themselves stay editor-owned. */
 	--color-selection: var(--color-accent, #567b67);
 	--color-error: #ff5f57;
 }
@@ -49,8 +45,8 @@
 	--color-text-secondary: #4a4a45;
 	--color-text-primary: #2a2a27;
 	--color-border: #c9c7c0;
-	--color-ui-muted: #83837b;
-	--color-ui-dulled: #71716a;
+	--color-ui-muted: #62625c;
+	--color-ui-dulled: #5c5c56;
 	--color-accent: #567b67;
 	--color-selection: var(--color-accent, #567b67);
 	--color-error: #d03025;
@@ -73,9 +69,8 @@
 	   overlay above it: half the surface radius, enough to soften a photo without a card look. */
 	--md-image-radius: 4px;
 
-	/* Markdown syntax override points, deliberately neutral so the default rendering adds no
-	   palette of its own. The same in both modes: the host-chrome tokens they chain to hold the
-	   light and dark split. */
+	/* Markdown syntax override points, neutral so the default rendering adds no palette of its own;
+	   most chain to a host-chrome token that holds the light and dark split. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -84,12 +79,13 @@
 	--syntax-code: currentColor;
 	--syntax-comment: currentColor;
 	--syntax-list: currentColor;
-	/* The colour of the rendered horizontal rule, and its only user. A rule separates rather
-	   than announces, so it defaults to the border token; mid-grey at this weight competed with
-	   the text either side. A host that wants a louder rule still names this token. */
+	/* The rendered horizontal rule's colour: a rule separates rather than announces, so it
+	   defaults to the border token. */
 	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
-	--syntax-task-done: rgba(128, 128, 128, 0.7);
+	--syntax-task-done: #8f8f89;
+	--syntax-task-checked: var(--color-text-primary, currentColor);
+	--syntax-task-checked-tick: var(--color-bg, #2c2c2a);
 
 	/* Code block syntax highlighting: a monokai-inspired palette. */
 	--code-tok-keyword: #ff79a8;
@@ -113,34 +109,37 @@
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
 
-	/* Presentational tokens, the same in both modes. */
 	/* Tints over the selection base a host can declare, differing only in alpha, so naming that
 	   one base moves the selection, the search matches and the reorder highlight together. */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
 	--search-match-bg: rgba(100, 150, 255, 0.22);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
-	--md-ref-label-color: rgba(128, 128, 128, 0.45);
-	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
+	/* Greys for text set apart as metadata or inert: the faintest that clear AA, set per mode. */
+	--md-ref-label-color: #8f8f89;
+	--md-link-blocked-color: #8f8f89;
 	--md-unresolved-color: #c0392b;
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
-	--md-raw-html-color: rgba(120, 120, 120, 0.85);
+	--md-raw-html-color: #8f8f89;
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	/* The hanging indent a task item reserves for its marker: the width the visible `- [ ] `
 	   draws, which editor.css overrides where the box is drawn instead. */
 	--md-task-indent: 2.1em;
 	--md-reorder-indicator: var(--color-selection, #6496ff);
+	/* The name a typed kind change leaves on its block, and how long it stays before it fades. */
+	--md-kind-cue-color: var(--color-ui-muted, #8f8f89);
+	--md-kind-cue-duration: 1.2s;
 	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
 	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
+	/* The light theme sets its own dim. */
 	--syntax-marker-dim: 0.65;
 	/* Ring on the construct the caret is inside at a hidden edge, where both sides share a pixel.
 	   Neutral grey, legible over the inline-code tint in either mode. */
 	--md-edge-held-ring: rgba(128, 128, 128, 0.55);
 
-	/* Menu/popout elevation, per mode: a shadow tuned for a near-black surface is invisible
-	   over a white one. Editor-owned rather than host-family, since a host palette names
-	   colors, not elevation. */
+	/* Menu elevation, per mode, since a shadow tuned for a near-black surface vanishes over a white
+	   one; editor-owned because a host palette names colors, not elevation. */
 	--menu-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
 	/* The rest of the host app's menu family, so a menu here is the host's menu to the pixel. */
 	--menu-item-hover: rgba(255, 255, 255, 0.07);
@@ -153,9 +152,8 @@
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
-/* The tints follow a host's `--color-selection` where the browser can mix colors; the fixed
-   values above are the same tints of the default base, for browsers without `color-mix` (WebKit
-   before Safari 16.2). */
+/* The tints follow a host's `--color-selection` where the browser has `color-mix`; the fixed
+   values above are the default base's tints for a browser without it. */
 @supports (color: color-mix(in srgb, red, blue)) {
 	:where(.editor, .aragonite-editor-theme) {
 		--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
@@ -176,7 +174,13 @@
 	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
 	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
 
-	/* The --syntax-* tokens are the same in both modes: no light overrides. */
+	/* At the dark theme's 0.65 marker dim, light prose falls under AA on the light surface. */
+	--syntax-marker-dim: 0.68;
+	/* Done and inert text greys: the faintest that clear AA on the light surface and fence. */
+	--syntax-task-done: #666660;
+	--md-ref-label-color: #666660;
+	--md-link-blocked-color: #666660;
+	--md-raw-html-color: #666660;
 
 	/* Code block syntax highlighting: a GitHub Light-inspired palette. */
 	--code-tok-keyword: #c1202b;

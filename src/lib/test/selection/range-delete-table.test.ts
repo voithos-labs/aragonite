@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -7,33 +8,34 @@ import type { Document, TableMetadata, TableRowMetadata } from '../../core/nodes
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, findTable } from './table-fixtures';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableIntoProse:start']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 function run(input: string | Document, start: SelectionPoint, end: SelectionPoint) {
 	const doc = typeof input === 'string' ? parse(input) : input;
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
-// Cross-block table end endpoints are snapped to whole rows before rangeDelete
-// (table-endpoint-snap.ts), so end.offset is the inclusive last cell of its row and the delete
-// clears [0, end.offset].
+// A gesture's end endpoint arrives snapped to its row's last cell (`table-endpoint-snap.ts`); these
+// hand-built ones are not, and rangeDelete clears cells 0 through end.offset inclusive.
 describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
-		// Doc: paragraph + 4-row table (header + 3 body rows).
-		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's
-		// cell 0)
+		// Paragraph + 4-row table (header + 3 body rows). end.offset 2 (inclusive) clears cells
+		// 0,1,2: the whole header row plus body row 1's cell 0.
 		const { doc, source, caret } = run(
 			`intro paragraph\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 5 },
@@ -88,9 +90,8 @@ describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 	});
 
 	it('nested end table survives a deleted middle block: container raw rebuilds at the shifted path', () => {
-		// para[0], middle[1], blockquote[2] wrapping the table. Deleting middle shifts the blockquote
-		// to [1], so the ancestry rebuild must follow the surviving table, not the stale end path.
-		// end.offset = 2 (inclusive) → clears cells 0,1,2: header row removed, body promoted.
+		// Deleting `middle` shifts the blockquote to [1], so the ancestry rebuild must follow the
+		// surviving table, not the stale end path; end.offset 2 removes the header row.
 		const { doc, source } = run(
 			'para\n\nmiddle\n\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n',
 			{ path: [0], offset: 2 },
@@ -115,9 +116,8 @@ describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 
 describe('rangeDelete: Case 2 (cell anchor mid-table → prose focus below)', () => {
 	it('clears cells [start..lastCell] in start row, removes rows below, header unchanged', () => {
-		// Anchor at cell 3 (row 1, col 1) clears cells 3..end: body rows 2 (4,5) and 3 (6,7) are
-		// fully in range and removed, while row 1 keeps col 0.
-		// Focus 7 chars in: 'follow ' | 'paragraph'. Drops the 7-char head.
+		// Anchor cell 3 (row 1, col 1) clears cells 3..end, removing body rows 2 and 3 whole; the
+		// focus 7 characters in drops the head 'follow '.
 		const { doc } = run(
 			`${TWO_COL_FOUR_ROW}\nfollow paragraph\n`,
 			{ path: [0], offset: 3 },
@@ -135,7 +135,6 @@ describe('rangeDelete: Case 2 (cell anchor mid-table → prose focus below)', ()
 		expect(table.children![1].children![0].raw).toBe('1');
 		expect(table.children![1].children![1].raw).toBe('');
 
-		// Surviving paragraph head should be 'paragraph' (offset 6 = after 'follow ')
 		const para = survivors[1];
 		expect(para.kind).toBe('paragraph');
 		expect(para.raw.trimEnd()).toBe('paragraph');
@@ -189,6 +188,9 @@ describe('rangeDelete: Case 3 (prose → table → prose, full-table span)', () 
 	});
 });
 
+/** A corner of a rectangle inside the table at [0]: its row-major cell index, flagged. */
+const cellAt = (offset: number): SelectionPoint => ({ path: [0], offset, cellCoordinate: true });
+
 describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('Ctrl+A 2nd press: clears every cell, preserves structure and alignments', () => {
 		const input = parse('| L | C | R |\n| :--- | :---: | ---: |\n| a | b | c |\n| d | e | f |\n');
@@ -196,7 +198,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 		const lastCellIdx =
 			tableBefore.children!.length * (tableBefore.metadata as TableMetadata).columnCount - 1;
 
-		const { doc, caret } = run(input, { path: [0], offset: 0 }, { path: [0], offset: lastCellIdx });
+		const { doc, caret } = run(input, cellAt(0), cellAt(lastCellIdx));
 
 		const table = doc.children[0];
 		expect(table.kind).toBe('table');
@@ -215,11 +217,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('partial rectangular clear leaves out-of-rect cells untouched', () => {
 		// 2-col, 4-row table. Anchor cell 2 (row 1, col 0), focus cell 5 (row 2, col 1).
 		// Rectangle spans rows 1..2 cols 0..1 — clears all 4 cells in that rect.
-		const { doc, caret } = run(
-			TWO_COL_FOUR_ROW,
-			{ path: [0], offset: 2 },
-			{ path: [0], offset: 5 }
-		);
+		const { doc, caret } = run(TWO_COL_FOUR_ROW, cellAt(2), cellAt(5));
 
 		const table = doc.children[0];
 		expect(table.children).toHaveLength(4);
@@ -238,11 +236,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('column-only rectangle clears just the targeted column', () => {
 		// 2-col, 4-row. Anchor cell 1 (row 0 col 1), focus cell 7 (row 3 col 1).
 		// Rectangle = column 1 across all rows — clears the right column only.
-		const { doc, caret } = run(
-			TWO_COL_FOUR_ROW,
-			{ path: [0], offset: 1 },
-			{ path: [0], offset: 7 }
-		);
+		const { doc, caret } = run(TWO_COL_FOUR_ROW, cellAt(1), cellAt(7));
 
 		const table = doc.children[0];
 		expect(table.children).toHaveLength(4);

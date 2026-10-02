@@ -16,6 +16,18 @@ whole-word, regex) that narrow or reinterpret the query.
 - The regex toggle (`.*`) interprets the query as a pattern (a metacharacter query matches where a literal one would not).
 - Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights: a cached scan must not serve the closed bar's cleared matches.
 
+## Closing returns to the caret
+
+- Caret in a line mid-document, find a match far below it, Enter to go there, then Esc: the view
+  comes back so the caret's line is on screen (at the nearest edge), and a typed `x` lands right
+  where the caret was before the search. Miss-analysis: the Esc test used a two-line document, so
+  nothing checked that the return scroll still happens once the focus call stops scrolling on
+  its own.
+- The same with the match so far away that the caret's block leaves the window entirely: Esc
+  still brings the line back and a typed `x` lands at its end. Miss-analysis: the saved caret was
+  a DOM range, so once its block unmounted there was nothing to put back, focus fell to the page
+  and the next key went nowhere; no test searched far enough to unmount it.
+
 ## Error cases
 
 - An invalid regex (e.g. `(`) shows an error readout instead of a count, paints no highlights, and does not crash.

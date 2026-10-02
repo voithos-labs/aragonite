@@ -13,13 +13,15 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	isBlankText,
+	isWhitespaceChar,
 	lineStartsOuterBlock,
-	parse,
+	parseContainerBody,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
-	serializeChildren,
 	setPluginMetadata,
+	splitLines,
 	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext
@@ -31,16 +33,25 @@ export interface FootnoteDefMetadata {
 	label: string;
 }
 
-const OPENER = /^ {0,3}\[\^([^\]\s]+)\]:/;
-const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
-const CONTINUATION_INDENT = /^(\t| {4})/;
+const OPENER = /^ {0,3}\[\^([^\]]+)\]:/;
+const MARKER_STRIP = /^ {0,3}\[\^[^\]]+\]: ?/;
+// Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
+const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
 const CONTINUATION_MARKER = '    ';
+
+/** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
+function matchOpener(text: string): RegExpExecArray | null {
+	const match = OPENER.exec(text);
+	if (!match) return null;
+	for (const ch of match[1]) if (isWhitespaceChar(ch)) return null;
+	return match;
+}
 
 /** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
  *  lazy models: laziness reaches only the body's own top-level paragraph. */
 function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar']): boolean {
 	if (isBlankLine(strippedText)) return false;
-	if (OPENER.test(strippedText)) return false;
+	if (matchOpener(strippedText)) return false;
 	for (const opener of grammar.orderedOpeners()) {
 		const interrupts = opener.interruptsParagraph;
 		if (interrupts !== false && interrupts(strippedText)) return false;
@@ -48,25 +59,22 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 	return true;
 }
 
-/**
- * Blank lines are taken in only while a later indented line still follows; a trailing run of
- * blanks belongs to the document. An unindented non-blank line continues the definition only
- * as a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
- */
+/** A line indented to the body continues the definition, bare blank lines only while such a line
+ *  follows; an unindented line continues only lazily, into an open paragraph (CommonMark §5.1). */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
 	let paragraphOpen = keepsParagraphOpen(ctx.line.text.replace(MARKER_STRIP, ''), ctx.grammar);
 	let i = ctx.index + 1;
 	while (i < ctx.end) {
 		const text = ctx.lines[i].text;
-		if (isBlankLine(text)) {
-			paragraphOpen = false;
-			i++;
-			continue;
-		}
 		if (CONTINUATION_INDENT.test(text)) {
 			paragraphOpen = keepsParagraphOpen(text.replace(CONTINUATION_INDENT, ''), ctx.grammar);
 			lastContent = i;
+			i++;
+			continue;
+		}
+		if (isBlankLine(text)) {
+			paragraphOpen = false;
 			i++;
 			continue;
 		}
@@ -84,7 +92,7 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 }
 
 function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
-	const match = OPENER.exec(ctx.line.text);
+	const match = matchOpener(ctx.line.text);
 	if (!match) return null;
 
 	const next = scanDefinitionEnd(ctx);
@@ -94,8 +102,9 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const stripped = defLines
 		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
 		.join('');
-	// A fresh parse entry, so the body's own line 0 must not read as the document top.
-	const body = parse(stripped, { scope: 'fragment' });
+	// A fresh parse entry, so the body's own line 0 must not read as the document top. The body has
+	// no fence lines of its own, so no blank line is set aside from it.
+	const body = parseContainerBody(stripped, {}, { scope: 'fragment', grammar: ctx.grammar });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(FOOTNOTE_DEF_KIND),
@@ -109,22 +118,34 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	return { node, consumed: next - ctx.index };
 }
 
-/** Splitting on `\n` keeps a `\r` at each segment's tail, so CRLF rides through; a blank
- *  continuation stays unindented. */
+/**
+ * A separator line stays unindented, as the parser reads it. The blank lines that end the body,
+ * a leaf's own or the body's trailing line, take the indent that keeps them in the definition.
+ */
 export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
 	const marker = `[^${meta?.label ?? ''}]: `;
-	const inner =
-		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
-	const lines = inner.split('\n');
-	node.raw = lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (i === 0) return marker + line;
-			if (line === '' || line === '\r') return line;
-			return CONTINUATION_MARKER + line;
-		})
-		.join('\n');
+	const lines: { text: string; lineEnding: string; separator: boolean }[] = [];
+	const add = (bytes: string, separator: boolean) => {
+		for (const line of splitLines(bytes)) lines.push({ ...line, separator });
+	};
+	add(node.innerPrefix ?? '', true);
+	for (const child of node.children ?? []) {
+		add(child.leadingTrivia, true);
+		// A nested container's rebuild already indented the blank lines it keeps.
+		add(child.raw, child.children !== undefined);
+	}
+	add(node.innerSuffix ?? '', false);
+	let lastContent = lines.length - 1;
+	while (lastContent >= 0 && isBlankText(lines[lastContent].text)) lastContent--;
+
+	let raw = '';
+	lines.forEach(({ text, lineEnding, separator }, i) => {
+		if (raw === '') raw += marker + text + lineEnding;
+		else if (text === '' && (separator || i < lastContent)) raw += lineEnding;
+		else raw += CONTINUATION_MARKER + text + lineEnding;
+	});
+	node.raw = raw;
 }
 
 export function registerFootnoteDefinition(): void {
@@ -139,6 +160,7 @@ export function registerFootnoteDefinition(): void {
 	});
 
 	registerBlockKind(kind, {
+		label: 'Footnote',
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,

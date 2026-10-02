@@ -52,9 +52,8 @@ test.describe('search: replace', () => {
 		expect(replaced).toContain('bar two');
 		expect(replaced).toContain('bar three');
 
-		// One undo restores the entire original document. Clicking "All" left focus on the
-		// button, and Ctrl+Z only routes through a focused block (or the editor root), so
-		// focus a block first.
+		// One undo restores the whole document. "All" left focus on the button, and Ctrl+Z routes only
+		// through a focused block or the editor root, so a block is focused first.
 		await editor.clickBlock(0);
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('foo three');
@@ -161,8 +160,7 @@ test.describe('search: tables', () => {
 		await replaceInput(page).fill('engineer');
 
 		await page.getByRole('button', { name: 'All', exact: true }).click();
-		// Both cells, not one: settling on a single 'engineer' would race the second
-		// replacement, which is the regression this test exists to catch.
+		// Both cells, not one: waiting on a single 'engineer' would race the second replacement.
 		await editor.bridge.waitForSourceMatches(/engineer[\s\S]*engineer/);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('| dev |');

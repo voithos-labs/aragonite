@@ -7,6 +7,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { VisibilityContext } from '../../../core/inline/visibility';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import type { Reading } from '../../../schema/reading';
 import type { InlineMarkKind } from '../../../schema/inline-construct-policy';
 import { plainInsertionAt, relocateComposedRun } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
@@ -15,6 +16,9 @@ export interface CompositionSeatDeps {
 	/** The block's displayed text, which a commit's reading is compared against. */
 	getDisplayText: () => string;
 	getInlines: () => readonly InlineNode[];
+	/** The reading `getInlines` reads with, so a candidate keeps the reference links it shows and
+	 *  reads back as the syntax the editor draws. */
+	reading: Reading;
 	getAffinity: () => EdgeAffinity | null;
 	/** How the block reads on screen, for deciding which ranges are actually drawn. */
 	getScreen: () => VisibilityContext;
@@ -23,9 +27,8 @@ export interface CompositionSeatDeps {
 	/** Give them back when the composition wrote nothing: a cancelled IME run inserts nothing, so
 	 *  the marks are still pending. Required, so every block answers the same way. */
 	restorePendingMarks: (marks: ReadonlySet<InlineMarkKind>) => void;
-	/** The block's selection, read at `compositionstart`: composing over one is a range edit none of
-	 *  the plain insertion paths take, so it goes to `resolveRangeEdit`. Omit to keep ranges as the
-	 *  browser wrote them. */
+	/** The block's selection, read at `compositionstart`: composing over one goes to
+	 *  `resolveRangeEdit`. Omit to keep ranges as the browser wrote them. */
 	getRawSelection?: () => { start: number; end: number } | null;
 	/** How this block resolves a range replace, in displayed bytes; null keeps the browser's own
 	 *  edit, the same refusal the keydown selection-edit path makes. */
@@ -37,8 +40,7 @@ export interface CompositionSeatDeps {
 
 export interface CompositionSeat {
 	/** Capture the state the composition opened in. Call it before the block's own
-	 *  `compositionstart`, whose cross-block half clears the arrival side, and before the first
-	 *  `input` during the composition, which resets that side to the typed one. */
+	 *  `compositionstart` and the first `input`, which both overwrite the arrival side. */
 	noteStart(): void;
 	/** The bytes the commit should write, or null to keep the DOM read verbatim. */
 	relocate(after: string, composedAt: number): { raw: string; caret: number } | null;
@@ -73,9 +75,8 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 		relocate: (after, composedAt) => {
 			if (started === null) return null;
 			started.committed = true;
-			// A selection open when the composition started makes this a range replace: the plain
-			// paths below cannot take it, and the browser's literal replace strands the delimiter
-			// runs the range crossed.
+			// A selection open at the start makes this a range replace, which the browser would do
+			// literally, stranding the delimiter runs the range crossed.
 			if (started.range && started.range.start < started.range.end) {
 				const typed = replacedRangeInsertion(started.before, after, started.range);
 				if (typed === null) return null;
@@ -93,7 +94,8 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 								composedAt,
 								composed,
 								started.marks,
-								deps.getInlines()
+								deps.getInlines(),
+								deps.reading
 							);
 				if (marked) return marked;
 			}
@@ -103,7 +105,8 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				composedAt,
 				deps.getInlines(),
 				started.affinity,
-				deps.getScreen()
+				deps.getScreen(),
+				deps.reading
 			);
 		},
 		noteEnd: () => {

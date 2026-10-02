@@ -1,10 +1,7 @@
 import type { InvariantViolation } from '../assert';
 
-/**
- * G1.4: a container may not provide `HISTORY_KEY` to its descendants. Containers do re-provide
- * nested action contexts, but history has to reach them from the root: shadowing the key would
- * split the undo stack.
- */
+/** G1.4: a container may not provide `HISTORY_KEY` to its descendants: history reaches nested
+ *  action contexts from the root, and shadowing the key would split the undo stack. */
 export function checkNoContainerHistoryKey(
 	setKeys: symbol[],
 	historyKey: symbol

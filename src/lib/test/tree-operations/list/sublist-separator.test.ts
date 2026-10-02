@@ -5,13 +5,9 @@ import { settleSublistSeparator } from '$lib/tree-operations/list/sublist-separa
 import { rebuildListItemRaw } from '$lib/schema/container-rebuilders';
 import type { CstNode } from '$lib/core/nodes';
 
-// The predicate behind the separator Enter+Tab adds, at its own level: the gesture pin
-// (`blocks/list/nested-mint-separator.test.ts`) reaches one shape, and the class is every
-// sublist first line a paragraph above it would swallow.
-//
-// Miss-analysis: this rule lived nowhere at all before Enter+Tab needed it; the parser's
-// interrupt predicate was tested against source bytes only, never against a tree being
-// written toward those bytes.
+// The blank line a sublist needs wherever a paragraph above would swallow its first line, across
+// every such line rather than the one shape the Enter+Tab test reaches.
+// Miss-analysis: the parser's interrupt check was tested on source bytes, never on a written tree.
 
 /** `[paragraph(text), sublist]` inside one item, as a nesting splice leaves it. */
 function itemWithSublist(text: string, sublistSource: string): CstNode {
@@ -52,8 +48,8 @@ describe('settleSublistSeparator', () => {
 		}
 	});
 
-	// The neighbour merge owns a list with content that stopped interrupting (GH #176): its text
-	// survives the merge, so the two rules split on emptiness rather than racing.
+	// A sublist with content that can't interrupt is left to the neighbour merge, which keeps its
+	// text, so the two rules split on emptiness rather than racing.
 	it('declines for an ordered sublist that carries content', () => {
 		const item = itemWithSublist('x\n', '2. y\n');
 		settleSublistSeparator(item.children!, 1);

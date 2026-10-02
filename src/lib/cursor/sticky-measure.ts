@@ -15,7 +15,9 @@ import {
 import {
 	containerDomTextLength,
 	domTextOffsetAtNode,
-	findDomTextOffsetTarget
+	findDomTextLanding,
+	holdsTextPast,
+	widgetSpanContainingOffset
 } from './widget-offset';
 import {
 	firstUsefulRect,
@@ -42,15 +44,12 @@ export interface CaretProbe {
 	borrowed: boolean;
 }
 
-/**
- * The caret's box at a DOM-walk offset, under the offset the caret would really take: an offset
- * inside an atomic widget resolves to the position beside it, which names that widget's boundary.
- * A position beside a widget has no box of its own and borrows the widget's near edge. Null where
- * the offset measures to nothing.
- */
+/** The caret's box at a DOM-walk offset, under the offset the caret would really take; a position
+ *  beside a widget borrows the widget's near edge. Null where the offset measures to nothing. */
 export function caretBoxAt(container: HTMLElement, offset: DomTextOffset): CaretProbe | null {
-	const pos = findDomTextOffsetTarget(container, offset);
-	if (!pos) return null;
+	const landing = findDomTextLanding(container, offset);
+	if (!landing) return null;
+	const pos = landing.position;
 	const range = document.createRange();
 	try {
 		range.setStart(pos.node, pos.offset);
@@ -62,19 +61,14 @@ export function caretBoxAt(container: HTMLElement, offset: DomTextOffset): Caret
 	const rect = measured ?? neighbourCaretRect(range);
 	if (!rect) return null;
 	return {
-		offset: domTextOffsetAtNode(container, pos.node, pos.offset),
+		offset: landing.inTextAtTarget ? offset : domTextOffsetAtNode(container, pos.node, pos.offset),
 		rect,
 		borrowed: measured === null
 	};
 }
 
-/**
- * Offset on the first or last caret-bearing visual line whose caret box is closest to
- * `editorRelativeX`. A linear scan, since `getClientRects` left values are non-monotonic on BiDi
- * lines and binary search would be wrong. `minOffset` and `maxOffset` bound the landing: the
- * container's marker prefix is out by default, and a caller adds the lines a caret may not land
- * on (a code block's fences).
- */
+/** The offset on the first or last caret-bearing line nearest `editorRelativeX`, by linear scan
+ *  since BiDi rect lefts are non-monotonic. `minOffset` and `maxOffset` bound the answer. */
 export function findOffsetNearestX(
 	container: HTMLElement,
 	editorRelativeX: EditorX,
@@ -87,39 +81,44 @@ export function findOffsetNearestX(
 
 	const targetViewportX = toViewportX(editorRelativeX, editorLeftOf(container));
 
-	// Only offsets near the probed edge can be the answer, so walk inward and stop a few
-	// lines past it: the band filter below discards anything further regardless, making
-	// this identical to a full scan at O(lines-near-edge) instead of O(raw length).
+	// Only offsets near the probed edge can be the answer, so walk inward and stop past it: the
+	// band filter below discards anything further regardless.
 	const forward = from === 'above';
-	const STOP_AFTER_LINES = 3;
+	const tolerance = sameLineTolerance(container);
+	const owned = createEdgeTracker(forward, (first) => STOP_AFTER_LINES * lineHeightOf(first));
+	// A caret beside a widget shows nothing, so a borrowed box sets the edge only in a block made
+	// of widgets alone, where offsets run line by line and the walk can stop past the edge's band.
+	const borrowed = holdsTextPast(container, minOffset)
+		? null
+		: createEdgeTracker(forward, () => tolerance);
+	const walkEndsAt = (probe: CaretProbe): boolean => {
+		if (!probe.borrowed) return owned.passes(probe.rect);
+		// Once text has set the edge, a widget box as far past it ends the walk as a text box would.
+		return owned.edge ? owned.isPast(probe.rect) : (borrowed?.passes(probe.rect) ?? false);
+	};
 	const candidates: CaretProbe[] = [];
-	// The probed edge's own line, read off boxes of their own only: a caret beside a widget shows
-	// nothing, so such a line neither becomes the edge nor cuts the walk short.
-	let edge: CaretRect | null = null;
-	let lineH = 0;
 	for (let k = 0; k <= totalLen - minOffset; k++) {
-		const probe = caretBoxAt(container, asDomTextOffset(forward ? minOffset + k : totalLen - k));
-		if (!probe) continue;
-		const rect = probe.rect;
-		if (!probe.borrowed) {
-			if (lineH === 0) lineH = Math.max(1, rect.bottom - rect.top);
-			if (edge) {
-				const distancePastEdge = forward ? rect.top - edge.top : edge.bottom - rect.bottom;
-				if (distancePastEdge > STOP_AFTER_LINES * lineH) break;
-			}
-			if (!edge || (forward ? rect.top < edge.top : rect.bottom > edge.bottom)) edge = rect;
+		const target = asDomTextOffset(forward ? minOffset + k : totalLen - k);
+		// Every offset inside a widget lands beside it, where one of its boundaries measures: skip
+		// to the far boundary so the widget costs one probe.
+		const inside = widgetSpanContainingOffset(container, target);
+		if (inside) {
+			k = (forward ? inside.end - minOffset : totalLen - inside.start) - 1;
+			continue;
 		}
+		const probe = caretBoxAt(container, target);
+		if (!probe) continue;
+		if (walkEndsAt(probe)) break;
 		candidates.push(probe);
 	}
 	if (candidates.length === 0) return minOffset;
 
 	// A block made of widgets alone has no line with a box of its own, and the widget edges are
 	// the only positions its caret can take.
-	const pool = edge ? candidates.filter((probe) => !probe.borrowed) : candidates;
-	const edgeLine = edge ?? edgeLineOf(pool, forward);
+	const pool = owned.edge ? candidates.filter((probe) => !probe.borrowed) : candidates;
+	const edgeLine = owned.edge ?? edgeLineOf(pool, forward);
 	// Which offsets share the edge line: boxes ending within four fifths of the block's line
 	// height of it, which holds a tall widget on the line with a few pixels to spare over the gap.
-	const tolerance = sameLineTolerance(container);
 	let bestOffset = pool[0].offset;
 	let bestDelta = Infinity;
 	for (const { offset, rect } of pool) {
@@ -135,6 +134,41 @@ export function findOffsetNearestX(
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+const STOP_AFTER_LINES = 3;
+
+/** The probed edge's line as an inward walk sees it, and whether a box has gone further past it
+ *  than `allowance` (read off the first box) allows. Distances are between bottoms. */
+function createEdgeTracker(forward: boolean, allowance: (first: CaretRect) => number) {
+	let edge: CaretRect | null = null;
+	let limit = 0;
+	const isPast = (rect: CaretRect): boolean => {
+		if (!edge) return false;
+		return (forward ? rect.bottom - edge.bottom : edge.bottom - rect.bottom) > limit;
+	};
+	return {
+		get edge() {
+			return edge;
+		},
+		/** Reads the box against the edge without letting it move the edge. */
+		isPast,
+		/** Takes the box as the edge when it is the first, or sits nearer the edge than it. */
+		passes(rect: CaretRect): boolean {
+			if (!edge) {
+				edge = rect;
+				limit = allowance(rect);
+				return false;
+			}
+			if (isPast(rect)) return true;
+			if (forward ? rect.top < edge.top : rect.bottom > edge.bottom) edge = rect;
+			return false;
+		}
+	};
+}
+
+function lineHeightOf(rect: CaretRect): number {
+	return Math.max(1, rect.bottom - rect.top);
+}
 
 /** The box on the probed edge's line: the highest top (above) or the lowest bottom (below), the
  *  first of equals winning. */

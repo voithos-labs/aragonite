@@ -8,7 +8,11 @@ import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	mountEveryBlock
+} from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
 export function makeTableMutations(
@@ -19,7 +23,9 @@ export function makeTableMutations(
 		rowIds?: string[];
 	} = {}
 ) {
-	const { deps, events } = makeEditorActionsDeps([parse(source).children[0]]);
+	const { deps, events, landings } = makeEditorActionsDeps([parse(source).children[0]]);
+	// Every cell answers the caret landing, so a test reads which cell each edit's caret went to.
+	mountEveryBlock(deps);
 	const liveTable = () => deps.doc.children[0];
 	const rowsState = makeBlockListState(liveTable, opts.rowIds);
 	if (opts.mountedRows) {
@@ -31,11 +37,10 @@ export function makeTableMutations(
 			);
 		}
 	}
-	const controller = createUndoController(deps);
+	const announceEdit = vi.fn();
+	const controller = createUndoController(deps, announceEdit);
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
-	const focusCell = vi.fn();
-	const announceReorder = vi.fn();
 	const focusedCell = opts.focusedCell === undefined ? { rowIdx: 1, colIdx: 1 } : opts.focusedCell;
 	const mutations = createTableMutationsContext({
 		get node() {
@@ -52,8 +57,7 @@ export function makeTableMutations(
 		},
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
-		focusCell,
-		announceReorder
+		reading: deps.reading
 	});
-	return { deps, mutations, edits, focusCell, announceReorder };
+	return { deps, mutations, edits, landings, announceEdit };
 }

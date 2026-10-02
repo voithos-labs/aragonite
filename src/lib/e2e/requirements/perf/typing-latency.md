@@ -21,14 +21,19 @@ and the gated row for the same shape are not comparable numbers.
   `waitForTimeout`), reported as p50/p95
 - caret target: end of block 0, except shapes whose first block is a container
   (nested-containers, table-heavy). Those type into an appended plain
-  paragraph, since the caret helper cannot enter containers and table-cell
-  edits re-pad the table, which breaks the +1-length wait. The dominant
+  paragraph, since the caret helper cannot enter containers. The dominant
   per-keystroke cost (the inline sweep over the whole document) does not depend
   on where the caret is; the cost of rebuilding a block's ancestors is measured
   directly by the vitest bench.
 - cost of the check itself: document length is summed from top-level raw
   lengths, O(top-level blocks) per poll, because serializing the source on every
   poll at 10MB would dwarf the latency being measured
+
+## Structural edits (report companion to the gated row)
+
+One row alternates a top-level Enter at the end of block 0 and the Backspace that merges the new
+block back, 16 edits on flat-prose at 10MB, each timed to the top-level block count changing.
+It writes the result a re-bless of the gated `flat-prose-10MB-structural` row reads.
 
 ## At-depth typing (report-only)
 
@@ -68,15 +73,29 @@ numbers and their difference.
   them without a second fixture. A mounted count unchanged across the two sizes is what makes
   the growth attributable to the document rather than to the widgets reading it.
 - plain prose under an installed handler on an unreserved character (`?seed=emoji`): ordinary
-  prose with no trigger in it at all. `:` is held out of `SPECIAL_CHARS`, so registering emoji
-  turns on `needsScan`'s per-character check for the whole document, the cost of giving up that
-  the standing ceilings are blindest to. That the handler is installed is shown by a `:tada:`
+  prose with no trigger in it at all. `needsScan`, the check that lets plain prose skip the inline
+  scan, only looks at a `:` when `//` follows, so registering emoji turns on its per-character
+  check for the whole document, the cost the standing ceilings are blindest to. That the handler is installed is shown by a `:tada:`
   document loaded before the fixture, since plain prose creates no widget.
 
 **Confound, recorded because no route here is a clean control:** `/test/plugins`
 installs eight base plugins, two of which derive over the whole document, so the difference
 between the two routes is an upper bound on an installed handler's cost rather than the
 handler's cost alone.
+
+## Vertical arrival (report-only)
+
+Two rows time an arrow instead of a keystroke: ArrowDown into a paragraph of 200 decoded
+entities from the prose line above it, and ArrowUp into it from the prose line below, each
+sample waiting on the caret reaching that paragraph, 15 of each, reported as p50/p95. The caret
+goes back to the line it left by a placement between samples, since an arrow out of a
+multi-line paragraph can stop on a line inside it. In `arrival-widget-only` no caret position
+in the paragraph has a box of its own, so the column the arrow carries is matched against the
+widgets' boxes alone, and the row shows that scan staying on one line. `arrival-mixed` puts one
+letter before the same entities, which gives the scan a box of its own to set the edge by, and
+the row shows each widget measured once rather than at every byte of its source.
+
+- a paragraph that did not mount all 200 widgets fails the row rather than timing a shorter one
 
 ## Sizes
 
@@ -107,7 +126,7 @@ what budget, is `perf-gate.md`.
 ## Bridge sanity
 
 - perf bridge round-trip: enabling instruments via `__test.perf`, typing one
-  character in a small document, and polling past the debounced input flush
+  character in a small document, and polling until the counter moves
   yields `inlineComputeCount >= 1`: the first end-to-end check that the edited
   block's inline recompute is recorded in the perf counters
 

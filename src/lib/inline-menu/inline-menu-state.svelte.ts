@@ -11,6 +11,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { EditorSelection } from '../selection/primitives';
+import { isGridKind } from '../schema/block-kind-descriptor';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
@@ -23,10 +24,15 @@ import {
 } from './inline-menu-session';
 import type {
 	InlineMenuItem,
+	InlineMenuOpenOptions,
 	InlineMenuRegistry,
 	InlineMenuSource,
 	InlineMenuSourceHandle
 } from './types';
+import type { Reading } from '../schema/reading';
+import type { DraftRegistry } from '../components/draft-registry';
+import type { EditorContext } from '../schema/plugin-install';
+import { openPick } from './pick-context';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
@@ -35,16 +41,24 @@ export interface InlineMenuStateDeps {
 	events: EditorEvents;
 	/** This instance's id, so two editors on one page never give their lists the same DOM id. */
 	editorId: string;
-	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry. */
+	/** The editor's resolver and grammar, so a trigger inside a construct reads as the render drew it. */
+	reading: Reading;
+	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry, caret landing at
+	 *  `caretAfter` so the next key goes there; resolves to whether the leaf holds the bytes. */
 	commitRange: (
 		path: number[],
 		start: number,
 		end: number,
 		bytes: string,
 		caretAfter: number
-	) => Promise<void>;
-	/** Land the caret at a raw offset, so the next keystroke addresses the document. */
-	landCaret: (path: number[], offset: number) => Promise<boolean>;
+	) => Promise<boolean>;
+	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
+	 *  puts the caret back when nothing is focused. */
+	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
+	/** The context of the plugin adding a source now; a pick's commit writes through a copy of it. */
+	ownerOfNewSource: () => EditorContext;
+	/** A pick waiting on its commit is a draft of the note it was made in. */
+	drafts: Pick<DraftRegistry, 'open'>;
 }
 
 export interface InlineMenuState {
@@ -85,17 +99,23 @@ export interface InlineMenuOpenView {
 	activeIndex: number;
 }
 
-/**
- * An item id as one token, since an attribute naming a DOM id can hold no whitespace and a
- * source is free to hand out `Meeting notes`. Every escape is reversible, so two ids a source
- * kept distinct never become one id in the page.
- */
+/** An item id as one DOM-id token, since a source may hand out `Meeting notes`. Every escape is
+ *  reversible, so two ids a source kept distinct never collide in the page. */
 function asIdToken(id: string): string {
 	return id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)!.toString(16)}_`);
 }
 
+/** Whether the leaf at `path` sits in a grid container's row, the way a table cell does. */
+function isGridCell(doc: DocumentView, path: readonly number[]): boolean {
+	if (path.length < 2) return false;
+	const parent = nodeAt(doc, path.slice(0, -1));
+	return parent !== null && isBlockNode(parent) && isGridKind(parent.kind);
+}
+
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
+	/** Whose `EditorContext` each source's commit is handed. */
+	const owners = new Map<string, EditorContext>();
 	const listboxId = `${deps.editorId}-inline-menu`;
 	// A row is named after its own item, not its place in the list, so the row a narrower query
 	// leaves active keeps the id the attribute pointing at it already held.
@@ -127,15 +147,20 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		deps.events.emit('error', payload);
 	}
 
-	/** The collapsed caret in a prose leaf, with that leaf: the only place a session lives. */
+	/**
+	 * The collapsed caret in a prose leaf, with that leaf: the only place a session lives. Never a
+	 * table cell, whose line cannot take the blocks a pick may insert.
+	 */
 	function caretLeaf(): { path: number[]; offset: number; leaf: NodeView } | null {
 		const selection = deps.getSelection();
 		if (!selection) return null;
 		const { anchor, focus } = selection;
 		if (anchor.cellCoordinate || focus.cellCoordinate) return null;
 		if (anchor.offset !== focus.offset || anchor.path.join() !== focus.path.join()) return null;
-		const leaf = nodeAt(deps.getDoc(), focus.path);
+		const doc = deps.getDoc();
+		const leaf = nodeAt(doc, focus.path);
 		if (leaf === null || !isBlockNode(leaf) || !isProseKind(leaf.kind)) return null;
+		if (isGridCell(doc, focus.path)) return null;
 		return { path: focus.path, offset: focus.offset, leaf };
 	}
 
@@ -235,9 +260,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (writing || !caret || !previous || previous.path !== caret.path.join()) return;
 		const from = typedRunStart(previous.raw, caret.leaf.raw, caret.offset);
 		if (from === null) {
-			// The bytes and the caret do not always move as one, so a read can land between them.
-			// Holding the older snapshot for one more read lets the caret that follows explain the
-			// change; a change it still cannot explain is adopted, so `seen` never goes stale.
+			// The bytes and the caret can move separately, so the older snapshot is held one more read;
+			// a change the next caret still cannot explain is adopted, so `seen` never goes stale.
 			const unexplained = previous.raw !== caret.leaf.raw;
 			if (unexplained && !heldBack) seen = previous;
 			heldBack = unexplained && !heldBack;
@@ -246,17 +270,14 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		heldBack = false;
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
-		if (!isProseOffset(resolvedInlineContent(caret.leaf), opening.start)) return;
+		const inline = resolvedInlineContent(caret.leaf, deps.reading);
+		if (!isProseOffset(inline, opening.start, deps.reading.grammar)) return;
 		if (isUnclosedDestination(caret.leaf.raw, opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}
 
-	/**
-	 * Fill in a baseline for a leaf that has none: a caret reaches one with no read in between (a
-	 * click into a list item, Enter onto a new line), and the first keystroke there would have
-	 * nothing to be the difference from. Only ever fills a missing baseline, because within a
-	 * burst the standing one still predates the trigger and must not be advanced past it.
-	 */
+	/** Takes a baseline for a leaf the caret reached with no read in between (a click, Enter onto
+	 *  a new line). Never replaces one: mid-burst, the standing baseline predates the trigger. */
 	function primeBaseline(): void {
 		if (disposed || sources.size === 0 || session !== null || writing) return;
 		const caret = deps.getMode() === 'reading' ? null : caretLeaf();
@@ -278,6 +299,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			nodeRaw(path),
 			caret
 		);
+		// `open()` may have written a query the source declines: that session is over already.
+		if (typedQuery === null) return;
 		const live: InlineMenuSession = {
 			source: source.name,
 			path: [...path],
@@ -286,16 +309,15 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		};
 		session = live;
 		// A burst can carry the query's first bytes in with the trigger.
-		query = typedQuery ?? '';
+		query = typedQuery;
 		end = caret;
 		activeIndex = 0;
 		items = [];
 		read(source, live);
 	}
 
-	// Evaluated a tick after the event, so an edit and the selectionchange beside it are one read.
-	// The baseline is taken now rather than then, because those two can carry a caret's arrival in
-	// a leaf no read has seen and the first bytes typed there together.
+	// Evaluated a tick later, so an edit and its selectionchange are one read. The baseline is
+	// taken now, since one event can carry a caret's arrival in a new leaf and its first bytes.
 	function schedule(): void {
 		if (disposed || (sources.size === 0 && session === null)) return;
 		primeBaseline();
@@ -314,6 +336,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	async function commitItem(item: InlineMenuItem): Promise<void> {
 		const live = session;
 		if (!live) return;
+		// One entry for the pick's own bytes and every block its source writes after them.
+		await deps.undoStep(live.path, live.start, () => writePick(live, item));
+	}
+
+	async function writePick(live: InlineMenuSession, item: InlineMenuItem): Promise<void> {
 		const source = sources.get(live.source);
 		const range = { query, path: [...live.path], start: live.start, end };
 		close();
@@ -333,8 +360,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		// The write is this menu's own, not a keystroke: bytes ending in a trigger reopen nothing.
 		writing = true;
 		try {
-			await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter);
-			await deps.landCaret(range.path, caretAfter);
+			// A pick whose bytes never landed has nothing for onCommit to follow.
+			if (!(await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter))) {
+				return;
+			}
 		} catch (error) {
 			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
 			report(error, live.source);
@@ -343,26 +372,32 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			writing = false;
 			resnap();
 		}
+		const owner = owners.get(live.source);
+		if (!source?.onCommit || !owner) return;
+		// A commit can wait on a fetch past a `source` swap; what it writes then belongs to no document.
+		const pick = openPick(owner, deps.drafts);
 		try {
-			source?.onCommit?.(item, range);
+			await source.onCommit(item, range, pick.editor);
 		} catch (error) {
 			report(error, live.source);
+		} finally {
+			pick.end();
 		}
 	}
 
-	function open(name: string): boolean {
+	function open(name: string, options?: InlineMenuOpenOptions): boolean {
 		const source = sources.get(name);
-		if (!source || deps.getMode() === 'reading') return false;
+		const typed = source ? source.trigger + (options?.query ?? '') : '';
+		if (!source || deps.getMode() === 'reading' || /[\r\n]/.test(typed)) return false;
 		const caret = caretLeaf();
 		if (!caret) return false;
 		close();
 		const start = caret.offset;
-		const caretAfter = start + source.trigger.length;
+		const caretAfter = start + typed.length;
 		void (async () => {
 			writing = true;
 			try {
-				await deps.commitRange(caret.path, start, start, source.trigger, caretAfter);
-				await deps.landCaret(caret.path, caretAfter);
+				if (!(await deps.commitRange(caret.path, start, start, typed, caretAfter))) return;
 			} catch (error) {
 				report(error, name);
 				return;
@@ -400,10 +435,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 				heldBack = false;
 			}
 			sources.set(source.name, source);
+			owners.set(source.name, deps.ownerOfNewSource());
 			return {
 				dispose: () => {
 					if (sources.get(source.name) !== source) return;
 					sources.delete(source.name);
+					owners.delete(source.name);
 					if (session?.source === source.name) close();
 				}
 			};
@@ -444,8 +481,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		setActive(index) {
 			if (index >= 0 && index < items.length) activeIndex = index;
 		},
-		commit(index = activeIndex) {
-			const item = items[index];
+		commit(index?: number) {
+			// Enter can beat the last keystroke's read, and even its deferred edit event; read the
+			// leaf now so the pick replaces the query it holds, not the one last read.
+			evaluate();
+			const item = items[index ?? activeIndex];
 			if (!item) return false;
 			void commitItem(item);
 			return true;

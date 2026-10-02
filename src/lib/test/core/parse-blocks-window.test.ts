@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseBlocks } from '../../core/parser';
 import { splitLines } from '../../core/lines';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function flat(r: ReturnType<typeof parseBlocks>): string {
 	return r.children.map((c) => c.leadingTrivia + c.raw).join('') + r.suffix;
@@ -12,13 +13,19 @@ function flat(r: ReturnType<typeof parseBlocks>): string {
 
 function expectWindowEqualsSliceParse(source: string, start: number, end: number): void {
 	const lines = splitLines(source);
-	const windowed = parseBlocks(lines, start, end);
+	const windowed = parseBlocks(lines, start, end, {
+		grammar: defaultGrammarView,
+		scope: 'fragment'
+	});
 	const sliceText = lines
 		.slice(start, end)
 		.map((l) => l.raw)
 		.join('');
 	const sliceLines = splitLines(sliceText);
-	const full = parseBlocks(sliceLines, 0, sliceLines.length);
+	const full = parseBlocks(sliceLines, 0, sliceLines.length, {
+		grammar: defaultGrammarView,
+		scope: 'fragment'
+	});
 
 	expect(flat(windowed)).toBe(sliceText);
 	expect(flat(windowed)).toBe(flat(full));

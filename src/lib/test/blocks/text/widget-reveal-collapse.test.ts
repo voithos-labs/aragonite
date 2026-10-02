@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-//
-// When a shown source is hidden again, driven through the real createWidgetInteraction over a
-// mounted DOM with two math widgets; the sibling of widget-reveal-commit.test.ts, which covers
-// the commit and undo rules. What matters is where the selection is, not whether the block has
-// focus: a caret leaving the shown source while staying in the block hides it, and a click on a
-// second widget hides the first and shows the second as one sequence.
+// When a shown source is hidden again, through the real `createWidgetInteraction` over two math
+// widgets (commit and undo rules are `widget-reveal-commit.test.ts`). A caret leaving the source
+// within the block hides it, and a click on a second widget hides the first and shows the second
+// as one sequence.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -14,6 +13,7 @@ import {
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -45,9 +45,9 @@ function mountTwoMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: (...args: unknown[]) => {
-						commits.push(args);
-					}
+					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+						commits.push([index, raw, before, after])
+					)
 				},
 				focusActions: new Proxy({}, { get: trap }),
 				setPendingCursor: (offset: number | null) => {
@@ -64,7 +64,7 @@ function mountTwoMathBlock() {
 	// select-then-Enter; `enterWidget` runs the synchronous part of `startReveal` before it returns.
 	async function revealFirst(): Promise<void> {
 		interaction.enterWidget(first, true);
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 	}
 
 	return {
@@ -94,13 +94,12 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
-		// The same element, not an equal one: the very element that was detached returns to its
-		// place. Written as a boolean on purpose, since a `.toBe(domNode)` diff would trip
-		// Svelte's `$state` proxy and hide it.
+		// The very element that was detached returns; a boolean, since a `.toBe(domNode)` diff
+		// would trip Svelte's `$state` proxy.
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 
@@ -111,7 +110,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.pendingCursors).toEqual([]);
 		const sel = window.getSelection()!;
@@ -125,7 +124,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.sourceNode(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 	});
@@ -137,7 +136,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		placeCaretAt(b.trailingText(), 1);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 
 		expect(b.interaction.isRevealing()).toBe(true);
 		expect(b.commits).toEqual([]);
@@ -151,7 +150,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 		const settling = b.revealFirst(); // not awaited: left at the tick before placeCaret
 
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		await settling;
 
 		expect(b.interaction.isRevealing()).toBe(true);
@@ -161,7 +160,7 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 		// Once settled, the same exit hides the source normally again.
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });

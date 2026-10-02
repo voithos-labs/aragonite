@@ -1,7 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { activeBlockPath } from '../../plugins/helpers';
+import { waitForAllImagesLoaded } from './helpers';
 
-// An image-only paragraph is a vertical stop because it can be entered as an object: one press
+// An image-only paragraph is a vertical stop because it can be entered as an object: one keypress
 // selects the image, the next moves on.
 // Requirements: `e2e/requirements/blocks/image/caret-arrows-vertical.md`.
 
@@ -14,8 +16,8 @@ const LIST_IMAGE_DOC =
 const LIST_IMAGE_LAST_DOC =
 	'- first item text\n- ![pic](/test-fixtures/sample.png)\n\nbelow list paragraph.\n';
 
-/** One arrow onto the image (which selects it), then one past it. The typed X proves where the
- *  second press landed; the overlay proves the first one stopped rather than passing through. */
+/** One arrow onto the image (which selects it), then one past it: the typed X proves where the
+ *  second landed, the overlay that the first stopped rather than passing through. */
 async function stepOverImage(editor: EditorPage, key: 'ArrowUp' | 'ArrowDown'): Promise<string> {
 	await editor.page.keyboard.press(key);
 	await expect(editor.page.locator('[data-image-overlay]')).toHaveCount(1);
@@ -82,5 +84,35 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		const src = await stepOverImage(editor, 'ArrowDown');
 		expect(src).toMatch(/X.*after paragraph|after paragraph.*X/);
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
+	});
+});
+
+// Two adjacent images too wide for one line: the paragraph holds no text at all, so its first
+// line cannot be found by looking for text.
+const WRAPPED_IMAGES_DOC =
+	'before paragraph.\n\n![a|500x60](/test-fixtures/sample.png)![b|500x60](/test-fixtures/sample.png)\n\nafter paragraph.\n';
+
+test.describe('vertical arrows inside a wrapped image-only paragraph', () => {
+	test('ArrowUp from beside the second-line image stays in the paragraph', async ({ page }) => {
+		test.fixme(
+			true,
+			'#574: Chromium drops the caret beside the trailing image; ArrowUp reads it as raw 0'
+		);
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(WRAPPED_IMAGES_DOC);
+		await waitForAllImagesLoaded(page);
+		const [first, second] = await page.locator('[data-image-widget]').all();
+		const [a, b] = [await first.boundingBox(), await second.boundingBox()];
+		if (!a || !b) throw new Error('image boxes missing');
+		expect(b.y).toBeGreaterThan(a.y + a.height / 2);
+
+		await editor.focusBlockEnd(1);
+		await editor.waitForRenderFlush();
+		expect(await activeBlockPath(page)).toEqual([1]);
+
+		await page.keyboard.press('ArrowUp');
+		await editor.waitForRenderFlush();
+		expect(await activeBlockPath(page)).toEqual([1]);
 	});
 });

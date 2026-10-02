@@ -1,10 +1,10 @@
 import { type ConsoleMessage, type Page, type Request, type Response } from '@playwright/test';
+import { UNDO_DEBOUNCE_MS } from '../editor-actions/commit/text-batch';
 
-// Page-level probes shared across the e2e suites. Collecting page errors stays each spec's
-// decision: this module hands back the collected list and never asserts on it.
+// Page-level checks shared across the e2e suites. Whether a spec asserts on page errors is its own
+// decision: this module hands back what it collected and never asserts.
 
-// Starts collecting uncaught page errors and returns the growing array. Pair it with an
-// explicit `expect(pageErrors).toEqual([])` where the spec asserts there were none.
+// Pair with an explicit `expect(pageErrors).toEqual([])` where the spec asserts there were none.
 export function capturePageErrors(page: Page): string[] {
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(e.message));
@@ -56,32 +56,20 @@ export function watchPageFailures(page: Page): PageFailures {
 	};
 }
 
-// Demo routes render their editor on the server, so blocks on screen prove nothing about
-// handlers: a click before hydration reaches none of them. `trackParityDocument` registers from
-// a client-only effect, so its arrival is the signal, and a route without the test bridge has
-// no other.
-export function waitForEditorHydrated(page: Page): Promise<unknown> {
-	return page.waitForFunction(
-		() => ((window as { __parityDocuments?: unknown[] }).__parityDocuments ?? []).length > 0
-	);
-}
-
-// A fixed instant rather than the wall clock (G4.48), advanced one second so a timer set during
-// setup fires before the page stops ticking.
+// A fixed instant rather than the wall clock, advanced one second so a timer set during setup
+// fires before the page stops ticking (G4.48).
 const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
 const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
 
-// Stops every in-page timer, so a spec decides when the editor's typing pause elapses.
-// `install` alone leaves the fake clock ticking; only pausing it stops timers, and Playwright's
-// own retries keep running on the runner's real clock. Call it after the setup gestures: the
-// harness's render waits ride rAF, which a frozen page never runs.
+// Stops every in-page timer (`install` alone keeps them running; `pauseAt` stops them), so a spec
+// decides when the typing pause elapses. Call it after setup: the render waits ride rAF.
 export async function freezeInPageClock(page: Page): Promise<void> {
 	await page.clock.install({ time: FROZEN_AT });
 	await page.clock.pauseAt(FROZEN_UNTIL);
 }
 
-/** Advance a frozen clock by this to elapse the editor's 250 ms typing pause. */
-export const PAST_TYPING_PAUSE_MS = 300;
+/** Advance a frozen clock by this to elapse the editor's typing pause, with a margin past it. */
+export const PAST_TYPING_PAUSE_MS = UNDO_DEBOUNCE_MS + 50;
 
 // Whether the top-level block at `index` has a mounted host: false once windowing unmounts it.
 export function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
@@ -89,4 +77,33 @@ export function topLevelHostPresent(page: Page, index: number): Promise<boolean>
 		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
 		index
 	);
+}
+
+// Where keyboard focus sits: the block holding it, and whether it is that block's editable element
+// rather than another focus stop inside the block.
+export function focusedBlockSurface(
+	page: Page
+): Promise<{ path: number[] | null; isSurface: boolean }> {
+	return page.evaluate(() => {
+		const active = document.activeElement as HTMLElement | null;
+		const attr = active?.closest('[data-block-path]')?.getAttribute('data-block-path');
+		return {
+			path: attr ? (JSON.parse(attr) as number[]) : null,
+			isSurface: active?.getAttribute('contenteditable') === 'true'
+		};
+	});
+}
+
+/** Make the page's next clipboard read wait until `releaseClipboardRead`, so a spec can swap the
+ *  document while a paste is still reading, with no timing in the spec. */
+export async function holdClipboardRead(page: Page): Promise<void> {
+	await page.evaluate(() => {
+		navigator.clipboard.readText = () =>
+			new Promise<string>((resolve) => ((window as any).__releaseClipboardRead = resolve));
+	});
+}
+
+/** Resolve the held clipboard read with `text`. */
+export async function releaseClipboardRead(page: Page, text: string): Promise<void> {
+	await page.evaluate((t) => (window as any).__releaseClipboardRead(t), text);
 }

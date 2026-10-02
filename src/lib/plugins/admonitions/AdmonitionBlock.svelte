@@ -1,11 +1,15 @@
 <!--
   One alert box for both kinds: the directive admonition (an editable title at child 0)
-  and the GitHub alert (no title, a static badge instead). createContainerBlock holds all
-  the child-list state, so this file owns only the box around it; node, index and path go
-  in as functions so each is re-read live rather than snapshotted.
+  and the GitHub alert (no title, a static badge instead).
 -->
 <script lang="ts">
-	import { BlockList, createContainerBlock, getPluginMetadata, type NodeView } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		getPluginMetadata,
+		isBlankText,
+		type NodeView
+	} from '$lib/plugin';
 	import {
 		capitalize,
 		coerceAdmonitionName,
@@ -30,7 +34,7 @@
 			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
 			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
 	);
-	const titleEmpty = $derived(isAlert || (node.children?.[0]?.raw ?? '').trim() === '');
+	const titleEmpty = $derived(isAlert || isBlankText(node.children?.[0]?.raw ?? ''));
 
 	export { containerApi };
 </script>
@@ -62,9 +66,8 @@
 		border-left: 3px solid var(--adm-accent);
 	}
 
-	/* One block per kind sets everything that varies: accent, icon glyph, untitled label. Fixed
-	   hex, not theme tokens: GitHub's alert palette is one color per kind, so admonitions look
-	   the same whatever theme the host uses. */
+	/* One block per kind sets what varies, in fixed hex after GitHub's one-color-per-kind alert
+	   palette, so an admonition looks the same whatever theme the host uses. */
 	.admonition[data-kind='note'] {
 		--adm-accent: #1f6feb;
 		--adm-label: 'Note';

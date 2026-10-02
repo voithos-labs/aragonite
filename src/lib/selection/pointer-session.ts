@@ -16,29 +16,23 @@ export interface PointerDragSessionOptions {
 	/** Coalesced to one call per animation frame with the latest pointer: intermediate positions
 	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
-	/**
-	 * Runs on pointerup or pointercancel, after the pending move flushes and the session tears
-	 * down. Not run on Escape or a lifetime abort: those only tear down.
-	 */
+	/** Runs on pointerup or pointercancel, after the pending move flushes and the session tears
+	 *  down; Escape and a lifetime abort only tear down. */
 	onEnd?(reason: 'up' | 'cancel'): void;
 	/** Caller cleanup, run once on every teardown path (up, cancel, Escape, abort). */
 	onTeardown?(): void;
 	/** Scroll targets + axis; the session supplies the live pointer and rescroll. */
 	autoScroll: Pick<AutoScrollDeps, 'getTargets' | 'axis'>;
-	/**
-	 * Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
-	 * Omit where the pointerdown already committed to a drag.
-	 */
+	/** Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
+	 *  Omitted where the pointerdown already committed to a drag. */
 	threshold?: number;
 	onDragRecognized?(): void;
 	/** Install a document keydown so Escape tears the session down. */
 	escape?: boolean;
 	/** Suppress native text selection for the drag's duration. */
 	disableUserSelect?: boolean;
-	/**
-	 * Aborted on editor unmount. Without it an unmount mid-drag leaks the document listeners:
-	 * pointerup never fires once the originating element is gone.
-	 */
+	/** Aborted on editor unmount; without it an unmount mid-drag leaks the document listeners,
+	 *  since pointerup never fires once the originating element is gone. */
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -81,9 +75,8 @@ export function createPointerDragSession(
 		});
 	}
 
-	// A release before the frame callback runs would otherwise drop the final move (a stale drop
-	// index, or `isCrossBlock` false after a fast flick). Guarded on a pending frame so an
-	// already processed move is never replayed.
+	// A release before the frame callback runs would otherwise drop the final move; the guard on
+	// a pending frame keeps an already processed move from replaying.
 	function flushPendingMove(): void {
 		if (rafId !== null && pending) opts.onMove(pending);
 	}

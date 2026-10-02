@@ -5,9 +5,8 @@ import { type SimContext } from '../invariants';
 // route, so a session using these must start from a loaded document that holds one.
 
 /**
- * Reads the state before the click and waits for `aria-expanded` to flip, so a toggle that
- * quietly did nothing, because it is detached or unresponsive, times out instead of recording
- * a stale source. The editor rewrites the opening line itself, so the expected answer resyncs.
+ * Waits for `aria-expanded` to change from its state before the click, so a toggle that did
+ * nothing times out instead of recording a stale source.
  */
 export async function toggleCollapse(ctx: SimContext): Promise<void> {
 	const toggle = ctx.page.locator('.details-toggle').first();
@@ -23,10 +22,8 @@ export async function toggleCollapse(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The simulation's only look at command dispatch: a keypress travelling from an inner child up
- * to the container's handler. Pressing the shortcut for the other type is what gives this
- * teeth, since a dead binding or a lost keypress leaves the source unchanged and the wait times
- * out, the same way `toggleCollapse` fails.
+ * The simulation's only look at command dispatch, a keypress travelling from an inner child up to
+ * the container's handler: a dead binding leaves the source unchanged and the wait times out.
  */
 export async function setCalloutKind(ctx: SimContext): Promise<void> {
 	const calloutIdx = await topLevelCalloutIndex(ctx.page);
@@ -44,10 +41,8 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 }
 
 /**
- * `convertAlertsOnPaste` is off by default, so the pasted bytes stay GitHub syntax and parse as
- * a `githubAlert`. Waits for the block's kind, not for the source to change: if the alert's
- * opener were broken the bytes would arrive as a plain blockquote, which still changes the
- * source, still round-trips and still leaves state clean, so no other check would notice.
+ * Waits for the `githubAlert` kind, not a source change: a broken alert opener would still paste a
+ * plain blockquote that changes the source and round-trips, and no other check would notice.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
@@ -68,10 +63,8 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 }
 
 /**
- * A global shortcut that only reads: it rewrites `window.__docStats` and commits nothing, so
- * the bytes are unchanged. It first spoils the block count in every published record, then
- * waits for a correct one: only the command's own recompute replaces a spoiled record, and no
- * `edit` event rewrites one behind its back, so a dead binding times out loudly.
+ * The command only reads: it spoils the block count in every `window.__docStats` record, then
+ * waits for a correct one, which only the command's recompute writes, so a dead binding times out.
  */
 export async function publishDocStats(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => {

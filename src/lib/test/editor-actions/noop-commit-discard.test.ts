@@ -6,8 +6,6 @@ import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { findMergeTarget } from '$lib/schema/merge-rules';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
@@ -26,8 +24,6 @@ const DETAILS = '<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
 describe('noop structural commit discards its snapshot', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 
@@ -66,7 +62,7 @@ describe('noop structural commit discards its snapshot', () => {
 		expect(deps.doc.children[0].childIds ?? []).toEqual(beforeChildIds);
 	});
 
-	// Control: a "discard everything" regression fails here.
+	// Control: a discard that swallowed every commit fails here.
 	it('a real paragraph split still creates one undo entry and one edit event', async () => {
 		const h = makeTopHarness('hello world\n');
 
@@ -78,7 +74,7 @@ describe('noop structural commit discards its snapshot', () => {
 	});
 });
 
-// The rule M1 middle-item merge finds no target when the previous item's deepest leaf has no
+// The list middle-item merge finds no target when the previous item's deepest leaf has no
 // editable text, and that no-op must discard like its block-edit-core sibling.
 describe('no-target list middle-item merge discards its commit', () => {
 	it('Backspace above an opaque prev leaf creates no entry and no merge event', async () => {

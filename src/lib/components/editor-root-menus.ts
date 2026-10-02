@@ -9,12 +9,24 @@ import type { BlockEditActions } from '../action-contracts';
 import { BLOCK_ACTIONS_LABEL } from '../a11y-strings';
 import type { NodeView } from '../core/node-views';
 import type { DocumentGetter } from '../editor-keys';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { PresentationMode } from '../presentation-mode';
-import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-import { insertFlyoutEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
+import {
+	blockContextActionsFor,
+	type BlockActionContext,
+	type BlockContextAction
+} from '../schema/context-actions';
+import type { PluginActivation } from '../schema/plugin-activation';
+import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
+import type { InsertEntry } from '../schema/insert-catalogue';
+import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
-import { isProseBackground } from './menu/default-context-actions';
+import { blockNoun } from './menu/default-context-actions';
+import { isProseLeaf } from '../schema/page-role';
+import type { Reading } from '../schema/reading';
 import { readBlockPath } from '../selection/path-lookup';
+import { documentLineEnding } from '../core/lines';
+import { stampWrites, type DocumentStamps } from '../editor-actions/commit/document-stamp';
 
 export interface BlockMenuModel {
 	x: number;
@@ -31,12 +43,22 @@ export interface RootMenusDeps {
 	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
-	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'updateBlockContent' | 'insertParagraph'>;
+	blockEdit: Pick<BlockEditActions, 'deleteBlock'>;
+	/** Rewrite top-level block `index` as one undo entry, apart from any typing before it. */
+	replaceRaw(index: number, raw: string): Promise<void>;
 	/** Where a click on empty space puts the caret, so a right-click on prose acts at the
 	 *  pointer. */
 	placeCaretAtPoint(x: number, y: number): boolean;
-	/** The public insert entry point: a snippet goes to the editable that holds focus. */
-	insertMarkdown(md: string): boolean;
+	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
+	/** The insert entries this editor lists, read fresh per menu. */
+	insertCatalogue(): readonly InsertEntry[];
+	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
+	activation: PluginActivation;
+	/** The editor's reading, which tells a paragraph of pictures from prose. */
+	reading: Reading;
+	/** A block menu's writes are stamped with the document it opened over. */
+	stamps: DocumentStamps;
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -86,23 +108,21 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// Two steps: create the empty paragraph, which puts the caret in it, then hand the snippet to
-	// whatever now holds focus, so an inserted block goes through the same paste path.
-	async function insertBlockAfter(index: number, md: string): Promise<void> {
-		await deps.blockEdit.insertParagraph(index + 1, '');
-		deps.insertMarkdown(md);
-	}
-
-	/** `insertAfter` names the top-level block an "Insert block" flyout creates an empty sibling
-	 *  after; null leaves the menu to the clipboard rows alone. */
-	function openClipboardMenu(point: Point, anchorEl: Element, insertAfter: number | null): void {
-		const insert: MenuEntry[] =
-			insertAfter === null
-				? []
-				: [
-						{ id: 'sep', label: '', divider: true },
-						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
-					];
+	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
+	 *  just placed in; false leaves the menu to the clipboard rows alone. */
+	function openClipboardMenu(point: Point, anchorEl: Element, withInsert: boolean): void {
+		const catalogue = deps.insertCatalogue();
+		const insert: MenuEntry[] = !withInsert
+			? []
+			: [
+					{ id: 'sep', label: '', divider: true },
+					{
+						id: 'insert',
+						label: 'Insert block',
+						icon: 'plus',
+						children: catalogue.map(({ id, label, icon }) => ({ id, label, icon }))
+					}
+				];
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(anchorEl, point),
@@ -111,26 +131,32 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			pick: (id) => {
 				deps.setMenu(null);
 				if (runClipboardRow(id)) return;
-				const md = insertSnippets().get(id);
-				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
+				const entry = catalogue.find((e) => e.id === id);
+				if (entry && withInsert) void deps.insertMarkdown(entry.markdown, { placement: 'below' });
 			}
 		});
 	}
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
-		const actions = blockContextActionsFor(node, path);
+		const noun = blockNoun(node, deps.reading);
+		const actions = blockContextActionsFor(node, path, deps.activation, noun);
 		if (actions.length === 0) return;
 		const index = path[0];
-		const ctx = {
-			node,
-			path,
-			deleteBlock: async () => {
-				await deps.blockEdit.deleteBlock(index);
+		// A row may write after a slow clipboard read; one a `source` swap outran writes nothing.
+		const ctx: BlockActionContext = stampWrites(
+			{
+				node,
+				path,
+				deleteBlock: async () => {
+					await deps.blockEdit.deleteBlock(index, 'keyless');
+				},
+				replaceRaw: (raw: string) => deps.replaceRaw(index, raw),
+				transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+				lineEnding: documentLineEnding(deps.getDoc())
 			},
-			replaceRaw: async (raw: string) => {
-				await deps.blockEdit.updateBlockContent(index, raw);
-			}
-		};
+			deps.stamps.current(),
+			deps.stamps
+		);
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),
@@ -149,9 +175,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		});
 	}
 
-	// A right-click on a block (a fence, an equation, an image) opens that block's context menu.
-	// Prose is the page's background and a selection belongs to the host's popover, so both get
-	// the clipboard rows; the margin shows nothing at all.
+	// A right-click on a block opens its own menu; prose and a selection get the clipboard rows,
+	// and the margin shows nothing.
 	function onRootContextMenu(e: MouseEvent): void {
 		const root = deps.editorEl;
 		if (e.defaultPrevented || deps.mode === 'reading' || !root) return;
@@ -167,13 +192,13 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const point = { x: e.clientX, y: e.clientY };
 		const native = window.getSelection();
 		const selected = !!native && !native.isCollapsed && root.contains(native.anchorNode);
-		// A nested block (a fence inside a list item) takes the clipboard rows for now.
+		// A nested block (a fence inside a list item) gets the clipboard rows.
 		const node = path.length === 1 ? deps.getDoc().children[path[0]] : undefined;
-		if (selected || !node || isProseBackground(node)) {
+		const prose = !!node && isProseLeaf(node, deps.reading);
+		if (selected || !node || prose) {
 			if (!selected) deps.placeCaretAtPoint(e.clientX, e.clientY);
 			// Top-level prose is where a sibling block makes sense.
-			const insertAfter = !selected && node && isProseBackground(node) ? path[0] : null;
-			openClipboardMenu(point, host, insertAfter);
+			openClipboardMenu(point, host, !selected && prose);
 			return;
 		}
 		openBlockActions(point, host, path, node);

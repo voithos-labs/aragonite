@@ -1,8 +1,8 @@
 /**
  * The live-mode join rewrite (live-mode.md § 4.5): joining two blocks literally would show the
  * delimiter runs a truncation left unpaired, and the closer/opener pair a split's inverse pushes
- * together around nothing. Both are dropped here and nowhere else, and only once the joined block
- * reparses to one prose block showing what the two sides showed.
+ * together around nothing. Both are dropped here and nowhere else, and only once the joined bytes,
+ * read back where they will be stored, show what the two sides showed.
  */
 
 import {
@@ -10,30 +10,32 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
-import { trimTrailingLineEnding } from '../../../core/lines';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import { readBack, readSource, shownOf } from '../../../core/inline/live-edit/read-back';
+import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
+import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
+import type { GrammarView } from '../../../schema/block-openers';
+import type { RenderInlineOptions } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import { parse } from '../../../core/parser';
 import {
 	getInlineConstructPolicy,
 	type JoinEndpoint,
 	type LiveJoinSeamCleaner
 } from '../../../schema/inline-construct-policy';
-import { soleProseReparse } from './screen-diff';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
 export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
-	const resolver = join.linkRef?.current;
-	const left = readSide(join.start, 'before', resolver);
-	const right = readSide(join.end, 'after', resolver);
+	const { typed, store } = join;
+	const left = readSide(join.start, 'before', store.reading);
+	const right = readSide(join.end, 'after', store.reading);
 	if (left === null || right === null) return null;
 	// Nothing sits at the join, so the plain concatenation is already the answer, and an ordinary
 	// Backspace between two paragraphs pays for no parse.
@@ -42,11 +44,10 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 
 	// The caller splices `typed` at the join once this returns, so the bytes checked below are the
 	// bytes written: a typed run changes the flanking a kept delimiter pairs against.
-	const typed = join.typed ?? '';
 	const shown = shownAfterJoin(left, right, typed);
 	const pairs = abuttingPairSpans(join, left, right);
-	// Least destructive first: keep the runs the two sides can still pair across the join, and
-	// fall back to dropping every stranded one. Two identical readings are tried once.
+	// Two readings, least destructive first: keep the runs the two sides can still pair across the
+	// join, else drop every stranded one.
 	const readings = [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)];
 	const spanSets = readings.map((dangling) => [...dangling, ...pairs]);
 	const candidates = (sameSpans(spanSets[0], spanSets[1]) ? [spanSets[0]] : spanSets).map(
@@ -57,13 +58,12 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 				spans,
 				raw,
 				seam,
-				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), resolver, join)
+				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), store)
 			};
 		}
 	);
-	// The other half of § 4.1: a run the least destructive reading keeps can be one the cut left
-	// enclosing nothing, and a pair over nothing passes the screen check, so among the readings
-	// that pass, the one leaving the fewest of those wins.
+	// A pair left over nothing also passes the screen check, so among the readings that pass, the
+	// one leaving the fewest such pairs wins (`docs/design/live-mode.md` § 4.1).
 	const floor = Math.min(...candidates.map(({ read }) => read?.residue ?? Infinity));
 	for (const { raw: candidate, seam, read } of candidates) {
 		if (read === null || read.visible !== shown || read.residue > floor) continue;
@@ -73,7 +73,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		// The split half's trailing-whitespace rule, applied to the join: a survivor that is only
 		// whitespace draws nothing and reparses as a blank line, not the block that was written.
 		const display = trimTrailingLineEnding(candidate);
-		if (display !== '' && display.trim() === '') {
+		if (display !== '' && isBlankText(display)) {
 			return { raw: candidate.slice(display.length), seam: 0 };
 		}
 		return { raw: candidate, seam };
@@ -108,6 +108,8 @@ interface SideConstruct {
 
 interface Side {
 	raw: string;
+	/** The editor's grammar, which the render reading of this side draws in. */
+	grammar: GrammarView;
 	content: Span;
 	cut: number;
 	inlines: readonly InlineNode[];
@@ -119,25 +121,24 @@ interface Side {
 	touching: SideConstruct[];
 }
 
-/**
- * Read one endpoint's surviving bytes and the constructs its cut leaves at the join. Null where
- * the cleanup has no business running: a non-prose kind, an offset outside the content, or a cut
- * through a family that declares no close-and-reopen, whose bytes mean nothing apart.
- */
-function readSide(
-	endpoint: JoinEndpoint,
-	keep: 'before' | 'after',
-	resolver: LinkReferenceResolver | undefined
-): Side | null {
+/** One endpoint's surviving bytes and the constructs its cut leaves at the join. Null for a
+ *  non-prose kind, an offset outside the content, or a cut through a family that cannot reopen. */
+function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Reading): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(node.raw, content.start, content.end, resolver);
+	const inlines = readInline(
+		node.raw,
+		content.start,
+		content.end,
+		reading.resolver,
+		reading.grammar
+	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
 	// this cut is bytes the user saw, not a stranded one: the plain concatenation stands.
-	if (paintsOnlyChrome(inlines, node.raw)) return null;
+	if (paintsOnlyChrome(inlines, node.raw, { grammar: reading.grammar })) return null;
 	const { ranged, atomic } = classifyConstructs(inlines);
 	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
 	// reading can repair. A live-mode caret cannot land there; a plugin's can.
@@ -154,6 +155,7 @@ function readSide(
 
 	return {
 		raw: node.raw,
+		grammar: reading.grammar,
 		content,
 		cut: offset,
 		inlines,
@@ -189,16 +191,13 @@ function classifyConstructs(inlines: readonly InlineNode[]): {
 const splitsARun = (c: SideConstruct, at: number): boolean =>
 	(at > c.node.start && at < c.content.start) || (at > c.content.end && at < c.node.end);
 
-/** Whether the family declares its delimiters cuttable and rejoinable at all (live-mode.md § 4.4). */
+/** Whether the family can be cut and rejoined (`docs/design/live-mode.md` § 4.4). */
 function isRejoinable(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.splitBehavior === 'close-and-reopen';
 }
 
-/**
- * The nested chain of closers ending at `cut` (or openers starting there), stripped outermost
- * first: `**a *b***` cut at its end gives the strong emphasis, then the emphasis its closer
- * wraps. This is the shape `live-split-rebalance` writes, read back.
- */
+/** The nested chain of closers ending at `cut` (or openers starting there), outermost first:
+ *  `**a *b***` cut at its end gives the strong emphasis, then the emphasis. */
 function touchingChain(
 	constructs: readonly SideConstruct[],
 	cut: number,
@@ -247,11 +246,8 @@ const sameDelimiters = (left: Side, lc: SideConstruct, right: Side, rc: SideCons
 		right.raw.slice(rc.node.start, rc.content.start) &&
 	left.raw.slice(lc.content.end, lc.node.end) === right.raw.slice(rc.content.end, rc.node.end);
 
-/**
- * The runs a truncation stranded that the join does not put back together: the left's opener
- * chain and the right's closer chain, minus the leading pairs whose kinds line up, since those
- * two halves make one construct across the join, which is what the user had.
- */
+/** The runs a truncation stranded that the join does not rejoin: the left's openers and the right's
+ *  closers, minus the leading pairs whose kinds line up and so make one construct again. */
 function unpairedSpans(join: { seam: number }, left: Side, right: Side): Span[] {
 	let paired = 0;
 	while (
@@ -275,11 +271,8 @@ function everyDanglingSpan(join: { seam: number }, left: Side, right: Side): Spa
 	];
 }
 
-/**
- * The closer/opener pair a split's inverse brings back to back: same kinds nested the same way,
- * written with the same bytes, enclosing nothing between them. The whole chain or nothing:
- * dropping an outer pair while an inner one stays would leave both halves' runs unbalanced.
- */
+/** The closer/opener chain a split's inverse brings back to back around nothing, same kinds and
+ *  bytes. Dropped whole or not at all, since a partial drop leaves the runs unbalanced. */
 function abuttingPairSpans(join: { seam: number }, left: Side, right: Side): Span[] {
 	const closing = left.touching;
 	const opening = right.touching;
@@ -310,29 +303,21 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/**
- * What the user must still see: what each side already showed of the bytes that survive. Read off
- * the parse from before the join, never off the joined halves, since either of those would bake
- * the fault this checks for into the expectation.
- */
+/** What the user must still see, read off each side's parse from before the join: reading the
+ *  joined halves would bake the fault this checks for into the expectation. */
 const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
 	visibleSide(left, 'before') + typed + visibleSide(right, 'after');
 
-/**
- * What the user sees, asked of the code that draws it: the render's own DOM with every marker
- * span dropped. The clip decides only where the bytes stop; a construct the cut crosses still
- * contributes its content, since its delimiter runs draw nothing either way, which `readSide`
- * has already established by refusing a side whose markers are visible.
- */
+/** What the user sees of one side, asked of the render with every marker dropped. A construct the
+ *  cut crosses still gives its content, since `readSide` refused any side whose markers paint. */
 function visibleSide(side: Side, keep: 'before' | 'after'): string {
-	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY);
+	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY, {
+		grammar: side.grammar
+	});
 }
 
-/**
- * The `keep` side of `level`, rebuilt: a construct the cut crosses hands its place to its own
- * clipped children. Exported for the depth test, which has to reach the rebuild with a tree no
- * real side could be rendered at.
- */
+/** The `keep` side of `level`, rebuilt: a construct the cut crosses is replaced by its clipped
+ *  children. Exported for the depth test. */
 export function clipNodes(
 	level: readonly InlineNode[],
 	cut: number,
@@ -366,49 +351,34 @@ export function clipNodes(
 	return out;
 }
 
-/**
- * The candidate read back the way the caller will store it: what it shows, and how many constructs
- * whose policy unwraps them are left standing over nothing. Null where a join produces something
- * the caller cannot store: two blocks, a kind with no inline content, or a body the container
- * would read differently.
- */
-function readCandidate(
-	raw: string,
-	resolver: LinkReferenceResolver | undefined,
-	join: { ambientPrefix?: string }
-): { visible: string; residue: number } | null {
-	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw)) return null;
-	const sole = soleProseReparse(raw, resolver);
-	if (sole === null) return null;
-	const { block, nodes } = sole;
+/** The candidate read back where it will be stored: what it shows, and how many unwrapping
+ *  constructs stand over nothing. Null where that position would not keep it as one prose block. */
+function readCandidate(raw: string, store: StoredAs): { visible: string; residue: number } | null {
+	const read = readBack(raw, store);
+	if (read === null) return null;
+	const { inlines } = read;
+	const source = readSource(read);
+	const render = { grammar: store.reading.grammar };
 	return {
-		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
+		visible: shownOf(read, store),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
-		residue: paintsOnlyChrome(nodes, block.raw) ? 0 : countResidue(nodes, block.raw)
+		residue: paintsOnlyChrome(inlines, source, render) ? 0 : countResidue(inlines, source, render)
 	};
-}
-
-/**
- * Whether the container still reads its own marker off the candidate. A list item's marker is not
- * in these bytes but takes width from them, so a body the cut left starting with a space reparses
- * under a wider marker than the live tree holds, and a load-then-save cycle would change the tree.
- */
-function keepsContainerMarker(prefix: string, raw: string): boolean {
-	if (prefix === '') return true;
-	const blocks = parse(prefix + raw, { scope: 'fragment' }).children;
-	if (blocks.length !== 1) return false;
-	return (blocks[0] as { marker?: string }).marker === prefix;
 }
 
 /** Constructs the user would meet as nothing at all: no visible byte, and a policy that unwraps
  *  them when emptied rather than leaving delimiters over nothing. */
-function countResidue(nodes: readonly InlineNode[], raw: string): number {
+function countResidue(
+	nodes: readonly InlineNode[],
+	raw: string,
+	render: RenderInlineOptions
+): number {
 	let found = 0;
 	for (const node of inlineDescendants(nodes, isConstruct)) {
 		if (node.kind === 'text') continue;
 		if (
 			node.end > node.start &&
-			renderedText([node], raw, CONTENT_VISIBILITY) === '' &&
+			renderedText([node], raw, CONTENT_VISIBILITY, render) === '' &&
 			getInlineConstructPolicy(node.kind)?.autoUnwrapOnEmpty === true
 		) {
 			found++;

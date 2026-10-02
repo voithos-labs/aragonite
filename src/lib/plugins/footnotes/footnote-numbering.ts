@@ -8,11 +8,18 @@
 import {
 	computeInlineContent,
 	isProseKind,
+	walkBlocks,
 	type DocumentView,
+	type EditorContext,
 	type InlineNode,
 	type NodeView
 } from '$lib/plugin';
 import { FOOTNOTE_REF_KIND } from './constants';
+
+/** The inline read numbering walks with: an editor's, so a reference inside syntax that editor
+ *  left out still counts. Without one it reads every installed plugin. */
+export type InlineReader = EditorContext['computeInlineContent'];
+const EVERY_PLUGIN: InlineReader = computeInlineContent;
 
 export interface FootnoteReference {
 	label: string;
@@ -33,20 +40,24 @@ function collectRefsInInline(
 	}
 }
 
-function collectRefsInSubtree(node: NodeView, basePath: number[], out: FootnoteReference[]): void {
-	if (node.children && node.children.length > 0) {
-		node.children.forEach((child, index) => collectRefsInSubtree(child, [...basePath, index], out));
-		return;
-	}
-	if (!isProseKind(node.kind)) return;
-	collectRefsInInline(computeInlineContent(node), basePath, out);
+function collectRefsInLeaf(
+	node: NodeView,
+	path: number[],
+	out: FootnoteReference[],
+	reader: InlineReader
+): void {
+	if (node.children?.length || !isProseKind(node.kind)) return;
+	collectRefsInInline(reader(node), path, out);
 }
 
-export function collectFootnoteReferences(document: DocumentView): FootnoteReference[] {
+export function collectFootnoteReferences(
+	document: DocumentView,
+	reader: InlineReader = EVERY_PLUGIN
+): FootnoteReference[] {
 	const refs: FootnoteReference[] = [];
 	const children = document.children;
 	for (let index = 0; index < children.length; index++) {
-		for (const ref of subtreeRefs(children[index])) {
+		for (const ref of subtreeRefs(children[index], reader)) {
 			refs.push({ label: ref.label, path: [index, ...ref.path], end: ref.end });
 		}
 	}
@@ -54,11 +65,14 @@ export function collectFootnoteReferences(document: DocumentView): FootnoteRefer
 }
 
 /** Labels only, so the numbering a keystroke rebuilds allocates no rebased paths. */
-export function assignFootnoteNumbers(document: DocumentView): Map<string, number> {
+export function assignFootnoteNumbers(
+	document: DocumentView,
+	reader: InlineReader = EVERY_PLUGIN
+): Map<string, number> {
 	const numbers = new Map<string, number>();
 	const children = document.children;
 	for (let index = 0; index < children.length; index++) {
-		for (const ref of subtreeRefs(children[index])) {
+		for (const ref of subtreeRefs(children[index], reader)) {
 			if (!numbers.has(ref.label)) numbers.set(ref.label, numbers.size + 1);
 		}
 	}
@@ -70,24 +84,23 @@ export function assignFootnoteNumbers(document: DocumentView): Map<string, numbe
 interface SubtreeEntry {
 	raw: string;
 	kind: NodeView['kind'];
+	reader: InlineReader;
 	/** Subtree-relative paths; `collectFootnoteReferences` rebases them onto the top-level index. */
 	refs: FootnoteReference[];
 }
 
 const refsBySubtree = new WeakMap<NodeView, SubtreeEntry>();
 
-/**
- * One top-level subtree's references, cached against the bytes they came from, so a
- * keystroke re-parses that subtree and reuses every other. Safe because the serializer never
- * recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept that way by the
- * `raw` rebuild that runs up its ancestors.
- */
-function subtreeRefs(node: NodeView): readonly FootnoteReference[] {
+/** One top-level subtree's references, cached against its `raw` (the subtree's whole byte
+ *  image), so a keystroke re-parses only the subtree it changed. */
+function subtreeRefs(node: NodeView, reader: InlineReader): readonly FootnoteReference[] {
 	const cached = refsBySubtree.get(node);
-	if (cached && cached.raw === node.raw && cached.kind === node.kind) return cached.refs;
+	if (cached && cached.raw === node.raw && cached.kind === node.kind && cached.reader === reader)
+		return cached.refs;
 	const refs: FootnoteReference[] = [];
-	collectRefsInSubtree(node, [], refs);
-	refsBySubtree.set(node, { raw: node.raw, kind: node.kind, refs });
+	collectRefsInLeaf(node, [], refs, reader);
+	walkBlocks(node, (child, path) => collectRefsInLeaf(child, path, refs, reader));
+	refsBySubtree.set(node, { raw: node.raw, kind: node.kind, reader, refs });
 	return refs;
 }
 
@@ -95,21 +108,20 @@ function subtreeRefs(node: NodeView): readonly FootnoteReference[] {
 
 const numberingByDocument = new WeakMap<
 	DocumentView,
-	{ version: number; numbers: Map<string, number> }
+	{ version: number; reader: InlineReader; numbers: Map<string, number> }
 >();
 
-/**
- * One numbering per flush rather than one per widget. `contentVersion` must be in the key: the
- * `$state` document is changed in place, so a cache keyed on identity alone would hit forever
- * and return a stale map.
- */
+/** One numbering per flush, not per widget, keyed on `contentVersion` too: the `$state` document
+ *  changes in place, so an identity key alone would return a stale map. */
 export function footnoteNumbersFor(
 	document: DocumentView,
-	contentVersion: number
+	contentVersion: number,
+	reader: InlineReader = EVERY_PLUGIN
 ): Map<string, number> {
 	const cached = numberingByDocument.get(document);
-	if (cached && cached.version === contentVersion) return cached.numbers;
-	const numbers = assignFootnoteNumbers(document);
-	numberingByDocument.set(document, { version: contentVersion, numbers });
+	if (cached && cached.version === contentVersion && cached.reader === reader)
+		return cached.numbers;
+	const numbers = assignFootnoteNumbers(document, reader);
+	numberingByDocument.set(document, { version: contentVersion, reader, numbers });
 	return numbers;
 }

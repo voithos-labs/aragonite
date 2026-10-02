@@ -1,85 +1,65 @@
 // @vitest-environment jsdom
-//
-// A structural paste lands at the end of the pasted run, so its target index scales with
-// the clipboard, not the caret, and the caret placement goes through the path that mounts
-// an unmounted target first (VR-12). The other paste suites never run `afterTick`, so
-// nothing else observes where the caret ends up at all.
-import { describe, it, expect, vi } from 'vitest';
+// A structural paste puts the caret at the end of the pasted run, so its index scales with the
+// clipboard, not the caret, and the paste's commit hands that position to the caret landing once.
+// No other paste suite checks where the caret ends up.
+import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { parse } from '$lib/core/parser';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
-import type { UndoEntryMode } from '$lib/action-contracts';
 import { CURSOR_END } from '$lib/block-component';
-import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 
-/** The harness owned-scope protocol plus the post-tick callback the real commit runs, the
- *  part the sibling paste suites stub away. */
-function landingController(): {
-	controller: PasteCommitCoordinator;
-	landCaret: ReturnType<typeof vi.fn>;
-} {
-	const landCaret = vi.fn(async () => {});
-	const base = makeRunningPasteController();
-	const controller = {
-		...base,
-		landCaret,
-		commitMultiScope: vi.fn(async (args: { afterTick?: () => void | Promise<void> }) => {
-			await (base.commitMultiScope as (a: unknown) => Promise<void>)(args);
-			await args.afterTick?.();
-		})
-	} as unknown as PasteCommitCoordinator;
-	return { controller, landCaret };
-}
-
-/** `undoEntry` is the route selector: 'join' (cross-block) reaches container-match,
- *  'own' (single-block) falls through to the absorb route. */
+/** `crossBlock` is the route selector: the cross-block route reaches container-match, the
+ *  single-block route falls through to the absorb route. */
 async function pasteInto(
-	doc: ReturnType<typeof parse>,
+	source: string,
 	pastedText: string,
 	targetPath: number[],
 	offset: number,
-	undoEntry: UndoEntryMode
+	crossBlock: boolean
 ) {
-	const { controller, landCaret } = landingController();
+	const { doc, controller, landings } = makePasteCommit(source);
 	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		{ doc, blockEdit: makeStubBlockEdit(), controller, undoEntry }
+		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller, crossBlock })
 	);
-	return landCaret;
+	return landings.map(({ leafPath, offset }) => ({ leafPath, offset }));
 }
 
-describe('structural paste lands its caret through the reveal join', () => {
+describe('structural paste lands its caret through the commit', () => {
 	it('same-type absorb lands on the last pasted item, past the residue', async () => {
-		const doc = parse('- alpha\n- keep\n');
-
 		// Caret mid-word, so the split leaves a residue item the caret placement must skip.
-		const landCaret = await pasteInto(doc, '- x\n- y\n', [0, 0, 0], 'al'.length, 'own');
+		const landings = await pasteInto(
+			'- alpha\n- keep\n',
+			'- x\n- y\n',
+			[0, 0, 0],
+			'al'.length,
+			false
+		);
 
-		expect(landCaret).toHaveBeenCalledTimes(1);
-		expect(landCaret).toHaveBeenCalledWith([0, 2], CURSOR_END);
+		expect(landings).toEqual([{ leafPath: [0, 2, 0], offset: CURSOR_END }]);
 	});
 
 	it('container-match merge lands on the merged leaf when the clipboard is one item', async () => {
-		const doc = parse('- alpha\n- keep\n');
-
-		const landCaret = await pasteInto(doc, '- x\n', [0, 0, 0], 'alpha'.length, 'join');
+		const landings = await pasteInto('- alpha\n- keep\n', '- x\n', [0, 0, 0], 'alpha'.length, true);
 
 		// Doc-absolute path of the merged paragraph, before the reattached residue.
-		expect(landCaret).toHaveBeenCalledTimes(1);
-		expect(landCaret).toHaveBeenCalledWith([0, 0, 0], 'alphax'.length);
+		expect(landings).toEqual([{ leafPath: [0, 0, 0], offset: 'alphax'.length }]);
 	});
 
 	it('container-match merge lands on the last spliced item for a multi-item clipboard', async () => {
-		const doc = parse('- alpha\n- keep\n');
+		const landings = await pasteInto(
+			'- alpha\n- keep\n',
+			'- x\n- y\n',
+			[0, 0, 0],
+			'alpha'.length,
+			true
+		);
 
-		const landCaret = await pasteInto(doc, '- x\n- y\n', [0, 0, 0], 'alpha'.length, 'join');
-
-		expect(landCaret).toHaveBeenCalledTimes(1);
-		expect(landCaret).toHaveBeenCalledWith([0, 1, 0], 'y'.length);
+		expect(landings).toEqual([{ leafPath: [0, 1, 0], offset: 'y'.length }]);
 	});
 });

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
@@ -14,7 +13,6 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {
 		// Install so `[^label]` parses as a footnote-ref inline node; without the
 		// plugin it finds no references at all.
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -46,8 +44,7 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.size).toBe(0);
 	});
 
-	// Miss-analysis: jumping back landed at offset 0 because the pass recorded only the block
-	// path, and no test read what a caller needs to put the caret beside the citation.
+	// Miss-analysis: the pass kept only the block path, and no test read where a reference ends.
 	it('records where each reference ends, so the way back lands beside the citation', () => {
 		const refs = collectFootnoteReferences(parse('Body has [^a] and [^b] here.\n'));
 		expect(refs.map((r) => r.end)).toEqual([13, 22]);
@@ -85,12 +82,10 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 });
 
-// The cache key must include the content version: the editor's document is changed in place,
-// so keying on the document alone hits forever and freezes the numbering at whatever the
-// first widget saw.
+// The cache key includes the content version, because the editor changes its document in
+// place and a key on the document alone would freeze the numbering at the first widget's view.
 describe('footnote numbering: the shared per-version walk', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

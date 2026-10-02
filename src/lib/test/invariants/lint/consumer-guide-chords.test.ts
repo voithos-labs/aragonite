@@ -1,17 +1,19 @@
 /**
- * Consumer-guide chord coherence, both directions: every row of § Keyboard shortcuts resolves to
- * the command it claims, on the kind whose surface the family names, and every chord the code
- * binds or claims has a row. Chords route through several owners: Editing / Block reorder /
- * Tables against the keymap registry; Find / replace against literal presence in the two search
- * dispatch sites plus the reserved-chord source; and Clipboard against both the whole-block key
- * tail and the text block's clipboard handler, since a keydown carries no ClipboardEvent.
+ * The consumer guide's § Keyboard shortcuts and the shipped chords agree both ways: every row
+ * resolves to the command it names, and every chord the editor or a bundled plugin binds or
+ * handles has its own row. The reverse sweep matches a chord with the kind, keymap, plugin or
+ * file that owns it, so a chord with two meanings needs a row for each.
  */
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
-import { resolveBinding, type CommandId } from '$lib/schema/commands';
+import {
+	GLOBAL_KEYMAP,
+	pluginGlobalBindings,
+	resolveBinding,
+	type CommandId
+} from '$lib/schema/commands';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -19,9 +21,43 @@ import {
 import { normalizeChord } from '$lib/schema/keybindings';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
+import { installPlugins } from '$lib';
+import { declaredPluginKind } from '$lib/plugin';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { ADMONITION, ADMONITION_TITLE } from '$lib/plugins/admonitions/kinds';
+import { detailsPlugin, DETAILS_SUMMARY } from '$lib/plugins/details';
+import { emojiPlugin } from '$lib/plugins/emoji';
+import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
+import { latexPlugin } from '$lib/plugins/latex';
+import { mermaidPlugin, MERMAID } from '$lib/plugins/mermaid';
+import { parrotPlugin } from '$lib/plugins/parrot';
+import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '$lib/plugins/slash-commands';
+import { tocPlugin } from '$lib/plugins/toc';
 import { readEditorFile } from './scan-source';
 
-registerBuiltInDescriptors();
+// Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
+// chords stay out: the gate only sees code this repo ships.
+const BUNDLED_PLUGINS = [
+	admonitionsPlugin(),
+	detailsPlugin(),
+	emojiPlugin(),
+	footnotesPlugin(),
+	highlightOccurrencesPlugin(),
+	// The sweep reads keymaps only, so no formula is ever rendered.
+	latexPlugin({
+		renderer: () => {
+			throw new Error('the chord sweep renders no math');
+		}
+	}),
+	mermaidPlugin(),
+	parrotPlugin(),
+	slashCommandsPlugin(),
+	tocPlugin()
+];
+// Installed as the file loads too, so the row tables below can name the bundled kinds.
+installPlugins(BUNDLED_PLUGINS);
+beforeEach(() => installPlugins(BUNDLED_PLUGINS));
 
 // ── Doc parsing ─────────────────────────────────────────────────────────────
 // Map the display key names the doc uses to the event key names the code sees.
@@ -58,11 +94,8 @@ export interface DocRow {
 	chords: string[];
 }
 
-/**
- * The section's rows, family header carried down. Parenthetical prose is stripped first so its
- * incidental backtick tokens aren't mistaken for chords; an escaped pipe is table content, not a
- * cell boundary, so the row spelling a header out survives the split.
- */
+/** The section's rows, family header carried down. Parenthetical prose is stripped so its backtick
+ *  tokens aren't read as chords; an escaped pipe is table content, not a cell boundary. */
 export function parseRows(section: string): DocRow[] {
 	const rows: DocRow[] = [];
 	let family: string | null = null;
@@ -95,11 +128,8 @@ function shortcutSection(): string {
 
 // ── What each row targets ───────────────────────────────────────────────────
 
-/**
- * The command ids a row's chords must resolve to, and the kind whose surface holds the caret when
- * they do. The kind matters: `Tab` is three different commands across three rows, and a
- * row that resolved on any kind would say nothing about which one it documents.
- */
+/** The command ids a row's chords must resolve to, and the kind holding the caret when they do;
+ *  the kind matters because `Tab` is three different commands across three rows. */
 const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }> = {
 	'Bold (toggle strong)': { kind: 'paragraph', commands: ['format.toggleStrong'] },
 	'Italic (toggle emphasis)': { kind: 'paragraph', commands: ['format.toggleEmphasis'] },
@@ -117,6 +147,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		kind: 'listItem',
 		commands: ['list.indent', 'list.unindent']
 	},
+	'Check / uncheck a task item': { kind: 'listItem', commands: ['list.toggleTask'] },
 	'Indent / dedent a code line': {
 		kind: 'fencedCode',
 		commands: ['code.indent', 'code.dedent']
@@ -153,48 +184,98 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	},
 	'Cycle column alignment': { kind: 'tableCell', commands: ['table.cycleAlignment'] },
 	// The header-row completion rides the paragraph's own Enter, which is why it is a row here.
-	'Create a table': { kind: 'paragraph', commands: ['block.split'] }
+	'Create a table': { kind: 'paragraph', commands: ['block.split'] },
+	// A plugin-global chord resolves on any kind that binds nothing of its own.
+	'Open the list at the caret': {
+		kind: 'paragraph',
+		commands: [SLASH_COMMANDS_OPEN as CommandId]
+	},
+	'Cycle the admonition kind': {
+		kind: declaredPluginKind(ADMONITION),
+		commands: ['admonition.cycleKind' as CommandId]
+	},
+	'Move from the title into the body': {
+		kind: declaredPluginKind(ADMONITION_TITLE),
+		commands: ['chrome.descendToBody']
+	},
+	'Move from the summary into the body': {
+		kind: declaredPluginKind(DETAILS_SUMMARY),
+		commands: ['chrome.descendToBody']
+	},
+	"Open the diagram's focus view": {
+		kind: declaredPluginKind(MERMAID),
+		commands: ['mermaid.focus' as CommandId]
+	}
 };
 
-const KEYMAP_FAMILIES = ['Editing', 'Block reorder', 'Tables'];
+const KEYMAP_FAMILIES = [
+	'Editing',
+	'Block reorder',
+	'Tables',
+	'Slash commands',
+	'Admonitions',
+	'Details'
+];
 
 // ── Dispatch sites outside the keymap ───────────────────────────────────────
 
-// Find/replace routes through the search components, and the reserved Ctrl+F / Ctrl+H pair
-// single-sources from schema/commands.ts. Each value is the token the chord must show in that
-// (comment-stripped) source.
-const SEARCH_SOURCE = [
-	readEditorFile('components/editor-root-keydown.ts').code,
-	readEditorFile('components/SearchBar.svelte').code,
-	readEditorFile('schema/commands.ts').code
-].join('\n');
-const SEARCH_CHORD_TOKENS: Record<string, string[]> = {
-	'Mod+F': ["'Mod+F'"],
-	'Mod+H': ["'Mod+H'"],
-	Escape: ["'Escape'"],
-	Enter: ["'Enter'"],
-	'Shift+Enter': ["'Enter'", 'shiftKey']
+// Each family names the files it reads and, per chord, the tokens that chord must show in their
+// comment-stripped source; a keydown claim in one of those files is documented by the family.
+interface TokenFamily {
+	files: string[];
+	tokens: Record<string, string[]>;
+}
+
+const IMAGE_RESIZE = "e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')";
+
+const TOKEN_FAMILIES: Record<string, TokenFamily> = {
+	// The reserved Ctrl+F / Ctrl+H pair single-sources from schema/commands.ts.
+	'Find / replace': {
+		files: [
+			'components/editor-root-keydown.ts',
+			'components/SearchBar.svelte',
+			'schema/commands.ts'
+		],
+		tokens: {
+			'Mod+F': ["'Mod+F'"],
+			'Mod+H': ["'Mod+H'"],
+			Escape: ["'Escape'"],
+			Enter: ["'Enter'"],
+			'Shift+Enter': ["'Enter'", 'shiftKey']
+		}
+	},
+	// One token from the whole-block branch and one from the widget branch, so deleting either
+	// dispatch fails the row it documents.
+	Clipboard: {
+		files: [
+			'editor-actions/container-block-component.ts',
+			'components/blocks/text/text-clipboard.ts'
+		],
+		tokens: {
+			'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
+			'Mod+X': [
+				'(e.ctrlKey || e.metaKey)',
+				"e.key === 'x'",
+				'deps.node.raw.slice(inline.start, inline.end)'
+			]
+		}
+	},
+	Images: {
+		files: ['components/image/image-widget-editing.ts'],
+		tokens: { 'Shift+ArrowLeft': [IMAGE_RESIZE], 'Shift+ArrowRight': [IMAGE_RESIZE] }
+	},
+	'Mermaid diagrams': {
+		files: ['plugins/mermaid/MermaidBlock.svelte'],
+		tokens: { 'Mod+Enter': ["e.key === 'Enter' && (e.ctrlKey || e.metaKey)", 'commitEdit(true)'] }
+	}
 };
 
-// Each chord names one token from the tail branch and one from the widget branch, so deleting
-// either dispatch fails the row it documents. Tokens are code shapes, so they survive stripping.
-const CLIPBOARD_SOURCE = [
-	readEditorFile('editor-actions/container-block-component.ts').code,
-	readEditorFile('components/blocks/text/text-clipboard.ts').code
-].join('\n');
-const CLIPBOARD_CHORD_TOKENS: Record<string, string[]> = {
-	'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
-	'Mod+X': [
-		'(e.ctrlKey || e.metaKey)',
-		"e.key === 'x'",
-		'deps.node.raw.slice(inline.start, inline.end)'
-	]
-};
-
-const TOKEN_RESOLVERS: Record<string, { source: string; tokens: Record<string, string[]> }> = {
-	'Find / replace': { source: SEARCH_SOURCE, tokens: SEARCH_CHORD_TOKENS },
-	Clipboard: { source: CLIPBOARD_SOURCE, tokens: CLIPBOARD_CHORD_TOKENS }
-};
+const TOKEN_RESOLVERS = Object.fromEntries(
+	Object.entries(TOKEN_FAMILIES).map(([family, { files, tokens }]) => [
+		family,
+		{ source: files.map((file) => readEditorFile(file).code).join('\n'), tokens }
+	])
+);
 
 export function tokensResolve(family: string, chord: string): boolean {
 	const resolver = TOKEN_RESOLVERS[family];
@@ -204,36 +285,176 @@ export function tokensResolve(family: string, chord: string): boolean {
 
 // ── What the code claims ────────────────────────────────────────────────────
 
-function boundChords(): Map<string, AnyBlockKind[]> {
-	const bound = new Map<string, AnyBlockKind[]>();
-	for (const kind of getAllRegisteredKinds()) {
-		for (const binding of tryGetBlockKindDescriptor(kind)?.keymap ?? []) {
-			bound.set(binding.chord, [...(bound.get(binding.chord) ?? []), kind]);
-		}
-	}
-	return bound;
+/** A chord and its owner (a kind's keymap, `global`, a bundled plugin, or a `src/lib` file). One
+ *  chord means different things to different owners, so the sweep never matches a bare chord. */
+type ClaimKey = `${string} @ ${string}`;
+
+const claimKey = (chord: string, owner: string): ClaimKey => `${chord} @ ${owner}`;
+
+interface BoundClaim {
+	chord: string;
+	owner: string;
+	/** Set when a block kind's keymap binds the chord, so a row for another kind cannot document it. */
+	ownerKind?: AnyBlockKind;
+	command: string;
+}
+
+function boundClaims(): BoundClaim[] {
+	const kindClaims = getAllRegisteredKinds().flatMap((kind) =>
+		(tryGetBlockKindDescriptor(kind)?.keymap ?? []).map(({ chord, command }) => ({
+			chord,
+			owner: kind,
+			ownerKind: kind,
+			command
+		}))
+	);
+	const globalClaims = GLOBAL_KEYMAP.map(({ chord, command }) => ({
+		chord,
+		owner: 'global',
+		command
+	}));
+	const pluginClaims = pluginGlobalBindings(everyInstalledPlugin).map(
+		({ chord, command, plugin }) => ({
+			chord: normalizeChord(chord),
+			owner: plugin ?? 'global',
+			command
+		})
+	);
+	return [...kindClaims, ...globalClaims, ...pluginClaims];
+}
+
+const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
+	site.chords.map((chord) => claimKey(chord, site.file))
+);
+
+/** Whether some row lists the claim's chord for its command: the row's chord cell and its target
+ *  must agree. */
+export function rowsDocument(docRows: DocRow[], claim: BoundClaim): boolean {
+	return docRows.some((row) => {
+		const target = ROW_TARGETS[row.action];
+		return (
+			target !== undefined &&
+			row.chords.includes(claim.chord) &&
+			(target.commands as string[]).includes(claim.command) &&
+			rowCoversKind(target.kind, claim.ownerKind)
+		);
+	});
+}
+
+/** A paragraph row documents a default every text block shares, so it covers any kind binding the
+ *  same command; any other row covers only its own kind. A global claim has no kind to match. */
+function rowCoversKind(rowKind: AnyBlockKind, ownerKind: AnyBlockKind | undefined): boolean {
+	return ownerKind === undefined || rowKind === ownerKind || rowKind === 'paragraph';
 }
 
 /**
- * Chords the code claims that the table deliberately has no row for, each with the guide's own
- * reason. A stale entry is a failure of its own, so a chord that stops being claimed shows up.
+ * The row of a token family that documents a keydown claim: one listing its chord, in a family
+ * that reads the claiming file. Such a claim needs no hand-written entry.
  */
-const UNLISTED_BY_DESIGN: Record<string, string> = {
-	'Shift+F10': 'the Tables preamble documents it in prose as the keyboard route to the cell menu',
-	'Mod+A': 'selection: the section says the escalation routes outside the keymap and is unlisted',
-	'Mod+Shift+Home': 'selection: routes outside the keymap, so it is not rebindable or listed',
-	'Mod+Shift+End': 'selection: routes outside the keymap, so it is not rebindable or listed',
-	'Shift+ArrowUp': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowDown': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowLeft': 'Shift+Arrow selection, named as a family in the section preamble',
-	'Shift+ArrowRight': 'Shift+Arrow selection, named as a family in the section preamble'
+export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
+	const [chord, file] = key.split(' @ ');
+	const row = docRows.find(
+		(candidate) =>
+			TOKEN_FAMILIES[candidate.family]?.files.includes(file) && candidate.chords.includes(chord)
+	);
+	return row?.action ?? null;
+}
+
+/**
+ * A keydown claim's row in a keymap family, the command the claiming branch runs, and the kind
+ * holding the caret when it runs. The row must serve that kind, as a bound claim's must.
+ */
+interface ClaimRow {
+	row: string;
+	command: CommandId;
+	kind: AnyBlockKind;
+}
+
+/**
+ * The row documenting a keydown claim whose row sits in a keymap family, where no file list can
+ * derive it. A claim a token family already rows must not appear here.
+ */
+const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
+	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': {
+		row: 'Move between cells',
+		command: 'cell.shiftTab',
+		kind: 'tableCell'
+	}
+};
+
+/** Why `entry` does not document the keydown claim `key`, or null when it does. */
+export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRow): string | null {
+	const chord = key.split(' @ ')[0];
+	const row = docRows.find((candidate) => candidate.action === entry.row);
+	if (!row) return `no row "${entry.row}" in the guide`;
+	if (!KEYMAP_FAMILIES.includes(row.family)) {
+		return `"${entry.row}" is a token family row, which rows it itself`;
+	}
+	if (!row.chords.includes(chord)) return `the row "${entry.row}" does not list ${chord}`;
+	const target = ROW_TARGETS[entry.row];
+	if (!rowCoversKind(target.kind, entry.kind)) {
+		return `the row "${entry.row}" is for ${target.kind}, not the ${entry.kind} that claims ${chord}`;
+	}
+	if (!target.commands.includes(entry.command)) {
+		return `the row "${entry.row}" documents ${target.commands.join(', ')}, not ${entry.command}`;
+	}
+	const resolved = resolveBinding(chord, entry.kind, undefined, everyInstalledPlugin)?.command;
+	if (resolved !== entry.command) {
+		return `${chord} runs ${resolved} on ${entry.kind}, not ${entry.command}`;
+	}
+	return null;
+}
+
+const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
+const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
+const SHIFT_ARROWS = ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'];
+
+const unlisted = (chords: string[], owner: string, reason: string) =>
+	Object.fromEntries(chords.map((chord) => [claimKey(chord, owner), reason]));
+
+/**
+ * Claims the table has no row for, each with the guide's own reason. A stale entry is a failure of
+ * its own, so a claim that goes away, or gains a row, shows up.
+ */
+const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
+	...unlisted(
+		['Backspace', 'Delete'],
+		'fencedCode',
+		'at a fence edge, Backspace and Delete step the caret out of the block instead of merging, which the merge row does not promise'
+	),
+	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
+	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),
+	...unlisted(
+		['Shift+F10'],
+		'components/blocks/table/TableBlock.svelte',
+		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
+	),
+	...unlisted(['Mod+A'], 'schema/keybindings.ts', SELECTION_PREAMBLE),
+	...unlisted(
+		['Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
+		'selection/cross-block/keydown.ts',
+		SELECTION_PREAMBLE
+	),
+	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
+	...unlisted(
+		['Shift+ArrowUp', 'Shift+ArrowDown'],
+		'components/blocks/table/TableCellBlock.svelte',
+		SELECTION_PREAMBLE
+	),
+	...unlisted(
+		['Shift+ArrowLeft', 'Shift+ArrowRight'],
+		'components/blocks/text/widget-interaction.ts',
+		SELECTION_PREAMBLE
+	)
 };
 
 // ── The gate ────────────────────────────────────────────────────────────────
 
 const rows = parseRows(shortcutSection());
-const documented = new Set(rows.flatMap((row) => row.chords));
-const keymapRows = rows.filter((row) => KEYMAP_FAMILIES.includes(row.family));
+// A token family can hold a keymap row too (Mermaid's `Mod+M`); its ROW_TARGETS entry routes it.
+const keymapRows = rows.filter(
+	(row) => KEYMAP_FAMILIES.includes(row.family) || row.action in ROW_TARGETS
+);
 
 describe('consumer-guide § Keyboard shortcuts → code', () => {
 	it.each(keymapRows)('$family — $action resolves to the command it names', (row) => {
@@ -249,7 +470,7 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 		).toEqual([...new Set(target.commands)].sort());
 	});
 
-	it.each(rows.filter((row) => row.family in TOKEN_RESOLVERS))(
+	it.each(rows.filter((row) => row.family in TOKEN_RESOLVERS && !(row.action in ROW_TARGETS)))(
 		'$family — $action reaches its dispatch site',
 		(row) => {
 			const unresolved = row.chords.filter((chord) => !tokensResolve(row.family, chord));
@@ -263,34 +484,50 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 });
 
 describe('code → consumer-guide § Keyboard shortcuts', () => {
-	it('every chord a built-in keymap binds has a row', () => {
-		const unlisted = [...boundChords()]
-			.filter(([chord]) => !documented.has(chord))
-			.map(([chord, kinds]) => `${chord} (${kinds.join(', ')})`);
+	it('every chord a keymap binds, built-in or bundled, has a row for the command it runs', () => {
+		const undocumented = boundClaims()
+			.filter(({ chord, owner }) => !(claimKey(chord, owner) in UNLISTED_BY_DESIGN))
+			.filter((claim) => !rowsDocument(rows, claim))
+			.map(({ chord, owner, command }) => `${claimKey(chord, owner)} (${command})`);
 		expect(
-			unlisted,
-			`bound but undocumented: give each a row, since the table is the human reference: ${unlisted.join(', ')}`
+			undocumented,
+			`bound but undocumented: give each a row whose ROW_TARGETS entry names the command: ${undocumented.join(', ')}`
 		).toEqual([]);
 	});
 
-	it('every chord a keydown branch claims has a row or a recorded reason', () => {
-		const unlisted = HARDCODED_CHORD_SITES.flatMap((site) =>
-			site.chords
-				.filter((chord) => !documented.has(chord) && !(chord in UNLISTED_BY_DESIGN))
-				.map((chord) => `${chord} (${site.file})`)
+	it('every chord a keydown branch claims has a row that documents it, or a reason', () => {
+		const missing = hardcodedClaims.filter(
+			(key) =>
+				familyRowFor(rows, key) === null && !(key in CLAIM_ROWS) && !(key in UNLISTED_BY_DESIGN)
 		);
 		expect(
-			unlisted,
-			`claimed but undocumented: add a row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${unlisted.join(', ')}`
+			missing,
+			`claimed but unaccounted for: list the file under its row's TOKEN_FAMILIES entry, add a CLAIM_ROWS entry naming a keymap row, or an UNLISTED_BY_DESIGN entry saying where the guide covers it: ${missing.join(', ')}`
 		).toEqual([]);
 	});
 
-	it('holds no UNLISTED_BY_DESIGN entry nothing claims any more', () => {
-		const claimed = new Set(HARDCODED_CHORD_SITES.flatMap((site) => site.chords));
-		const stale = Object.keys(UNLISTED_BY_DESIGN).filter(
-			(chord) => !claimed.has(chord) || documented.has(chord)
-		);
-		expect(stale, `drop these exemptions: ${stale.join(', ')}`).toEqual([]);
+	it.each(Object.entries(CLAIM_ROWS))('%s is documented by the row it names', (key, entry) => {
+		expect(claimRowProblem(rows, key as ClaimKey, entry)).toBeNull();
+	});
+
+	it('holds no entry for a claim that went away or is documented twice', () => {
+		const bound = boundClaims();
+		const live = new Set<string>([
+			...hardcodedClaims,
+			...bound.map(({ chord, owner }) => claimKey(chord, owner))
+		]);
+		const entries = [...Object.keys(CLAIM_ROWS), ...Object.keys(UNLISTED_BY_DESIGN)] as ClaimKey[];
+		const stale = entries.filter((key) => !live.has(key));
+		const twice = Object.keys(UNLISTED_BY_DESIGN).filter((key) => key in CLAIM_ROWS);
+		const familyRowed = entries.filter((key) => familyRowFor(rows, key) !== null);
+		const alreadyRowed = bound
+			.filter(({ chord, owner }) => claimKey(chord, owner) in UNLISTED_BY_DESIGN)
+			.filter((claim) => rowsDocument(rows, claim))
+			.map(({ chord, owner }) => claimKey(chord, owner));
+		expect(
+			[...stale, ...twice, ...familyRowed, ...alreadyRowed],
+			'drop these entries: the claim is gone, or a row already documents it'
+		).toEqual([]);
 	});
 });
 
@@ -301,7 +538,18 @@ describe('code → consumer-guide § Keyboard shortcuts', () => {
 describe('consumer-guide chord coherence: self-tests', () => {
 	it('parses every family, and the rows a naive cell split loses', () => {
 		expect([...new Set(rows.map((row) => row.family))].sort()).toEqual(
-			['Block reorder', 'Clipboard', 'Editing', 'Find / replace', 'Tables'].sort()
+			[
+				'Admonitions',
+				'Block reorder',
+				'Clipboard',
+				'Details',
+				'Editing',
+				'Find / replace',
+				'Images',
+				'Mermaid diagrams',
+				'Slash commands',
+				'Tables'
+			].sort()
 		);
 		expect(rows.length).toBeGreaterThan(25);
 		// Its chord cell spells a header row out, escaped pipes and all.
@@ -341,8 +589,67 @@ describe('consumer-guide chord coherence: self-tests', () => {
 	});
 
 	it('finds a non-empty claim set on both code axes', () => {
-		expect(boundChords().size).toBeGreaterThan(20);
-		expect(HARDCODED_CHORD_SITES.flatMap((site) => site.chords).length).toBeGreaterThan(10);
+		expect(boundClaims().length).toBeGreaterThan(100);
+		expect(hardcodedClaims.length).toBeGreaterThan(10);
+	});
+
+	// Miss-analysis: the sweep read kind keymaps alone, and no case put a chord anywhere else.
+	it('sweeps the global keymap, bundled plugin globals and bundled plugin kinds', () => {
+		const keys = boundClaims().map(({ chord, owner }) => claimKey(chord, owner));
+		expect(keys).toContain('Mod+Z @ global');
+		expect(keys).toContain('Mod+/ @ slash-commands');
+		expect(keys).toContain('Mod+M @ mermaid');
+	});
+
+	// Miss-analysis: a file-owned exemption was checked against the claim list, never the rows.
+	it('rows a keydown claim through the token family that reads its file, and only that one', () => {
+		expect(familyRowFor(rows, 'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte')).toBe(
+			'Finish editing a diagram'
+		);
+		expect(familyRowFor(rows, 'Mod+Enter @ components/blocks/table/TableBlock.svelte')).toBeNull();
+		expect(familyRowFor(rows, 'Shift+F10 @ components/blocks/table/TableBlock.svelte')).toBeNull();
+	});
+
+	// Miss-analysis: chords were keyed by string alone, and no case held one chord with two meanings.
+	it('matches a bound chord to the row for its command, not to any row sharing the chord', () => {
+		const tablesOnly = rows.filter((row) => row.action === 'Insert row below / above');
+		const insertRow = { chord: 'Mod+Enter', owner: 'tableCell', ownerKind: 'tableCell' as const };
+		const toggleTask = { chord: 'Mod+Enter', owner: 'listItem', ownerKind: 'listItem' as const };
+		expect(rowsDocument(tablesOnly, { ...insertRow, command: 'table.insertRowBelow' })).toBe(true);
+		expect(rowsDocument(tablesOnly, { ...toggleTask, command: 'list.toggleTask' })).toBe(false);
+		expect(rowsDocument(rows, { ...toggleTask, command: 'list.toggleTask' })).toBe(true);
+	});
+
+	// Miss-analysis: claims were keyed by chord and command alone; no case had two kinds share one.
+	it('matches a bound claim to a row for its own kind, not a sibling kind running the same command', () => {
+		const summary = declaredPluginKind(DETAILS_SUMMARY);
+		const summaryEnter = {
+			chord: 'Enter',
+			owner: summary,
+			ownerKind: summary,
+			command: 'chrome.descendToBody'
+		};
+		expect(rowsDocument(rows, summaryEnter)).toBe(true);
+		expect(
+			rowsDocument(
+				rows.filter((row) => row.family !== 'Details'),
+				summaryEnter
+			)
+		).toBe(false);
+	});
+
+	// Miss-analysis: a hand-written entry was checked against its own row, never the row's kind.
+	it('refuses a hand-written entry whose row serves another kind than the claiming surface', () => {
+		const key: ClaimKey = 'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts';
+		const listRow = {
+			row: 'Indent / outdent a list item',
+			command: 'list.unindent' as const,
+			kind: 'tableCell' as const
+		};
+		expect(claimRowProblem(rows, key, listRow)).toBe(
+			'the row "Indent / outdent a list item" is for listItem, not the tableCell that claims Shift+Tab'
+		);
+		expect(claimRowProblem(rows, key, CLAIM_ROWS[key])).toBeNull();
 	});
 
 	it('rejects a chord that is dispatched nowhere', () => {

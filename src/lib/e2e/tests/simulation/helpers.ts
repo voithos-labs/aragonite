@@ -5,12 +5,11 @@ import { attachErrorCollector, type ErrorCollector } from '../../simulation/erro
 import type { ImeDriver } from '../../simulation/ime';
 import { type SimContext } from '../../simulation/invariants';
 
-// Shared setup and probes for the note-taking simulation specs.
+// Shared setup and checks for the note-taking simulation specs.
 
 export interface SimContextOpts {
-	/** A collector already attached and started, for a session that must watch the load as well.
-	 *  Passing one skips the helper's own attach step, so it can neither move nor restart a
-	 *  collector that is already watching. */
+	/** A collector already attached and started, for a session that must watch the load too; passing
+	 *  one skips the helper's own attach, so it cannot move or restart a watching collector. */
 	errors?: ErrorCollector;
 	ime?: ImeDriver;
 }

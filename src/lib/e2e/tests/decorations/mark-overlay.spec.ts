@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunRect } from '../../text-runs';
 
 /**
  * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register through
@@ -15,7 +16,9 @@ test.describe('decoration mark overlay', () => {
 		await editor.goto();
 	});
 
-	test('a mark paints one overlay carrying the source class over its range', async ({ page }) => {
+	test('a mark paints one overlay carrying the source class over its painted word', async ({
+		page
+	}) => {
 		await editor.loadContent('hello world\n');
 		await page.evaluate(() => {
 			(window as any).__test.decorations.addSource({
@@ -26,8 +29,12 @@ test.describe('decoration mark overlay', () => {
 
 		const overlay = page.locator('.decoration-overlay.e2e-mark');
 		await expect(overlay).toHaveCount(1);
-		const box = await overlay.boundingBox();
-		expect(box!.width).toBeGreaterThan(0);
+		const box = (await overlay.boundingBox())!;
+		const word = await textRunRect(page, 'hello', { path: [0] });
+		expect([box.x, box.x + box.width]).toEqual([
+			expect.closeTo(word.left, 0),
+			expect.closeTo(word.right, 0)
+		]);
 	});
 
 	test('a mark spanning a soft-wrapped range paints one rect per visual line', async ({ page }) => {

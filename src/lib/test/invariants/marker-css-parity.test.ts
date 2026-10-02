@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The CSS↔TS parity probe: the hidden-run predicate mirrors the stylesheet's class scoping by
-// hand, and the branch paid for one silent mismatch. jsdom applies simple class rules, which is
-// enough to prove both halves of the check: it does nothing with no stylesheet signal, and it
-// names the family whose two answers differ. Full computed-style fidelity needs a real browser;
-// there the presentation e2e battery asserts it via the automatic invariant-console gate.
+// The hidden-run predicate mirrors the stylesheet's class scoping by hand, so the parity check
+// stays silent with no stylesheet and names the family whose two answers differ. jsdom applies
+// simple class rules, enough for both; the presentation e2e suite checks full computed style.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkMarkerCssParity } from '../../invariants/marker-css-parity';
 

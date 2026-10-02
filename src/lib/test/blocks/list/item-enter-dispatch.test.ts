@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-//
-// ListItemBlock's `splitBlock` override decides what Enter does inside a list: it reads the
-// item's shape and picks one of three `ListContext` members. The helpers are tested; the choice
-// is not, and `exitListAtItem` has no coverage at any level. Each branch writes different bytes,
-// so a real keystroke tells them apart without a spy: the choice is asserted by the document.
+// ListItemBlock's `splitBlock` override reads the item's shape to pick which `ListContext` call
+// Enter makes. The calls have their own tests; each writes different bytes, so a real keystroke
+// tells the choice apart without a spy.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
+import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
@@ -56,9 +54,7 @@ describe('list item Enter routing', () => {
 	});
 });
 
-// Miss-analysis: the Enter-completion suite asserted the top level and the blockquote only, and
-// the tests above asserted the item's three branches only, so nothing asserted the item as an
-// Enter path that must also ask the completers, leaving one entry path uncovered.
+// Miss-analysis: Enter completion was tested at the top level and in a quote, never in an item.
 describe('list item Enter completion (#146)', () => {
 	it('completes a header row typed in an item instead of appending a sibling', async () => {
 		mounted = mountEditor({ source: '- | a | b |\n' });
@@ -71,8 +67,8 @@ describe('list item Enter completion (#146)', () => {
 		]);
 	});
 
-	// A completion only takes a line a completer answers for: an item whose text none answers
-	// for still reaches the three branches above, which keeps Enter in a list a list gesture.
+	// A completion only takes a line a completer answers for, so any other item text still
+	// reaches the item's own Enter branches.
 	it('leaves an unclaimed line to the item’s own branches', async () => {
 		mounted = mountEditor({ source: '- | a |\n' });
 
@@ -80,4 +76,23 @@ describe('list item Enter completion (#146)', () => {
 
 		expect(mounted.source()).toBe('- | a |\n- \n');
 	});
+});
+
+// Miss-analysis: only an unchecked ordered item's Enter had a unit test, never a checked one.
+describe('list item Enter: the new item’s task marker', () => {
+	const ROWS: Array<[name: string, source: string, contentEnd: number, expected: string]> = [
+		['a checked to-do starts an unchecked one', '- [x] done\n', 4, '- [x] done\n- [ ] \n'],
+		['an unchecked to-do starts an unchecked one', '- [ ] pending\n', 7, '- [ ] pending\n- [ ] \n'],
+		['a plain item stays plain', '- plain\n', 5, '- plain\n- \n']
+	];
+
+	for (const [name, source, contentEnd, expected] of ROWS) {
+		it(name, async () => {
+			mounted = mountEditor({ source });
+
+			await pressKeyAt(mounted, [0, 0, 0], contentEnd, ENTER);
+
+			expect(mounted.source()).toBe(expected);
+		});
+	}
 });

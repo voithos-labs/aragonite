@@ -1,26 +1,26 @@
 /**
- * Paste absorb: a same-type list pasted into a non-empty list item flattens as siblings of
- * the target, with markers normalized to the enclosing list's style, the flat result most
- * markdown editors produce. Covers the single-block non-empty same-type case that runs
- * after `findContainerMatchingUnwrap` and would otherwise fall through to the default
- * structural paste; mismatched types go to `list-break-out` instead.
+ * Paste absorb: a same-type list pasted into a non-empty list item lands as siblings of the target
+ * item, markers restyled to the enclosing list's, as most markdown editors do. Runs after
+ * `findContainerMatchingUnwrap`; a mismatched type goes to `list-break-out` instead.
  */
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
+import { documentLineEnding } from '../../core/lines';
 import { nodeAt, ensureEditableContainers } from '../node-primitives';
 import { cloneNode } from '../clone';
 import { containerPasteFor } from './container-paste';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
-import { spliceTerminatedItems } from '../list/terminator';
+import { spliceMany } from '../splice-many';
 import { containerScopeState } from './parent-scope';
 import { buildSplitItems } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -34,10 +34,8 @@ export interface ListAbsorb {
 }
 
 /**
- * The absorb plan, or null when any precondition fails: a single top block declaring
- * `containerPaste.siblingAbsorb`, whose `matchesAncestor` accepts the nearest list
- * ancestor, targeting a direct leaf of the listItem. Mismatched types fall through to
- * `findListBreakOut`.
+ * The absorb plan when a single top block declaring `containerPaste.siblingAbsorb` matches the
+ * nearest list and the target is a direct leaf of its item; null otherwise.
  */
 export function findListAbsorb(
 	doc: Document,
@@ -72,7 +70,8 @@ export function findListAbsorb(
 export async function applyListAbsorb(
 	plan: ListAbsorb,
 	pastedList: CstNode,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!outer?.children) return;
@@ -82,11 +81,14 @@ export async function applyListAbsorb(
 	if (!item?.children) return;
 	if (!item.children[plan.innerIndex]) return;
 
+	const lineEnding = documentLineEnding(ctx.doc);
 	const { leadingItem, trailingItem } = buildSplitItems(
 		item,
 		plan.innerIndex,
 		plan.offset,
-		plan.targetRaw
+		lineEnding,
+		plan.targetRaw,
+		ctx.reading.grammar
 	);
 	const pastedItems = (pastedList.children ?? []).map((c) => cloneNode(c));
 
@@ -95,7 +97,7 @@ export async function applyListAbsorb(
 	for (const p of pastedItems) replacement.push(p);
 	if (trailingItem) replacement.push(trailingItem);
 
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) ensureEditableContainers(node, lineEnding);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 
@@ -103,10 +105,10 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: start,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
+			spliceMany(scopeView.children, plan.itemIndex, 1, replacement);
 
 			// Only items after the replacement region: their proxies already exist, so marker
 			// mutations propagate to the DOM.
@@ -129,11 +131,11 @@ export async function applyListAbsorb(
 			detail: { source: 'list-absorb', listPath: plan.listPath },
 			eventPath: docPathFrom(plan.listPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			// The shared structural-paste caret rule: last pasted item, before the residue.
 			const lastPastedIdx =
 				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
-			return ctx.controller.landCaret([...plan.listPath, lastPastedIdx], CURSOR_END);
+			return { path: docPathFrom([...plan.listPath, lastPastedIdx]), offset: CURSOR_END };
 		}
 	});
 }

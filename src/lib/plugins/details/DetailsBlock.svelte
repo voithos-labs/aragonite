@@ -1,7 +1,6 @@
 <script lang="ts">
-	// Whether a section is collapsed is decided in one place, `reservedChrome.isCollapsed` on
-	// the kind descriptor. Reading mode's temporary open state goes into the factory on top of
-	// it, so windowing, focus and the caret never disagree.
+	// The document's collapsed state comes from `reservedChrome.isCollapsed`; reading mode's
+	// temporary open state is passed to the factory on top of it, so windowing and focus agree.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -38,16 +37,17 @@
 
 	function commitDisclosure() {
 		const isOpen = open;
-		// Collapsing unmounts the body, orphaning a caret inside it, so move it to the summary
-		// in the commit's afterTick. Read before the commit: the toggle suppresses mousedown,
-		// so a mouse toggle leaves the caret in the body.
+		// Collapsing unmounts the body and orphans a caret inside it, so the commit puts it on the
+		// summary; the toggle suppresses mousedown, so a click leaves the caret where it was.
 		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
 		const caretInBody = pos != null && pos.path[0] >= 1;
-		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
+		updateOwnMetadata(
+			{ open: !isOpen },
+			caretInBody ? { caret: { path: [0], offset: 0 } } : undefined
+		);
 	}
 
-	// Reading mode gets the handler that cannot write at all, rather than one that checks the
-	// mode and declines, so nothing reachable from here can turn a toggle into an edit.
+	// Reading mode gets a handler that cannot write at all, so no toggle there becomes an edit.
 	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
 	export { containerApi };

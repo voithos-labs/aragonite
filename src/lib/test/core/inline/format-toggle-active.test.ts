@@ -2,12 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/format-toggle';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { whole } from './format-toggle-fixture';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The pressed-state read answers "would a toggle unformat": the same checks the toggle routes by,
 // asked without writing. Kept beside the toggle so the toolbar state and the toggle cannot drift.
 
 const activeAt = (raw: string, start: number, end: number, format: InlineMarkKind) =>
-	isInlineFormatActive({ display: raw, content: whole(raw), selection: { start, end } }, format);
+	isInlineFormatActive(
+		{
+			display: raw,
+			content: whole(raw),
+			selection: { start, end },
+			reading: fixtureReading()
+		},
+		format
+	);
 
 describe('isInlineFormatActive', () => {
 	it('reads a caret inside the construct as active, and in plain text as not', () => {
@@ -41,12 +50,16 @@ describe('isInlineFormatActive', () => {
 		expect(activeAt('`code run`', 3, 3, 'inlineCode')).toBe(true);
 	});
 
-	// A link parses as a sole span of its own kind, so the policy-row test is the only thing
-	// between the shared predicate and a pressed state for a shortcut no row can write. Both
-	// readers ask it.
+	// A link parses as a sole span of its own kind, so the policy-row check alone keeps a pressed
+	// state off a shortcut no row can write; both readers ask it.
 	it('declines a kind whose policy row declares no mark, through either reader', () => {
 		const raw = '[a](b)';
-		const edit = { display: raw, content: whole(raw), selection: whole(raw) };
+		const edit = {
+			display: raw,
+			content: whole(raw),
+			selection: whole(raw),
+			reading: fixtureReading()
+		};
 		expect(isInlineFormatActive(edit, 'link')).toBe(false);
 		expect([...inlineFormatsCovering(edit, ['link'])]).toEqual([]);
 	});

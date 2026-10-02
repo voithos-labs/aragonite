@@ -1,27 +1,34 @@
 /**
- * The ancestor rebuild: raws re-derived along an owned chain of ancestors innermost first, each
+ * The ancestor rebuild: raws re-derived up an owned chain of ancestors innermost first, each
  * container's kind re-derived and the joins at its own position checked on the way out
- * (editor.md § 9).
+ * (`docs/design/editor.md` § The container `raw` contract).
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { firstLineEnding } from '../core/lines';
+import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import type { SharingState } from './sharing';
-import type { NodeParent } from './node-primitives';
-import type { StructuralChange } from './structural-change';
+import {
+	documentBody,
+	ensureEditableContainers,
+	type BodyParent,
+	type NodeParent
+} from './node-primitives';
+import { replacePreservingFirst, type StructuralChange } from './structural-change';
+import { spliceMany } from './splice-many';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
-import { trimTrailingLineEnding } from '../core/lines';
+import { firstLine, followBytes, lastLine } from '../schema/container-raw';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { absorbWindowSeams, type TrackedPosition } from './settle';
-import { lineOpensAs, reclassifyContainer } from './content-write';
+import { installReading } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
- * Longest prefix of `chain` still attached under `root`, identity-checked level by level. A
- * commit's mutation can splice a node out partway through the commit, and rebuilding the
- * detached node's raw against its emptied children writes `raw: ''`; ancestors above the
- * detachment still rebuild.
+ * Longest prefix of `chain` still attached under `root`: a node spliced out mid-commit would
+ * rebuild against its emptied children to `raw: ''`, while the ancestors above it still rebuild.
  */
 export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode[] {
 	let parentChildren = root.children;
@@ -69,53 +76,85 @@ export interface ChainWriteHint {
 }
 
 /**
- * Rebuild raws along an owned ancestor chain innermost first, re-deriving each container's kind
- * and merging the joins at its own position; chain- rather than path-based so it survives index
- * shifts. Both passes run only when a boundary line of the rebuilt raw moved. `folds` is
- * nullable on purpose: a merge splices the parent's array, so only a caller that reconciles
- * that list's ids and refs passes an array to collect them.
+ * One of several chains rebuilt in turn that share ancestors: this chain stops at level `floor`,
+ * leaving the levels above to a later chain, which reads whole any node in `readsWhole`.
+ */
+export interface SharedChainLevels {
+	readonly floor: number;
+	readonly readsWhole: Set<CstNode>;
+}
+
+/**
+ * The levels each chain rebuilds when the chains are rebuilt in this order, one per chain: a node
+ * several chains hold is left to the last of them, so it's rebuilt once, after everything below it.
+ */
+export function sharedChainLevels(chains: readonly (readonly CstNode[])[]): SharedChainLevels[] {
+	const lastHolder = new Map<CstNode, number>();
+	chains.forEach((chain, j) => {
+		for (const node of chain) lastHolder.set(node, j);
+	});
+	const readsWhole = new Set<CstNode>();
+	return chains.map((chain, j) => {
+		let floor = chain.length;
+		while (floor > 0 && lastHolder.get(chain[floor - 1]) === j) floor--;
+		return { floor, readsWhole };
+	});
+}
+
+/**
+ * Rebuild raws up an owned chain innermost first, re-deriving kinds and joins where a first or
+ * last line moved. Only a caller that reconciles a merged array's ids and refs passes `folds`.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
 	chain: CstNode[],
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
-	grammar: GrammarView | undefined,
-	hint?: ChainWriteHint
+	grammar: GrammarView,
+	hint?: ChainWriteHint,
+	shared?: SharedChainLevels
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
-	// The bytes chain[i + 1] held before this pass. It is passed up only from a caller that named
-	// the leaf's own; a caller passing no hint re-derives at every level (editor.md § 9).
+	const floor = shared?.floor ?? 0;
+	// The bytes chain[i + 1] held before this pass, known only when the caller named the leaf's
+	// own; with no hint, every level re-derives its whole raw.
 	let childPreviousRaw: string | undefined;
-	for (let i = chain.length - 1; i >= 0; i--) {
+	// The level below read as blocks its own position cannot hold, so this level reads whole.
+	let spilled: Spill | null = null;
+	for (let i = chain.length - 1; i >= floor; i--) {
 		const node = chain[i];
 		const rawBefore = node.raw;
 		const child = chain[i + 1];
-		rebuildOwnedContainer(
-			node,
-			sharing,
+		const changed =
 			child && childPreviousRaw !== undefined
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
-				: undefined
-		);
+				: undefined;
+		const rereads = rebuildOwnedContainer(node, changed)?.rereads ?? false;
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
-		if (!openerMoved && !closerMoved) continue;
+		const whole = rereads || spilled !== null || (shared?.readsWhole.has(node) ?? false);
+		spilled = null;
+		if (!openerMoved && !closerMoved && !whole) continue;
 
 		const owner = i === 0 ? null : chain[i - 1];
 		const siblings = (owner ?? root).children;
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
-		if (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind) {
-			const replacement = reclassifyContainer({ children: siblings }, index, grammar);
-			if (replacement) {
-				sharing.stamp(replacement);
-				reclassified.push({ siblings, index, previous: node, replacement });
-			}
+		const reading = followBytes(node, rawBefore, grammar, {
+			titleRowOnly: changed !== undefined && isChromeSlot(node, changed.index),
+			whole
+		});
+		const replacement = installReading({ children: siblings }, index, reading, grammar);
+		if (replacement) {
+			sharing.stamp(replacement);
+			reclassified.push({ siblings, index, previous: node, replacement });
+		} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
+			spilled = { siblings, index, node, blocks: reading.blocks };
 		}
+		if (!openerMoved && !closerMoved) continue;
 		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
 		// empty marker must give the paragraph above it a separating line.
 		if (openerMoved) settleSublistSeparator(siblings, index);
@@ -123,17 +162,59 @@ export function rebuildUnsharedChain(
 		if (folds) {
 			const before = folds.length;
 			settleSlotSeams(
-				{ siblings, owner, depth: i, index, openerMoved, closerMoved },
+				{ body: slotBody(root, owner), owner, depth: i, index, openerMoved, closerMoved },
 				sharing,
-				folds
+				folds,
+				grammar
 			);
 			// A merge re-divided the owner's children, so its child spans describe a shape that
 			// is gone.
 			if (folds.length > before && owner) dropChildSpans(owner);
 		}
 	}
-	if (perfEnabled()) recordRebuildDepth(chain.length);
+	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
+	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
+	if (perfEnabled() && chain.length > floor) recordRebuildDepth(chain.length - floor);
 	return reclassified;
+}
+
+/** A chain node whose bytes read as blocks its position cannot hold as one node. */
+interface Spill {
+	siblings: CstNode[];
+	index: number;
+	node: CstNode;
+	blocks: CstNode[];
+}
+
+/**
+ * The root's children take the blocks a top-level node's bytes read as, one fold the caller
+ * publishes: the first block keeps the node's id, the rest are new.
+ */
+function spliceSpill(spill: Spill, sharing: SharingState, folds: AncestrySeamFold[]): void {
+	const { siblings, index, node, blocks } = spill;
+	// A blank tail the parse set aside has no block to hold it, so such bytes stay as they stand.
+	if (blocks.map((block) => block.leadingTrivia + block.raw).join('') !== node.raw) return;
+	const lineEnding = firstLineEnding(node.raw) ?? '\n';
+	// The first block keeps the node's id, so its children the re-read left alone keep theirs.
+	if (blocks[0].kind === node.kind && blocks[0].children) {
+		blocks[0].childIds = idsAcrossReread(node.children ?? [], node.childIds, blocks[0].children);
+	}
+	for (const block of blocks) {
+		ensureEditableContainers(block, lineEnding);
+		assignChildIdsDeep(block);
+	}
+	blocks[0].leadingTrivia = node.leadingTrivia;
+	const before = siblings.slice();
+	spliceMany(siblings, index, 1, blocks);
+	for (let k = 0; k < blocks.length; k++) sharing.stamp(siblings[index + k]);
+	folds.push({
+		depth: 0,
+		siblings,
+		owner: null,
+		change: replacePreservingFirst(index, 1, blocks.length),
+		before,
+		landing: { index, offset: 0 }
+	});
 }
 
 /**
@@ -152,42 +233,68 @@ function childRawChange(
 	return index < 0 ? undefined : { index, previousRaw };
 }
 
+/** Whether child `index` is the container's title row, which no metadata comes from. */
+function isChromeSlot(node: CstNode, index: number): boolean {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	return index === 0 && chromeKind !== undefined && node.children?.[0]?.kind === chromeKind;
+}
+
 /** `indexOf` with a guess first: the scan is O(children) through the `$state` proxy. */
 function childIndexOf(siblings: CstNode[], child: CstNode, guess: number | undefined): number {
 	if (guess !== undefined && siblings[guess] === child) return guess;
 	return siblings.indexOf(child);
 }
 
+/**
+ * The body a rebuilt chain level sits in, for its join check: the chain node above owns it, and at
+ * the root the document does, since only a rebuild from the document reports what a join folded.
+ */
+function slotBody(root: NodeParent | CstNode, owner: CstNode | null): BodyParent {
+	if (!isDocumentRoot(root))
+		throw new Error('chain rebuild: join checks need the document as root');
+	const doc = documentBody(root);
+	return owner ? { children: owner.children!, owner, lineEnding: doc.lineEnding } : doc;
+}
+
+const isDocumentRoot = (root: NodeParent | CstNode): root is Document =>
+	'kind' in root && root.kind === 'document';
+
 /** Where a rebuilt container sits, and which of its joins its new bytes can have moved. */
 interface ChainSlot {
-	siblings: CstNode[];
+	body: BodyParent;
+	/** The chain node owning `body`, or null at the rebuild root, which an ancestry fold names. */
 	owner: CstNode | null;
 	depth: number;
 	index: number;
-	/** The join above depends on the opener line, the one below on the closer: each is checked
-	 *  only when its own line moved, so an edit in the first child never pays for the
-	 *  follower-side parse. */
+	/** The join above depends on the opener line and the one below on the closer, so each is
+	 *  checked only when its own line moved. */
 	openerMoved: boolean;
 	closerMoved: boolean;
 }
 
 /**
  * Check the joins at a rebuilt container's position, since its new bytes can stop interrupting
- * a neighbour. `absorbWindowSeams` walks `at - 1 … at + added - 1`, so the two arguments below
- * name exactly the sides whose line moved.
+ * a neighbour; the window passed below covers exactly the sides whose line moved.
  */
-function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: AncestrySeamFold[]): void {
-	const { siblings, index, openerMoved, closerMoved } = slot;
-	// The rollback snapshot is captured only once a merge is certain: an eager copy here cost
+function settleSlotSeams(
+	slot: ChainSlot,
+	sharing: SharingState,
+	folds: AncestrySeamFold[],
+	grammar: GrammarView
+): void {
+	const { body, index, openerMoved, closerMoved } = slot;
+	const siblings = body.children;
+	// The rollback snapshot is captured only once a merge is certain, since a copy costs
 	// O(children) reactive reads on every keystroke inside a large container.
 	let before: CstNode[] | null = null;
 	const landing: TrackedPosition = { index, offset: 0 };
 	const settled = absorbWindowSeams(
-		{ children: siblings },
+		body,
 		openerMoved ? index : index + 1,
 		openerMoved && closerMoved ? 1 : 0,
 		index,
 		{ op: 'noop' },
+		grammar,
 		sharing,
 		landing,
 		index,
@@ -207,30 +314,16 @@ function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: Ancestry
 	});
 }
 
-/** The container's opener line. */
-function firstLine(raw: string): string {
-	const nl = raw.indexOf('\n');
-	return nl < 0 ? raw : raw.slice(0, nl);
-}
-
-/** The container's closing line: its last line carrying bytes, without the ending. */
-function lastLine(raw: string): string {
-	const body = trimTrailingLineEnding(raw);
-	const nl = body.lastIndexOf('\n');
-	return nl < 0 ? body : body.slice(nl + 1);
-}
-
 /**
- * Copy the ancestors down `path` and rebuild them innermost first, tolerating paths that run
- * out of range partway (rebuild passes after a delete). Prefer `rebuildUnsharedChain` when
- * indices may have shifted since the copy.
+ * Copy the ancestors down `path` and rebuild them, tolerating a path cut short by a delete.
+ * Prefer `rebuildUnsharedChain` when indices may have shifted since the copy.
  */
 export function rebuildUnsharedAncestry(
 	root: NodeParent,
 	path: number[],
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): ContainerReclassification[] {
 	const chain = walkUnsharing(root, path, sharing, false);
 	return rebuildUnsharedChain(root, chain, sharing, folds, grammar);

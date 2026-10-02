@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -11,7 +11,7 @@ import { containerAt, typeSlowly } from './formation-harness';
 // whose re-derivation runs inside the commit rather than the ordinary write up the ancestors,
 // and an undo/redo round trip across the formation.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -19,7 +19,7 @@ describe('github alert: formation through sibling paths', () => {
 	it('forms from a multi-block paste into the blockquote body', async () => {
 		const h = containerAt('> x\n', [0]);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 1, 13);
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 'authored', 1, 13);
 
 		const alert = h.getNode();
 		expect(alert.kind).toBe('githubAlert');
@@ -27,9 +27,8 @@ describe('github alert: formation through sibling paths', () => {
 		expect(parseConverges(h.deps.doc)).toBe(true);
 	});
 
-	// The marker comes from metadata, so only a metadata write can demote an alert. Top level
-	// on purpose: that commit takes the document branch, which rebuilds no ancestors, so the
-	// re-derivation has to reach the metadata update directly.
+	// Only a metadata write can demote an alert, and a top-level commit rebuilds no ancestors,
+	// so the kind re-derivation has to reach the metadata update directly.
 	it('demotes a top-level alert whose type metadata stops naming an alert', async () => {
 		const harness = makeEditorActionsDeps(parse('> [!TIP]\n> body\n').children);
 		const actions = createBlockEditActions(harness.deps, createUndoController(harness.deps));

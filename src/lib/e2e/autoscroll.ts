@@ -2,11 +2,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 // Waits on drag-autoscroll, shared by the block-drag and table reorder suites.
 
-/**
- * Holds the pointer at `hold` and polls `readScroll` until it passes `threshold`. The autoscroll
- * loop keeps running only while Playwright's pointer state is fresh, so every poll moves the
- * mouse back to the hold point. No waitForTimeout.
- */
+/** The autoscroll loop runs only while Playwright's pointer state is fresh, so every poll moves
+ *  the mouse back to `hold`. */
 export async function pollAutoscrollPast(
 	page: Page,
 	hold: { x: number; y: number },

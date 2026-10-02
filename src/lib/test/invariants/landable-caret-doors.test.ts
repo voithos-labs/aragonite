@@ -1,27 +1,24 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: G1.33 fired from inside one function's own body, so no test ever drove a caret
-// placement the platform did not write itself (a plugin's own `parkCaret`, or the render-primary
-// scroll into view), and the whole bypass class sat outside the suite.
+// Every caret placement, the platform's or a plugin's, meets the marker-only caret check (G1.33).
+// Miss-analysis: the check ran inside one function, so no test drove a caret call it didn't make.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '$lib/plugin';
 import {
-	declarePluginKind,
 	definePluginBlock,
-	registerBlockKind,
 	registerBlockOpener,
 	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type EditorPlugin
 } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
-import { mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import { installEditorDomStubsForTests } from '$lib/testing';
+import { mountEditor, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
 import MarkerSourcePlainBlock from './fixtures/MarkerSourcePlainBlock.svelte';
 import MarkerSourceRevealBlock from './fixtures/MarkerSourceRevealBlock.svelte';
 import InertSurfaceBlock from './fixtures/InertSurfaceBlock.svelte';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const ROGUE_MARKER = '@@rogue';
 const PLAIN_MARKER = '@@plain';
@@ -39,12 +36,7 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 		kind,
 		component,
 		register: () => {
-			const declared = declarePluginKind(kind);
-			registerBlockKind(declared, {
-				gapEdges: 'none',
-				mergeRole: 'not-mergeable',
-				editable: true,
-				supportsInline: false,
+			const declared = testLeaf(kind, {
 				closure: simpleLeafClosure({
 					focus: { mode: 'implemented', via: 'the fixture owns the caret door under test' },
 					searchPaint: { mode: 'inherit-default' },
@@ -110,7 +102,6 @@ async function mountWith(
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
@@ -141,9 +132,8 @@ describe('G1.33 fires from the focus boundary', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The branch for a block that takes no keystroke. No built-in reaches it, because a built-in is
-	// `contenteditable="false"` only in reading mode, which the mode check already excludes, so
-	// nothing else tells the next reader this branch matters for plugin blocks.
+	// No built-in reaches the inert branch: a built-in is `contenteditable="false"` only in reading
+	// mode, which the mode check already excludes, so only plugin blocks rely on it.
 	it('does nothing for an inert surface, over chrome the rogue entry point fires on', async () => {
 		const editor = await mountWith(
 			INERT_MARKER,

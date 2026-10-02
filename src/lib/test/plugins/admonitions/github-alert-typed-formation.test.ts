@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { describeConvergence, parseConverges } from '$lib/testing/parse-convergence';
 import { nodeAt } from '$lib/tree-operations';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeContainerHarness, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { containerAt, typeSlowly } from './formation-harness';
 
 // Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time only
@@ -13,7 +13,7 @@ import { containerAt, typeSlowly } from './formation-harness';
 // that the blockquote's rebuilt raw now opens as a `githubAlert`: inserting the whole marker
 // at once does classify it, and this path would quietly not.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -28,12 +28,20 @@ describe('github alert: per-keystroke marker formation', () => {
 		expect(serialize(h.deps.doc)).toBe('> [!TIP]\n>\n');
 	});
 
-	it('lands the caret in the alert body, which the marker line no longer holds', async () => {
-		const h = containerAt('> [!TI\n', [0]);
+	// Once the quote becomes an alert, the caret follows its byte to the start of the alert's body.
+	// Miss-analysis: no row checked the caret's position or typed the marker in a nested quote.
+	it.each([
+		{ where: 'at the root', source: '> [!TI\n> body\n', quote: [0] },
+		{ where: 'inside a list item', source: '- > [!TI\n  > body\n', quote: [0, 0, 0] }
+	])('lands the caret at the alert body start $where', async ({ source, quote }) => {
+		const h = makeContainerHarness(source, quote);
 
-		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP\nbody\n', 'authored', 4, 5);
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\nbody\n', 'authored', 5, 6);
 
-		expect(h.parentFocus.moveFocus).toHaveBeenCalledWith(0, 'start');
+		expect(h.getNode().kind).toBe('githubAlert');
+		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['body\n']);
+		expect(h.landings).toMatchObject([{ leafPath: [...quote, 0], offset: 0 }]);
 	});
 
 	it('keeps a multi-block body addressable, ids and all', async () => {
@@ -95,7 +103,7 @@ describe('github alert: per-keystroke marker formation', () => {
 
 		const atomic = makeEditorActionsDeps(parse('x\n').children);
 		const atomicActions = createBlockEditActions(atomic.deps, createUndoController(atomic.deps));
-		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 1, 9);
+		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 'authored', 1, 9);
 
 		expect(serialize(typed.deps.doc)).toBe(serialize(atomic.deps.doc));
 		expect(typed.getNode().kind).toBe(atomic.deps.doc.children[0].kind);

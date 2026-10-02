@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the rail's host hooks shipped pinned by the compiler alone, so a rail rendering
-// the run affordance with no hook installed, or handing a hook the fence lines along with the
-// body, would have passed every gate.
+// Miss-analysis: only the type checker covered the code block gutter's host hooks.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { CodeMenuItem, CodeRunRequest } from '$lib/editor-keys';
@@ -39,14 +36,20 @@ describe('the code rail’s host hooks', () => {
 		expect(railButton(CODE_MENU_LABEL)).toBeNull();
 	});
 
-	it('hands onRunCode the fence body, the whole info string and the block path', () => {
+	// Miss-analysis: each host split the info string for the language, and no test checked it.
+	it('hands onRunCode the fence body, the info string, its language and the block path', () => {
 		const onRunCode = vi.fn<(request: CodeRunRequest) => void>();
 		mounted = mountCode(FENCE, { policies: { presentationMode: () => 'live', onRunCode } });
 
 		railButton(CODE_RUN_LABEL)!.click();
 		flushSync();
 
-		expect(onRunCode).toHaveBeenCalledWith({ code: 'const x = 1\n', info: 'js {1}', path: [0] });
+		expect(onRunCode).toHaveBeenCalledWith({
+			code: 'const x = 1\n',
+			info: 'js {1}',
+			language: 'js',
+			path: [0]
+		});
 	});
 
 	it('consults codeMenuItems on every open, so its items read live state', () => {

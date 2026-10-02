@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { mergeListItemIntoPrevious } from '../../tree-operations';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
+import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
 // in e2e/requirements/blocks/list/backspace/m1-merge.md.
@@ -25,9 +25,8 @@ describe('mergeListItemIntoPrevious', () => {
 			list,
 			children,
 			currentIndex,
-			undefined,
-			undefined,
-			undefined
+			createSharingState(),
+			fixtureReading()
 		);
 		if (!result) throw new Error('expected a merge target');
 		return result;
@@ -109,8 +108,7 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('row 5b: target item is loose, trailing paragraph index is not 0', () => {
-		// A loose target lands findDeepestVisibleTextTarget on A.children[1]; a path-slice bug
-		// cascaded focus to A.children[0].
+		// A loose target puts `findDeepestVisibleTextTarget` on A.children[1], not A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
 		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
@@ -139,7 +137,13 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base is preserved across the merge', () => {
 		const list = parseList('3. First\n4. Second\n5. Third\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
+		mergeListItemIntoPrevious(
+			list,
+			list.children!.slice(),
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(list.children?.length).toBe(2);
 		const markers = list.children!.map((i) => (i.metadata as { marker: string }).marker);
@@ -150,7 +154,13 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base survives a 2-into-1 collapse', () => {
 		const list = parseList('3. First\n4. Second\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
+		mergeListItemIntoPrevious(
+			list,
+			list.children!.slice(),
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(list.children?.length).toBe(1);
 		const soleMarker = (list.children?.[0].metadata as { marker: string }).marker;
@@ -161,18 +171,30 @@ describe('mergeListItemIntoPrevious', () => {
 		const list = parseList('- A\n- B\n');
 
 		expect(() =>
-			mergeListItemIntoPrevious(list, list.children!.slice(), 0, undefined, undefined, undefined)
+			mergeListItemIntoPrevious(
+				list,
+				list.children!.slice(),
+				0,
+				createSharingState(),
+				fixtureReading()
+			)
 		).toThrow();
 	});
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
-		// A not-mergeable previous item leaves the walker no text-bearing leaf: M1 must report
-		// no-target for the caller's focus-move fallback, not throw inside the commit.
+		// A not-mergeable previous item leaves the walker no text-bearing leaf, so the merge reports
+		// no target for the caller's focus-move fallback rather than throwing inside the commit.
 		const list = parseList('- ```\n  code\n  ```\n- text\n');
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
+		const result = mergeListItemIntoPrevious(
+			list,
+			children,
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);
@@ -184,8 +206,6 @@ describe('mergeListItemIntoPrevious', () => {
 // the summary child as opaque.
 describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 
@@ -199,7 +219,13 @@ describe('mergeListItemIntoPrevious: collapsed container as previous leaf', () =
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
+		const result = mergeListItemIntoPrevious(
+			list,
+			children,
+			1,
+			createSharingState(),
+			fixtureReading()
+		);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);

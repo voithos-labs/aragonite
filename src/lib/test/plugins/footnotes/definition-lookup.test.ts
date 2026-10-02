@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 // Plugin-internal: this lookup answers a reference widget's jump, which only a mounted
 // widget makes.
@@ -10,7 +9,6 @@ describe('footnote definition lookup (where a reference jump lands)', () => {
 	beforeEach(() => {
 		// Install so `[^label]:` opens a footnote-def at all; without the plugin every
 		// definition line parses as a paragraph and the lookup finds nothing.
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

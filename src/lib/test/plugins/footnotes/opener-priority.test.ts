@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 
 describe('footnote definition opener priority', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -28,9 +26,8 @@ describe('footnote definition opener priority', () => {
 	});
 
 	it('claims every [^label]: form, including a valid-URL body', () => {
-		// The matcher keys on the leading-caret label, not the body, so a footnote whose
-		// body is a URL matches too; the built-in keeps those labels away from link
-		// reference definitions, so there is no priority contest to lose.
+		// The matcher keys on the leading-caret label, so a URL body matches too; the built-in
+		// keeps those labels away from link reference definitions, so no priority contest exists.
 		const doc = parse('[^1]: https://example.com\n');
 		expect(doc.children[0].kind).toBe(FOOTNOTE_DEF_KIND);
 	});

@@ -10,8 +10,8 @@ import {
 } from './scan-test-helpers';
 
 // Reference forms (CommonMark §6.3). Precedence, label normalization and the bracketAfter
-// guard follow commonmark.js 0.31.2 parseCloseBracket; resolver-returned url/title pass
-// through byte-for-byte, since LRD destinations are stored raw.
+// guard follow commonmark.js's parseCloseBracket; resolver-returned url/title pass through
+// byte-for-byte, since link reference definitions store their destinations raw.
 
 const REFS = resolverOf({
 	go: { url: '/go', title: 'Go now' },

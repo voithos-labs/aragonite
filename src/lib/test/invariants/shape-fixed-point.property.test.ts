@@ -15,8 +15,29 @@ import { isMergeEligible } from '$lib/schema/merge-rules';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import { keepsEveryByte } from '$lib/test/harness/live-oracles';
-import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { displayLength, trailingLineEnding } from '$lib/core/lines';
+import {
+	arbBlankSeparatedGfmDoc,
+	arbInlineSource,
+	arbRespelledContainerDoc,
+	freshOrFixedSeed
+} from './arbitraries';
+import {
+	displayLength,
+	documentLineEnding,
+	firstDisplayLine,
+	firstLineEnding,
+	isBlankText,
+	splitLines,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '$lib/core/lines';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createLeafTyping } from '$lib/editor-actions/leaf-write';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import { blockNodeAt, documentBody } from '$lib/tree-operations/node-primitives';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerLiveSplitRebalancer,
@@ -24,23 +45,26 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
-// is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
-// cannot see it: bytes can be preserved exactly while a block disappears.
+// An edit on a loaded document leaves a tree that reloads to the same block shape (G2.13), which
+// byte round-trip cannot see: bytes can survive exactly while a block disappears.
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 
-/**
- * The corpus plus the trailing blank line the parse puts into `doc.suffix`. Drawn here rather than
- * in the shared generator, which every suite's seeds depend on: no source it produces carries one,
- * so every branch that turns that tail into a block went untested.
- */
-const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source, source + '\n'));
+/** The corpus plus the trailing blank line the parse puts into `doc.suffix`, drawn here since the
+ *  shared generator never produces one and every suite's seeds depend on it. */
+const arbDoc = arbBlankSeparatedGfmDoc.chain((source) =>
+	fc.constantFrom(source, source + (firstLineEnding(source) ?? '\n'))
+);
 
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
 // content commit, typing into a blank block, and the join in both directions.
-type GestureOp = 'split' | 'delete' | 'update' | 'fill' | 'empty' | 'mergePrev' | 'mergeNext';
+type GestureOp =
+	'split' | 'delete' | 'update' | 'fill' | 'empty' | 'retype' | 'mergePrev' | 'mergeNext';
 type Gesture = { op: GestureOp; at: number; offset: number };
 
 // `fill` gets its own property below rather than joining this list: a fourth case re-rolls every
@@ -56,54 +80,56 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 	if (count === 0) return;
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
 	if (gesture.op === 'empty') return applyEmpty(doc, gesture.at);
+	if (gesture.op === 'retype') return applyRetype(doc, gesture.at);
 	if (gesture.op === 'mergePrev' || gesture.op === 'mergeNext') {
 		return applyMerge(doc, gesture.at, gesture.op);
 	}
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
-	// Prose leaves only. A container descends to its leaf and a fence takes the newline into its
-	// own body, so neither reaches `splitNode`; the raw-text leaves that do reach it (indented
-	// code, html) can split into halves that rejoin on reload, which is GH #61's known class
-	// rather than the blank-line rule this property checks.
+	// Prose leaves only: a container descends to its leaf and a fence keeps the newline in its body,
+	// and a raw-text leaf's halves can rejoin on reload, a separate class from the blank-line rule.
 	const isProseLeaf =
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
 		case 'split':
 			if (isProseLeaf) {
 				const offset = Math.min(gesture.offset, displayLength(node.raw));
-				settled(doc, (body) => splitNode(body, at, offset, undefined, mode, undefined).change);
+				settled(
+					doc,
+					(body) =>
+						splitNode(body, at, offset, createSharingState(), fixtureReading({}, mode)).change
+				);
 			}
 			return;
 		case 'delete':
-			settled(doc, (body) => deleteNode(body, at));
+			settled(doc, (body) => deleteNode(body, at, defaultGrammarView, createSharingState()));
 			return;
 		case 'update':
 			// Typing into the block, keeping its kind: the shape still has to reload as it stands.
 			// The content-write path does carry the suffix (`block-edit.updateBlockContent`).
-			settled(doc, () => updateNodeContent(doc, at, node.raw).change);
+			settled(
+				doc,
+				() => updateNodeContent(doc, at, node.raw, defaultGrammarView, createSharingState()).change
+			);
 			return;
 	}
 }
 
-/**
- * Typing into a blank block, indexed over the blank blocks so the draw always lands on one:
- * `update` rewrites a node's own bytes and so can never change its blankness, which left the
- * transition the blank-line rule lives on unreachable by construction (GH #73).
- */
+/** Typing into a blank block, indexed over the blank blocks so the draw always lands on one, since
+ *  `update` rewrites a node's own bytes and so never changes its blankness. */
 function applyFill(doc: Document, at: number): void {
 	const blanks = doc.children.flatMap((node, i) => (isBlankParagraph(node) ? [i] : []));
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
-	const text = 'x' + trailingLineEnding(doc.children[target].raw);
-	settled(doc, () => updateNodeContent(doc, target, text).change);
+	const text = 'x' + trailingLineEnding(doc.children[target].raw, documentLineEnding(doc));
+	settled(
+		doc,
+		() => updateNodeContent(doc, target, text, defaultGrammarView, createSharingState()).change
+	);
 }
 
-/**
- * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs so
- * the draw always lands on one. Both paths: the forward one reparses the concatenation, the
- * backward one writes the previous block's deepest prose leaf. Different writes, one shape
- * contract (GH #166).
- */
+/** Backspace and Delete across a block boundary, drawn over the merge-eligible adjacent pairs;
+ *  both write the joined text into the surviving block's leaf and remove the one it absorbed. */
 function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
 	const pairs = doc.children.flatMap((node, i) =>
 		i > 0 && isMergeEligible(doc.children[i - 1].kind, node.kind) ? [i] : []
@@ -112,8 +138,10 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 	const i = pairs[at % pairs.length];
 	settled(doc, (body) =>
 		op === 'mergePrev'
-			? (mergeIntoPrevDeepLeaf(body, i, undefined, undefined, undefined)?.change ?? { op: 'noop' })
-			: mergeWithNext(body, i - 1, undefined, undefined).change
+			? (mergeIntoPrevDeepLeaf(body, i, createSharingState(), fixtureReading())?.change ?? {
+					op: 'noop'
+				})
+			: mergeWithNext(body, i - 1, fixtureReading(), createSharingState()).change
 	);
 }
 
@@ -122,52 +150,126 @@ type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
 
 function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] {
 	return (node.children ?? []).flatMap((child, index) => {
-		// A list item's body is delimited by the indent its marker sets, so blanking a leaf inside
-		// one re-reads the bytes the way it does around indented code (the exclusion below).
-		if (child.kind === 'listItem') return [];
 		if (child.children !== undefined) return proseLeafSlots(child, [...chain, child]);
 		const editable = getBlockKindDescriptor(child.kind).supportsInline === true;
 		return editable ? [{ holder: node, index, chain }] : [];
 	});
 }
 
-/**
- * The reverse transition: a block that becomes the blank line (GH #96), indexed over the prose
- * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends for
- * an emptied block, the line ending alone. Container bodies are included, because the start of a
- * body answers to its container's own opener line, which no top-level draw reaches.
- */
+/** A prose leaf becoming the blank line, as the typing write sends for an emptied block. Container
+ *  bodies are included, since a body's start answers to its container's opener line. */
 function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
-	const { holder, index, chain } = slots[at % slots.length];
-	const children = holder.children!;
-	const text = trailingLineEnding(children[index].raw);
-	// A container body is fixed up inside its own commit scope, which has no document tail.
-	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
-	else {
-		const owner = holder as CstNode;
-		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
-	}
-	for (let i = chain.length - 1; i >= 0; i--) {
-		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
-	}
+	const slot = slots[at % slots.length];
+	writeLeaf(
+		doc,
+		slot,
+		trailingLineEnding(slot.holder.children![slot.index].raw, documentLineEnding(doc))
+	);
 }
 
-/**
- * What a split may not touch: every byte that is not a line ending survives. A multiset rather
- * than the string, because the setext rule reorders what survives: the underline moves up to
- * follow the first half. The line-count minimum below watches the endings themselves.
- */
+/** A prose leaf's bytes written back as the page holds them, plus its own ending as the surface
+ *  write adds it; list items are in, since a task item's first paragraph reads its text apart. */
+function applyRetype(doc: Document, at: number): void {
+	const slots = proseLeafSlots(doc);
+	if (slots.length === 0) return;
+	const slot = slots[at % slots.length];
+	const node = slot.holder.children![slot.index];
+	// The page holds the whole display, a setext underline included.
+	writeLeaf(doc, slot, trimTrailingLineEnding(node.raw) + ownTrailingLineEnding(node.raw));
+}
+
+function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {
+	const children = holder.children!;
+	// A container body is fixed up inside its own commit scope, which has no document tail.
+	if (holder === doc)
+		settled(
+			doc,
+			() => updateNodeContent(doc, index, text, defaultGrammarView, createSharingState()).change
+		);
+	else {
+		const owner = holder as CstNode;
+		updateNodeContent(
+			{ children, owner, lineEnding: documentLineEnding(doc) },
+			index,
+			text,
+			defaultGrammarView,
+			createSharingState()
+		);
+	}
+	// The rebuild typing runs, which recomputes the blank line a changed opener line needs above it.
+	rebuildUnsharedChain(doc, chain, createSharingState(), null, defaultGrammarView);
+}
+
+/** Every non-blank prose leaf's path, at any depth. */
+function proseLeafPaths(nodes: readonly CstNode[], path: number[] = []): number[][] {
+	return nodes.flatMap((node, i) => {
+		if (node.children !== undefined) return proseLeafPaths(node.children, [...path, i]);
+		const prose = getBlockKindDescriptor(node.kind).supportsInline === true;
+		return prose && !isBlankText(node.raw) ? [[...path, i]] : [];
+	});
+}
+
+/** A letter typed into a drawn leaf's first line through the keystroke's in-place route: one
+ *  line of the document moves, by that letter alone, and the tree reloads as itself. */
+function keystrokeMovesOneLine(source: string, pick: number, offset: number): void {
+	const { deps } = makeEditorActionsDeps(source);
+	const leaves = proseLeafPaths(deps.doc.children);
+	if (leaves.length === 0) return;
+	const leaf = leaves[pick % leaves.length];
+	const owner = leaf.length > 1 ? (blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode) : null;
+	const raw = (blockNodeAt(deps.doc, leaf) as CstNode).raw;
+	const at = offset % (displayLength(firstDisplayLine(raw).text) + 1);
+	const body = owner
+		? { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) }
+		: documentBody(deps.doc);
+	const write = legalizeWrite(
+		body,
+		leaf.at(-1)!,
+		raw.slice(0, at) + 'Q' + raw.slice(at),
+		'authored'
+	);
+	const before = splitLines(serialize(deps.doc)).map((line) => line.raw);
+	createLeafTyping(deps, createUndoController(deps)).writeLeafInPlace(docPathFrom(leaf), write, at);
+
+	const after = splitLines(serialize(deps.doc)).map((line) => line.raw);
+	const moved = after.flatMap((line, i) => (line === before[i] ? [] : [i]));
+	const typedInto = (i: number) =>
+		[...after[i].matchAll(/Q/g)].some(
+			({ index: k }) => after[i].slice(0, k) + after[i].slice(k + 1) === before[i]
+		);
+	// A tab the content column cuts can't stay in front of the text, and a table row has its own
+	// spelling rule (a pipe-less first cell gains pipes), so those lines may move further.
+	const cutsTab = (i: number) => /^[ \t>]*\t/.test(before[i]);
+	const inTable = leaf.some(
+		(_, depth) => blockNodeAt(deps.doc, leaf.slice(0, depth))?.kind === 'table'
+	);
+	if (
+		after.length !== before.length ||
+		moved.length > 1 ||
+		moved.some((i) => !typedInto(i) && !cutsTab(i) && !inTable)
+	) {
+		throw new Error(`${JSON.stringify(source)} at ${leaf}: ${JSON.stringify(after)}`);
+	}
+	expect(describeConvergence(deps.doc)).toBeNull();
+}
+
+/** What a split may not touch: every byte that is not a line ending survives. A sorted multiset,
+ *  because the setext rule moves the underline up to follow the first half. */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
 
-/**
- * What a join may not spend: every non-whitespace byte survives somewhere in the result. It is
- * one-directional and ignores whitespace on purpose: a join legitimately eats the separating blank
- * line, whose bytes can be spaces and tabs, and legitimately adds bytes when it lands inside a
- * container, whose continuation markers re-prefix the absorbed lines.
- */
+/** Which line endings `text` holds; an edit on a one-ending document must keep it one-ending. */
+function endingMix(text: string): 'none' | 'lf' | 'crlf' | 'mixed' {
+	const crlf = /\r\n/.test(text);
+	const lf = /(^|[^\r])\n/.test(text);
+	if (crlf && lf) return 'mixed';
+	return crlf ? 'crlf' : lf ? 'lf' : 'none';
+}
+
+/** What a join may not spend: every non-whitespace byte survives, checked one way only, since a
+ *  join eats the blank separator and re-prefixes absorbed lines inside a container. */
 function keepsEveryContentByte(before: string, after: string): boolean {
 	const counted = (text: string) => {
 		const counts = new Map<string, number>();
@@ -181,13 +283,8 @@ function keepsEveryContentByte(before: string, after: string): boolean {
 	return true;
 }
 
-/**
- * A join's shape mismatch, minus GH #61's class. The two point opposite ways, which is what tells
- * them apart: reading fewer blocks than the tree holds means indentation beside the survivor's new
- * bytes claimed them, a known problem at every join (the split property excludes the same class by
- * kind). Reading more blocks is the join's own fault: a one-block write installed bytes describing
- * several, which is GH #166.
- */
+/** A join's shape mismatch, excused only when the reload reads fewer blocks than the tree holds:
+ *  neighbouring indentation taking the new bytes, a known class at every join. */
 function joinDivergence(doc: Document): string | null {
 	const divergence = describeConvergence(doc);
 	if (!divergence) return null;
@@ -208,11 +305,13 @@ function divergenceAfterEdit(
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
 	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
-	// GH #95 slipped past both checks above: the halves it left reload as themselves, and the lines
-	// it dropped were no longer in the document to disagree. A live split closes and reopens the
-	// construct it cut, so a delimiter run is legitimately duplicated across the halves; losing one
-	// stays forbidden in every mode, except trailing whitespace the screen never painted, which the
-	// candidate declares and the verifier checks.
+	const was = endingMix(before);
+	const ending = endingMix(bytes);
+	if ((was === 'lf' || was === 'crlf') && ending !== 'none' && ending !== was) {
+		return `${gesture.op} wrote a second line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
+	// A split that drops lines leaves halves that reload as themselves, so only a byte check sees
+	// it; a live split may duplicate a delimiter run across the halves, never lose one.
 	const keptBytes =
 		mode === 'live'
 			? keepsEveryByte(before, bytes)
@@ -220,11 +319,13 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && !keptBytes) {
 		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
+	if (gesture.op === 'retype' && bytes !== before) {
+		return `retype changed the bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
 		return `split dropped a line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
-	// A join that truncates leaves halves that reload as themselves, so the shape check above
-	// cannot see it: the lost line's bytes are no longer there to disagree (GH #166, forward path).
+	// A join that truncates leaves halves that reload as themselves, so only a byte check sees it.
 	if (gesture.op.startsWith('merge') && !keepsEveryContentByte(before, bytes)) {
 		return `${gesture.op} dropped content bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
@@ -242,8 +343,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// GH #73: `update` rewrites a node's own bytes, so no gesture above can change a block's
-	// blankness and the transition the blank-line rule lives on was unreachable by construction.
+	// Miss-analysis: `update` never changes a block's blankness, so no gesture reached it (GH #73).
 	it('typing into a blank block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
@@ -254,9 +354,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// GH #166: the join had no gesture here at all, so neither write was ever read back: the
-	// forward one dropped every block past the first, and the backward one wrote a leaf whose own
-	// reload disagreed with it. It gets its own property for the same reason `fill` does.
+	// Miss-analysis: the join had no gesture here, so neither of its writes was reloaded (GH #166).
 	it.each(['mergePrev', 'mergeNext'] as const)(
 		'%s leaves a tree that reloads to its own shape',
 		(op) => {
@@ -270,9 +368,8 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		}
 	);
 
-	// GH #96: the mirror of the fill. Blanking a leaf beside indentation-delimited content re-reads
-	// the bytes, so the content-commit path absorbs the join its neighbours now make, the way the
-	// split and delete paths do (GH #61's class).
+	// The mirror of the fill: blanking a leaf beside indentation-delimited content makes the content
+	// commit absorb the join its neighbours make, as the split and delete paths do.
 	it('emptying a block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
@@ -283,14 +380,43 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	/**
-	 * A comparison on purpose: what the split rewrite has to show is that closing and reopening a
-	 * construct differs nowhere the byte-literal cut already does, not that the split itself is
-	 * defect-free, which it is not. Run over the inline corpus, where about 22% of draws rewrite
-	 * against about 3% of the block-shaped one. It sees reload shape, round-trip and byte loss. It
-	 * cannot see a marker appearing on screen: the rewrite's own verification and the unit suite
-	 * cover that, and a mutation inside the rewrite is caught there before this runs.
-	 */
+	// G2.16. Miss-analysis: the retype checked content bytes only, and the generator drew
+	// every container line in the rebuild's own spelling, so a respelled item never reached it.
+	it('writing a leaf its own bytes leaves them and the shape as they were', () => {
+		fc.assert(
+			fc.property(fc.oneof(arbDoc, arbRespelledContainerDoc), fc.nat({ max: 6 }), (source, at) => {
+				const divergence = divergenceAfterEdit(source, { op: 'retype', at, offset: 0 });
+				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+			}),
+			PARAMS
+		);
+	});
+
+	it.each(['retype', 'empty'] as const)(
+		'%s keeps the shape of a tab-indented item holding a table (#589)',
+		(op) => {
+			const source =
+				'- | H0 |\n\t| --- |\n\tplain words\n\t\n\t\n\t\n\t- foo@bar.com\n\t  \n\t  \n\t  \n\t      code\n\t\n  \n**b**\n';
+			expect(divergenceAfterEdit(source, { op, at: 4, offset: 0 })).toBeNull();
+		}
+	);
+
+	// G2.16. Miss-analysis: no property typed into a container, so a keystroke that respelled every
+	// line of its container passed every shape and round-trip check.
+	it('a keystroke changes only the line it types on', () => {
+		fc.assert(
+			fc.property(
+				fc.oneof(arbDoc, arbRespelledContainerDoc),
+				fc.nat(),
+				fc.nat(),
+				keystrokeMovesOneLine
+			),
+			PARAMS
+		);
+	});
+
+	/** Compared with the byte-literal cut, since the split itself is not defect-free: closing and
+	 *  reopening a construct may differ nowhere the literal cut does not. */
 	describe('with the live split rebalancer registered', () => {
 		// The registration happens once, so this hands it back rather than leaving the production
 		// value installed for whatever file the runner loads into this worker next.
@@ -310,11 +436,8 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 			return { ...gesture, op: 'split', offset: gesture.offset % (displayLength(raw) + 1) };
 		}
 
-		// Where the two rules collide, pinned deterministically rather than left to a seed: the
-		// rebalancer drops a block's trailing whitespace because the screen never painted it, and
-		// the byte check below forbids losing a byte. The exception is the verifier's own, so the
-		// two agree, and it covers whitespace only, which is what keeps a dropped `<`/`>` pair a
-		// loss.
+		// The rebalancer drops trailing whitespace the screen never painted, which the byte check
+		// allows only because the verifier makes the same whitespace-only exception.
 		it('a split may drop terminal whitespace the screen never painted (#106)', () => {
 			expect(
 				divergenceAfterEdit('~~foo~~  \n', { op: 'split', at: 0, offset: 5 }, 'live')

@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Block-granular live preview: every block hides its markers except the focused one,
 // CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
@@ -112,15 +112,14 @@ test.describe('preview-block: caret + traversal', () => {
 		page
 	}) => {
 		// "alpha **beta** gamma": click mid-"beta" while the block is rendered.
-		const point = await centerOfWord(page, 'beta');
+		const point = await textRunCenter(page, 'beta');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 
 		const sel = await ep.bridge.getSelectionPaths();
 		expect(sel?.focus.path).toEqual([1]);
-		// "beta" is raw 8..12; the hidden `**` (raw 6..8) is counted, so the caret sits inside the
-		// content rather than on or before the marker, which would read ~8 as an offset over
-		// visible text alone. The focused block shows its markers.
+		// "beta" is raw 8..12 and the hidden `**` (raw 6..8) is counted, so the caret sits inside the
+		// content, not at ~8 as an offset over visible text alone would read.
 		expect(sel?.focus.offset).toBeGreaterThanOrEqual(8);
 		expect(sel?.focus.offset).toBeLessThanOrEqual(12);
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

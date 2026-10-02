@@ -12,7 +12,11 @@ import {
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockComponent,
+	displayLines,
+	firstLineEnding,
 	getPluginMetadata,
+	joinDisplayLines,
+	ownTrailingLineEnding,
 	parseContainerBody,
 	registerBlockComponent,
 	registerBlockKind,
@@ -38,15 +42,15 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	if (!alertType) return null;
 
 	// The built-in extent scan, not the marker regex, decides whether this line opens a
-	// blockquote: backing out when it covers no lines keeps a marker-rule change from
-	// reaching the parse loop as a return that consumes nothing.
-	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
+	// blockquote; backing out on zero lines keeps a no-progress return out of the parse loop.
+	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end, ctx.grammar);
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
 	// A fresh parse entry, so the body's own line 0 must not read as the document top.
 	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
-		scope: 'fragment'
+		scope: 'fragment',
+		grammar: ctx.grammar
 	});
 
 	const node: CstNode = {
@@ -67,8 +71,7 @@ function stripBody(lines: ParsedLine[], start: number, end: number): string {
 	return out;
 }
 
-/** Splitting the body on `\n` keeps a `\r` at each segment's tail, so CRLF rides through;
- *  the marker's own ending is read off the current raw. */
+/** Every body line keeps its own ending; the marker line keeps the one the current raw gives it. */
 export function rebuildGithubAlertRaw(node: CstNode): void {
 	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
 	const marker = `> [!${alertType}]`;
@@ -76,29 +79,22 @@ export function rebuildGithubAlertRaw(node: CstNode): void {
 		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
 
 	if (body === '') {
-		node.raw = node.raw.endsWith('\n') ? marker + firstLineEnding(node.raw) : marker;
+		node.raw = marker + ownTrailingLineEnding(node.raw);
 		return;
 	}
-	node.raw = marker + firstLineEnding(node.raw) + prefixQuoteLines(body);
-}
-
-/** Not `core/lines.ts`'s `trailingLineEnding`: on a block with mixed endings that helper
- *  would rewrite the marker's CRLF to LF. Every line keeps its own ending. */
-function firstLineEnding(raw: string): string {
-	const nl = raw.indexOf('\n');
-	if (nl < 0) return '\n';
-	return raw[nl - 1] === '\r' ? '\r\n' : '\n';
+	const markerEnding = firstLineEnding(node.raw) ?? firstLineEnding(body) ?? '\n';
+	node.raw = marker + markerEnding + prefixQuoteLines(body);
 }
 
 function prefixQuoteLines(body: string): string {
-	const lines = body.split('\n');
-	return lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (line === '' || line === '\r') return `>${line}`;
-			return `> ${line}`;
+	const lines = displayLines(body);
+	return joinDisplayLines(
+		lines.map((line, i) => {
+			// The empty line after a final break is no line of its own.
+			if (i === lines.length - 1 && line.text === '') return line;
+			return { ...line, text: line.text === '' ? '>' : `> ${line.text}` };
 		})
-		.join('\n');
+	);
 }
 
 export function registerGithubAlert(): void {
@@ -113,6 +109,9 @@ export function registerGithubAlert(): void {
 	});
 
 	registerBlockKind(kind, {
+		label: 'Alert',
+		// A note reads as part of the text around it, so it shows no drag handle.
+		pageRole: 'prose',
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,

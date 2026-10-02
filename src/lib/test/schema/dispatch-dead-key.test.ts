@@ -3,24 +3,14 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import {
 	dispatchKeyCommand,
 	registerBlockCommand,
-	runCommandById,
-	__resetBlockCommandsForTests
+	runCommandById
 } from '$lib/schema/block-commands';
 import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
 import { takeDevWarns } from '../support/warn-gate';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { commandContext, commandContextWith } from '../support/command-context';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
-	const ctx = {
-		history: { requestUndo() {}, requestRedo() {} },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
-
 	afterEach(() => {
-		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
 	});
 
@@ -33,8 +23,9 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 		const target = { kind: 'paragraph' as const, runCommand };
-		const first = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
-		const second = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
+		const ctx = commandContextWith(overrides);
+		const first = dispatchKeyCommand('Mod+Shift+K', target, ctx);
+		const second = dispatchKeyCommand('Mod+Shift+K', target, ctx);
 
 		expect(first).toBe(false);
 		expect(second).toBe(false);
@@ -42,8 +33,7 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
-	// Miss-analysis: the note had one test and it drove one path; nothing asserted that each path
-	// must emit its own warning, so a direct call doing nothing quietly used up the chord path's.
+	// Miss-analysis: the one test drove one path, so a direct call could use up the chord's warning.
 	it('warns per dispatch path: an entry point no-op does not spend the chord path diagnostic', () => {
 		const id = registerBlockCommand('paragraph', 'demo.bothPaths', () => true);
 		const overrides = normalizeKeybindingOverrides([
@@ -51,8 +41,9 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 		const target = { kind: 'paragraph' as const, runCommand };
+		const ctx = commandContextWith(overrides);
 		expect(runCommandById(id, undefined, target, ctx)).toBe(false);
-		expect(dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides)).toBe(false);
+		expect(dispatchKeyCommand('Mod+Shift+K', target, ctx)).toBe(false);
 
 		const messages = takeDevWarns().map((w) => w.message);
 		expect(messages).toHaveLength(2);
@@ -61,16 +52,9 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 	});
 });
 
-// The cases with no focused block: the editor root's caret on an unmounted block, the gap caret's
-// stand-in, a block that is its own focus target. Miss-analysis: the warning for a key that does
-// nothing was added on each block-local path, and this one resolves outside all of them, so it was
-// the one path where an unrunnable binding silently let the key through.
+// No focused block: the root caret on an unmounted block, the gap caret, a self-focused block.
+// Miss-analysis: the key-does-nothing warning was tested on block-local paths only, never this one.
 describe('global-scope dispatch of a binding no global command backs', () => {
-	const ctx = {
-		isReading: false,
-		history: { requestUndo() {}, requestRedo() {} },
-		activation: everyInstalledPlugin
-	};
 	// A whole-block kind whose own keymap binds Alt+Arrow (reorder) and no history chord.
 	const KIND = 'thematicBreak' as const;
 	const REBOUND_TO_BLOCK_ID = normalizeKeybindingOverrides([
@@ -82,8 +66,8 @@ describe('global-scope dispatch of a binding no global command backs', () => {
 			{ chord: 'Mod+J', command: 'format.toggleStrong' }
 		]);
 
-		expect(runGlobalChord('Mod+J', overrides, ctx)).toBe(false);
-		expect(runGlobalChord('Mod+J', overrides, ctx)).toBe(false);
+		expect(runGlobalChord('Mod+J', commandContextWith(overrides))).toBe(false);
+		expect(runGlobalChord('Mod+J', commandContextWith(overrides))).toBe(false);
 
 		const messages = takeDevWarns().map((w) => w.message);
 		expect(messages).toHaveLength(1);
@@ -91,11 +75,14 @@ describe('global-scope dispatch of a binding no global command backs', () => {
 		expect(messages[0]).toContain('format.toggleStrong');
 	});
 
-	// Swallowed as well as doing nothing, and the shape that reaches a whole-block element too: the
-	// built-in table takes the chord so it may not fall through, and the override left it unrunnable.
+	// The built-in global keymap takes Mod+Z, so the press is swallowed even though the override left
+	// it unrunnable, with or without a whole-block kind below.
 	it.each([
-		['no kind tier', () => runGlobalChord('Mod+Z', REBOUND_TO_BLOCK_ID, ctx)],
-		['a kind tier below', () => runGlobalChordOnKind('Mod+Z', KIND, REBOUND_TO_BLOCK_ID, ctx)]
+		['no kind tier', () => runGlobalChord('Mod+Z', commandContextWith(REBOUND_TO_BLOCK_ID))],
+		[
+			'a kind tier below',
+			() => runGlobalChordOnKind('Mod+Z', KIND, commandContextWith(REBOUND_TO_BLOCK_ID))
+		]
 	])('warns and still consumes with %s', (_name, press) => {
 		expect(press()).toBe(true);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
@@ -103,12 +90,12 @@ describe('global-scope dispatch of a binding no global command backs', () => {
 
 	// A handoff, not a key that does nothing: the kind's own keymap answers this one, one level on.
 	it('stays silent when a kind keymap chord declines into the kind dispatch', () => {
-		expect(runGlobalChordOnKind('Alt+ArrowUp', KIND, undefined, ctx)).toBe(false);
+		expect(runGlobalChordOnKind('Alt+ArrowUp', KIND, commandContext())).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent where nothing resolved at all', () => {
-		expect(runGlobalChord('Mod+J', undefined, ctx)).toBe(false);
+		expect(runGlobalChord('Mod+J', commandContext())).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

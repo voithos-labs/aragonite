@@ -4,7 +4,7 @@
  * resolves the table wrapper and descends into the cell DOM.
  */
 
-import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
+import { BLOCK_CONTENT_SELECTOR, TABLE_CELL_SELECTOR } from './block-content-selector';
 
 export function blockContentElAt(root: HTMLElement, path: number[]): HTMLElement | null {
 	const wrapper = root.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
@@ -19,6 +19,6 @@ export function blockContentElAt(root: HTMLElement, path: number[]): HTMLElement
 	if (!tableEl) return null;
 	const rowEl = tableEl.querySelector(`:scope > [data-table-row-idx='${rowIdx}']`);
 	if (!rowEl) return null;
-	const cells = rowEl.querySelectorAll(':scope > [role="cell"]');
+	const cells = rowEl.querySelectorAll(`:scope > ${TABLE_CELL_SELECTOR}`);
 	return (cells[colIdx] as HTMLElement | undefined) ?? null;
 }

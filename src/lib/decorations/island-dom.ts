@@ -1,19 +1,17 @@
 /**
- * Decoration widgets placed in the text flow: a zero-width `widget` insertion, and a `replace`
- * that covers real bytes. Each renders as an inline widget the caret cannot enter, so the shared
- * raw-offset traversal reads the block back byte-exact: a `widget` spans zero bytes, and a
- * `replace`'s `data-source-*` span equals the raw span of the DOM it displaced. Whether the
- * author could place a range at all is decided in `decoration-state.svelte.ts`, where the source
- * and the document are the same version; a range this pass cannot honour drops silently.
+ * Decoration widgets placed in the text flow: a zero-width `widget`, and a `replace` covering
+ * real bytes. Each renders as an inline widget the caret cannot enter whose `data-source-*` span
+ * equals the bytes it stands for, so the offset walk reads the block back byte-exact. A range
+ * this pass cannot place drops silently; `decoration-state.svelte.ts` warns about it.
  */
 
-import { DEV } from 'esm-env';
-import { ambientSpanOf } from '../ambient/ambient-dom';
+import { isDevChecks } from '../env';
 import type { ContentLength } from '../core/inline';
-import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
-	createRangeAtDomTextOffsets,
+	rawOfWalkOffset,
+	rawRangeToDomRange,
 	rawTextOfNode,
+	walkOffsetOfRaw,
 	widgetSpanContainingOffset
 } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
@@ -33,10 +31,6 @@ export interface ApplyIslandsOpts {
 	onSkipped?: (dec: Decoration, reason: string) => void; // where a dev warning is reported
 	/** Raw-space length of the block's rendered content (see {@link ContentLength}). */
 	contentLength: ContentLength;
-	/** The rendered length of the container's marker prefix. These offsets are relative to raw
-	 *  and the shared traversal counts that prefix as ordinary text, so every boundary adds it.
-	 *  Default 0. */
-	ambientLength?: number;
 }
 
 /** Mutates `root`, the freshly built inline fragment. Returns one destroy function per
@@ -48,7 +42,6 @@ export function applyIslandDecorations(
 	opts: ApplyIslandsOpts
 ): Array<() => void> {
 	if (islands.length === 0) return [];
-	const ambientLength = opts.ambientLength ?? 0;
 	const contentLength = opts.contentLength;
 	const destroys: Array<() => void> = [];
 
@@ -60,8 +53,7 @@ export function applyIslandDecorations(
 
 	function applyWidget(dec: WidgetDecoration): void {
 		if (dec.offset < 0 || dec.offset > contentLength) return;
-		const walkOffset = toDomTextOffset(asRawOffset(dec.offset), ambientLength);
-		const range = createRangeAtDomTextOffsets(root, walkOffset, walkOffset);
+		const range = rawRangeToDomRange(root, dec.offset, dec.offset);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM position at offset');
 			return;
@@ -74,7 +66,7 @@ export function applyIslandDecorations(
 		destroys.push(mounted.destroy);
 		const island = buildIsland(dec.offset, dec.offset);
 		island.appendChild(mounted.el);
-		insertHoistedOutOfAmbient(range, island);
+		range.insertNode(island);
 	}
 
 	function applyReplace(dec: ReplaceDecoration): void {
@@ -83,36 +75,23 @@ export function applyIslandDecorations(
 		// span still equals the bytes it displaces.
 		let start = dec.start;
 		let end = dec.end;
-		const startSpan = widgetSpanContainingOffset(
-			root,
-			toDomTextOffset(asRawOffset(start), ambientLength)
-		);
-		if (startSpan) start = toRawOffset(startSpan.start, ambientLength);
-		const endSpan = widgetSpanContainingOffset(
-			root,
-			toDomTextOffset(asRawOffset(end), ambientLength)
-		);
-		if (endSpan) end = toRawOffset(endSpan.end, ambientLength);
+		const startSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, start));
+		if (startSpan) start = rawOfWalkOffset(root, startSpan.start);
+		const endSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, end));
+		if (endSpan) end = rawOfWalkOffset(root, endSpan.end);
 		if (startSpan || endSpan) {
 			devWarn(
 				'decorations',
 				`replace boundary inside an atomic widget; snapped ${dec.start}..${dec.end} outward to ${start}..${end}`
 			);
 		}
-		const range = createRangeAtDomTextOffsets(
-			root,
-			toDomTextOffset(asRawOffset(start), ambientLength),
-			toDomTextOffset(asRawOffset(end), ambientLength)
-		);
+		const range = rawRangeToDomRange(root, start, end);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM range for span');
 			return;
 		}
-		const ambient = ambientSpanOf(root);
-		if (ambient && ambient.contains(range.startContainer)) range.setStartAfter(ambient);
-
 		const extracted = range.extractContents();
-		if (DEV) {
+		if (isDevChecks()) {
 			const displaced = rawTextOfNode(extracted, raw);
 			if (displaced !== raw.slice(start, end)) {
 				devWarn('decorations', 'replace decoration span disagrees with the displaced DOM bytes', {
@@ -132,22 +111,10 @@ export function applyIslandDecorations(
 		}
 		range.insertNode(island);
 	}
-
-	// The traversal resolves a position at the marker prefix's boundary to the end of that
-	// span's text, but the widget has to go after the span, never inside the read-only marker.
-	function insertHoistedOutOfAmbient(range: Range, island: HTMLElement): void {
-		const ambient = ambientSpanOf(root);
-		if (ambient && ambient.contains(range.startContainer)) {
-			ambient.after(island);
-			return;
-		}
-		range.insertNode(island);
-	}
 }
 
-/** What these widgets contribute to a render key. None gives `''`, so an undecorated block's
- *  key stays byte-identical to the format with no widgets. Widget identity is deliberately
- *  ignored: the same position and class give the same signature (see `DecorationWidgetSpec`). */
+/** What these widgets add to a render key: `''` for none, so an undecorated block's key is
+ *  unchanged. Widget identity is ignored (see `DecorationWidgetSpec`). */
 export function islandRenderKeyPart(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): string {
@@ -168,12 +135,8 @@ export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): numbe
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/**
- * Descending position order, so a `replace` extraction never spans a widget inserted earlier
- * in the pass. On a tie `replace` goes first, since a widget at the same start would be
- * swallowed by the extraction; `side: 'after'` widgets follow, leaving the final DOM order at
- * one offset as [before, after].
- */
+/** Descending position order, so a `replace` extraction never spans a widget inserted earlier.
+ *  On a tie `replace` goes first, since a widget at the same start would be swallowed by it. */
 function orderForApplication(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] {

@@ -7,23 +7,25 @@ import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
-import { deletePluginEntries, registerOnce } from './register-once';
+import type { PluginActivation } from './plugin-activation';
+import {
+	installedPlugin,
+	pluginEditorFor,
+	resolvePluginOptions,
+	type EditorContext
+} from './plugin-install';
+import { createBlockKindRegistry } from './plugin-registry';
 
 export interface BlockComponentEntry {
-	/**
-	 * Declaring `BlockComponentExports` as the exports lets BlockHost's `bind:this` type-check
-	 * against a component picked at runtime, and fixes the two shapes a block may expose: a leaf's
-	 * own editable element, or a container's single `containerApi`.
-	 */
+	/** Typed with `BlockComponentExports` so BlockHost's `bind:this` type-checks a component
+	 *  picked at runtime. */
 	component: Component<Record<string, unknown>, BlockComponentExports>;
 	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
- * Typed constructor for a registry entry: the component must expose one of the two allowed
- * shapes, and its props must be a subset of what BlockHost passes. A container that forgot its
- * `containerApi` fails here rather than mounting as a block nothing can focus. The cast widens
- * the component's props to the registry's `Record<string, unknown>`.
+ * Typed constructor for a registry entry, so a component publishing no surface, or props BlockHost
+ * never passes, fail to compile rather than mount as a block nothing can focus.
  */
 export function defineBlockComponent<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
@@ -34,29 +36,50 @@ export function defineBlockComponent<
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
 
-const registry = new Map<AnyBlockKind, BlockComponentEntry>();
+const registry = createBlockKindRegistry<BlockComponentEntry>({
+	label: 'registerBlockComponent',
+	isBuiltin: isBuiltinBlockKind
+});
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
-	registerOnce(
-		registry.has(kind),
-		() => registry.set(kind, entry),
+	registry.register(
+		kind,
+		entry,
 		`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
 	);
 }
 
-export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {
-	return registry.get(kind);
+/** The kind's component where `activation` resolves the plugin that owns the kind. */
+export function getBlockComponent(
+	kind: AnyBlockKind,
+	activation: PluginActivation
+): BlockComponentEntry | undefined {
+	return registry.get(kind, activation);
 }
 
-/**
- * Is a component registered? `registerBlockComponent` throws on a duplicate, so a plugin that
- * may register twice (hot reload, re-import) checks this first. Takes a plain name.
- */
+/** An editor's `EditorContext` for the plugin the kind's component answers to, which is the
+ *  context the component's `getEditor` reads. */
+export function componentPluginEditor(
+	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
+	kind: AnyBlockKind
+): EditorContext | undefined {
+	return pluginEditorFor(pluginEditor, registry.ownerOf(kind));
+}
+
+/** The options the kind's component reads: its editor's, or the owning plugin's `defaults` when
+ *  no editor is mounted, resolved as an editor with no entry for the plugin would. */
+export function componentPluginOptions(
+	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
+	kind: AnyBlockKind
+): unknown {
+	const editor = componentPluginEditor(pluginEditor, kind);
+	if (editor) return editor.options;
+	const owner = installedPlugin(registry.ownerOf(kind) ?? '') ?? {};
+	return resolvePluginOptions(owner, undefined);
+}
+
+/** `registerBlockComponent` throws on a duplicate, so a plugin that may register twice (hot
+ *  reload, re-import) checks this first. */
 export function isBlockComponentRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind);
-}
-
-/** Test-only. Removes every non-built-in component entry; built-ins survive. */
-export function __removePluginComponentsForTests(): void {
-	deletePluginEntries(registry, isBuiltinBlockKind);
 }

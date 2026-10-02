@@ -1,14 +1,15 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { enterPresentationMode, focusPath, trailingEdgeOfWord } from './helpers';
+import { enterPresentationMode, focusPath } from './helpers';
+import { textRunEnd } from '../../text-runs';
 
 // An arrow press at a hidden construct edge moves the typing offset, not the caret. The pixel
 // never moves, so the source and the ring are what tell the two offsets apart.
 // Requirements: e2e/requirements/presentation/presentation-live-edge-step.md.
 
 async function clickEnd(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await trailingEdgeOfWord(page, word);
+	const point = await textRunEnd(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 }
@@ -129,7 +130,7 @@ test.describe('live mode: every symmetric pair, mid-line', () => {
 test.describe('live mode: a leading edge', () => {
 	test('ArrowLeft from the first content byte steps outside the opener first', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', 'lead\n\na **bold** b');
-		const point = await trailingEdgeOfWord(page, 'bold');
+		const point = await textRunEnd(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		// Walk left to the first content byte: each press moves the caret until the opener.

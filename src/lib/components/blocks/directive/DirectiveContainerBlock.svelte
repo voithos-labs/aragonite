@@ -5,6 +5,7 @@
 	import { createContainerBlock } from '$lib/editor-actions/plugin/container';
 	import BlockList from '$lib/components/BlockList.svelte';
 	import type { NodeView } from '$lib/core/node-views';
+	import { firstDisplayLine } from '$lib/core/lines';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -12,11 +13,7 @@
 
 	// The opener line sliced verbatim, not rebuilt from metadata: the line can also
 	// carry an indent, attributes, or trailing spaces the metadata does not hold.
-	const marker = $derived.by(() => {
-		const end = node.raw.indexOf('\n');
-		const line = end === -1 ? node.raw : node.raw.slice(0, end);
-		return line.endsWith('\r') ? line.slice(0, -1) : line;
-	});
+	const marker = $derived(firstDisplayLine(node.raw).text);
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
 		getNode: () => node,

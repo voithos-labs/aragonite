@@ -1,16 +1,16 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
-import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
+import type { CaretMemory } from '../cursor/caret-memory';
+import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
-import type { GrammarView } from '../schema/block-openers';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { CaretLanding } from '../selection/caret-landing';
+import type { DocumentStamps } from './commit/document-stamp';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -22,30 +22,24 @@ export interface EditorActionsDeps {
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	/** Announce that the document's bytes changed (`reactivity/content-version.svelte.ts`).
-	 *  The commit sequence calls it once per commit; every writer outside a commit must call
-	 *  it itself (G4.52 lists them). */
+	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
+	 *  commit must call it itself (G4.52). */
 	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/** Scroll an unmounted top-level block into the rendered window, wait for it to mount,
-	 *  and return its component (null if unreachable). An already-mounted block returns
-	 *  at once without scrolling. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/** Where every commit's caret and every restored selection is put down, and the counter an
+	 *  undo, redo or swap bumps. */
+	caretLanding: CaretLanding;
 	events: EditorEvents;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when
-	 *  the editor re-parses an edited block. Absent = the global grammar. */
-	grammar?: GrammarView;
-	/** The live effective presentation mode, for the actions that must not write in reading
-	 *  mode. Absent in harnesses, which `isReadingMode` reads as not reading. */
-	getPresentationMode?: PresentationModeGetter;
-	/** The instance's link-reference resolver, for byte rewrites that must parse the reference
-	 *  links the renderer drew. Absent in harnesses, which have no definitions to resolve. */
-	linkRef?: InlineResolverRef;
+	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
+	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
+	reading: Reading;
+	/** Which document each write was made for: the write gate refuses one made for a document a
+	 *  `source` swap replaced. */
+	stamps: DocumentStamps;
 }
 
 /**
@@ -53,10 +47,14 @@ export interface EditorActionsDeps {
  * `action-contracts` keeps no import from `undo/`.
  */
 export interface UndoController extends CommitController {
+	/** Call a keystroke's commit into the undo entry its typing batch already holds, so a key that
+	 *  reparses into several blocks undoes with the typing around it. Covers the call only. */
+	joinTypingBatch<T>(write: () => T): T;
 	captureCurrentState(): UndoEntry;
-	/** A counter bumped on every undo or redo. A caret placement reads it before scrolling its
-	 *  target into view and gives up if it changed: the tree it aimed at is gone. */
-	historyGeneration(): number;
-	/** Announce an undo or redo. Only the history restore may call it. */
-	noteHistorySwap(): void;
+}
+
+/** The editor root's deps and controller, which a write addressed by document path starts from. */
+export interface EditorRoot {
+	deps: EditorActionsDeps;
+	controller: UndoController;
 }

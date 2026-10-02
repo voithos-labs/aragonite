@@ -1,27 +1,20 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '$lib';
-import { declaredPluginKind } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { completeTypedLine } from '$lib/schema/block-completions';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
-import {
-	registerMathBlockCompleter,
-	tryCompleteMathBlock
-} from '$lib/plugins/latex/math-completion';
+import { tryCompleteMathBlock } from '$lib/plugins/latex/math-completion';
 
-// The `$$` completer's line test, the bytes it answers with, and what the editor does with
-// them. The registry's own behavior lives in test/schema, the checks around it in
-// test/editor-actions.
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
+// The `$$` completer's line test, the bytes it answers with, and what the editor does with them;
+// the registry is tested in test/schema, the checks around it in test/editor-actions.
 
 describe('block math Enter completer: which lines it claims', () => {
 	it.each([
 		['$$', 'the bare fence'],
-		['  $$  ', 'surrounding whitespace, which the typed line may carry']
+		['  $$  ', 'surrounding whitespace, which the typed line may carry'],
+		['\t$$\t', 'tabs, which are Markdown whitespace too']
 	])('claims %j (%s)', (line) => {
 		expect(tryCompleteMathBlock(line)).not.toBeNull();
 	});
@@ -31,7 +24,9 @@ describe('block math Enter completer: which lines it claims', () => {
 		['$$ x', 'an opener with body text on it — no multi-line form is implied'],
 		['$$$', 'a longer run, which is not the fence'],
 		['$', 'the inline marker'],
-		['', 'an empty line']
+		['', 'an empty line'],
+		// Miss-analysis: the whitespace case used ASCII spaces only, never a non-breaking space.
+		['$$\u00a0', 'a non-breaking space, which is text rather than whitespace']
 	])('declines %j (%s)', (line) => {
 		expect(tryCompleteMathBlock(line)).toBeNull();
 	});
@@ -62,17 +57,9 @@ describe('block math Enter completer: registration', () => {
 	// The plain-GFM guarantee reaches completion too: with nothing installed, `$$` plus Enter
 	// is an ordinary split.
 	it('claims nothing until the kind is registered', () => {
-		expect(completeTypedLine('$$')).toBeNull();
+		expect(completeTypedLine('$$', defaultGrammarView)).toBeNull();
 		registerMathBlock();
-		expect(completeTypedLine('$$')?.lines).toEqual(['$$', '', '$$']);
-	});
-
-	// The registry throws on a duplicate kind, so registration checks the registry rather than
-	// a module flag a platform reset would leave set.
-	it('is inert on a second registration rather than throwing', () => {
-		registerMathBlock();
-		expect(() => registerMathBlockCompleter(declaredPluginKind(MATH_BLOCK))).not.toThrow();
-		expect(completeTypedLine('$$')?.lines).toEqual(['$$', '', '$$']);
+		expect(completeTypedLine('$$', defaultGrammarView)?.lines).toEqual(['$$', '', '$$']);
 	});
 });
 
@@ -84,7 +71,7 @@ describe('block math Enter completion: what the join plans', () => {
 		['$$\r\n', '$$\r\n\r\n$$\r\n', 4]
 	])('mints %j as %j with the caret at %i', (typed, minted, offset) => {
 		registerMathBlock();
-		const plan = planEnterCompletion(parse(typed).children[0], 2)!;
+		const plan = planEnterCompletion(parse(typed).children[0], 2, defaultGrammarView, '\n')!;
 		expect(plan.replacement.map((c) => c.kind)).toEqual([MATH_BLOCK]);
 		expect(plan.replacement[0].raw).toBe(minted);
 		expect(plan.caret).toEqual({ path: [], offset });
@@ -94,6 +81,6 @@ describe('block math Enter completion: what the join plans', () => {
 	// is a split.
 	it('declines a caret that is not at the end of the typed fence', () => {
 		registerMathBlock();
-		expect(planEnterCompletion(parse('$$\n').children[0], 1)).toBeNull();
+		expect(planEnterCompletion(parse('$$\n').children[0], 1, defaultGrammarView, '\n')).toBeNull();
 	});
 });

@@ -3,14 +3,13 @@ import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // The emoji shortcode, run in the default gate. The `:shortcode:` handler renders one widget
-// showing the emoji while its bytes stay in the raw text, so whether those bytes survive, and
-// what the widget mounting and unmounting does, is exactly the quiet corruption these checks
-// exist to catch. The shortcode is typed mid-sentence with text on both sides, so stepping over
-// it and deleting it in one press run against real neighbours.
+// showing the emoji while its bytes stay in the raw text, so these checks watch those bytes as the
+// widget mounts and unmounts. The shortcode is typed mid-sentence, so stepping over it and
+// deleting it in one keypress run against real neighbours.
 
 const EMOJI_DOC = 'Alpha lead paragraph here.\n\n' + 'Beta tail paragraph here.\n';
 
@@ -35,46 +34,39 @@ test.describe('emoji-ops simulation', () => {
 		const ctx = await makeSimContext(page, editor, 'emoji-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
-		// The emoji's bytes sit literally in the raw text and round-trip cleanly, so the
-		// reparse check holds throughout: no split leaves the tree out of step here.
-		const checkOracles = async (label: string): Promise<void> => {
-			await assertCoreOracles(ctx, label);
-			await assertParseConvergence(ctx);
-		};
-		await checkOracles('loaded');
+		await assertCheckpoint(ctx, 'loaded');
 
 		// ── Insert a shortcode mid-sentence (offset 5, just past "Alpha") ───────────
 		await g.typeEmojiShortcode(0, 5, 'tada');
 		await expect(page.locator("[data-block-path='[0]'] .md-emoji-widget")).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('Alpha:tada: lead paragraph here.');
-		await checkOracles('emoji-typed');
+		await assertCheckpoint(ctx, 'emoji-typed');
 
 		// ── Step the caret over the whole widget, both ways ─────────────────────────
 		await g.stepOverEmoji(0);
-		await checkOracles('emoji-stepped');
+		await assertCheckpoint(ctx, 'emoji-stepped');
 
-		// Close the typing's undo entry so the delete gets its own: the batcher groups edits
-		// to one block within its window, and the undo below needs the delete and the insert
-		// to be two separate entries.
+		// Closes the typing's undo entry, since the batcher groups edits to one block and the undo
+		// below needs the delete and the insert as separate entries.
 		await g.pause();
 
 		// ── One Backspace removes all seven bytes, back to the loaded document ──────
 		await g.atomicDeleteEmoji(0);
 		await expect(page.locator("[data-block-path='[0]'] .md-emoji-widget")).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toBe(loaded);
-		await checkOracles('emoji-deleted');
+		await assertCheckpoint(ctx, 'emoji-deleted');
 
 		// ── Undo back: the delete is one entry, then the typing is another ──────────
 		await g.pause();
 		await g.undo(); // brings the whole shortcode back in one entry
 		await expect(page.locator("[data-block-path='[0]'] .md-emoji-widget")).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain(':tada:');
-		await checkOracles('undo-delete');
+		await assertCheckpoint(ctx, 'undo-delete');
 
 		await g.pause();
 		await g.undo(); // undoes the insert, back to the loaded bytes
 		await expect(page.locator("[data-block-path='[0]'] .md-emoji-widget")).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toBe(loaded);
-		await checkOracles('undo-type');
+		await assertCheckpoint(ctx, 'undo-type');
 	});
 });

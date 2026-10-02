@@ -46,8 +46,8 @@ test.describe('code block editing: edge cases', () => {
 		await editor.bridge.waitForSourceContains('Above paragraph appended');
 	});
 
-	// The closer fence is its own visual line, so exiting downward takes two ArrowDowns. One press
-	// only looks like an exit: the typed text lands on the closer and stops it closing the block.
+	// The closer fence is its own visual line, so exiting downward takes two ArrowDowns; after one,
+	// the typed text lands on the closer and stops it closing the block.
 	test('ArrowDown past the closer line exits to next block', async () => {
 		await editor.loadContent('```\ncode here\n```\n\nBelow paragraph\n');
 		await editor.getBlock(0).click();
@@ -70,17 +70,15 @@ test.describe('code block editing: edge cases', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForBlockCount(countBefore);
-		// The typed character proves focus moved and the fence survived: `getBlockCount()` and a
-		// 'code' substring both hold even when the fence merges with the body ('Before```code…'),
-		// so only the byte-exact source can tell.
+		// Only the exact source proves focus moved and the fence survived: block count and a 'code'
+		// substring hold even when the fence merges with the body.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('BeforeX');
 		expect(await editor.bridge.getSource()).toBe('BeforeX\n\n```\ncode\n```\n');
 	});
 
-	// Home in a fenced block lands the caret just after the opener's `\n`; native Backspace there
-	// deletes it, merging the body into the opener. Guard the boundary so the corruption is
-	// unreachable.
+	// Home in a fenced block puts the caret just after the opener's `\n`, where native Backspace
+	// would merge the body into the opener, so the editor guards that boundary.
 	test('Backspace immediately after opener fence edits nothing and puts the caret at the document start', async () => {
 		await editor.loadContent('```\ncode\n```\n');
 		// Raw offset 4: start of the body, just after the opener fence and its newline.
@@ -95,7 +93,7 @@ test.describe('code block editing: edge cases', () => {
 	// Counter-test for the boundary guard: only the two `\n` boundaries are special.
 	test('Backspace inside info string trims the info string', async () => {
 		await editor.loadContent('```python\ncode\n```\n');
-		// offset 9: just after the 'n' of "python".
+		// Offset 9: just after the 'n' of "python".
 		await editor.focusBlockAtPath([0], 9);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('```pytho\n');

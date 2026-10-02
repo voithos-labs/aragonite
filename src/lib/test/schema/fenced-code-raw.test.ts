@@ -12,7 +12,7 @@ import {
 const backtick = (length = 3, closed = true): FenceShape => ({ marker: '`', length, closed });
 
 function write(display: string, fence: FenceShape, mode: FenceWriteMode = 'authored', caret = 0) {
-	return reconcileFenceWrite({ display, caret, fence, mode });
+	return reconcileFenceWrite({ display, caret, fence, mode, ending: '\n' });
 }
 
 describe('reconcileFenceWrite: escalation', () => {
@@ -72,6 +72,27 @@ describe('reconcileFenceWrite: escalation', () => {
 	});
 });
 
+// Miss-analysis: no case typed a tilde onto the opener run, where the shorter closer left it open.
+describe('reconcileFenceWrite: a marker typed onto the opener run', () => {
+	it('widens the closer with the opener, the caret staying after the typed marker', () => {
+		expect(write('````js\ncode\n```', backtick(), 'authored', 4)).toEqual({
+			display: '````js\ncode\n````',
+			caret: 4
+		});
+		const tilde: FenceShape = { marker: '~', length: 3, closed: true };
+		expect(write('~~~~\ncode\n  ~~~', tilde, 'authored', 4).display).toBe('~~~~\ncode\n  ~~~~');
+	});
+
+	it('widens the closer for a marker a paste lands on the run', () => {
+		const pasted = write('````js\ncode\n```', backtick(), 'literal', 4).display;
+		expect(pasted).toBe('````js\ncode\n````');
+	});
+
+	it('leaves a closer already as long as the widened opener', () => {
+		expect(write('````js\ncode\n`````', backtick()).display).toBe('````js\ncode\n`````');
+	});
+});
+
 describe('reconcileFenceWrite: info-string sanitization', () => {
 	// Parser-verified: "```j`s\nconst x = 1\n```" demotes the block and promotes its
 	// closer to an absorbing opener. No fence length can hold the character.
@@ -82,12 +103,6 @@ describe('reconcileFenceWrite: info-string sanitization', () => {
 	it('pulls the caret back past each dropped character', () => {
 		expect(write('```j`s\ncode\n```', backtick(), 'authored', 5).caret).toBe(4);
 		expect(write('```j`s\ncode\n```', backtick(), 'authored', 3).caret).toBe(3);
-	});
-
-	// A backtick typed at the head of the info string reads as a longer opener run
-	// once written, and a longer opener no longer matches its own closer.
-	it('drops one typed at the run boundary rather than reading it as a longer run', () => {
-		expect(write('````js\ncode\n```', backtick(), 'authored', 4).display).toBe('```js\ncode\n```');
 	});
 
 	it('drops every backtick a paste carries into the info string', () => {
@@ -112,18 +127,42 @@ describe('reconcileFenceWrite: info-string sanitization', () => {
 	});
 });
 
-describe('reconcileFenceWrite: declines what it cannot read', () => {
-	it('leaves a display whose opener is not this block’s fence shape', () => {
-		const display = 'js\ncode\n```';
-		expect(write(display, backtick()).display).toBe(display);
+// Typed edits reach the fence lines where the mode paints them, so the typed path keeps one opener
+// and one closer too: a fence line left alone would read every block below as its body.
+describe('reconcileFenceWrite: a typed edit keeps one opener and one closer', () => {
+	it('drops the closer an edit to the opener stranded', () => {
+		expect(write('js\ncode\n```', backtick()).display).toBe('js\ncode');
+	});
+
+	it('puts back a closer an edit removed', () => {
+		expect(write('```js', backtick()).display).toBe('```js\n```');
 	});
 
 	it('leaves a closed fence whose closer is gone', () => {
 		const display = '```js\n```\ncode';
 		expect(write(display, backtick()).display).toBe(display);
 	});
+});
 
-	it('leaves an opener-only display', () => {
-		expect(write('```js', backtick()).display).toBe('```js');
+describe('reconcileFenceWrite: a CRLF display', () => {
+	const toCrlf = (text: string) => text.replace(/\n/g, '\r\n');
+	/** Where `offset` in an LF display lands once every break before it is CRLF. */
+	const crlfOffset = (lf: string, offset: number) =>
+		offset + (lf.slice(0, offset).match(/\n/g)?.length ?? 0);
+
+	// Each row moves the caret, so a `\r` counted on the wrong side of an offset shows up.
+	const rows: Array<[string, string, number]> = [
+		['a caret past the grown closer run', '```js\n```\ncode\n```', 18],
+		['a caret at the start of the closer line', '```js\n```\ncode\n```', 15],
+		['a caret on the colliding body line', '```js\n```\ncode\n```', 9],
+		['a caret past a dropped info backtick', '```j`s\ncode\n```', 5],
+		['a caret before a closer the write ran into', '```\nAB```', 6],
+		['a caret inside a closer the write ran into', '```\nAB```', 7]
+	];
+
+	it.each(rows)('%s writes the CRLF mirror of the LF result', (_name, display, caret) => {
+		const lf = write(display, backtick(), 'authored', caret);
+		const crlf = write(toCrlf(display), backtick(), 'authored', crlfOffset(display, caret));
+		expect(crlf).toEqual({ display: toCrlf(lf.display), caret: crlfOffset(lf.display, lf.caret) });
 	});
 });

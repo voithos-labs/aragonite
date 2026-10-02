@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
-import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definition';
+import { getPluginMetadata } from '$lib/plugin';
+import {
+	rebuildFootnoteDefRaw,
+	type FootnoteDefMetadata
+} from '$lib/plugins/footnotes/footnote-definition';
 
 // The definition is a strip container shaped like a list item: its `[^label]: ` marker is
 // syntax living only in the container's own raw, never in a child, which is what makes
@@ -10,7 +13,6 @@ import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definitio
 
 describe('footnote definition strip decomposition', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -44,7 +46,6 @@ describe('footnote definition strip decomposition', () => {
 
 describe('footnote definition rebuildRaw re-emits marker + continuation indent', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -72,14 +73,12 @@ describe('footnote definition rebuildRaw re-emits marker + continuation indent',
 	});
 });
 
-// The definition's continuation scan and its body parse both ask the one
-// blank-line predicate, so GFM §2.1 (space and tab only) reaches into the plugin:
-// a non-breaking space is content on both.
+// The definition's continuation scan and its body parse ask one blank-line predicate (GFM §2.1,
+// space and tab only), so a non-breaking space is content on both.
 describe('footnote definition treats a non-breaking space as content', () => {
 	const NBSP = String.fromCharCode(0xa0);
 
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -96,6 +95,15 @@ describe('footnote definition treats a non-breaking space as content', () => {
 		const def = parse(src).children[0];
 		rebuildFootnoteDefRaw(def);
 		expect(def.raw).toBe(src);
+	});
+
+	// Miss-analysis: the nbsp cases sat in the body only, so the label's JS `\s` went unseen.
+	it('reads a nbsp inside the label as label text, and a tab as the end of the label', () => {
+		const def = parse(`[^a${NBSP}b]: x\n`).children[0];
+		expect(def.kind).toBe(FOOTNOTE_DEF_KIND);
+		expect(getPluginMetadata<FootnoteDefMetadata>(def)?.label).toBe(`a${NBSP}b`);
+		expect(def.children?.[0].raw).toBe('x\n');
+		expect(parse('[^a\tb]: x\n').children[0].kind).toBe('paragraph');
 	});
 
 	it('continues the definition through an unindented nbsp line, lazily', () => {

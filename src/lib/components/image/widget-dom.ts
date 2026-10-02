@@ -12,9 +12,8 @@ import { applyCropToWidget } from './image-crop';
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	imageLoadPolicy?: ImageLoadPolicy;
-	/** Resolved URLs that failed to load this session, one set per editor instance. An
-	 *  inline rebuild creates a fresh <img> per keystroke, which without this renders
-	 *  unbroken until the async `error` fires again: a flicker on every keystroke. */
+	/** URLs that failed to load this session, so a rebuilt <img> renders broken at once instead
+	 *  of flickering until its `error` fires again. */
 	brokenUrlCache: Set<string>;
 }
 
@@ -33,16 +32,12 @@ export function buildImageWidget(
 	widget.dataset.sourceEnd = String(node.end);
 	widget.setAttribute('contenteditable', 'false');
 
-	// Select on `click`, never `pointerdown`: a pointerdown listener would take over a
-	// gesture that starts on the image, so no cross-block drag could begin here.
-	// Shift-click extends a cross-block selection, which the block owns, so leave it.
+	// On `click`, not `pointerdown`, so a drag can still start on the image; a Shift-click
+	// extends the block's own selection.
 	widget.addEventListener('click', (e) => {
 		if (e.shiftKey) return;
-		// Resolve the path on the click rather than baking it in at build time: content
-		// inserted above shifts the block's path without touching its `raw`, so the render
-		// cache skips a rebuild and a baked path would find the wrong CST node. It resolves
-		// the editable block: inside a cell the path stops at the table, whose offsets are
-		// cell indices.
+		// Resolved at the click: content inserted above moves the block's path without a
+		// rebuild of this widget, so a path stored at build time would go stale.
 		const paragraphPath = findSurfacePathForElement(widget);
 		if (!paragraphPath) return;
 		// Match TextEditableBlock.snapClickToWidgetEdge, which puts the caret at the
@@ -75,9 +70,8 @@ export function buildImageWidget(
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
-	// A `|WxH` box written in the source belongs to the author, so it both reserves space before
-	// the bytes arrive and survives the decode: the two attributes alone lose to the natural
-	// ratio once `height: auto` has one to read. With a crop, that box is a frame to pan in.
+	// A `|WxH` box reserves space before the bytes arrive and survives the decode, where the
+	// attributes alone lose to the natural ratio; with a crop it is the frame.
 	if (node.width !== undefined && node.height !== undefined) {
 		img.style.aspectRatio = `${node.width} / ${node.height}`;
 		if (node.crop) {
@@ -97,9 +91,8 @@ export function buildImageWidget(
 		markBroken();
 	}
 	img.addEventListener('error', markBroken);
-	// A load event is not proof of success: a 200 the decoder cannot size (a truncated
-	// body, an SVG with no dimensions of its own) fires `load` with naturalWidth 0, and
-	// leaving that to the next rebuild leaves the placeholder a render behind.
+	// `load` can fire with no size (a truncated body, an SVG without dimensions), so it is
+	// checked here rather than a render later.
 	img.addEventListener('load', () => {
 		if (hasNoIntrinsicSize()) {
 			markBroken();

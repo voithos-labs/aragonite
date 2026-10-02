@@ -9,7 +9,7 @@ selection read by path through `window.__test`, not visuals.
 
 - the merge walk: Backspace at the start of the block after the callout merges into the last body child, never into the title
 - Backspace in the first body child: at the start of child 1 the title refuses to merge, focus moves to the title and the tree is unchanged, so body prose never enters the title
-- Backspace at the start of the title: nothing happens, by declaration. The callout's `keep-reserved-chrome` strategy says child 0 is the title, so nothing lifts it out
+- Backspace at the start of the title: nothing happens, by declaration. The callout declares its title row as `reservedChrome`, which keeps child 0 in place, so nothing lifts it out and the caret stays in the title
 - Enter in the title: the caret moves into the first body child at offset 0, the title never splits, and the document and its raw text are untouched
 - Enter in the title of a callout that has only a title: an empty body paragraph is created and focused, and typing lands in it
 - moving into the body commits nothing: descending onto an existing body writes nothing, so a single Ctrl+Z afterwards takes back the edit made before it

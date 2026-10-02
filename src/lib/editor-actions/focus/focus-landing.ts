@@ -1,6 +1,7 @@
 /**
- * The last step of a cross-block focus move, shared by both focus dispatchers. A null sticky
- * column is handled here, so `focusAtColumn` always receives a finite x.
+ * The last step of a cross-block focus move, once the target block is mounted: the side of a
+ * hidden closer, an edge widget, then the caret. A null sticky column is handled here, so
+ * `focusAtColumn` always receives a finite x.
  */
 
 import {
@@ -10,15 +11,18 @@ import {
 	type FocusPosition,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 
 export async function consumeStickyLanding(
 	block: BlockComponent,
 	index: number,
 	position: FocusPosition,
-	stickyColumn: StickyColumnState,
+	caretMemory: Pick<CaretMemory, 'column' | 'noteExtreme'>,
 	retryAt: (index: number) => Promise<void> | void
 ): Promise<void> {
+	// Moving to a block's end is a jump, so each construct decides which side of a hidden
+	// closer it means, or the next byte typed joins it (`docs/design/live-mode.md` § 4.2).
+	if (position === 'end') caretMemory.noteExtreme();
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
 
 	if (isStickyMove) {
@@ -37,7 +41,7 @@ export async function consumeStickyLanding(
 	if (position === 'end' && block.enterEdgeWidget?.('end')) return;
 
 	if (isStickyMove) {
-		const x = stickyColumn.get();
+		const x = caretMemory.column();
 		const from = position.stickyColumnFrom;
 		if (x !== null && block.focusAtColumn) {
 			block.focusAtColumn(x, from);
@@ -57,12 +61,8 @@ export async function consumeStickyLanding(
 /** What a vertical arrival does at a block: enter its widget, pass over it, or place a caret. */
 export type VerticalArrival = 'entered' | 'transparent' | 'seat';
 
-/**
- * Whether a vertical move stops at a block, shared by the per-block arrival and a container's
- * column entry. A widget-only block has no column, so the move passes over it unless its edge
- * widget takes the arrival, which is a stop of its own from either side. `'entered'` means the
- * widget already took it, so the caller stops rather than entering it again.
- */
+/** Whether a vertical move stops at a block: a widget-only block is passed over unless its edge
+ *  widget takes the arrival (`'entered'`, so the caller must not enter it again). */
 export function verticalArrival(
 	block: BlockComponent,
 	from: StickyColumnDirection

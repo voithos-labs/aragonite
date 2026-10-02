@@ -1,41 +1,48 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	resolveDelimiterAutoPair,
 	resolveEmptyPairBackspace
 } from '$lib/components/blocks/text/delimiter-autopair';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import type { ContentRange } from '$lib/core/inline';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
-const type = (text: string, caret: number, typed: string) =>
-	resolveDelimiterAutoPair(text, whole(text), caret, typed);
-const written = (text: string, caret: number) => ({ kind: 'write', text, caret });
+/** `own` is the empty pair the auto-pair wrote at this caret, as its record reports it. */
+const type = (text: string, caret: number, typed: string, own: ContentRange | null = null) =>
+	resolveDelimiterAutoPair(text, whole(text), caret, typed, fixtureReading(), { ownPair: own });
+const backspace = (text: string, caret: number, own: ContentRange | null) =>
+	resolveEmptyPairBackspace(text, caret, own, defaultGrammarView);
+const pairAt = (start: number, end: number): ContentRange => ({ start, end });
+const written = (text: string, caret: number, pair?: ContentRange) =>
+	pair ? { kind: 'write', text, caret, pair } : { kind: 'write', text, caret };
 const closed = (text: string, caret: number) => ({ kind: 'close', text, caret });
-const stepped = (caret: number, overConstruct: boolean) => ({
-	kind: 'step-over',
-	caret,
-	overConstruct
-});
+const stepped = (caret: number, overConstruct: boolean, pair?: ContentRange) =>
+	pair
+		? { kind: 'step-over', caret, overConstruct, pair }
+		: { kind: 'step-over', caret, overConstruct };
 
 describe('delimiter auto-pair', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathInline();
 	});
-	afterEach(resetPluginPlatformForTests);
 
 	it('a typed backtick lands its paired closer after the caret', () => {
-		expect(type('text here', 5, '`')).toEqual(written('text ``here', 6));
+		expect(type('text here', 5, '`')).toEqual(written('text ``here', 6, pairAt(5, 7)));
 	});
 
 	// A lone `$` typed ahead of an existing formula would otherwise pair with that formula's
 	// closer, wrapping the prose between them.
 	it('a typed $ pairs with its paired closer, not the next formula', () => {
-		expect(type('text and $x^2$ later', 5, '$')).toEqual(written('text $$and $x^2$ later', 6));
+		expect(type('text and $x^2$ later', 5, '$')).toEqual(
+			written('text $$and $x^2$ later', 6, pairAt(5, 7))
+		);
 	});
 
 	it('typing the closer over the paired closer steps past it', () => {
-		expect(type('a ``', 3, '`')).toEqual(stepped(4, false));
+		expect(type('a ``', 3, '`', pairAt(2, 4))).toEqual(stepped(4, false, pairAt(2, 4)));
 		expect(type('a `code` b', 7, '`')).toEqual(stepped(8, true));
 		expect(type('$x$', 2, '$')).toEqual(stepped(3, true));
 	});
@@ -51,35 +58,39 @@ describe('delimiter auto-pair', () => {
 	});
 
 	it('the empty pair keeps its paired closer when the first byte makes a construct', () => {
-		expect(type('a ``', 3, 'x')).toBeNull();
-		expect(type('a $$', 3, 'y')).toBeNull();
-		expect(type('a ``', 3, '1')).toBeNull();
+		expect(type('a ``', 3, 'x', pairAt(2, 4))).toBeNull();
+		expect(type('a $$', 3, 'y', pairAt(2, 4))).toBeNull();
+		expect(type('a ``', 3, '1', pairAt(2, 4))).toBeNull();
 	});
 
 	// `$5` is a price and `$ ` is a shell prompt: the partner the keystroke left would just
 	// show as a stray dollar sign.
 	it('the empty pair drops its paired closer when the first byte makes no construct', () => {
-		expect(type('cost $$', 6, '5')).toEqual(written('cost $5', 7));
-		expect(type('$$', 1, ' ')).toEqual(written('$ ', 2));
+		expect(type('cost $$', 6, '5', pairAt(5, 7))).toEqual(written('cost $5', 7));
+		expect(type('$$', 1, ' ', pairAt(0, 2))).toEqual(written('$ ', 2));
 	});
 
 	it('declines outside the content range and for multi-byte input', () => {
-		expect(resolveDelimiterAutoPair('# head', { start: 2, end: 6 }, 1, '`')).toBeNull();
+		expect(
+			resolveDelimiterAutoPair('# head', { start: 2, end: 6 }, 1, '`', fixtureReading(), {
+				ownPair: null
+			})
+		).toBeNull();
 		expect(type('ab', 1, '``')).toBeNull();
 	});
 
 	it('without the math plugin $ is plain text', () => {
 		resetPluginPlatformForTests();
 		expect(type('cost ', 5, '$')).toBeNull();
-		expect(type('cost ', 5, '`')).toEqual(written('cost ``', 6));
+		expect(type('cost ', 5, '`')).toEqual(written('cost ``', 6, pairAt(5, 7)));
 	});
 
 	// ── The emphasis family ──────────────────────────────────────────────────
 
 	it('* and _ pair singly and grow to a double pair on the second press', () => {
-		expect(type('a ', 2, '*')).toEqual(written('a **', 3));
-		expect(type('a **', 3, '*')).toEqual(written('a ****', 4));
-		expect(type('a ', 2, '_')).toEqual(written('a __', 3));
+		expect(type('a ', 2, '*')).toEqual(written('a **', 3, pairAt(2, 4)));
+		expect(type('a **', 3, '*', pairAt(2, 4))).toEqual(written('a ****', 4, pairAt(2, 6)));
+		expect(type('a ', 2, '_')).toEqual(written('a __', 3, pairAt(2, 4)));
 	});
 
 	it('* and _ do not pair straight after a word byte', () => {
@@ -90,14 +101,12 @@ describe('delimiter auto-pair', () => {
 	// A single tilde strikes in GFM, so `~5 minutes` must stay prose: only `~~` pairs.
 	it('~ pairs only as a double run', () => {
 		expect(type('a ', 2, '~')).toBeNull();
-		expect(type('a ~', 3, '~')).toEqual(written('a ~~~~', 4));
+		expect(type('a ~', 3, '~')).toEqual(written('a ~~~~', 4, pairAt(2, 6)));
 		expect(type('a ~~~', 5, '~')).toBeNull();
 	});
 
-	// A closer typed by hand, with no partner there to step over, completes the construct, and the
-	// byte after it belongs outside, so it is written and the caret goes past the run.
-	// Miss-analysis: every closing case here had a partner to step over, so none typed the byte
-	// that makes the construct and asked which side the next one lands on.
+	// A closer typed with no partner to step over completes the construct; the caret goes past it.
+	// Miss-analysis: every closing case had a partner to step over, so none typed the closer itself.
 	it('a closer typed with no paired closer ahead closes the construct', () => {
 		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
 		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));
@@ -120,25 +129,23 @@ describe('delimiter auto-pair', () => {
 	});
 
 	it('a double empty pair keeps or drops its paired closer run by what the first byte makes', () => {
-		expect(type('a ****', 4, 'x')).toBeNull();
-		expect(type('a ****', 4, ' ')).toEqual(written('a ** ', 5));
-		expect(type('a ~~~~', 4, 'x')).toBeNull();
+		expect(type('a ****', 4, 'x', pairAt(2, 6))).toBeNull();
+		expect(type('a ****', 4, ' ', pairAt(2, 6))).toEqual(written('a ** ', 5));
+		expect(type('a ~~~~', 4, 'x', pairAt(2, 6))).toBeNull();
 	});
 
 	it('Backspace at an empty pair takes both runs, between them or after them', () => {
-		expect(resolveEmptyPairBackspace('pay $$', 5)).toEqual(written('pay ', 4));
-		expect(resolveEmptyPairBackspace('pay $$', 6)).toEqual(written('pay ', 4));
-		expect(resolveEmptyPairBackspace('a ****', 4)).toEqual(written('a ', 2));
-		expect(resolveEmptyPairBackspace('a `` b', 4)).toEqual(written('a  b', 2));
+		expect(backspace('pay $$', 5, pairAt(4, 6))).toEqual(written('pay ', 4));
+		expect(backspace('pay $$', 6, pairAt(4, 6))).toEqual(written('pay ', 4));
+		expect(backspace('a ****', 4, pairAt(2, 6))).toEqual(written('a ', 2));
+		expect(backspace('a `` b', 4, pairAt(2, 4))).toEqual(written('a  b', 2));
 	});
 
-	it('Backspace leaves a longer run, a lone delimiter and a non-pair byte alone', () => {
-		expect(resolveEmptyPairBackspace('```', 2)).toBeNull();
-		expect(resolveEmptyPairBackspace('```', 3)).toBeNull();
-		expect(resolveEmptyPairBackspace('x$', 1)).toBeNull();
-		expect(resolveEmptyPairBackspace('x$', 2)).toBeNull();
-		// `**|` is a double opener with content ahead, never a stepped-over pair.
-		expect(resolveEmptyPairBackspace('a **x', 4)).toBeNull();
-		expect(resolveEmptyPairBackspace('a ****', 6)).toBeNull();
+	it('Backspace leaves a pair it did not write, and a caret off its own pair, alone', () => {
+		expect(backspace('pay $$', 5, null)).toBeNull();
+		expect(backspace('a ****', 4, null)).toBeNull();
+		// The emphasis family grows instead of stepping, so its `**|` is an opener to type after.
+		expect(backspace('a **', 4, pairAt(2, 4))).toBeNull();
+		expect(backspace('a ****', 5, pairAt(2, 6))).toBeNull();
 	});
 });

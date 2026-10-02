@@ -2,10 +2,8 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
 // A click that opens a block's source is a caret-placing gesture
-// (requirements/plugins/render-primary-reveal-selection.md). It used to reach that block without
-// the pointerdown reset every other caret-placing gesture runs, so a live cross-block range stayed
-// painted over the caret that had just landed elsewhere, and the next Backspace deleted the range
-// instead of a character.
+// (requirements/plugins/render-primary-reveal-selection.md), so it must end a live cross-block
+// range like any other, or the next Backspace deletes the range instead of a character.
 
 const DOC = 'lead para\n\n$$x^2$$\n\ntail para\n';
 

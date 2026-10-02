@@ -1,6 +1,6 @@
 // A harmless mark source that stays installed for the loaded-ops simulations, re-run on every
 // edit. Marks are view-only (overlay spans, with no change to the CST, the source or the undo
-// stack), so the simulation's corruption checks still hold while the decoration engine runs on
+// stack), so the simulation's corruption checks still hold while decorations recompute on
 // every keystroke. Installed only under `?seed=sim`: in the scripted decoration suite its marks
 // would upset the exact overlay counts.
 import { definePlugin } from '$lib/plugin';

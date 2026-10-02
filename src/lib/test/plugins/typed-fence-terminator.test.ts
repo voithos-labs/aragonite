@@ -2,21 +2,19 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
-// GH #180 at the plugin API: this belongs to the grammar, not to a list of kinds, so a fence a
-// plugin opener takes needs the same terminator the built-in one does. Both bundled fence kinds
-// are here because they read an unterminated fence oppositely (mermaid takes it, mathFence
-// leaves it to `fencedCode`), and the swallowed document is the same either way.
-// Miss-analysis: the kind-change tests drew prose demotions only, and the plugins e2e project
-// sits outside tree-ops' commit gate, so nothing typed a fence opener over content.
+// A fence a plugin opener takes needs the same terminator the built-in one does. Both bundled
+// fence kinds are here because they read an unterminated fence oppositely (mermaid takes it,
+// mathFence leaves it to `fencedCode`), and the swallowed document is the same either way.
+// Miss-analysis: the kind-change tests drew prose demotions only, never a fence opener (GH #180).
 
 describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerMermaidKind();
 		registerMathFence();
 	});
@@ -24,7 +22,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```mermaid leaves one diagram and the neighbours standing', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');
 
-		updateNodeContent(doc, 0, '```mermaid\n');
+		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MERMAID, '```mermaid\n```\n'],
@@ -38,7 +36,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```mermaid holds against a tight follower', () => {
 		const doc = parse('# h\ntail\n');
 
-		updateNodeContent(doc, 0, '```mermaid\n');
+		updateNodeContent(doc, 0, '```mermaid\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MERMAID, '```mermaid\n```\n'],
@@ -52,7 +50,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```math becomes a math fence rather than swallowing the rest', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');
 
-		updateNodeContent(doc, 0, '```math\n');
+		updateNodeContent(doc, 0, '```math\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MATH_FENCE, '```math\n```\n'],
@@ -65,7 +63,7 @@ describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	it('```math holds against a tight follower', () => {
 		const doc = parse('# h\ntail\n');
 
-		updateNodeContent(doc, 0, '```math\n');
+		updateNodeContent(doc, 0, '```math\n', defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			[MATH_FENCE, '```math\n```\n'],

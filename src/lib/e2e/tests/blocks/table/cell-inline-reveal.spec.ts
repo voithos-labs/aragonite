@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helpers';
+import { revealWidget, roundTripStable } from '../../plugins/helpers';
+import { CellMathPage } from './helpers';
 
 /**
  * Showing an inline `$…$` formula's source to edit it, inside a table cell
@@ -10,23 +11,6 @@ import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helper
  */
 
 const SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
-
-class CellMathPage extends PluginsPage {
-	get mathWidget() {
-		return this.page.locator('.math-inline-widget');
-	}
-	// Body row cells follow the two header cells in document order.
-	get formulaCell() {
-		return this.page.getByRole('cell').nth(2);
-	}
-	get noteCell() {
-		return this.page.getByRole('cell').nth(3);
-	}
-	async gotoMathTable() {
-		await this.gotoPlugins('mathtable');
-		await expect(this.mathWidget).toHaveCount(1);
-	}
-}
 
 test.describe('table cell: inline math reveal-to-edit', () => {
 	let editor: CellMathPage;
@@ -47,7 +31,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		page
 	}) => {
 		await revealWidget(editor.mathWidget);
-		await page.keyboard.press('Home'); // back to the cell start, wherever the press seated
+		await page.keyboard.press('Home'); // back to the cell start, wherever the press put the caret
 		await page.keyboard.press('ArrowRight'); // past the opening `$`
 		await page.keyboard.type('y');
 		await page.keyboard.press('Enter');
@@ -64,7 +48,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		page
 	}) => {
 		await revealWidget(editor.mathWidget);
-		await page.keyboard.press('Home'); // back to the cell start, wherever the press seated
+		await page.keyboard.press('Home'); // back to the cell start, wherever the press put the caret
 		await page.keyboard.press('ArrowRight'); // past the opening `$`
 		await page.keyboard.type('|');
 		await page.keyboard.press('Enter');
@@ -83,7 +67,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		// Focus the trailing paragraph → the reveal commits on blur.
+		// Focusing the trailing paragraph commits the shown source on blur.
 		await editor.getBlock(1).click();
 		await editor.bridge.waitForSourceContains('$yx^2$');
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -108,8 +92,8 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 	test('Backspace at the cell trailing edge reveals the math, never deletes it', async ({
 		page
 	}) => {
-		// Focus the formula cell without clicking its widget (a click would reveal):
-		// enter from the Note cell and Shift+Tab back to the formula cell's end.
+		// Focuses the formula cell without clicking its widget, which would show its source: from
+		// the Note cell, Shift+Tab back to the formula cell's end.
 		await editor.noteCell.click();
 		await page.keyboard.press('Shift+Tab');
 		await expect(editor.formulaCell).toBeFocused();

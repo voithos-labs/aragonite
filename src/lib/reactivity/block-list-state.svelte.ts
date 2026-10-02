@@ -13,18 +13,15 @@ import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
 
 export interface BlockListState {
 	/** Settable because the ids live on the node, where the write reaches the `$state` proxy.
-	 *  The refs do not: the array's identity is what this list is known by, so `replaceRefs`
-	 *  writes its contents and the property itself never moves. */
+	 *  The refs array keeps its identity for life; `replaceRefs` rewrites its contents. */
 	innerBlockIds: string[];
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
-	/** The accessors for this list's child entries, created once here so every caller (the
-	 *  child list, the container component, the mount registry) goes through one object. */
+	/** The accessors over `innerBlockRefs` that a child's mount writes through. */
 	readonly refSlots: RefSlots<BlockComponent>;
 }
 
-/** `getNode` must be a live getter: passing the node by value freezes on the first one and
- *  misses the deep clone undo puts in its place. A view is enough, since the only writes go to
- *  `childIds`, the one field a readonly view still allows. */
+/** `getNode` must be a live getter: a node passed by value goes stale when undo swaps in a deep
+ *  clone. A view is enough, since `childIds` is the only field written. */
 export function createBlockListState(getNode: () => NodeView): BlockListState {
 	const initialNode = getNode();
 	if (!initialNode.childIds) {
@@ -55,9 +52,8 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		}
 		registerBlockListState(node, state);
 
-		// A replacement in the parent list can reuse this instance with a node prop that has
-		// fewer children than before. Cleanup empties the entries that leave but never shrinks the
-		// array, and the refs length must match the children exactly, so fix it here.
+		// A replacement in the parent list can reuse this instance with fewer children, and ref
+		// cleanup empties entries without shrinking the array; the refs must match the children.
 		const childCount = node.children?.length ?? 0;
 		if (innerBlockRefs.length > childCount) {
 			innerBlockRefs.length = childCount;

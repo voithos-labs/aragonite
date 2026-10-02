@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { assertExemptionDocumented } from '$lib/testing/conformance-core';
+import { runCell } from '$lib/testing/conformance-core';
 import {
 	assertProfileCoverageFloor,
 	CONTAINER_CONFORMANCE_CELLS,
 	reversedAncestryLeavesRootStale
 } from '$lib/testing/container-conformance';
 import { CONTAINER_PROFILES } from './builtin-container-profiles';
+import {
+	checkListIndentOneUndo,
+	checkTableColumnOneUndo,
+	checkTableLocalIndexAddressing
+} from './builtin-container-drivers';
 
 // Built-ins only: a plugin container is absent from this process's registry unless its own
 // suite installed it, and opts into the same kit through `runContainerConformance` (see
@@ -37,6 +42,23 @@ describe('G4.3 container conformance: registry coverage', () => {
 		expect(registeredContainerKinds.length).toBeGreaterThan(0);
 	});
 
+	// The kit reaches these ops only through the drivers, so an excuse here would drop their only
+	// coverage without a red.
+	it('the table and list assert their driven cells through their drivers', () => {
+		expect(CONTAINER_PROFILES.table).toMatchObject({
+			localIndex: { mode: 'assert' },
+			multiScope: { mode: 'assert' },
+			drivers: {
+				gridLocalIndex: checkTableLocalIndexAddressing,
+				multiScope: checkTableColumnOneUndo
+			}
+		});
+		expect(CONTAINER_PROFILES.list).toMatchObject({
+			multiScope: { mode: 'assert' },
+			drivers: { multiScope: checkListIndentOneUndo }
+		});
+	});
+
 	// The floor under the matrix: five excused cells is five reviewed reasons and zero coverage.
 	it.each(registeredContainerKinds)('%s asserts at least one behavioral cell', (kind) => {
 		assertProfileCoverageFloor(kind, CONTAINER_PROFILES[kind]!);
@@ -44,22 +66,16 @@ describe('G4.3 container conformance: registry coverage', () => {
 });
 
 // ── Parametrized per-kind kit ───────────────────────────────────────────────────
-// Cells come from the kit's own manifest rather than a list here, so a cell added there runs
-// over every built-in the day it lands. Coverage (assert / exempt / boundary) lives in
-// CONTAINER_PROFILES, and one case per cell keeps a failure naming the invariant that broke.
+// Cells come from the kit's own manifest, so a cell added there runs over every built-in the day
+// it lands, and one case per cell keeps a failure naming the invariant that broke.
 
 describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) => {
 	const profile = CONTAINER_PROFILES[kind]!;
 
 	it.each(CONTAINER_CONFORMANCE_CELLS.map((c) => [c.cell, c] as const))(
 		'%s',
-		async (_name, { coverage, run }) => {
-			const declared = coverage(profile);
-			if (declared.mode !== 'assert') {
-				assertExemptionDocumented(declared, `${kind} ${_name}`);
-				return;
-			}
-			await run(kind, profile);
+		async (_name, cell) => {
+			await runCell(cell, { kind, profile }, kind);
 		}
 	);
 

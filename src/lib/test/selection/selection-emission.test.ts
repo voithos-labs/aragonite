@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // When the selection channel notifies, and what the editor looks like at that
 // moment. Subscribers read the editor back on notify (`getSelection()`), so an
 // emission that escapes mid-restore reports a caret the restore is about to move.
@@ -8,9 +7,11 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
-import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
+import { makeCaretMemory } from '../harness/editor-actions';
+import { restoreTarget } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 interface Emission {
 	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
@@ -51,7 +52,10 @@ function emissionHarness() {
 			emissions.length = 0;
 		},
 		restore(selection: EditorSelection): boolean {
-			return applySelectionToDom(selection, selectionState, (path) => blocks[path[0]] ?? null);
+			return applySelectionToDom(
+				selection,
+				restoreTarget(selectionState, (path) => blocks[path[0]] ?? null)
+			);
 		}
 	};
 }
@@ -85,8 +89,7 @@ describe('the restore path settles before it notifies', () => {
 
 		const placed = applySelectionToDom(
 			{ anchor: at(1, 2), focus: at(1, 2) },
-			h.selectionState,
-			() => null
+			restoreTarget(h.selectionState, () => null)
 		);
 
 		expect(placed).toBe(false);
@@ -162,9 +165,8 @@ describe('SelectionState.batch', () => {
 	});
 });
 
-// The restore path is the only entry path wrapped in a batch. These pin the counts of the paths
-// that are not: a mutator that changed nothing must stay silent, so a subscriber's read-back is
-// never triggered by a gesture the selection slept through (#29).
+// Only the restore path is wrapped in a batch, so on every other path a mutator that changed
+// nothing must stay silent, or subscribers read back after a gesture that moved no selection.
 describe('unbatched entry-path emission counts', () => {
 	it('a pointerdown that collapses a cross-block selection notifies once', () => {
 		let notifies = 0;
@@ -172,7 +174,7 @@ describe('unbatched entry-path emission counts', () => {
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		// The counter was already 0, so only the clear is a real mutation.
 		expect(notifies).toBe(1);
@@ -183,7 +185,7 @@ describe('unbatched entry-path emission counts', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		expect(notifies).toBe(0);
 	});
@@ -197,15 +199,14 @@ describe('unbatched entry-path emission counts', () => {
 			state.setGapCaret({ parentPath: [], index: 1 });
 			notifies = 0;
 
-			resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), isShift);
+			resetForPointerDown(state, makeCaretMemory(), isShift);
 
 			expect(state.gapCaret).toBeNull();
 			expect(notifies).toBe(1);
 		}
 	});
 
-	// Miss-analysis (#29): the mutators were pinned through their callers, where a real mutation
-	// always came along, so no test ever asked what a mutator does with nothing to change.
+	// Miss-analysis: GH #29; mutators were only tested through callers, where a real change came.
 	it('every mutator is silent when it changes nothing', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
@@ -262,7 +263,9 @@ describe('unbatched entry-path emission counts', () => {
 		h.parkCaretIn(0, 3);
 		const doc = parse('Alpha one\n\nBravo two\n');
 
-		expect(extendFocusToNextBlock(h.selectionState, doc, h.blocks[0], [0])).toBe(true);
+		expect(
+			extendFocusToNextBlock(h.selectionState, doc, defaultGrammarView, h.blocks[0], [0])
+		).toBe(true);
 
 		// enterCrossBlockFromKeyboard seeds a collapsed pair, then extendFocus reaches
 		// the next leaf. Two mutations, two emissions, both reporting real state.

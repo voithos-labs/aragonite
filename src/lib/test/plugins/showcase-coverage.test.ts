@@ -1,9 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
 import {
 	ALL_BLOCK_KINDS,
@@ -47,9 +45,8 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	directiveLeaf: 'BY DESIGN: the leaf half of the same unclaimed-directive fallback'
 };
 
-/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour.
- *  Lockstepped against the directory listing below, so a plugin dropped from the demo
- *  set fails here even though its kinds leave the registry with it. */
+/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour, checked
+ *  against the directory listing so a plugin dropped from the demo set fails here. */
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
 	details: [DETAILS],
@@ -61,7 +58,9 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	toc: [TOC_BLOCK],
 	// Declares no kind at all: its demonstration is a paragraph repeating a word, asserted
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
-	'highlight-occurrences': []
+	'highlight-occurrences': [],
+	// Declares no kind either: typing `/` opens it, which a document's bytes cannot show.
+	'slash-commands': []
 };
 
 /** The inline kinds the bundled plugins add. No registry lists them, so the plugin
@@ -90,8 +89,7 @@ function kindsIn(document: Document): Set<string> {
 let demonstrated: Set<string>;
 let expected: Set<string>;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins(DEMO_PLUGINS);
 	demonstrated = kindsIn(parse(SHOWCASE_DOCUMENT));
 	expected = new Set([
@@ -100,8 +98,6 @@ beforeAll(() => {
 		...PLUGIN_INLINE_KINDS
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('the showcase document demonstrates the surface it ships with', () => {
 	it('installs the plugin grammar it is written against', () => {
@@ -165,9 +161,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 	});
 
 	it('enrolls every bundled plugin directory, and only those', () => {
-		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => entry.name);
+		const dirs = bundledPluginDirs();
 		const enrolled = Object.keys(PLUGIN_DEMONSTRATED_BY);
 		expect(
 			dirs.filter((dir) => !enrolled.includes(dir)),

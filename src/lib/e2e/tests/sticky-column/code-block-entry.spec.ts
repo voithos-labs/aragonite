@@ -85,6 +85,11 @@ test.describe('sticky column: code block entry symmetry', () => {
 			// fence line is a different column from a landing in the body.
 			await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
 			await captureEntry(editor, 1, from);
+			// The body line is raw [14, 44]: past "```javascript\n", before "\n```".
+			const landed = await editor.bridge.getSelectionPaths();
+			expect(landed?.focus.path).toEqual([1]);
+			expect(landed?.focus.offset).toBeGreaterThanOrEqual(14);
+			expect(landed?.focus.offset).toBeLessThanOrEqual(44);
 			await editor.typeText('X');
 			await editor.bridge.waitForSourceContains('X');
 			const src = await editor.bridge.getSource();
@@ -168,26 +173,15 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(await landedIn()).toBe(codeBlockIndex);
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Entry from above and from below lands on different body lines, where rounding to the
-		// nearest column can honestly differ by one character cell. So the bound is a measured
-		// cell rather than the same-line `PIXEL_TOLERANCE` the sibling tests use, widened by
-		// however far the two clicks' own captured columns fell apart. A broken sticky column
-		// lands several cells away and still fails.
-		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
-			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				if (node.textContent && node.textContent.trim().length > 0) {
-					const range = document.createRange();
-					range.setStart(node, 0);
-					range.setEnd(node, 1);
-					return range.getBoundingClientRect().width;
-				}
-			}
-			return 0;
-		});
+		// The block's first raw character, the fence's opening backtick, measured by the block itself.
+		const cellWidth = await editor.page.evaluate(
+			(index) => (window as any).__test.rects.rangeRects([index], 0, 1)[0]?.width ?? 0,
+			codeBlockIndex
+		);
 		expect(cellWidth).toBeGreaterThan(0);
 
+		// Entry from above and below lands on different body lines, where rounding can differ by one
+		// character cell, so the bound is a measured cell widened by the clicks' own column gap.
 		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
 		expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
 			cellWidth + PIXEL_TOLERANCE + captureDelta

@@ -98,8 +98,8 @@ test.describe('search: edit while open', () => {
 });
 
 test.describe('search: bar stays pinned', () => {
-	// A zero-height sticky anchor pins the bar to the top of the scroll container, so
-	// navigating to an off-screen match cannot scroll the bar out of view.
+	// A zero-height sticky element holds the bar at the top of the scroll container, so navigating
+	// to an off-screen match cannot scroll the bar out of view.
 	test('the bar remains in the editor viewport after Next scrolls to an off-screen match', async ({
 		page
 	}) => {
@@ -134,9 +134,8 @@ test.describe('search: bar stays pinned', () => {
 		// Navigate to the off-screen match; the editor scrolls down to bring it into view.
 		await page.getByRole('button', { name: 'Next match' }).click();
 		await expect(count(page)).toHaveText(/2\s*\/\s*2/);
-		// Guard against a vacuous pass: if a future viewport change stops the document
-		// overflowing, Next scrolls nothing and "the bar stayed at top" is trivially true.
-		// Assert that the jump to the match really scrolled the editor.
+		// If the document stopped overflowing, Next would scroll nothing and "the bar stayed at top"
+		// would hold trivially, so the jump must really have scrolled the editor.
 		await expect
 			.poll(() => page.evaluate(() => document.querySelector('.editor')!.scrollTop))
 			.toBeGreaterThan(0);
@@ -156,9 +155,8 @@ test.describe('search: off-window reveal', () => {
 
 		const editor = new EditorPage(page);
 		await editor.goto();
-		// A multi-MB fixture activates windowing; the suffix appends a paragraph holding a
-		// unique marker as the last, unmounted block. The fixture's 16-word vocabulary never
-		// contains the marker, so it is the sole match.
+		// A multi-MB fixture turns windowing on, and the suffix appends a last, unmounted paragraph
+		// with a marker the fixture's 16-word vocabulary never contains, so it is the sole match.
 		await editor.loadLargeFixture('many-small-blocks', 2_000_000, '\n\nZZUNIQUEMARKER tail\n');
 
 		const blockCount = await page.evaluate(

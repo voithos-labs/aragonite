@@ -1,19 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
-// Miss-analysis (GH #40): the search-replace escape suites tested the fence and cell cases
-// of the clone path, but none targeted a bodyWrite container; a template landing a closing
-// tag in a details body truncated the container on its own reparse.
+// Miss-analysis (GH #40): the replace escape suites covered fences and cells, never a bodyWrite.
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
 	registerDetailsKind();
 });
 

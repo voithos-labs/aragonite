@@ -1,35 +1,27 @@
 /**
- * `tree-operations/` is pure CST mutations and the DAG runs one way:
- * `editor-actions -> tree-operations`. A single reverse import made the two a cycle, and
- * every behavioral test passed either way: a cycle is a design defect, not a runtime
- * one, so only a source scan can hold the rule. `components/` is listed with it: an
- * upward import there would put a rendering artifact under a renderer-agnostic layer.
- * Root-level `$lib/*.ts` files are contract leaves, not layers, and stay allowed.
+ * `tree-operations/` is pure CST mutations and imports run one way,
+ * `editor-actions -> tree-operations`; a cycle is a design defect no behavioral test sees, so
+ * only a source scan can hold the rule. `components/` is listed too: an upward import there
+ * would put a rendering artifact under a renderer-agnostic layer. Root-level `$lib/*.ts` files
+ * are contract leaves, not layers, and stay allowed.
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments } from './scan-source';
+import { collectEditorSources, importSpecifiers } from './scan-source';
 
 // No trailing slash: a sibling module file (`tree-operations.ts` beside the
 // directory) is the same layer and must be scanned as one.
 const GUARDED_LAYER = 'src/lib/tree-operations';
 const FORBIDDEN_UPWARD = ['editor-actions', 'components'];
 
-const IMPORT_SOURCE = /\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
-
-// The layer name must end the specifier or be followed by `/`: requiring the slash let
-// the layer's barrel import through clean. The leading boundary keeps `./my-components` out.
+// The layer name must end the specifier or be followed by `/`, so the layer's barrel import
+// counts too; the leading boundary keeps `./my-components` out.
 const forbiddenLayer = (layer: string) => new RegExp(`(^|/)${layer}(/|$)`);
 
 /** Upward specifiers a file under the guarded layer reaches for, by directory name. */
 function upwardImports(code: string): string[] {
-	const hits: string[] = [];
-	const re = new RegExp(IMPORT_SOURCE.source, IMPORT_SOURCE.flags);
-	let match: RegExpExecArray | null;
-	while ((match = re.exec(stripComments(code))) !== null) {
-		const spec = match[1] ?? match[2];
-		if (FORBIDDEN_UPWARD.some((layer) => forbiddenLayer(layer).test(spec))) hits.push(spec);
-	}
-	return hits;
+	return importSpecifiers(code)
+		.map(({ specifier }) => specifier)
+		.filter((specifier) => FORBIDDEN_UPWARD.some((layer) => forbiddenLayer(layer).test(specifier)));
 }
 
 describe('tree-operations imports no layer above it', () => {

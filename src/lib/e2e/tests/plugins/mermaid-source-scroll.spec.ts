@@ -9,9 +9,8 @@ import { MermaidPage } from './mermaid-helpers';
  * final height is where a scroll container already at its bottom clamps too far.
  */
 
-// The showcase's own trailing diagram: tall rendered, short in source. The height it loses is what
-// pulls the scroll container up, and the box's momentary two-row layout is what it falls short of
-// on the way to its final height.
+// The showcase's trailing diagram, tall rendered and short in source: the lost height pulls the
+// scroll container up, and the box's momentary two-row layout is where it clamps too far.
 const TALL_DIAGRAM = [
 	'```mermaid',
 	'xychart-beta',
@@ -98,5 +97,37 @@ test.describe('opening a diagram source at the document end', () => {
 		expect(after.blockBottom - after.blockTop).toBeLessThan(after.portHeight);
 		expect(after.blockTop).toBeGreaterThanOrEqual(0);
 		expect(after.blockBottom).toBeLessThanOrEqual(after.portHeight);
+	});
+});
+
+test.describe('opening a diagram source that runs off the bottom of the screen', () => {
+	test('the page stays where it was', async ({ page }) => {
+		const editor = new MermaidPage(page);
+		await editor.loadDiagram(`${PROSE}\n\n${TALL_DIAGRAM}\n\n${PROSE}\n`);
+		// The diagram's top two thirds of the way down the scroll container, its lower half past
+		// the bottom edge.
+		const top = await page.evaluate(() => {
+			const port = document.querySelector('.editor') as HTMLElement;
+			const block = document.querySelector('.mermaid-block') as HTMLElement;
+			const at = block.getBoundingClientRect().top - port.getBoundingClientRect().top;
+			return port.scrollTop + at - (port.clientHeight * 2) / 3;
+		});
+		await editor.scrollEditorTo(top);
+		const before = await portGeometry(page);
+		expect(before.blockTop).toBeGreaterThan(0);
+		expect(before.blockBottom).toBeGreaterThan(before.portHeight);
+
+		// A click in the diagram's visible top, which the toolbar needs, then its Edit control.
+		const box = (await editor.viewport.boundingBox())!;
+		await page.mouse.click(box.x + box.width / 2, box.y + 20);
+		await editor.waitForRenderFlush();
+		const clicked = await portGeometry(page);
+		await page.getByTestId('mermaid-edit').click();
+		await editor.textarea.waitFor({ state: 'visible' });
+		await expect(editor.textarea).toBeFocused();
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect((await portGeometry(page)).scrollTop).toBe(clicked.scrollTop);
 	});
 });

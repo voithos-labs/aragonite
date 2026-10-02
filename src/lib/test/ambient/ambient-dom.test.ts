@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { placeCaretAtRaw } from '../../cursor/widget-offset';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {
@@ -53,6 +54,50 @@ describe('buildAmbientSpan', () => {
 		expect(onClick).toHaveBeenCalledOnce();
 	});
 
+	// Miss-analysis (GH #254): marker ranges were tested only as clickable checkboxes, not links.
+	it('a focusable link range carries its name and tab stop, and Enter or Space activates it', () => {
+		const onActivate = vi.fn();
+		const span = buildAmbientSpan({
+			text: '[^a]: ',
+			interactive: [
+				{
+					start: 0,
+					end: 4,
+					className: 'back',
+					role: 'link',
+					label: 'Back to reference a',
+					focusable: true,
+					onClick: () => {},
+					onActivate
+				}
+			]
+		});
+		const inner = span.children[0] as HTMLElement;
+		expect(inner.getAttribute('role')).toBe('link');
+		expect(inner.getAttribute('aria-label')).toBe('Back to reference a');
+		expect(inner.tabIndex).toBe(0);
+
+		for (const key of ['Enter', ' ']) {
+			const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+			inner.dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(true);
+		}
+		inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+		expect(onActivate).toHaveBeenCalledTimes(2);
+	});
+
+	it('a range that is not focusable takes no tab stop and no keys', () => {
+		const span = buildAmbientSpan({
+			text: '[^a]: ',
+			interactive: [{ start: 0, end: 4, className: 'back', onClick: () => {} }]
+		});
+		const inner = span.children[0] as HTMLElement;
+		expect(inner.hasAttribute('tabindex')).toBe(false);
+		const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+		inner.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(false);
+	});
+
 	it('text outside interactive ranges renders as text nodes', () => {
 		const span = buildAmbientSpan({
 			text: 'abXcd',
@@ -66,10 +111,8 @@ describe('buildAmbientSpan', () => {
 	});
 });
 
-// Miss-analysis (GH #115): the caret at raw 0 preferred the first text node after the span,
-// with no test over the traversal, so a widget at the start had its raw bytes silently skipped
-// and raw 0 read as that widget's end.
-describe('placeCaretAfterAmbientSpan', () => {
+// Miss-analysis (GH #115): no test placed the caret at raw 0 with a widget opening the content.
+describe('raw 0 behind a marker prefix', () => {
 	function mountListBlock(...afterSpan: Node[]): HTMLElement {
 		const block = document.createElement('div');
 		block.setAttribute('contenteditable', 'true');
@@ -87,7 +130,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 
 	it('puts the caret in the first text node when text opens the content', () => {
 		const block = mountListBlock(document.createTextNode('tail'));
-		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer.textContent).toBe('tail');
 		expect(range.startOffset).toBe(0);
@@ -95,7 +138,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 
 	it('puts the caret at the span boundary when a widget opens the content: its raw is not skippable', () => {
 		const block = mountListBlock(widget(), document.createTextNode(' tail'));
-		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer).toBe(block);
 		expect(range.startOffset).toBe(1);

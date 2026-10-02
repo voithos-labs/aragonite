@@ -1,24 +1,30 @@
 /**
- * Single entry point for paste: parse the clipboard, pick inline vs structural, route through
- * the target kind's `PasteSurface` (its paste handlers). Inline and structural handlers are
- * stateless transforms this module applies; a scoped-structural handler owns its whole mutation
- * including focus. Cross-block paste (`undoEntry: 'join'`) uses DOM-level focus, because the
- * originating block's `pendingCursorOffset` may address a block the range delete is about to
- * unmount.
+ * Single entry point for paste: parse the clipboard, pick inline or structural, and route through
+ * the target kind's `PasteSurface` (its paste handlers), whose inline and structural results this
+ * module applies; a scoped-structural handler owns its whole mutation, focus included. A
+ * cross-block paste focuses through the DOM, since its range delete may unmount the origin block.
  */
 
-import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
+import type { BlockEditActions, CommitSnapshotArg } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
-import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
+import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
-import { cutRangeFromDisplay } from '../node-ops';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { replaceRangeInLeaf } from '../leaf-range';
+import {
+	documentLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	withLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import {
 	getPasteSurface,
+	isPasteSurfaceRegistered,
 	type PasteRange,
-	type PasteSeam,
 	type PasteSurface,
 	type StructuralPasteResult
 } from '../paste-surfaces';
@@ -32,7 +38,10 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
+import { inlineResultInEnding } from './line-ending';
 import { contentBlocks, pickPasteStrategy } from './strategy';
+import { childSlotAt } from '../list/task-paragraph';
+import { storedAsAt } from '../stored-as';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -41,29 +50,29 @@ export interface PasteDispatchInput {
 	pastedText: string;
 	/** Path from Document root to the target node. Length ≥ 1. */
 	targetPath: number[];
-	/** Caret offset within the target node's raw. */
+	/** Caret offset within the target node's raw; with `preDelete`, its start. */
 	offset: number;
 	/** Selection range within the target's raw (not cross-block). */
 	preDelete?: PasteRange;
+	/** Where undo puts the caret back when the paste began elsewhere than the range's start: the
+	 *  side a selected widget was selected from. */
+	caretBefore?: number;
 }
 
 export interface PasteDispatchContext {
 	doc: Document;
-	/** Action bundle for the target's level. Not used in cross-block (undoEntry: 'join') mode. */
+	/** Action bundle for the target's level. Not used on the cross-block route. */
 	blockEdit: BlockEditActions;
 	/** Commit coordinator, required by the multi-scope commit sites inside this module. */
 	controller: PasteCommitCoordinator;
-	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
-	undoEntry?: UndoEntryMode;
-	/** The instance's grammar: the clipboard parse below and the join branch's same-slot
-	 *  reparse both read it, so an unlisted plugin's opener never takes pasted bytes here.
-	 *  Absent = global. */
-	grammar?: GrammarView;
-	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out
-	 *  of the pipeline; absent = every installed plugin. */
-	activePlugins?: PluginActivation;
-	/** What the paste's delete half needs for the join cleanup; absent leaves it byte-literal. */
-	seam?: PasteSeam;
+	/** The paste lands at the caret a cross-block range delete left: every write commits at the
+	 *  target's parent list, and a partly filled item may take a matching container's items. */
+	crossBlock?: boolean;
+	/** The clipboard parse and the join's reparse use its grammar, so an unlisted plugin's opener
+	 *  never takes pasted bytes; its mode decides the delete half's cleanup. */
+	reading: Reading;
+	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
+	activePlugins: PluginActivation;
 }
 
 /** Where an inline paste's caret belongs once the commit settled, when that moved it. */
@@ -73,11 +82,8 @@ export interface InlineCaretLanding {
 }
 
 export interface PasteDispatchResult {
-	/**
-	 * Inline-paste caret offset; undefined for structural paste, which handles focus
-	 * itself. Single-block callers apply it synchronously with the raw mutation so both
-	 * land in one reactive flush.
-	 */
+	/** Undefined for a structural paste, which places its own caret. Single-block callers apply it
+	 *  with the raw write, so both land in one reactive flush. */
 	inlineCaretOffset?: number;
 	/** Where the cross-block route's caret ended up, when a merge above the target moved the
 	 *  block itself. */
@@ -93,22 +99,35 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const transformed = applyPasteTransforms(input.pastedText, ctx.activePlugins);
+	const { activePlugins } = ctx;
+	const { reading } = ctx;
+	// The hooks read the LF text; every line the paste writes takes the document's own ending.
+	const ending = documentLineEnding(ctx.doc);
+	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
 	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the
 	// bytes a bodyWrite-declaring ancestor will actually accept.
 	const pastedText = normalizeClipboardForBody(ctx.doc, input.targetPath, transformed);
 
-	const parsed = parse(pastedText, { grammar: ctx.grammar, scope: 'fragment' });
-	if (parsed.children.length === 0) return {};
-
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
+	// Undo's caret for every commit below but a scoped-structural surface's own: where the paste
+	// began, never where it lands.
+	const start: CommitSnapshotArg = {
+		path: docPathFrom(input.targetPath),
+		offset: input.caretBefore ?? input.preDelete?.start ?? input.offset
+	};
+	const store = storedAsAt(ctx.doc, input.targetPath, reading);
 
-	// A reserved title child is single-line when serialized, so paste there is forced inline
-	// ahead of the container-paste family: a multi-block clipboard must never split it. The trim
-	// drops the edge spaces the newline flattening produced, not bytes anyone copied.
+	const parsed = readBlocks(withLineEnding(pastedText, ending), {
+		grammar: reading.grammar,
+		scope: 'fragment'
+	});
+	if (parsed.children.length === 0) return {};
+
+	// A reserved title child serializes on one line, so paste there is forced inline before any
+	// container route could split it; the trim drops only the spaces the flattening made.
 	const chromeParent = nodeAt(ctx.doc, input.targetPath.slice(0, -1));
 	if (
 		chromeParent &&
@@ -116,46 +135,46 @@ export async function pasteDispatch(
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
-		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
-		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		const hook =
+			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, store, ending);
+		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
-	// The delete half, applied once and before the strategy pick since the container routes never
-	// run it: each finder decides on the target's bytes, and a range still standing there answers
-	// about bytes the paste is removing. The hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, ctx.seam);
+	// The delete half, applied before the container finders, which decide on the target's bytes and
+	// never cut the range themselves; the hook routes cut their own, kind rules included.
+	const target = targetAfterPreDelete(targetNode, input, store, ending);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
 		input.targetPath,
 		target.offset,
 		parsed,
-		ctx.undoEntry === 'join',
+		ctx.crossBlock === true,
 		target.raw
 	);
 	if (unwrap) {
-		await applyContainerMatchingPaste(unwrap, ctx);
+		await applyContainerMatchingPaste(unwrap, ctx, start);
 		return {};
 	}
 
-	// The rest of the container paste-merge family, for single-block non-empty targets:
-	// absorb when `matchesAncestor` accepts the enclosing container, break-out when it
-	// does not.
+	// For a single-block non-empty target: absorb when `matchesAncestor` accepts the enclosing
+	// container, break out when it does not.
 	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (absorb) {
-		await applyListAbsorb(absorb, parsed.children[0], ctx);
+		await applyListAbsorb(absorb, parsed.children[0], ctx, start);
 		return {};
 	}
 	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (breakOut) {
-		await applyListBreakOut(breakOut, parsed.children, ctx);
+		await applyListBreakOut(breakOut, parsed.children, ctx, start);
 		return {};
 	}
 
-	const surface = getPasteSurface(targetNode.kind);
-	if (surface === undefined) {
+	const surface = getPasteSurface(targetNode.kind, activePlugins);
+	// A plugin's surface this editor left out is no gap to warn about: the default hooks are meant.
+	if (surface === undefined && !isPasteSurfaceRegistered(targetNode.kind)) {
 		devWarn(
 			'paste-dispatch',
 			'no paste surface registered for this kind; falling through to default hooks. Register ' +
@@ -179,55 +198,62 @@ export async function pasteDispatch(
 			doc: ctx.doc,
 			targetPath: input.targetPath,
 			blocks: blocks.slice(),
-			controller: ctx.controller,
-			undoEntry: ctx.undoEntry ?? 'own',
-			grammar: ctx.grammar
+			controller: ctx.controller
 		});
 		return {};
 	}
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, pastedText, input.preDelete, ctx.seam);
-		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		const result = inlineResultInEnding(
+			targetNode.raw,
+			hook(targetNode, input.offset, pastedText, input.preDelete, store, ending),
+			ending
+		);
+		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
+	const slot = childSlotAt(ctx.doc, input.targetPath);
+	const result = hook(
+		targetNode,
+		input.offset,
+		blocks.slice(),
+		input.preDelete,
+		store,
+		ending,
+		slot
+	);
 	await applyStructuralResult(
 		input.targetPath,
 		result,
 		ctx,
+		start,
 		trailingSeparatorOf(parsed, result, surface)
 	);
 	return {};
 }
 
-/** The target's bytes and caret as the paste's delete half leaves them. */
+/** The target's bytes and caret as the paste's delete half leaves them: what a Delete over the range
+ *  writes, since the container routes put their blocks after it. */
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	seam: PasteSeam | undefined
+	store: StoredAs,
+	lineEnding: LineEnding
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
-	const cut = cutRangeFromDisplay(
-		node,
-		trimTrailingLineEnding(node.raw),
-		input.preDelete,
-		seam?.presentationMode,
-		seam?.linkRef
-	);
-	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
+	const cut = replaceRangeInLeaf(node, input.preDelete, '', store);
+	return {
+		raw: trimTrailingLineEnding(cut.raw) + trailingLineEnding(node.raw, lineEnding),
+		offset: cut.caret
+	};
 }
 
 /**
- * A clipboard's trailing blank line is content: the parser keeps exactly one in `suffix` while
- * a second already becomes a block, and the inline route splices the bytes verbatim, so reading
- * the children alone made one route keep the copied separation and the other lose it. Applied
- * only where the splice leaves nothing behind the pasted blocks; a residue or a follower already
- * carries a separator of its own, and a kind that treats blank edges as packaging declines the
- * whole question.
+ * The clipboard's trailing blank line (`suffix`), which the inline route pastes verbatim too;
+ * landed only where no residue follows the pasted blocks and the kind keeps blank edges.
  */
 function trailingSeparatorOf(
 	parsed: Document,
@@ -250,4 +276,4 @@ function inlineCaretResult(
 }
 
 export { pickPasteStrategy } from './strategy';
-export { defaultInlineHook, defaultStructuralHook, __getDefaultTextSurface } from './hooks';
+export { defaultInlineHook, defaultStructuralHook } from './hooks';

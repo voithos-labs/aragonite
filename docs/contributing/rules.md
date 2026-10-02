@@ -202,24 +202,27 @@ list is that you hear it from the terminal instead of from the review.
 
 1. **Every new e2e spec has a requirement file, and vice versa** (G4.23):
    `src/lib/e2e/tests/<area>/x.spec.ts` pairs with `src/lib/e2e/requirements/<area>/x.md`, and the
-   requirement carries at least one scenario.
+   requirement carries at least one scenario. A scenario list three times longer than the test count
+   `playwright test --list` shows for the spec needs a reason in the scan's allowlist (a test
+   generated in a loop counts once per row).
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
-2. **Every comment fits the budget** (G4.26): no block over six text lines, no file header over
-   seven, and no house word (seam, door, funnel, mint, and the rest of
-   [`glossary.md`](glossary.md)) beyond the count its directory already carries. A requirement
-   file carries none in its body text.
+2. **Every comment fits the budget** (G4.26): no directory gains a block over two text lines (five
+   for a header), no block anywhere goes past six (seven for a header), and no house word (seam,
+   door, funnel, mint, and the rest of [`glossary.md`](glossary.md)) in any comment. A requirement file carries none in its body
+   text either.
    `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
 3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
    host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).
    `npx vitest run src/lib/test/invariants/lint/css-ownership.test.ts`
 4. **Every icon a menu row names is a key of the glyph table** in
-   `src/lib/components/menu/MenuIcon.svelte`: a new icon is a new entry there, and a name that
+   `src/lib/menu-icons.ts`: a new icon is a new entry there, and a name that
    isn't one fails the `MenuIconName` type.
    `npm run check`
 5. **Nothing sequences on `setTimeout`, `requestAnimationFrame` or a microtask trick** (G4.4):
    `await tick()` is the one sequencing primitive, and the short list of timers that sequence
-   nothing (a debounce, an animation) is the allowlist in the test.
-   `npx vitest run src/lib/test/invariants/lint/timing-hacks.test.ts`
+   nothing (a debounce, an animation) is the allowlist in the test. The unit suites follow it
+   too: they wait with `settleEditor` from `src/lib/test/harness/settle.ts`.
+   `npx vitest run src/lib/test/invariants/lint/file-rules.test.ts src/lib/test/invariants/lint/suite-file-rules.test.ts`
 6. **A new file with a `pointerdown` or `mousedown` handler is in one of the two lists** of the
    G2.12 scan: the pointer handlers that place a caret, with the entry point each one goes through, or
    the ones that place none, with the reason.

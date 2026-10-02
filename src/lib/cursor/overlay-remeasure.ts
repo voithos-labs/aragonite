@@ -8,15 +8,15 @@
 import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import { firstScrollableDescendant, nearestScrollContainer } from './scroll-ancestors';
+import { observeResize } from './observe-resize';
 
 export function wireOverlayRemeasure(opts: {
 	el: HTMLElement;
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
-	/** Run the setup measure untracked, for a caller whose `measure` reads the document: tracking
-	 *  it would tear down and re-wire these listeners on every keystroke. Scoped to that one call,
-	 *  never the whole wiring, since the row-window read below must stay tracked either way. */
+	/** Run the setup measure untracked, so a `measure` that reads the document doesn't re-wire these
+	 *  listeners on every keystroke. Only that call: the row-window read below must stay tracked. */
 	untrackSetupMeasure?: boolean;
 }): () => void {
 	const { el, editorRoot, blockRef, measure } = opts;
@@ -46,13 +46,8 @@ export function wireOverlayRemeasure(opts: {
 	}
 
 	// The block's own box changing under a live range (a paragraph set to a heading, a font
-	// load, a resize) moves the text the rects were measured against. Layout-driven, so it
-	// fires after the change has painted; where absent (jsdom) the scroll paths above still hold.
-	if (typeof ResizeObserver === 'function') {
-		const observer = new ResizeObserver(() => measure());
-		observer.observe(el);
-		disposers.push(() => observer.disconnect());
-	}
+	// load) moves the text the rects were measured against.
+	disposers.push(observeResize(el, () => measure()));
 
 	return () => disposers.forEach((dispose) => dispose());
 }

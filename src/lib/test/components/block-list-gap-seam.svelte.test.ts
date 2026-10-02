@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The gap indicator at the end of the rendered range: a boundary index equal to that end
 // while blocks below it stay unmounted. No scroll position holds that state in a browser
 // (the window recompute jumps past it), so a made-up WindowResult is the honest way to test it.
@@ -30,7 +29,8 @@ const WINDOW: WindowResult = {
 	start: 0,
 	end: SLICE_END,
 	topSpacerPx: 0,
-	bottomSpacerPx: 400
+	bottomSpacerPx: 400,
+	floorPx: 400
 };
 
 interface Mounted {
@@ -107,8 +107,7 @@ describe('the gap indicator at a windowed slice boundary', () => {
 		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(0);
 	});
 
-	// A gap outlives the tree it was created against: an edit elsewhere can change the kinds
-	// either side of its boundary, and the stored state has no way to see that. The renderer
+	// An edit elsewhere can change the kinds either side of a stored gap, so the renderer
 	// re-checks rather than painting a caret no gesture could have put there.
 	it('paints nothing at a boundary the kinds facing it do not declare', () => {
 		mounted = mountWindowedList(SLICE_END, PARAGRAPH);

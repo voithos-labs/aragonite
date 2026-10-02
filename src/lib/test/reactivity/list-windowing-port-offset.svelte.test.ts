@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // Windowing when the host scrolls: the editor sits some way inside the scroll container's
 // content, so every conversion has to cancel the container's own box top and the scroll
-// separately. Miss-analysis: nothing tested this before, because every stub put the editor at
-// the scroll container's origin, where both terms are zero and any arithmetic passes.
+// separately.
+// Miss-analysis: every stub put the editor at the scroll container's origin, where both are zero.
 import { describe, it, expect } from 'vitest';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
@@ -60,8 +60,8 @@ describe('windowing against a scrollport the editor sits inside', () => {
 		self.cleanup();
 	});
 
-	// VR-5: `revealChild` is followed by a range check before anything awaits a mount, and a
-	// scroll past the end has to leave that check answerable rather than hanging.
+	// A range check follows `revealChild` before anything awaits a mount, so a scroll past the end
+	// must leave that check answerable rather than hanging (VR-5).
 	it('terminates a reveal clamped past the last child', async () => {
 		const { windowing, cleanup, port } = mountScope({ editorOffset: EDITOR_OFFSET });
 		await windowing.revealChild(COUNT + 10);

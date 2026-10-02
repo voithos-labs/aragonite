@@ -13,7 +13,7 @@ test.describe('table block: cell input escapes pipes', () => {
 
 	test('typing a pipe escapes it so the row survives a reload', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click(); // body row 0, col 0 = "1"
+		await page.locator('.table-cell').nth(2).click(); // body row 0, col 0 = "1"
 		await page.keyboard.press('End');
 		await page.keyboard.type('|');
 
@@ -25,7 +25,7 @@ test.describe('table block: cell input escapes pipes', () => {
 
 		// Post-reload equivalence: re-parsing the serialized source must be a fixed point. An
 		// unescaped "| 1| | 2 |" reparses to three cells and truncates "2" away.
-		await page.evaluate((src) => (window as any).__test.setSource(src), afterType);
+		await editor.reloadContent();
 		await editor.waitForRenderFlush();
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			afterType.replace(/\s+$/, '')
@@ -34,7 +34,7 @@ test.describe('table block: cell input escapes pipes', () => {
 
 	test('typing continues correctly after an escaped pipe', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
 		await page.keyboard.type('x|y');
 

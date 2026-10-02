@@ -6,7 +6,7 @@ shows its raw source on focus and commits once on blur. Switching the editor to
 before the block goes inert. The commit rides the mode effect that blurs the
 active element inside the editor on a mode switch, so `commitSource` and
 `commitReveal` run with the mode already `reading`. Those two commits deliberately
-do not check for reading mode, unlike the plain-leaf `commitInput`, and this
+do not check for reading mode, unlike the typing write a plain leaf makes, and this
 scenario pins that difference against a regression that would silently drop the
 edit. Driven on `/test/plugins?seed=mathblock` (the LaTeX plugin plus the
 `window.__test` bridge) through a header toggle that keeps focus, so the mode

@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
+import type { BlockEditActions } from '$lib/action-contracts';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
@@ -37,8 +38,8 @@ function fakeParentBundles() {
 
 function makeDeferred() {
 	let resolve!: () => void;
-	const promise = new Promise<void>((r) => {
-		resolve = r;
+	const promise = new Promise<boolean>((r) => {
+		resolve = () => r(true);
 	});
 	return { promise, resolve };
 }
@@ -46,20 +47,31 @@ function makeDeferred() {
 function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'deleteBlock') {
 	const deferred = makeDeferred();
 	const parent = fakeParentBundles();
-	parent.blockEdit[method] = vi.fn(() => deferred.promise);
+	parent.blockEdit[method].mockReturnValue(deferred.promise);
 	return { deferred, parent };
 }
 
-// Where each method hands up to the parent: mergeWithNext and deleteBlock need the inner
-// block to be the last or only child, mergeWithPrevious triggers at index 0.
+// Where each method hands up to the parent (the last or only child, or index 0), and the
+// arguments the parent receives beside the container's index.
 const delegationCases = [
 	{
 		method: 'mergeWithPrevious' as const,
 		children: () => [makePara('a\n'), makePara('b\n')],
-		innerIndex: 0
+		run: (b: BlockEditActions) => b.mergeWithPrevious(0),
+		side: []
 	},
-	{ method: 'mergeWithNext' as const, children: () => [makePara('a\n')], innerIndex: 0 },
-	{ method: 'deleteBlock' as const, children: () => [makePara('a\n')], innerIndex: 0 }
+	{
+		method: 'mergeWithNext' as const,
+		children: () => [makePara('a\n')],
+		run: (b: BlockEditActions) => b.mergeWithNext(0),
+		side: []
+	},
+	{
+		method: 'deleteBlock' as const,
+		children: () => [makePara('a\n')],
+		run: (b: BlockEditActions) => b.deleteBlock(0, 'Delete'),
+		side: ['Delete']
+	}
 ];
 
 describe('createStandardNestedActions', () => {
@@ -81,7 +93,7 @@ describe('createStandardNestedActions', () => {
 	});
 
 	describe('upward delegation awaits the parent before resolving', () => {
-		for (const { method, children, innerIndex } of delegationCases) {
+		for (const { method, children, run, side } of delegationCases) {
 			it(`${method} resolves only after the parent's delegated op settles`, async () => {
 				const node = makeNode(children());
 				const state = createBlockListState(() => node);
@@ -93,14 +105,14 @@ describe('createStandardNestedActions', () => {
 				);
 
 				let continuationRan = false;
-				const pending = Promise.resolve(bundle.blockEdit[method](innerIndex)).then(() => {
+				const pending = run(bundle.blockEdit).then(() => {
 					continuationRan = true;
 				});
 
 				// One microtask drain: the body has run but the parent's promise is still pending.
 				await Promise.resolve();
 				expect(continuationRan).toBe(false);
-				expect(parent.blockEdit[method]).toHaveBeenCalledWith(3);
+				expect(parent.blockEdit[method]).toHaveBeenCalledWith(3, ...side);
 
 				deferred.resolve();
 				await pending;

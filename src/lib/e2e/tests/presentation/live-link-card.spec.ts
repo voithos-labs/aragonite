@@ -1,9 +1,11 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
-import { enterPresentationMode, landAt, leadingEdgeOfWord, trailingEdgeOfWord } from './helpers';
+import { enterPresentationMode, landAt } from './helpers';
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
+import { textRunEnd, textRunStart } from '../../text-runs';
+import { freezeInPageClock } from '../../page-probes';
 
 // The anchored panel that stands in for the destination live mode hides. The chord's create
 // half lives in `live-link-card-create.spec.ts`, and what it consumes in
@@ -62,10 +64,10 @@ test.describe('live-mode link card', () => {
 	});
 
 	test('a drag-select inside the link keeps the selection and opens no card', async ({ page }) => {
-		// The drag spans the whole word: a half-word drag sits on the CI runner's font-metric
-		// knife's edge and can collapse to a caret there while passing on every local machine.
-		const from = await leadingEdgeOfWord(page, 'example');
-		const to = await trailingEdgeOfWord(page, 'example');
+		// The drag spans the whole word: a half-word drag sits on a font-metric edge and can collapse
+		// to a caret on one machine while passing on another.
+		const from = await textRunStart(page, 'example');
+		const to = await textRunEnd(page, 'example');
 		await page.mouse.move(from.x, from.y);
 		await page.mouse.down();
 		await page.mouse.move(to.x, to.y, { steps: 4 });
@@ -123,8 +125,8 @@ test.describe('live-mode link card', () => {
 		await ep.bridge.waitForSourceContains('[example](https://example.com)');
 	});
 
-	// The stale-draft class: an open card holds a copy of the destination, and the document can
-	// move past it while it is open.
+	// An open card holds a copy of the destination, and the document can move past it while it is
+	// open.
 	test('an undo taken while the card is open re-seeds it, so Enter commits nothing stale', async ({
 		page
 	}) => {
@@ -142,7 +144,7 @@ test.describe('live-mode link card', () => {
 		await ep.bridge.waitForSourceContains('[example](https://example.com)');
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com');
 
-		// Enter over the re-seeded draft must not put the undone bytes back.
+		// Enter over the reloaded draft must not put the undone bytes back.
 		await page.locator(URL_FIELD).click();
 		await page.keyboard.press('Enter');
 		// The card's URL field is its own input, outside every editable element.
@@ -182,9 +184,8 @@ test.describe('live-mode link card', () => {
 		await openCardOn(ep, page, 'docs');
 		const beforeBox = (await page.locator(CARD).boundingBox())!;
 
-		// The caret is the document's while the card is open, so a block above the link is reachable
-		// by keyboard alone, with no click, which is what would dismiss the card. Typing there grows
-		// the block and moves the link down under an open card.
+		// The caret stays the document's while the card is open, so a block above the link is reachable
+		// by keyboard with no dismissing click; typing there moves the link down under the open card.
 		await stepToBlockStart(ep, page, 0);
 		await ep.typeText('padding words '.repeat(60));
 		await ep.waitForRenderFlush();
@@ -194,6 +195,35 @@ test.describe('live-mode link card', () => {
 			.poll(async () => (await page.locator(CARD).boundingBox())!.y)
 			.toBeGreaterThan(beforeBox.y);
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com/docs');
+	});
+
+	test('the card re-anchors at each key, with no wait for the typing pause', async ({ page }) => {
+		await openCardOn(ep, page, 'docs');
+		const beforeBox = (await page.locator(CARD).boundingBox())!;
+
+		await stepToBlockStart(ep, page, 0);
+		await freezeInPageClock(page);
+		await ep.typeText('padding words '.repeat(60));
+
+		await expect
+			.poll(async () => (await page.locator(CARD).boundingBox())!.y)
+			.toBeGreaterThan(beforeBox.y);
+	});
+
+	test('the card keeps its distance from the link through an undo and a redo', async ({ page }) => {
+		await openCardOn(ep, page, 'docs');
+		const link = page.locator('a.md-link-content', { hasText: 'docs' });
+		const gap = async () =>
+			(await page.locator(CARD).boundingBox())!.y - (await link.boundingBox())!.y;
+		const before = await gap();
+		await stepToBlockStart(ep, page, 0);
+		await ep.typeText('padding words '.repeat(60));
+		await ep.waitForRenderFlush();
+
+		await ep.undo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
+		await ep.redo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
 	});
 
 	test('a reference link’s URL edit inlines the destination and leaves the definition alone', async ({
@@ -231,9 +261,8 @@ test.describe('live-mode link card', () => {
 		});
 		await openCardOn(ep, page, 'danger');
 
-		// The button is disabled rather than inert on click: the draft goes through the render
-		// path's own href check, and a blocked scheme resolves to nothing to hand on. The card
-		// still opens on the link, which is how its URL gets repaired.
+		// Disabled rather than inert on click: the draft goes through the render path's href check, and
+		// a blocked scheme resolves to nothing. The card still opens, so the URL can be repaired.
 		const open = page.getByRole('button', { name: 'Open link' });
 		await expect(open).toBeDisabled();
 		await open.click({ force: true });
@@ -308,8 +337,8 @@ test.describe('live-mode link card', () => {
 	}) => {
 		await openCardOn(ep, page, 'example');
 
-		// Typing at the block's start moves the link's `sourceStart`, which is half of what
-		// identifies the card's target: the card now addresses a construct that is not there.
+		// Typing at the block's start moves the link's `sourceStart`, half of what identifies the
+		// card's target, so the card addresses a construct that is not there.
 		await page.keyboard.press('Home');
 		await ep.typeText('Z');
 		await ep.bridge.waitForSourceContains('ZVisit [example]');
@@ -357,5 +386,71 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await page.keyboard.press('Shift+Tab');
 		await expect(page.getByRole('button', { name: 'Remove link' })).toBeFocused();
+	});
+});
+
+test.describe('live-mode link card in a long document', () => {
+	// Taller than the editor, so it scrolls and a height correction has something to move: an
+	// image below the link that finishes loading after the commit.
+	const LINK_AT = 30;
+	const IMAGE_AT = LINK_AT + 3;
+	const LONG = Array.from({ length: 60 }, (_, i) => {
+		if (i === LINK_AT) return 'Visit [zebra](https://example.com) now';
+		if (i === IMAGE_AT) return '![late](https://e2e-deferred.test/late.svg)';
+		return `Line ${i} with some words.`;
+	}).join('\n\n');
+	const IMAGE_SVG =
+		'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
+		'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
+
+	/** Holds the image's response until the returned call. */
+	async function deferImage(page: Page): Promise<() => void> {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => (release = resolve));
+		await page.route('https://e2e-deferred.test/**', async (route) => {
+			await gate;
+			await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: IMAGE_SVG });
+		});
+		return release;
+	}
+
+	const imageHeight = (page: Page) =>
+		page.evaluate(
+			(i) =>
+				document.querySelector(`[data-block-path='[${i}]']`)?.getBoundingClientRect().height ?? 0,
+			IMAGE_AT
+		);
+
+	/** The link's line, below the editor's visible top. */
+	const lineTop = (page: Page) =>
+		page.evaluate((i) => {
+			const view = document.querySelector('.editor')!.getBoundingClientRect();
+			const block = document.querySelector(`[data-block-path='[${i}]']`)!;
+			return block.getBoundingClientRect().top - view.top;
+		}, LINK_AT);
+
+	test('a commit on a link mid-viewport leaves its line where it was', async ({ page }) => {
+		const releaseImage = await deferImage(page);
+		const ep = await enterPresentationMode(page, 'live', LONG);
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), LINK_AT);
+		await ep.waitForRenderFlush();
+		const scroller = page.locator('.editor');
+		const view = await scroller.evaluate((el) => el.clientHeight);
+		expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+		const top = await scroller.evaluate((el) => el.scrollTop);
+		await ep.scrollEditorTo(top + (await lineTop(page)) - view / 2);
+
+		await openCardOn(ep, page, 'zebra');
+		await editUrl(page, 'https://elsewhere.test/x');
+		const before = await lineTop(page);
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('[zebra](https://elsewhere.test/x)');
+		await ep.waitForRenderFlush();
+		const collapsed = await imageHeight(page);
+		releaseImage();
+		await expect.poll(() => imageHeight(page)).toBeGreaterThan(collapsed + 50);
+		await ep.waitForResizeObserverFlush();
+
+		expect(Math.abs((await lineTop(page)) - before)).toBeLessThan(2);
 	});
 });

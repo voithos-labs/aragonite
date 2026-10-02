@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's decoration-widget branch (edge-policy-dispatch). It holds two rules
-// e2e cannot: modifier chords such as word-delete stay with the browser, since these rules take
-// only plain edge keys, and a printable key at an element-level caret becomes a CST edit, which
-// ordinary typing can mask byte for byte in a real browser. A third group holds the precedence a
-// user can see: a CST widget wins the shared caret edge over a decoration widget.
+// The caret-edge dispatch's decoration-widget branch, for two rules e2e cannot hold: modifier
+// chords such as word-delete stay with the browser, and a printable key at an element-level caret
+// becomes a CST edit, which real typing can mask byte for byte. A CST widget also wins the shared
+// caret edge over a decoration widget.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
@@ -110,11 +110,13 @@ describe('a CST widget outranks a decoration widget at the same caret edge', () 
 		// `a![c](x)`: the image widget occupies raw 1..8 and the decoration ends at 8 too.
 		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
-		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
+		const image = computeInlineContent(node, undefined, defaultGrammarView).find(
+			(n: InlineNode) => n.kind === 'image'
+		)!;
 		const el = mountSurface([document.createTextNode('a![c]('), decorationIsland(6, image.end)]);
 		window.getSelection()?.removeAllRanges();
 
-		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const widgetSelection = createWidgetSelectionState(createSelectionState());
 		const h = makeEdgeDispatch(node, el, {
 			hasIslands: () => true,
 			enterWidget: (widget, fromTrailingEdge) =>

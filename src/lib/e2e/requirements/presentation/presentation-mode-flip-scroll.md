@@ -20,8 +20,8 @@ them. A gate list derived from the commit's own files reached e2e-vr, since the
 change was to the height estimator, and never the presentation project, whose
 specs exercise the same mode-switch code. A change to shared code takes the gate
 of every project that drives it, not the one its files sort under. Its headless
-half now lives beside the height-estimator pin in
-`reactivity/height-oracle-mode-flip`.
+half now lives with every other route that throws measured heights away, in
+`reactivity/height-lifetime-routes`.
 
 ## Happy paths
 
@@ -57,3 +57,4 @@ half now lives beside the height-estimator pin in
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

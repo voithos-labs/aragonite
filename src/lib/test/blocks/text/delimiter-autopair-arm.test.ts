@@ -1,19 +1,18 @@
 // @vitest-environment jsdom
-//
-// The `beforeinput` handler around the auto-pair resolver: what the block is asked to do with an
-// edit, and the check the block lends it, whether the written line still parses as this block.
-// The resolver's own table is `delimiter-autopair.test.ts`.
-// Miss-analysis: every resolver case sat inside prose, so none typed the second `*` of an
-// otherwise empty block and watched `****` reparse as a thematic break.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+// The `beforeinput` handler around the auto-pair resolver, with the block's check that the written
+// line still parses as this block. The resolver's own table is `delimiter-autopair.test.ts`.
+// Miss-analysis: resolver cases sat inside prose, so none saw `****` reparse as a thematic break.
+import { describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
 	type AutoPairSurface
 } from '$lib/components/blocks/text/delimiter-autopair';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
+import type { ContentRange } from '$lib/core/inline';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 interface Recorded {
-	writes: [string, number, number][];
+	writes: [string, number][];
 	carets: number[];
 	outside: number;
 }
@@ -21,9 +20,13 @@ interface Recorded {
 function surfaceOver(
 	text: string,
 	caret: number,
-	keepsBlockKind: (text: string) => boolean
+	keepsKind: (line: string) => boolean,
+	/** The empty pair the auto-pair wrote into `text`, when the case starts from one. */
+	own?: ContentRange
 ): AutoPairSurface & Recorded {
 	const recorded: Recorded = { writes: [], carets: [], outside: 0 };
+	const ownPairs = createAutoPairRecord().forBlock();
+	if (own) ownPairs.remember(text, own);
 	return {
 		...recorded,
 		text: () => text,
@@ -32,11 +35,12 @@ function surfaceOver(
 		hasSelection: () => false,
 		isRevealing: () => false,
 		foldReveal: () => null,
-		markersPaint: () => false,
 		setCaret: (offset) => recorded.carets.push(offset),
 		seatOutside: () => recorded.outside++,
-		write: (next, before, after) => recorded.writes.push([next, before, after]),
-		keepsBlockKind,
+		write: (next, after) => recorded.writes.push([next, after]),
+		keepsKind,
+		reading: fixtureReading(),
+		ownPairs,
 		get writes() {
 			return recorded.writes;
 		},
@@ -53,13 +57,10 @@ const typed = (data: string) =>
 	new InputEvent('beforeinput', { inputType: 'insertText', data, cancelable: true });
 
 describe('the branch keeps the line this block', () => {
-	beforeEach(resetPluginPlatformForTests);
-	afterEach(resetPluginPlatformForTests);
-
 	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the key steps past
 	// its partner instead, and a closer typed by hand later completes `**bold**`.
 	it('a grow that would re-kind the line steps past the paired closer', () => {
-		const surface = surfaceOver('**', 1, (line) => line !== '****');
+		const surface = surfaceOver('**', 1, (line) => line !== '****', { start: 0, end: 2 });
 		const e = typed('*');
 		expect(applyDelimiterAutoPair(e, surface)).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
@@ -68,9 +69,9 @@ describe('the branch keeps the line this block', () => {
 	});
 
 	it('a grow the line survives is written', () => {
-		const surface = surfaceOver('**', 1, () => true);
+		const surface = surfaceOver('**', 1, () => true, { start: 0, end: 2 });
 		expect(applyDelimiterAutoPair(typed('*'), surface)).toBe(true);
-		expect(surface.writes).toEqual([['****', 1, 2]]);
+		expect(surface.writes).toEqual([['****', 2]]);
 	});
 
 	// `~|` plus `~` would grow to `~~~~`, a fence opener, and there is no partner to step past.
@@ -85,7 +86,7 @@ describe('the branch keeps the line this block', () => {
 	it('a closer typed by hand is written and puts the caret outside', () => {
 		const surface = surfaceOver('Some *ab', 8, () => true);
 		expect(applyDelimiterAutoPair(typed('*'), surface)).toBe(true);
-		expect(surface.writes).toEqual([['Some *ab*', 8, 9]]);
+		expect(surface.writes).toEqual([['Some *ab*', 9]]);
 		expect(surface.outside).toBe(1);
 	});
 });

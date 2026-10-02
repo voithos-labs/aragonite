@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-//
-// The consumer's `keybindings` prop reaching a table chord. The table's structural chords are
-// keymap bindings, so an override reaches them; as predicates inside the cell's keydown plan,
-// which runs before the keymap, an override would be resolved and never consulted. Driven
-// through a mounted Editor with real keystrokes, since the override sits between the two and a
-// unit test of either half alone cannot see it.
+// The consumer's `keybindings` prop reaches a table's structural chords because they are keymap
+// bindings, not checks inside the cell's keydown plan, which runs first. Driven through a mounted
+// Editor with real keystrokes, since a test of either half alone cannot see the override.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);
@@ -66,8 +67,8 @@ describe('a keybindings override reaches a table structural chord', () => {
 		await pressInCell(mounted!, 1, 0, { key: 'ArrowDown', altKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
-		// An unbound modified arrow navigates rather than doing nothing (see
-		// cell-keydown-plan.ts), so the row is intact and the caret moved down a row.
+		// An unbound modified arrow navigates rather than doing nothing, so the row is intact
+		// and the caret moved down a row.
 		expect(document.activeElement).toBe(cellAt(mounted!, 2, 0));
 	});
 

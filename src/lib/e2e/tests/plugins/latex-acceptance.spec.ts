@@ -9,17 +9,15 @@ import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
  * readable message.
  */
 
-// A pad tall enough that the block-math fixture scrolls in a default viewport, so the A1 "no
-// view-jump" assertion measures a genuine scroll position, not a constant zero on a doc that never
-// scrolls.
+// Tall enough that the block-math fixture scrolls, so the A1 no-jump check measures a real scroll
+// position rather than a constant zero.
 const PAD_ABOVE = Array.from({ length: 30 }, (_, i) => `Above padding line ${i}.`).join('\n\n');
 const PAD_BELOW = Array.from({ length: 30 }, (_, i) => `Below padding line ${i}.`).join('\n\n');
 const TALL_BLOCK_MATH = `${PAD_ABOVE}\n\n$$x^2$$\n\n${PAD_BELOW}\n`;
 const INLINE_MATH = 'Before $x^2$ after\n\nNext\n';
 
-// The LaTeX inside each multiline environment (A7). `\\` separates rows, and the dedicated "line
-// breaks" row uses it where it means something, inside \substack, since a bare `\\` in display
-// mode does nothing.
+// The LaTeX inside each multiline environment (A7). The "line breaks" row puts `\` inside
+// \substack, since a bare `\` in display mode does nothing.
 const A7_ENVIRONMENTS: Array<[name: string, inner: string]> = [
 	['aligned', '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}'],
 	['cases', 'f(x) = \\begin{cases}\n1 & x > 0 \\\\\n0 & x \\le 0\n\\end{cases}'],
@@ -47,9 +45,8 @@ class AcceptancePage extends PluginsPage {
 	}
 
 	/**
-	 * Scroll the block-math render to the middle of the viewport, so a height change from showing
-	 * the source cannot push it off screen, which would force its own scroll and hide what is
-	 * under test. Returns the scrollTop once it stops moving.
+	 * Centres the block-math render, so a height change from showing the source cannot push it off
+	 * screen and force its own scroll. Returns the scrollTop once it stops moving.
 	 */
 	async centerBlockMathAndReadScroll(): Promise<number> {
 		const scrollTop = await this.page.evaluate(() => {
@@ -67,9 +64,8 @@ class AcceptancePage extends PluginsPage {
 	}
 
 	/**
-	 * A height change reaches scrollTop through the batched measure pass, not through the render
-	 * itself, so a fixed two-frame wait reads halfway once a loaded machine pushes that pass past
-	 * it. Counted in frames, not milliseconds, so a slow machine waits proportionally.
+	 * A height change reaches scrollTop through the batched measure pass, which a loaded machine
+	 * pushes past a fixed two-frame wait; counting frames makes a slow machine wait proportionally.
 	 */
 	async waitForScrollSettle(): Promise<void> {
 		await this.page.evaluate(async () => {
@@ -117,9 +113,8 @@ test.describe('latex acceptance axes', () => {
 		await editor.gotoPlugins();
 	});
 
-	// A1, showing and hiding a block's source: it must not jump the scroll position, the view jump
-	// Obsidian documents, and must put the render back at exactly its previous geometry. Measured
-	// on a fixture that scrolls, so the scroll assertion can actually fail.
+	// A1: showing and hiding a block's source must not jump the scroll position and must put the
+	// render back at exactly its previous geometry, measured on a fixture that scrolls.
 	test('A1: block reveal→fold holds scroll position and render geometry', async ({ page }) => {
 		await editor.loadContent(TALL_BLOCK_MATH);
 		await expect(editor.blockRender).toHaveCount(1);
@@ -150,9 +145,8 @@ test.describe('latex acceptance axes', () => {
 		);
 	});
 
-	// A1 for an inline formula: the caret survives showing the source and committing, so a
-	// character typed after the commit lands past the widget rather than at a block edge, and the
-	// block below does not move vertically across the round trip.
+	// A1 for an inline formula: after showing the source and committing, a typed character lands past
+	// the widget, and the block below does not move vertically.
 	test('A1: inline reveal→edit→commit preserves the caret with no vertical shift', async ({
 		page
 	}) => {
@@ -179,11 +173,8 @@ test.describe('latex acceptance axes', () => {
 		expect(Math.abs(nextTopAfter - nextTopBefore)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE);
 	});
 
-	// A2: editing one of several live block equations re-renders only that one. The memoizing is
-	// proven in the unit suite; this ties it to the live document, where the worry is KaTeX work
-	// repeated on untouched blocks. The formulas differ so a stray render elsewhere is obvious,
-	// and paragraphs sit between the equations so blurring the edited one commits to a paragraph
-	// rather than opening a neighbour.
+	// A2: editing one of several block equations re-renders only that one, tying the unit-tested
+	// memoizing to the live document. Paragraphs between the equations give the blur a target.
 	test('A2: editing one block equation re-renders only that equation', async ({ page }) => {
 		await editor.loadContent(
 			'Para 0.\n\n$$a^2$$\n\nPara 1.\n\n$$b^2$$\n\nPara 2.\n\n$$c^2$$\n\nPara 3.\n'
@@ -229,9 +220,8 @@ test.describe('latex acceptance axes', () => {
 		});
 	}
 
-	// A5: invalid math renders a readable inline message through the live widget path, never
-	// KaTeX's raw `.katex-error` strip. Swapping the adapter is proven in the unit suite; this
-	// ties it to the render the user actually sees.
+	// A5: invalid math renders a readable inline message through the live widget path, never KaTeX's
+	// raw `.katex-error` strip.
 	test('A5: invalid inline math shows a legible error, not a raw strip', async () => {
 		await editor.loadContent('Before $\\frac{$ after\n');
 		await expect(editor.inlineWidget).toHaveCount(1);

@@ -38,11 +38,8 @@ async function islandCount(ctx: SimContext, blockIndex: number): Promise<number>
 
 // ── Gestures ─────────────────────────────────────────────────────────────────
 
-/**
- * A replace decoration is stepped over in one go, so the exact offsets on each side are what
- * this checks; a zero-width widget is see-through and the caret crosses onto the real byte
- * beside it. Either way the source must be identical afterwards.
- */
+/** A replace decoration is stepped over in one go, so the offsets on each side are checked; a
+ *  zero-width widget is see-through, so the caret crosses onto the real byte beside it. */
 export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { start, end, kind } = await readIsland(ctx, blockIndex);
@@ -77,12 +74,8 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 	tracker.resync(before);
 }
 
-/**
- * Two presses to select and delete, then an undo, so the bytes end up unchanged. The check
- * that matters is on the first press: it selects the whole decoration and must leave the
- * hidden bytes exactly as they were, so a quietly swallowed byte fails here rather than
- * hiding inside the delete.
- */
+/** The first keypress selects the whole decoration and must leave its hidden bytes intact, so a
+ *  swallowed byte fails there rather than hiding inside the delete. */
 export async function edgeDeleteReplaceIsland(
 	ctx: SimContext,
 	blockIndex: number,
@@ -121,11 +114,8 @@ BEFORE: ${JSON.stringify(before)}`
 	tracker.resync(before);
 }
 
-/**
- * The decoration is see-through, so the press takes the real byte beside it and never just
- * strips the decoration's own DOM. The widget sits at the front of the word it marks, so the
- * byte taken is the space before it and the word survives to grow the decoration again.
- */
+/** The widget is see-through and sits at the front of its word, so Backspace takes the space
+ *  before it, never just the widget's DOM, and the word survives to grow the decoration again. */
 export async function backspaceThroughWidgetIsland(
 	ctx: SimContext,
 	blockIndex: number
@@ -156,10 +146,8 @@ export async function backspaceThroughWidgetIsland(
 	tracker.resync(before);
 }
 
-/**
- * The bytes end up unchanged. The typed character lands next to the decoration, whose own text
- * is untouched, so the decoration is derived again and the count holds across the edit.
- */
+/** The typed character leaves the decoration's own text untouched, so the decoration is derived
+ *  again and the count holds across the edit. */
 export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await readIsland(ctx, blockIndex);
@@ -181,11 +169,8 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 	tracker.resync(before);
 }
 
-/**
- * A block decoration is keyed on the block's content, so the badge has to follow the bytes to
- * the new position and back. That rule has its own e2e test; this one runs it in the middle of
- * a long session.
- */
+/** A block decoration is keyed on the block's content, so the badge follows the bytes to the new
+ *  position and back, here in the middle of a long session. */
 export async function reorderDecoratedBlock(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();

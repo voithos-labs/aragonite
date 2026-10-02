@@ -1,9 +1,8 @@
 /**
  * A fixed-size ring buffer of the inline code's short-lived state changes, read through the
- * debug panel and `getDiagnostics()`. Unlike `perf/instruments.ts` it can be turned on anywhere,
- * production included, so a consumer app can attach it to a bug report; that is why an entry
- * holds only cheap values, never node references or raw document text. The buffer is
- * module-global, so two editors on one page interleave their entries.
+ * debug panel and `getDiagnostics()`. It can run in production so a consumer app can attach it
+ * to a bug report, so an entry holds only cheap values, never node references or document text.
+ * The buffer is module-global: two editors on one page interleave their entries.
  */
 
 export interface InteractionTraceEntry {
@@ -65,14 +64,14 @@ export function traceRebuild(changed: string, force: boolean): void {
 	record('text-render', 'rebuild', { changed, force });
 }
 
-export function traceCursorCapture(walk: number): void {
+export function traceCursorCapture(raw: number): void {
 	if (!enabled) return;
-	record('text-render', 'cursor-capture', { walk });
+	record('text-render', 'cursor-capture', { raw });
 }
 
-export function traceCursorRestore(walk: number): void {
+export function traceCursorRestore(raw: number): void {
 	if (!enabled) return;
-	record('text-render', 'cursor-restore', { walk });
+	record('text-render', 'cursor-restore', { raw });
 }
 
 export function tracePendingCursorSet(source: string, offset: number | null): void {

@@ -4,11 +4,12 @@
  * than scanning lines is what makes it fence-safe; nested alerts are skipped because
  * rewriting one would mean rebuilding its ancestors' raw.
  */
-import { parse, type PasteTransform } from '$lib/plugin';
+import { documentLineEnding, parse, type PasteTransform } from '$lib/plugin';
 import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
 
 export function convertGithubAlertsInDocument(source: string): AlertConversion {
 	const doc = parse(source, { scope: 'document' });
+	const ending = documentLineEnding(doc);
 	let changed = false;
 	const parts: string[] = [doc.prefix];
 	for (const child of doc.children) {
@@ -16,7 +17,7 @@ export function convertGithubAlertsInDocument(source: string): AlertConversion {
 		// Both kinds feed the same first-line converter: a plain blockquote may still
 		// hold a mid-quote marker, which must stay literal.
 		const isAlertShaped = child.kind === 'blockquote' || child.kind === 'githubAlert';
-		const converted = isAlertShaped ? convertAlertBlockquoteRaw(child.raw) : null;
+		const converted = isAlertShaped ? convertAlertBlockquoteRaw(child.raw, ending) : null;
 		if (converted !== null) {
 			parts.push(converted);
 			changed = true;

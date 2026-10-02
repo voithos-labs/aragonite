@@ -15,8 +15,8 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.setPresentationMode('live');
 	});
 
-	// The bug this guards: a lone `$` ahead of an existing formula pairing with that formula's
-	// closer and wrapping the prose between them.
+	// A lone `$` ahead of an existing formula must not pair with that formula's closer and wrap the
+	// prose between them.
 	test('a $ typed ahead of a formula pairs with its own paired closer, not the formula', async ({
 		page
 	}) => {
@@ -56,6 +56,38 @@ test.describe('inline delimiter auto-pair', () => {
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceContains('pay x');
 		expect(await editor.bridge.getSource()).toBe('pay x\n');
+	});
+
+	// Only the pair the auto-pair wrote is its own: after the step-over and a body byte, the
+	// two dollars are the user's, and a space typed between them keeps both.
+	test('a space typed between the dollars of a typed $$b keeps both', async ({ page }) => {
+		await editor.loadContent('pay \n');
+		await editor.focusBlock(0, 4);
+		await page.keyboard.type('$$b');
+		await editor.bridge.waitForSourceContains('pay $$b');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.type(' ');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('pay $ $b\n');
+	});
+
+	// Delete takes the auto-pair's partner apart, so the pair a paste rebuilds is the user's own.
+	test('a pair rebuilt by Delete and a paste keeps both stars under a space', async ({ page }) => {
+		await editor.setPresentationMode('source');
+		await editor.loadContent('a \n');
+		await editor.focusBlock(0, 2);
+		await page.keyboard.type('*');
+		await editor.bridge.waitForSourceContains('a **');
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals('a *\n');
+		await editor.seedClipboard('*');
+		await editor.paste();
+		await editor.bridge.waitForSourceEquals('a **\n');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.type(' ');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('a * *\n');
 	});
 
 	// The emphasis delimiters: `**` typed ahead of an existing bold run pairs with its own

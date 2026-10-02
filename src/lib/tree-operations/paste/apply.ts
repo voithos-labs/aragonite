@@ -1,102 +1,78 @@
-/** Applies the results a paste surface hook produced to the document. */
+/** Applies the results a paste surface hook produced to the document. `start` is where the paste
+ *  began, which each commit records as undo's caret. */
 
-import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
-import { ensureUnsharedChild } from '../unshare';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { stampStructuralChange } from '../structural-change';
-import type { CstNode } from '../../core/nodes';
+import type { CommitSnapshotArg } from '../../action-contracts';
+import { leafAtRawOffset } from '../container-offsets';
+import { blockNodeAt } from '../node-primitives';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext, InlineCaretLanding } from './dispatch';
-import { resolveParentScope } from './parent-scope';
-import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
- * Apply an inline paste. Single-block goes through `updateBlockContent`; cross-block runs the
- * same reparse path directly against the parent list, because the originating action bundle
- * may not match the target's level. The single-block route stays synchronous through its
- * mutation so the caller can set cursor state before the first reactivity flush.
+ * Apply an inline paste, reporting where the caret lands in the stored bytes. A cross-block paste
+ * commits at the parent list, since the originating action bundle may not match the target's level.
  */
 export async function applyInlineResult(
 	targetPath: number[],
 	result: InlinePasteResult,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<InlineCaretLanding | undefined> {
-	if (ctx.undoEntry === 'join') {
-		return commitInlineJoin(targetPath, result, ctx);
+	if (ctx.crossBlock) {
+		return commitInlineCrossBlock(targetPath, result, ctx, start);
 	}
 
-	// Unawaited: the caller sets pendingCursorOffset in the same synchronous block, so both
-	// land in one reactive flush.
+	// Unawaited, so the caller places the caret before the first reactive flush and both land in
+	// that one flush.
 	const blockIndex = targetPath[targetPath.length - 1];
-	void ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
-	return undefined;
+	const write = ctx.blockEdit.updateBlockContent(
+		blockIndex,
+		result.newRaw,
+		'literal',
+		start.offset,
+		result.caretOffset
+	);
+	return write.admitted ? { path: targetPath, offset: write.caret } : undefined;
 }
 
-/**
- * Cross-block inline paste. `'join'` means the caller already pushed the covering undo
- * snapshot, not that the commit is skipped: committing is what keeps the parent's `childIds`
- * aligned and puts the insertion on the `edit` stream. The mutation goes through the
- * same-position reparse path, so a paste completing marker syntax puts a node of the reparsed
- * kind there instead of leaving the old kind holding foreign bytes.
- */
-async function commitInlineJoin(
+/** Cross-block inline paste, committed at the parent list so its `childIds` stay aligned, through
+ *  the reparse, so a paste completing marker syntax changes the block's kind. */
+async function commitInlineCrossBlock(
 	targetPath: number[],
 	result: InlinePasteResult,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<InlineCaretLanding | undefined> {
-	const scope = resolveParentScope(ctx.doc, targetPath, ctx.controller);
-	if (!scope) return undefined;
-	const leafIndex = targetPath[targetPath.length - 1];
-	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-	let siblings: readonly CstNode[] = [];
-
-	await ctx.controller.commitMultiScope({
-		scopes: [scope],
-		snapshot: 'skip',
-		mutate: ([view]) => {
-			// The node may still be snapshot-shared, and the same-kind branch of the reparse
-			// writes its raw in place (G1.9).
-			ensureUnsharedChild(view, leafIndex, view.sharing);
-			settled = updateNodeContent(
-				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
-				leafIndex,
-				result.newRaw,
-				ctx.grammar,
-				view.sharing
-			);
-			siblings = view.children;
-			stampStructuralChange(view.children, settled.change, view.sharing);
-			return [settled.change];
-		},
-		op: {
-			kind: 'updateContent',
-			detail: { length: result.newRaw.length },
-			eventPath: docPathFrom(targetPath)
-		}
+	const landed = await ctx.controller.commitLeafText(targetPath, result.newRaw, {
+		caret: result.caretOffset,
+		snapshotOffset: start.offset,
+		landing: (written) => written.caret
 	});
-
-	// The paste can demote the block's kind, and a merge into the block above left that block
-	// holding the pasted bytes, so the caller's own caret target is stale.
-	const target = settledCaretTarget(settled, leafIndex, result.caretOffset, siblings);
-	return { path: [...targetPath.slice(0, -1), target.index], offset: target.offset };
+	if (!landed.wrote) return undefined;
+	// The paste can make the block a container, whose caret belongs in the leaf holding the offset.
+	const blockPath = [...landed.caret.path];
+	const block = blockNodeAt(ctx.doc, blockPath);
+	const leaf = block?.children?.length ? leafAtRawOffset(block, landed.caret.offset) : null;
+	return {
+		path: [...blockPath, ...(leaf?.path ?? [])],
+		offset: leaf?.offset ?? landed.caret.offset
+	};
 }
 
 export async function applyStructuralResult(
 	targetPath: number[],
 	result: StructuralPasteResult,
 	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg,
 	trailingSeparator = ''
 ): Promise<void> {
-	await replaceBlockAtParent({
-		doc: ctx.doc,
-		blockPath: targetPath,
-		replacement: result.replacement,
-		controller: ctx.controller,
-		undoEntry: ctx.undoEntry ?? 'own',
-		focusReplacementIndex: result.focusReplacementIndex,
-		focusOffset: result.focusOffset,
-		source: 'paste-dispatch',
-		trailingSeparator,
-		...(ctx.grammar ? { grammar: ctx.grammar } : {})
-	});
+	await ctx.controller.replaceBlock(
+		targetPath,
+		result.replacement,
+		{ replacementIndex: result.focusReplacementIndex, offset: result.focusOffset },
+		{
+			source: 'paste-dispatch',
+			trailingBlank: trailingSeparator !== '',
+			snapshotOffset: start.offset
+		}
+	);
 }

@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
-//
 // A cross-block endpoint inside a kind with no character positions must carry 0 or
 // displayLength(raw): anything between makes every byte consumer slice a whole block in half.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import type { Document } from '$lib/core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 const DIAGRAM = '```mermaid\ngraph TD\n```\n';
 const DIAGRAM_END = 23;
@@ -28,16 +28,20 @@ function mermaidDoc(): Document {
 }
 
 function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
-	return collectCrossBlockText(doc, s.start!, s.end!);
+	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, s.start!, s.end!)));
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 	return serialize(
-		rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined, undefined, undefined).newDoc
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, s.start!, s.end!)),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
 	);
 }
-
-afterEach(() => resetPluginPlatformForTests());
 
 describe('cross-block endpoints inside a whole-block kind', () => {
 	it('snaps a range end to the unit end, so the copy carries the diagram whole', () => {
@@ -98,8 +102,8 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		expect(s.end).toEqual({ path: [1], offset: DIAGRAM_END });
 	});
 
-	// Immune today only because it renders no text node for a hit-test to walk; the contract
-	// is the kind class, not the accident.
+	// A thematic break is immune only because it renders no text node for a hit-test to walk;
+	// the contract is the kind class, not that accident.
 	it('holds for a thematic break, the built-in of the same class', () => {
 		const doc = parse(BREAK_DOC);
 		const s = stateOver(doc);

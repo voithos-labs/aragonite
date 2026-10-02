@@ -1,23 +1,19 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerFootnoteReference();
 });
-afterEach(resetPluginPlatformForTests);
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const refsIn = (raw: string) => scan(raw).filter((n) => n.kind === FOOTNOTE_REF_KIND);
 
-// An unterminated `[^` would search to the end of the block before backing out, so a
-// paragraph holding many of them would pay one full block scan each. The label terminators
-// (`]` and whitespace) are indexed once per block instead.
+// An unterminated `[^` would search to the block's end before backing out, so the label
+// terminators (`]` and whitespace) are indexed once per block rather than scanned per `[^`.
 describe('footnote reference decline bounds', () => {
 	it('an unterminated-[^ flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '[^x', [32, 128]);
@@ -39,11 +35,20 @@ describe('footnote reference decline bounds', () => {
 		expect(parseInline('[^a]', 0, 4).some((n) => n.kind === FOOTNOTE_REF_KIND)).toBe(true);
 	});
 
-	// A soft line break inside a paragraph puts `\r` in the label's path, and the
-	// terminator index covers the whole `\s` class the scan did, so a CRLF block
-	// backs out exactly where an LF one does.
+	// A soft line break puts `\r` in the label, and the terminator covers every Markdown
+	// whitespace character, so a CRLF block backs out exactly where an LF one does.
 	it('declines a label broken by a CRLF line ending', () => {
 		expect(refsIn('[^a\r\n]')).toEqual([]);
 		expect(refsIn('[^a]\r\n')).toEqual([{ kind: FOOTNOTE_REF_KIND, start: 0, end: 4, label: 'a' }]);
+	});
+});
+
+// Miss-analysis: every label case was ASCII, never one holding a non-breaking space.
+describe('footnote reference label whitespace', () => {
+	it('ends a label at a tab, and reads a non-breaking space as part of it', () => {
+		expect(refsIn('[^a\tb]')).toEqual([]);
+		expect(refsIn('[^a\u00a0b]')).toEqual([
+			{ kind: FOOTNOTE_REF_KIND, start: 0, end: 6, label: 'a\u00a0b' }
+		]);
 	});
 });

@@ -9,28 +9,61 @@ import {
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { BlockEditActions } from '$lib/action-contracts';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
+import { stubBlockEdit } from '$lib/testing/headless-actions';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
+import { asPresentationMode } from '$lib/presentation-mode';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
-/** `updateBlockContent` argument tuples, newest last. */
+/** `updateBlockContent` argument tuples less the write mode, newest last. The anchor is the caret
+ *  the key was dispatched at, which the block records at keydown. */
 export type EditTuple = [index: number, content: string, start: number, end: number];
 
 export interface EdgeDispatchHarness {
 	dispatch: ReturnType<typeof createEdgePolicyDispatch>;
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
 	edits: EditTuple[];
+	/** The block each container-marker write was asked for, newest last. */
+	markerWrites: CstNode[];
+}
+
+/** What the block's surface write goes through, for a case that watches the list or the caret. */
+export interface SurfaceWriteOverrides {
+	blockEdit?: Pick<BlockEditActions, 'updateBlockContent'>;
+	requestCaret?: (at: number, opts: { source: string }) => void;
 }
 
 export function makeEdgeDispatch(
 	node: CstNode | (() => CstNode),
 	el: HTMLElement,
-	overrides: Partial<EdgePolicyDispatchDeps> = {}
+	{
+		blockEdit: writes,
+		requestCaret = () => {},
+		...overrides
+	}: Partial<EdgePolicyDispatchDeps> & SurfaceWriteOverrides = {}
 ): EdgeDispatchHarness {
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
+	const markerWrites: CstNode[] = [];
+	// The block records the caret a key was dispatched at, which every write it makes anchors on.
+	let keyCaret = 0;
+	const blockEdit: BlockEditActions = {
+		...stubBlockEdit(),
+		updateBlockContent: (index, content, mode, start = 0, end = start) => {
+			edits.push([index, content, start, end]);
+			return (
+				writes?.updateBlockContent(index, content, mode, start, end) ??
+				withStoredCaret(Promise.resolve(true), end)
+			);
+		}
+	};
 	const deps: EdgePolicyDispatchDeps = {
+		lineEnding: () => '\n',
 		get node() {
 			return readNode();
 		},
@@ -40,28 +73,44 @@ export function makeEdgeDispatch(
 		get containerParent() {
 			return null;
 		},
-		get linkRef() {
-			return undefined;
+		// The mode on the element's `data-presentation` root, as the editor writes it from the reading.
+		get reading() {
+			return fixtureReading(
+				{},
+				asPresentationMode(el.closest('[data-presentation]')?.getAttribute('data-presentation'))
+			);
 		},
 		getEl: () => el,
-		getAmbientLength: () => 0,
+		// The block alone at the top level, unless a case places it in a document of its own.
+		storedAs: () => topLevelStore(readNode(), deps.reading),
 		hasIslands: () => false,
 		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as EditTuple)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
+		writeText: createSurfaceWrite({
+			getNode: readNode,
+			getIndex: () => 0,
+			getPath: () => [0],
+			blockEdit,
+			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+			getPreEditOffset: () => keyCaret,
+			requestCaret
+		}),
+		completeMarker: () => markerWrites.push(readNode()),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => null,
 		pendingMarks: makePendingMarks(),
-		installedAs: 'block',
+		ownPairs: createAutoPairRecord().forBlock(),
 		...overrides
 	};
 	const dispatch = createEdgePolicyDispatch(deps);
-	return { dispatch, handleKeydown: dispatch.handleKeydown, edits };
+	// A held range reads as its start, as the block's caret read does.
+	const handleKeydown: EdgeDispatchHarness['handleKeydown'] = (e, caret) => {
+		keyCaret = deps.getRawSelection()?.start ?? caret ?? 0;
+		return dispatch.handleKeydown(e, caret);
+	};
+	return { dispatch, handleKeydown, edits, markerWrites };
 }
 
 // ── DOM scaffolding ──────────────────────────────────────────────────────────

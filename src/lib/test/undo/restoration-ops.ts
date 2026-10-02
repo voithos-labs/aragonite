@@ -9,7 +9,7 @@ import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createContainerEditActions } from '../../editor-actions/container-edit';
@@ -20,7 +20,8 @@ import {
 } from '../../editor-actions/nested/nested-actions';
 import { createListContext } from '../../editor-actions/list-context';
 import { createTableMutationsContext } from '../../editor-actions/table-context';
-import { performCrossBlockDelete } from '../../selection/cross-block/ops';
+import { replaceRange } from '../../selection/cross-block/range-replace';
+import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '../../selection/primitives';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import {
@@ -30,6 +31,7 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // ── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -49,6 +51,7 @@ export type Op =
 	| { t: 'tableInsertColumn'; i: number }
 	| { t: 'tableDeleteColumn'; i: number }
 	| { t: 'tableReorderRow'; i: number; dir: -1 | 1 }
+	| { t: 'tableReorderColumn'; i: number; dir: -1 | 1 }
 	| { t: 'tableCycleAlignment'; i: number }
 	| { t: 'typeCell'; r: number; c: number; n: number }
 	| { t: 'rangeDelete'; a: number; b: number; off: number }
@@ -83,6 +86,11 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({
 		t: fc.constant('tableReorderRow' as const),
 		i: fc.nat(4),
+		dir: fc.constantFrom(-1 as const, 1 as const)
+	}),
+	fc.record({
+		t: fc.constant('tableReorderColumn' as const),
+		i: fc.nat(3),
 		dir: fc.constantFrom(-1 as const, 1 as const)
 	}),
 	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
@@ -172,6 +180,7 @@ export async function runOp(h: Harness, op: Op): Promise<void> {
 		case 'tableInsertColumn':
 		case 'tableDeleteColumn':
 		case 'tableReorderRow':
+		case 'tableReorderColumn':
 		case 'tableCycleAlignment':
 		case 'typeCell':
 			return runTableOp(h, op);
@@ -192,7 +201,7 @@ async function runTopOp(
 	const { c, i } = paragraphs[op.i % paragraphs.length];
 	if (op.t === 'typeTop') {
 		const text = trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1) + '\n';
-		await h.blockEdit.updateBlockContent(i, text, 0);
+		await h.blockEdit.updateBlockContent(i, text, 'authored', 0);
 	} else if (op.t === 'splitTop') {
 		await h.blockEdit.splitBlock(i, Math.min(op.off, displayLength(c.raw)));
 	} else {
@@ -200,9 +209,8 @@ async function runTopOp(
 	}
 }
 
-/** Writes through the same `updateBlockContent` call TextEditableBlock types on, which
- *  reparses, so a `>` at offset 0 changes the block's kind exactly as a real keystroke would,
- *  and the comparison holds only if that change is byte-faithful. */
+/** Writes through `updateBlockContent`, the call TextEditableBlock types through, so a `>` at
+ *  offset 0 reparses the block's kind exactly as a real keystroke would. */
 async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Promise<void> {
 	const doc = h.deps.doc;
 	const paragraphs = doc.children
@@ -216,7 +224,7 @@ async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Prom
 	const ch = MARKDOWN_TYPE_CHARS[op.ch % MARKDOWN_TYPE_CHARS.length];
 	const next = [...cps.slice(0, at), ch, ...cps.slice(at)].join('');
 	const utf16At = cps.slice(0, at).join('').length;
-	await h.blockEdit.updateBlockContent(i, next + '\n', utf16At, utf16At + 1);
+	await h.blockEdit.updateBlockContent(i, next + '\n', 'authored', utf16At, utf16At + 1);
 }
 
 async function runListOp(
@@ -251,13 +259,13 @@ async function runListOp(
 				return [listIndex];
 			}
 		},
+		getLineEnding: () => documentLineEnding(h.deps.doc),
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
 		controller: h.controller,
-		getPresentationMode: undefined,
-		linkRef: undefined
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'insertItem') {
@@ -290,7 +298,7 @@ async function runListOp(
 			})
 		);
 		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
-		await itemBundle.blockEdit.updateBlockContent(0, text, 0);
+		await itemBundle.blockEdit.updateBlockContent(0, text, 'authored', 0);
 	}
 }
 
@@ -305,7 +313,7 @@ async function runQuoteOp(h: Harness, op: { i: number; n: number }): Promise<voi
 	if (leaf.kind !== 'paragraph') return;
 	const bundle = nestedBundleAt(h, quoteIndex);
 	const text = trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1) + '\n';
-	await bundle.blockEdit.updateBlockContent(innerIdx, text, 0);
+	await bundle.blockEdit.updateBlockContent(innerIdx, text, 'authored', 0);
 }
 
 async function runTableOp(
@@ -319,6 +327,7 @@ async function runTableOp(
 				| 'tableInsertColumn'
 				| 'tableDeleteColumn'
 				| 'tableReorderRow'
+				| 'tableReorderColumn'
 				| 'tableCycleAlignment'
 				| 'typeCell';
 		}
@@ -348,7 +357,7 @@ async function runTableOp(
 			})
 		);
 		const text = trimTrailingLineEnding(row.children[colIdx].raw) + 'z'.repeat(op.n + 1);
-		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 0);
+		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 'authored', 0);
 		return;
 	}
 
@@ -368,8 +377,7 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
-		focusCell: () => {},
-		announceReorder: () => {}
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'tableInsertRow') await ctx.insertRowBelow(op.i % rowCount);
@@ -379,6 +387,9 @@ async function runTableOp(
 	else if (op.t === 'tableReorderRow') {
 		const rowIdx = op.i % rowCount;
 		await (op.dir === -1 ? ctx.moveRowUp(rowIdx) : ctx.moveRowDown(rowIdx));
+	} else if (op.t === 'tableReorderColumn') {
+		const colIdx = op.i % colCount;
+		await (op.dir === -1 ? ctx.moveColumnLeft(colIdx) : ctx.moveColumnRight(colIdx));
 	} else await ctx.cycleAlignment(op.i % colCount);
 }
 
@@ -398,16 +409,9 @@ async function runRangeDelete(
 	if (!start || !end) return;
 
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await performCrossBlockDelete({
-		selection: h.deps.selectionState,
-		getDoc: () => h.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: h.deps.revealPath,
-		controller: h.controller,
-		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+	await replaceRange(rangeContext(h.deps, h.controller, fixtureReading()), {
+		kind: 'none',
+		gesture: 'keyless'
 	});
 }
 

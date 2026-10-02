@@ -1,10 +1,7 @@
 // The "have I already registered" checks must cover every register-once call a plugin makes,
 // so an idempotent module (hot reload, a re-imported registrar) can ask instead of catching.
-//
-// Miss-analysis: the checks were tested one at a time against their own registry, and no test
-// held the set to the registries a plugin actually writes, so the missing block-declaration
-// check was invisible while its inline counterpart shipped.
-import { describe, it, expect, beforeEach } from 'vitest';
+// Miss-analysis: each check was tested against its own registry, never against the full set.
+import { describe, it, expect } from 'vitest';
 import {
 	declarePluginKind,
 	declaredPluginKind,
@@ -19,8 +16,6 @@ import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 
 const KIND = 'probe-declared-kind';
-
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('isBlockKindDeclared', () => {
 	it('answers before and after a declaration, and after a reset', () => {
@@ -46,7 +41,6 @@ describe('isBlockKindDeclared', () => {
 		expect(isBlockKindDeclared('paragraph')).toBe(false);
 	});
 
-	// It matches the inline side, which is what made the missing block check a gap.
 	it('is the block mirror of isInlineKindDeclared', () => {
 		declarePluginInlineKind('probe-declared-inline');
 		expect(isInlineKindDeclared('probe-declared-inline')).toBe(true);
@@ -54,9 +48,8 @@ describe('isBlockKindDeclared', () => {
 	});
 });
 
-// The dev-server allowance (`schema/register-once.ts`): production and test keep the duplicate
-// throw, a dev server replaces instead. The paste registry follows the same rule as every
-// other register-once call, and this pins that it does.
+// A dev server replaces a duplicate registration where production and test throw
+// (`schema/register-once.ts`); the paste registry follows the same rule.
 describe('registerPasteTransform under the dev duplicate valve', () => {
 	const named = (result: string) => ({ name: 'valve-probe', transform: () => result });
 

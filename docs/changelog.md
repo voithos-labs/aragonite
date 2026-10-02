@@ -2,12 +2,16 @@
 
 Everything this editor has actually shipped, newest first. The README sends people here to experience my suffering, and it is not entirely joking: read a few families back and you can watch the same three problems get solved properly on the fourth attempt.
 
-A word on the numbers. Everything before 0.10.1 was a working number: the label a batch of work got filed under, bumped whenever it felt like a version, never a git tag and never an npm release. Those entries stay as they are, since they're the record of what got built and in what order. From 0.10.1 on, every number is a release you can install: a `v0.10.x` tag on this repo and the same version on npm.
+A word on the numbers. Everything before 0.10.1 was a working number: the label a batch of work got filed under, bumped whenever it felt like a version, never a git tag and never an npm release. Those entries stay as they are, since they're the record of what got built and in what order. From 0.10.1 on, every number is a release you can install (a `v0.10.x` tag on this repo and the same version on npm), except 0.10.5 and 0.10.6, which went out inside 0.10.7.
 
 **Style:** one tight entry per version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
 ## [0.10](changelog/0.10.md)
 
+- [0.10.8](changelog/0.10.md#0108-typing-that-leaves-your-files-endings-alone-and-menus-that-close-with-the-mode): typing, toggles and block edits keep a file's missing final line break, undo puts the caret back where you were, and switching modes or documents closes every menu
+- [0.10.7](changelog/0.10.md#0107-a-page-that-stays-put-and-a-caret-that-lands-where-you-meant): one owner for the scroll, so the page stops jumping when heights change; undo, deletes and paste put the caret where they began or pointed; range edits and live-mode paste keep what typing keeps; and a round of plugin API tightening, some of it breaking
+- [0.10.6](changelog/0.10.md#0106-one-copy-of-each-rule): CRLF kept to the last line, reading mode refused wherever bytes are written, plugins that stay out of editors that don't list them, fence lines you can edit
+- [0.10.5](changelog/0.10.md#0105-inline-menus-and-slash-commands-a-name-for-every-block-finns-behavior-pass): a typed trigger opens a list, slash commands ship as a plugin, every block has a name and a keyboard road, a selected image keeps no stray caret, and Finn's behavior pass
 - [0.10.4](changelog/0.10.md#0104-the-click-ladder-a-selection-toolbar-and-a-drop-that-moves): the editor owns the word and block clicks and the drop of a dragged selection, a toolbar opens over a selection, inline math opens with a digit, the picker lists each language once
 - [0.10.3](changelog/0.10.md#0103-finns-uiux-once-over): context menus and the block menu, table flyouts and strips, the code rail and the language picker, math layouts, image crop, delimiters that pair themselves
 - [0.10.2](changelog/0.10.md#0102-an-editor-you-can-see-on-a-white-page): an unthemed editor inherits its page's text color, and the quickstart mounts one you can read

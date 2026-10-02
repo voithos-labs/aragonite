@@ -1,9 +1,10 @@
 /**
- * The registrations waiting to be checked by `./registration-checks`. This module imports nothing
- * on purpose: the registries that add to it register built-ins while their own module is still
- * evaluating, so importing them back would run this module's code before its state exists.
+ * The registrations waiting to be checked by `./registration-checks`. This module imports no
+ * registry on purpose: the registries that add to it register built-ins while their own module is
+ * still evaluating, so importing them back would run this module's code before its state exists.
  */
 import type { AnyBlockKind } from '../core/nodes';
+import { enrollTestReset } from './registry-reset';
 
 const pendingKinds = new Set<AnyBlockKind>();
 const pendingLateOpeners = new Set<AnyBlockKind>();
@@ -11,10 +12,8 @@ let didFirstFlush = false;
 let grammarConsumed = false;
 
 /**
- * Record a registration for the next check. Nothing is added before the first check, which
- * validates the whole startup batch at once. A late opener is recorded whatever happens: a
- * `parse()` with no editor marks the grammar used without running a check, so an opener registered
- * after that really is late and has to survive until the first check (G1.17).
+ * Nothing queues before the first check, which covers the whole startup batch, except a late
+ * opener: a bare `parse()` uses the grammar without a check, so a later one waits for it (G1.17).
  */
 export function enqueueRegistrationCheck(
 	kind: AnyBlockKind,
@@ -57,9 +56,11 @@ export function takeRegistrationFlushWork(): RegistrationFlushWork | null {
 	return work;
 }
 
-export function __resetRegistrationChecksForTests(): void {
+function __resetRegistrationChecksForTests(): void {
 	pendingKinds.clear();
 	pendingLateOpeners.clear();
 	didFirstFlush = false;
 	grammarConsumed = false;
 }
+// A flag left behind by a cleared registry would make the next registrations look late.
+enrollTestReset(__resetRegistrationChecksForTests);

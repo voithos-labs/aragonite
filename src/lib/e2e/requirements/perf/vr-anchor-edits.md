@@ -9,6 +9,8 @@ width, and the structural correction's check for no local anchor.
 - Inserting a block above the fold holds the viewport (F4): the insert shifts every index below it, so an anchor addressed by number measures a different block's offset and over-corrects by ~one block height. Remapping by stable id holds the visible content's Y; reverting the remap fails the held-Y bound. Driven programmatically in a nested list, since blocks above the fold are unmounted, so there is no clickable target and undo would scroll.
 - A column does not shrink when its widest cell scrolls out of the window (F6): the editor holds a table column at its measured max even after its widest cell unmounts; removing that hold lets the column collapse toward the narrow rows' width after the scroll.
 - Reordering a list item below the fold does not drift `scrollTop` (F7): when the list's child list has no content scrolled above the viewport top (`localScrollTop === 0`), one Alt+Up + Alt+Down no-op reorder cycle must return `scrollTop` to baseline. The structural anchor correction would otherwise follow the block it holds to its new place and shift the shared `scrollTop`, which drifts by a different amount on each keypress.
+- One Alt+ArrowUp alone on the lower item leaves `scrollTop` where it was (under 3px), and so does one Alt+ArrowDown alone on the upper item. The caret sits in the item that moves, and a block the edit moved isn't held, so the list holds nothing (its top is below the viewport's) and the page stays put.
+  - Miss-analysis: F7 checks only the end of a cycle, where a jump on the way up and its mirror on the way down cancel, so a correction that followed the caret's block on one press alone would have passed it.
 
 ## Edge cases
 

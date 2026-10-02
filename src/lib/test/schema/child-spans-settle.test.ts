@@ -1,11 +1,7 @@
-// Fixing up a container after an edit rewrites bytes the spans describe without moving the
-// children: a sibling's separating line, a wrapper's position. Those paths drop the spans, so the
-// next rebuild with a hint recomputes them.
-//
-// Miss-analysis: the spans suite built its hint by hand instead of driving the code that makes
-// one, so no test ran a write whose fix-up touches a sibling; no simulation typed twice into a
-// container holding a blank child; and G1.1, the assumed backstop, only sees the node after a
-// commit rebuild healed it, the class G1.38 now catches.
+// Fixing up a container after an edit rewrites bytes its child spans describe without moving the
+// children (a sibling's separating line, a wrapper's position), so those paths drop the spans and
+// the next rebuild with a hint recomputes them.
+// Miss-analysis: the spans suite hand-built its hint, so no test ran a fix-up touching a sibling.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -17,30 +13,31 @@ import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The first keystroke fills in the spans and the second one uses them, which is why a single
-// keypress never showed this.
+// The first keystroke fills in the spans and the second one uses them, so a single keypress
+// cannot show stale spans.
 describe('a settle between two keystrokes', () => {
 	it('creates the separator a blank-fill must supply the follower', async () => {
 		const h = makeNestedHarness('> a\n>\n>\n> c\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 'authored', 1, 2);
 		expect(serialize(h.deps.doc)).toBe('> aa\n>\n>\n> c\n');
-		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 0, 1);
+		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 'authored', 0, 1);
 		expect(serialize(h.deps.doc)).toBe('> aa\n>\n> x\n>\n> c\n');
 	});
 
 	it('retires the separator a blanked child hands back', async () => {
 		const h = makeNestedHarness('> a\n>\n> c\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 'authored', 1, 2);
 		expect(serialize(h.deps.doc)).toBe('> aa\n>\n> c\n');
-		await h.bundle.blockEdit.updateBlockContent(0, '\n', 2, 0);
+		await h.bundle.blockEdit.updateBlockContent(0, '\n', 'authored', 2, 0);
 		expect(serialize(h.deps.doc)).toBe('>\n> c\n');
 	});
 
 	it('leaves bytes that reload as the block count the tree holds', async () => {
 		const h = makeNestedHarness('> a\n>\n>\n> c\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 1, 2);
-		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 0, 1);
+		await h.bundle.blockEdit.updateBlockContent(0, 'aa\n', 'authored', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 'authored', 0, 1);
 		const reloaded = parse(serialize(h.deps.doc)).children[0].children!.length;
 		expect(reloaded).toBe(h.deps.doc.children[0].children!.length);
 	});
@@ -74,7 +71,7 @@ function fullRebuildRawOf(node: CstNode): string {
 	return copy.raw;
 }
 
-/** `editor-actions/container-edit.ts` `withUnsharedSpine`, minus the component layer. */
+/** The keystroke's in-place write (`editor-actions/leaf-write.ts`), minus the component layer. */
 function typeInto(doc: ReturnType<typeof parse>, path: number[], text: string): CstNode | null {
 	const sharing = createSharingState();
 	const chain = ensureUnsharedPath(doc, path, sharing);
@@ -83,14 +80,14 @@ function typeInto(doc: ReturnType<typeof parse>, path: number[], text: string): 
 	const scope = chain[path.length - 2];
 	if (!scope?.children) return null;
 	const settled = updateNodeContent(
-		{ children: scope.children, ownerKind: scope.kind, owner: scope },
+		{ children: scope.children, owner: scope, lineEnding: '\n' },
 		path[path.length - 1],
 		text,
-		undefined,
+		defaultGrammarView,
 		sharing
 	);
 	if (settled.change.op !== 'noop') dropChildSpans(scope);
-	rebuildUnsharedChain(doc, chain, sharing, [], undefined, { path, leafPreviousRaw });
+	rebuildUnsharedChain(doc, chain, sharing, [], defaultGrammarView, { path, leafPreviousRaw });
 	return scope;
 }
 
@@ -117,7 +114,7 @@ describe('the hinted rebuild after a real settle', () => {
 					const doc = parse(source);
 					const seed = ensureUnsharedPath(doc, path, createSharingState());
 					if (seed.length !== path.length) continue;
-					rebuildUnsharedChain(doc, seed, createSharingState(), [], undefined);
+					rebuildUnsharedChain(doc, seed, createSharingState(), [], defaultGrammarView);
 					const scope = typeInto(doc, path, text);
 					if (!scope) continue;
 					const full = fullRebuildRawOf(scope);
@@ -141,9 +138,9 @@ describe('the hinted rebuild after a real settle', () => {
 describe('a keystroke after a structural commit in the same container', () => {
 	it('writes bytes the container still reloads as its own children', async () => {
 		const h = makeNestedHarness('> one\n>\n> two\n>\n> three\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, 'one!\n', 4, 5);
+		await h.bundle.blockEdit.updateBlockContent(0, 'one!\n', 'authored', 4, 5);
 		await h.bundle.blockEdit.splitBlock(1, 3);
-		await h.bundle.blockEdit.updateBlockContent(0, 'one!?\n', 5, 6);
+		await h.bundle.blockEdit.updateBlockContent(0, 'one!?\n', 'authored', 5, 6);
 
 		const quote = h.deps.doc.children[0];
 		expect(quote.raw).toBe(fullRebuildRawOf(quote));
@@ -152,9 +149,9 @@ describe('a keystroke after a structural commit in the same container', () => {
 
 	it('writes bytes a delete left behind', async () => {
 		const h = makeNestedHarness('> one\n>\n> two\n>\n> three\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, 'one!\n', 4, 5);
-		await h.bundle.blockEdit.deleteBlock(1);
-		await h.bundle.blockEdit.updateBlockContent(0, 'one!?\n', 5, 6);
+		await h.bundle.blockEdit.updateBlockContent(0, 'one!\n', 'authored', 4, 5);
+		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
+		await h.bundle.blockEdit.updateBlockContent(0, 'one!?\n', 'authored', 5, 6);
 
 		const quote = h.deps.doc.children[0];
 		expect(quote.raw).toBe(fullRebuildRawOf(quote));

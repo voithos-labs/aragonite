@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { openFlyout } from './helpers';
 
-// Cells render row-major with the header cells first, so for `TABLE` the `role="cell"`
+// Cells render row-major with the header cells first, so for `TABLE` the `.table-cell`
 // order is: 0=A 1=B (header) · 2="1" 3="2" (body row 1) · 4="3" 5="4" (body row 2).
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
@@ -18,14 +18,14 @@ test.describe('table block: cell right-click menu', () => {
 	});
 
 	test('right-click a cell opens the menu with both row and column actions', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // body cell ("1"), row 1 col 0
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // body cell ("1"), row 1 col 0
 
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: /delete column/i })).toBeVisible();
 	});
 
 	test('Delete column removes the clicked cell column (colIdx routing)', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(1).click({ button: 'right' }); // header cell B, col 1
+		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // header cell B, col 1
 		await page.getByRole('menuitem', { name: /delete column/i }).click();
 
 		await editor.bridge.waitForSourceMatches(/\| A \|\s*$/m); // only column A remains
@@ -33,7 +33,7 @@ test.describe('table block: cell right-click menu', () => {
 	});
 
 	test('Delete row removes the clicked cell row (rowIdx routing)', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // body cell ("1"), row 1
+		await page.locator('.table-cell').nth(2).click({ button: 'right' }); // body cell ("1"), row 1
 		await page.getByRole('menuitem', { name: /delete row/i }).click();
 
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
@@ -42,7 +42,8 @@ test.describe('table block: cell right-click menu', () => {
 
 	// Prose has a right-click menu of its own (clipboard), so what this reads is the table's items.
 	test('right-clicking outside the table does not open the affordance menu', async ({ page }) => {
-		await editor.loadContent(`${TABLE}text below\n`);
+		// A blank line, since a line straight under the rows is one more row.
+		await editor.loadContent(`${TABLE}\ntext below\n`);
 		await page.getByText('text below').click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toHaveCount(0);
 		await expect(page.getByRole('menuitem', { name: /delete column/i })).toHaveCount(0);
@@ -51,24 +52,22 @@ test.describe('table block: cell right-click menu', () => {
 	test('right-click within an active intra-table rectangle preserves the rectangle', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(2).click(); // body ("1"), row 1 col 0
+		await page.locator('.table-cell').nth(2).click(); // body ("1"), row 1 col 0
 		await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.nth(5)
 			.click({ modifiers: ['Shift'] }); // ("4"), row 2 col 1
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		// onPointerDown's selection clear must skip the right button, not run for any.
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
 	// ── Row and Column flyouts ─────────────────────────────────────────────
-	//
-	// The insert and move actions live one level down, behind the "Row" and "Column" rows; a
-	// hover opens the flyout, the same way the pointer really reaches them. These cover what
-	// each action does, routed off the clicked cell.
+	// The insert and move actions sit behind the "Row" and "Column" rows, opened by hover as the
+	// pointer really reaches them.
 
 	test('the Row flyout inserts a body row directly below the clicked row', async ({ page }) => {
 		await openFlyout(page, 2, 'Row'); // body cell ("1"), rowIdx 1
@@ -119,7 +118,7 @@ test.describe('table block: cell right-click menu', () => {
 
 	test('both deletes are disabled in a one-row, one-column table', async ({ page }) => {
 		await editor.loadContent(TABLE_1X1);
-		await page.locator('[role="cell"]').nth(1).click({ button: 'right' }); // the sole body cell
+		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // the sole body cell
 
 		const deleteRow = page.getByRole('menuitem', { name: /delete row/i });
 		const deleteColumn = page.getByRole('menuitem', { name: /delete column/i });
@@ -136,7 +135,7 @@ test.describe('table block: cell right-click menu', () => {
 	// Alignment stays top-level in the cell menu (it is not folded into the Column flyout).
 	test("the alignment control aligns the clicked cell's column", async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(1).click({ button: 'right' }); // header cell B, colIdx 1
+		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // header cell B, colIdx 1
 		await page.getByRole('button', { name: 'Center' }).click();
 
 		// Full-row anchor: only B is `:-+:`; A and C stay `-+`, so the test fails if alignment
@@ -146,11 +145,10 @@ test.describe('table block: cell right-click menu', () => {
 	});
 
 	// Activating an alignment segment must return focus to a cell and announce through the live
-	// region, not drop focus to `<body>` silently. Driven through the menu's real roving focus,
-	// not a programmatic press on the segment.
+	// region, driven through the menu's real roving focus.
 	test('keyboard-driven alignment restores focus to a cell and announces', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
-		await page.locator('[role="cell"]').nth(4).click(); // body row, column B ("2")
+		await page.locator('.table-cell').nth(4).click(); // body row, column B ("2")
 		await page.keyboard.press('Shift+F10');
 		await expect(page.getByRole('menu')).toBeVisible();
 

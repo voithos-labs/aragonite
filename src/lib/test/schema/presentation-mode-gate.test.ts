@@ -2,23 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { isReadingMode, type PresentationMode } from '$lib/presentation-mode';
 import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { commandContext, commandContextWith } from '../support/command-context';
 
 const modeGetter = (mode: PresentationMode) => () => mode;
-const gates = (mode: PresentationMode) => ({
-	getPresentationMode: modeGetter(mode),
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-});
 
 describe('isReadingMode', () => {
-	it('reads the mode through the getter; absent getter means not reading', () => {
+	it('reads the mode through the getter', () => {
 		expect(isReadingMode(modeGetter('reading'))).toBe(true);
 		expect(isReadingMode(modeGetter('source'))).toBe(false);
 		expect(isReadingMode(modeGetter('preview-inline'))).toBe(false);
-		// Live hides every marker but stays editable, so it must not trip the read-only gate.
+		// Live hides every marker but stays editable, so it must not trip the read-only check.
 		expect(isReadingMode(modeGetter('live'))).toBe(false);
-		expect(isReadingMode(undefined)).toBe(false);
 	});
 });
 
@@ -35,23 +29,11 @@ describe('dispatch gates in reading mode', () => {
 		const ran: string[] = [];
 		let undos = 0;
 		const history = { requestUndo: () => void undos++, requestRedo: () => {} };
-		const reading = {
-			history,
-			activation: everyInstalledPlugin,
-			getPresentationMode: modeGetter('reading'),
-			isCrossBlockRange: () => false,
-			crossBlockCommands: undefined
-		};
+		const reading = commandContext({ history, getPresentationMode: modeGetter('reading') });
 		expect(dispatchKeyCommand('Mod+Z', target(ran), reading)).toBe(false);
 		expect(undos).toBe(0);
 
-		const source = {
-			history,
-			activation: everyInstalledPlugin,
-			getPresentationMode: modeGetter('source'),
-			isCrossBlockRange: () => false,
-			crossBlockCommands: undefined
-		};
+		const source = commandContext({ history, getPresentationMode: modeGetter('source') });
 		expect(dispatchKeyCommand('Mod+Z', target(ran), source)).toBe(true);
 		expect(undos).toBe(1);
 	});
@@ -61,9 +43,11 @@ describe('dispatch gates in reading mode', () => {
 			{ kind: 'paragraph', chord: 'Mod+K', command: 'block.moveUp' }
 		]);
 		const ran: string[] = [];
-		expect(dispatchKindCommand('Mod+K', target(ran), gates('reading'), overrides)).toBe(false);
+		const inMode = (mode: PresentationMode) =>
+			commandContextWith(overrides, { getPresentationMode: modeGetter(mode) });
+		expect(dispatchKindCommand('Mod+K', target(ran), inMode('reading'))).toBe(false);
 		expect(ran).toEqual([]);
-		expect(dispatchKindCommand('Mod+K', target(ran), gates('source'), overrides)).toBe(true);
+		expect(dispatchKindCommand('Mod+K', target(ran), inMode('source'))).toBe(true);
 		expect(ran).toEqual(['block.moveUp']);
 	});
 });

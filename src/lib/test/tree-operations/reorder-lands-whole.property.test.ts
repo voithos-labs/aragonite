@@ -1,31 +1,27 @@
-// A reorder must not change what the document contains, and the tree it leaves must be the one
-// a reload reads: every kind a user picks up, against prose and against each other, over every
-// separator shape and every (from, to), in both line endings.
-// Miss-analysis: reorder-keeps-blocks.test.ts pinned the block multiset over one LF fixture whose
-// blocks were all blank-line separated; nothing asked whether the fixed-up tree reloads to itself,
-// what ending a new separator carries, or what the pair around the vacated position becomes.
-import { describe, it, expect, beforeAll } from 'vitest';
+// A move, through its commit, must not change what the document contains, and must leave the
+// tree a reload reads, for every kind a user moves, every separator shape and (from, to), both
+// line endings, and with or without a final line break.
+// Miss-analysis: GH #587, one LF fixture never checked the reload, and every draw ended in a break.
+import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse, isBlankParagraph } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { createReorderAction } from '$lib/editor-actions/reorder-action';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(414141) } as const;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	registerMathBlock();
 });
 
-// The blocks a user moves, and the prose they land beside. Each is one block on its own; what
-// it becomes flush against a neighbour is the grammar's call (a rule under prose is a setext
-// underline, a picture under prose is an inline image, a table under prose is its continuation).
+// The blocks a user moves, and the prose they land beside; what each becomes flush against a
+// neighbour is the grammar's call (a rule under prose is a setext underline).
 const BLOCKS = {
 	prose: 'Intro prose that runs on.',
 	heading: '# Heading',
@@ -48,6 +44,8 @@ interface Shape {
 	kinds: Kind[];
 	gaps: Gap[];
 	eol: '\n' | '\r\n';
+	/** Whether the document ends in a line break. */
+	closed: boolean;
 }
 
 const arbShape: fc.Arbitrary<Shape> = fc
@@ -57,18 +55,25 @@ const arbShape: fc.Arbitrary<Shape> = fc
 			maxLength: 5
 		}),
 		gaps: fc.array(fc.constantFrom<Gap>('flush', 'line', 'double'), { minLength: 4, maxLength: 4 }),
-		eol: fc.constantFrom<'\n' | '\r\n'>('\n', '\r\n')
+		eol: fc.constantFrom<'\n' | '\r\n'>('\n', '\r\n'),
+		closed: fc.boolean()
 	})
-	.map(({ kinds, gaps, eol }) => ({ kinds, gaps: gaps.slice(0, kinds.length - 1), eol }));
+	.map(({ kinds, gaps, eol, closed }) => ({
+		kinds,
+		gaps: gaps.slice(0, kinds.length - 1),
+		eol,
+		closed
+	}));
 
-function markdownOf({ kinds, gaps, eol }: Shape): string {
+function markdownOf({ kinds, gaps, eol, closed }: Shape): string {
 	const gapBytes = { flush: '', line: eol, double: eol + eol };
-	return kinds
+	const md = kinds
 		.map(
 			(kind, i) =>
 				BLOCKS[kind].replace(/\n/g, eol) + eol + (i < gaps.length ? gapBytes[gaps[i]] : '')
 		)
 		.join('');
+	return closed ? md : md.slice(0, -eol.length);
 }
 
 /** Content blocks by kind and bytes; blank paragraphs are separator bookkeeping, not content. */
@@ -88,9 +93,8 @@ function minus(a: readonly string[], b: readonly string[]): string[] | null {
 }
 
 /**
- * Every content block survives, the moved one included, with one exemption the fix-up design
- * grants: the two blocks that straddled the moved block may rejoin once it leaves, since their
- * adjacency is the reload's own reading of bytes the move never touched. Nothing else may merge.
+ * Every content block survives, except that two blocks flush against both sides of the moved one
+ * may rejoin once it leaves, as deleting it would leave them.
  */
 function contentPreserved(before: readonly CstNode[], from: number, after: readonly CstNode[]) {
 	const expected = contentOf(before);
@@ -99,15 +103,21 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 	const above = before[from - 1];
 	const below = before[from + 1];
 	if (!above || !below || isBlankParagraph(above) || isBlankParagraph(below)) return false;
+	if (before[from].leadingTrivia || below.leadingTrivia) return false;
 	const rest = minus(expected, contentOf([above, below]));
 	const folded = rest && minus(got, rest);
 	return folded !== null && folded.length === 1;
 }
 
 describe('a reorder lands its block whole beside any neighbour', () => {
-	it('keeps every content block, converges on reload, and creates separators in the document’s own ending', () => {
-		fc.assert(
-			fc.property(arbShape, (shape) => {
+	// Without the math registration the `$$` block is a paragraph, and every row below still passes.
+	it('reads the math block as the math kind', () => {
+		expect(parse(`${BLOCKS.math}\n`).children[0].kind).toBe(MATH_BLOCK);
+	});
+
+	it('keeps every content block, converges on reload, writes the document’s own ending, and keeps its final state', async () => {
+		await fc.assert(
+			fc.asyncProperty(arbShape, async (shape) => {
 				const md = markdownOf(shape);
 				const before = parse(md).children;
 				const total = before.length;
@@ -115,8 +125,9 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 					if (isBlankParagraph(before[from])) continue;
 					for (let to = 0; to < total; to++) {
 						if (to === from) continue;
-						const doc = parse(md);
-						reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), true);
+						const { deps } = makeEditorActionsDeps(parse(md));
+						await createReorderAction(deps, createUndoController(deps)).moveReorderUnit([from], to);
+						const doc = deps.doc;
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(
 							contentPreserved(before, from, doc.children),
@@ -126,6 +137,11 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 						const out = serialize(doc);
 						const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);
 						expect(bare, `${label}: a separator carries the wrong line ending`).toBe(false);
+						// A blank line is its own line break, so a document ending in one ends in a break.
+						const blankTail = isBlankParagraph(doc.children[doc.children.length - 1]);
+						expect(out.endsWith('\n'), `${label}: the final line break changed`).toBe(
+							shape.closed || blankTail
+						);
 					}
 				}
 			}),

@@ -1,18 +1,15 @@
 /**
- * Fails a unit test on a warning (Vitest setup). Every `devWarn` and every Svelte runtime warning
- * fails the test it happened in, unless the test claims it (`takeDevWarns` to assert on it,
- * `drainDevWarns` to discard it, `allowDevWarns` for a file's incidental tags) or the emitting
- * file is allowlisted for the whole run. Those claim functions are file-level `afterEach` hooks,
- * so the config sets `sequence.hooks: 'stack'` to run them first. A per-file `afterAll` closes the
- * two holes a per-test check cannot see: a declared tag that no longer fires, and a warning that
- * outlived every test.
+ * Vitest setup that fails a unit test on any `devWarn` or Svelte runtime warning it did not claim
+ * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
+ * Claims run in file-level `afterEach` hooks, so the config's `sequence.hooks: 'stack'` runs them
+ * before this verdict. A per-file `afterAll` also fails a declared tag that never fired and a
+ * warning that arrived after the last test.
  */
 
 import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
-import { setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
+import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
 
 export interface AllowedWarn {
@@ -45,11 +42,8 @@ export function drainDevWarns(): void {
 	takeDevWarns();
 }
 
-/**
- * Drain, refusing any tag the caller did not declare. For a fixture that provokes a warning the
- * test is not about. Every declared tag has to fire somewhere in the file, or the file's
- * `afterAll` summary names it stale.
- */
+/** Drain, refusing any tag not in `tags`, for a fixture's warning the test is not about. Each
+ *  declared tag must fire somewhere in the file, or the `afterAll` summary names it stale. */
 export function allowDevWarns(tags: string[]): DevWarnRecord[] {
 	for (const tag of tags) declaredTags.add(tag);
 	const drained = takeDevWarns();
@@ -127,10 +121,6 @@ setDevWarnSink(gateSink);
 
 // ── The Svelte runtime channel ───────────────────────────────────────────────
 
-/** Svelte's runtime warnings print through `console.warn` and nowhere else, headed
- *  `%c[svelte] <code>`. They are recorded under a `svelte:` tag, so one claim covers both. */
-const SVELTE_WARN = /\[svelte\]\s+([a-z0-9_]+)/;
-
 const PRINT = Symbol.for('aragonite:warn-gate:print');
 
 type WatchedWarn = typeof console.warn & { [PRINT]?: typeof console.warn };
@@ -140,13 +130,14 @@ function watchSvelteWarns(): void {
 	// the watcher records into a dead module instance instead of this file's own store.
 	const print = (console.warn as WatchedWarn)[PRINT] ?? console.warn;
 	const watch: WatchedWarn = (...args: unknown[]) => {
-		const code = SVELTE_WARN.exec(String(args[0]))?.[1];
-		if (code === undefined) {
+		// Svelte's runtime warnings print through `console.warn` and nowhere else.
+		const tag = warnTagOfLine(String(args[0]));
+		if (tag === null || !tag.startsWith('svelte:')) {
 			print(...args);
 			return;
 		}
 		gateSink({
-			tag: `svelte:${code}`,
+			tag,
 			message: String(args[0]).replace(/%c/g, '').replace(/\n/g, ' ')
 		});
 	};
@@ -167,10 +158,9 @@ export async function enforceWarnGate(): Promise<void> {
 	// without this the warning lands on the next test, or on no test at all.
 	await tick();
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
-	// The environment singleton and the once-per-id warning set are process-global, so a leaked
-	// override or a deduplicated warning would make the next test depend on run order.
+	// The environment singleton is process-global, so a leaked override would make the next test
+	// depend on run order.
 	resetEditorEnv();
-	__resetCommandWarningsForTests();
 	const stolen = setDevWarnSink(gateSink) !== gateSink;
 	if (unclaimed.length > 0) throw new Error(formatWarnFailure(unclaimed));
 	if (stolen) throw new Error(STOLEN_SINK);

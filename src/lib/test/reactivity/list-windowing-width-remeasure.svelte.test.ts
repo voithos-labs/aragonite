@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-// Miss-analysis: the width path was tested only by the narrowing case in the anchoring suite,
-// where the two corrections happen to pick the same block and cancel out; no case made the
-// half-estimated table in between name a different block at the top of the viewport.
+// Miss-analysis: the one width case had both corrections pick the same block, so they cancelled.
 import { describe, it, expect } from 'vitest';
-import { flushSync } from 'svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
+import { flushSync, tick } from 'svelte';
+import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -19,7 +17,7 @@ const MOUNTED = [10, 11, 12, 13, 14];
 
 const idOf = (i: number) => `b${i}`;
 
-function seededOracle(): HeightOracle {
+function seededOracle(): MeasuredHeightOracle {
 	const measured = new Map<string, number>();
 	for (let i = 0; i < SCROLLED_THROUGH; i++) measured.set(idOf(i), REAL);
 	return {
@@ -28,7 +26,8 @@ function seededOracle(): HeightOracle {
 		recordMeasured: (id, height) => {
 			measured.set(id, height);
 		},
-		dropMeasured: () => measured.clear()
+		dropMeasured: () => measured.clear(),
+		measuredIds: () => [...measured.keys()]
 	};
 }
 
@@ -48,8 +47,8 @@ describe('list-windowing width re-measure', () => {
 		// do not know: the error the correction must not absorb.
 		for (const i of MOUNTED) {
 			windowing.registerChild(idOf(i), {
-				readHeight: () => REAL,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, idOf(i), h)
+				index: i,
+				readHeight: () => REAL
 			});
 		}
 
@@ -61,6 +60,7 @@ describe('list-windowing width re-measure', () => {
 		oracle.dropMeasured();
 		widthVersion++;
 		flushSync();
+		await tick();
 
 		expect(await screenOffsetOf(windowing, port, anchor)).toBe(heldOffset);
 		cleanup();

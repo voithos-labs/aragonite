@@ -13,6 +13,7 @@ import {
 	makeEditorActionsDeps
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 // jsdom has no native selection, so every commit here exercises the no-caret fallback:
 // the stored path must resolve to the operated child in the snapshot it restores
 // (reorder-action's "deep restore path" contract, extended to every container commit).
@@ -78,6 +79,8 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
+		// A paragraph's task field is metadata no reload gives it.
+		allowDevWarns(['invariant:reads-back']);
 
 		const entry = lastUndoEntry(deps);
 		expect(rangeSelectionOf(entry).focus.path).toEqual([1, 0]);
@@ -88,7 +91,7 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		// The list item delete falls through to the shared core, which still records the deep path.
 		const h = makeNestedHarness([listOf(['one\n', 'two\n'])], { listOverrides: true, index: 0 });
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
 
 		const entry = lastUndoEntry(h.deps);
 		expect(rangeSelectionOf(entry).focus.path).toEqual([0, 1]);
@@ -120,7 +123,11 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 			makeNestedActionsDeps({ index: 0, getNode: liveList, path: [1, 0], parent: quoteBundle })
 		);
 
-		await listBundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
+		await listBundle.blockEdit.updateBlockMetadata(0, {
+			taskItem: true,
+			taskChecked: true,
+			taskMarker: '[x] '
+		});
 
 		const entry = lastUndoEntry(deps);
 		expect(rangeSelectionOf(entry).focus.path).toEqual([1, 0, 0]);

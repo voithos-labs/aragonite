@@ -2,9 +2,8 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, waitForContainer, roundTripStable } from './helpers';
 
 // The generic `:::name` container: an unregistered directive falls back to
-// `DirectiveContainerBlock`, which renders a dimmed read-only `:::name` marker over a nested
-// editable BlockList. Same opaque-container machinery as the callout dogfood, so this mirrors
-// callout-container.spec.ts.
+// `DirectiveContainerBlock`, a dimmed read-only `:::name` marker over a nested editable BlockList.
+// It shares the opaque-container code with the callout, so this mirrors callout-container.spec.ts.
 
 const SEED = ':::foo\nhello\n:::\n';
 

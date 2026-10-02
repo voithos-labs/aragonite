@@ -17,15 +17,20 @@ import {
 	listInlineMarks,
 	type InlineMarkKind
 } from '$lib/schema/inline-construct-policy';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+
+/** An edit without its link definitions and grammar: `toggleFormat` reads it with every installed
+ *  plugin and no definitions, as an editor with no `plugins` prop and no reference links does. */
+export type BareEdit = Omit<InlineFormatEdit, 'reading'>;
 
 /** Source mode by default: these suites pin the bytes a painting mode writes, and the marker-hiding
  *  fork has its own file. */
 export function toggleFormat(
-	edit: InlineFormatEdit,
+	edit: BareEdit,
 	format: InlineMarkKind,
 	mode: PresentationMode = 'source'
 ): ToggleInlineFormatResult {
-	const result = toggleInlineFormat(edit, format, mode);
+	const result = toggleInlineFormat({ ...edit, reading: fixtureReading({}, mode) }, format);
 	if (!result) throw new Error(`toggleInlineFormat declined "${format}": no mark row registered`);
 	return result;
 }
@@ -41,13 +46,17 @@ export interface Press {
 	mode: PresentationMode;
 }
 
-/** One toggle with its pressed-state read on both sides, for the suites that assert the toolbar
- *  state and the write agree. A decline leaves the read where it was, so `activeAfter` reports
- *  `active`. */
+/** One toggle with its pressed-state read on both sides; a decline leaves the read where it was,
+ *  so `activeAfter` reports `active`. */
 export function press({ display, start, end, format, mode }: Press) {
-	const edit: InlineFormatEdit = { display, content: whole(display), selection: { start, end } };
+	const edit: InlineFormatEdit = {
+		display,
+		content: whole(display),
+		selection: { start, end },
+		reading: fixtureReading({}, mode)
+	};
 	const active = isInlineFormatActive(edit, format);
-	const result = toggleInlineFormat(edit, format, mode);
+	const result = toggleInlineFormat(edit, format);
 	return {
 		active,
 		wrote: result?.newDisplay ?? null,

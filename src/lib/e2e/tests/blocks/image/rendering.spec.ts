@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { textRunRect } from '../../../text-runs';
 
 test.describe('image rendering', () => {
 	let editor: EditorPage;
@@ -126,21 +127,8 @@ test.describe('image rendering', () => {
 		expect(display).toBe('block');
 
 		const widgetBox = await page.locator('[data-image-widget]').first().boundingBox();
-		const aTop = await page.evaluate(() => {
-			const para = document.querySelector('[data-image-widget]')!.parentElement!;
-			const walker = document.createTreeWalker(para, NodeFilter.SHOW_TEXT);
-			let node: Text | null;
-			while ((node = walker.nextNode() as Text | null)) {
-				if (node.textContent?.includes('a')) break;
-			}
-			if (!node) return null;
-			const idx = node.textContent!.indexOf('a');
-			const range = document.createRange();
-			range.setStart(node, idx);
-			range.setEnd(node, idx + 1);
-			return range.getBoundingClientRect().top;
-		});
-		if (!widgetBox || aTop === null) throw new Error('layout box missing');
+		const aTop = (await textRunRect(page, 'a', { path: [0] })).top;
+		if (!widgetBox) throw new Error('layout box missing');
 		expect(aTop).toBeGreaterThanOrEqual(widgetBox.y + widgetBox.height - 1);
 	});
 });

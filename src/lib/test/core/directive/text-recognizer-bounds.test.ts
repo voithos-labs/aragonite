@@ -1,15 +1,19 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
 import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
+import type { PluginInlineKind } from '$lib/core/nodes';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-activateDirectiveGrammar(); // before any parse
-
-const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+let kind: PluginInlineKind;
+beforeEach(() => {
+	activateDirectiveGrammar();
+	kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+});
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 
 // An unbalanced `:name[` that searches to the end of the block before declining costs one
@@ -32,7 +36,11 @@ describe('text directive decline bounds', () => {
 	// The scan range, not the block string, bounds a claim — a `]` past `end` must
 	// leave the run unbalanced.
 	it('ignores a closing bracket beyond the scan range', () => {
-		expect(recognizeTextDirective(':x[a]', 0, 4, kind)).toBeNull();
-		expect(recognizeTextDirective(':x[a]', 0, 5, kind)).toEqual({ kind, start: 0, end: 5 });
+		expect(recognizeTextDirective(':x[a]', 0, 4, kind, defaultGrammarView)).toBeNull();
+		expect(recognizeTextDirective(':x[a]', 0, 5, kind, defaultGrammarView)).toEqual({
+			kind,
+			start: 0,
+			end: 5
+		});
 	});
 });

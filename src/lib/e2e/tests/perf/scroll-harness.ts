@@ -1,8 +1,7 @@
 /**
- * The wheel measurement the scroll-hitch rows share: an in-page probe counting what one notch
- * does to the editor (blocks mounted and unmounted, scrollTop written from code, long tasks,
- * the worst gap between frames), a driver over real wheel notches, a table of CPU time by
- * function, and the summary per pass. Defined once, so a row can differ only in its document.
+ * The wheel measurement the scroll-hitch rows share: an in-page counter of what one notch does to
+ * the editor, a driver over real wheel notches, CPU time by function, and the summary per pass.
+ * Defined once, so a row can differ only in its document.
  */
 
 import type { Page } from '@playwright/test';
@@ -245,8 +244,7 @@ export function summarize(samples: TickSample[]) {
 		scrolledMax: round(max((s) => s.scrolled)),
 		renderCount: sum((s) => s.renderCount),
 		renderMs: round(sum((s) => s.renderMs)),
-		// Every notch that moved the scroll, with what it mounted, which is where a jump came
-		// from.
+		// Every notch that moved the scroll, with what it mounted, which is where a jump came from.
 		writeTicks: samples
 			.map((s, i) => ({ i, scrolled: s.scrolled, writes: s.writes, addedKinds: s.addedKinds }))
 			.filter((t) => t.writes.length > 0)

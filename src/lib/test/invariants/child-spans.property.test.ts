@@ -9,6 +9,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
 
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(717171) } as const;
@@ -160,14 +161,10 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 	return spansBefore !== undefined && node.childSpans === spansBefore;
 }
 
-// The real entry point, where the hand-made hint above cannot reach: `updateBlockContent` makes
-// its own hint and its fix-up rewrites bytes no hint names. Deep paths (two hinted levels in a
-// row) are covered by `test/schema/child-spans-settle.test.ts`, which this does not repeat.
-/**
- * Containers whose second write can cross a blank line, which is where the fix-up drops a hint.
- * Every one holds a prose child the harness bundle can address; a nested container's own children
- * belong to the other suite, since this bundle reaches one level.
- */
+// The real entry point: `updateBlockContent` makes its own hint, and its fix-up rewrites bytes no
+// hint names. Deep paths are covered by `test/schema/child-spans-settle.test.ts`.
+/** Containers whose second write can cross a blank line, which is where the fix-up drops a hint.
+ *  Each holds a prose child one level down, as deep as the harness bundle reaches. */
 const SETTLING_SOURCES = [
 	'> a\n>\n>\n> c\n',
 	'> a\n>\n> b\n>\n> c\n',
@@ -235,7 +232,12 @@ describe('container child spans', () => {
 
 				// Writing a child's own bytes back fills the spans without moving anything.
 				const seedAt = leaves[c.seedAt % leaves.length];
-				await h.bundle.blockEdit.updateBlockContent(seedAt, container().children![seedAt].raw);
+				await h.bundle.blockEdit.updateBlockContent(
+					seedAt,
+					container().children![seedAt].raw,
+					'authored',
+					0
+				);
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
 
 				const seeded = container().childSpans;
@@ -246,7 +248,9 @@ describe('container child spans', () => {
 				const at = targets[c.at % targets.length];
 				if (at >= (container().children?.length ?? 0)) return;
 				const text = c.prose ? 'edited\n' : c.text;
-				await h.bundle.blockEdit.updateBlockContent(at, text, 0, text.length);
+				await h.bundle.blockEdit.updateBlockContent(at, text, 'authored', 0, text.length);
+				// Bytes with no line ending, written into a quote's first block, join the line below.
+				if (text === '') allowDevWarns(['invariant:reads-back']);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;

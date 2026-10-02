@@ -1,17 +1,8 @@
 import { test, expect } from '../../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helpers';
+import { revealWidget, roundTripStable } from '../../plugins/helpers';
+import { CellMathPage } from './helpers';
 
 // Requirements: `e2e/requirements/blocks/table/cell-mutation-fold.md`.
-
-class CellMathPage extends PluginsPage {
-	get mathWidget() {
-		return this.page.locator('.math-inline-widget');
-	}
-	async gotoMathTable() {
-		await this.gotoPlugins('mathtable');
-		await expect(this.mathWidget).toHaveCount(1);
-	}
-}
 
 test.describe('a cell mutation folds the open reveal before it runs', () => {
 	let editor: CellMathPage;
@@ -38,7 +29,7 @@ test.describe('a cell mutation folds the open reveal before it runs', () => {
 	});
 
 	// The same loss through an implicit commit: the toggle reads the shown DOM text and writes it
-	// back as the cell's raw, leaving the source open over bytes it no longer matches.
+	// back as the cell's raw, leaving the source open over bytes it does not match.
 	test('a format toggle folds first rather than committing the revealed source verbatim', async ({
 		page
 	}) => {

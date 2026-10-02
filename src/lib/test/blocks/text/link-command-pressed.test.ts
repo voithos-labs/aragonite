@@ -1,18 +1,13 @@
 // @vitest-environment jsdom
-//
-// `link.openCard` shows as pressed based on the construct the card would edit, not on the mark
-// table every other toolbar id reads, and a range has to lie inside that construct, since the
-// card edits one link. Miss-analysis: the pressed read was a mark-table lookup that returned
-// before reading anything, and no test in either block ever asked a command with no mark entry
-// what it showed, so that whole class of ids was unasserted.
+// `link.openCard` shows as pressed from the construct the card would edit, not the mark table
+// other toolbar ids read, and a range must lie inside that construct.
+// Miss-analysis: no test asked what a command with no mark-table entry shows as pressed.
 import { describe, it, expect, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorServices } from '$lib/editor-keys';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountBlock } from '../../harness/mount-block';
 
 const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
 
@@ -20,20 +15,13 @@ const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['dec
 const LINKED = 'Visit [example](https://x.com) now\n';
 
 function mountText(source: string, mode: PresentationMode) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit: makeStubBlockEdit(),
-			doc: { doc: () => doc },
+	const { instance, target } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: {
 			policies: { presentationMode: () => mode },
 			services: { decorations: noIslands }
-		})
+		}
 	});
-	flushSync();
 	const el = target.querySelector('.text-editable-block') as HTMLElement;
 	el.focus();
 	return { instance, el };

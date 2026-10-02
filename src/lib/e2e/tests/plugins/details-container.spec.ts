@@ -79,10 +79,50 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await activeBlockPath(page)).toEqual([0, 1]);
 
 		// The mouse toggle keeps the body caret, since mousedown's default is suppressed, and the
-		// clamp then unmounts that block, so the commit's afterTick moves the stray caret up.
+		// clamp then unmounts that block, so the toggle's commit puts the caret on the summary.
 		await editor.page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details>\n');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('the collapse puts the caret on the summary once, and typing lands there', async ({
+		page
+	}) => {
+		await editor.loadContent(OPEN);
+		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
+		await page.evaluate(() => {
+			const w = window as unknown as { focusIns: number };
+			w.focusIns = 0;
+			document.addEventListener('focusin', () => w.focusIns++);
+		});
+
+		await editor.page.locator('.details-toggle').click();
+		await editor.bridge.waitForSourceContains('<details>\n');
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		await editor.waitForRenderFlush();
+		expect(await page.evaluate(() => (window as unknown as { focusIns: number }).focusIns)).toBe(1);
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceContains('<summary>xSummary</summary>');
+	});
+
+	test('a caret put back into a closed body lands on the title row and opens nothing', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'Above\n\n<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n'
+		);
+		await editor.focusBlockAtPath([0], 0);
+		// Select-all twice covers the hidden body, so collapsing to the end aims into it.
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowRight');
+		await editor.waitForCrossBlock(false);
+		await page.keyboard.type('x');
+
+		const closed = 'Above\n\n<details>\n<summary>Sumx</summary>\n\nHidden\n\n</details>\n';
+		await editor.bridge.waitForSource((source) => source === closed);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -131,9 +171,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// ArrowLeft at a block start goes through `focus(CURSOR_END)`, which targets the last
-		// child, and that child is unmounted. It must fall back to the summary rather than do
-		// nothing against the missing reference.
+		// ArrowLeft at a block start targets the last child through `focus(CURSOR_END)`, and that child
+		// is unmounted, so the move must fall back to the summary.
 		await page.keyboard.press('ArrowLeft');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -168,9 +207,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// A merge that crosses the container's edge must not write into the unmounted body: no
-		// edit, and the caret to the summary's end. That is the same rule as the one against
-		// merging into a title from inside, applied across the container's edge.
+		// A merge across the container's edge must not write into the unmounted body: no edit, and the
+		// caret to the summary's end, as with merging into a title from inside.
 		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
@@ -235,13 +273,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
 		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
 
-		// The caret sits after the typed `>`, past the entity the escape grew ahead of it, so the
-		// next keystroke continues the line instead of landing mid-word.
-		//
-		// Keep the offset: this assertion is the only check on how the commit paths map the caret,
-		// which goes through `refAt(i)?.focus`, and a unit test would need jsdom plus mounted
-		// references. Weakened to a path check it guards nothing, since a caret three units into
-		// the word passes it.
+		// The caret sits after the typed `>`, past the entity the escape grew. This offset is the only
+		// check on how the commit paths map the caret; a path-only check would pass a wrong offset.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);

@@ -7,7 +7,8 @@ import {
 	TOP_LEVEL_HOSTS,
 	cstBlockCount,
 	mountedViewportSpan,
-	spacerCount
+	spacerCount,
+	startCountingHostChanges
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
@@ -28,23 +29,16 @@ async function expectMountedBandSpansViewport(page: Page, selector: string): Pro
 	expect(span.bottomGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 }
 
-// Every mounted block host, nested ones included. getDomBlockCount counts only top-level
-// hosts, so for one huge container it would read about 1 whether the container windows or not,
-// which proves nothing.
+// Every mounted block host, nested ones included: getDomBlockCount counts only top-level hosts,
+// which for one huge container reads about 1 either way.
 function allHostCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('[data-block-path]').length);
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
-	// 1.2 to 1.5 minutes alone on a laptop, nearly all of it loading the 2MB fixture. A limit
-	// against hanging rather than an expectation, so it allows about three times that.
-	test.setTimeout(300_000);
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	// This test's first action after navigating is a load with a 2s timeout, not the 90s wait
-	// its neighbours use, and on a busy machine it can fire mid-navigation and abort.
-	await page.waitForURL(/\/test\/editor/);
 
 	// Reset to a one-block document before turning the counters on: otherwise the running total
 	// includes the showcase mounted while they were off, and reads too low by that much.
@@ -54,18 +48,26 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 		(window as any).__test.perf.reset();
 	});
 
+	// The swap is windowed from its first render pass, so it mounts the final band and not the
+	// one-block document's "every block" over the new children.
+	const hostChangesDuringSwap = await startCountingHostChanges(page);
 	const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+	const mountedDuringSwap = (await hostChangesDuringSwap()).added;
 
 	// `many-small-blocks` is flat, with no nested hosts, so counting top-level blocks in the
 	// DOM gives exactly the mounted window and the bound is unambiguous.
 	const domMounted = await editor.getDomBlockCount();
 	const balance = await mountedBlockCount(page);
 
-	console.log(`VR headline ${JSON.stringify({ blockCount, domMounted, balance })}`);
+	console.log(
+		`VR headline ${JSON.stringify({ blockCount, domMounted, balance, mountedDuringSwap })}`
+	);
 
 	expect(blockCount).toBeGreaterThan(2000);
 	expect(domMounted).toBeLessThan(60);
 	expect(domMounted).toBeLessThan(blockCount / 10);
+	// The measure pass after the first render may shift the band by its six blocks of overscan.
+	expect(mountedDuringSwap).toBeLessThanOrEqual(domMounted + 6);
 	// Check the counter against the live count; they should agree to within the one block the
 	// total was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
@@ -74,9 +76,8 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(pageErrors).toEqual([]);
 });
 
-// The first part of the VR-8 fix. The blank gap itself cannot be produced from a test, since a
-// scroll driven on the main thread mounts the new blocks before paint, so this covers the fix
-// instead: the spacer's placeholder tint, from the editor.css rule and the --vr-spacer-bg token.
+// The spacer's placeholder tint (VR-8), from the editor.css rule and the --vr-spacer-bg token: the
+// blank gap it covers cannot be produced here, since a main-thread scroll mounts before paint.
 test('windowed spacers carry a placeholder background (VR-8 skeleton)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -158,9 +159,8 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 	// every spacer comes from inside.
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
-	// Mounted blocks, top-level and nested, limited by the viewport plus what is kept around it
-	// rather than by the paragraph count. getDomBlockCount leaves out nested blocks, so this
-	// counts every path.
+	// Mounted blocks, top-level and nested, limited by the viewport and its margin rather than by the
+	// paragraph count; getDomBlockCount leaves out nested blocks.
 	expect(await allHostCount(page)).toBeLessThan(150);
 	await expectMountedBandSpansViewport(page, '[data-block-path]');
 

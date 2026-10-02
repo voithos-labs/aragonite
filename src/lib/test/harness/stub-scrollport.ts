@@ -4,6 +4,12 @@
  * observe anything at all.
  */
 import { withRelativeScroll, type Scrollport } from '../../cursor/scrollport';
+import {
+	createScrollOwner,
+	type ScrollOwner,
+	type ScrollOwnerDeps
+} from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../cursor/scroll-ancestors';
 
 export interface StubScrollportOpts {
 	viewportHeight: number;
@@ -11,8 +17,8 @@ export interface StubScrollportOpts {
 	 *  the scroller: a page-scrolled shell puts its own header in front of the editor. */
 	viewportTop?: number;
 	contentWidth?: number;
-	/** The browser's own clamp, which a plain property cannot model: a scroll past the
-	 *  content end is refused, so an anchor can never hold a target beyond it. */
+	/** The browser's own clamp, which a plain property cannot model: a scroll past the content
+	 *  end is refused, so the block held in place can never sit beyond it. */
 	maxScrollTop?: number;
 	/** Round each write to a whole pixel and report the rounded value back, as a real scroller
 	 *  does at device-pixel ratio 1: the other half of what a plain property cannot model. */
@@ -41,13 +47,39 @@ export function stubScrollport(opts: StubScrollportOpts): Scrollport {
 	});
 }
 
+// Never read: `openPort` below hands back the stub whatever host it is given.
+const STUB_HOST = {} as UserScrollport;
+
+/** The scroll owner writing `port`, with nothing mounted and the editor correcting scroll unless
+ *  a suite says otherwise. */
+export function stubScrollOwner(
+	port: Scrollport,
+	overrides: Partial<ScrollOwnerDeps> = {}
+): ScrollOwner {
+	return createScrollOwner({
+		getScrollHost: () => STUB_HOST,
+		openPort: () => port,
+		editorCorrects: () => true,
+		getBlockElByPath: () => null,
+		getEditorRoot: () => null,
+		isHostScroll: () => false,
+		getClipBounds: () => [],
+		...overrides
+	});
+}
+
 /** This list's element as windowing reads it: a rect top that moves with the scroll, since the
  *  list travels with the content, offset by whatever sits above it. */
-export function stubListEl(port: Scrollport, height: number, chromeAbove = 0): HTMLElement {
+export function stubListEl(
+	port: Scrollport,
+	height: number,
+	chromeAbove: number | (() => number) = 0
+): HTMLElement {
+	const above = typeof chromeAbove === 'number' ? () => chromeAbove : chromeAbove;
 	return {
 		clientWidth: 800,
 		getBoundingClientRect: () => ({
-			top: port.viewportTop() + chromeAbove - port.scrollTop(),
+			top: port.viewportTop() + above() - port.scrollTop(),
 			height
 		})
 	} as unknown as HTMLElement;

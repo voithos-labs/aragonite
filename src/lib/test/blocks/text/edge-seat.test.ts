@@ -7,6 +7,7 @@ import { relocateComposedRun, resolveEdgeSeat } from '$lib/components/blocks/tex
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 /** Every case below is a block holding content, so its markers are hidden: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
@@ -18,13 +19,13 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 		affinity,
 		source,
 		LIVE,
-		typed
+		typed,
+		fixtureReading()
 	);
 }
 
-// `Some **bold** text`: strong [5,13), `bold` [7,11). The leading run is [5,7), the trailing run
-// [11,13). Reading a point over either run normalises to the run's near side, so 5 and 11 are the
-// offsets a real gesture produces, and every case below starts from one of them.
+// `Some **bold** text`: strong [5,13), runs [5,7) and [11,13). A point over either run reads as
+// the run's near side, so 5 and 11 are the offsets real gestures produce.
 describe('a symmetric pair follows the arrival', () => {
 	const BOLD = 'Some **bold** text';
 
@@ -90,9 +91,8 @@ describe('a never-extend construct ignores the arrival', () => {
 	});
 });
 
-// An escape, a hard break and an angle autolink are never-extend with no content range: every
-// byte they hold is a delimiter. Doing nothing there would let the byte land between them, and
-// the caret gets there legitimately, since the first reachable offset clears the leading run.
+// An escape, a hard break and an angle autolink are all delimiters, and the caret does reach them
+// past the leading run, so doing nothing would land the byte between delimiters.
 describe('a childless construct is all delimiters', () => {
 	// `x \* y`: the escape shows `*`, so its backslash is the leading run and offset 3 is that
 	// run's end; never-extend puts the byte outside it.
@@ -107,9 +107,8 @@ describe('a childless construct is all delimiters', () => {
 		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
 	});
 
-	// `\\` shows `\`, a visible string that also occurs at the construct's own start. The match
-	// has to be the last one, or the leading backslash reads as content and a byte typed at
-	// offset 1 goes to the pair's end instead of its start.
+	// `\\` shows `\`, which also matches at the construct's own start, so the match must be the
+	// last one, or a byte typed at offset 1 goes to the pair's end instead of its start.
 	it('puts the caret at a byte at an escaped backslash on the near side, not past the pair', () => {
 		expect(seatIn('\\\\x y', 1, 'far')).toEqual({ offset: 0, kind: 'escape' });
 	});
@@ -145,21 +144,25 @@ describe('relocateComposedRun', () => {
 	}
 
 	it('moves a run composed at the trailing content edge past the closing delimiter', () => {
-		expect(relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'far', LIVE)).toEqual({
+		expect(
+			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'far', LIVE, fixtureReading())
+		).toEqual({
 			raw: 'Some **bold**かん text',
 			caret: 15
 		});
 	});
 
 	it('leaves a run the caret position agrees with alone', () => {
-		expect(relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE)).toBeNull();
+		expect(
+			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE, fixtureReading())
+		).toBeNull();
 	});
 
 	it('relocates a never-extend edge whatever the arrival', () => {
 		const link = 'A [link](http://e.com) tail';
 		const tree = parseInline(link, 0, link.length);
 		const after = link.slice(0, 7) + '感' + link.slice(7);
-		expect(relocateComposedRun(link, after, 7, tree, 'near', LIVE)).toEqual({
+		expect(relocateComposedRun(link, after, 7, tree, 'near', LIVE, fixtureReading())).toEqual({
 			raw: 'A [link](http://e.com)感 tail',
 			caret: 23
 		});
@@ -168,17 +171,18 @@ describe('relocateComposedRun', () => {
 	// This handles one insertion, never a range edit: a composition that replaced a selection is
 	// a different edit, and rebuilding it from a length difference would corrupt the bytes.
 	it('declines anything that is not a plain insertion at the composition point', () => {
-		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE)).toBeNull();
-		expect(relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE)).toBeNull();
-		expect(relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE)).toBeNull();
+		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, fixtureReading())).toBeNull();
+		expect(
+			relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE, fixtureReading())
+		).toBeNull();
+		expect(
+			relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE, fixtureReading())
+		).toBeNull();
 	});
 });
 
-// A run of three or more asterisks is shared between a nested pair, so a byte at either end
-// changes which delimiters pair with which (GH #116). Declining is not a shrug here: the caret's
-// own offset is the candidate that passes, and the run's far end is the one that does not.
-// Miss-analysis: the property suite excluded this class with an input regex pointing at an open
-// issue, so neither it nor this table could see the case until that exclusion was revisited.
+// A run of three or more asterisks is shared by a nested pair, so a byte at its end can re-pair it.
+// Miss-analysis: GH #116, the property suite's input regex excluded this class of run.
 describe('a delimiter run shared between two pairings', () => {
 	const SHARED = '***foo****foo*';
 
@@ -188,16 +192,14 @@ describe('a delimiter run shared between two pairings', () => {
 		}
 	});
 
-	// Non-vacuity, and the point of checking rather than refusing outright: the run's other end
-	// has a reading that keeps the pairing, and it is still taken.
+	// Checking beats refusing outright: the run's other end keeps the pairing, and is still taken.
 	it('still puts the caret where a reading keeps the pairing', () => {
 		expect(seatIn(SHARED, 8, 'near')).toEqual({ offset: 6, kind: 'strong' });
 		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
 });
 
-// Miss-analysis (GH #228): this table held no run enclosing a bare autolink, so no case asked
-// what happens when the caret's own offset is the one the parse changes.
+// Miss-analysis: GH #228, no run in this table enclosed a bare autolink.
 describe('a run enclosing a bare autolink', () => {
 	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte outside the closer
 	// strands the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
@@ -211,8 +213,7 @@ describe('a run enclosing a bare autolink', () => {
 	});
 });
 
-// Miss-analysis (GH #229): every escape fixture here stood beside plain text, where the
-// construct's own outside edge always passes, so no case needed a second construct's run.
+// Miss-analysis: GH #229, escape fixtures stood beside plain text, never another construct's run.
 describe('abutting marker runs are one screen position', () => {
 	// `_foo_\*x`: the emphasis closer [4,5) and the escape's backslash [5,6) abut, so 4, 5 and 6
 	// are one screen position. 5 kills the underscore pair, 6 kills the escape, 4 keeps both.
@@ -226,8 +227,7 @@ describe('abutting marker runs are one screen position', () => {
 	});
 });
 
-// Miss-analysis: the interior was unreachable while the caret's own offset short-circuited the
-// first candidate, so no case asked what the second one is for a kind that takes no interior.
+// Miss-analysis: the caret's own offset always passed first, so no case reached the second one.
 describe('a never-extend construct admits no interior caret position', () => {
 	// `_foo_` spoils the byte before each construct (an intraword `_` cannot close), the only way
 	// past the first candidate. Offset 4 is inside the emphasis, outside the never-extend kind.

@@ -52,8 +52,8 @@ test.describe('cross-block delete: list item id identity', () => {
 		const alphaId = idsBefore[0];
 		expect(alphaId).toBeTruthy();
 
-		// Two Shift+ArrowDown presses select across two levels: the start is inside the list,
-		// the end is the top-level paragraph.
+		// Two Shift+ArrowDown keypresses select across two levels: from inside the list to the
+		// top-level paragraph.
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.keyboard.press('Shift+ArrowDown');

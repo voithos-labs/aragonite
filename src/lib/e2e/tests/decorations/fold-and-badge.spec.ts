@@ -56,7 +56,7 @@ test.describe('fold fixture: widgets in table cells', () => {
 		// A table cell applies widget decorations the same way a prose block does.
 		await editor.waitForRenderFlush();
 		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
-		await expect(page.getByRole('cell').first()).not.toContainText('SECRET');
+		await expect(page.locator('.table-cell').first()).not.toContainText('SECRET');
 		expect(await editor.bridge.getSource()).toBe(FOLD_TABLE_SEED);
 	});
 
@@ -71,9 +71,9 @@ test.describe('fold fixture: widgets in table cells', () => {
 
 			// Focus the cell holding the widget without clicking it: its left edge carries the
 			// row's drag handle and the `…` uncovers the range, so enter the next cell and Shift+Tab back.
-			await page.getByRole('cell').nth(1).click();
+			await page.locator('.table-cell').nth(1).click();
 			await page.keyboard.press('Shift+Tab');
-			await expect(page.getByRole('cell').first()).toBeFocused();
+			await expect(page.locator('.table-cell').first()).toBeFocused();
 			await page.keyboard.press('Home');
 			await page.keyboard.press('ArrowRight'); // past `a`
 			await page.keyboard.press('ArrowRight'); // past the space, to the widget's leading edge

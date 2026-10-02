@@ -8,7 +8,6 @@
 import {
 	INLINE_PRIORITIES,
 	declarePluginInlineKind,
-	isInlineKindDeclared,
 	mintWidgetShell,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
@@ -31,11 +30,8 @@ function isShortcodeChar(code: number): boolean {
 	);
 }
 
-/**
- * Matches only when the shortcode is in the table, and carries the glyph on `decoded`, the
- * same field a decoded entity uses. The name is sliced only after a closing colon has bounded
- * a non-empty run, so the common no-match paths allocate nothing.
- */
+/** Matches only a shortcode in the table, carrying the glyph on `decoded` as an entity does; the
+ *  name is sliced only once a closing colon bounds it, so a miss allocates nothing. */
 export function recognizeEmoji(
 	raw: string,
 	pos: number,
@@ -63,9 +59,6 @@ export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 }
 
 export function registerEmoji(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(EMOJI_KIND)) return;
 	const kind = declarePluginInlineKind(EMOJI_KIND);
 	registerInlineSyntax(':', (raw, pos, end) => recognizeEmoji(raw, pos, end, kind), {
 		// Registering `:` twice at the same priority is refused, so the +10 is what lets emoji

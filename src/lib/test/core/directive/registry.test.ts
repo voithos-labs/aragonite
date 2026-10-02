@@ -1,30 +1,32 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerDirective,
 	resolveDirective,
 	isDirectiveRegistered,
-	__resetDirectiveRegistryForTests,
 	type DirectiveDefinition
 } from '$lib/core/directive/registry';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-const kind = declarePluginKind('directiveRegistryProbe');
+let kind: PluginBlockKind;
+beforeEach(() => {
+	kind = declarePluginKind('directiveRegistryProbe');
+});
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
 	({ kind, leadingTrivia: parsed.leadingTrivia, raw: parsed.raw }) as CstNode;
-
-afterEach(() => __resetDirectiveRegistryForTests());
 
 describe('registerDirective', () => {
 	it('resolves a registered definition and reports it registered', () => {
 		const def: DirectiveDefinition = { kind, fromDirective: factory };
 		registerDirective('container', 'note', def);
-		expect(resolveDirective('container', 'note')).toBe(def);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(def);
 		expect(isDirectiveRegistered('container', 'note')).toBe(true);
 	});
 
 	it('leaves an unregistered (level,name) unresolved', () => {
-		expect(resolveDirective('container', 'note')).toBeUndefined();
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBeUndefined();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 	});
 
@@ -40,8 +42,8 @@ describe('registerDirective', () => {
 		const leaf: DirectiveDefinition = { kind };
 		registerDirective('container', 'note', container);
 		registerDirective('leaf', 'note', leaf);
-		expect(resolveDirective('container', 'note')).toBe(container);
-		expect(resolveDirective('leaf', 'note')).toBe(leaf);
+		expect(resolveDirective('container', 'note', defaultGrammarView)).toBe(container);
+		expect(resolveDirective('leaf', 'note', defaultGrammarView)).toBe(leaf);
 	});
 });
 
@@ -74,10 +76,10 @@ describe('registerDirective per-level factory contract', () => {
 	});
 });
 
-describe('__resetDirectiveRegistryForTests', () => {
+describe('__resetSchemaRegistriesForTests', () => {
 	it('clears registrations so the same (level,name) re-registers without throwing', () => {
 		registerDirective('container', 'note', { kind, fromDirective: factory });
-		__resetDirectiveRegistryForTests();
+		__resetSchemaRegistriesForTests();
 		expect(isDirectiveRegistered('container', 'note')).toBe(false);
 		expect(() =>
 			registerDirective('container', 'note', { kind, fromDirective: factory })

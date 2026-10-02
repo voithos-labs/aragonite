@@ -12,22 +12,17 @@ import type {
 	ListContext
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { GrammarView } from '../../schema/block-openers';
-import {
-	BLOCK_EDIT_KEY,
-	CONTAINER_EDIT_KEY,
-	FOCUS_KEY,
-	HISTORY_KEY,
-	type PresentationModeGetter
-} from '../../editor-keys';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { ChildList } from '../../reactivity/child-list';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';
-import type { InlineResolverRef } from '../../schema/inline-construct-policy';
+import type { Reading } from '../../schema/reading';
+import type { DocumentStamps } from '../commit/document-stamp';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -52,17 +47,17 @@ export interface NestedActionsDeps {
 	node: NodeView;
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
-	stickyColumn: StickyColumnState;
-	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
-	 *  nested block re-parses. Absent = the global grammar. */
-	grammar?: GrammarView;
-	/** The live effective mode, for mutations whose bytes depend on what the mode shows (the
-	 *  split's marker rebalance). Nullable rather than optional so each container answers. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, nullable for the same reason as the mode. */
-	linkRef: InlineResolverRef | undefined;
+	caretMemory: Pick<CaretMemory, 'column' | 'forget' | 'noteExtreme'>;
+	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
+	 *  switched on and a split's rebalance knows what its mode shows. */
+	reading: Reading;
+	/** The editor's document stamps, which the write gate reads. */
+	stamps: DocumentStamps;
 	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
+	/** This container's children as a descent reads them, so a move onto a windowed-out child
+	 *  mounts it. A headless suite omits it: with no render window, every stored ref is mounted. */
+	childList?: () => ChildList;
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
@@ -102,11 +97,11 @@ export function createStandardNestedActions(
 		get path() {
 			return input.scope.path;
 		},
-		stickyColumn: input.stickyColumn,
-		grammar: input.grammar,
-		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef,
+		caretMemory: input.caretMemory,
+		reading: input.reading,
+		stamps: input.stamps,
 		parentListContext: input.parentListContext,
+		childList: input.childList,
 		parent: input.parent
 	};
 	const blockEdit = createNestedBlockEdit(state, deps);
@@ -116,17 +111,25 @@ export function createStandardNestedActions(
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
-	// Above the override spread, so a container replacing `splitBlock` keeps the Enter
-	// completion its subtree needs. `defaults` stays unwrapped: an override chaining back into
-	// it is already past the check, and checking again would spend one Enter on two.
+	// Above the override spread, so a container replacing `splitBlock` keeps its Enter completion;
+	// `defaults` stays unwrapped, or an override chaining into it would run the check twice.
 	const childAt = (index: number) => deps.node.children?.[index];
+	const getLineEnding = () => containerEdit.lineEnding();
 	if (!overrideFactory) {
-		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt) };
+		return {
+			...defaults,
+			blockEdit: withEnterCompletion(blockEdit, childAt, deps.reading.grammar, getLineEnding)
+		};
 	}
 
 	const overrides = overrideFactory(defaults);
 	return {
-		blockEdit: withEnterCompletion({ ...blockEdit, ...(overrides.blockEdit ?? {}) }, childAt),
+		blockEdit: withEnterCompletion(
+			{ ...blockEdit, ...(overrides.blockEdit ?? {}) },
+			childAt,
+			deps.reading.grammar,
+			getLineEnding
+		),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
 	};

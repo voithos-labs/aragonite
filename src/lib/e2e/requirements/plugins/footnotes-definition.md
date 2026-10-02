@@ -16,6 +16,7 @@ the DOM.
 - the marker renders: the first child paints a dimmed `[^a]: ` marker (an `.md-marker`) in front of the body text, and the body itself is an editable paragraph child
 - body edits round-trip: typing into the definition body updates the child's bytes and the container rebuilds its own raw text to `[^a]: <edited>`, so the source still round-trips
 - type a definition from scratch: typing `[^b]: <body>` into an empty paragraph one keystroke at a time forms the container as you go (the block becomes a footnote definition with one paragraph child), passing through the brief inline reference widget that the `[^b]` prefix mounts on its closing `]`
+- live mode cleans a join in the body: a selection from inside bold to inside italic in the body's first line, deleted with Backspace, leaves `[^a]: Some boalic words` with no `**` in the source (miss-analysis: the join read the body's `[^a]: ` prefix as a list marker it couldn't find, so it refused every cleanup here, and no live scenario ran inside a note)
 
 ## Edge cases
 

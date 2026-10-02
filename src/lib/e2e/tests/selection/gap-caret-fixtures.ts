@@ -25,7 +25,7 @@ export const WINDOWED = `${filler(100, 0)}\n${TABLE}\n${FENCE}\n${filler(100, 10
 
 /** Click the table's last cell and step down onto the boundary below it. */
 export async function arriveAtBoundary(editor: EditorPage): Promise<void> {
-	await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+	await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 	await editor.page.keyboard.press('ArrowDown');
 	await editor.bridge.waitForGapCaret(AT_BOUNDARY);
 }

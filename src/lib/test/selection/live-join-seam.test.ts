@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -10,11 +11,10 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and
-// paste's delete half goes through. The registered cleaner is the production one; a stub would
-// pin the wiring and nothing else. The mode is the only difference between the two halves of
-// each pair below.
+// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and paste
+// goes through, run with the production cleaner; each pair below differs only in mode.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -26,7 +26,13 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, mode, undefined);
+	rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading({}, mode),
+		'keyless'
+	);
 	return serialize(doc);
 }
 

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-// Miss-analysis: the exact lookup was only ever reached through a hit test that had already
-// clamped the point, so no test named the clamp, and the one kind that needed it (the parrot's
-// source view) kept its own copy, where a regression would show up as a caret at byte 0.
+// Miss-analysis: only a pre-clamped hit test reached the exact lookup, so no test named the clamp.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { caretOffsetAtPoint, offsetFromViewportPoint } from '../../cursor/point-offset';
+import {
+	caretOffsetAtPoint,
+	isInPaddingRow,
+	offsetFromViewportPoint
+} from '../../cursor/point-offset';
 
 // One character per pixel across the box, so an expected offset reads off the x directly.
 const BOX = { left: 100, right: 200, top: 50, bottom: 70 };
@@ -20,6 +22,8 @@ function setPointProbe(probe: PointProbe): void {
 function mountBoxed(): HTMLElement {
 	const el = document.createElement('div');
 	el.textContent = TEXT;
+	// jsdom computes a medium border where no border style is set; a browser computes none.
+	el.style.border = '0';
 	document.body.appendChild(el);
 	el.getBoundingClientRect = () => ({ ...BOX, width: 100, height: 20 }) as DOMRect;
 	return el;
@@ -59,6 +63,38 @@ describe('caretOffsetAtPoint: the nearest offset in one element', () => {
 		expect(asked).toEqual([{ x: BOX.right - 1, y: 60 }]);
 	});
 
+	// Miss-analysis: the stubbed box had no padding, so a clamp that stopped at the border passed.
+	it('clamps a row inside the border and padding, level with a line, where every OS keeps the column', () => {
+		el.style.border = '1px solid';
+		el.style.padding = '4px 0';
+		caretOffsetAtPoint(el, 140, -500);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 5 + 1 }]);
+	});
+
+	// Miss-analysis: every stubbed box had empty side padding, so no case held a hanging marker.
+	it('keeps a column in the side padding, where a hanging list marker sits', () => {
+		el.style.padding = '4px 20px';
+		caretOffsetAtPoint(el, -500, 60);
+		expect(asked).toEqual([{ x: BOX.left + 1, y: 60 }]);
+	});
+
+	it('clamps above a classic scrollbar, which sits inside the border below the padding', () => {
+		Object.defineProperties(el, {
+			clientLeft: { value: 0 },
+			clientTop: { value: 0 },
+			clientWidth: { value: 100 },
+			clientHeight: { value: 12 }
+		});
+		caretOffsetAtPoint(el, 140, 9999);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 12 - 1 }]);
+	});
+
+	it('keeps the border box where the padding leaves no room for a point', () => {
+		el.style.padding = '10px 0';
+		caretOffsetAtPoint(el, 140, -500);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 1 }]);
+	});
+
 	it('declines where the element holds no position the browser can name', () => {
 		setPointProbe(undefined);
 		expect(caretOffsetAtPoint(el, 140, 60)).toBeNull();
@@ -83,5 +119,61 @@ describe('offsetFromViewportPoint: the exact counterpart', () => {
 		});
 
 		expect(offsetFromViewportPoint(el, 140, 60)).toBeNull();
+	});
+
+	/** Records each point the browser is asked about and answers the offset under its x. */
+	function askedOf(el: HTMLElement): { x: number; y: number }[] {
+		const asked: { x: number; y: number }[] = [];
+		setPointProbe((x, y) => {
+			asked.push({ x, y });
+			const range = document.createRange();
+			range.setStart(el.firstChild!, Math.round(x - BOX.left));
+			return range;
+		});
+		return asked;
+	}
+
+	// Miss-analysis: only the nearest lookup clamped rows, so a drag end or shift-click in the
+	// padding asked the browser there, and Mac and Linux answered the line's start.
+	it('asks about a point in the padding level with the nearest line, keeping its column', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 0';
+		const asked = askedOf(el);
+
+		expect(offsetFromViewportPoint(el, 140, BOX.top + 2)).toBe(40);
+		expect(offsetFromViewportPoint(el, 140, BOX.bottom - 2)).toBe(40);
+		expect(asked).toEqual([
+			{ x: 140, y: BOX.top + 4 + 1 },
+			{ x: 140, y: BOX.bottom - 4 - 1 }
+		]);
+	});
+
+	// Miss-analysis: the stub answered only inside the box, so no test saw the browser answer a
+	// point beside the element with an offset inside it.
+	it('declines a point outside the box without asking the browser', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 0';
+		const asked = askedOf(el);
+
+		expect(offsetFromViewportPoint(el, 140, BOX.top - 3)).toBeNull();
+		expect(asked).toEqual([]);
+	});
+});
+
+describe('isInPaddingRow: a press the editor places itself', () => {
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	it('holds above the first line and below the last, inside the box, and nowhere else', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 20px';
+
+		expect(isInPaddingRow(el, 140, BOX.top + 2)).toBe(true);
+		expect(isInPaddingRow(el, 140, BOX.bottom - 2)).toBe(true);
+		expect(isInPaddingRow(el, 140, 60)).toBe(false);
+		// Side padding level with a line keeps its column on every OS, so the browser keeps it.
+		expect(isInPaddingRow(el, BOX.left + 5, 60)).toBe(false);
+		expect(isInPaddingRow(el, 140, BOX.top - 2)).toBe(false);
 	});
 });

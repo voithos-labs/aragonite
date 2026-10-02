@@ -81,12 +81,11 @@ describe('list lazy continuation: bounded nested divergence', () => {
 });
 
 describe('list lazy continuation: rebuild', () => {
-	// A lazily-parsed item has no indent on its continuation line, so the first structural
-	// edit normalizes it, the way blockquote's rebuild re-adds the `> ` prefix.
-	it('normalizes the lazy continuation to indented form, reparse-stable', () => {
+	// A lazily-parsed item has no indent on its continuation line, and a rebuild keeps it so.
+	it('keeps the lazy continuation as it was, reparse-stable', () => {
 		const item = parse('- item one\nwrapped tail\n').children[0].children![0];
 		rebuildListItemRaw(item);
-		expect(item.raw).toBe('- item one\n  wrapped tail\n');
+		expect(item.raw).toBe('- item one\nwrapped tail\n');
 
 		const reparsed = parse(item.raw);
 		expect(topKinds(reparsed)).toEqual(['list(1)']);

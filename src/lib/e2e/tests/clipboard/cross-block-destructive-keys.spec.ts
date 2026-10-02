@@ -1,10 +1,10 @@
 // A key over a cross-block selection must delete the range first, then run its block-level
-// behavior at the collapsed caret. Falling through to the originating block's `onKeyDown`
-// applies the edit to one raw while the selection is still on screen. The format toggles are
-// the exception: they mark each block's span in place rather than replacing the range, and
-// the selection survives (#107).
+// behavior at the collapsed caret, not fall through to the originating block's `onKeyDown`.
+// The format toggles are the exception: they mark each block's span in place and the selection
+// survives.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { dragBetweenCells } from '../blocks/table/helpers';
 
 test.describe('cross-block destructive-key dispatch (A1)', () => {
 	let editor: EditorPage;
@@ -46,9 +46,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('al\\');
 	});
 
-	// A format toggle is not one of these keys: it marks each block's own span instead of
-	// deleting the range (#107: deleting first turned the document into `****`). The selection
-	// survives, which is also what keeps it off shifted indices.
+	// A format toggle marks each block's own span instead of deleting the range, since deleting first
+	// would leave `****`; the selection survives, which also keeps it off shifted indices.
 	test('Ctrl+B marks each endpoint span and the range survives', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 
@@ -112,8 +111,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 	});
 
 	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
-	// wrapper: the dispatcher resolves the target from the caret the delete leaves (a deep cell
-	// path), and resolving from `selection.start.path` drops the command after that delete.
+	// wrapper: the target is resolved from the caret the delete leaves, a deep cell path.
 	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
 		page
 	}) => {
@@ -122,7 +120,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		);
 		// Drag from body cell "bbb" (mid-row, mid-col) out to the paragraph below so
 		// the table is the start endpoint of the cross-block range.
-		const from = page.locator('[role="cell"]').nth(4);
+		const from = page.locator('.table-cell').nth(4);
 		const to = page.getByText('After.');
 		const fromBox = await from.boundingBox();
 		const toBox = await to.boundingBox();
@@ -153,4 +151,94 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('| h1 | h2 | h3 |');
 	});
+});
+
+// Miss-analysis: every command-key row here drew prose or a range leaving a table, so no test
+// pressed a command key over a whole table, row or column, where it cleared the cells instead.
+test.describe('a command key over a whole table, row or column', () => {
+	const SOURCE =
+		'lead\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\ntail\n';
+	// Cells count row by row from the header: 0-2 the header, 3-5 the first body row.
+	const COVERAGES: [string, (editor: EditorPage) => Promise<void>][] = [
+		['a whole row', (editor) => dragBetweenCells(editor.page, 3, 5)],
+		['a whole column', (editor) => dragBetweenCells(editor.page, 1, 7)],
+		['a whole table', (editor) => dragBetweenCells(editor.page, 0, 8)]
+	];
+
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+	});
+
+	// A fresh page each time: loading the source the editor was last given changes nothing.
+	async function pressOver(select: (editor: EditorPage) => Promise<void>, keys: string[]) {
+		await editor.goto();
+		await editor.loadContent(SOURCE);
+		await select(editor);
+		await editor.waitForCrossBlock(true);
+		for (const key of keys) await editor.page.keyboard.press(key);
+		await editor.waitForCrossBlock(false);
+		await editor.waitForRenderFlush();
+		return editor.bridge.getSource();
+	}
+
+	for (const key of ['Enter', 'Tab', 'ControlOrMeta+2']) {
+		for (const [coverage, select] of COVERAGES) {
+			test(`${key} over ${coverage} ends as Backspace then ${key}, one undo`, async () => {
+				const expected = await pressOver(select, ['Backspace', key]);
+
+				await pressOver(select, [key]);
+				await expect.poll(() => editor.bridge.getSource()).toBe(expected);
+
+				await editor.undo();
+				await expect.poll(() => editor.bridge.getSource()).toBe(SOURCE);
+			});
+		}
+	}
+});
+
+// Miss-analysis: every range here fit on one screen, so no test saw a key that writes in place
+// leave its caret where a long removal had scrolled away from.
+test.describe('a command key over a range longer than the screen', () => {
+	const LONG = Array.from({ length: 160 }, (_, i) => `para number ${i}`).join('\n\n') + '\n';
+	// What each key writes in place at the caret, so the check waits on the key's own write.
+	const WRITES = [
+		['Tab', 'para\t'],
+		['Shift+Enter', 'para\\']
+	] as const;
+
+	for (const [key, written] of WRITES) {
+		test(`${key} leaves the caret's block in view`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.loadContent(LONG);
+			await editor.focusBlockAtPath([0], 4);
+			for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+			// The extend's own scroll, done before the key: the caret's block is still rendered, but
+			// off screen. A block outside the render window comes back into view as it mounts.
+			await expect
+				.poll(() =>
+					page.evaluate(() => {
+						const box = document.querySelector(`[data-block-path='[0]']`)?.getBoundingClientRect();
+						return !!box && box.bottom < 0;
+					})
+				)
+				.toBe(true);
+
+			await page.keyboard.press(key);
+			await editor.waitForCrossBlock(false);
+			await editor.bridge.waitForSourceContains(written);
+			await editor.waitForRenderFlush();
+			await editor.waitForRenderFlush();
+
+			// Read once: a later scroll from elsewhere must not stand in for the landing.
+			const [top, bottom, height] = await page.evaluate(() => {
+				const box = document.activeElement?.getBoundingClientRect();
+				return [box?.top ?? NaN, box?.bottom ?? NaN, window.innerHeight];
+			});
+			expect(top >= 0 && bottom <= height, `block at ${top}..${bottom} of ${height}`).toBe(true);
+		});
+	}
 });

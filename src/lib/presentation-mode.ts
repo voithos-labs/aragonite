@@ -1,9 +1,8 @@
 /**
- * The presentation-mode contract. `source` is the editing default (styled source, always
- * visible); `reading` hides markers and makes the document read-only; `preview-block` shows the
- * markers in the caret's block and `preview-inline` narrows that to the construct the caret
- * touches (`components/blocks/text/construct-reveal.ts`); `live` hides markers and shows none of
- * them back, while staying editable. Every read reports the mode in effect.
+ * The presentation-mode contract. `source` is the editing default (styled source); `reading`
+ * hides markers and is read-only; the preview modes show markers back in the caret's block or
+ * construct (`components/blocks/text/construct-reveal.ts`); `live` hides markers and shows none
+ * back while staying editable. Every read reports the mode in effect.
  */
 
 export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live';
@@ -18,11 +17,8 @@ const MODES: Record<PresentationMode, true> = {
 	live: true
 };
 
-/**
- * A mode read off the DOM or handed in untyped, narrowed to the contract. The marker-hiding CSS
- * families match known values only, so an unrecognized one must read as the editing default here or
- * the stylesheet and the caret traversal disagree about the same block.
- */
+/** Narrows a mode read off the DOM or handed in untyped: an unrecognized value reads as the
+ *  editing default, as the marker-hiding CSS does, or the two would disagree about a block. */
 export function asPresentationMode(value: string | null | undefined): PresentationMode {
 	return value != null && Object.hasOwn(MODES, value) ? (value as PresentationMode) : 'source';
 }
@@ -33,37 +29,31 @@ export function hidesMarkers(mode: PresentationMode): boolean {
 	return mode !== 'source';
 }
 
-/** The modes that show markers back when a block is focused, the only ones that need the
- *  `data-focused` attribute; live hides markers (see `hidesMarkers`) and never shows them
- *  back, so it is deliberately not one. */
+/** The modes that show markers back in a focused block, the only ones needing `data-focused`;
+ *  live hides markers and never shows them back. */
 export function isPreviewMode(mode: PresentationMode): boolean {
 	return mode === 'preview-block' || mode === 'preview-inline';
 }
 
-/**
- * Whether the mode paints a marker in the block the caret is in: styled source always, and the
- * preview modes by showing that block's markers. The question everything that writes at the caret
- * asks, since a rewrite may only drop bytes the user never saw (live-mode.md § 2).
- */
+/** Whether the mode paints markers in the caret's block: the check everything writing at the caret
+ *  asks, since a rewrite may drop only bytes the user never saw (`docs/design/live-mode.md` § 2). */
 export function paintsFocusedMarkers(mode: PresentationMode): boolean {
 	return !hidesMarkers(mode) || isPreviewMode(mode);
 }
 
-/**
- * The modes whose inline render tags each construct's marker spans with its raw range: preview-
- * inline shows a construct's markers by those tags, and live mode marks the construct a caret at
- * a hidden edge is inside (`components/blocks/text/edge-step.ts`). Attributes only; every other
- * mode's DOM stays byte-identical.
- */
+/** The converse, the one check a rewrite asks before dropping delimiter bytes at the caret. */
+export function hidesDelimitersAtCaret(mode: PresentationMode): boolean {
+	return !paintsFocusedMarkers(mode);
+}
+
+/** The modes whose render tags construct markers with their raw range: preview-inline reveals by
+ *  them, live mode rings the construct a hidden edge's caret is inside (`edge-step.ts`). */
 export function tagsConstructMarkers(mode: PresentationMode): boolean {
 	return mode === 'preview-inline' || mode === 'live';
 }
 
-/**
- * The read-only check every dispatch path keys off. The parameter is a plain function type
- * so `schema/` and `selection/` need no `editor-keys` import; an `undefined` getter (a test
- * double, an editor not wired up) means not reading mode.
- */
-export function isReadingMode(getMode: (() => PresentationMode) | undefined): boolean {
-	return getMode?.() === 'reading';
+/** The read-only check every dispatch path keys off. A plain getter type keeps `schema/` and
+ *  `selection/` off `editor-keys`; the getter is required, since only the editor picks the default. */
+export function isReadingMode(getMode: () => PresentationMode): boolean {
+	return getMode() === 'reading';
 }

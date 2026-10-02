@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-//
 // A dead-space `y` that falls between two root-level blocks. Real root blocks tile flush, so
-// this branch only opens under a host that pads `.block-host`: geometry no browser suite
+// the gap branch only opens under a host that pads `.block-host`: geometry no browser suite
 // reaches, which is why the band rects are synthetic.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
@@ -21,7 +20,7 @@ const INELIGIBLE_DOC = 'alpha\n\nbeta\n';
 
 const BAND_0 = { left: 100, right: 400, top: 50, bottom: 90 };
 const BAND_1 = { left: 100, right: 400, top: 120, bottom: 160 };
-/** Strictly between the two bands, and nearer band 0, so a fall-through has a landing. */
+/** Strictly between the two bands, and nearer band 0, so a fall-through has a block to land in. */
 const BETWEEN_Y = 100;
 
 describe('a dead-space y between two root bands', () => {
@@ -43,7 +42,7 @@ describe('a dead-space y between two root bands', () => {
 		document.body.appendChild(root);
 		const firstGrid = addBand(0, BAND_0);
 		addBand(1, BAND_1);
-		// The clamp aims the probe into the nearest band's box, where the grid is topmost.
+		// The clamp aims the point into the nearest band's box, where the grid is topmost.
 		document.elementFromPoint = (() => firstGrid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
@@ -70,7 +69,7 @@ describe('a dead-space y between two root bands', () => {
 			},
 			gapScope,
 			lastBlockIndex: () => 1,
-			revealBlock: async () => component
+			land: async () => 'placed'
 		});
 		const press = { target: root, button: 0 } as unknown as MouseEvent;
 		caret.notePress(root, press);

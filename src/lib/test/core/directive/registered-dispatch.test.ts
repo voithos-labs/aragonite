@@ -1,23 +1,26 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import { describe, expect, it, beforeEach } from 'vitest';
+import type { CstNode, PluginBlockKind, PluginInlineKind } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
 import { declarePluginKind, declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
+import { registerDirective } from '$lib/core/directive/registry';
 import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
-activateDirectiveGrammar(); // before any parse
+beforeEach(activateDirectiveGrammar);
 
-// Sibling-path parity: the leaf and text tiers must dispatch a registered name exactly as
-// the container tier does (pinned in roundtrip-property.test.ts).
+// Leaf and text directives must dispatch a registered name exactly as a container does
+// (pinned in roundtrip-property.test.ts).
 
-const CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
-const FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');
-const GLOSS = declarePluginInlineKind('directiveGlossProbe');
+let CUSTOM_LEAF: PluginBlockKind;
+let FACTORY_LEAF: PluginBlockKind;
+let GLOSS: PluginInlineKind;
 
-beforeAll(() => {
+beforeEach(() => {
+	CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
+	FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');
+	GLOSS = declarePluginInlineKind('directiveGlossProbe');
 	registerDirective('leaf', 'customleaf', { kind: CUSTOM_LEAF });
 	registerDirective('leaf', 'factoryleaf', {
 		kind: FACTORY_LEAF,
@@ -26,7 +29,6 @@ beforeAll(() => {
 	});
 	registerDirective('text', 'gloss', { kind: GLOSS });
 });
-afterAll(() => __resetDirectiveRegistryForTests());
 
 describe('leaf level registered dispatch', () => {
 	it('marks a kind-only registration on the leaf node, not directiveLeaf', () => {

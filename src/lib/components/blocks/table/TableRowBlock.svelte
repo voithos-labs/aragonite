@@ -1,34 +1,20 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions
-	} from '../../../action-contracts';
-	import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../../block-component';
+	import type { TableContext } from '../../../action-contracts';
+	import { entryEdge, type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
-		EDITOR_DOC_KEY,
-		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		PARENT_SCOPE_SINK_KEY,
-		type EditorDoc,
-		type EditorPolicies,
-		type EditorServices,
-		type ParentScopeSink
+		TABLE_CONTEXT_KEY,
+		type EditorServices
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import type { ChildList } from '../../../reactivity/child-list';
+	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
 	let {
@@ -51,101 +37,62 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	// A row's position among the table's children IS its row index.
+	// A row's position among the table's children is its row index.
 	const rowIdx = $derived(index);
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const getPresentationMode = getContext<EditorPolicies | undefined>(
-		EDITOR_POLICIES_KEY
-	)?.presentationMode;
-	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
+	const { decorations, events } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
-	const cellsState = createBlockListState(() => node);
+	const { state: cellsState } = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		childList: () => cellList
+	});
 
 	let rowEl: HTMLElement | undefined = $state();
-	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
+	// Absent only when a row mounts outside a table, as a unit test's might.
+	const tableContext = getContext<TableContext | undefined>(TABLE_CONTEXT_KEY);
 
 	useMountGauge();
 
-	// A `display: contents` row has no box, so measure a cell: every cell stretches to
-	// the grid row track, making its border-box height the row height. Enrolling in the
-	// table scope's batched pass keeps a fling to one reflow, not one per mounted row.
-	$effect(() => {
-		void index;
-		if (!parentSink) return;
-		const currentIndex = index;
-		return parentSink.registerRow(
-			id,
-			() => {
-				const cell = rowEl?.querySelector(':scope > .table-cell') as HTMLElement | null;
-				return cell?.getBoundingClientRect().height ?? 0;
-			},
-			(h) => parentSink.setChildSubtotal(currentIndex, h)
-		);
+	// The row renders no block host, so its own element carries the decorations addressed to it.
+	const blockDecorations = useBlockDecorations({
+		getPath: () => myPath,
+		getEl: () => rowEl ?? null,
+		engine: decorations,
+		onRenderError: (error) => events.emit('error', error),
+		badgeRefusal: 'a table row renders no box of its own to hold one'
 	});
 
-	// Skip the mount run (mirrors BlockHost): a read here interleaved with the prior row's
-	// subtotal write forces one reflow per row mounted in the frame (VR-4). The batched
-	// pass owns mount measurement; this effect re-measures only on a later edit.
-	let firstRun = true;
-	$effect(() => {
-		void node.raw;
-		if (firstRun) {
-			firstRun = false;
-			return;
-		}
-		parentSink?.measureRowNow(id);
-	});
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
+	// A `display: contents` row has no box, so its first cell, stretched to the row track, gives
+	// the row's height. Read through the first cell's id, so a moved first column is watched anew.
+	useMeasuredChild({
+		getId: () => id,
+		getPath: () => myPath,
+		getEl: () => {
+			void cellsState.innerBlockIds[0];
+			return rowEl?.querySelector<HTMLElement>(':scope > .table-cell') ?? null;
 		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(cellsState, {
-		scope,
-		stickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
-			containerEdit: parentContainerEdit
-		}
+		getRaw: () => node.raw
 	});
-
-	setNestedActionsContexts(bundle);
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const editable = true;
 	export const focusable = true;
 
-	// The same rule TableBlock uses: arriving at the start enters the first cell, anything
-	// else the last, and the marker value is passed in so the cell clamps and classifies it.
-	function rowLanding(offset: number): { colIdx: number; at: number } {
-		const atStart = offset === 0 || offset === CURSOR_START;
-		return atStart ? { colIdx: 0, at: CURSOR_START } : { colIdx: columnCount - 1, at: CURSOR_END };
+	function entryCell(offset: number): { colIdx: number; at: number } {
+		const edge = entryEdge(offset);
+		return { colIdx: edge.child === 'first' ? 0 : columnCount - 1, at: edge.offset };
 	}
 
 	export function focus(offset: number): void {
-		const { colIdx, at } = rowLanding(offset);
+		const { colIdx, at } = entryCell(offset);
 		cellsState.innerBlockRefs[colIdx]?.focus(at);
 	}
 
 	export function parkCaret(offset: number): void {
-		const { colIdx, at } = rowLanding(offset);
+		const { colIdx, at } = entryCell(offset);
 		cellsState.innerBlockRefs[colIdx]?.parkCaret?.(at);
 	}
 
@@ -159,13 +106,17 @@
 		cellRef?.focus(rest.length === 0 ? offset : 0);
 	}
 
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [colIdx, ...rest] = path;
-		const cellRef = cellsState.innerBlockRefs[colIdx];
-		if (!cellRef) return null;
-		if (rest.length === 0) return cellRef;
-		return cellRef.getBlockComponentByPath?.(rest) ?? null;
+	// Cells aren't windowed, so a mounted row has every cell in range; the grid's own sideways
+	// scroll is what brings a far column into view.
+	const cellList: ChildList = {
+		count: () => node.children?.length ?? 0,
+		refs: cellsState.refSlots,
+		windowing: { revealChild: async () => {}, isInWindow: () => true },
+		bringChildIntoView: (colIdx) => tableContext?.revealColumn(rowIdx, colIdx)
+	};
+
+	function childList(): ChildList {
+		return cellList;
 	}
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
@@ -177,8 +128,8 @@
 		return null;
 	}
 
-	// The one place this shape is written, matching the cell's: a row reaches every caller
-	// through its published reference, so a second copy to type-check against would mislead.
+	// The one place this shape is written, as in the cell: a row reaches every caller through
+	// its registered reference, so a second copy to type-check against would mislead.
 	$effect(() => {
 		if (!slots) return;
 		const self = {
@@ -189,7 +140,7 @@
 			getCursorOffset,
 			getCursorPosition,
 			focusByPath,
-			getBlockComponentByPath
+			childList
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, rowEl);
 	});
@@ -197,7 +148,12 @@
 
 <!-- No whitespace between the row and its cells: a stray text node joins the table's
 	raw-offset traversal and misplaces a remembered cross-block caret. -->
-<div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
+<div
+	bind:this={rowEl}
+	class={['table-row', ...blockDecorations.classes]}
+	role="row"
+	data-table-row-idx={rowIdx}
+>
 	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}

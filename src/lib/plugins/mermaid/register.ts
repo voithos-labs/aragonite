@@ -6,7 +6,7 @@
 
 import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
 import { registerMermaidKind, MERMAID } from './mermaid-kind';
-import { setMermaidRenderer, type MermaidRenderer } from './mermaid-renderer';
+import { adaptMermaidRenderer, mermaidSlot, type MermaidRenderer } from './mermaid-renderer';
 import MermaidBlock from './MermaidBlock.svelte';
 
 export function mermaidPlugin(options?: { renderer?: MermaidRenderer }): EditorPlugin {
@@ -15,7 +15,7 @@ export function mermaidPlugin(options?: { renderer?: MermaidRenderer }): EditorP
 		kind: MERMAID,
 		component: MermaidBlock,
 		register() {
-			setMermaidRenderer(options?.renderer ?? null);
+			mermaidSlot.set(options?.renderer ? adaptMermaidRenderer(options.renderer) : null);
 			registerMermaidKind();
 		}
 	});

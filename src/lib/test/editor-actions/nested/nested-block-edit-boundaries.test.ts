@@ -1,23 +1,29 @@
 // @vitest-environment jsdom
-//
 // `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
 // boundary logic: which calls stay inside the container and which hand up to the parent.
 // An edge merge that stayed interior silently does nothing; an interior merge that went to
 // the parent deletes the wrong block. Each case tests one edge plus its interior counterpart.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
 import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-actions';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
-registerDetailsKind();
+let titled: ReturnType<typeof testChromeContainer>;
+beforeEach(() => {
+	registerDetailsKind();
+	titled = testChromeContainer('nested-edit-titled');
+});
 
 const CONTAINER_INDEX = 3;
 
@@ -32,13 +38,15 @@ function env(node: CstNode) {
 		containerEdit: makeStubContainerEdit()
 	};
 	const state = makeBlockListState(() => node);
-	const deps = {
+	const deps: NestedActionsDeps = {
 		index: CONTAINER_INDEX,
 		node,
 		path: [CONTAINER_INDEX],
-		stickyColumn: makeStickyColumn(),
+		caretMemory: makeCaretMemory(),
+		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		parent
-	} as unknown as NestedActionsDeps;
+	};
 	return { blockEdit: createNestedBlockEdit(state, deps), parent, node };
 }
 
@@ -85,12 +93,29 @@ describe('nested block edit: upward boundaries', () => {
 
 	it('delegates a delete upward only when it would empty the container', async () => {
 		const sole = env(container('listItem', 1));
-		await sole.blockEdit.deleteBlock(0);
-		expect(sole.parent.blockEdit.deleteBlock).toHaveBeenCalledWith(CONTAINER_INDEX);
+		await sole.blockEdit.deleteBlock(0, 'keyless');
+		expect(sole.parent.blockEdit.deleteBlock).toHaveBeenCalledWith(CONTAINER_INDEX, 'keyless');
 
 		const pair = env(container('listItem', 2));
-		await pair.blockEdit.deleteBlock(0);
+		await pair.blockEdit.deleteBlock(0, 'keyless');
 		expect(pair.parent.blockEdit.deleteBlock).not.toHaveBeenCalled();
+	});
+});
+
+describe('nested block edit: a title row', () => {
+	// Miss-analysis: every title-row container in the suites declared an unwrapRole, so one with
+	// none, whose title-row Backspace went to the parent, was never pressed.
+	it('keeps Backspace at the title row inside a container that declares no unwrapRole', async () => {
+		const node = container(titled.container, 1);
+		node.children!.unshift({ kind: titled.chrome, leadingTrivia: '', raw: 'Title\n' } as CstNode);
+		const { blockEdit, parent } = env(node);
+		const before = structuredClone(node);
+
+		await blockEdit.mergeWithPrevious(0);
+
+		expect(parent.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
+		expect(parent.containerEdit.commitContainer).not.toHaveBeenCalled();
+		expect(node).toEqual(before);
 	});
 });
 
@@ -120,16 +145,16 @@ describe('nested block edit: collapsed forward-merge', () => {
 });
 
 describe('nested block edit: childless guards', () => {
-	// What matters about `if (!deps.node.children) return` is that it returns without
-	// calling the parent, so a childless container never asks its parent to act for it.
+	// A childless container returns without calling the parent, so it never asks its parent to
+	// act for it.
 	it('return without delegating upward when the container has no children', async () => {
 		const { blockEdit, parent } = env({ kind: 'listItem', leadingTrivia: '', raw: '' } as CstNode);
 
 		await blockEdit.splitBlock(0, 0);
 		await blockEdit.mergeWithPrevious(0);
 		await blockEdit.mergeWithNext(0);
-		await blockEdit.deleteBlock(0);
-		await blockEdit.updateBlockContent(0, 'text\n');
+		await blockEdit.deleteBlock(0, 'keyless');
+		await blockEdit.updateBlockContent(0, 'text\n', 'authored', 0);
 
 		expect(vi.mocked(parent.blockEdit.mergeWithPrevious)).not.toHaveBeenCalled();
 		expect(vi.mocked(parent.blockEdit.mergeWithNext)).not.toHaveBeenCalled();

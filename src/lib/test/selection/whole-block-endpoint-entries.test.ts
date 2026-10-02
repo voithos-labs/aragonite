@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The entry paths that reach a whole-block kind with a character offset in hand: a shift-click's
 // hit-test, and the restore path a consumer's `setSelection` takes. Both must leave
 // `enterCrossBlock` holding a whole-block endpoint.
@@ -18,13 +17,15 @@ vi.mock('$lib/cursor/point-offset', async (importOriginal) => ({
 
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { handleShiftClick } from '$lib/selection/keyboard-extend';
-import { restoreSelection } from '$lib/selection/selection-restore';
 import { readNativeCaretInBlock } from '$lib/selection/native-bridge';
 import { offsetFromViewportPoint } from '$lib/cursor/point-offset';
 import { parse } from '$lib/core/parser';
+import { restoreLandingOver } from '../harness/restore-landing';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
+// No image is selected whole in these cases.
+const NO_SELECTED_WIDGET = { range: () => null, clear: () => {} };
 const anchorCaret = vi.mocked(readNativeCaretInBlock);
 const el = () => document.createElement('div');
 
@@ -40,7 +41,7 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		clickOffset.mockReturnValue(1);
 		anchorCaret.mockReturnValue({ path: [0], offset: 6 });
 
-		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0])).toBe(true);
+		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0], NO_SELECTED_WIDGET)).toBe(true);
 		expect(s.focus).toEqual({ path: [1], offset: 3 });
 	});
 
@@ -48,15 +49,10 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		const doc = parse(BREAK_DOC);
 		const s = createSelectionState({ getDoc: () => doc });
 
-		const outcome = await restoreSelection(
-			{ anchor: { path: [1], offset: 2 }, focus: { path: [2], offset: 4 } },
-			{
-				getDoc: () => doc,
-				selectionState: s,
-				getBlockElByPath: () => document.createElement('div'),
-				revealTarget: async () => true
-			}
-		);
+		const outcome = await restoreLandingOver(doc, s).landing.restore({
+			anchor: { path: [1], offset: 2 },
+			focus: { path: [2], offset: 4 }
+		});
 
 		expect(outcome).toBe('applied');
 		expect(s.start).toEqual({ path: [1], offset: 0 });

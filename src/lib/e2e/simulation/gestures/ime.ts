@@ -1,9 +1,8 @@
 import { type SimContext } from '../invariants';
 
-// A composition writes to the DOM but not to the source until it commits, so mid-composition
-// there is no source change to wait on: `compose` waits on the DOM text, the commit on the
-// bytes reaching the source. The driver comes in on `ctx.ime`, made once per session; the
-// gestures throw loudly if it is absent.
+// A composition writes to the DOM but not to the source until it commits, so `compose` waits on
+// the DOM text and the commit on the source. The driver comes in on `ctx.ime`, made once per
+// session; the gestures throw if it is absent.
 
 export interface CompositionCase {
 	/** The candidate strings shown while composing, applied in order. */
@@ -19,9 +18,8 @@ function requireIme(ctx: SimContext): NonNullable<SimContext['ime']> {
 }
 
 /**
- * Checks the source stays byte for byte the same through every update while composing, then
- * waits for the committed bytes. Focused at the end of the block, so the commit adds to the end
- * of it rather than in the middle of a word.
+ * The source must hold byte for byte through every composition update; focusing at the block's
+ * end makes the commit append rather than land mid-word.
  */
 export async function composeCommit(
 	ctx: SimContext,

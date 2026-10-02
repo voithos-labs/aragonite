@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Which path the dead-space click lands through. The band arithmetic is `nearest-block.test.ts`
 // and the geometry `blocks/table/table-caret-at-point.test.ts`; what only this suite pins is the
 // routing decision, and that a live range ends only once a landing is known.
@@ -23,6 +22,8 @@ describe('createDeadSpaceCaret routing', () => {
 	let resetSelectionForClick: Mock<() => void>;
 	let leafSnap: Mock<(x: number, y: number) => void>;
 	let ownSnap: Mock<(x: number, y: number) => void>;
+	// The cell a path inside the table names; null when nothing is mounted there.
+	let leaf: BlockComponent | null;
 	let mounted: ReturnType<typeof mountTableGrid>;
 	const origFromPoint = document.elementFromPoint;
 
@@ -32,21 +33,21 @@ describe('createDeadSpaceCaret routing', () => {
 		mounted = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
 		root.appendChild(mounted.host);
-		// The click is in the root's own padding; the clamp puts the probe in the box,
+		// The click is in the root's own padding; the clamp moves the point into the box,
 		// where the topmost element is the table grid.
 		document.elementFromPoint = (() => mounted.grid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
 		leafSnap = vi.fn(() => {});
 		ownSnap = vi.fn(() => {});
+		leaf = { snapCaretToPoint: leafSnap } as unknown as BlockComponent;
 		component = {
 			editable: true,
 			focusable: true,
 			focus: vi.fn(),
 			getCursorOffset: () => null,
 			focusByPath,
-			snapCaretToPoint: ownSnap,
-			getBlockComponentByPath: () => ({ snapCaretToPoint: leafSnap }) as unknown as BlockComponent
+			snapCaretToPoint: ownSnap
 		} as unknown as BlockComponent & { focus: ReturnType<typeof vi.fn> };
 		resetSelectionForClick = vi.fn(() => {});
 	});
@@ -58,11 +59,11 @@ describe('createDeadSpaceCaret routing', () => {
 
 	function clickAt(clientX: number, clientY: number): boolean {
 		const caret = createDeadSpaceCaret({
-			getBlockComponent: () => component,
+			getBlockComponent: (path) => (path.length > 1 ? leaf : component),
 			resetSelectionForClick,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,
-			revealBlock: async () => component
+			land: async () => 'placed'
 		});
 		const press = { target: root, button: 0 } as unknown as MouseEvent;
 		caret.notePress(root, press);
@@ -96,9 +97,8 @@ describe('createDeadSpaceCaret routing', () => {
 	});
 
 	it('declines, touching no selection, when the kind names no caret landing', () => {
-		// A kind with a drag hit test and nothing to place a caret with: the decline must come
-		// before the range-ending reset, or a rejected click collapses a selection it never
-		// replaced.
+		// A kind with a drag hit test but no caret placement must decline before the range-ending
+		// reset, or a rejected click collapses a selection it never replaced.
 		const declared = tryGetBlockKindDescriptor('table')!.caretTargetAtPoint;
 		try {
 			augmentBuiltin('table', { caretTargetAtPoint: undefined });
@@ -122,20 +122,18 @@ describe('createDeadSpaceCaret routing', () => {
 		expect(resetSelectionForClick).not.toHaveBeenCalled();
 	});
 
-	// The probe point, not the click point: the block answers it as it would a click there, and
-	// a caret landing at a non-editable widget's edge shows nothing until the block's snap paints
-	// it. jsdom resolves no point to an offset, so the text block's landing is covered by e2e and
-	// only the cell routing is decidable here.
+	// The block gets the clamped point, which it answers as it would a click there. jsdom resolves
+	// no point to an offset, so e2e covers text blocks and only the cell routing is tested here.
 	describe('click-intent snap', () => {
 		it('hands the probe point to the leaf the internal path names', () => {
 			clickAt(20, TABLE_BOX.top + 20);
 			expect(leafSnap).toHaveBeenCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
-			// Never the table's own snap: the landing addresses the cell, not the grid.
+			// Never the table's own snap: the placement addresses the cell, not the grid.
 			expect(ownSnap).not.toHaveBeenCalled();
 		});
 
 		it('declines a block that publishes no snap entry point', () => {
-			component = { ...component, getBlockComponentByPath: () => null } as typeof component;
+			leaf = null;
 			expect(clickAt(20, TABLE_BOX.top + 20)).toBe(true);
 			expect(leafSnap).not.toHaveBeenCalled();
 		});

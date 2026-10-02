@@ -1,13 +1,11 @@
 /**
- * Sets up the code-block languages and the fencedCode paste handling; safe to call twice.
- * Adding a language is one import plus one `registerLanguage` call.
+ * Sets up the code-block languages and the fencedCode paste handling; safe to call twice. These
+ * are built-ins, so the test reset keeps them. Adding a language is one import plus one
+ * `registerBuiltinLanguage` call.
  */
 
-import { registerLanguage } from './code-languages';
-import {
-	registerPasteSurface,
-	__removePasteSurfaceForTests
-} from '../../../tree-operations/paste-surfaces';
+import { registerBuiltinLanguage } from './code-languages';
+import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
 import { registerCodeContextActions } from './code-context-actions';
 
@@ -44,40 +42,33 @@ export function bootstrapCodeLanguages(): void {
 	if (booted) return;
 	booted = true;
 
-	registerLanguage('javascript', javascript, ['js']);
-	registerLanguage('typescript', typescript, ['ts']);
-	registerLanguage('python', python, ['py']);
-	registerLanguage('rust', rust, ['rs']);
-	registerLanguage('go', go);
-	registerLanguage('bash', bash, ['sh', 'shell']);
-	registerLanguage('json', json);
-	registerLanguage('yaml', yaml, ['yml']);
-	registerLanguage('sql', sql);
-	registerLanguage('html', xml, ['htm']); // hljs 'xml' grammar handles HTML
-	registerLanguage('css', css);
+	registerBuiltinLanguage('javascript', javascript, ['js']);
+	registerBuiltinLanguage('typescript', typescript, ['ts']);
+	registerBuiltinLanguage('python', python, ['py']);
+	registerBuiltinLanguage('rust', rust, ['rs']);
+	registerBuiltinLanguage('go', go);
+	registerBuiltinLanguage('bash', bash, ['sh', 'shell']);
+	registerBuiltinLanguage('json', json);
+	registerBuiltinLanguage('yaml', yaml, ['yml']);
+	registerBuiltinLanguage('sql', sql);
+	registerBuiltinLanguage('html', xml, ['htm']); // hljs 'xml' grammar handles HTML
+	registerBuiltinLanguage('css', css);
 
-	registerLanguage('java', java);
-	registerLanguage('c', c);
-	registerLanguage('cpp', cpp, ['c++']);
-	registerLanguage('ruby', ruby);
-	registerLanguage('markdown', markdown, ['md']);
-	registerLanguage('diff', diff);
-	registerLanguage('latex', latex, ['tex']);
+	registerBuiltinLanguage('java', java);
+	registerBuiltinLanguage('c', c);
+	registerBuiltinLanguage('cpp', cpp, ['c++']);
+	registerBuiltinLanguage('ruby', ruby);
+	registerBuiltinLanguage('markdown', markdown, ['md']);
+	registerBuiltinLanguage('diff', diff);
+	registerBuiltinLanguage('latex', latex, ['tex']);
 
-	registerLanguage('csharp', csharp, ['cs', 'c#']);
-	registerLanguage('kotlin', kotlin, ['kt']);
-	registerLanguage('swift', swift);
-	registerLanguage('php', php);
-	registerLanguage('powershell', powershell, ['ps1']);
-	registerLanguage('dockerfile', dockerfile, ['docker']);
+	registerBuiltinLanguage('csharp', csharp, ['cs', 'c#']);
+	registerBuiltinLanguage('kotlin', kotlin, ['kt']);
+	registerBuiltinLanguage('swift', swift);
+	registerBuiltinLanguage('php', php);
+	registerBuiltinLanguage('powershell', powershell, ['ps1']);
+	registerBuiltinLanguage('dockerfile', dockerfile, ['docker']);
 
 	registerPasteSurface(codePasteSurface);
 	registerCodeContextActions();
-}
-
-/** Test-only: reset the flag and unregister the paste handling, so running the
- *  bootstrap again does not hit the register-once duplicate error. */
-export function __resetBootForTests(): void {
-	booted = false;
-	__removePasteSurfaceForTests(codePasteSurface.kind);
 }

@@ -3,12 +3,12 @@
  * relative to the constructs around the caret (a kind already active is a removal, one absent is
  * an application). Live mode paints no delimiter, so writing an empty pair into the bytes would
  * leave an invisible `****` behind on an abandoned toggle. The toggle command sets them, the typing
- * and composition paths consume them, and the edge affinity clears them (live-mode.md § 4.3).
+ * and composition paths consume them, and the caret memory drops them (live-mode.md § 4.3).
  */
 
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 
-export interface PendingMarksState {
+export interface PendingMarks {
 	/** Null when nothing is pending; never an empty set, so a read is the whole question. */
 	get(): ReadonlySet<InlineMarkKind> | null;
 
@@ -21,30 +21,6 @@ export interface PendingMarksState {
 	/** Hand back a set taken for an insertion that never happened (an IME cancel). Declines once
 	 *  anything else is pending: that is a newer instruction about the same caret. */
 	restore(marks: ReadonlySet<InlineMarkKind>): void;
-
-	reset(): void;
-}
-
-export function createPendingMarksState(): PendingMarksState {
-	let marks: ReadonlySet<InlineMarkKind> | null = null;
-
-	return {
-		get: () => marks,
-		toggle: (kind) => {
-			marks = flipMark(marks, kind);
-		},
-		consume: () => {
-			const spent = marks;
-			marks = null;
-			return spent;
-		},
-		restore: (unspent) => {
-			if (marks === null) marks = unspent;
-		},
-		reset: () => {
-			marks = null;
-		}
-	};
 }
 
 /** The set one toggle chord produces, or null once it empties. Pure, so the toggle matrix is

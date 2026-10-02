@@ -2,7 +2,11 @@ import { test, expect } from '../../fixtures';
 import { readFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureContainerInteriorTyping, measureTypingLatency } from './latency-harness';
+import {
+	measureContainerInteriorTyping,
+	measureStructuralRebuild,
+	measureTypingLatency
+} from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -10,11 +14,8 @@ declare const process: { env: Record<string, string | undefined> };
 // as if it had run.
 test.skip(!process.env.PERF_GATE, 'run via `npm run perf:check`');
 
-// A regression gate for one machine during development. The p50 varies by about 3 to 4% on the
-// same machine, so +10% clears the noise, and the floor keeps cheap rows from failing on a few
-// milliseconds of jitter. Gate on the steady p50 and report the p95. Re-measure baseline.json
-// only for a toolchain change, with a changelog note, never to quiet a regression. Gating the
-// 10MB rows is what keeps a cost per viewport from quietly becoming a cost per document.
+// The p50 varies about 3 to 4% on one machine, so +10% clears the noise and the floor absorbs
+// jitter on cheap rows. Re-measure baseline.json only for a toolchain change, never to quiet a red.
 const TOLERANCE = 1.1;
 const FLOOR_MS = 5;
 // A slower machine scales every ceiling rather than re-measuring baselines per host. Locally it
@@ -24,10 +25,8 @@ const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
 const SIZE_KEYSTROKES: Record<string, number> = { '1MB': 30, '10MB': 15 };
 
-// The mode is a variable, not a second harness: a `live` row measures the same keystroke as the
-// source row above it, on a route that starts in that mode. Hiding markers is CSS over the one
-// render path, so a live row outside its source row's range means the walk over hidden text
-// added work to every keystroke.
+// A `live` row measures the same keystroke as the source row above it; hiding markers is CSS over
+// one render path, so a live row out of its source row's range means hidden text added work.
 const GATED_ROWS: Array<[shape: FixtureShape, size: string, mode?: 'live']> = [
 	['flat-prose', '1MB'],
 	['nested-containers', '1MB'],
@@ -94,13 +93,12 @@ test.describe('perf gate: keystroke p50 within budget', () => {
 	}
 });
 
-// Typing inside a container, not in front of one: every row above puts a paragraph first, so no
-// other gated caret ever sits inside. What varies is how many children the container has rather
-// than where the caret is, and the first child is the one windowing always keeps mounted. It is
-// also the expensive one: the only position whose keystroke moves the container's opening line.
+// Typing inside a container, which no row above reaches. The caret sits on the first child, always
+// mounted and the only position whose keystroke moves the container's opening line.
 const CONTAINER_INTERIOR_ROWS: Array<[shape: FixtureShape, leafPath: number[], size: string]> = [
 	['giant-single-list', [0, 0, 0], '1MB'],
 	['giant-single-blockquote', [0, 0], '1MB'],
+	['giant-single-table', [0, 0, 0], '1MB'],
 	['giant-single-list', [0, 0, 0], '10MB']
 ];
 
@@ -118,6 +116,35 @@ test.describe('perf gate: keystroke p50 typing inside a container', () => {
 				leafPath,
 				SIZE_BYTES[size],
 				SIZE_KEYSTROKES[size]
+			);
+
+			console.log(
+				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms`
+			);
+			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+		});
+	}
+});
+
+// A split or merge at the top level rebuilds the whole windowing model, which no typed character
+// does. On a large flat document that rebuild must stay proportional to the block count.
+const STRUCTURAL_ROWS: Array<[shape: FixtureShape, size: string]> = [['flat-prose', '10MB']];
+const STRUCTURAL_EDITS = 16;
+
+test.describe('perf gate: structural edit p50 within budget', () => {
+	for (const [shape, size] of STRUCTURAL_ROWS) {
+		test(`${shape} ${size} structural`, async ({ page }) => {
+			const key = `${shape}-${size}-structural`;
+			const { baselineMs, ceilingMs } = gateFor(key);
+
+			const editor = new EditorPage(page);
+			const m = await measureStructuralRebuild(
+				page,
+				editor,
+				shape,
+				SIZE_BYTES[size],
+				STRUCTURAL_EDITS
 			);
 
 			console.log(

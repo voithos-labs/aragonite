@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath, capturedErrors, roundTripStable } from './helpers';
 
 /**
- * The bundled party parrot (requirements/plugins/parrot.md), which is the plugin guide's
- * quickstart built: a render-first block whose caption is what you normally see and whose source
- * line exists only while the caret is in the block. Seed `parrot`: block 0
- * `%%parrot party responsibly`, block 1 `After`. The bytes themselves are the unit suite's.
+ * The bundled party parrot (requirements/plugins/parrot.md), the plugin guide's quickstart built:
+ * a render-first block showing its caption, whose source line exists only while the caret is in the
+ * block. Seed `parrot`: block 0 `%%parrot party responsibly`, block 1 `After`. The bytes themselves
+ * are the unit suite's.
  */
 
 const SEED = '%%parrot party responsibly\n\nAfter\n';
@@ -166,9 +166,8 @@ test.describe('the bundled party parrot', () => {
 		await editor.leaveDownward();
 		const late = await editor.revealByClickAcross(0.75);
 
-		// Ordered rather than byte-exact: an x taken from a rect falls on whichever side of a
-		// glyph the font metrics put it. Both are past the marker and the righter click is further
-		// along, which a caret that ignored the point could not do, since that one is always 0.
+		// Ordered, not byte-exact, since a rect-derived x falls either side of a glyph: both are past
+		// the marker and the righter click is further along, which a caret ignoring the point is not.
 		expect(early).toBeGreaterThan('%%parrot '.length);
 		expect(late!).toBeGreaterThan(early!);
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -368,8 +367,8 @@ test.describe('the bird at phone width', () => {
 		const editor = new ParrotPage(page);
 		await editor.gotoSeed();
 
-		// Every frame is wider than a phone column, so the bird overflowing its own box is the
-		// premise, and the claim is that the editor does not scroll sideways.
+		// Every frame is wider than a phone column, so the bird overflows its box, and what must hold
+		// is that the editor does not scroll sideways.
 		await expect
 			.poll(() =>
 				page.evaluate(() => {

@@ -2,11 +2,8 @@ import type { CstNode } from '../core/nodes';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { InvariantViolation } from '../assert';
 
-/**
- * G1.36, the writing half: a descriptor's range fits the array it keeps in step and never asks for
- * a negative count. `Array.from({length: -1})` is `[]`, so a descriptor derived from a length
- * difference over the wrong range pulls ids and children apart in silence.
- */
+/** G1.36, the writing half: a descriptor's range fits the array it keeps in step and never asks
+ *  for a negative count, which `Array.from({length: -1})` would silently turn into `[]`. */
 export function checkStructuralDescriptor(
 	change: StructuralChange,
 	length: number
@@ -23,11 +20,8 @@ export function checkStructuralDescriptor(
 	};
 }
 
-/**
- * G1.36, the reading half: one id per child once a commit has written its state. The writing check
- * cannot see a descriptor that fits its own array but describes the wrong range, which is what a
- * length difference produces when the splice also merged neighbouring blocks.
- */
+/** G1.36, the reading half: one id per child once a commit has written its state, which catches
+ *  a descriptor that fits its own array but describes the wrong range. */
 export function checkIdsChildrenLockstep(
 	seam: string,
 	idCount: number,
@@ -41,11 +35,8 @@ export function checkIdsChildrenLockstep(
 	};
 }
 
-/**
- * G1.36 over the other parallel array: one pair of span bounds per child once a rebuild has run
- * (`schema/child-spans.ts`). A rebuild that writes the wrong length, or a shape change that
- * outlived the drop meant to clear it, splices a stale region on the next keystroke.
- */
+/** G1.36 over the child spans: one pair of span bounds per child once a rebuild has run, or the
+ *  next keystroke splices a stale region. */
 export function checkChildSpansLockstep(node: CstNode): InvariantViolation | null {
 	const spans = node.childSpans;
 	if (!spans) return null;

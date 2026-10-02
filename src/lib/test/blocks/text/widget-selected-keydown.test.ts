@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Keydown with a widget selected routes custom keys, such as Shift+Arrow to resize an image,
 // through the widget kind's editing policy, with no branch on `kind === 'image'`. These run the
 // whole dispatch: a real parse, `flattenInlineWidgets`, the policy lookup and the handler,
@@ -8,6 +7,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { harness } from './widget-selected-fixture';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 beforeAll(() => {
 	// Mirrors the mount-time wire-up (built-in-blocks.ts): the core image kind
@@ -35,10 +35,14 @@ describe('handleSelectedWidgetKeydown: Shift+Arrow through the editing policy', 
 			if (norm === 'repo') return { url: 'https://repo' };
 			return undefined;
 		};
-		const { interaction, commits } = harness('[![cat][shot]][repo]\n', 1, {
-			current: resolve,
-			signature: 'shot|repo'
-		});
+		const { interaction, commits } = harness(
+			'[![cat][shot]][repo]\n',
+			1,
+			fixtureReading({
+				resolver: resolve,
+				resolverSignature: 'shot|repo'
+			})
+		);
 		expect(await interaction.handleSelectedWidgetKeydown(shiftRight())).toBe(true);
 		expect(commits).toHaveLength(1);
 		expect(commits[0]).toMatchObject({ index: 0, before: 1, after: 17 });

@@ -15,11 +15,8 @@ export interface LinkCardState {
 	getTarget(): LinkTarget | null;
 	/** Set and `getTarget()` are mutually exclusive: one card, one target. */
 	getCreateTarget(): CreateLinkTarget | null;
-	/**
-	 * Zero for a click, a fresh positive number for each keyboard entry. The card focuses its field
-	 * when this differs from the zero it starts at, which separates the two gestures without a mode
-	 * flag and handles the case with no remount to key on: `Mod+K` on an already-open card.
-	 */
+	/** Zero for a click, a fresh number for each keyboard entry; the card focuses its field when
+	 *  it changes, which also covers `Mod+K` on a card already open. */
 	getFocusEpoch(): number;
 	/** Positioned beside a live caret; the document keeps focus. The click gesture.
 	 *  False when `canOpen` refused and no card opened. */
@@ -42,9 +39,8 @@ export interface LinkCardOptions {
 	/** For the chord, looser than the click's by exactly one case: the entry resolves the
 	 *  construct from the selection itself, so a range it allows is the card's own bytes. */
 	canEnter: () => boolean;
-	/** For create: requires the very selection `canOpen` forbids, since the range is the
-	 *  gesture's target. Separate and required so each entry states which gesture it is;
-	 *  a cross-block range is refused by all three. */
+	/** For create: requires the selection `canOpen` forbids, since the range is the target. All
+	 *  three checks refuse a cross-block range. */
 	canOpenCreate: () => boolean;
 }
 

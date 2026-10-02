@@ -1,5 +1,5 @@
-// An example of the per-instance context: the working proof that the document, the identity
-// and the events replace an API of state fields.
+// An example of the per-instance context: the plugin reads the document, the editor's identity,
+// its events and its options from it.
 import { definePlugin, registerGlobalCommand, type EditorContext } from '$lib/plugin';
 
 export interface DocStatsOptions {
@@ -24,10 +24,9 @@ function publish() {
 	window.__docStats = Object.fromEntries(statsByEditor);
 }
 
-function recompute(editor: EditorContext, edits: number) {
-	const options = (editor.options as DocStatsOptions | undefined) ?? { label: 'default' };
+function recompute(editor: EditorContext<DocStatsOptions>, edits: number) {
 	statsByEditor.set(editor.editorId, {
-		label: options.label,
+		label: editor.options.label,
 		blocks: editor.document.children.length,
 		edits
 	});
@@ -36,13 +35,14 @@ function recompute(editor: EditorContext, edits: number) {
 
 export const docStatsPlugin = definePlugin<DocStatsOptions>({
 	name: 'doc-stats',
+	defaults: { label: 'default' },
 	setup(ctx) {
-		// recompute() narrows the options itself: the handler registerGlobalCommand takes
-		// receives EditorContext<unknown>, since the registration is not bound to this type.
 		registerGlobalCommand(
 			'docStats.publish',
 			(editor) => {
-				recompute(editor, statsByEditor.get(editor.editorId)?.edits ?? 0);
+				// Typed for any plugin, but a global command's handler gets its own plugin's context.
+				const own = editor as EditorContext<DocStatsOptions>;
+				recompute(own, statsByEditor.get(own.editorId)?.edits ?? 0);
 				return true;
 			},
 			{ chord: 'Mod+Shift+S' }

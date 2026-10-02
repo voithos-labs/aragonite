@@ -1,11 +1,12 @@
 /**
- * Editor-root document listeners: the mod-active cursor tracker, the reveal-anchor release,
- * the selectionchange bridge and the blur announcer. Pure dispatch over live getters; each
- * installing `$effect` stays in `Editor.svelte` as a check plus one install call, returning
- * the teardown. `onRoot` and `removeAll` hold the add/remove pair in one place.
+ * The editor root's document and window listeners, each installed by one call that returns its
+ * teardown. `onRoot` and `removeAll` keep every add paired with its remove.
  */
 
 import { tick } from 'svelte';
+import { findSurfacePathForElement } from '../selection/path-lookup';
+import type { SelectionState } from '../selection/selection-state.svelte';
+import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -30,11 +31,8 @@ export function removeAll(...removers: (() => void)[]): () => void {
 
 // ── Install bundles ─────────────────────────────────────────────────
 
-/**
- * Only Ctrl/Cmd+click activates a link, so CSS switches links to a pointer cursor
- * off `data-mod-active`. Reset on blur and visibility loss, or a modifier released
- * while the page is unfocused sticks the cursor on.
- */
+/** Only Ctrl/Cmd+click activates a link, so CSS shows the pointer off `data-mod-active`; reset on
+ *  blur and visibility loss, so a key released while unfocused cannot stick it. */
 export function installModActiveTracker(root: HTMLElement): () => void {
 	// Track the last reflected state so ordinary typing never touches the DOM,
 	// keeping the attribute write off the keystroke hot path (perf:check).
@@ -58,11 +56,25 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 	);
 }
 
-/**
- * A block stays held in place only until the user's next gesture on the resolved scroll
- * container. Not `scroll`: a programmatic correction fires that too, and would release the
- * hold half way through.
- */
+/** The user's input in `root` ends the open undo step, so typing while a plugin's commit waits
+ *  gets its own entry; window capture ends it before the root's handlers open the next. */
+export function installUndoStepEnd(root: HTMLElement, endStep: () => void): () => void {
+	const win = root.ownerDocument.defaultView;
+	if (!win) return () => {};
+	const handler = (e: Event) => {
+		if (!(e.target instanceof Node) || !root.contains(e.target)) return;
+		// A held Shift or Ctrl is not input yet; the key it modifies is.
+		if (e instanceof KeyboardEvent && BARE_MODIFIER_KEYS.includes(e.key)) return;
+		endStep();
+	};
+	const removers = ['keydown', 'beforeinput', 'paste', 'cut', 'drop'].map((type) =>
+		onRoot(win, type, handler, { capture: true })
+	);
+	return () => removers.forEach((remove) => remove());
+}
+
+/** A block stays held in place until the user's next gesture on the scroll container; not
+ *  `scroll`, which a programmatic correction fires too. */
 export function installRevealAnchorRelease(port: EventTarget, release: () => void): () => void {
 	return removeAll(
 		onRoot(port, 'keydown', release),
@@ -79,13 +91,12 @@ export interface SelectionChangeBridgeDeps {
 	/** Announces this editor's current selection, and does nothing when it is the one
 	 *  subscribers were already told about. */
 	announceIfMoved(): void;
+	/** Read for an inline widget selected whole, which owns the keys while it is. */
+	selection: Pick<SelectionState, 'widget'>;
 }
 
-/**
- * Caret motion the editor did not perform itself: a click, and single-block moves, which never
- * go through SelectionState. Scoped to `root` to avoid noise from selections elsewhere on the
- * page, and silent about a position the editor has already announced.
- */
+/** Announces caret motion the editor did not make (a click, a move within one block), and drops
+ *  a caret that appears while an inline widget is selected whole. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
 		const sel = window.getSelection();
@@ -95,6 +106,12 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// A selection in the host's header is not a document selection: announcing there
 		// reports this editor's own unchanged selection on every header caret move.
 		if (deps.isHostChrome(anchorNode)) return;
+		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
+		// its start on any mouse input. A drag's range and a caret in a popover field stay.
+		if (sel.isCollapsed && deps.selection.widget !== null && inBlockSurface(anchorNode)) {
+			sel.removeAllRanges();
+			return;
+		}
 		deps.announceIfMoved();
 	};
 	return removeAll(
@@ -105,12 +122,13 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 	);
 }
 
-/**
- * Losing focus is a selection change no browser event reports: the native range can survive
- * unfocused while the editor's own read goes null, so this announces it. Decided after the
- * flush, never at focusout: a structural commit unmounts the focused block and puts focus back
- * after its own tick, and focus that came back never left.
- */
+function inBlockSurface(node: Node): boolean {
+	const el = node instanceof Element ? node : node.parentElement;
+	return findSurfacePathForElement(el) !== null;
+}
+
+/** Announces losing focus, a selection change no browser event reports; decided after the
+ *  flush, since a structural commit refocuses its block a tick later. */
 export function installEditorBlurAnnouncer(deps: {
 	root: HTMLElement;
 	announce: () => void;

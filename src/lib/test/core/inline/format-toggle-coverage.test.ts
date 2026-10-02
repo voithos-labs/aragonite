@@ -2,12 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// Coverage routing: a selection already covered by a same-format construct unapplies (splitting
-// the construct), and a selection overlapping or abutting same-format runs applies over the union
-// (absorbing their markers). Miss-analysis: every unapply case aligned the selection with a
-// construct boundary — whole content, or markers included — so no test ever selected a strict
-// sub-range of formatted content, and the fall-through to the wrap arm went unobserved.
+// A covered selection unapplies, splitting the construct; an overlapping one wraps the union.
+// Miss-analysis: no unapply case selected a strict sub-range of formatted content.
 
 const PROSE_FORMATS = MARK_FORMATS.filter((f) => f !== 'inlineCode');
 
@@ -57,7 +55,11 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('re-emits the construct with its own non-canonical delimiters', () => {
 		const raw = '__text text2__';
 		const r = toggleFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 12 } },
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 12 }
+			},
 			'strong'
 		);
 		expect(r.newDisplay).toBe('__text__ text2');
@@ -84,23 +86,29 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('splits identically in live mode, where no marker paints', () => {
 		const raw = '**text text2**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 12 } },
-			'strong',
-			'live'
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 12 },
+				reading: fixtureReading({}, 'live')
+			},
+			'strong'
 		);
 		expect(r?.newDisplay).toBe('**text** text2');
 	});
 
-	// In strong(`x ** y`) the inner `**` is literal content that happens to equal the delimiter
-	// run, and no candidate can close a run against it: the press declines over eating it.
-	// Miss-analysis: the flank arm's byte-equality check was never handed flanking bytes that were
-	// content — every strip case's flanks were a parsed construct's real delimiters.
+	// In strong(`x ** y`) the inner `**` is content that equals the delimiter run, so it declines.
+	// Miss-analysis: every strip case's flanking bytes were a parsed construct's real delimiters.
 	it('declines when the flanking bytes are literal content, not the construct delimiters', () => {
 		const raw = '**x ** y**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 6, end: 8 } },
-			'strong',
-			'source'
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 6, end: 8 },
+				reading: fixtureReading()
+			},
+			'strong'
 		);
 		expect(r).toBeNull();
 	});
@@ -110,9 +118,13 @@ describe('a selection inside a same-format construct splits it', () => {
 	it('declines a cut that would strand another construct’s delimiters', () => {
 		const raw = '**a *b c* d**';
 		const r = toggleInlineFormat(
-			{ display: raw, content: whole(raw), selection: { start: 7, end: 11 } },
-			'strong',
-			'source'
+			{
+				display: raw,
+				content: whole(raw),
+				selection: { start: 7, end: 11 },
+				reading: fixtureReading()
+			},
+			'strong'
 		);
 		expect(r).toBeNull();
 	});

@@ -63,8 +63,8 @@ test('undo of an off-window block edit reverts cleanly and restores focus', asyn
 	await editor.scrollEditorTo(scrollHeight);
 	expect(await topLevelHostPresent(page, 0)).toBe(false);
 
-	// The keydown handler for undo belongs to a block, so the press needs a mounted focused
-	// one; undo itself covers the whole editor, so block 0 must still be scrolled back.
+	// The undo keydown handler belongs to a block, so the keypress needs a mounted focused one; undo
+	// itself covers the whole editor, so block 0 must still be scrolled back.
 	const mounted = await mountedTopLevelIndices(page);
 	const focusTarget = mounted[Math.floor(mounted.length / 2)];
 	expect(focusTarget).toBeGreaterThan(100);
@@ -75,8 +75,8 @@ test('undo of an off-window block edit reverts cleanly and restores focus', asyn
 	await editor.bridge.waitForSourceNotContains('ALPHA_MARK', 10_000);
 	expect(await editor.bridge.getSource()).not.toContain('ALPHA_MARK');
 
-	// The source is restored at once, but mounting the block and placing the caret happen a few
-	// ticks later, so typing as soon as the source settles would race the caret.
+	// The source is restored at once but the block mounts and takes the caret a few ticks later, so
+	// typing as soon as the source matches would race the caret.
 	await page.waitForFunction(() => !!document.querySelector("[data-block-path='[0]']"), null, {
 		timeout: 10_000,
 		polling: 16
@@ -109,8 +109,7 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 		await page.evaluate((p) => !!document.querySelector(`[data-block-path='${p}']`), deepHostPath)
 	).toBe(false);
 
-	// Click the paragraph rather than calling focusBlockStart(0): path [0] is the `.list-block`
-	// container, which cannot take focus, so a keydown there goes nowhere.
+	// A click in the first item starts the selection the way a user does, from a caret they placed.
 	await editor.clickBlockAtPath([0, 0, 0], 0);
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
@@ -135,15 +134,14 @@ test('collapsing a Ctrl+Shift+End list selection to start lands the caret in the
 		() => (window as any).__test.getDocument().children[0].children.length
 	);
 
-	// The list version of the table collapse-to-start case below. Ctrl+Shift+End unmounts the
-	// block the selection started in and leaves a stale reference behind; trusting that
-	// reference would skip the scroll and leave the caret at the other end.
+	// The list version of the table collapse-to-start case below: Ctrl+Shift+End unmounts the block
+	// the selection started in, whose stale reference would leave the caret at the other end.
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	await editor.clickBlockAtPath([0, 0, 0], 0);
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
-	// Unmounted now, so the collapse below has to mount it again rather than reuse a block.
+	// Unmounted here, so the collapse below has to mount it again rather than reuse a block.
 	expect(
 		await page.evaluate(
 			() => !!document.querySelector(`[data-block-path='${JSON.stringify([0, 0, 0])}']`)
@@ -207,7 +205,7 @@ test('reveals an off-window table cell by scroll and edits it (phase 4)', async 
 	expect(target).not.toBeNull();
 	expect(target!).toBeGreaterThan(initialMaxRow + 10);
 
-	await page.locator(`[data-table-row-idx="${target}"] [role="cell"]`).first().click();
+	await page.locator(`[data-table-row-idx="${target}"] .table-cell`).first().click();
 	await editor.typeText('CELL_VR_MARKER');
 	await editor.bridge.waitForSourceContains('CELL_VR_MARKER', 10_000);
 
@@ -243,7 +241,7 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 
 	// The focus ends up as a cell position on the table block; an extend that ignores the cell
 	// scrolls to the top of the table and never mounts the last row.
-	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.locator('[data-table-row-idx="0"] .table-cell').first().click();
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 
@@ -277,7 +275,7 @@ test('collapsing a Ctrl+Shift+End table selection lands the caret in the reveale
 		await page.evaluate((r) => !!document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
 	).toBe(false);
 
-	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.locator('[data-table-row-idx="0"] .table-cell').first().click();
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowRight'); // collapse to the newly mounted end
@@ -317,7 +315,7 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 
 	// The collapse is async: typing on the keypress alone would race the still-active
 	// selection into a destructive type-replace.
-	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.locator('[data-table-row-idx="0"] .table-cell').first().click();
 	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowLeft'); // collapse to the start
@@ -348,9 +346,8 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 	expect(pageErrors).toEqual([]);
 });
 
-// F2: undo with no block focused at all. The case above focuses a still-mounted block first;
-// this one deliberately does not, so only the editor's own document-level keydown listener can
-// deliver the shortcut. Without that listener the press does nothing.
+// Undo with no block focused, so only the editor's own document-level keydown listener can
+// deliver the shortcut.
 test("undo fires after the caret's block is windowed out (F2)", async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);

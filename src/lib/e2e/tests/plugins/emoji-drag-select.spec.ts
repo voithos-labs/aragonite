@@ -3,10 +3,9 @@ import { PluginsPage, capturedErrors } from './helpers';
 
 /**
  * A drag that starts on an emoji selects, like a drag from any other character. The glyph is
- * `contenteditable=false` and `user-select: none`, so the browser starts no drag from it and
- * answers its point with a position in the neighbouring text: the editor paints the range itself,
- * anchored at the glyph's raw edge on the press's side.
- * Requirements: e2e/requirements/plugins/emoji-drag-select.md.
+ * `contenteditable=false` and `user-select: none`, so the browser starts no drag from it; the
+ * editor paints the range itself, anchored at the glyph's raw edge on the side the pointer went
+ * down. Requirements: e2e/requirements/plugins/emoji-drag-select.md.
  */
 
 const SOURCE = 'Mood :smile: today and more words\n';
@@ -16,9 +15,8 @@ interface Point {
 	y: number;
 }
 
-/** A point in the glyph's trailing half, a point `dx` from its left edge on the same line, and the
- *  line's far end. The edge to anchor at is chosen by which half of the glyph the press is in, so
- *  a press at the exact centre would leave the anchor to sub-pixel rounding. */
+/** A point in the glyph's trailing half, one `dx` from its left edge, and the line's far end; the
+ *  anchor edge follows the half the pointer went down in, so the exact centre would be luck. */
 async function emojiPoints(
 	editor: PluginsPage
 ): Promise<{ trailingHalf: Point; from: (dx: number) => Point; lineEnd: Point }> {
@@ -43,7 +41,7 @@ async function selectedRange(editor: PluginsPage): Promise<{ low: number; high: 
 	};
 }
 
-/** A real press-move-release; the moves are stepped so the drag session sees more than one. */
+/** A real mouse down, move and up, with stepped moves so the drag sees more than one. */
 async function dragBetween(editor: PluginsPage, from: Point, to: Point): Promise<void> {
 	await editor.page.mouse.move(from.x, from.y);
 	await editor.page.mouse.down();
@@ -101,7 +99,7 @@ test.describe('a drag that starts on an emoji selects', () => {
 
 		await editor.page.mouse.up();
 		await editor.waitForRenderFlush();
-		// A press with no drag is the click that puts a caret beside the glyph, not a selection.
+		// A click with no drag puts a caret beside the glyph, not a selection.
 		expect(await selectedText(editor)).toBe('');
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
@@ -125,9 +123,8 @@ async function dragOffWidget(editor: PluginsPage, selector: string, dx: number):
 	await dragBetween(editor, { x: box.x + box.width * 0.75, y }, { x: box.x + box.width + dx, y });
 }
 
-// The rule is declared per kind, not per component: any widget the caret reads as one character
-// drags, and one running a pointer gesture of its own keeps its press. Each sibling of the emoji
-// is here as its own case, so a widening of that declaration reds rather than passing silently.
+// The rule is declared per kind: a widget the caret reads as one character drags, and one with a
+// pointer gesture of its own keeps it. Each sibling is its own case, so widening the rule fails.
 test.describe('the same drag from the emoji’s siblings', () => {
 	let editor: PluginsPage;
 
@@ -152,8 +149,8 @@ test.describe('the same drag from the emoji’s siblings', () => {
 		expect(await capturedErrors(editor.page)).toEqual([]);
 	});
 
-	// The exclusion, pinned from the other side: the image owns its press for the resize drag, so
-	// a range painted under it would fight that gesture.
+	// The exclusion from the other side: the image owns pointer-down for its resize drag, so a range
+	// painted under it would fight that gesture.
 	test('a drag from an inline image paints no range of its own', async () => {
 		const source = 'Mood ![a|60x40](/test-fixtures/sample.png) today and more words\n';
 		await editor.loadContent(source);

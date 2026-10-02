@@ -35,9 +35,8 @@ test.describe('selection: keyboard: shift+arrow contraction (D1)', () => {
 		expect(selectedText).toBe('ello');
 	});
 
-	// Shrinking after entry: once a cross-block selection exists, stepping the focus back into
-	// the anchor block must collapse to a native single-block range, rather than keeping an
-	// invisible cross-block state whose two paths are the same.
+	// Once a cross-block selection exists, stepping the focus back into the anchor block must
+	// collapse to a native single-block range, not keep a cross-block state with two equal paths.
 	test('contracting a cross-block selection back into the anchor block restores the native range', async () => {
 		await editor.loadContent('Hello world\n\nsecond\n');
 		await editor.focusBlockEnd(0);

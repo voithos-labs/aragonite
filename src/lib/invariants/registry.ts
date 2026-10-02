@@ -7,16 +7,12 @@ import type { InvariantViolation } from '../assert';
  * it back would close a cycle.
  */
 
-/**
- * `listItem` renders inside its parent `ListBlock`, never via a `BlockHost` kind lookup,
- * so it is the one BlockKind with no component-registry entry by design.
- */
+/** `listItem` renders inside its parent `ListBlock`, never through a `BlockHost` lookup, so it is
+ *  the one kind with no component-registry entry. */
 const NO_STANDALONE_COMPONENT: ReadonlySet<BlockKind> = new Set(['listItem']);
 
-/**
- * G1.2: every BlockKind resolves to a descriptor, and to a component unless it renders inside a
- * parent (see `NO_STANDALONE_COMPONENT`). Returns the first gap.
- */
+/** G1.2: every BlockKind resolves to a descriptor, and to a component unless it renders inside a
+ *  parent. Returns the first gap. */
 export function checkRegistryCompleteness(
 	kinds: readonly BlockKind[],
 	hasDescriptor: (kind: BlockKind) => boolean,
@@ -41,11 +37,8 @@ export function checkRegistryCompleteness(
 	return null;
 }
 
-/**
- * G1.10: every registered opener belongs to a registered kind, and no two openers share a
- * priority. Equal priorities still dispatch deterministically (the tie falls back to the kind
- * name) but are almost always a mistake, so they warn.
- */
+/** G1.10: every opener belongs to a registered kind, and no two share a priority. A tie still
+ *  dispatches by kind name but is almost always a mistake, so it warns. */
 export function checkOpenerRegistry(
 	entries: readonly { kind: AnyBlockKind; priority: number }[],
 	hasDescriptor: (kind: AnyBlockKind) => boolean
@@ -77,29 +70,16 @@ export interface KeymapCoherenceEntry {
 	keymap?: readonly { chord: string; command: string }[];
 }
 
-/**
- * G1.11: every binding uses a well-formed chord naming a known command, and a kind's chords are
- * unique once normalized. A mistyped `Ctrl+B` collapses to a bare `B` that fires on every
- * keypress, and a duplicate leaves dispatch order up to the declaration order. Chords are scoped
- * per kind.
- */
+/** G1.11: every binding names a known command, and a kind binds each chord once. Checked at the flush,
+ *  not at registration, since a plugin can register its kind before the command. */
 export function checkKeymapCoherence(
 	entries: readonly KeymapCoherenceEntry[],
-	isKnownCommand: (id: string) => boolean,
-	normalizeChord: (chord: string) => string,
-	isChordWellFormed: (chord: string) => boolean
+	isKnownCommand: (id: string) => boolean
 ): InvariantViolation | null {
 	for (const { kind, keymap } of entries) {
 		if (!keymap) continue;
 		const seenChords = new Set<string>();
 		for (const binding of keymap) {
-			if (!isChordWellFormed(binding.chord)) {
-				return {
-					code: 'keymap-coherence',
-					message: `kind "${kind}" binds malformed chord "${binding.chord}": modifiers must be Mod/Alt/Shift and the key non-empty`,
-					detail: { kind, chord: binding.chord, issue: 'malformed' }
-				};
-			}
 			if (!isKnownCommand(binding.command)) {
 				return {
 					code: 'keymap-coherence',
@@ -107,7 +87,7 @@ export function checkKeymapCoherence(
 					detail: { kind, chord: binding.chord, command: binding.command }
 				};
 			}
-			const chord = normalizeChord(binding.chord);
+			const chord = binding.chord;
 			if (seenChords.has(chord)) {
 				return {
 					code: 'keymap-coherence',
@@ -121,10 +101,8 @@ export function checkKeymapCoherence(
 	return null;
 }
 
-/**
- * G1.17: an opener registered after the grammar was read. Parsed documents never reparse, so the
- * new kind silently misses every document already open.
- */
+/** G1.17: an opener registered after the grammar was read. Parsed documents never reparse, so the
+ *  new kind misses every document already open. */
 export function checkLateOpenerRegistration(
 	kind: AnyBlockKind,
 	grammarConsumed: boolean
@@ -139,29 +117,18 @@ export function checkLateOpenerRegistration(
 
 export interface ReservedChromeCoherenceEntry {
 	kind: AnyBlockKind;
-	isContainer: boolean;
 	reservedChromeKind?: AnyBlockKind;
 }
 
-/**
- * G1.18: a kind declaring `reservedChrome` is a container, and the kind it names resolves to both
- * a descriptor and a component. This checks the registration at startup; G1.14 checks the child
- * itself on every commit.
- */
+/** G1.18: the title-row kind a container's `reservedChrome` names has a descriptor and a
+ *  component. G1.14 checks the child itself on every commit. */
 export function checkReservedChromeCoherence(
 	entries: readonly ReservedChromeCoherenceEntry[],
 	hasDescriptor: (kind: AnyBlockKind) => boolean,
 	hasComponent: (kind: AnyBlockKind) => boolean
 ): InvariantViolation | null {
-	for (const { kind, isContainer, reservedChromeKind } of entries) {
+	for (const { kind, reservedChromeKind } of entries) {
 		if (reservedChromeKind === undefined) continue;
-		if (!isContainer) {
-			return {
-				code: 'reserved-chrome-coherence',
-				message: `kind "${kind}" declares reservedChrome but is not a container`,
-				detail: { kind, chromeKind: reservedChromeKind, issue: 'not-container' }
-			};
-		}
 		if (!hasDescriptor(reservedChromeKind)) {
 			return {
 				code: 'reserved-chrome-coherence',
@@ -197,22 +164,15 @@ export interface ClosureCoherenceEntry {
 	clipboardMode: ClosureCellMode;
 }
 
-/**
- * Fixed phrases rather than a loose pattern: the claim is what a plugin author copies out
- * of the shipped descriptors, and "moves focus" (what an ordinary not-mergeable leaf does
- * at its edge) must stay outside the set.
- */
+/** Fixed phrases, not a pattern: plugin authors copy them from the shipped descriptors, and
+ *  "moves focus" (an ordinary leaf's edge) must stay outside the set. */
 const FOCUS_THEN_DELETE_CLAIMS = ['focus-then-delete', 'a second press deletes'] as const;
 
 const claimsFocusThenDelete = (via: string | undefined): boolean =>
 	via !== undefined && FOCUS_THEN_DELETE_CLAIMS.some((phrase) => via.includes(phrase));
 
-/**
- * G1.24: cross-checks between a kind's closure cells and the rest of its descriptor that the
- * compiler cannot reach. Each violation message below states its own rule. The check that a
- * fixture parses to its kind runs in the unit suite instead: a `parse` import here would close a
- * `schema → core/parser → schema` cycle.
- */
+/** G1.24: cross-checks between a kind's closure cells and the rest of its descriptor that the
+ *  compiler cannot reach. The fixture-parse check is in the unit suite, which avoids a cycle. */
 export function checkClosureCoherence(
 	entries: readonly ClosureCoherenceEntry[]
 ): InvariantViolation | null {
@@ -265,13 +225,8 @@ export interface InlineConstructPolicyEntry {
 	mark?: { nestingRank: number; command: string };
 }
 
-/**
- * G1.31: a row names an inline kind that exists; the marker-rewriting behaviors belong only to
- * kinds whose markers can be shown; no two mark rows claim the same nesting rank or the same
- * command; and no plugin row's mark claims a built-in command id. A mistyped kind is silent, a
- * rewrite on a kind that never shows its markers edits bytes the author cannot see, and a tied or
- * built-in command leaves each editable block's own lookup order to decide the meaning.
- */
+/** G1.31: each inline-policy row names a real kind, gives marker rewrites only to kinds that show
+ *  their markers, and holds a unique nesting rank and command, never a built-in one. */
 export function checkInlineConstructPolicy(
 	entries: readonly InlineConstructPolicyEntry[],
 	isKnownInlineKind: (kind: AnyInlineKind) => boolean,
@@ -291,9 +246,8 @@ export function checkInlineConstructPolicy(
 		if (entry.mark) {
 			const clash = markClashOf(entry.kind, entry.mark, ranks, commands);
 			if (clash) return clash;
-			// The built-in command ids are a closed set and each already means something, so a
-			// plugin mark taking one shadows that meaning wherever the mark table is consulted
-			// first, and the editable blocks do not agree on where in their lookup that is.
+			// A built-in command id already means something, so a plugin mark taking one would shadow
+			// that meaning wherever the mark table is consulted first.
 			if (!isBuiltinInlineKind(entry.kind) && isBuiltinCommandId(entry.mark.command)) {
 				return {
 					code: 'inline-construct-policy',
@@ -349,20 +303,12 @@ function markClashOf(
 
 export interface DescriptorFieldEntry {
 	kind: AnyBlockKind;
-	declaresWholeBlockFocus: boolean;
-	supportsInline: boolean;
-	declaresReservedChrome: boolean;
 	contextDependentKind: boolean;
 	hasOpener: boolean;
-	unwrapLiftsFirstChild: boolean;
-	unwrapKeepsReservedChrome: boolean;
 }
 
-/**
- * G1.37: pairs of descriptor fields the type can represent but a kind cannot mean together. Each
- * pair fails silently rather than loudly, so nothing breaks until a gesture reaches the kind.
- * G1.24 does the same over the closure cells; this one reads the declarations alone.
- */
+/** G1.37: a context-dependent kind registers no opener. The two live in separate registries, so
+ *  the registration type can't see the pair; it fails silently until a gesture reaches the kind. */
 export function checkDescriptorFieldCoherence(
 	entries: readonly DescriptorFieldEntry[]
 ): InvariantViolation | null {
@@ -374,60 +320,6 @@ export function checkDescriptorFieldCoherence(
 				detail: { kind: entry.kind, fields: ['contextDependentKind', 'opener'] }
 			};
 		}
-		if (entry.declaresWholeBlockFocus && entry.supportsInline) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline; a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
-				detail: { kind: entry.kind, fields: ['blockFocus', 'supportsInline'] }
-			};
-		}
-		if (entry.declaresWholeBlockFocus && entry.declaresReservedChrome) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome; the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
-				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
-			};
-		}
-		if (entry.declaresReservedChrome && entry.unwrapLiftsFirstChild) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace: child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
-				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
-			};
-		}
-		if (entry.unwrapKeepsReservedChrome && !entry.declaresReservedChrome) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome; child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
-				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
-			};
-		}
-	}
-	return null;
-}
-
-export interface ContentStartBackspaceEntry {
-	kind: AnyBlockKind;
-	demotesFirst: boolean;
-	declaresContentRange: boolean;
-}
-
-/**
- * G1.32: a kind that demotes on Backspace at its content start declares where that content
- * starts. Without `getContentRange` the content range is the whole display, so the branch never
- * fires and the declaration promises behavior the kind does not have, silently and only at the
- * keystroke.
- */
-export function checkContentStartBackspace(
-	entries: readonly ContentStartBackspaceEntry[]
-): InvariantViolation | null {
-	for (const { kind, demotesFirst, declaresContentRange } of entries) {
-		if (!demotesFirst || declaresContentRange) continue;
-		return {
-			code: 'content-start-backspace',
-			message: `kind "${kind}" declares contentStartBackspace but no getContentRange: its content starts at raw 0, where the demote branch never fires and the declaration is silently inert`,
-			detail: { kind }
-		};
 	}
 	return null;
 }
@@ -437,11 +329,8 @@ export interface MergeRoleEntry {
 	mergeRole: string;
 }
 
-/**
- * G1.30: every registered kind declares a `mergeRole` from the known set. It belongs to the kind,
- * so it is checked once at registration: an unknown role makes the merge dispatcher fall through
- * silently on every gesture that reaches the kind.
- */
+/** G1.30: every kind declares a known `mergeRole`, checked once at registration, since an unknown
+ *  role makes the merge dispatcher fall through silently. */
 export function checkMergeRoleVocabulary(
 	entries: readonly MergeRoleEntry[],
 	isKnownMergeRole: (role: string) => boolean
@@ -454,6 +343,33 @@ export function checkMergeRoleVocabulary(
 				detail: { kind, mergeRole }
 			};
 		}
+	}
+	return null;
+}
+
+export interface PresentationFactEntry {
+	kind: AnyBlockKind;
+	declaresPageRole: boolean;
+	declaresEstimateHeight: boolean;
+}
+
+/** G1.40: every built-in kind declares how it reads on the page and its likely height; a built-in
+ *  left on the defaults would take a plugin's guesses unnoticed. */
+export function checkBuiltinPresentationFacts(
+	entries: readonly PresentationFactEntry[]
+): InvariantViolation | null {
+	for (const { kind, declaresPageRole, declaresEstimateHeight } of entries) {
+		const missing = !declaresPageRole
+			? 'pageRole'
+			: !declaresEstimateHeight
+				? 'estimateHeight'
+				: null;
+		if (missing === null) continue;
+		return {
+			code: 'builtin-presentation-facts',
+			message: `built-in kind "${kind}" declares no ${missing}; declare it in built-in-descriptors.ts`,
+			detail: { kind, missing }
+		};
 	}
 	return null;
 }

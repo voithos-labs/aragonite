@@ -12,6 +12,7 @@ import {
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
+import { TABLE_CELL_SELECTOR } from '../../components/block-content-selector';
 import { mountTableGrid } from './table-grid';
 import { para, bq, doc } from './cst-builders';
 
@@ -140,8 +141,7 @@ describe('findBlockPathForElement', () => {
 		expect(findBlockPathForElement(el)).toBeNull();
 	});
 
-	// Miss-analysis: the shape check lived in a second copy of this reader, so nothing asked the
-	// shared one what it does with JSON that parses but is no path.
+	// Miss-analysis: the shape check lived in a second copy of the reader, never the shared one.
 	it.each(['"[1]"', '{"0":1}', '[1,"x"]', 'null'])(
 		'returns null for %s, which parses but is no path',
 		(attr) => {
@@ -156,23 +156,26 @@ describe('findBlockPathForElement', () => {
 	});
 });
 
-// The one lookup for anything resolving an endpoint path from the DOM: only block hosts carry
-// `data-block-path`, so a plain ancestor walk stops at the table and hands back cell-index offsets
-// where the caret's are characters. Every null branch matters: "not a cell" read as "cell 0"
-// corrupts too.
+// Only block hosts carry `data-block-path`, so a plain ancestor walk stops at the table and returns
+// cell indices where caret offsets are characters; reading "not a cell" as "cell 0" corrupts too.
 describe('findCellPathForElement', () => {
 	function grid(rowCount: number, colCount: number) {
 		return mountTableGrid({ path: [3], rows: rowCount, cols: colCount }).host;
 	}
 
 	const cellAt = (host: HTMLElement, row: number, col: number) =>
-		host.querySelectorAll('[data-table-row-idx]')[row].querySelectorAll('[role="cell"]')[
+		host.querySelectorAll('[data-table-row-idx]')[row].querySelectorAll(TABLE_CELL_SELECTOR)[
 			col
 		] as HTMLElement;
 
 	it('extends the table’s own path with the cell’s row and column', () => {
 		const host = grid(3, 4);
 		expect(findCellPathForElement(cellAt(host, 2, 3))).toEqual([3, 2, 3]);
+	});
+
+	it('resolves a header-row cell, which is a column header rather than a cell', () => {
+		const { cells } = mountTableGrid({ path: [3], rows: 2, cols: 3 });
+		expect(findCellPathForElement(cells[0][2])).toEqual([3, 0, 2]);
 	});
 
 	it('resolves from a descendant of the cell', () => {

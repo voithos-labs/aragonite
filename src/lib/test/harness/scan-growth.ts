@@ -5,9 +5,8 @@
 // arriving mid-run cancels instead of loading whichever size it caught.
 import { expect } from 'vitest';
 
-/** Distinct-per-sample tail: the scan indexes memoize on the block's raw, so a
- *  second run of the identical string would time a cache hit, not the scan. Trailing
- *  `z` runs never complete any construct these suites flood with. */
+/** A tail distinct per sample, since the scan indexes memoize on the raw and a repeat would time
+ *  a cache hit; a `z` run completes no construct these suites flood with. */
 const salt = (sample: number) => 'z'.repeat(sample);
 
 /** Discarded samples per size: the warm-up ramp is steepest across the first two. */
@@ -68,17 +67,14 @@ function median(values: number[]): number {
 }
 
 /**
- * How a size's body is built: a unit to repeat, or a builder for a shape repetition cannot express
- * (one construct with a long tail, a series of ever-longer runs). A builder places the per-sample
- * distinctness itself, since a shape whose defect lives at its end cannot take a `z` tail.
+ * How a size's body is built: a unit to repeat, or a builder for a shape repetition cannot express.
+ * A builder places the per-sample salt itself, since a shape whose defect is at its end cannot
+ * take a `z` tail.
  */
 export type ScanSource = string | ((bytes: number, salt: string) => string);
 
-/**
- * Time `run` over `source` built to each of `[smallKb, largeKb]` (a 4x step), warming and
- * sampling both sizes symmetrically, re-pricing both 4x larger while the small sample sits
- * under `MIN_SAMPLE_MS`, and re-measuring a reading that lands over the ceiling.
- */
+/** Time `run` over `source` at `[smallKb, largeKb]`, re-pricing both 4x larger while the small
+ *  sample sits under `MIN_SAMPLE_MS`, and re-measuring a reading over the ceiling. */
 export function measureScanGrowth(
 	run: (source: string) => void,
 	source: ScanSource,
@@ -87,9 +83,8 @@ export function measureScanGrowth(
 	now: () => number = () => performance.now()
 ): ScanGrowth {
 	let sample = 0;
-	// A repeated body is built once per size: rebuilding a six-figure-byte string per sample
-	// would charge allocation and GC to whatever runs next. Every source is built before the
-	// timer starts, so a builder's own cost is never inside a measurement either way.
+	// Built once per size and before the timer starts, so allocation and GC never land inside a
+	// measurement.
 	const sourceAt = (kb: number) => {
 		const bytes = kb * 1024;
 		if (typeof source !== 'string') return () => source(bytes, salt(sample++));

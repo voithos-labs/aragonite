@@ -4,19 +4,14 @@
  */
 import { FALLBACK_CONTENT_WIDTH } from '../cursor/typography-estimates';
 
-/** This list's own content element, not the scroll container: nested content lays out
- *  narrower and the height estimator wraps more lines the narrower it gets, so the container's
- *  width undercounts at depth. Falls back to the container, then a constant. */
+/** This list's own content element, not the scroll container: nested content lays out narrower,
+ *  and the height estimator wraps more lines the narrower it gets. */
 export function estimateWidth(listEl: { clientWidth: number } | null, portWidth: number): number {
 	return listEl?.clientWidth || portWidth || FALLBACK_CONTENT_WIDTH;
 }
 
-/**
- * This list's top in the scroll container's content space: the offset that converts the
- * container's `scrollTop` into the list's own range. The two container terms are different and
- * both needed: an editor embedded partway down a page that scrolls has a nonzero scroll and
- * content above it, and treating them as one slices the window a band off.
- */
+/** The offset that converts the scroll container's `scrollTop` into this list's range. Viewport
+ *  top and scroll offset are separate terms: an editor partway down a scrolling page has both. */
 export function listTopWithinContent(
 	listTop: number,
 	viewportTop: number,
@@ -25,10 +20,8 @@ export function listTopWithinContent(
 	return listTop - viewportTop + scrollTop;
 }
 
-/** The intersection of the scroll container's viewport with this list's own box. Each nested
- *  list takes up only part of the viewport, so windowing against the full container height
- *  would mount O(viewport × number of lists) blocks. The viewport arrives as top plus client
- *  height, so the intersection leaves out the scrollbar and border. */
+/** Each nested list covers only part of the viewport; windowing each against the full height
+ *  would mount O(viewport × lists) blocks. Pass client height, which leaves out the scrollbar. */
 export function effectiveViewportHeight(
 	viewportTop: number,
 	viewportHeight: number,

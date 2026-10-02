@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	getInlineRungs,
 	hasInlineSyntax,
 	hasScanProbeRungs,
@@ -10,8 +9,6 @@ import {
 	type InlineSyntaxRecognizer
 } from '../../../../core/inline/scan/plugin-syntax';
 import { assertTotalCoverage, textNode } from './scan-test-helpers';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 function mathNode(start: number, end: number): InlineNode {
 	return { kind: 'math' as InlineNode['kind'], start, end };
@@ -61,8 +58,8 @@ describe('inline-syntax registry', () => {
 	});
 });
 
-// The probe set is about cost, not correctness: a handler on a trigger `SPECIAL_CHARS` already
-// checks must stay out of it, or every character pays for a check the fast bail already makes.
+// The fast bail's extra checks are about cost: a handler on a trigger it always checks stays
+// out of them, or every character pays for a check already made.
 describe('inline-syntax registry: what the fast bail must probe', () => {
 	it('reports nothing to probe until a trigger is registered', () => {
 		expect(hasScanProbeRungs()).toBe(false);

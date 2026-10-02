@@ -12,6 +12,7 @@ import {
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const LIVE = screenVisibility('live', { chromePaints: false });
 
@@ -23,7 +24,7 @@ function step(
 	affinity: EdgeAffinity | null,
 	direction: 'backward' | 'forward'
 ) {
-	return edgeStep(caret, tree(source), affinity, source, LIVE, direction);
+	return edgeStep(caret, tree(source), affinity, source, LIVE, fixtureReading(), direction);
 }
 
 // `Some **bold** text`: strong [5,13), `bold` [7,11); the trailing run is [11,13).
@@ -59,12 +60,14 @@ describe('the construct that ends its line, the case that had no arrow out', () 
 	const CODE = 'via `scheduled`';
 
 	it('offers the seat past the closing backtick', () => {
-		expect(edgeStops(14, tree(CODE), CODE, LIVE)).toEqual([14, 15]);
+		expect(edgeStops(14, tree(CODE), CODE, LIVE, fixtureReading())).toEqual([14, 15]);
 		expect(step(CODE, 14, 'near', 'forward')).toBe(15);
 	});
 
 	it('writes the next byte at the seat the step chose', () => {
-		expect(resolveEdgeSeat(14, tree(CODE), { offset: 15 }, CODE, LIVE, ')')).toEqual({
+		expect(
+			resolveEdgeSeat(14, tree(CODE), { offset: 15 }, CODE, LIVE, ')', fixtureReading())
+		).toEqual({
 			offset: 15,
 			kind: 'inlineCode'
 		});
@@ -77,7 +80,7 @@ describe('abutting runs', () => {
 	const BOTH = 'a ***both***';
 
 	it('takes one press per boundary', () => {
-		const stops = edgeStops(9, tree(BOTH), BOTH, LIVE);
+		const stops = edgeStops(9, tree(BOTH), BOTH, LIVE, fixtureReading());
 		expect(stops).toHaveLength(3);
 		expect(step(BOTH, 9, 'near', 'forward')).toBe(stops[1]);
 		expect(step(BOTH, 9, { offset: stops[1] }, 'forward')).toBe(stops[2]);
@@ -99,12 +102,12 @@ describe('where there is no choice to make', () => {
 
 describe('a pinned seat', () => {
 	it('is where the next byte goes while the position holds it', () => {
-		expect(typingOffset(11, tree(BOLD), { offset: 13 }, BOLD, LIVE)).toBe(13);
+		expect(typingOffset(11, tree(BOLD), { offset: 13 }, BOLD, LIVE, fixtureReading())).toBe(13);
 	});
 
 	// A pin outlives nothing but a move of the caret: at another position it names nothing there and
 	// the resolver falls back to its default, the near side.
 	it('reads as no record at a position that does not hold it', () => {
-		expect(typingOffset(5, tree(BOLD), { offset: 13 }, BOLD, LIVE)).toBe(5);
+		expect(typingOffset(5, tree(BOLD), { offset: 13 }, BOLD, LIVE, fixtureReading())).toBe(5);
 	});
 });

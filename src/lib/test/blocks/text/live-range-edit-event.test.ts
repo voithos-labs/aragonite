@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
-//
-// The event half of the live range edit: what `resolveLiveRangeEdit` makes of the range an
-// InputEvent carries. The joins themselves are covered through `resolveSelectionEdit`; these
-// cases cover the reading, where the browser's target range and the DOM caret can disagree.
-// Miss-analysis: every join test handed the resolver a range of its own, so none asked what
-// happens when `getTargetRanges()` reports a collapsed caret away from where the caret sits.
+// What `resolveLiveRangeEdit` makes of the range an InputEvent carries, where the browser's target
+// range and the DOM caret can disagree. The joins are covered through `replaceRangeInLeaf`.
+// Miss-analysis: join tests passed their own range, never a collapsed target away from the caret.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {
 	resolveLiveRangeEdit,
 	type LiveEditCursor
 } from '$lib/components/blocks/text/live-selection-edit';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 const LINK = 'Some [ab](u)text\n';
 
@@ -61,8 +59,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 			insertEvent(' '),
 			node,
 			cursorReading(8, 12),
-			'live',
-			undefined
+			topLevelStore(node, fixtureReading({}, 'live'))
 		);
 		expect(edit).toEqual({
 			kind: 'rewrite',
@@ -75,7 +72,12 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('leaves the browser its insert where the two agree', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 8), 'live', undefined)
+			resolveLiveRangeEdit(
+				insertEvent(' '),
+				node,
+				cursorReading(8, 8),
+				topLevelStore(node, fixtureReading({}, 'live'))
+			)
 		).toBeNull();
 	});
 
@@ -84,14 +86,35 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('leaves the browser an insert downstream of the caret', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(6, 5), 'live', undefined)
+			resolveLiveRangeEdit(
+				insertEvent(' '),
+				node,
+				cursorReading(6, 5),
+				topLevelStore(node, fixtureReading({}, 'live'))
+			)
 		).toBeNull();
 	});
 
 	it('stays out of every other mode', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), 'source', undefined)
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), topLevelStore(node))
 		).toBeNull();
+	});
+});
+
+// Miss-analysis: the parked-caret rows ran on a link, whose closing run ends before the text does,
+// so no row put the caret past a heading's closing run.
+describe('a key typed after a heading’s closing run the user just typed', () => {
+	it('lands after the run, where the caret is, turning the run back into text', () => {
+		placeCaret();
+		const node = parse('# Hi #\n').children[0];
+		const store = topLevelStore(node, fixtureReading({}, 'live'));
+		expect(resolveLiveRangeEdit(insertEvent('t'), node, cursorReading(4, 6), store)).toEqual({
+			kind: 'rewrite',
+			range: { start: 6, end: 6 },
+			raw: '# Hi #t\n',
+			caret: 7
+		});
 	});
 });

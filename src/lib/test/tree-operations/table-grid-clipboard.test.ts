@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
+import { parse } from '$lib/core/parser';
+import { normalizeCellRaw } from '$lib/schema/table-cell-raw';
+import { copyRectangleAsSubTable } from '$lib/tree-operations/sub-table-copy';
 import {
 	gridToHtmlTable,
 	parseClipboardGrid,
+	rectangleGrid,
 	tileGridTo
 } from '$lib/tree-operations/table-grid-clipboard';
+import { freshOrFixedSeed } from '../invariants/arbitraries';
 
 describe('parseClipboardGrid', () => {
 	it('reads tab-separated rows, padded to the widest, dropping a trailing newline', () => {
@@ -28,11 +34,69 @@ describe('parseClipboardGrid', () => {
 		expect(parseClipboardGrid('| 1 | 2 |\n| --- | --- |\n')).toEqual([['1', '2']]);
 	});
 
+	it('keeps a tab-separated cell’s own spaces and a blank line as an empty row', () => {
+		expect(parseClipboardGrid(' a \tb\n\nc\td')).toEqual([
+			[' a ', 'b'],
+			['', ''],
+			['c', 'd']
+		]);
+		expect(parseClipboardGrid('a\tb\rc\td')).toEqual([
+			['a', 'b'],
+			['c', 'd']
+		]);
+		expect(parseClipboardGrid('a\tb')).toEqual([['a', 'b']]);
+	});
+
+	it('reads lines that are all pipe rows as GFM even when they hold tabs', () => {
+		expect(parseClipboardGrid('|a|\t|b|\n|c|\t|d|')).toEqual([
+			['a', '', 'b'],
+			['c', '', 'd']
+		]);
+	});
+
+	// Miss-analysis: the clipboard's tests never put a backslash before a pipe.
+	it('splits a GFM row where the table parser does', () => {
+		const text = '| a\\\\| b |\n| --- | --- |\n| `x\\|y` | z |\n';
+		expect(parseClipboardGrid(text)).toEqual([
+			['a\\\\', 'b'],
+			['`x|y`', 'z']
+		]);
+	});
+
 	it('plain text, one word, or lines without tabs are not a grid', () => {
 		expect(parseClipboardGrid('hello')).toBeNull();
 		expect(parseClipboardGrid('hello\nworld')).toBeNull();
 		expect(parseClipboardGrid('')).toBeNull();
 		expect(parseClipboardGrid('a|b|c')).toBeNull();
+	});
+});
+
+describe('a copied rectangle pasted back', () => {
+	const arbCellRaw = fc
+		.array(fc.constantFrom('|', '\\', '\\|', '`', 'a', ' ', '-'), { minLength: 1, maxLength: 6 })
+		.map((parts) => normalizeCellRaw(parts.join('')).trim() || 'x');
+
+	it('reads as the grid the copy wrote to the spreadsheet formats', () => {
+		const arbTable = fc.integer({ min: 2, max: 3 }).chain((width) =>
+			fc.array(fc.array(arbCellRaw, { minLength: width, maxLength: width }), {
+				minLength: 2,
+				maxLength: 3
+			})
+		);
+		fc.assert(
+			fc.property(arbTable, (rows) => {
+				const width = rows[0].length;
+				const lines = rows.map((cells) => `| ${cells.join(' | ')} |\n`);
+				const source = lines[0] + `|${' --- |'.repeat(width)}\n` + lines.slice(1).join('');
+				const table = parse(source).children[0];
+				const corner = { rowIdx: rows.length - 1, colIdx: width - 1 };
+				const copied = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, corner);
+				expect(parseClipboardGrid(copied)).toEqual(
+					rectangleGrid(table, { rowIdx: 0, colIdx: 0 }, corner)
+				);
+			}),
+			{ numRuns: 300, seed: freshOrFixedSeed(41013) }
+		);
 	});
 });
 

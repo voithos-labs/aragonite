@@ -1,20 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDetailsKind, rebuildDetailsRaw } from '$lib/plugins/details/details-kind';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
 const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>\n';
 const CLOSED_SRC = '<details>\n<summary>Title</summary>\n\nBody\n\n</details>\n';
 
-function resetAndRegister(): void {
-	resetPluginPlatformForTests();
-	registerDetailsKind();
-}
-
 describe('details kind round-trip', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerDetailsKind);
 
 	it('round-trips an open details byte-for-byte', () => {
 		expect(serialize(parse(OPEN_SRC))).toBe(OPEN_SRC);
@@ -96,11 +90,10 @@ describe('details kind round-trip', () => {
 	});
 });
 
-// `<details>` interrupts an open paragraph, as htmlBlock does, so the same text opens a
-// details whether it starts the input or follows a paragraph, while a `<details …>` written
-// any other way still falls through to htmlBlock in both positions.
+// `<details>` interrupts an open paragraph, as htmlBlock does, so the same text opens a details
+// in either position, while any other `<details …>` spelling falls through to htmlBlock in both.
 describe('details opener paragraph-interrupt parity', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerDetailsKind);
 
 	it('claims a details directly after a paragraph', () => {
 		const src = 'Above\n<details>\n<summary>T</summary>\n\nBody\n\n</details>\n';
@@ -119,11 +112,10 @@ describe('details opener paragraph-interrupt parity', () => {
 	});
 });
 
-// The suite above only exercises the opener's verbatim `raw`; these guard the rebuild
-// inverse the editor runs when the children change. A stale or nondeterministic rebuild
-// leaves raw disagreeing with the children (G1.12, G1.13), so determinism is asserted here.
+// `rebuildRaw` runs when the children change, and a stale or nondeterministic rebuild leaves raw
+// disagreeing with them, so the inverse and its determinism are asserted (G1.12, G1.13).
 describe('details rebuildRaw is the opener inverse', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerDetailsKind);
 
 	it('reproduces the parsed raw, including the blank-line body wrap', () => {
 		const details = parse(OPEN_SRC).children[0];
@@ -144,9 +136,8 @@ describe('details rebuildRaw is the opener inverse', () => {
 		expect(details.raw).toBe(src);
 	});
 
-	// Summary padding survives rebuild only because the extraction trims the
-	// trailing line ending alone; `.trim()` would strip the interior spaces and
-	// drift the header line. This is the sole input where the two diverge.
+	// The extraction trims only the trailing line ending, since `.trim()` would strip interior
+	// summary padding and drift the header line; no other input tells the two apart.
 	it('preserves interior summary padding, trimming only the line ending', () => {
 		const src = '<details>\n<summary>  Padded  </summary>\n\nBody\n\n</details>\n';
 		const details = parse(src).children[0];

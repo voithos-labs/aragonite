@@ -1,4 +1,5 @@
-import { afterEach, describe, it, expect } from 'vitest';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { scanInline } from '../../../core/inline/scan';
 import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
@@ -27,14 +28,12 @@ const arbLadderSource = fc
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(717171) } as const;
 
-afterEach(() => resetPluginPlatformForTests());
-
 describe('inline priority order: all-decline recognizers leave scanInline byte-identical', () => {
 	it('bare-`:`, `[^`-prefix and `![[`-prefix decliners never perturb the scan output', () => {
 		fc.assert(
 			fc.property(arbLadderSource, (source) => {
 				resetPluginPlatformForTests();
-				const clean = scanInline(source, 0, source.length);
+				const clean = scanInline(source, 0, source.length, undefined, defaultGrammarView);
 				registerInlineSyntax(':', () => null);
 				registerInlineSyntax('[', () => null, {
 					prefix: '[^',
@@ -44,7 +43,7 @@ describe('inline priority order: all-decline recognizers leave scanInline byte-i
 					prefix: '![[',
 					priority: INLINE_PRIORITIES.prefixOverride
 				});
-				expect(scanInline(source, 0, source.length)).toEqual(clean);
+				expect(scanInline(source, 0, source.length, undefined, defaultGrammarView)).toEqual(clean);
 			}),
 			PARAMS
 		);

@@ -3,13 +3,10 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Block `$$…$$` display math: rendered first, source shown on focus (design § "Block math", axes
- * A1, the caret across the swap, and A7, multiline render). The swap between render and source and
- * the caret surviving it are exactly what the unit tests cannot prove, so opening, editing,
- * blurring and moving are all driven by real mouse and keyboard. The render is
- * `.math-block-render`, with KaTeX output in `.katex`; the source is `.math-block-source`, drawn as
- * fence lines and highlight spans whose textContent is the `$$…$$` bytes. In the default split
- * layout the render stays beside the source as a live preview. Seed: `Before` / `$$x^2$$` / `After`.
+ * Block `$$…$$` display math, rendered first and showing its source on focus, driven by real mouse
+ * and keyboard since the swap and the caret across it are what unit tests cannot prove. The render
+ * is `.math-block-render`; the source is `.math-block-source`, whose textContent is the `$$…$$`
+ * bytes, beside the render as a live preview. Seed: `Before` / `$$x^2$$` / `After`.
  */
 
 class BlockMathCaretPage extends BlockMathPage {
@@ -48,9 +45,8 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.gotoMathSeed('mathblock');
 	});
 
-	// A block with no body line, whether the one-line `$$$$` or `$$` over `$$`, opens as an opener,
-	// one empty body line and a closer, so the caret has a line to sit on. Backspace on that line
-	// is then the block's deletion, in live mode and source mode alike.
+	// A block with no body line opens with one empty body line for the caret, and Backspace on that
+	// line then deletes the block, in live mode and source mode alike.
 	for (const mode of ['live', 'source'] as const) {
 		test(`an empty block gains a body line on reveal and Backspace deletes it (${mode})`, async ({
 			page
@@ -251,9 +247,8 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 	});
 
-	// Undo while the source is open walks that draft's own edits first, since the document's
-	// history holds the whole session as one entry written on blur; once the draft is spent the
-	// chord reaches the document, whose restore refills the source.
+	// Undo in the open source walks the draft's own edits first, since the document holds the session
+	// as one entry written on blur; then the chord reaches the document, refilling the source.
 	test('undo inside the revealed source takes the draft back first, then the document', async ({
 		page
 	}) => {

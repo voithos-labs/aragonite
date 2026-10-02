@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A strip plugin container reorders its body children among themselves, so the resolver
-// must land on the container rather than walk past it to the document position (the
-// teleport). Membership is the descriptor's `reorderChildren` capability, not a kind name.
+// A strip plugin container reorders its body children among themselves, so the resolver lands on
+// the container rather than walking past it to the document position. Membership is the
+// descriptor's `reorderChildren` capability, not a kind name.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
@@ -16,7 +16,7 @@ describe('resolveReorderUnit: strip plugin containers reorder within', () => {
 	it('a githubAlert body child resolves to the alert, not the document', () => {
 		const doc = parse('> [!NOTE]\n> a\n>\n> b\n');
 		expect(doc.children[0].kind).toBe('githubAlert');
-		// The whole-alert teleport: a walk past the alert returns { parentPath: [], index: 0 }.
+		// Walking past the alert would return { parentPath: [], index: 0 }.
 		expect(resolveReorderUnit(doc, [0, 1])).toMatchObject({ parentPath: [0], index: 1 });
 	});
 

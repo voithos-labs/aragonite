@@ -4,6 +4,7 @@ import { assignIds } from '../../block-id';
 import { deleteAtPath, replaceAtPath } from '../../tree-operations/path-mutate';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode } from '../../core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // `createBlockListState` backfills only an absent `childIds` array, never a short one, so
 // a hand-rolled splice at depth desyncs the keyed-each source permanently.
@@ -27,7 +28,7 @@ describe('deleteAtPath', () => {
 		quote.childIds = assignIds(quote.children!);
 		const survivingId = quote.childIds[1];
 
-		deleteAtPath(doc, [0, 0], sharedEverything());
+		deleteAtPath(doc, [0, 0], sharedEverything(), defaultGrammarView);
 
 		expect(quote.children).toHaveLength(1);
 		expect(quote.childIds).toEqual([survivingId]);
@@ -35,20 +36,19 @@ describe('deleteAtPath', () => {
 
 	it('splices a top-level child whose parent carries no childIds', () => {
 		const doc = parse('a\n\nb\n');
-		deleteAtPath(doc, [0], sharedEverything());
+		deleteAtPath(doc, [0], sharedEverything(), defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].raw).toBe('b\n');
 	});
 
-	// The fix-up hands the vacated separating line down to whichever block takes the position, a
-	// write to a surviving node, the one the snapshot beside it still points at. `sharing` is
-	// required here for exactly this write, so the heir is copied before it is changed.
+	// The fix-up hands the vacated separator to the block that takes the position, a node the
+	// snapshot still points at, so `sharing` is required and the heir is copied before the write.
 	it('copies the heir before handing it the vacated separator, never writing the shared node', () => {
 		const doc = parse('a\n\n# h\npara\n');
 		const heirBefore = doc.children[2];
 		expect(heirBefore.leadingTrivia).toBe('');
 
-		deleteAtPath(doc, [1], sharedEverything());
+		deleteAtPath(doc, [1], sharedEverything(), defaultGrammarView);
 
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(doc.children[1]).not.toBe(heirBefore);
@@ -63,7 +63,7 @@ describe('replaceAtPath', () => {
 		quote.childIds = assignIds(quote.children!);
 		const replacement = parse('x\n\ny\n').children;
 
-		replaceAtPath(doc, [0, 0], replacement, sharedEverything());
+		replaceAtPath(doc, [0, 0], replacement, sharedEverything(), defaultGrammarView);
 
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
@@ -74,7 +74,7 @@ describe('replaceAtPath', () => {
 		const doc = { kind: 'document' as const, prefix: '', children: [quote], suffix: '' };
 		const trailingId = quote.childIds![1];
 
-		replaceAtPath(doc, [0, 0], parse('x\n').children, sharedEverything());
+		replaceAtPath(doc, [0, 0], parse('x\n').children, sharedEverything(), defaultGrammarView);
 
 		expect(quote.childIds).toHaveLength(2);
 		expect(quote.childIds![1]).toBe(trailingId);

@@ -6,17 +6,11 @@ moment the caret leaves the opener line: on Enter in source mode, and as the car
 modes that hide markers, where the picker in the code block's side gutter then asks for a
 language. This file covers the user's first keystrokes after the block changes kind, where a
 careless mix of the code block's conveniences and fence-mode logic gives surprising results.
+Backtick auto-pair against an unclosed or closed fence is a byte rule pinned by
+`src/lib/test/blocks/code/code-backtick-autopair.test.ts`.
 
 ## Happy paths
 
 - type ``` then Enter: the paragraph becomes a fenced code block, and Enter completes it with the
   caret on the empty body line, so the next typed text is the body (Enter is not swallowed, and
   not reinterpreted as "exit")
-- type ```then a fourth`: the fourth backtick does not auto-pair, because the unclosed fence is the opener the user is still typing and extra backticks must not gain a partner nobody asked for
-
-## Edge cases
-
-- backtick auto-pair is turned off on the empty body line of an unclosed fence: typing never
-  leaves that shape behind, since the completion runs first, so the test loads it the way a
-  document saved mid-fence arrives, and a backtick typed there stays on its own
-- once the fence is closed (the user typed a terminating ``), normal backtick auto-pair resumes: ` ` `inside the body expands to` ` ` as in a closed fence

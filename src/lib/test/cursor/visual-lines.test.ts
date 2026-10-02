@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// Deciding which visual line a caret is on needs rect measurement, which jsdom zeroes out, so
-// the browser's rect methods are patched on the prototype (the code under test calls
-// `document.createRange()` itself, so stubbing one range never reaches it). Each fake rect comes
-// from the range's (startContainer, startOffset), so the real text-node traversal and the line
-// comparison run against it.
+// Which visual line a caret is on needs rects, which jsdom zeroes, so the rect methods are patched
+// on the prototype (the code calls `document.createRange()` itself). Each fake rect comes from the
+// range's (startContainer, startOffset), so the real traversal and line comparison run against it.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -200,10 +198,10 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		// Under load Chromium drops the caret range next to a contenteditable=false widget, and
 		// answering a flat false there strands the caret forever; trust the snapped fallback offset.
 		window.getSelection()?.removeAllRanges();
-		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
-		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
-		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
-		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
+		expect(isAtFirstVisualLine(block, 0, { start: 0, end: 11 })).toBe(true);
+		expect(isAtFirstVisualLine(block, 5, { start: 0, end: 11 })).toBe(false);
+		expect(isAtLastVisualLine(block, 11, { start: 0, end: 11 })).toBe(true);
+		expect(isAtLastVisualLine(block, 5, { start: 0, end: 11 })).toBe(false);
 	});
 
 	it('returns true for an empty container regardless of geometry', () => {
@@ -216,25 +214,25 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		const sel = window.getSelection()!;
 		sel.removeAllRanges();
 		sel.addRange(range);
-		expect(isAtFirstVisualLine(empty, 0, 0)).toBe(true);
-		expect(isAtLastVisualLine(empty, 0, 0)).toBe(true);
+		expect(isAtFirstVisualLine(empty, 0, { start: 0, end: 0 })).toBe(true);
+		expect(isAtLastVisualLine(empty, 0, { start: 0, end: 0 })).toBe(true);
 		empty.remove();
 	});
 
 	it('isAtFirstVisualLine: true on the first line, false once the cursor drops a line', () => {
 		placeCursor(2);
 		cursorTop = 0; // same line as the first-text-node probe (top 0)
-		expect(isAtFirstVisualLine(block, 2, 0)).toBe(true);
+		expect(isAtFirstVisualLine(block, 2, { start: 0, end: 11 })).toBe(true);
 		cursorTop = 40; // a full line below the first line
-		expect(isAtFirstVisualLine(block, 2, 0)).toBe(false);
+		expect(isAtFirstVisualLine(block, 2, { start: 0, end: 11 })).toBe(false);
 	});
 
 	it('isAtLastVisualLine: true on the last line, false when the cursor sits a line above it', () => {
 		placeCursor(8);
 		cursorTop = 40; // same line as the last-text-node probe (top 40)
-		expect(isAtLastVisualLine(block, 8, 11)).toBe(true);
+		expect(isAtLastVisualLine(block, 8, { start: 0, end: 11 })).toBe(true);
 		cursorTop = 0; // a full line above the last line
-		expect(isAtLastVisualLine(block, 8, 11)).toBe(false);
+		expect(isAtLastVisualLine(block, 8, { start: 0, end: 11 })).toBe(false);
 	});
 
 	it('isAtFirstVisualLine: falls back to the first reachable offset when the rect is unmeasurable', () => {
@@ -245,11 +243,11 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
 			return this.collapsed ? rectAt(0, 0) : rectAt(0);
 		};
-		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
-		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
+		expect(isAtFirstVisualLine(block, 0, { start: 0, end: 11 })).toBe(true);
+		expect(isAtFirstVisualLine(block, 5, { start: 0, end: 11 })).toBe(false);
 		// A run of hidden markers at the start puts the first offset the caret can sit at past raw
 		// 0, and the fallback answers for the caret the user can actually produce there.
-		expect(isAtFirstVisualLine(block, 3, 3)).toBe(true);
+		expect(isAtFirstVisualLine(block, 3, { start: 3, end: 11 })).toBe(true);
 	});
 
 	it('isAtLastVisualLine: falls back to the reachable end when the rect is unmeasurable', () => {
@@ -260,16 +258,14 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
 			return this.collapsed ? rectAt(0, 0) : rectAt(40);
 		};
-		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
-		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
+		expect(isAtLastVisualLine(block, 11, { start: 0, end: 11 })).toBe(true);
+		expect(isAtLastVisualLine(block, 5, { start: 0, end: 11 })).toBe(false);
 		// The mirror of the first-line case: a run of hidden markers at the end moves the bound in.
-		expect(isAtLastVisualLine(block, 8, 8)).toBe(true);
+		expect(isAtLastVisualLine(block, 8, { start: 0, end: 8 })).toBe(true);
 	});
 });
 
-// Miss-analysis: the branch with no rect was exercised only with the caret inside a text node,
-// the one shape Chromium always measures, so nothing asked about a caret at the element level
-// beside a widget, where the widget's own box is what says which line it is on.
+// Miss-analysis: the no-rect branch ran only with the caret in a text node, never beside a widget.
 describe('a caret with no rect of its own reads the line off the box it sits against', () => {
 	let block: HTMLElement;
 	let island: HTMLElement;
@@ -321,11 +317,26 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 	it('a widget-only block is one visual line from either edge of the widget', () => {
 		stubRects(() => rectAt(40));
 		placeCursorAt(0);
-		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
-		expect(isAtLastVisualLine(block, 0, 6)).toBe(true);
+		expect(isAtFirstVisualLine(block, 0, { start: 0, end: 6 })).toBe(true);
+		expect(isAtLastVisualLine(block, 0, { start: 0, end: 6 })).toBe(true);
 		placeCursorAt(1);
-		expect(isAtFirstVisualLine(block, 6, 0)).toBe(true);
-		expect(isAtLastVisualLine(block, 6, 6)).toBe(true);
+		expect(isAtFirstVisualLine(block, 6, { start: 0, end: 6 })).toBe(true);
+		expect(isAtLastVisualLine(block, 6, { start: 0, end: 6 })).toBe(true);
+	});
+
+	// Miss-analysis: GH #574; every widget-only fixture had a glyph of text, never none at all.
+	it('a caret beside the second of two wrapped images is not on the first line', () => {
+		const image = (): HTMLElement => {
+			const el = document.createElement('span');
+			el.contentEditable = 'false';
+			el.appendChild(document.createElement('img'));
+			return el;
+		};
+		block.replaceChildren(image(), image());
+		// The second image wraps onto the line below the first; the block spans both.
+		stubRects((start) => (start === 1 ? rectAt(30, 20) : rectAt(0, 50)));
+		placeCursorAt(2);
+		expect(isAtFirstVisualLine(block, 76, { start: 0, end: 76 })).toBe(false);
 	});
 
 	// A widget wide enough to wrap sits on its own line below the text, the shape an inline image
@@ -335,7 +346,7 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 		// The widget is at [1]; the block's whole contents start at [0] and span both lines.
 		stubRects((start) => (start === 1 ? rectAt(30, 120) : rectAt(0, 150)));
 		placeCursorAt(2);
-		expect(isAtLastVisualLine(block, 0, 6)).toBe(true);
-		expect(isAtFirstVisualLine(block, 0, 0)).toBe(false);
+		expect(isAtLastVisualLine(block, 0, { start: 0, end: 6 })).toBe(true);
+		expect(isAtFirstVisualLine(block, 0, { start: 0, end: 6 })).toBe(false);
 	});
 });

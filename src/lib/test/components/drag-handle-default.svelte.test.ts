@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-//
-// The hover drag handle is on by default, and `false` turns it off. Miss-analysis: the e2e suite
-// pinned `blockDragHandles=false` but drove every other case through a test page that passes the
-// prop explicitly, so nothing anywhere asserted the default, the one value every consumer gets.
+// The hover drag handle is on by default, and `false` turns it off.
+// Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../blocks/editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 
 installLayoutStubs();
 
@@ -38,6 +40,18 @@ describe('blockDragHandles default', () => {
 		expect(para.classList.contains('reorder-host')).toBe(true);
 		expect(para.querySelector(':scope > .block-drag-handle')).toBeNull();
 		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
+	});
+
+	// Miss-analysis: the no-handle case ran a paragraph only, never a heading.
+	it('renders no handle on a heading of either syntax, and one on the code beside them', () => {
+		mounted = mountEditor({ source: '# Atx\n\nSetext\n===\n\n```\ncode\n```\n' });
+		const handleOn = (path: string) =>
+			mounted!.target.querySelector(
+				`.block-host[data-block-path="${path}"] > .block-drag-handle`
+			) !== null;
+		expect(handleOn('[0]')).toBe(false);
+		expect(handleOn('[1]')).toBe(false);
+		expect(handleOn('[2]')).toBe(true);
 	});
 
 	// A list item's drag stays inside its list, so a lone item's handle could drop nowhere.

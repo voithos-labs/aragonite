@@ -4,6 +4,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import type { DocPath } from '../selection/path-math';
 import { assertInvariant } from '../assert';
 import { checkCommitPathAddressable } from './commit-paths';
@@ -16,33 +17,38 @@ import {
 	checkOpaqueStaleRaw,
 	checkOpaqueRebuildDeterminism,
 	checkReservedChromeSlot,
-	checkCategoryFields
+	checkCategoryFields,
+	checkTaskMarkerSlot
 } from './node-shape';
 import { checkContentRange } from './descriptor';
+import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
+import { checkLastLineKept } from './open-tail';
+import { checkKeepsABlock } from './keeps-a-block';
+import { checkReadsBack } from './reads-back';
+import { isDevChecks } from '../env';
+import { perfEnabled } from '../perf/instruments';
+import { checkTopLevelUntouched } from './top-level-untouched';
 
-/**
- * Checks only the nodes a commit touched, never the whole tree. Each predicate filters by kind
- * itself. Call it after the commit's `rebuildRaw`, so a strip container's raw is the output
- * that rebuild just produced.
- */
-export function assertCommittedNodes(nodes: CstNode[]): void {
+/** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
+ *  container's raw is that rebuild's output. */
+export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
 	for (const node of nodes) {
-		assertInvariant('stale-raw', () => checkStaleRaw(node));
-		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node));
+		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
+		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));
 		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
 		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
+		assertInvariant('child-id-parity', () => checkChildIdParity(node));
+		assertInvariant('task-marker-slot', () => checkTaskMarkerSlot(node, grammar));
 	}
 }
 
-/**
- * Checks, before the commit mutates anything, that both declared paths are document-absolute
- * (G1.16, `commit-paths.ts`). Null skips a path this commit does not carry.
- */
+/** Checks, before the commit mutates anything, that both declared paths are document-absolute
+ *  (G1.16); null skips a path the commit does not carry. */
 export function assertCommitPaths(
 	doc: Document,
 	snapshotPath: DocPath | null,
@@ -60,32 +66,50 @@ export function assertCommitPaths(
 	}
 }
 
-/**
- * G1.9, once per commit: only the newest undo entry could have been corrupted by this commit's
- * mutations, so only its digest is re-checked. Older entries are covered when they are
- * restored, in `editor-actions/commit/history.ts`.
- */
+/** G1.9, once per commit: only the newest undo entry can have been corrupted by this commit, so
+ *  only its digest is re-checked; older entries are checked when they are restored. */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 }
 
-/**
- * G1.36, the reading half, run wherever ids are written to state: the descriptor's own bounds
- * check cannot catch a change that fits its array but describes the wrong range, and an id
- * array that is too short reaches Svelte's keyed each as missing keys.
- */
+/** G1.41, after every structural commit publishes: `wasOpen` is `endsOpen` read before it mutated. */
+export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
+	assertInvariant('last-line-kept', () => checkLastLineKept(doc, wasOpen));
+}
+
+/** G1.55, after a keystroke's or a commit's rebuild: each top-level block in `tops`, the ones now
+ *  holding what the edit wrote, reads back as itself. Off under the perf instruments. */
+export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
+	if (!isDevChecks() || perfEnabled()) return;
+	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
+/** G1.44, after every structural commit publishes: `touched` is what the commit wrote. */
+export function assertKeepsABlock(doc: Document, touched: CstNode[]): void {
+	assertInvariant('keeps-a-block', () => checkKeepsABlock(doc, touched));
+}
+
+/** G1.54, when a commit's mutation returns: `tree` is the top-level array the commit started from,
+ *  `before` its blocks once the scopes were prepared. */
+export function assertTopLevelUntouched(
+	live: readonly CstNode[],
+	tree: readonly CstNode[],
+	before: readonly CstNode[]
+): void {
+	assertInvariant('top-level-untouched', () => checkTopLevelUntouched(live, tree, before));
+}
+
+/** G1.36, the reading half, run wherever ids are written to state: an id array that is too short
+ *  reaches Svelte's keyed each as missing keys. */
 export function assertIdsInLockstep(seam: string, idCount: number, childCount: number): void {
 	assertInvariant('ids-children-lockstep', () =>
 		checkIdsChildrenLockstep(seam, idCount, childCount)
 	);
 }
 
-/**
- * The registry-wide checks, run when the editor mounts. The flush runs the full sweep the first
- * time and only the registrations added since the previous flush after that. The inline-policy
- * check sits outside that latch: it runs on every mount, over the whole table (G1.31).
- */
+/** The registry-wide checks, run on mount: the full sweep the first time, then only the
+ *  registrations added since. The inline-policy check runs on every mount (G1.31). */
 export function runStartupInvariantChecks(): void {
 	flushPendingRegistrationChecks();
 	checkInlineConstructPoliciesAtMount();

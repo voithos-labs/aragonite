@@ -78,6 +78,22 @@ test.describe('drag to reorder', () => {
 		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
 	});
 
+	// The cue covers the quote as drawn, its bar and padding included, not just the list inside it.
+	test('a drag inside a quote marks the whole quote as its scope', async () => {
+		await editor.loadContent('> ```\n> A\n> ```\n>\n> ```\n> B\n> ```\n');
+		const handle = await handleCenter('.blockquote-block .block-host', 'A');
+		await editor.page.mouse.move(handle.x, handle.y);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(handle.x + 30, handle.y + 24, { steps: 6 });
+
+		const scope = editor.page.locator('.reorder-scope');
+		await expect(scope).toHaveCount(1);
+		const quote = await editor.page.locator('.blockquote-block').boundingBox();
+		expect(await scope.boundingBox()).toEqual(quote);
+
+		await editor.page.mouse.up();
+	});
+
 	// A top-level drag reorders the document itself, so there is no container to mark and the
 	// cue must not appear: marking the whole editor would be noise.
 	test('a top-level drag marks no scope container', async () => {
@@ -130,9 +146,8 @@ test.describe('drag to reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// Focusing what was dropped opens whatever a caret opens there: an equation shows its source,
-	// so a dragged one would come back in edit mode. The latex kind lives on the plugins route, so
-	// the rule is pinned here on the block this route has.
+	// Focusing a dropped equation would show its source, so a drop focuses nothing; the latex kind
+	// lives on the plugins route, so the rule is checked here on a code block.
 	test('a drop focuses nothing it dropped', async ({ page }) => {
 		await editor.loadContent('```js\nfirst\n```\n\n```js\nsecond\n```\n\ntail\n');
 		const first = page.locator('.block-host[data-block-kind="fencedCode"]').first();
@@ -169,9 +184,8 @@ test.describe('drag to reorder', () => {
 		await page.mouse.up();
 	});
 
-	// Blank lines belong to a position, so a block dropped where the separator was empty (a
-	// heading interrupting the paragraph above it) lands flush against that paragraph, and the
-	// table's rows read as that paragraph's next lines.
+	// Blank lines belong to a position, so a block dropped under a heading's empty separator lands
+	// flush against the paragraph above, and the table's rows read as its lines.
 	test('a table dropped flush under a paragraph stays a table', async ({ page }) => {
 		await editor.loadContent('Intro\n# Heading\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const table = page.locator('.block-host[data-block-kind="table"]').first();
@@ -253,8 +267,8 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.move(drop.x, drop.y, { steps: 6 });
 		await editor.page.mouse.up();
 
-		// para 0 committed a move into the off-window region: it now follows some
-		// later paragraph in the source. Exact landing index is irrelevant.
+		// para 0 moved into the unmounted region and follows some later paragraph; the exact index
+		// is irrelevant.
 		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\npara 0\n```/);
 		// And the document is intact: no block dropped or duplicated.
 		expect(await editor.bridge.getBlockCount()).toBe(150);

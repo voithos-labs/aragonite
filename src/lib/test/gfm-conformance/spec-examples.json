@@ -1891,5 +1891,142 @@
 			"example": 652,
 			"markdown": "Multiple     spaces\n"
 		}
+	],
+	"definitionExamples": [
+		{
+			"section": "Link reference definitions",
+			"example": 192,
+			"markdown": "[foo]: /url \"title\"\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 193,
+			"markdown": "   [foo]: \n      /url  \n           'the title'  \n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 194,
+			"markdown": "[Foo*bar\\]]:my_(url) 'title (with parens)'\n\n[Foo*bar\\]]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 195,
+			"markdown": "[Foo bar]:\n<my url>\n'title'\n\n[Foo bar]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 196,
+			"markdown": "[foo]: /url '\ntitle\nline1\nline2\n'\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 197,
+			"markdown": "[foo]: /url 'title\n\nwith blank line'\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 198,
+			"markdown": "[foo]:\n/url\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 199,
+			"markdown": "[foo]:\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 200,
+			"markdown": "[foo]: <>\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 201,
+			"markdown": "[foo]: <bar>(baz)\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 202,
+			"markdown": "[foo]: /url\\bar\\*baz \"foo\\\"bar\\baz\"\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 203,
+			"markdown": "[foo]\n\n[foo]: url\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 204,
+			"markdown": "[foo]\n\n[foo]: first\n[foo]: second\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 205,
+			"markdown": "[FOO]: /url\n\n[Foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 206,
+			"markdown": "[ΑΓΩ]: /φου\n\n[αγω]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 207,
+			"markdown": "[foo]: /url\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 208,
+			"markdown": "[\nfoo\n]: /url\nbar\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 209,
+			"markdown": "[foo]: /url \"title\" ok\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 210,
+			"markdown": "[foo]: /url\n\"title\" ok\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 211,
+			"markdown": "    [foo]: /url \"title\"\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 212,
+			"markdown": "```\n[foo]: /url\n```\n\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 213,
+			"markdown": "Foo\n[bar]: /baz\n\n[bar]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 214,
+			"markdown": "# [Foo]\n[foo]: /url\n> bar\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 215,
+			"markdown": "[foo]: /url\nbar\n===\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 216,
+			"markdown": "[foo]: /url\n===\n[foo]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 217,
+			"markdown": "[foo]: /foo-url \"foo\"\n[bar]: /bar-url\n  \"bar\"\n[baz]: /baz-url\n\n[foo],\n[bar],\n[baz]\n"
+		},
+		{
+			"section": "Link reference definitions",
+			"example": 218,
+			"markdown": "[foo]\n\n> [foo]: /url\n"
+		}
 	]
 }

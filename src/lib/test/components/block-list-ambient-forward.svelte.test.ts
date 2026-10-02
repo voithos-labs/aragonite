@@ -1,22 +1,16 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis (#43): the container's marker prefix was only ever asserted where it paints, so
-// only the happy case was pinned: a first child that ignores the prop dropped it silently, and
-// no case read what the list handed over rather than what the child drew.
+// Miss-analysis (GH #43): the marker prefix was asserted where it paints, never as handed over.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockList from '$lib/components/BlockList.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { testClosure } from '$lib/test/support/closure';
 import { editorMountContext } from '../harness/mount-context';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const MARKER = '[^a]: ';
 
@@ -25,13 +19,8 @@ beforeAll(installEditorDomStubsForTests);
 /** A recording kind that answers "does this block paint inline content?" one way or the
  *  other, which is the only thing the list reads. */
 function recordingKind(name: string, supportsInline: boolean) {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline,
-		closure: testClosure
+	const kind = testLeaf(name, {
+		supportsInline
 	});
 	registerBlockComponent(
 		kind,
@@ -44,7 +33,6 @@ let dispose: (() => Promise<void>) | null = null;
 afterEach(async () => {
 	if (dispose) await dispose();
 	dispose = null;
-	__resetSchemaRegistriesForTests();
 });
 
 /** Mount a one-child list carrying `MARKER` for its first child, and report what arrived. */

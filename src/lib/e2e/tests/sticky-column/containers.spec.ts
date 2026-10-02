@@ -115,9 +115,8 @@ test.describe('sticky column: edge cases', () => {
 		const targetX = await editor.getCaretPixelX();
 		const belowRect = await editables.nth(count - 1).boundingBox();
 		expect(belowRect).not.toBeNull();
-		// Lower-bound the landing too: a tolerance wide enough to swallow the
-		// content inset would otherwise let a degenerate (x≈0) caret pass under it.
-		// The caret must sit at/after the paragraph's left edge, not collapse to 0.
+		// A lower bound too, so a tolerance wide enough to swallow the content inset cannot pass a
+		// degenerate caret at x≈0.
 		expect(targetX).toBeGreaterThan(belowRect!.x - PIXEL_TOLERANCE);
 		expect(targetX).toBeLessThan(belowRect!.x + 20);
 	});

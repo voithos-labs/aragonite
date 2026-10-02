@@ -9,7 +9,7 @@ selection stayed painted over stale block indices.
 
 The invariant asserted by these tests: when a cross-block selection is
 active and the user presses a delete-then-dispatch key, the selection
-collapses (range deleted), the caret lands at the merge target, and the
+collapses (range deleted), the caret goes to the merge target, and the
 key's normal block-level behavior runs at the collapsed caret, producing
 the same end state as (a) pressing Backspace and then (b) pressing the
 key, in one undo unit.
@@ -70,3 +70,20 @@ body rows are removed) and the dispatcher mounts the caret the delete left,
 a cell deep in the table, so the cell's Enter command runs
 (a row is inserted below) instead of being silently dropped at the table
 wrapper. The grid stays well-formed and the next keystroke lands in a cell.
+
+### 9. A command key over a whole table, row or column removes it first
+
+Drag over a whole body row, a whole column, or every cell of the table, then press
+Enter, Tab or Ctrl+2. The row, column or table goes the way it goes on Backspace, and the key
+runs at the caret that's left, so each ends exactly as Backspace and then the key would. One
+Ctrl+Z puts the document back as it was. Miss-analysis: every scenario above drew prose or a
+range leaving a table, so nothing pressed a command key over a grid held whole, where the key
+cleared the cells and ran in the first one instead.
+
+### 10. After a range longer than the screen, the caret's block is in view
+
+Put the caret in the first of 160 one-line paragraphs, press Shift+ArrowDown 40 times, then press
+Tab or Shift+Enter. Both write in place, so neither key places a caret of its own, and the block
+holding the caret is on screen afterwards. Miss-analysis: every range in this file fit on one
+screen, so nothing noticed a key that writes in place leave its caret hundreds of pixels above the viewport
+once the removal stopped landing its caret.

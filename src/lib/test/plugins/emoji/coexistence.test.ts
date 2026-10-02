@@ -1,25 +1,22 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parseInline, type InlineNode } from '$lib';
 import { activateDirectives } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
-// Both grammars use the bare `:` trigger, and the same (trigger, prefix, priority) may not be
-// registered twice, so emoji's `plugin + 10` priority is what lets them coexist. The grammars
-// do not overlap, so the order only decides which is asked first.
-beforeEach(() => {
-	resetPluginPlatformForTests();
-	activateDirectives();
-	installPlugins([emojiPlugin()]);
-});
-afterEach(() => resetPluginPlatformForTests());
-
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const kindsIn = (raw: string) => scan(raw).map((n: InlineNode) => n.kind);
 
+// Both grammars use the bare `:` trigger and one (trigger, prefix, priority) registers once, so
+// emoji's `plugin + 10` priority lets them coexist; the order only decides which is asked first.
 describe('emoji and the directive text level coexist on `:`', () => {
+	beforeEach(() => {
+		activateDirectives();
+		installPlugins([emojiPlugin()]);
+	});
+
 	it('a bare :smile: is an emoji; the directive inline syntax handler declined it', () => {
 		const emoji = scan(':smile:').find((n) => n.kind === EMOJI_KIND);
 		expect(emoji).toMatchObject({ start: 0, end: 7, decoded: '😄' });
@@ -42,12 +39,10 @@ describe('emoji and the directive text level coexist on `:`', () => {
 	});
 });
 
-// The other install order a consumer can write: emoji takes `:` first, so an activation
-// asking "does anyone own `:`" rather than "have I already registered" would skip its own
-// recognizer and leave the directive handler dead. A byte round trip would not notice.
+// Emoji takes `:` first here, so an activation asking "does anyone own `:`" instead of "have I
+// registered" would skip the directive recognizer, which a byte round trip would not notice.
 describe('the directive text level survives a plugin that took `:` first', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([emojiPlugin()]);
 		activateDirectives();
 	});
@@ -63,6 +58,7 @@ describe('the directive text level survives a plugin that took `:` first', () =>
 
 describe('resetPluginPlatformForTests reaches the emoji registration', () => {
 	it('clears the `:` inline syntax handler so a re-install does not throw on a duplicate', () => {
+		installPlugins([emojiPlugin()]);
 		resetPluginPlatformForTests();
 		expect(() => installPlugins([emojiPlugin()])).not.toThrow();
 		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();

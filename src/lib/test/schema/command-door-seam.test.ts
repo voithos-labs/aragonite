@@ -1,43 +1,24 @@
 // The one dispatch keyed by command id that `EditorInstance.runCommand` and chord dispatch share.
 // Pins the order the levels are tried in and the two checks that must hold whatever started the
 // command, so calling it directly and pressing a chord cannot behave differently.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	runCommandById,
 	dispatchKeyCommand,
 	registerBlockCommand,
-	__resetBlockCommandsForTests,
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
-import {
-	registerCommand,
-	__removePluginCommandsForTests,
-	type CommandId
-} from '$lib/schema/commands';
+import { registerCommand, type CommandId } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { takeDevWarns } from '../support/warn-gate';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-
-afterEach(() => {
-	__resetBlockCommandsForTests();
-	__removePluginCommandsForTests();
-});
+import { commandContext, commandContextWith } from '../support/command-context';
 
 let undos = 0;
-function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
-	return {
-		history: { requestUndo: () => void undos++, requestRedo: () => {} },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source',
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined,
-		...over
-	};
-}
-
+const context = (over: Parameters<typeof commandContext>[0] = {}) =>
+	commandContext({ history: { requestUndo: () => void undos++, requestRedo: () => {} }, ...over });
 function target(ran: string[]): KindCommandTarget {
 	return {
 		kind: 'paragraph',
@@ -73,7 +54,7 @@ describe('runCommandById level order', () => {
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }
 		]);
-		expect(dispatchKeyCommand('Mod+Shift+K', surface, context(), overrides)).toBe(true);
+		expect(dispatchKeyCommand('Mod+Shift+K', surface, commandContextWith(overrides))).toBe(true);
 
 		expect(globals).toBe(2);
 		expect(ranBlock).toEqual([]);
@@ -109,9 +90,7 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual([]);
 	});
 
-	// Miss-analysis: the set had one class of member and the scan guarding it matched the `format.`
-	// prefix, so the fifth single-block rewrite (bound in the same keymaps, listed on
-	// `TOOLBAR_COMMANDS`) was invisible to both the scan and this case.
+	// Miss-analysis: the scan guarding the set matched only the `format.` prefix, missing other ids.
 	it('a painted cross-block range declines every single-block rewrite and nothing else', () => {
 		const ran: string[] = [];
 		const ctx = context({ isCrossBlockRange: () => true });
@@ -131,8 +110,8 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual(['block.split']);
 	});
 
-	// The JavaScript caller the required field cannot reach: a missing field must be loud, never a
-	// quiet decline. TypeScript callers are covered by the type; this pins what happens at runtime.
+	// A JavaScript caller can omit the required range getter, so a missing one must throw rather
+	// than quietly decline.
 	it('a gates object with no range getter throws rather than admitting the rewrite', () => {
 		const gateless = { history: context().history } as unknown as CommandDispatchContext;
 		expect(() => runCommandById('format.toggleStrong', undefined, target([]), gateless)).toThrow();
@@ -140,14 +119,14 @@ describe('runCommandById gates', () => {
 
 	it('the range decline is id-keyed, so a rebound chord meets it too', () => {
 		const ran: string[] = [];
-		// The chord #107 never sees: a consumer moved the toggle off Mod+B.
+		// A consumer moved both toggles off their default chords.
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' },
 			{ chord: 'Mod+Alt+L', command: 'link.openCard', kind: 'paragraph' }
 		]);
-		const ctx = context({ isCrossBlockRange: () => true });
-		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx, overrides)).toBe(false);
-		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx, overrides)).toBe(false);
+		const ctx = commandContextWith(overrides, { isCrossBlockRange: () => true });
+		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx)).toBe(false);
+		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx)).toBe(false);
 		expect(ran).toEqual([]);
 	});
 });

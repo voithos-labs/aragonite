@@ -4,15 +4,13 @@
  * out of the component so the card stays a rendering shell.
  */
 
+import { tick } from 'svelte';
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
-import type { UndoController } from '../../editor-actions/deps';
-import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
+import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import type { LinkReferenceResolverRef } from '../../editor-keys';
-import type { GrammarView } from '../../schema/block-openers';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
@@ -21,8 +19,9 @@ import {
 	buildLinkWrapBytes,
 	linkFieldsFromInline,
 	type LinkFields
-} from '../blocks/text/link-source-bytes';
+} from '../../core/inline/link-source-bytes';
 import type { CreateLinkTarget } from './link-card-state.svelte';
+import type { Reading } from '../../schema/reading';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -33,14 +32,12 @@ export interface LinkCardCommitterDeps {
 	getTarget: () => LinkTarget | null;
 	/** The create gesture's range, what the card sits under when no construct exists yet. */
 	getCreateTarget: () => CreateLinkTarget | null;
-	controller: UndoController;
+	/** The editor's inline range write, which every card edit goes through. */
+	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
 	/** Measures the rectangles of a raw range in a mounted block, which is what positions it. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
-	/** Scroll to and place the caret at a raw offset, so the next keystroke goes to the doc. */
-	landCaret: (path: number[], offset: number) => Promise<boolean>;
-	linkRef?: LinkReferenceResolverRef;
-	grammar?: GrammarView;
+	reading: Reading;
 }
 
 export interface ResolvedLinkTarget {
@@ -65,16 +62,12 @@ export interface LinkCardCommitter {
 }
 
 export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCommitter {
-	const inlineRange = createInlineRangeCommit({
-		getDoc: deps.getDoc,
-		controller: deps.controller,
-		grammar: deps.grammar
-	});
+	const { inlineRange } = deps;
 
 	function resolve(target: LinkTarget): ResolvedLinkTarget | null {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return null;
-		const link = linkConstructAt(block, target.sourceStart, deps.linkRef);
+		const link = linkConstructAt(block, target.sourceStart, deps.reading);
 		return link === null ? null : { block, link, url: link.url ?? '' };
 	}
 
@@ -83,9 +76,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved) return null;
 		const { block, link } = resolved;
 		const current = linkFieldsFromInline(link, block.raw);
-		// A reference form cannot hold a new destination without editing its definition, which
-		// lives in another block; changing the url is the user choosing the inline form. The
-		// title comes along either way: the card never shows it, so it is not the card's to drop.
+		// A reference form cannot take a new url without editing its definition elsewhere, so a
+		// changed url writes the inline form; the title comes along either way.
 		const fields: LinkFields =
 			url === current.url
 				? current
@@ -94,7 +86,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 						url,
 						...(current.title !== undefined ? { title: current.title } : {})
 					};
-		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.linkRef?.current);
+		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.reading);
 		return bytes === null ? null : { bytes, link };
 	}
 
@@ -115,13 +107,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function commitCreate(target: CreateLinkTarget, url: string): void {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return;
-		const bytes = buildLinkWrapBytes(
-			block.raw,
-			target.start,
-			target.end,
-			url,
-			deps.linkRef?.current
-		);
+		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, target.start, target.end, bytes);
 	}
@@ -129,17 +115,15 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function removeLink(target: LinkTarget): void {
 		const resolved = resolve(target);
 		if (!resolved) return;
-		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef?.current);
+		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}
 
+	// The caret goes to the construct's outer start, which the undo entry records too, so the caret
+	// before and after an undo agree.
 	async function write(path: number[], start: number, end: number, bytes: string): Promise<void> {
-		await inlineRange.commitInlineRange(path, start, end, bytes, start);
-		// The construct's outer start, which is also the offset the undo entry records: the caret
-		// before an undo and the caret after it then agree, and a remove-link lands where the
-		// unwrapped text now begins.
-		await deps.landCaret(path, start);
+		await inlineRange.commitInlineRange(path, start, end, bytes, start, { landCaret: true });
 	}
 
 	/** The raw range the card sits under: the resolved construct, or the create range as it is. */
@@ -174,9 +158,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// The setup measure reads the document, and letting that register would make the caller's
-		// $effect tear down and re-wire these listeners on every keystroke. The `edit` subscription
-		// below is the one document trigger.
+		// Untracked setup measure, or the caller's $effect would re-wire these listeners on every
+		// keystroke; the `edit` subscription below is the document trigger.
 		const unwireScroll = wireOverlayRemeasure({
 			el: cardEl,
 			editorRoot: editorEl,
@@ -184,10 +167,13 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			measure,
 			untrackSetupMeasure: true
 		});
-		// An edit anywhere above the link shifts its y without touching the link itself.
-		const unsubscribe = deps.events.on('edit', measure);
+		// An edit anywhere above the link shifts its y without touching the link itself; an undo
+		// announces itself before its tree renders, so every edit is measured a tick later.
+		let wired = true;
+		const unsubscribe = deps.events.on('edit', () => void tick().then(() => wired && measure()));
 		window.addEventListener('resize', measure);
 		return () => {
+			wired = false;
 			unwireScroll();
 			unsubscribe();
 			window.removeEventListener('resize', measure);

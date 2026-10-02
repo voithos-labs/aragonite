@@ -1,43 +1,22 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import {
-		EDITOR_POLICIES_KEY,
-		EDITOR_SERVICES_KEY,
-		type EditorPolicies,
-		type EditorServices
-	} from '../../editor-keys';
-	import { eventToChord } from '../../schema/keybindings';
-	import { type CommandId } from '../../schema/commands';
-	import {
-		handleEditorGlobalChord,
+		dispatchWholeBlockGlobalChord,
 		handleWholeBlockKeys
 	} from '../../editor-actions/container-block-component';
-	import { reorderRunCommand } from '../../editor-actions/reorder-action';
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
+	import { blockAccessibleName } from '../../a11y-strings';
 	import { placeCaret } from '../../selection/caret-doors';
 	import { wireSurfaceContexts } from './surface-wiring.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const wiring = wireSurfaceContexts();
-	const {
-		blockEdit,
-		focusActions,
-		history,
-		pluginEditor,
-		onCommandError,
-		getKeybindingOverrides,
-		stickyColumn,
-		edgeAffinity,
-		selection
-	} = wiring.deps;
-	const { reorder, activePlugins } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { blockEdit, focusActions, caretMemory, selection, reading, commands } = wiring.deps;
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
-	const isReading = () => getPresentationMode?.() === 'reading';
+	const isReading = () => reading.mode() === 'reading';
 	let boxEl: HTMLDivElement | undefined = $state();
 	let el: HTMLDivElement | undefined = $state();
 
@@ -47,6 +26,7 @@
 		getBoxEl: () => boxEl,
 		getFocusEl: () => el,
 		isReading,
+		getLabel: () => blockAccessibleName(node),
 		mint: (text) => void blockEdit.insertParagraph(index + 1, text)
 	});
 
@@ -69,10 +49,6 @@
 		return 0;
 	}
 
-	export function runCommand(id: CommandId): boolean {
-		return reorderRunCommand(id, reorder, () => myPath);
-	}
-
 	// The rule has no text to measure, so any non-empty range over it is its whole box, which
 	// is what a range ending on it, or the rule taken as a unit, draws.
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
@@ -85,33 +61,17 @@
 		focus,
 		parkCaret,
 		getCursorOffset,
-		runCommand,
 		measurePartialRects
 	} satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
-	// Shared with the plugin container factory, so undo/redo from a block's own focus
-	// surface has one definition instead of a built-in and a plugin copy.
-	const globalChordDeps = {
-		getKind: () => node.kind,
-		history,
-		pluginEditor,
-		onCommandError,
-		getKeybindingOverrides,
-		isReading,
-		activation: activePlugins
-	};
-
 	function onKeyDown(e: KeyboardEvent): void {
-		const chord = eventToChord(e);
-		if (chord && handleEditorGlobalChord(chord, globalChordDeps)) {
-			e.preventDefault();
-			return;
-		}
+		// Plugin containers run the same handler for undo and redo while focused as a whole.
+		if (dispatchWholeBlockGlobalChord(e, node.kind, commands)) return;
 
 		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		if (wiring.dispatchChord(e, { kind: node.kind, getPath: () => myPath })) return;
 
 		// The whole-block-focus key tail, shared with the plugin container factory.
 		handleWholeBlockKeys(e, {
@@ -120,19 +80,19 @@
 			blockEdit,
 			focus: focusActions,
 			isReading,
-			stickyColumn,
-			edgeAffinity
+			caretMemory,
+			commandOf: (press) => wiring.resolveChord(press, node.kind)
 		});
 	}
 </script>
 
-<!-- The box holds the separator and the editor's hidden input element as siblings: focusable
+<!-- The box holds the rule and the editor's hidden input element as siblings: focusable
      content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
-	<!-- Focusable by pointer and by the editor, never by Tab: the host beside it is the block's
-	     one tab stop. The role/naming question is the 1.1 shell a11y decision. -->
-	<div bind:this={el} tabindex="-1" class="thematic-break-rule" role="separator">
+	<!-- Focusable by pointer and the editor, never by Tab: the host beside it is the tab stop. No
+	     role, since ARIA reads a focusable separator as a slider; the `<hr>` carries it. -->
+	<div bind:this={el} tabindex="-1" class="thematic-break-rule">
 		<hr />
 	</div>
 </div>
@@ -151,9 +111,8 @@
 		padding: 14px 0;
 	}
 
-	/* `:focus-within`: whole-block focus lands on the host, not the separator. Painted as the
-	   SAME wash the selection overlay uses, not an accent ring: a rule that showed focus one
-	   way and selection another read as two different states of the same block. */
+	/* `:focus-within`, since whole-block focus lands on the host beside the rule. Painted as
+	   the selection overlay's wash, so focus and selection read as one state of the block. */
 	.thematic-break-block:focus-within .thematic-break-rule {
 		background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 		border-radius: 2px;

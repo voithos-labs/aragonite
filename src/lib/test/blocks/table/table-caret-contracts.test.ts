@@ -1,15 +1,12 @@
 // @vitest-environment jsdom
-//
-// The three rules the table's two layers must keep for the caret code, which nothing else
-// checks: the grid and row markup contribute no characters, since a stray text node joins the
-// raw-offset traversal and shifts a remembered caret by its length, and only rendered DOM can
-// show that holds; placing a caret must not end the live range (G2.12 reads the callers, so what
-// a container does inside is invisible to it); and a landing addressed by path carries its offset
-// down to the cell, which is how undo restores the exact spot.
+// Three caret rules the table and its rows must keep: their markup adds no characters, since a
+// stray text node shifts a remembered caret; placing a caret does not end a live range; and a
+// caret addressed by path carries its offset down to the cell, which is how undo restores it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { componentAt } from '$lib/reactivity/child-list';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -53,9 +50,8 @@ describe('the table markup contributes no characters to the raw-offset walk', ()
 
 describe('the table lands a caret through the entry point and at the offset it was asked for', () => {
 	it('puts the caret in the corner cell without ending a live cross-block range', () => {
-		// Non-vacuity is the pair of assertions: a placement that declined to move the caret
-		// would also leave the range alone. Landing through the cell's focus call is the
-		// failure: it ends the range, and the next Shift+Arrow extends from a collapsed caret.
+		// The cell's focus call would end the range, and the next Shift+Arrow would extend from a
+		// collapsed caret; the focus check rules out a placement that did nothing.
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
 		mounted = mountTable(GRID, { services: { selection } });
@@ -74,11 +70,10 @@ describe('the table lands a caret through the entry point and at the offset it w
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
 	});
 
-	// Miss-analysis (GH #111): the row's entry points passed on a literal 0 whatever they were
-	// given, and no test addressed a row directly; every case went through the table or a path.
+	// Miss-analysis: every case entered via the table or a path, never a row directly (GH #111).
 	it('a row-level entry point forwards the received sentinel, not literal 0', () => {
 		mounted = mountTable(GRID);
-		const row = mounted.block.getBlockComponentByPath!([2])!;
+		const row = componentAt(mounted.block.childList!(), [2])!;
 
 		row.focus(CURSOR_END);
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
@@ -86,4 +81,29 @@ describe('the table lands a caret through the entry point and at the offset it w
 		row.parkCaret!(CURSOR_START);
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 0], offset: 0 });
 	});
+});
+
+// Miss-analysis: every test entered with 0, CURSOR_START or CURSOR_END, no other value (GH #540).
+describe('the table and a row read an entry offset as every container does', () => {
+	const cases: Array<[string, number, [number, number], number]> = [
+		['0', 0, [0, 0], 0],
+		['CURSOR_START', CURSOR_START, [0, 0], 0],
+		['CURSOR_EXACT_START', CURSOR_EXACT_START, [0, 0], 0],
+		['CURSOR_END', CURSOR_END, [2, 1], 1]
+	];
+	for (const [name, offset, [row, col], at] of cases) {
+		for (const verb of ['focus', 'parkCaret'] as const) {
+			it(`${verb}(${name}) on the table lands at cell ${row},${col} offset ${at}`, () => {
+				mounted = mountTable(GRID);
+				mounted.block[verb]!(offset);
+				expect(mounted.block.getCursorPosition!()).toEqual({ path: [row, col], offset: at });
+			});
+
+			it(`${verb}(${name}) on the last row lands in its cell ${col} at offset ${at}`, () => {
+				mounted = mountTable(GRID);
+				componentAt(mounted.block.childList!(), [2])![verb]!(offset);
+				expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, col], offset: at });
+			});
+		}
+	}
 });

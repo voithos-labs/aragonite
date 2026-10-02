@@ -6,8 +6,8 @@ import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-c
 import { eventToChord } from '$lib/schema/keybindings';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 
-// G2.10 sticky-column matrix: the key→action decision every keydown path enacts, and the
-// structural reset policy. The state object's own guards live in cursor/sticky-column.test.ts.
+// The sticky-column key→action decision every keydown path enacts, and the structural reset
+// policy (G2.10). The memory's own guards live in cursor/caret-memory.test.ts.
 
 // ── Decision matrix (classifyStickyKey) ──────────────────────────────────────
 
@@ -59,32 +59,34 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 
 // ── Structural reset policy ──────────────────────────────────────────────────
 
-// A column captured against the old layout is stale once the shape changes, so real ops
-// are asserted to honor the commit primitive's unconditional reset.
+// A column captured before a shape change is stale, so real ops are asserted to honor the
+// commit primitive's unconditional reset.
 
 describe('G2.10 structural reset policy', () => {
-	async function exercise(run: (actions: BlockEditActions) => void | Promise<void>): Promise<Mock> {
+	async function exercise(run: (actions: BlockEditActions) => Promise<unknown>): Promise<Mock> {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hello world\n')]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
-		const reset = deps.stickyColumn.reset as Mock;
+		const reset = deps.caretMemory.forget as Mock;
 		reset.mockClear();
 		await run(actions);
 		return reset;
 	}
 
-	it('split resets sticky column', async () => {
+	it('split forgets the caret memory', async () => {
 		const reset = await exercise((a) => a.splitBlock(0, 3));
 		expect(reset).toHaveBeenCalled();
 	});
 
-	it('replaceBlock (structural paste live path) resets sticky column', async () => {
-		const reset = await exercise((a) => a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')]));
+	it('replaceBlock (structural paste live path) forgets the caret memory', async () => {
+		const reset = await exercise((a) =>
+			a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')], undefined, { snapshotOffset: 0 })
+		);
 		expect(reset).toHaveBeenCalled();
 	});
 
-	it('delete resets sticky column', async () => {
-		const reset = await exercise((a) => a.deleteBlock(0));
+	it('delete forgets the caret memory', async () => {
+		const reset = await exercise((a) => a.deleteBlock(0, 'keyless'));
 		expect(reset).toHaveBeenCalled();
 	});
 });

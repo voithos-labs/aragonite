@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The cell binds every format chord the prose keymap does, so it must handle every one: a
 // missing handler returns false and leaves the chord to the browser's own contenteditable bold,
 // an edit this block never wrote.
@@ -8,6 +7,8 @@ import { parse } from '$lib/core/parser';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { mountCell } from './mount-cell';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
@@ -28,13 +29,12 @@ describe('format command branches on a table cell', () => {
 
 		expect(mounted.instance.runCommand(id)).toBe(true);
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 0, 0);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 'literal', 0, 0);
 	});
 });
 
-// The cross-block plan reads a cell's bytes off the tree where this block reads them off its own
-// DOM; a cell has no marker prefix, so the two readings give the same bytes, and only this pairing
-// holds them together. Bytes only: the range handling also has a direction of its own.
+// The cross-block plan reads a cell's bytes off the tree and the cell reads them off its own DOM;
+// with no marker prefix in a cell the two must give the same bytes, and only this pairing checks.
 describe('the cross-block plan reads the cell bytes the surface branch reads', () => {
 	const wholeCell = (index: number): SelectionPoint => ({
 		path: [0],
@@ -50,7 +50,12 @@ describe('the cross-block plan reads the cell bytes the surface branch reads', (
 		const surfaceBytes = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls[0][1];
 
 		const doc = parse(`| ${raw} | b |\n| --- | --- |\n| c | d |\n`);
-		const plan = planCrossBlockFormat(doc, wholeCell(0), wholeCell(0), 'strong', undefined)!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, wholeCell(0), wholeCell(0)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.writes[0].newDisplay).toBe(surfaceBytes);
 	});
 });

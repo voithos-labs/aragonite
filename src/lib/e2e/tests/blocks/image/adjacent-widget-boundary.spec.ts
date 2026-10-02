@@ -4,9 +4,9 @@ import { waitForFirstImageLoaded } from './helpers';
 
 /**
  * Two image widgets sitting flush share a boundary (A.end === B.start) with no text node, so the
- * caret is the editor's own snap-after-A marker and the caret-edge dispatch has to resolve it by
- * which key was pressed: picking by document order always answers A. How the direction is
- * resolved: `widget-adjacency.test.ts`.
+ * caret is the editor's own snap-after-A marker and the caret-edge dispatch must resolve it by
+ * which key was pressed: document order always answers A. The direction logic is unit-tested in
+ * `widget-adjacency.test.ts`.
  */
 
 const TWO_IMAGES = '![a](/test-fixtures/sample.png)![b](/test-fixtures/sample.png)\n';
@@ -32,9 +32,8 @@ test.describe('caret at a shared adjacent-widget boundary', () => {
 		await editor.goto();
 		await editor.loadContent(TWO_IMAGES);
 		await expect(page.locator('[data-image-widget]')).toHaveCount(2);
-		// An `<img>` that has not decoded lays out 0x0, so a click point worked out beforehand lands
-		// inside A once it does, selecting the widget instead of snapping past it. Only A needs the
-		// wait; B follows it.
+		// An undecoded `<img>` lays out 0x0, so a click point measured early lands inside A once it
+		// decodes, selecting it instead of snapping past; B follows A.
 		await waitForFirstImageLoaded(page);
 	});
 

@@ -1,17 +1,17 @@
 /**
- * Pure predicates over CST paths, plus the `DocPath` brand. No DOM, no document lookups. The
- * predicates take `readonly number[]` rather than `DocPath`: they order any path-shaped array
- * whatever it addresses, and the brand would force a cast at every call site.
+ * Pure predicates over CST paths, plus the `DocPath` brand. The predicates take
+ * `readonly number[]` rather than `DocPath`: they order any path-shaped array whatever it
+ * addresses, and the brand would force a cast at every call site.
  */
 
 // ── Doc-absolute path brand ──────────────────────────────────────────────────
 
 declare const docPathBrand: unique symbol;
 /**
- * A path resolved from the document root, which is what a commit requires of `op.eventPath`
- * and `snapshot.path` (checked at runtime by G1.16, for callers the types do not bind).
- * `asDocPath` is the base constructor; `extendDocPath` and `docPathFrom` in
- * `cursor/coordinate-spaces.ts` build on it.
+ * A path resolved from the document root, which a commit requires of `op.eventPath` and
+ * `snapshot.path`, checked at runtime for callers the types don't bind (G1.16). `asDocPath` is
+ * the base constructor; `extendDocPath` and `docPathFrom` in `cursor/coordinate-spaces.ts`
+ * build on it.
  */
 export type DocPath = number[] & { readonly [docPathBrand]: true };
 
@@ -93,10 +93,8 @@ export function isPathBetween(
 	return comparePaths(path, start) > 0 && comparePaths(path, end) < 0;
 }
 
-/**
- * True when path's entire subtree fits strictly inside (start, end). Stronger
- * than `walkBetween`'s doc-order "between", which includes endpoint ancestors.
- */
+/** True when `path`'s entire subtree fits strictly inside (start, end). Stronger than
+ *  `walkBetween`'s document-order "between", which includes endpoint ancestors. */
 export function isPathSubtreeBetween(
 	path: readonly number[],
 	start: readonly number[],

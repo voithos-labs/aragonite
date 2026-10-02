@@ -1,26 +1,15 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
+import { roundTripStable, capturedErrors } from './helpers';
+import { MemoPage } from './memo-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
  * Block commands a plugin registers on an editable leaf
- * (requirements/plugins/editable-leaf-command.md): the `%%` memo harness kind binds two commands in
- * its keymap, `memo.tag` (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws).
- * These tests prove a registered `(kind, id)` command resolves on the leaf path through the real
- * `createEditableLeaf` factory, and that a throwing handler is caught and reported as an
- * `origin: 'command'` error rather than escaping.
+ * (requirements/plugins/editable-leaf-command.md): the `%%` memo kind binds `memo.tag`
+ * (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws). A registered command
+ * resolves through `createEditableLeaf`, and a throwing handler is reported as an `origin:
+ * 'command'` error.
  */
-
-class MemoPage extends PluginsPage {
-	get memo() {
-		return this.page.locator('.memo-block');
-	}
-
-	async gotoSeed(): Promise<void> {
-		await this.gotoPlugins('memo');
-		await expect(this.memo).toHaveCount(1);
-	}
-}
 
 test.describe('plugin block commands on the editable-leaf level: the %% memo kind', () => {
 	let editor: MemoPage;

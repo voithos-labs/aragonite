@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-//
-// The two ways a block component places the caret. `parkCaret` is each block's own primitive
-// (exercised through the blocks' own suites); this pins what `placeCaret` adds on top of it.
+// What `placeCaret` adds on top of `parkCaret`, each block's own caret primitive (tested in the
+// blocks' own suites).
 import { describe, it, expect } from 'vitest';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
@@ -50,7 +49,7 @@ describe('placeCaret: the safe caret entry point', () => {
 	});
 
 	// Subscribers read the editor back on notify, so an emission between the state write
-	// and the DOM landing reports a caret the landing is about to move.
+	// and the DOM update reports a caret that is about to move.
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();
 
@@ -59,8 +58,8 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
 
-	// Most caret placements happen with no range live, where nothing else notifies at all, so
-	// this is the only word subscribers get about where the caret went.
+	// Most caret placements happen with no range live, where nothing else notifies, so
+	// `placeCaret` is the only thing that tells subscribers where the caret went.
 	it('notifies once with no range live, after the caret has landed', () => {
 		const landings: (number | null)[] = [];
 		let landed: number | null = null;
@@ -84,7 +83,7 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(window.getSelection()?.rangeCount).toBe(1);
 
 		const h = liveRange();
-		// A whole-block landing sets no DOM range of its own, as a thematic break does.
+		// A whole-block placement sets no DOM range of its own, as a thematic break's does.
 		placeCaret(h.selection, () => {})(0);
 
 		expect(window.getSelection()?.rangeCount).toBe(0);
@@ -106,8 +105,7 @@ describe('placeCaret: the safe caret entry point', () => {
 		expect(h.emissions.length).toBe(1);
 	});
 
-	// Miss-analysis: nothing asked what a flush held, so a placement that moved the caret nowhere
-	// announced like any other and repeated a position subscribers already had.
+	// Miss-analysis: nothing asked what a flush held, so a placement re-announced a known position.
 	it('reports a plain placement as the only thing in its flush', () => {
 		const flushes: boolean[] = [];
 		const selection = createSelectionState({

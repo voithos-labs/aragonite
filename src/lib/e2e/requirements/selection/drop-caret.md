@@ -24,6 +24,10 @@ then carries out.
   - Miss-analysis: the clear was called undrivable under Playwright's synthetic mouse and left
     unclaimed, so the one handler with no test anywhere read as a known gap instead of a missing
     test
+- hold with Ctrl down over a landing inside the dragged range: a caret, because a copy writes
+  there, and the release lands the copy where it stood
+  - Miss-analysis: the decline was written against the move alone, and no case held a modifier,
+    so the copy it refused had nothing to disagree with
 
 ## Error cases
 

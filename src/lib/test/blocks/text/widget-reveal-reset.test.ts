@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-//
 // Every way out of a shown source goes through the one resetReveal, so all of them leave the same
 // idle state and it can be used again afterwards. Anything an exit leaves behind, a `settling`
 // flag stuck true or a stale record, shows up as a broken second cycle.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -12,10 +12,9 @@ import {
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
-
-const settle = () => new Promise((r) => setTimeout(r));
 const key = (k: string) => new KeyboardEvent('keydown', { key: k });
 
 // "Before $x^2$ after" as TextEditableBlock renders it: one atomic widget between
@@ -29,7 +28,7 @@ function mountMathBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
-				blockEdit: { updateBlockContent: () => {} },
+				blockEdit: { updateBlockContent: recordingWrite() },
 				setPendingCursor: () => {},
 				setRevealing: (v: boolean) => {
 					revealingMirror = v;
@@ -41,7 +40,7 @@ function mountMathBlock() {
 
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
-		await settle();
+		await settleEditor();
 	}
 	return {
 		interaction,
@@ -68,7 +67,7 @@ describe('canonical reset: every exit lands in the same idle state', () => {
 			async (b) => {
 				placeCaretAt(b.trailingText(), 2);
 				b.interaction.foldRevealIfSelectionEscaped();
-				await settle();
+				await settleEditor();
 			}
 		]
 	];
@@ -106,7 +105,7 @@ describe('canonical reset: the machine is reusable after a fold', () => {
 		// reset that went another way would disable it for good.
 		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
-		await settle();
+		await settleEditor();
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });

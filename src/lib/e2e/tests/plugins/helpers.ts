@@ -1,12 +1,14 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { gotoReady } from '../../goto-ready';
+import { widgetAimTarget } from '../../text-runs';
 
 // Shared reads for every spec driving the `/test/plugins` harness. They go through `window.__test`
 // by path, because the chained block locator is too slow at this scale.
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
-		await this.openHarness(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
+		await gotoReady(this.page, seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
 		// Started for every spec, not per spec: capturing is passive, and a `capturedErrors() ===
 		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
@@ -70,10 +72,8 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
-// Click a widget where a user aims, at the visible math. locator.click()'s default point is the
-// center of the first content box, and with katex.css loaded the clipped 1px `.katex-mathml` half
-// pulls that point to a corner outside the widget, quietly missing it. Aim at `.katex-html`, the
-// painted glyphs, when it is there, and fall back to the center of the widget's border box.
+// Click a widget where a user aims, at the visible math: locator.click()'s default point is the
+// center of the first content box, which katex.css's clipped MathML half pulls off the widget.
 export async function clickWidgetCenter(widget: Locator): Promise<void> {
 	await clickWidgetAt(widget, (width) => width / 2);
 }
@@ -85,50 +85,17 @@ export async function clickWidgetEnd(widget: Locator): Promise<void> {
 }
 
 async function clickWidgetAt(widget: Locator, xOf: (width: number) => number): Promise<void> {
-	const visible = widget.locator('.katex-html');
-	const target = (await visible.count()) > 0 ? visible.first() : widget;
+	const target = await widgetAimTarget(widget, '.katex-html');
 	const box = await target.boundingBox();
 	if (!box) throw new Error('widget has no bounding box');
 	await target.click({ position: { x: xOf(box.width), y: box.height / 2 } });
 }
 
-// Show a render-first widget's source by clicking it and waiting for the swap: the rendered widget
-// disappears (count 0) and its source becomes editable text. Block math shows a separate
-// `.math-block-source` element, so it is waited for its own way.
+// Shows a render-first widget's source by clicking it and waiting for the rendered widget to go;
+// block math shows a separate `.math-block-source`, waited for its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
 	await clickWidgetCenter(widget);
 	await expect(widget).toHaveCount(0);
-}
-
-// Aim point for a gesture at a run of characters, which no locator addresses: the center of the
-// first `needle` in a block's rendered text. Measured live, so it finds a shown source too.
-export async function textRunCenter(
-	page: Page,
-	blockPath: number[],
-	needle: string
-): Promise<Point> {
-	const point = await page.evaluate(
-		({ path, text }) => {
-			const block = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
-			const editable = block?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const at = node.textContent?.indexOf(text) ?? -1;
-				if (at < 0) continue;
-				const range = document.createRange();
-				range.setStart(node, at);
-				range.setEnd(node, at + text.length);
-				const rect = range.getBoundingClientRect();
-				return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-			}
-			return null;
-		},
-		{ path: blockPath, text: needle }
-	);
-	if (!point) throw new Error(`no text run "${needle}" in block ${JSON.stringify(blockPath)}`);
-	return point;
 }
 
 // ── Container read: one container node at a root index + its children ──────
@@ -140,9 +107,8 @@ export interface ContainerState {
 	childKinds: string[];
 	// Leaf raws with trailing newlines stripped, so they read as the visible text.
 	childTexts: string[];
-	// The container node's own raw, which its rebuildRaw must regenerate from the children after
-	// every edit. childTexts and roundTripStable both still pass with a stale container raw; only
-	// this shows the rebuild ran.
+	// The container's own raw, which rebuildRaw regenerates after every edit: childTexts and
+	// roundTripStable both pass with a stale container raw, so only this shows the rebuild ran.
 	raw: string;
 }
 

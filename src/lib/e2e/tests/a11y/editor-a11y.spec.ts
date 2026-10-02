@@ -75,9 +75,8 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	});
 
 	test('the live-mode link card has no new violations while open', async ({ page }) => {
-		// The card is anchored inside `.editor`, so axe's `include('.editor')` scans it unchanged:
-		// a role=dialog with a name, a labeled text field, and two named buttons over the
-		// editor's own theme colors.
+		// The card is anchored inside `.editor`, so axe's `include('.editor')` scans its dialog, field
+		// and buttons over the editor's own theme colors.
 		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
 		await editor.loadContent('Visit [example](https://example.com) now.\n');
 		await editor.waitForRenderFlush();
@@ -96,5 +95,21 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await editor.bridge.waitForSourceMatches(/beta[\s\S]*alpha[\s\S]*gamma/);
 		await expect(page.locator('.editor-sr-live-reorder')).toContainText('Moved block to position');
 		await expectNoNewA11yViolations(page, 'reorder-announce');
+	});
+
+	// A screen reader moving block to block tells them apart by these names, so a renamed label shows
+	// here as a diff.
+	test('each block exposes its kind as its accessible name', async ({ page }) => {
+		await editor.loadContent('## Title\n\nPlain text\n\n```js\ncode\n```\n\n- item\n\n---\n');
+		await editor.waitForRenderFlush();
+		const surface = (path: number[], selector: string) =>
+			page.locator(`[data-block-path='${JSON.stringify(path)}'] ${selector}`).first();
+
+		await expect(surface([0], '.text-editable-block')).toHaveAccessibleName('Heading level 2');
+		await expect(surface([1], '.text-editable-block')).toHaveAccessibleName('Paragraph');
+		await expect(surface([2], '.code-block')).toHaveAccessibleName('Code block, js');
+		await expect(surface([3, 0, 0], '.text-editable-block')).toHaveAccessibleName('Paragraph');
+		await expect(surface([4], '[data-whole-block-input]')).toHaveAccessibleName('Divider');
+		await expect(page.getByRole('separator')).toHaveCount(1);
 	});
 });

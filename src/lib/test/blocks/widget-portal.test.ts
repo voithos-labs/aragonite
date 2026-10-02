@@ -9,8 +9,8 @@ import {
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 
-// The pool churn-proofs component widgets under the editor's rebuild-everything-per-keystroke
-// render: a pass re-acquires by `${kind} ${source}` key, reusing the live instance unchanged.
+// The editor rebuilds a block's inline DOM on every keystroke, so each render pass re-acquires
+// widgets by `${kind} ${source}` key and the pool hands back the live instance unchanged.
 
 const KIND = 'math' as AnyInlineKind;
 const at = (start: number, end: number): InlineNode => ({ kind: KIND, start, end }) as InlineNode;
@@ -22,8 +22,8 @@ interface FakeHandle {
 	destroyed: boolean;
 }
 
-/** A DOM-backed fake adapter: real spans so offset re-stamping is observable, an id per
- *  instance so adoption is distinguishable from a remount. `failCreate` models a mount-throw. */
+/** Real spans so rewritten offsets are observable, and an id per instance so reuse is told
+ *  apart from a remount. `failCreate` makes every mount throw. */
 function fakeAdapter(failCreate = false): {
 	adapter: WidgetPoolAdapter<FakeHandle>;
 	created: FakeHandle[];

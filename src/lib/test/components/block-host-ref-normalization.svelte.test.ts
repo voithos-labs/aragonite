@@ -1,20 +1,19 @@
 // @vitest-environment jsdom
-//
-// BlockHost is the one place that knows a container hands over its whole `BlockComponent`
-// interface under a single `containerApi` export (Svelte 5 instance exports cannot be
-// spread, so redeclaring the members by hand loses one at a time). A ref entry left
-// holding the raw instance is a block the caret can never reach, and it fails nowhere
-// near here, so the result is asserted at the ref entry, over a real container.
+// BlockHost unwraps the `containerApi` export a container hands over its whole interface under.
+// A ref entry left holding the raw instance is a block the caret can never reach, failing far from
+// here, so the result is asserted at the ref entry over a real container.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
 import { takeDevWarns } from '../support/warn-gate';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
-import { declareComponentlessKind, mountBlockHost, type MountedHost } from './mount-host';
+import { mountBlockHost, type MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
+import { makeShimChildList } from '$lib/test/harness/editor-actions';
+import { componentAt } from '$lib/reactivity/child-list';
 
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.
@@ -27,7 +26,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 describe('resolveBlockSurface', () => {
@@ -39,8 +37,7 @@ describe('resolveBlockSurface', () => {
 		parkCaret: () => {},
 		getCursorPosition: () => null,
 		focusByPath: () => {},
-		getBlockComponentByPath: () => null,
-		revealByPath: async () => null,
+		childList: () => makeShimChildList([]),
 		focusAtColumn: () => {},
 		isVerticallyTransparent: () => false,
 		enterEdgeWidget: () => false
@@ -73,8 +70,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 		expect(typeof ref?.focus).toBe('function');
 		expect(typeof ref?.parkCaret).toBe('function');
 		expect(typeof ref?.focusByPath).toBe('function');
-		expect(typeof ref?.getBlockComponentByPath).toBe('function');
-		expect(typeof ref?.revealByPath).toBe('function');
+		expect(typeof ref?.childList).toBe('function');
 		expect((ref as { containerApi?: unknown }).containerApi).toBeUndefined();
 	});
 
@@ -84,7 +80,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 		const doc = parse('> - item\n');
 
 		mounted = mountBlockHost(doc, { index: 0 });
-		const inner = mounted.refs[0]?.getBlockComponentByPath?.([0]);
+		const inner = componentAt(mounted.refs[0]!.childList!(), [0]);
 
 		expect(typeof inner?.focusByPath).toBe('function');
 		expect((inner as { containerApi?: unknown } | null)?.containerApi).toBeUndefined();
@@ -98,7 +94,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 
 	it('dev-warns when a component publishes neither surface shape', () => {
 		const doc = parse('surfaceless\n');
-		const kind = declareComponentlessKind('host-surfaceless');
+		const kind = testLeaf('host-surfaceless');
 		// The cast is the point: `defineBlockComponent` rejects this component, so the
 		// only way here is the escape hatch, and this warn is what covers it.
 		registerBlockComponent(kind, {

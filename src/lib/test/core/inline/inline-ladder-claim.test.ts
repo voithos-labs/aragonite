@@ -5,16 +5,13 @@
  * get their own case: they share `tryRungs`, but only structurally.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../core/nodes';
 import { parseInline } from '../../../core/inline';
 import {
-	__resetInlineSyntaxForTests,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../core/inline/scan/plugin-syntax';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 // The same minimal embed stand-in `inline-ladder-bang.test.ts` drives; its extension gate
 // is what declines the `![[a]](u)` overlap with the built-in image grammar.

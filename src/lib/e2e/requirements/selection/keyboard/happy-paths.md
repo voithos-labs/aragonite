@@ -10,3 +10,4 @@ Baseline cross-block extension via Shift+Arrow, Ctrl+Shift+End/Home, and double 
 - Ctrl+Shift+End extends selection to document end: cross-block mode activates
 - Ctrl+Shift+Home extends selection to document start: cross-block mode activates
 - Double Ctrl+A selects entire document: first press selects block, second enters cross-block
+- Ctrl+A over a range made by a drag selects the whole document in one press: the drag never counted a first press, so the range itself is what sends the chord document-wide

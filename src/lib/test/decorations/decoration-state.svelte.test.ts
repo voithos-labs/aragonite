@@ -98,8 +98,7 @@ describe('createDecorationEngine', () => {
 		expect(() => engine.addSource({ name: 'd', provide: () => [] })).not.toThrow();
 	});
 
-	// Miss-analysis: calling dispose twice was tested only by registering a different object
-	// under the freed name, so a registry keyed on the source object itself looked the same.
+	// Miss-analysis: double dispose was tested only with a different object under the freed name.
 	it('leaves a disposed handle inert over a re-registration of the same source object', () => {
 		const engine = makeEngine();
 		const source = { name: 'toggled', provide: () => [mark([0])] };

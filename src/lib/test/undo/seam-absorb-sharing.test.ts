@@ -8,11 +8,9 @@ import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createReorderAction } from '../../editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// Absorbing at the join between two blocks splices a range whose first node is an existing
-// neighbour, so while an undo snapshot is outstanding the collapse reaches nodes that entry
-// still shares: the G1.9 case every earlier test missed by starting from a fresh sharing state.
-// Miss-analysis: those tests all built their own `createSharingState()`, so the splice never
-// took its copy-before-write branch and the integrity check never saw these paths.
+// Absorbing at the join between two blocks splices a range starting at an existing neighbour, so
+// with an undo entry outstanding the collapse writes nodes that entry still shares (G1.9).
+// Miss-analysis: every test built a fresh `createSharingState()`, so no copy-before-write ran.
 
 const TIGHT_JOIN = 'a\n# h\nb\n';
 const UNDERLINE_BELOW = '# [t](u)\n===\n\nafter\n';
@@ -36,9 +34,9 @@ function harness(source = TIGHT_JOIN) {
 describe('a join absorb under an outstanding snapshot', () => {
 	it('leaves the demotion fold’s shared predecessor byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
-		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(h.doc.children).toHaveLength(1);
 		expect(h.snapshotBytes()).toBe(TIGHT_JOIN);
@@ -52,7 +50,7 @@ describe('a join absorb under an outstanding snapshot', () => {
 
 	it('leaves the reorder fold’s shared window byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
 		await h.reorder.moveReorderUnit([1], 2);
 
@@ -66,11 +64,8 @@ describe('a join absorb under an outstanding snapshot', () => {
 		expect(h.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading', 'paragraph']);
 	});
 
-	// GH #255: the collapse splices out the underline the entry still shares, and changes the
-	// first block's kind beyond what its own bytes say.
-	// Miss-analysis: no test of splitting put a structural line that only matters in combination
-	// under the second half, so the collapse that changes the first block's kind never ran while
-	// an undo entry was outstanding.
+	// The split's collapse splices out the setext underline the undo entry still shares.
+	// Miss-analysis: GH #255; no split test left an underline beneath the second half's text.
 	it('splices the shared underline into the promoted head, and undo restores it', async () => {
 		const h = harness(UNDERLINE_BELOW);
 

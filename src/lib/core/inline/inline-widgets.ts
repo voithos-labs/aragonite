@@ -6,12 +6,13 @@
  */
 
 import type { Component } from 'svelte';
-import type { AnyInlineKind, InlineNode } from '../nodes';
+import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../nodes';
 import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
-import { registerOnce } from '../../schema/register-once';
+import { createInlineKindRegistry } from '../../schema/plugin-registry';
+import type { GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 
 /**
@@ -47,31 +48,26 @@ export function widgetSourceRange(el: Element): { start: number; end: number } |
 export interface InlineWidgetComponentProps {
 	inline: InlineNode;
 	source: string;
-	/** Absent reads as 'source'. */
-	getPresentationMode?: () => PresentationMode;
+	getPresentationMode: () => PresentationMode;
 	/** A widget whose body a renderer such as KaTeX draws emits colors no stylesheet reaches, so
-	 *  it keys its render on this. One styled with CSS tokens needs nothing. Absent is 'dark'. */
-	getTheme?: () => string;
+	 *  it keys its render on this. One styled with CSS tokens needs nothing. */
+	getTheme: () => string;
 	/** The pool keys on `${kind} ${source}`, so a widget whose value derives from the document
 	 *  (footnote numbering) needs this to survive edits elsewhere that change no source. */
-	getDocument?: () => DocumentView | undefined;
-	/**
-	 * Memo key for a whole-document derivation: the `$state` document is mutated in place, so
-	 * its identity never changes and an identity-keyed memo would hit forever on stale data.
-	 * Read it inside the widget's `$derived`; that read is what subscribes it to edits anywhere.
-	 */
-	getContentVersion?: () => number;
+	getDocument: () => DocumentView | undefined;
+	/** Memo key for a whole-document derivation, since the `$state` document mutates in place and
+	 *  keeps its identity. Read it inside the widget's `$derived` to re-run on edits anywhere. */
+	getContentVersion: () => number;
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
-	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
-	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	 *  path. Resolves false where it can't land, so a widget never needs a fallback. */
+	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
+	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
+	 *  and it's a new function whenever the document's definitions change. */
+	computeInlineContent: (node: NodeView) => InlineNode[];
 }
 
-/**
- * The editor's activation gesture, shared by the editable element deciding whether to show the
- * source and the widget deciding whether to act: Ctrl/Cmd+click while editing, a plain click in
- * reading mode, where there is no caret for a plain click to place. The same rule links use
- * (`Editor.svelte`).
- */
+/** Shared by the editable element deciding whether to show the source and the widget deciding
+ *  whether to act. Reading mode has no caret to place, so a plain click activates, as for links. */
 export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
 	return modified || mode === 'reading';
 }
@@ -89,18 +85,11 @@ export const ON_EDGE_POLICIES = ['select', 'step-over'] as const;
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
-	/**
-	 * Where this kind's editable content sits inside its source span, as offsets relative to
-	 * that span (`$x$` answers `{ start: 1, end: 2 }`). It bounds a caret entering the source,
-	 * and `end` is where a click that shows the source puts the caret when the kind maps no point
-	 * of its own. Only the kind knows its delimiters; absent, the caret stays at the leading edge.
-	 */
+	/** The editable content's offsets in the source span (`$x$` gives `{ start: 1, end: 2 }`),
+	 *  bounding the caret; a click with no mapped point lands at `end`. Absent: the start edge. */
 	revealContentSpan?: (source: string) => { start: number; end: number } | null;
-	/**
-	 * The offset in `source` a click on the rendered widget names, so the caret goes where the
-	 * click landed rather than to one edge. Only the kind can map its render back to bytes (a
-	 * KaTeX widget draws glyphs, not source); null declines this point and keeps the fallback.
-	 */
+	/** The `source` offset under a click, so the caret goes where the user clicked; only the kind
+	 *  can map its render (KaTeX glyphs) back to bytes. Null keeps the fallback. */
 	revealOffsetAtPoint?: (
 		widgetEl: HTMLElement,
 		source: string,
@@ -116,7 +105,7 @@ export interface InlineWidgetEditingPolicy {
 }
 
 export interface InlineWidgetEditingContext {
-	/** The bytes are read-only (G1.9); edits go through `updateContent`. */
+	/** Read-only, since an undo entry may share the node (G1.9); edit through `updateContent`. */
 	node: NodeView;
 	inline: InlineNode;
 	widgetStart: number;
@@ -140,7 +129,16 @@ export interface InlineWidgetDescriptor {
 	editing?: InlineWidgetEditingPolicy;
 }
 
-const registry = new Map<AnyInlineKind, InlineWidgetDescriptor>();
+const registry = createInlineKindRegistry<InlineWidgetDescriptor>({
+	label: 'registerInlineWidgetKind',
+	isBuiltin: isBuiltinInlineKind
+});
+
+/** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
+ *  the entry answers to, so a node of that kind renders as its source. */
+function widgetOf(kind: AnyInlineKind, grammar: GrammarView): InlineWidgetDescriptor | undefined {
+	return registry.get(kind, grammar.activation);
+}
 
 export function registerInlineWidgetKind(
 	kind: AnyInlineKind,
@@ -152,24 +150,21 @@ export function registerInlineWidgetKind(
 				`a widget kind renders through exactly one. Drop one.`
 		);
 	}
-	registerOnce(
-		registry.has(kind),
-		() => registry.set(kind, descriptor),
+	registry.register(
+		kind,
+		descriptor,
 		`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
 			`register-once — a re-registration would clobber a built-in (image/rawHtml).`
 	);
 }
 
-/**
- * Layer editing fields onto an already-registered kind. The editor-layer wire-up
- * (components/built-in-blocks.ts) attaches behavior here that would otherwise make a core
- * registration import a downstream layer. Throws for an unregistered kind.
- */
+/** Lets the editor layer (`components/built-in-blocks.ts`) attach editing behavior without a core
+ *  registration importing it. Throws for an unregistered kind. */
 export function augmentInlineWidgetKind(
 	kind: AnyInlineKind,
 	editing: Partial<InlineWidgetEditingPolicy>
 ): void {
-	const descriptor = registry.get(kind);
+	const descriptor = registry.getIgnoringActivation(kind);
 	if (!descriptor) {
 		throw new Error(
 			`augmentInlineWidgetKind: "${kind}" is not registered; register the widget kind before ` +
@@ -179,52 +174,63 @@ export function augmentInlineWidgetKind(
 	descriptor.editing = { ...descriptor.editing, ...editing };
 }
 
+// Each lookup below takes the editor's grammar, which leaves out the plugins it did not list.
+
+/** Whether the kind renders as a widget under the editor's grammar, whatever one node's bytes. */
+export function isInlineWidgetKind(kind: AnyInlineKind, grammar: GrammarView): boolean {
+	return widgetOf(kind, grammar) !== undefined;
+}
+
 /** Kind-level recognition, independent of per-block render policy (renderImagesAsWidgets). */
-export function isInlineWidget(node: InlineNode, raw: string): boolean {
-	const descriptor = registry.get(node.kind);
+export function isInlineWidget(node: InlineNode, raw: string, grammar: GrammarView): boolean {
+	const descriptor = widgetOf(node.kind, grammar);
 	return descriptor ? descriptor.isWidget(node, raw) : false;
 }
 
-export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditingPolicy | undefined {
-	return registry.get(kind)?.editing;
+export function getInlineWidgetEditing(
+	kind: AnyInlineKind,
+	grammar: GrammarView
+): InlineWidgetEditingPolicy | undefined {
+	return widgetOf(kind, grammar)?.editing;
 }
 
 /** A kind the caret treats as one character: it steps over in one keypress, has a column of its
  *  own, and a click on its glyph names an edge rather than selecting the widget whole. */
-export function isCharacterLikeWidget(kind: AnyInlineKind): boolean {
-	return getInlineWidgetEditing(kind)?.onEdge === 'step-over';
+export function isCharacterLikeWidget(kind: AnyInlineKind, grammar: GrammarView): boolean {
+	return getInlineWidgetEditing(kind, grammar)?.onEdge === 'step-over';
 }
 
 export function getInlineWidgetComponent(
-	kind: AnyInlineKind
+	kind: AnyInlineKind,
+	grammar: GrammarView
 ): Component<InlineWidgetComponentProps> | undefined {
-	return registry.get(kind)?.component;
+	return widgetOf(kind, grammar)?.component;
 }
 
-/**
- * Every live widget reachable from `nodes`, in document order. Descends so a widget nested in a
- * non-widget parent is found (the `image` inside `[![alt][ref]][repo]`), but never into a
- * widget's own children, which are atomic. `raw` is the enclosing block's source.
- */
-export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: string): InlineNode[] {
+/** Descends into non-widget parents (the `image` inside `[![alt][ref]][repo]`) but never into a
+ *  widget, whose children are atomic. `raw` is the enclosing block's source. */
+export function flattenInlineWidgets(
+	nodes: ReadonlyArray<InlineNode>,
+	raw: string,
+	grammar: GrammarView
+): InlineNode[] {
 	const out: InlineNode[] = [];
-	for (const node of inlineDescendants(nodes, (parent) => !isInlineWidget(parent, raw))) {
-		if (isInlineWidget(node, raw)) out.push(node);
+	const isWidget = (node: InlineNode) => isInlineWidget(node, raw, grammar);
+	for (const node of inlineDescendants(nodes, (parent) => !isWidget(parent))) {
+		if (isWidget(node)) out.push(node);
 	}
 	return out;
 }
 
-/**
- * A `component` kind routes through the injected `buildPortalWidget` because the component layer
- * owns Svelte mounting and `core/` stays framework-free. Null when the node is not a widget, its
- * builder is injected per render (image), or the portal builder is absent or failed.
- */
+/** A `component` kind mounts through the injected `buildPortalWidget`, keeping `core/` free of
+ *  Svelte. Null for a non-widget, an image (built per render), or a missing or failed portal. */
 export function buildCoreInlineWidget(
 	node: InlineNode,
 	raw: string,
-	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null
+	buildPortalWidget: ((node: InlineNode, raw: string) => HTMLElement | null) | undefined,
+	grammar: GrammarView
 ): HTMLElement | null {
-	const descriptor = registry.get(node.kind);
+	const descriptor = widgetOf(node.kind, grammar);
 	if (!descriptor || !descriptor.isWidget(node, raw)) return null;
 	if (descriptor.component) return buildPortalWidget?.(node, raw) ?? null;
 	return descriptor.buildWidget ? descriptor.buildWidget(node, raw) : null;
@@ -249,13 +255,3 @@ registerInlineWidgetKind('entityReference', {
 	buildWidget: (node) => buildEntityWidget(node),
 	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
 });
-
-// Must stay below the built-in registrations: it snapshots what the test reset may not drop.
-const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<AnyInlineKind> = new Set(registry.keys());
-
-/** Test-only. Removes every plugin-registered inline-widget kind; built-ins survive. */
-export function __resetInlineWidgetsForTests(): void {
-	for (const kind of registry.keys()) {
-		if (!BUILTIN_INLINE_WIDGET_KINDS.has(kind)) registry.delete(kind);
-	}
-}

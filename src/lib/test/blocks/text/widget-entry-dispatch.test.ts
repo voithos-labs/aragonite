@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-//
-// Entering a widget at a caret edge is decided by the kind's `revealSource` policy in two places:
-// the caret-edge dispatch inside the block (`edge-policy-dispatch`, all four entry keys) and the
-// cross-block `enterEdgeWidget`. A kind that can show its source opens it at the edge the key
-// came from; one that cannot is selected and then stepped over. Covered in both places, so a
-// change that fixes only one of them fails here rather than only in e2e.
+// Entering a widget at a caret edge follows the kind's `revealSource` policy in two places, the
+// block's caret-edge dispatch and the cross-block `enterEdgeWidget`: a kind that can show its
+// source opens it at the edge the key came from, and one that cannot is selected, then stepped
+// over. Covering both catches a change that fixes only one.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
+import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
@@ -16,6 +17,7 @@ import type { AnyInlineKind } from '$lib/core/nodes';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { key, makeEdgeDispatch } from './edge-policy-fixture';
+import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
@@ -25,15 +27,15 @@ function mount(source: string, widgetKind: string) {
 	const { node, el, inlineWidgets } = mountWidgetBlock(source, widgetKind);
 	const widget = inlineWidgets[0];
 
-	const commits: { index: number; raw: string; before: number; after: number }[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const commits: Commit[] = [];
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	const interaction = createWidgetInteraction(
 		widgetInteractionDeps(
 			{ node, el },
 			{
 				cursor: new Proxy({}, { get: () => () => {} }),
 				widgetSelection,
-				blockEdit: { updateBlockContent: () => {} },
+				blockEdit: { updateBlockContent: recordingWrite() },
 				focusActions: new Proxy({}, { get: () => () => {} }),
 				setPendingCursor: () => {},
 				setRevealing: () => {},
@@ -46,8 +48,9 @@ function mount(source: string, widgetKind: string) {
 	// entry, which makes the same choice the cross-block `enterEdgeWidget` does.
 	const { dispatch } = makeEdgeDispatch(node, el, {
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
 				commits.push({ index, raw, before, after })
+			)
 		} as unknown as BlockEditActions,
 		isRevealing: () => interaction.isRevealing(),
 		enterWidget: (w, fromTrailingEdge) => interaction.enterWidget(w, fromTrailingEdge)
@@ -83,14 +86,14 @@ describe('edge dispatch: reveal-capable kind opens the reveal', () => {
 	it('places the caret at the trailing edge entering from the right', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
 		b.dispatch.handleKeydown(key('ArrowLeft'), asRawOffset(b.widget.end));
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.caretRaw()).toBe(b.widget.end);
 	});
 
 	it('places the caret at the leading edge entering from the left', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
 		b.dispatch.handleKeydown(key('ArrowRight'), asRawOffset(b.widget.start));
-		await new Promise((r) => setTimeout(r));
+		await settleEditor();
 		expect(b.caretRaw()).toBe(b.widget.start);
 	});
 });
@@ -120,9 +123,8 @@ describe('edge dispatch: image kind keeps select-then-step', () => {
 // ── Atomic deleteGranularity: deleted whole in one key, with no select step ──
 
 describe('edge dispatch: an atomic kind deletes whole on one press', () => {
-	// Reconfiguring the math kind as an atomic widget shows `deleteGranularity` is honoured for
-	// any kind, not just the built-in entity; `installMathInline`'s reset registers math again.
-	// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
+	// Reconfiguring math as an atomic widget shows `deleteGranularity` holds for any kind, not just
+	// the built-in entity; the next test registers math afresh.
 	beforeEach(() => {
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {
 			revealSource: false,

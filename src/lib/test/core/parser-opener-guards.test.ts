@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import {
@@ -7,11 +7,10 @@ import {
 	type OpenContext
 } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { takeDevWarns } from '../support/warn-gate';
 import type { Document } from '../../core/nodes';
 
-// Drives the parser's DEV trust checks without a real misbehaving plugin. The kind name is
+// Drives the parser's dev-mode trust checks without a real misbehaving plugin. The kind name is
 // decoupled from the sentinel because kind names may not contain the sentinel's symbols.
 function registerSyntheticOpener(
 	kindName: string,
@@ -27,8 +26,6 @@ function registerSyntheticOpener(
 }
 
 describe('parser opener trust guards', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	// Two consecutive stuck dispatches, not one: the second proves the loop still terminates
 	// when every dispatch declines, the shape that hangs a tab without the decline.
 	it('declines a non-advancing opener instead of spinning the parse loop', () => {

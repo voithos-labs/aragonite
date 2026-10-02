@@ -1,9 +1,8 @@
 /**
- * Type pins for the read-only view types on the public plugin API (G1.9 at the barrel). The
- * `@ts-expect-error` directives are the assertions: `npm run check` fails if a byte write
- * starts compiling through a read-only type, or if an implementation widens its view parameter
- * back to the mutable one. The read hooks are function-typed properties, so parameters are
- * checked contravariantly.
+ * Type pins for the read-only view types on the public plugin API, so plugin code cannot write
+ * bytes through a node an undo entry shares (G1.9). The `@ts-expect-error` directives are the
+ * assertions: `npm run check` fails if a byte write starts compiling through a read-only type,
+ * or if an implementation widens its view parameter back to the mutable one.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

@@ -36,6 +36,10 @@ edits, and one undo then leaves the source's bytes gone.
   and one undo restores both sides
   - Miss-analysis: the only cell drag in the suite asserted the cancel, so no test ever asked a
     cell's bytes to land anywhere else and the handler's own decline read as coverage
+- drag a double-clicked word into another paragraph with Ctrl or Alt held through the release: a
+  copy lands there, the source keeps the word, one undo restores the document, and redo re-lands it
+  - Miss-analysis: every drag case released with no key held, so the copy branch had no case and
+    could break with every suite green
 
 ## Edge cases
 

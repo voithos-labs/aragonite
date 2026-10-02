@@ -26,14 +26,12 @@ collector actually trips, by injecting faults and asserting `assertNone` throws.
 - every dev warning is caught, not just invariant fires: a plain
   `[aragonite:…]` warning trips `assertNone`, so a diagnostic the editor emits
   mid-session cannot ride out a green run
-- Svelte runtime warnings are caught by their code, not by a list of known ones:
-  a warning headed `[svelte] state_proxy_equality_mismatch`, emitted in Svelte's
-  own `%c` format, trips `assertNone`, and the waiver that silences it
+- Svelte runtime warnings are caught by their code: a warning headed
+  `[svelte] state_proxy_equality_mismatch`, emitted in Svelte's own `%c` format,
+  trips `assertNone`, and the waiver that silences it
   (`svelte:state_proxy_equality_mismatch`) reads the same at the spec watch and
-  at the checkpoint
-- the same holds for a code no list ever named: `[svelte] derived_inert` trips
-  `assertNone` too, so narrowing the collector back to the codes someone thought
-  to write down fails here on detection, not merely on how a waiver is spelled
+  at the checkpoint. Both read the line through one parser, whose unit test pins
+  that any code counts, not a list of known ones
 - warnings from outside the editor are ignored: a `console.warn` with no
   `[aragonite:…]` head does not trip the collector, so a host page's own
   diagnostics stay out of the result

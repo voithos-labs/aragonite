@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady } from '../goto-ready';
 import { repeatedWordInParagraph } from '../showcase-document';
 
 // The `/` showcase at phone width, the only place these defects appear: at the fixed 1280
@@ -13,8 +13,7 @@ test.use({ viewport: PHONE, hasTouch: true });
 
 test.describe('/ showcase on a phone', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test('neither the page nor the document pans sideways', async ({ page }) => {
@@ -79,9 +78,8 @@ test.describe('/ showcase on a phone', () => {
 	});
 
 	test('the controls a thumb has to hit clear 24px', async ({ page }) => {
-		// WCAG 2.2 AA (2.5.8), not Apple's 44px: the header carries eleven controls, and 44 each
-		// would put back over the document every row the condensed header just gave it. Buttons
-		// and links both, since counting one tag name would miss the other.
+		// WCAG 2.2 AA (2.5.8), not Apple's 44px: eleven header controls at 44 each would give back
+		// every row the condensed header saves. Buttons and links both, so no tag is missed.
 		const header = await page
 			.locator('.showcase-header button, .showcase-header a')
 			.evaluateAll((els) =>

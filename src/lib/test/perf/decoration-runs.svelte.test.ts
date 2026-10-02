@@ -10,9 +10,8 @@ import {
 } from '../../perf/instruments';
 import { generateFixture } from './fixtures/generate';
 
-// The ceiling: the cost per edit is O(number of sources) and does not depend on document
-// size, so one block's change cascading into the rest would scale `decorationRuns` with the
-// fixture's block count. Render keys are checked in `blocks/text/render-islands.test.ts`.
+// The cost per edit scales with the number of decoration sources, not document size, so one
+// block's change cascading into the rest would scale `decorationRuns` with the block count.
 
 // A flat document of about 1MB, so a count that tracks blocks rather than edits is off by
 // three orders of magnitude.

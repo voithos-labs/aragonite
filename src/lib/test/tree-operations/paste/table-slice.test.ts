@@ -3,6 +3,7 @@ import { parse } from '../../../core/parser';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { rebuildContainerRaw } from '../../../schema/container-raw';
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../../core/nodes';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 const fixture = '| A | B |\n| :--- | ---: |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 
@@ -58,12 +59,24 @@ describe('sliceTableAtRow', () => {
 		expect((firstHalf!.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 		expect((secondHalf!.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 
-		rebuildContainerRaw(firstHalf!);
-		rebuildContainerRaw(secondHalf!);
+		rebuildContainerRaw(firstHalf!, fixtureGrammar);
+		rebuildContainerRaw(secondHalf!, fixtureGrammar);
 		expect(firstHalf!.raw).toContain('| A | B |');
 		expect(firstHalf!.raw).toContain('| :--- | ---: |');
 		expect(secondHalf!.raw).toContain('| 5 | 6 |');
 		expect(secondHalf!.raw).toContain('| :--- | ---: |');
+	});
+
+	// Miss-analysis: the fixture was already spelled the editor's way, so a half rebuilt with no
+	// bytes of its own wrote a plain delimiter row that matched the source anyway.
+	it.each([
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	])('keeps a tight table’s own spelling in both halves (%s)', (_name, eol) => {
+		const table = tableFrom(['|a|b|', '|-|:-|', '|1|2|', '|3|4|', ''].join(eol));
+		const { firstHalf, secondHalf } = sliceTableAtRow(table, 1, 'first');
+		expect(firstHalf!.raw).toBe(['|a|b|', '|-|:-|', '|1|2|', ''].join(eol));
+		expect(secondHalf!.raw).toBe(['|3|4|', '|-|:-|', ''].join(eol));
 	});
 
 	it('does not mutate the original table', () => {

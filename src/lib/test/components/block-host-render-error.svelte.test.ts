@@ -1,21 +1,18 @@
 // @vitest-environment jsdom
-//
-// BlockHost's error boundary stands between one bad plugin component and a blank
-// document. Two halves, neither visible from the source: the failed block still shows
-// its bytes and reports on the error event, and the boundary recovers on a byte change.
-// A small document never unmounts the host to remount it, so an edit that fixes the
-// input is the only way back.
+// BlockHost's error boundary keeps one bad plugin component from blanking the document: the failed
+// block still shows its bytes and reports on the error event, and the boundary recovers on a byte
+// change, the only way back since a small document never remounts the host.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents, type EditorEvents } from '$lib/editor-events';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode } from '$lib/core/nodes';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
-import { declareComponentlessKind, mountBlockHost } from './mount-host';
+import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 beforeAll(installEditorDomStubsForTests);
 
@@ -23,7 +20,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 interface ErrorReport {
@@ -34,7 +30,7 @@ interface ErrorReport {
 /** A host over one block whose component throws while its raw says `boom`. */
 function mountThrowing(raw: string, parentPath: number[] = []) {
 	const doc = parse(raw);
-	const kind = declareComponentlessKind('host-throwing');
+	const kind = testLeaf('host-throwing');
 	registerBlockComponent(kind, defineBlockComponent(ThrowingBlock));
 	doc.children[0].kind = kind;
 	// $state so a later byte write reaches the boundary-retry effect.

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
@@ -8,7 +9,7 @@ import { footnotesPlugin } from '$lib/plugins/footnotes';
 // the container's marker prefix, or it reparses as bare text. Eligibility is the descriptor's
 // `strip` contract, not a hard-coded kind list.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
@@ -37,8 +38,7 @@ describe('collectCrossBlockText: sole-child strip-container prefix recovery', ()
 			const doc = parse(c.src);
 			const text = collectCrossBlockText(
 				doc,
-				{ path: c.leaf, offset: 2 },
-				{ path: [1], offset: 3 }
+				rangeCoverage(doc, coverRange(doc, { path: c.leaf, offset: 2 }, { path: [1], offset: 3 }))
 			);
 			// The prefix is the half that matters: a null marker recovery leaves the slice
 			// starting at "pha…" with nothing in front of it.

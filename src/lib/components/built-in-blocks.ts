@@ -1,13 +1,12 @@
 /**
- * Built-in block component registrations, applied by an explicit `registerBuiltInBlocks()` call:
- * the `sideEffects` list names dist paths and so never covers the src paths this library imports
- * from itself, which would let a bundler drop a plain side-effect import here. Lives in
- * `components/` rather than `schema/` so the schema layer keeps no downstream imports.
+ * Built-in block component registrations, run by an explicit `registerBuiltInBlocks()` call: a
+ * side-effect import could be dropped by a bundler, since `sideEffects` names only dist paths.
+ * Lives in `components/` so `schema/` imports nothing downstream.
  */
 
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBareHeadingOpener } from '../core/parsers/heading';
+import { shownKind } from '../core/parsers/heading';
 import {
 	defineBlockComponent,
 	registerBlockComponent,
@@ -35,10 +34,7 @@ import { tableCaretAtPoint } from './blocks/table/table-caret-at-point';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
 function headingExtraProps(node: NodeView): Record<string, unknown> {
-	// The heading type arrives with the space after the hashes, never before: a bare `#` is an
-	// empty heading to CommonMark, but to a user it is the first byte of `#tag`, and a line that
-	// flashes to h1 size for that one keystroke reads as the editor fighting the tag.
-	if (isBareHeadingOpener(node.raw)) return { blockClass: 'paragraph-block' };
+	if (shownKind(node) === 'paragraph') return { blockClass: 'paragraph-block' };
 	const level = metadataOf(node, 'heading')?.level ?? 1;
 	return { blockClass: `heading-${level}` };
 }
@@ -82,14 +78,12 @@ export function registerBuiltInBlocks(): void {
 	registerBlockComponent('tableCell', textAsRawBlock);
 	registerBlockComponent('unrecognized', textAsRawBlock);
 
-	// tableCell is the one inline-supporting kind with its own paste behaviour, so it
-	// registers here and the default loop in paste/hooks.ts skips it: running both would
-	// let the order silently revert cell paste to the plain inline default.
+	// The default loop in `paste/hooks.ts` skips `tableCell`, so registration order cannot
+	// revert cell paste to the plain inline default.
 	registerPasteSurface(tableCellPasteSurface);
 
-	// Table owns cell addressing, so it registers both point-to-cell hooks through the
-	// descriptor registry rather than the selection code importing the component. Two of
-	// them: a drag needs the exact hit and the refusal, a caret needs the nearest cell.
+	// Table owns cell addressing: a drag needs the exact hit or a refusal, a caret the nearest
+	// cell, and the selection code reaches both through the descriptor.
 	augmentBuiltin('table', {
 		foreignDragHitTest: tableDragHitTest,
 		caretTargetAtPoint: tableCaretAtPoint
@@ -99,9 +93,8 @@ export function registerBuiltInBlocks(): void {
 	// and gains its selected-key handler here, where the render layer is reachable.
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
 
-	// The split rebalancer and the join cleanup need the inline parser and the render path,
-	// neither of which `tree-operations` may import, so the policy table holds the empty
-	// places and this file fills them.
+	// These need the inline parser and render path, which `tree-operations` may not import, so
+	// they are filled in here.
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 }

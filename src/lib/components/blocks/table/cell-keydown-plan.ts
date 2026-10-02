@@ -6,13 +6,7 @@
  * between siblings by index.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
-
-export interface CellKeyInput {
-	key: string;
-	ctrlOrMeta: boolean;
-	shiftKey: boolean;
-	altKey: boolean;
-}
+import { isSelectAllChord, type ChordKeys } from '../../../schema/keybindings';
 
 export interface CellKeyState {
 	rowIdx: number;
@@ -41,18 +35,11 @@ export type CellKeyPlan =
 	| { kind: 'insert-row-below' }
 	| { kind: 'exit'; direction: 'up' | 'down' };
 
-// CapsLock reports the letter uppercased, so the select-all chord tests for both
-// spellings rather than against a single literal.
-function isLetterA(key: string): boolean {
-	return key === 'a' || key === 'A';
-}
-
-export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
+export function cellKeydownPlan(e: ChordKeys, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
-	// Two stages, like every other block: the cell's own text first, then the document. A table
-	// stage in between would be unique to this editor; other editors go straight to the page.
-	if (e.ctrlOrMeta && isLetterA(e.key) && !e.shiftKey && !e.altKey) {
+	// Two stages, like every other block: the cell's own text first, then the document.
+	if (isSelectAllChord(e)) {
 		return {
 			kind: 'select-all-step',
 			step: s.selectAllCount === 0 ? 'native' : 'document'

@@ -1,10 +1,9 @@
 /**
- * G1.33: in an editable mode that hides markers, a block the caret is about to land in has to
- * paint at least one position the caret can sit at. If every byte of its content is a hidden
- * marker run, the keystroke arrives at an element boundary between `display:none` spans and the
- * browser puts the byte on whichever side it likes. Built-in blocks satisfy this by painting
- * markers that stand over no content (`docs/design/live-mode.md` § 4.1); the check is for plugin
- * blocks that do not. A table cell has no block host, so a cell reports its table's path.
+ * G1.33: in a mode that hides markers, a block the caret is about to enter paints at least one
+ * position the caret can sit at; if every content byte is a hidden marker, the browser puts the
+ * keystroke on whichever side of the hidden spans it likes. Built-in blocks paint markers that
+ * stand over no content (`docs/design/live-mode.md` § 4.1 What live never writes); the check is
+ * for plugin blocks. A table cell has no block host, so it reports its table's path.
  */
 
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
@@ -27,9 +26,8 @@ export function checkLandableCaret(
 	};
 }
 
-/** The editable element behind whatever has focus: focus can land on a block's markers or on an
- *  inner span too, and only an element that takes a keystroke can trap a caret. Read from the
- *  attribute, not `isContentEditable`, which jsdom leaves false on an editable div. */
+/** The editable element behind the focus, which may sit on a marker or an inner span. Read from
+ *  the attribute, since jsdom leaves `isContentEditable` false on an editable div. */
 function editableSurfaceOf(focused: HTMLElement): HTMLElement | null {
 	const el = focused.closest<HTMLElement>('[contenteditable]');
 	return el && el.getAttribute('contenteditable') !== 'false' ? el : null;

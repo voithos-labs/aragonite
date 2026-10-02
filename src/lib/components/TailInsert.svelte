@@ -21,7 +21,6 @@
 	// `insertParagraph` focuses the new block, which places the caret; the mousedown is
 	// swallowed so nothing else places one.
 	function append(): void {
-		if (readOnly) return;
 		void blockEdit?.insertParagraph(childCount, '');
 	}
 </script>

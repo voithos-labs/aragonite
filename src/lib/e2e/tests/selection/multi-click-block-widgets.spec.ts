@@ -1,6 +1,8 @@
 import { test, expect } from '../../fixtures';
+import { documentCaret } from '../blocks/image/helpers';
 import { PluginsPage } from '../plugins/helpers';
-import { multiClick, nativeSelectionText, runCenter, widgetCenter } from './multi-click-helpers';
+import { multiClick, nativeSelectionText, inlineWidgetCenter } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Triple-click, the block level of the click order, on a widget-dense paragraph
 // (`requirements/selection/multi-click-block-widgets.md`), driven on the math seed so the
@@ -14,11 +16,11 @@ const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possess
 /** KaTeX paints its glyphs here; the widget's own box also holds a copy clipped to a pixel. */
 const KATEX_GLYPHS = '.katex-html';
 
-// An entity is a widget with no source to show, so the reveal never runs and the third click
-// is the only thing that can select anything.
+// An entity is a widget with no source to show, so the third click is the only thing that can
+// select anything.
 const ENTITY_PARAGRAPH = 'before &copy; after some more words on this line\n';
 
-/** The selected text's two ends, so one read pins both boundaries of the range. */
+/** The selected text's two ends, so one read checks both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
 	return page.evaluate(() => {
 		const text = window.getSelection()?.toString() ?? '';
@@ -51,7 +53,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			const at = await runCenter(page, 'possess the energy');
+			const at = await textRunCenter(page, 'possess the energy');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			// The release has already been handled; a caret placed later would drop the range.
@@ -65,7 +67,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			await multiClick(page, await inlineWidgetCenter(page, KATEX_GLYPHS), 3);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
 			await page.waitForTimeout(150);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
@@ -77,7 +79,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent(SHOWCASE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
-			await multiClick(page, await widgetCenter(page, KATEX_GLYPHS), 3);
+			await multiClick(page, await inlineWidgetCenter(page, KATEX_GLYPHS), 3);
 			// The formula re-renders as its source closes, and the range has to come back with it.
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(9);
 			await expect.poll(() => selectionEnds(page)).toEqual(SHOWCASE_ENDS);
@@ -90,7 +92,7 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await editor.loadContent('$x^2$ opens this line\n');
 			await editor.setPresentationMode(mode);
 			await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-			const at = await runCenter(page, 'opens');
+			const at = await textRunCenter(page, 'opens');
 			await page.mouse.click(at.x, at.y, { clickCount: 3 });
 			// The rendered formula has no stable spelling, so the range is read at its two ends:
 			// it reaches the last word, and it starts far enough back to hold the formula.
@@ -103,27 +105,34 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 	}) => {
 		await editor.loadContent(ENTITY_PARAGRAPH);
 		await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-		await multiClick(page, await widgetCenter(page), 3);
+		await multiClick(page, await inlineWidgetCenter(page), 3);
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
 		await page.waitForTimeout(150);
 		await expect.poll(() => reachesBothEnds(page, 'on this line')).toEqual([true, true]);
 	});
 
-	test('a triple-click on an inline image leaves the image selected, and nothing else', async ({
-		page
-	}) => {
-		// An image selects whole on its first click, so the run is its own from the start: the
-		// image stays the one selected thing, with no range painted beside it.
-		await editor.loadContent('before ![pic|120x80](/test-fixtures/sample.png) after\n');
-		await page.waitForFunction(
-			() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-		);
-		await multiClick(page, await widgetCenter(page), 3);
-		await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
-		await page.waitForTimeout(150);
-		expect(await nativeSelectionText(page)).toBe('');
-		await page.keyboard.press('X');
-		await editor.bridge.waitForSourceContains('X');
-		expect(await editor.bridge.getSource()).toBe('before X after\n');
-	});
+	const IMAGE_PARAGRAPH = 'before ![pic|120x80](/test-fixtures/sample.png) after\n';
+
+	for (const clicks of [2, 3]) {
+		test(`a ${clicks === 2 ? 'double' : 'triple'}-click on an inline image leaves the image selected, and nothing else`, async ({
+			page
+		}) => {
+			// An image selects whole on its first click and its second opens the crop frame, so the
+			// run is the image's from the start: no range and no caret beside it.
+			await editor.loadContent(IMAGE_PARAGRAPH);
+			await page.waitForFunction(
+				() => (document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+			);
+			await multiClick(page, await inlineWidgetCenter(page), clicks);
+			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+			await page.waitForTimeout(150);
+			expect(await nativeSelectionText(page)).toBe('');
+			// No native caret; the editor's read answers the image's end, where the click left it.
+			const imageEnd = { path: [0], offset: IMAGE_PARAGRAPH.indexOf(')') + 1 };
+			expect(await documentCaret(page)).toEqual([0, { anchor: imageEnd, focus: imageEnd }]);
+			await page.keyboard.press('X');
+			await editor.bridge.waitForSourceContains('X');
+			expect(await editor.bridge.getSource()).toBe('before X after\n');
+		});
+	}
 });

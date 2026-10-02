@@ -1,9 +1,6 @@
 /**
- * Registers the built-in block openers. Lives beside the matchers because
- * schema/block-kind-descriptor.ts importing them would cycle (parsers/* import
- * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts: the
- * `sideEffects` allowlist names dist paths, never the src specifier used here, so a bare
- * side-effect import would be droppable.
+ * Registers the built-in block openers. Called explicitly from `core/parser.ts`, since a bare
+ * side-effect import would be tree-shaken from the production build.
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';
@@ -20,7 +17,7 @@ import {
 	parseHtmlBlock,
 	canInterruptParagraph as htmlCanInterrupt
 } from './html-block';
-import { parseLinkReferenceDefinition } from './link-reference';
+import { definitionReadingNotFinal, parseLinkReferenceDefinition } from './link-reference';
 
 // Idempotence guard, not a registry bypass: a dev-server re-eval resets it so
 // the register-once dev path still replaces.
@@ -91,6 +88,7 @@ export function registerBuiltInOpeners(): void {
 				ctx.index,
 				ctx.end,
 				ctx.leadingTrivia,
+				ctx.grammar,
 				ctx.depth,
 				ctx.isDocumentParse
 			);
@@ -107,6 +105,7 @@ export function registerBuiltInOpeners(): void {
 				ctx.index,
 				ctx.end,
 				ctx.leadingTrivia,
+				ctx.grammar,
 				ctx.depth,
 				ctx.isDocumentParse
 			);
@@ -140,6 +139,7 @@ export function registerBuiltInOpeners(): void {
 		tryOpen(ctx) {
 			return parseLinkReferenceDefinition(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 		},
-		interruptsParagraph: false
+		interruptsParagraph: false,
+		readingNotFinal: definitionReadingNotFinal
 	});
 }

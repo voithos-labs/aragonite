@@ -6,7 +6,7 @@ import { capturePageErrors } from '../../../page-probes';
 
 // Header + N distinguishable body rows; row k's first cell is `rk`. Tall enough that body rows
 // window out, so once the editor is scrolled to the bottom row 0 is unmounted and a mounted
-// row's local position no longer equals its CST index. Both the chord and the menu must move the
+// row's local position differs from its CST index. Both the chord and the menu must move the
 // row at its absolute index. Requirements: `requirements/blocks/table/reorder-windowed.md`.
 function tallTable(bodyRows: number): string {
 	const lines = ['| key | val |', '| --- | --- |'];
@@ -15,11 +15,6 @@ function tallTable(bodyRows: number): string {
 }
 
 const BODY_ROWS = 300;
-
-// An unmounted row's cells get no `childIds` until the row mounts, so the whole-tree scan reports
-// `{tableRow, 2, 0}` for every unmounted row; a move must add nothing else.
-const benign = (m: { kind: string; children: number; ids: number }) =>
-	m.kind === 'tableRow' && m.children === 2 && m.ids === 0;
 
 test.describe('table block: row moves on a row-windowed table', () => {
 	let editor: EditorPage;
@@ -50,7 +45,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 	}) => {
 		const pageErrors = capturePageErrors(page);
 		const from = BODY_ROWS - 2;
-		await page.locator(`[data-table-row-idx="${from}"] [role="cell"]`).first().click();
+		await page.locator(`[data-table-row-idx="${from}"] .table-cell`).first().click();
 
 		await page.keyboard.press('Alt+ArrowDown');
 
@@ -60,7 +55,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(
 			`Moved row to position ${from + 1} of ${BODY_ROWS}`
 		);
-		expect((await getContainerParityMismatches(page)).filter((m) => !benign(m))).toEqual([]);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 
@@ -69,7 +64,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 		const from = BODY_ROWS - 3;
 		await openFlyout(
 			page,
-			page.locator(`[data-table-row-idx="${from}"] [role="cell"]`).first(),
+			page.locator(`[data-table-row-idx="${from}"] .table-cell`).first(),
 			'Row'
 		);
 
@@ -84,7 +79,7 @@ test.describe('table block: row moves on a row-windowed table', () => {
 			return { children: t.children.length, ids: t.childIds?.length ?? 0 };
 		});
 		expect(tableNode).toEqual({ children: BODY_ROWS + 1, ids: BODY_ROWS + 1 });
-		expect((await getContainerParityMismatches(page)).filter((m) => !benign(m))).toEqual([]);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 });

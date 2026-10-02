@@ -1,24 +1,33 @@
-// Shared mocks for editor-actions and selection unit tests.
+// Shared mocks for editor-actions and selection unit tests: the published headless stubs
+// (`testing/headless-actions.ts`) with every member a `vi.fn`, so a test can assert on calls.
 
-import { vi } from 'vitest';
+import { vi, type Mocked } from 'vitest';
 import type {
 	BlockEditActions,
 	ContainerEditActions,
+	ContentWrite,
 	FocusActions,
 	ListContext
 } from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { documentLineEnding } from '$lib/core/lines';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import type { StickyColumnState } from '$lib/cursor/sticky-column';
-import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
-import { createPendingMarksState, type PendingMarksState } from '$lib/cursor/pending-marks';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import { asDocPath } from '$lib/selection/path-math';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
-import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { componentAt, type ChildList } from '$lib/reactivity/child-list';
+import { caretTargetFor, survivorAfterRemoval } from '$lib/selection/caret-target';
+import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
+import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -32,22 +41,35 @@ import {
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
+import type { Reading } from '$lib/schema/reading';
+import type { WriteMode } from '$lib/schema/block-kind-descriptor';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import type { GrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from './fixture-grammar';
 import { parse } from '$lib/core/parser';
 import type { EditEvent, EditorEvents } from '$lib/editor-events';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { getStateForNode, expectStateForNode } from '$lib/reactivity/state-registry';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import {
-	registerBlockListState,
-	getStateForNode,
-	expectStateForNode
-} from '$lib/reactivity/state-registry';
-import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState, type SharingState } from '$lib/tree-operations/sharing';
-import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
+	createInlineRangeCommit,
+	type InlineRangeCommit
+} from '$lib/editor-actions/inline-range-commit';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { GapStopScope } from '$lib/selection/gap-caret';
-import { createEditorEvents } from '$lib/editor-events';
+import {
+	createHeadlessActions,
+	stubBlockComponent,
+	stubBlockEdit,
+	stubCaretMemory,
+	type HeadlessActions,
+	type HeadlessActionsOptions,
+	type RecordedLanding
+} from '$lib/testing/headless-actions';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -61,22 +83,28 @@ export function parseLeaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
 
-// ── BlockComponent / sticky-column stubs ─────────────────────────────────────
+// ── Spied stubs ──────────────────────────────────────────────────────────────
 
-export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true,
-		...overrides
-	} as BlockComponent;
+/** `stub` with every method wrapped in `vi.fn`, keeping its behavior: the member list lives only
+ *  in the published stub, so a new member fails `npm run check` in one place. */
+export function spyEvery<T extends object>(stub: T): Mocked<T> {
+	const spied = { ...stub } as Record<string, unknown>;
+	for (const [key, value] of Object.entries(spied)) {
+		if (typeof value === 'function') spied[key] = vi.fn(value as (...args: unknown[]) => unknown);
+	}
+	return spied as Mocked<T>;
 }
+
+export { stubBlockComponent };
 
 /** A gap scope over `source`: the kinds it parses to are what declare the eligible edges. */
 export function makeGapScope(source: string): GapStopScope {
 	const doc = parse(source);
-	return { getDoc: () => doc, selection: createSelectionState() };
+	return {
+		getDoc: () => doc,
+		selection: createSelectionState(),
+		getPresentationMode: () => 'source'
+	};
 }
 
 /** An inert gap scope, for the traversals that assert the caret lands outside a gap. */
@@ -84,57 +112,42 @@ export function makeEmptyGapScope(): GapStopScope {
 	return makeGapScope('');
 }
 
-export function makeStickyColumn(x: number | null = null): StickyColumnState {
-	const stickyX = x === null ? null : asEditorX(x);
-	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn(), noteKey: vi.fn() };
+/** A caret memory whose column reads `x`, every method a `vi.fn`; its marks are real (below). */
+export function makeCaretMemory(x: number | null = null): Mocked<CaretMemory> {
+	const column = x === null ? null : asEditorX(x);
+	return spyEvery({ ...stubCaretMemory(), column: () => column, pendingMarks: makePendingMarks() });
 }
 
-export function makeEdgeAffinity(): EdgeAffinityState {
-	return {
-		get: () => null,
-		reset: vi.fn(),
-		note: vi.fn(),
-		noteTyping: vi.fn(),
-		noteExtreme: vi.fn(),
-		pin: vi.fn()
-	};
-}
-
-/** The real state, armed with `kinds`: a stub would hide the one property every consumer
+/** The real marks, armed with `kinds`: a stub would hide the one property every consumer
  *  depends on, that a set is spent exactly once. */
-export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState {
-	const marks = createPendingMarksState();
+export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarks {
+	const marks = createCaretMemory().pendingMarks;
 	for (const kind of kinds) marks.toggle(kind);
 	return marks;
 }
 
-// ── BlockListState stub ──────────────────────────────────────────────────────
+// ── BlockListState ───────────────────────────────────────────────────────────
 
-// Mirrors production `createBlockListState` without Svelte reactivity: ids live on the nodes, so
-// they follow the copy-before-write node replacement, and refs are local. `getNode` has to read
-// the live node (`() => doc.children[0]`): a captured node goes stale the first time a commit
-// copies its ancestors (`tree-operations/unshare.ts`). Every harness below takes the same getter
-// for the same reason.
+/** The production state over `getNode` with every child outside the render window, so no ref
+ *  answers. `getNode` reads the live node, because a commit copies its ancestors. */
 export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
-	const node = getNode();
-	if (ids) node.childIds = [...ids];
-	else if (!node.childIds) node.childIds = (node.children ?? []).map((_, i) => `auto-${i}`);
-	const innerBlockRefs: (BlockComponent | undefined)[] = (node.childIds ?? []).map(() => undefined);
-	return {
-		get innerBlockIds() {
-			return getNode().childIds ?? [];
-		},
-		set innerBlockIds(v: string[]) {
-			getNode().childIds = v;
-		},
-		innerBlockRefs,
-		refSlots: refSlotsOver(innerBlockRefs)
-	};
+	return mountBlockListState(getNode, { ids, refAt: () => undefined });
+}
+
+/** The state of the table at top-level `index`, following the copy a commit puts there; once a
+ *  removal takes the table, it keeps the one it was built on, as an unmounted table's state would. */
+export function makeTableStateAt(getDoc: () => Document, index: number): BlockListState {
+	const built = getDoc().children[index];
+	return makeBlockListState(() => {
+		const live = getDoc().children[index];
+		return live?.kind === 'table' ? live : built;
+	});
 }
 
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
-/** Runs the real mutate against a live children array, recording commits. */
+/** Runs the real mutate against a live children array, recording commits and landing each one's
+ *  caret on `refs`. The in-place keystroke route writes nothing: these suites drive commits. */
 export function makeCommitScopeStub(
 	children: CstNode[],
 	opts: { refs?: (BlockComponent | undefined)[]; collapse?: boolean; owner?: CstNode } = {}
@@ -142,22 +155,42 @@ export function makeCommitScopeStub(
 	const refs = opts.refs ?? [];
 	const commits: ScopeCommitArgs[] = [];
 	const sharing = createSharingState();
+	const lineEnding = () =>
+		documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' });
 	const scope: CommitScope = {
+		path: asDocPath([]),
+		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
+		caretMemory: stubCaretMemory(),
 		children: () => children,
-		refAt: (i) => refs[i],
+		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
+		idAt: (i) => `block-${i}`,
+		survivor: (i, gesture) =>
+			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], gesture),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
 			args.mutate({
-				children,
+				body: { children, owner: opts.owner, lineEnding: lineEnding() },
 				sharing,
-				ownerKind: opts.owner?.kind,
-				owner: opts.owner,
-				getPresentationMode: undefined,
-				linkRef: undefined,
+				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});
-			await args.afterTick?.();
+			const landing = args.landing?.();
+			if (landing && 'path' in landing) await scope.land(landing);
+			return true;
+		},
+		typeIn: (_i, _offset, work) => work(),
+		writeInPlace: () => ({ wrote: false }),
+		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
+		// No render window here: every ref counts as mounted.
+		async land(pos) {
+			const list = { kind: 'document' as const, prefix: '', children, suffix: '' };
+			const target = caretTargetFor(list, pos);
+			const block = target && componentAt(makeShimChildList(refs), target.leafPath);
+			if (!target || !block) return 'unresolvable';
+			block.focus(target.offset);
+			return 'placed';
 		}
 	};
 	return { scope, commits, children };
@@ -165,7 +198,7 @@ export function makeCommitScopeStub(
 
 // ── Container-shim deps ──────────────────────────────────────────────────────
 
-function paragraphListNode(childCount: number): CstNode {
+export function paragraphListNode(childCount: number): CstNode {
 	return {
 		kind: 'list',
 		leadingTrivia: '',
@@ -179,7 +212,36 @@ function paragraphListNode(childCount: number): CstNode {
 	};
 }
 
-/** The five members every container shim repeats; `over` adds a test's own. Copied by property
+/** A child list over `refs` with no render window: every ref counts as mounted. */
+export function makeShimChildList(
+	refs: (BlockComponent | undefined)[],
+	over: Partial<ChildList> = {}
+): ChildList {
+	return {
+		count: () => refs.length,
+		refs: refSlotsOver(refs),
+		windowing: { revealChild: async () => {}, isInWindow: () => true },
+		...over
+	};
+}
+
+/** Every block in `deps`'s document answers the descent with a stub, so a caret landing anywhere
+ *  is placed; `onFocus` hears each placement, named by the block's path when it was mounted. */
+export function mountEveryBlock(
+	deps: EditorActionsDeps,
+	onFocus?: (mountedAt: number[], offset: number) => void
+): void {
+	const listAt = (path: number[]): ChildList =>
+		makeShimChildList((nodeAt(deps.doc, path)?.children ?? []).map((_, i) => stubAt([...path, i])));
+	const stubAt = (path: number[]): BlockComponent =>
+		stubBlockComponent({
+			childList: () => listAt(path),
+			focus: (offset: number) => onFocus?.(path, offset)
+		});
+	deps.blockRefs.forEach((_, i) => (deps.blockRefs[i] = stubAt([i])));
+}
+
+/** The members every container shim repeats; `over` adds a test's own. Copied by property
  *  descriptor, so a getter in `over` stays live instead of freezing at call time. */
 export function makeShimDeps(
 	refs: (BlockComponent | undefined)[],
@@ -187,13 +249,11 @@ export function makeShimDeps(
 ): ContainerBlockComponentDeps {
 	const deps: ContainerBlockComponentDeps = {
 		selection: createSelectionState(),
+		reading: fixtureReading(),
 		get innerBlockRefs() {
 			return refs;
 		},
-		refSlots: refSlotsOver(refs),
-		get nodeChildrenLength() {
-			return refs.length;
-		},
+		childList: makeShimChildList(refs),
 		get node() {
 			return paragraphListNode(refs.length);
 		}
@@ -203,178 +263,137 @@ export function makeShimDeps(
 
 // ── Action-bundle stubs ──────────────────────────────────────────────────────
 
-export function makeStubBlockEdit(): BlockEditActions {
+export function makeStubBlockEdit(): Mocked<BlockEditActions> {
+	return spyEvery(stubBlockEdit());
+}
+
+/** A container's side of a focus move over `refs`, every ref mounted, handing a move off
+ *  either end to `parentFocus` the way a nested container does. */
+export function makeListFocusScope(
+	refs: (BlockComponent | undefined)[],
+	parentFocus: FocusActions,
+	parentIndex: number,
+	over: Partial<MoveFocusScope> = {}
+): MoveFocusScope {
 	return {
-		splitBlock: vi.fn(),
-		descendToBody: vi.fn(),
-		insertParagraph: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		replaceBlock: vi.fn()
+		count: () => refs.length,
+		mount: async (index) => refs[index] ?? null,
+		leave: async (step, position, options) => {
+			await delegateMoveFocus(parentFocus, parentIndex + step, position, options);
+		},
+		gapStop: () => false,
+		arrived: () => {},
+		...over
 	};
 }
 
-// revealPath resolves null: these consumers assert on moveFocus, not on the
-// resolved component, and don't model render-window mounting.
 export function makeStubFocus(): FocusActions {
-	return { moveFocus: vi.fn(), revealPath: async () => null, tryGapStop: () => false };
+	return { moveFocus: vi.fn(), tryGapStop: () => false, followArrival: () => {} };
 }
 
 export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
-		pushDebouncedCheckpoint: vi.fn(),
-		armDebouncedPause: vi.fn(),
-		nudgeReactivity: vi.fn(),
-		withUnsharedSpine: vi.fn(() => false)
+		lineEnding: () => '\n',
+		typeInLeaf: vi.fn((_path, _offset, _key, work) => work()),
+		writeLeafInPlace: vi.fn(() => ({ wrote: false as const })),
+		land: vi.fn(async () => 'placed' as const),
+		survivorAfterRemoval: vi.fn(() => null)
 	};
 }
 
 export function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
-		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
 		flushDebouncedCheckpoint: vi.fn(),
 		// Runs the write: the batch breaks are the stubbed half, the bytes are not.
 		isolateUndoEntry: vi.fn((write: () => void) => write()),
+		undoStep: vi.fn(async (_seed: unknown, run: () => Promise<unknown>) => void (await run())),
+		joinTypingBatch: vi.fn((write: () => unknown) => write()),
+		endUndoStep: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
 		commitMultiScope: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
+		commitLeafText: vi.fn(async () => ({ wrote: false })),
+		replaceBlock: vi.fn(async () => null),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		focusByPath: vi.fn()
 	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
-// ── Paste-dispatch stubs ─────────────────────────────────────────────────────
-
-/** The minimal registered state the paste router resolves for a container scope. */
-export function registerStubBlockListState(node: CstNode): void {
-	registerBlockListState(node, {
-		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
-	} as unknown as Parameters<typeof registerBlockListState>[1]);
+/** The inline range write over a document the test swaps at will and a controller it may stub:
+ *  the write reads only the document and the reading off the root. */
+export function makeInlineRange(
+	getDoc: () => Document,
+	controller: UndoController,
+	reading = fixtureReading()
+): InlineRangeCommit {
+	const deps = {
+		get doc() {
+			return getDoc();
+		},
+		reading
+	} as unknown as EditorActionsDeps;
+	return createInlineRangeCommit({ deps, controller });
 }
 
-// Mirrors the real primitive's owned-scope protocol: attach working children, run
-// mutate, rebuild scope raws.
-export function makeRunningPasteController(): UndoController & PasteCommitCoordinator {
+// ── Paste-dispatch stubs ─────────────────────────────────────────────────────
+
+/** The registered state the paste router resolves for a container scope, every child unmounted. */
+export function registerStubBlockListState(node: CstNode): void {
+	makeBlockListState(() => node);
+}
+
+/** The editor's paste coordinator over a real undo controller on `source`. Read results through
+ *  the returned `doc`: a commit replaces the nodes it touches rather than writing into them. */
+export function makePasteCommit(source: string | Document): {
+	doc: Document;
+	controller: PasteCommitCoordinator;
+	landings: readonly RecordedLanding[];
+} {
+	const { deps, landings } = makeEditorActionsDeps(source);
 	return {
-		...makeStubController(),
-		commitMultiScope: vi.fn(
-			async ({
-				scopes,
-				mutate
-			}: {
-				scopes: { node: CstNode }[];
-				mutate: (v: { children: CstNode[]; node: CstNode; sharing: SharingState }[]) => unknown;
-			}) => {
-				const sharing = createSharingState();
-				const views = scopes.map((s) => {
-					const children = [...(s.node.children ?? [])];
-					s.node.children = children;
-					return { children, node: s.node, sharing };
-				});
-				mutate(views);
-				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
-			}
-		)
-	} as unknown as UndoController & PasteCommitCoordinator;
+		doc: deps.doc,
+		controller: createPasteCoordinator(deps, createUndoController(deps)),
+		landings
+	};
 }
 
 // ── EditorActionsDeps factory ────────────────────────────────────────────────
 
-export interface EditorActionsHarness {
-	deps: EditorActionsDeps;
-	doc: Document;
-	events: EditorEvents;
-	getBlockIds: () => string[];
-	getBlockRefs: () => (BlockComponent | undefined)[];
+export interface EditorActionsHarness extends HeadlessActions {
 	/** A plain counter standing in for the editor's content version, so a test can ask whether the
 	 *  function it drove announced its write. */
 	contentVersion: () => number;
 }
 
-// `onSelectionChange` is supplied here rather than attached later, because `SelectionState` takes
-// it at construction and a test counting emissions cannot install one afterwards. This takes a
-// whole parsed `Document`, not only its children: the parse puts a trailing blank line into
-// `suffix`, and a children-only fixture loses it, and with it every block that line would become.
+/** A paste context for an editor with no `plugins` or `syntax` prop: every installed plugin and
+ *  the fixture reading, unless the fixture names its own. */
+export function pasteContext(
+	fields: Omit<PasteDispatchContext, 'reading' | 'activePlugins'> &
+		Partial<Pick<PasteDispatchContext, 'reading' | 'activePlugins'>>
+): PasteDispatchContext {
+	return { reading: fixtureReading(), activePlugins: everyInstalledPlugin, ...fields };
+}
+
+/** The published headless deps with spied collaborators and a content-version counter. */
 export function makeEditorActionsDeps(
-	source: CstNode[] | Document,
-	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}
+	source: string | CstNode[] | Document,
+	options: Omit<HeadlessActionsOptions, 'spy' | 'bumpContentVersion'> = {}
 ): EditorActionsHarness {
-	const parsed: Document | undefined = Array.isArray(source) ? undefined : source;
-	const docChildren: CstNode[] = Array.isArray(source) ? source : source.children;
-	const doc: Document = {
-		kind: 'document',
-		prefix: parsed?.prefix ?? '',
-		children: docChildren,
-		suffix: parsed?.suffix ?? ''
-	};
-	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
-	const events = createEditorEvents();
 	let contentVersion = 0;
-	const deps: EditorActionsDeps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		blockRefSlots: refSlotsOver(blockRefs),
-		setDoc: (v: Document) => {
-			Object.assign(doc, v);
-		},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
-		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			replaceRefs(blockRefs, v);
-		},
+	const headless = createHeadlessActions(source, {
+		...options,
+		spy: spyEvery,
 		bumpContentVersion: () => {
 			contentVersion++;
-		},
-		undoManager: createUndoManager(),
-		sharing: createSharingState(),
-		stickyColumn: makeStickyColumn(),
-		edgeAffinity: makeEdgeAffinity(),
-		// The document getter turns on the production endpoint normalization; without it a deep
-		// table path is stored raw and every dispatch test sees endpoints production never makes.
-		selectionState: createSelectionState({
-			getDoc: () => doc,
-			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
-		}),
-		getBlockElByPath: () => null,
-		// No render window in unit tests: every block counts as mounted, so scrolling one into
-		// view takes the production fast path, reading the live refs and descending if nested.
-		revealPath: async (path: number[]) => {
-			if (path.length === 0) return null;
-			const ref = blockRefs[path[0]];
-			if (!ref) return null;
-			if (path.length === 1) return ref;
-			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
-		},
-		events,
-		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
-	};
-	return {
-		deps,
-		doc,
-		events,
-		getBlockIds: () => blockIds,
-		getBlockRefs: () => blockRefs,
-		contentVersion: () => contentVersion
-	};
+		}
+	});
+	return { ...headless, contentVersion: () => contentVersion };
 }
 
 // ── Top-level action-bundle harness ──────────────────────────────────────────
@@ -426,7 +445,6 @@ export function makeListContextAt(
 ): ListContextHarness {
 	const getNode = () => deps.doc.children[listIndex];
 	const state = makeBlockListState(getNode, opts.ids);
-	registerBlockListState(getNode(), state);
 	const controller = opts.controller ?? createUndoController(deps);
 	const listContext = createListContext({
 		scope: {
@@ -440,13 +458,13 @@ export function makeListContextAt(
 				return [listIndex];
 			}
 		},
+		getLineEnding: () => documentLineEnding(deps.doc),
 		state,
 		parentBlockEdit: opts.parentBlockEdit ?? makeStubBlockEdit(),
 		parentFocus: opts.parentFocus ?? makeStubFocus(),
 		parentListContext: opts.parentListContext,
 		controller,
-		getPresentationMode: deps.getPresentationMode,
-		linkRef: deps.linkRef
+		reading: deps.reading
 	});
 	return { listContext, state, getNode, controller };
 }
@@ -458,10 +476,8 @@ export interface NestedActionsDepsInput {
 	getNode: () => CstNode;
 	path: number[];
 	parent: NestedActionsDeps['parent'];
-	stickyColumn?: StickyColumnState;
-	grammar?: GrammarView;
-	getPresentationMode?: NestedActionsDeps['getPresentationMode'];
-	linkRef?: NestedActionsDeps['linkRef'];
+	caretMemory?: NestedActionsDeps['caretMemory'];
+	reading?: NestedActionsDeps['reading'];
 }
 
 // Every call site routes its input through here, so the shape with the live getters is built
@@ -475,11 +491,9 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 			},
 			path: input.path
 		},
-		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
-		// Optional field: omit when absent rather than set undefined (exactOptionalPropertyTypes-safe).
-		...(input.grammar ? { grammar: input.grammar } : {}),
-		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef,
+		caretMemory: input.caretMemory ?? makeCaretMemory(),
+		reading: input.reading ?? fixtureReading(),
+		stamps: createDocumentStamps(),
 		parent: input.parent
 	};
 }
@@ -493,6 +507,8 @@ export interface NestedHarness {
 	bundle: NestedActionsBundle;
 	getNode: () => CstNode;
 	contentVersion: () => number;
+	/** Every leaf the editor's caret landing resolved to, in order. */
+	landings: readonly RecordedLanding[];
 }
 
 export interface NestedHarnessOptions {
@@ -501,16 +517,14 @@ export interface NestedHarnessOptions {
 	overrides?: NestedActionsOverrideFactory;
 	/** Wire the standard list-item overrides (unwrap/merge/delete) onto the bundle. */
 	listOverrides?: boolean;
-	/** Take the id-mirroring stub instead of the reactive state, for a driver with no effect
-	 *  root to own the production state's `$effect` (the jsdom gesture fuzzer). */
-	stubState?: boolean;
 	grammar?: GrammarView;
 	presentationMode?: PresentationMode;
+	/** One caret memory for the root and the container, as the editor hands both the same one. */
+	caretMemory?: CaretMemory;
 }
 
-// Full nested-container setup over `source` (parsed) or an explicit node list. The
-// state is the production createBlockListState (reactive, self-registering), so the
-// container under test has a mounted container's shape.
+// Full nested-container setup over `source` (parsed) or an explicit node list, on the
+// production block-list state, so the container under test has a mounted container's shape.
 export function makeNestedHarness(
 	input: string | CstNode[] | Document,
 	opts: NestedHarnessOptions = {}
@@ -518,15 +532,24 @@ export function makeNestedHarness(
 	const source = typeof input === 'string' ? parse(input) : input;
 	const nodes = Array.isArray(source) ? source : source.children;
 	const index = opts.index ?? nodes.length - 1;
-	const { deps, events, contentVersion } = makeEditorActionsDeps(
+	// One reading for the root and the container, as the editor hands both the same one.
+	const reading =
+		opts.grammar || opts.presentationMode
+			? fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, opts.presentationMode)
+			: undefined;
+	const { deps, events, contentVersion, landings } = makeEditorActionsDeps(
 		source,
-		opts.presentationMode ? { presentationMode: opts.presentationMode } : {}
+		reading ? { reading } : {}
 	);
+	if (opts.caretMemory) deps.caretMemory = opts.caretMemory;
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
-	const state = opts.stubState ? makeBlockListState(getNode) : createBlockListState(getNode);
-	if (opts.stubState) registerBlockListState(getNode(), state);
+	const state = makeBlockListState(getNode);
+	// The editor's descent in miniature: a landing inside this container reaches its own refs.
+	deps.blockRefs[index] = spyEvery(
+		stubBlockComponent({ childList: () => makeShimChildList(state.innerBlockRefs) })
+	);
 	const overrides = opts.listOverrides
 		? createListOverrides({
 				scope: {
@@ -549,11 +572,119 @@ export function makeNestedHarness(
 			index,
 			getNode,
 			path: [index],
-			grammar: opts.grammar,
-			getPresentationMode: deps.getPresentationMode,
+			reading: deps.reading,
+			caretMemory: opts.caretMemory,
 			parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
 		}),
 		overrides
 	);
-	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
+	return {
+		deps,
+		events,
+		controller,
+		containerEdit,
+		state,
+		bundle,
+		getNode,
+		contentVersion,
+		landings
+	};
+}
+
+/** The container at `containerPath`, at any depth, over the real root: its node is read live
+ *  through the document, since a commit replaces every ancestor it copies. */
+export function makeContainerHarness(
+	source: string,
+	containerPath: number[],
+	options: { reading?: Reading } = {}
+) {
+	const harness = makeEditorActionsDeps(parse(source), options);
+	const controller = createUndoController(harness.deps);
+	const focus = makeStubFocus();
+	const { bundle, state, getNode } = containerBundleOver(
+		harness.deps,
+		controller,
+		containerPath,
+		focus
+	);
+	const edits: EditEvent[] = [];
+	harness.events.on('edit', (e) => edits.push(e));
+	return { ...harness, controller, bundle, state, getNode, focus, edits };
+}
+
+/** The action bundle of the container at `containerPath` over deps a caller already holds, so
+ *  one document takes writes at the top level and inside a container alike. */
+export function containerBundleOver(
+	deps: EditorActionsDeps,
+	controller: UndoController,
+	containerPath: number[],
+	focus: FocusActions = makeStubFocus()
+) {
+	const getNode = () => nodeAt(deps.doc, containerPath) as CstNode;
+	const state = makeBlockListState(getNode);
+	const bundle = createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({
+			index: containerPath[containerPath.length - 1],
+			getNode,
+			path: containerPath,
+			reading: deps.reading,
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus,
+				containerEdit: createContainerEditActions(deps, controller)
+			}
+		})
+	);
+	return { bundle, state, getNode };
+}
+
+/** The action bundle of the first table's body row `row` (the first by default): the one a
+ *  cell in that row writes through, over a real commit path. */
+export function mountBodyRow(source: string, row = 1) {
+	const { deps } = makeEditorActionsDeps(parse(source).children);
+	const controller = createUndoController(deps);
+	const getNode = () => deps.doc.children[0].children![row];
+	const bundle = createStandardNestedActions(
+		makeBlockListState(getNode),
+		makeNestedActionsDeps({
+			index: row,
+			getNode,
+			path: [0, row],
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit: createContainerEditActions(deps, controller)
+			}
+		})
+	);
+	return { deps, controller, blockEdit: bundle.blockEdit };
+}
+
+/** The caret an admitted write reports; throws when the reading-mode check refused the write. */
+export function admittedCaret(write: ContentWrite): number {
+	if (!write.admitted) throw new Error('the write was refused, so it has no caret');
+	return write.caret;
+}
+
+/** One `updateBlockContent` call as a recording stub saw it. */
+export interface RecordedWrite {
+	index: number;
+	raw: string;
+	mode: WriteMode;
+	before: number;
+	after: number | undefined;
+}
+
+/** An `updateBlockContent` that stores nothing: it reports each call and hands back the caret it
+ *  was asked for, which is what the write returns when no rule rewrites the bytes. */
+export function recordingWrite(
+	record: (write: RecordedWrite) => void = () => {}
+): (
+	...args: Parameters<BlockEditActions['updateBlockContent']>
+) => ReturnType<typeof withStoredCaret> {
+	return (index, raw, mode, before, after) => {
+		record({ index, raw, mode, before, after });
+		return withStoredCaret(Promise.resolve(true), after ?? before);
+	};
 }

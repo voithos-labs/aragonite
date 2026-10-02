@@ -31,6 +31,17 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		expect(await editor.bridge.getSource()).toMatch(/^> Second/m);
 	});
 
+	test('the blank quote line between the first two paragraphs stays a blank line', async () => {
+		await editor.loadContent('> A\n>\n> B\n');
+		const firstInner = editor.getBlock(0).locator('[contenteditable="true"]').first();
+		await firstInner.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceEquals('A\n\n> B\n');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('nested blockquote: Backspace inside inner lifts content one level', async () => {
 		await editor.loadContent('> > Deep\n');
 		const deepEditable = editor.page.locator(

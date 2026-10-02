@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { detailsPlugin, DETAILS } from '$lib/plugins/details';
@@ -22,9 +21,7 @@ import SHOWCASE_DOCUMENT from '../../../routes/showcase-content.md?raw';
  * page load installs all the bundled plugins.
  */
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
-	// The parser never renders, so no-op renderers satisfy the required options.
+beforeEach(() => {
 	installPlugins([
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -32,13 +29,11 @@ beforeAll(() => {
 		footnotesPlugin(),
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		mermaidPlugin({ renderer: async () => '<svg />' }),
+		latexPlugin(),
+		mermaidPlugin(),
 		parrotPlugin()
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('showcase document', () => {
 	// Without this the round trip below would pass with every install having silently failed:

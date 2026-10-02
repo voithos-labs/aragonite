@@ -8,7 +8,8 @@
 
 import type { DirectiveTier, DirectiveFence } from './grammar';
 import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } from '../nodes';
-import { registerOnce } from '../../schema/register-once';
+import type { GrammarView } from '../../schema/block-openers';
+import { createPluginRegistry } from '../../schema/plugin-registry';
 
 export interface ParsedDirective {
 	fence: DirectiveFence;
@@ -19,7 +20,7 @@ export interface ParsedDirective {
 	raw: string;
 	closerColonCount: number;
 	closerNewline: boolean;
-	/** Opener line ending; a factory stores it so a rebuild reproduces CRLF chrome lines. */
+	/** Opener line ending; a factory stores it so a rebuild keeps CRLF fence lines. */
 	lineEnding: string;
 }
 
@@ -29,7 +30,10 @@ export interface DirectiveDefinition {
 	fromDirective?(parsed: ParsedDirective): CstNode | InlineNode;
 }
 
-const definitions = new Map<string, DirectiveDefinition>();
+const definitions = createPluginRegistry<string, DirectiveDefinition>({
+	label: 'registerDirective',
+	isBuiltin: () => false
+});
 
 const keyOf = (tier: DirectiveTier, name: string): string => `${tier}:${name}`;
 
@@ -52,18 +56,21 @@ export function registerDirective(
 	}
 
 	const key = keyOf(tier, name);
-	registerOnce(
-		definitions.has(key),
-		() => definitions.set(key, def),
+	definitions.register(
+		key,
+		def,
 		`registerDirective: "${key}" is already registered. Directives are register-once.`
 	);
 }
 
+/** The name's definition under an editor's grammar; a name its plugin registered is absent where
+ *  the editor left that plugin out, so the fence reads as the generic directive. */
 export function resolveDirective(
 	tier: DirectiveTier,
-	name: string
+	name: string,
+	grammar: GrammarView
 ): DirectiveDefinition | undefined {
-	return definitions.get(keyOf(tier, name));
+	return definitions.get(keyOf(tier, name), grammar.activation);
 }
 
 /**
@@ -72,9 +79,10 @@ export function resolveDirective(
  */
 export function resolveBlockDirectiveFactory(
 	tier: 'leaf' | 'container',
-	name: string
+	name: string,
+	grammar: GrammarView
 ): ((parsed: ParsedDirective) => CstNode) | undefined {
-	const factory = definitions.get(keyOf(tier, name))?.fromDirective;
+	const factory = resolveDirective(tier, name, grammar)?.fromDirective;
 	return factory as ((parsed: ParsedDirective) => CstNode) | undefined;
 }
 
@@ -87,12 +95,5 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
  * so checking the opener registry alone reads every directive kind as unrecognizable.
  */
 export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
-	for (const def of definitions.values()) {
-		if (def.kind === kind) return true;
-	}
-	return false;
-}
-
-export function __resetDirectiveRegistryForTests(): void {
-	definitions.clear();
+	return definitions.records().some(({ value }) => value.kind === kind);
 }

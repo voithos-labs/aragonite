@@ -12,6 +12,10 @@ was only ever checked at its destination; the stop in between was invisible to t
 two ways a vertical arrow enters a block, the per-block landing and a container's column entry,
 each had their own answer for it.
 
+Miss-analysis (#574): every image-only paragraph here fit on one line, so the first-line check was
+never asked about a second line in a block with no text, where it read the missing text as an
+empty block and let ArrowUp leave from anywhere.
+
 ## Happy paths
 
 - ArrowUp from the start of the paragraph below a standalone image selects the image; a second
@@ -29,3 +33,5 @@ each had their own answer for it.
 
 - For an inline (mid-paragraph) image, ArrowUp from the line after the image lands at the line
   before it: the surrounding paragraph has text positions, so nothing here applies.
+- Two adjacent images wrapped onto two lines, caret at the paragraph's end beside the second:
+  ArrowUp stays in the paragraph, since the first line is still above it.

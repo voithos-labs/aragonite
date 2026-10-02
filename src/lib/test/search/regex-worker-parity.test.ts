@@ -26,7 +26,7 @@ function runWorkerSource(texts: string[], pattern: string, flags: string): Worke
 	return reply!;
 }
 
-// Shapes that historically separate two implementations of a match loop.
+// Shapes where two implementations of a match loop tend to disagree.
 const CASES: { name: string; texts: string[]; pattern: string; flags: string }[] = [
 	{ name: 'plain repeated match', texts: ['ab ab ab'], pattern: 'ab', flags: 'g' },
 	{ name: 'zero-width match at every boundary', texts: ['abc'], pattern: 'x*', flags: 'g' },

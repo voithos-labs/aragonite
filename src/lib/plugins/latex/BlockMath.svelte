@@ -7,11 +7,8 @@
 <script lang="ts">
 	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
 	// this component owns only how the render and the source are laid out.
-	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
-	// Defined here like the other labels: bundled plugins import only the public barrel.
-	// The three ways the source and its preview can share the block while editing (see
-	// `math-layout.ts`); the host's plugin options pick the starting one. The toggle cycles
-	// through them, and its label names the layout it will switch to.
+	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	// The layout toggle cycles through these, and its label names the layout it switches to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
 		split: 'stacked',
@@ -23,17 +20,13 @@
 		stacked: 'Preview below the source',
 		source: 'Source only'
 	};
-	import { renderDisplayMath } from './math-renderer';
+	import { mathSlot } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
-	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
+	import type { MathBlockLayout } from './math-layout';
+	import type { LatexEditorOptions } from './register';
 
-	let {
-		node,
-		index,
-		myPath = [],
-		blockLayout = 'split'
-	}: { node: NodeView; index: number; myPath?: number[]; blockLayout?: MathBlockLayout } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
@@ -64,24 +57,18 @@
 		}
 	});
 
-	// While editing, the preview sits beside the editable element that holds focus: its
-	// scrollbar (a wide equation overflows the half-width card) must not take that focus,
-	// because losing it closes the source. Only while editing: the click that opens the source
-	// is a click made while it is closed.
+	// A press on the preview's scrollbar while editing must not take focus from the source,
+	// because losing focus closes the source.
 	function keepSourceFocus(e: MouseEvent): void {
 		if (revealed) e.preventDefault();
 	}
 
-	// Per block and per session: someone who changes the layout is asking about this one
-	// equation while they edit it, not setting a preference for the document. The starting
-	// layout comes from this editor's plugin options, else the factory's default.
-	// svelte-ignore state_referenced_locally
-	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
+	// Per block and per session, starting from this editor's options.
+	let layout = $state<MathLayout>(leaf.getOptions<LatexEditorOptions>().blockLayout);
 	const previewOpen = $derived(layout !== 'source');
 
-	// Edits the block applies itself report through `onSourceEdit`; this is the browser's own
-	// path (an IME composition committing), where the highlighting goes stale until repainted.
-	// The block's handler runs first so the IME bookkeeping it owns is untouched.
+	// The browser's own edits (an IME composition committing) skip `onSourceEdit`, so the
+	// highlighting is repainted here, after the leaf's handler has done its IME bookkeeping.
 	function onSourceInput(e: Event): void {
 		leaf.surfaceProps.oninput();
 		if ((e as InputEvent).isComposing) return;
@@ -91,15 +78,16 @@
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
-	// Re-runs on every remount of the render div and on any source change; the document-wide
-	// cache clones a stored node, so a repeated formula is cheap.
+	// Re-runs on a remount of the render div, a source change and a theme switch; the
+	// document-wide cache clones a stored node, so a repeated formula is cheap.
 	$effect(() => {
 		if (!renderEl) return;
 		// Runs while the source is showing too: the side-by-side layout keeps a live preview, so
 		// the equation re-renders as it is typed rather than only when the source closes.
 		const text = draft ?? leaf.sourceText;
 		const source = mathDisplaySource(text);
-		renderEl.replaceChildren(renderDisplayMath(source).dom);
+		const theme = leaf.getTheme();
+		renderEl.replaceChildren(mathSlot.render({ source, display: true }, { theme }).dom);
 		// Where a click on the glyphs puts the caret: `caretTargetAtPoint` on the kind descriptor
 		// sees only the rendered element and has no other route to the bytes behind it.
 		const body = mathBodySpan(text);
@@ -112,40 +100,11 @@
 		renderEl.dataset.renderCount = String(renderCount);
 	});
 
-	// ── BlockComponent interface ────────────────────────────────────────────────
-
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
-	export const insertMarkdown = leaf.insertMarkdown;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		getSelectedText,
-		setSelection,
-		measurePartialRects,
-		runCommand,
-		insertMarkdown
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
-<!-- Editing shows the source and the render side by side rather than swapping one for the
-	other: swapping re-flows the whole document on every click, and a preview that appears only
-	after you stop editing is the one you needed while typing. Each half is a card, and the
-	toggle button sits in the top-right of whichever card is showing. -->
+<!-- While editing, the source and the live preview are two cards; the toggle sits in the
+	top-right of whichever card is showing. -->
 <div
 	class="math-block"
 	class:math-block-editing={revealed}
@@ -233,18 +192,16 @@
 		gap: 6px;
 	}
 
-	/* Stacked: the source above its preview, each the block's full width, for an equation too
-	   long to read at half width. Not the default: it grows the block and reshuffles the page. */
+	/* Stacked: the source above its preview, each full width, for an equation too long for half. */
 	.math-block-stacked {
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: 6px;
 	}
 
-	/* The equation's cards are boxes like a code block's, and keep the same distance from their
-	   neighbours (editor.css, fencedCode). Padding, not margin: block heights are measured from
-	   the host's box. */
-	:global(.block-host[data-block-kind='mathBlock']) {
+	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
+	   padding, not margin, because block heights are measured from the host's box. */
+	:global(.block-host):has(> .math-block) {
 		padding-block: 6px;
 	}
 
@@ -268,15 +225,11 @@
 	.math-block-source {
 		outline: none;
 		padding: 10px 12px;
-		/* Wraps rather than scrolling sideways. The card is half the block's width, so any real
-		   formula overflows it, and a horizontal scrollbar hides the very text being edited.
-		   `pre-wrap` keeps the author's own line breaks and wraps only what is too long;
-		   LaTeX has no indentation for wrapping to destroy. */
+		/* Wraps rather than scrolling sideways, so the half-width card never hides the text
+		   being edited; `pre-wrap` keeps the author's own line breaks. */
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		/* Left-aligned, like every other editable source area. Centring gives each line a
-		   different starting x, which is what makes multi-line LaTeX unreadable; the render is
-		   the half that is centred, the way Overleaf and friends pair them. */
+		/* Left-aligned like every editable source area; only the render is centred. */
 		text-align: left;
 		background: transparent;
 		border-color: transparent;
@@ -329,7 +282,7 @@
 		border: none;
 		border-radius: 5px;
 		background: transparent;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 120ms ease-out;

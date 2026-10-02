@@ -1,26 +1,27 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_THREE_ROW } from './table-fixtures';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates.
-afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
+	const doc = parse(source);
 	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, caret: result.collapsedCaret };
+	return { doc: result.newDoc, caret: result.caret(result.newDoc) };
 }
 
 describe('rangeDelete: across two top-level tables (char-addressable caret)', () => {
@@ -161,17 +162,14 @@ describe('rangeDelete: across two top-level tables (char-addressable caret)', ()
 		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
 	});
 
-	it('both empty with no surrounding blocks: caret lands in a materialized empty paragraph', () => {
-		// The document is only the two tables; clearing both empties it. As the text case does,
-		// one empty paragraph is created at [0].
+	it('both empty with no surrounding blocks: no block and no caret, for the commit to fill', () => {
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 5 }
 		);
 
-		expect(doc.children).toHaveLength(1);
-		expect(doc.children[0].kind).toBe('paragraph');
-		expect(caret).toEqual({ path: [0], offset: 0 });
+		expect(doc.children).toEqual([]);
+		expect(caret).toBeNull();
 	});
 });

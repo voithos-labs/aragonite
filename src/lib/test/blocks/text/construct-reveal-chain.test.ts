@@ -2,6 +2,7 @@
 // asks to show. Inclusive on both edges, because the markers must appear before the arrow step
 // that would land in them, and the whole chain for nested constructs. The DOM side is
 // construct-reveal-trigger.test.ts.
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getInlineContent } from '$lib/core/inline/inline-cache';
@@ -10,7 +11,10 @@ import { constructChainAtOffset } from '$lib/components/blocks/text/construct-re
 
 function chainKinds(md: string, offset: number): string[] {
 	const node = parse(md + '\n').children[0];
-	return constructChainAtOffset(getInlineContent(node), offset).map((n) => n.kind);
+	return constructChainAtOffset(
+		getInlineContent(node, undefined, undefined, defaultGrammarView),
+		offset
+	).map((n) => n.kind);
 }
 
 describe('constructChainAtOffset', () => {
@@ -34,7 +38,7 @@ describe('constructChainAtOffset', () => {
 		// Showing markers is deliberately more inclusive than the boundary lookup: at offset 7 the
 		// lookup resolves the following text node, but the arrow step from 7 goes into marker text.
 		const node = parse('a **b** c\n').children[0];
-		const inlines = getInlineContent(node);
+		const inlines = getInlineContent(node, undefined, undefined, defaultGrammarView);
 		expect(findNodeAtOffset(inlines, 7)?.node.kind).toBe('text');
 		expect(constructChainAtOffset(inlines, 7).map((n) => n.kind)).toEqual(['strong']);
 	});

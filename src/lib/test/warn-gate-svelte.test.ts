@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the callback read only `devWarn`, so Svelte's own runtime warnings, which
-// print through `console.warn` and nowhere else, were invisible to every unit test.
+// Miss-analysis: the gate read only `devWarn`, so Svelte's `console.warn` warnings went unseen.
 
 import { describe, it, expect } from 'vitest';
 import { takeDevWarns, allowDevWarns } from './support/warn-gate';

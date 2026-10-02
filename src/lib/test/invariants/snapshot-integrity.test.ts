@@ -25,15 +25,31 @@ function topEntry(deps: EditorActionsDeps) {
 describe('checkSnapshotIntegrity (G1.9)', () => {
 	it('fires when serialized bytes are written through a shared node', () => {
 		const { deps, controller } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		// Missed copy-path-on-write: the live ref and the entry share this node.
 		deps.doc.children[0].raw = 'corrupted\n';
 		expect(checkSnapshotIntegrity(topEntry(deps))?.code).toBe('snapshot-integrity');
 	});
 
+	// Miss-analysis: the digest read top-level bytes only, and a table row or a quote's paragraph
+	// keeps bytes of its own that the next rebuild after an undo reads back.
+	it.each([
+		['a table row', '|a|\n|-|\n|1|\n', [0, 1], '|  1  |\n'],
+		['a table cell', '|a|\n|-|\n|1|\n', [0, 1, 0], '2'],
+		['a paragraph inside a quote', '> a\n', [0, 0], 'b\n'],
+		['an item inside a list inside a quote', '> - a\n', [0, 0, 0], '- b\n']
+	])('fires when %s is written through', (_name, source, path, raw) => {
+		const { deps, controller } = makeHarness(source);
+		deps.undoManager.push(controller.captureCurrentState());
+		let node = deps.doc.children[path[0]];
+		for (const index of path.slice(1)) node = node.children![index];
+		node.raw = raw;
+		expect(checkSnapshotIntegrity(topEntry(deps))?.code).toBe('snapshot-integrity');
+	});
+
 	it('passes across a correctly unshared mutation sequence', async () => {
 		const { deps, blockEdit } = makeHarness('hello\n\nworld\n');
-		await blockEdit.updateBlockContent(0, 'hello more\n', 0);
+		await blockEdit.updateBlockContent(0, 'hello more\n', 'authored', 0);
 		await blockEdit.splitBlock(1, 2);
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo.length).toBeGreaterThan(0);

@@ -32,9 +32,8 @@ test.describe('gap caret arrival', () => {
 	const proxyHoldsFocus = () =>
 		editor.page.evaluate(() => !!document.activeElement?.closest('[data-gap-caret]'));
 
-	/** How many visual lines a fence opener takes is up to the browser, not the editor, so the
-	 *  loop is bounded rather than counted. Four is twice the most this fixture can need: one
-	 *  press onto the opener's own line, one more to leave the block. */
+	/** How many visual lines a fence opener takes is up to the browser, so the loop is bounded: four
+	 *  is twice what this fixture can need. */
 	const pressUpToBoundary = async () => {
 		for (let press = 0; press < 4; press++) {
 			await editor.page.keyboard.press('ArrowUp');
@@ -67,7 +66,7 @@ test.describe('gap caret arrival', () => {
 
 	test('ArrowDown out of the last table cell puts the caret at the boundary, and again enters the fence', async () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
@@ -162,13 +161,13 @@ test.describe('gap caret arrival', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 
-		// The band search clamps into block 0's box, so the offset is the click's own x: what
-		// this pins is the block it landed in, not where inside it.
+		// The band search clamps into block 0's box, so the offset is the click's own x: this checks
+		// the block it landed in, not where inside it.
 		expect((await editor.bridge.getSource()).split('\n')[0]).toContain('X');
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
 
-	// G2.12: a caret placement ends a live cross-block range, and the gap is a caret.
+	// A caret placement ends a live cross-block range, and the gap is a caret (G2.12).
 	test('a gap-landing click ends a live cross-block range in the same gesture', async () => {
 		await editor.loadContent(LEADING_TABLE);
 		// From the trailing paragraph: a select-all started in a table cell leaves a live
@@ -228,8 +227,8 @@ test.describe('gap caret in reading mode', () => {
 		await editor.loadContent(LEADING_TABLE);
 	});
 
-	// The click is the case that tells them apart here: reading mode focuses no block, so no
-	// traversal runs to check. That branch is unit-pinned (`editor-actions/focus`).
+	// Reading mode focuses no block, so no traversal runs and the click tells the cases apart; that
+	// branch has a unit test (`editor-actions/focus`).
 	test('a click in an eligible band puts the caret nothing', async () => {
 		const point = await leadingPaddingPoint(editor);
 

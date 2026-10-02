@@ -7,10 +7,10 @@
 
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../action-contracts';
-import { isGapSelection, type UndoEntry } from '../../undo/types';
+import type { UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { restoreGapCaret, restoreSelection } from '../../selection/selection-restore';
+import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
 export function createHistoryActions(
@@ -24,44 +24,44 @@ export function createHistoryActions(
 		});
 		// Before the swap itself, so a caret placement waiting across it sees the new counter
 		// whichever side of the document write its scroll-into-view finishes on.
-		controller.noteHistorySwap();
+		deps.caretLanding.noteTreeSwap();
 		deps.sharing.markSnapshotTaken();
+		// The standing range addresses the outgoing tree; read during the render below, its path
+		// could name another block in the incoming one.
+		deps.selectionState.dropForDocumentSwap();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
+		// Before the awaits below, so a host that loads another document meanwhile never hears
+		// this undo after its own swap.
+		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
-		const restoreDeps = {
-			getDoc: () => deps.doc,
-			selectionState: deps.selectionState,
-			getBlockElByPath: deps.getBlockElByPath,
-			// Mount, not scroll into view: a history swap must not move the viewport for
-			// a target already on screen.
-			revealTarget: async (path: number[]) => (await deps.revealPath(path)) !== null
-		};
-		const outcome = isGapSelection(entry.selection)
-			? await restoreGapCaret(entry.selection.gapCaret, restoreDeps)
-			: await restoreSelection(entry.selection, restoreDeps);
-		// An entry can name an index its own snapshot never had (append-past-end records the
-		// one-past-the-end path as its fallback). The restore declines without side effects, so
-		// clearing the selection is decided here, the one place that knows the document changed.
-		if (outcome === 'unresolvable') deps.selectionState.clear();
-		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
+		// Into view, not held: a caret the undo put off screen comes to the nearest edge, and one
+		// already on screen stays where it is.
+		const outcome = await deps.caretLanding.restore(entry.selection, { reveal: 'into-view' });
+		// An entry can name an index its own snapshot never had, and the restore then declines. Clear
+		// here and announce it, since the swap already dropped the range without a notification.
+		if (outcome === 'unresolvable') {
+			deps.selectionState.batch(() => {
+				deps.selectionState.clear();
+				deps.selectionState.announceSelection();
+			});
+		}
 	}
 
-	// Flush, not discard: `interrupt` clears the debounce timer so it cannot push a stale
-	// snapshot after the stack moves, and emits the batch's pending `input` event so its
-	// bytes are not dropped from the edit events.
+	// Ends the typing batch, so the next keystroke snapshots the restored tree rather than joining
+	// an entry that has moved to the other stack.
 	function beginHistorySwap(): void {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();
 	}
 
 	return {
 		async requestUndo(): Promise<void> {
+			if (!admitsWrite(deps, 'undo')) return;
 			beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
@@ -72,6 +72,7 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
+			if (!admitsWrite(deps, 'redo')) return;
 			beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());

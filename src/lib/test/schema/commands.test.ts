@@ -6,14 +6,15 @@ import {
 	resolveKindBinding
 } from '$lib/schema/commands';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
+import { commandContext } from '../support/command-context';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {
 		const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
-		getCommand('history.undo')!({ history, activation: everyInstalledPlugin });
-		getCommand('history.redo')!({ history, activation: everyInstalledPlugin });
+		getCommand('history.undo', everyInstalledPlugin)!(commandContext({ history }));
+		getCommand('history.redo', everyInstalledPlugin)!(commandContext({ history }));
 		expect(history.requestUndo).toHaveBeenCalledOnce();
 		expect(history.requestRedo).toHaveBeenCalledOnce();
 	});
@@ -25,18 +26,13 @@ describe('global command registry', () => {
 });
 
 describe('dispatchKeyCommand', () => {
-	const ctx = {
-		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
+	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
+	const ctx = commandContext({ history });
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Z', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(ctx.history.requestUndo).toHaveBeenCalled();
+		expect(history.requestUndo).toHaveBeenCalled();
 	});
 	it('routes an unmatched chord to neither and returns false', () => {
 		const runCommand = vi.fn(() => true);
@@ -83,8 +79,8 @@ describe('resolveBinding order', () => {
 });
 
 describe('resolveKindBinding (no global fallthrough)', () => {
-	// Container bubble handlers resolve by kind only, so they never re-handle global commands the
-	// focused leaf already handles, which is the double-undo regression.
+	// Container bubble handlers resolve by kind only, so a global command the focused leaf already
+	// ran, such as undo, never runs a second time.
 	it('resolves a kind binding but never a global one', () => {
 		expect(resolveKindBinding('Enter', 'paragraph')?.command).toBe('block.split');
 		expect(resolveKindBinding('Tab', 'listItem')?.command).toBe('list.indent');
@@ -120,8 +116,7 @@ describe('fencedCode keymap', () => {
 
 describe('tableCell keymap: the table’s whole keyboard vocabulary', () => {
 	// The cell holds the caret, so every table chord binds on this kind: a `table`-scoped override
-	// would apply to a block that never sees a keystroke. The behavior is pinned in
-	// blocks/table/cell-table-chords.test.ts.
+	// would apply to a block that never sees a keystroke.
 	const TABLE_CELL_BINDINGS = [
 		['Mod+Enter', 'table.insertRowBelow'],
 		['Mod+Shift+Enter', 'table.insertRowAbove'],
@@ -154,8 +149,8 @@ describe('tableCell keymap: the table’s whole keyboard vocabulary', () => {
 	});
 
 	it('leaves the bare arrows and Mod+A unbound: both depend on the caret’s position', () => {
-		// Cell navigation and the three-stage select-all read where the caret sits inside
-		// the cell, which a chord cannot express, so they stay with the keydown plan.
+		// Cell navigation and the two-press select-all read where the caret sits inside
+		// the cell, which a chord cannot express, so they stay with the keydown handler.
 		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
 			expect(resolveBinding(chord, 'tableCell', undefined, everyInstalledPlugin), chord).toBeNull();
 		}
@@ -195,6 +190,17 @@ describe('listItem keymap', () => {
 		expect(resolveBinding('Shift+Tab', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
 			'list.unindent'
 		);
+	});
+
+	// Kind-scoped, so the table cell's own Mod+Enter (insert row) keeps its meaning.
+	it('resolves Mod+Enter to the task toggle on a list item and to a row insert in a cell', () => {
+		expect(resolveBinding('Mod+Enter', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
+			'list.toggleTask'
+		);
+		expect(resolveBinding('Mod+Enter', 'tableCell', undefined, everyInstalledPlugin)?.command).toBe(
+			'table.insertRowBelow'
+		);
+		expect(resolveBinding('Mod+Enter', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 });
 

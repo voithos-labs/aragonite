@@ -1,22 +1,19 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import {
-	registerDefaultContextActions,
-	__resetDefaultContextActionsForTests
-} from '$lib/components/menu/default-context-actions';
-import { __resetBlockContextActionsForTests } from '$lib/schema/context-actions';
+import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
 import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
 import { parse } from '$lib/core/parser';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
-// Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
-// without the insert flyout, or nothing) was pinned only through Playwright, one target per spec.
+// Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	__resetBlockContextActionsForTests();
-	__resetDefaultContextActionsForTests();
 	registerDefaultContextActions();
 });
 
@@ -47,12 +44,10 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
-		deleteBlock: vi.fn(async () => {}),
-		updateBlockContent: vi.fn(async () => {}),
-		insertParagraph: vi.fn(async () => {})
+		deleteBlock: vi.fn(async () => true)
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
-	const insertMarkdown = vi.fn(() => true);
+	const insertMarkdown = vi.fn(async () => true);
 	const menus = createRootMenus({
 		get editorEl() {
 			return root;
@@ -63,8 +58,13 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		getDoc: () => doc,
 		isHostChrome: (node) => !!node && header.contains(node),
 		blockEdit,
+		replaceRaw: vi.fn(async () => {}),
 		placeCaretAtPoint,
 		insertMarkdown,
+		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
+		activation: everyInstalledPlugin,
+		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
@@ -113,7 +113,8 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.ids()).toContain('block.remove');
 		h.menu()!.pick('block.remove');
 		expect(h.menu()).toBeNull();
-		await vi.waitFor(() => expect(h.blockEdit.deleteBlock).toHaveBeenCalledWith(0));
+		// No key, so the caret goes to the end of the block above.
+		await vi.waitFor(() => expect(h.blockEdit.deleteBlock).toHaveBeenCalledWith(0, 'keyless'));
 	});
 
 	it('prose places the caret at the press and gets the clipboard rows plus the insert flyout', async () => {
@@ -130,10 +131,9 @@ describe('editor-root menus: the right-click', () => {
 		]);
 		// No editable holds focus, so there is nothing to cut or copy.
 		expect(h.menu()!.items[0].disabled).toBe(true);
-		// A flyout pick creates the sibling first, then hands the snippet to whatever it focused.
+		// A flyout pick inserts below the block the press placed the caret in.
 		h.menu()!.pick('bullet');
-		await vi.waitFor(() => expect(h.insertMarkdown).toHaveBeenCalledWith('- '));
-		expect(h.blockEdit.insertParagraph).toHaveBeenCalledWith(2, '');
+		expect(h.insertMarkdown).toHaveBeenCalledWith('- ', { placement: 'below' });
 	});
 
 	it('a selection gets the clipboard rows alone, over the selection as it stands', () => {

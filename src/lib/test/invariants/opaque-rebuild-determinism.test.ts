@@ -1,13 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerOpaque } from '$lib/test/harness/opaque-kind';
+import { testContainer } from '$lib/test/harness/test-kinds';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 
 describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	function opaqueNode(kind: CstNode['kind']): CstNode {
 		return {
 			kind,
@@ -18,9 +15,9 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 	}
 
 	// The node's raw is deliberately non-canonical relative to the rebuilder:
-	// the two probe outputs are compared to each other, never to node.raw.
+	// the two rebuild outputs are compared to each other, never to node.raw.
 	it('passes for a deterministic rebuilder even when its output differs from raw', () => {
-		const kind = registerOpaque('spec-det', {
+		const kind = testContainer('spec-det', {
 			rebuildRaw: (node) => {
 				node.raw = `::x\n${concatChildren(node.children ?? [])}::\n`;
 			}
@@ -30,7 +27,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 
 	it('fires for a rebuilder whose output varies over identical committed state', () => {
 		let calls = 0;
-		const kind = registerOpaque('spec-nondet', {
+		const kind = testContainer('spec-nondet', {
 			rebuildRaw: (node) => {
 				node.raw = `::x ${calls++}\n::\n`;
 			}
@@ -41,7 +38,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 	});
 
 	it('shields the live node from a misbehaving rebuilder', () => {
-		const kind = registerOpaque('spec-misbehaved', {
+		const kind = testContainer('spec-misbehaved', {
 			rebuildRaw: (node) => {
 				node.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: 'INJECTED\n' });
 				getPluginMetadata<{ tone: string }>(node)!.tone = 'hacked';

@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-//
-// The set of single-block rewrites is spelled in three places (the built-in keymaps, the command
-// dispatcher's range lists, the chords `cross-block/keydown.ts` handles) and the three must agree:
-// a sixth rewrite taught to one spelling is a gap at the other two (G4.40). The dispatcher's lists
-// may hold a non-rewrite id too (`heading.cycle`); G4.29 catches a chord growing.
+// The single-block rewrites are spelled in three places (the built-in keymaps, the command
+// dispatcher's range lists, the chords `cross-block/keydown.ts` handles), and a rewrite taught to
+// one spelling is a gap at the other two (G4.40). The dispatcher's lists may also hold a
+// non-rewrite id (`heading.cycle`).
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -13,9 +12,8 @@ import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
-/** Set members whose id carries no `format.` prefix. Listed by hand because no naming rule
- *  separates them from the kind commands beside them: a prefix scan could not see
- *  `link.openCard`, which is how it stayed outside the set. */
+/** Set members whose id carries no `format.` prefix, listed by hand because no naming rule
+ *  separates them from the kind commands beside them. */
 const NON_FORMAT_REWRITE_IDS = ['link.openCard'];
 
 const isSingleBlockRewriteId = (command: string): boolean =>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import {
 		CODE_COPY_LABEL,
 		CODE_COPIED_LABEL,
@@ -10,27 +10,37 @@
 		codeLanguageLabel
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
+	import type { MenuPresence } from '../../menu/menu-presence.svelte';
+	import type { DraftRegistry } from '../../draft-registry';
+	import type { Draft } from '../../../schema/drafts';
+	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
+	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 
 	// What the modes that draw no fence show instead: the language control plus whatever
 	// actions the host has enabled by installing a hook. A draft lives here and only a
 	// commit reaches the tree.
 	let {
 		info,
+		activation,
 		editable,
 		autoOpen = false,
 		onCommit,
 		onCancel,
 		onRun,
 		onCopy,
-		menuItems
+		menuItems,
+		menuPresence,
+		drafts
 	}: {
 		/** The opener's full info string; the button shows its first token. */
 		info: string;
+		/** The editor's plugins, so the picker offers only the languages this editor highlights. */
+		activation: PluginActivation;
 		/** False in reading mode, which writes no bytes, so the chip is then a label. */
 		editable: boolean;
-		/** Open the language field as soon as the rail mounts: a fence the user just created
-		 *  has no language yet, and asking is the whole reason the chip exists. */
+		/** Open the language field as soon as the gutter mounts, for a fence the user just
+		 *  created and has not given a language yet. */
 		autoOpen?: boolean;
 		/** Only Enter or a list pick calls this, and it owns the caret's landing afterwards. */
 		onCommit: (info: string) => void;
@@ -43,12 +53,17 @@
 		onCopy: () => Promise<boolean>;
 		/** Consulted on each open, so items read live state. Empty renders no affordance. */
 		menuItems?: () => readonly CodeMenuItem[];
+		menuPresence: MenuPresence;
+		/** The open field is a draft of the info string, dropped by a swap or a write to the block. */
+		drafts: Pick<DraftRegistry, 'open'>;
 	} = $props();
 
-	const language = $derived(info.split(/\s+/)[0] || 'text');
+	const language = $derived(fenceLanguage(info) || 'text');
 
 	let editing = $state(false);
 	let draft = $state('');
+	let fieldDraft: Draft | null = null;
+	onDestroy(() => fieldDraft?.end());
 	// Filtering waits for a keystroke: the field opens empty, and until then the whole list
 	// shows with the block's own language leading it, which is what a bare Enter re-commits.
 	let filtering = $state(false);
@@ -67,16 +82,15 @@
 	let menuEl: HTMLElement | undefined = $state();
 	let menuButtonEl: HTMLElement | undefined = $state();
 
-	// The picker offers what the renderer can actually highlight, filtered as the draft is
-	// typed. `text` is always offered: it is how a user clears a language, and no grammar
-	// registers under that name.
+	// The picker offers what the renderer can highlight. `text` is always offered: it is how a
+	// user clears a language, and no grammar registers under that name.
 	const suggestions = $derived.by(() => {
-		const all = ['text', ...listLanguages().filter((name) => name !== 'text')];
+		const all = ['text', ...listLanguages(activation).filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
 		if (needle.length > 0) {
 			// An alternate spelling is a search key, never a row of its own: `rs` finds `rust`,
 			// and the list still carries one entry per language.
-			const spellings = (name: string) => [name, ...getLanguageAliases(name)];
+			const spellings = (name: string) => [name, ...getLanguageAliases(name, activation)];
 			const starts = all.filter((name) => spellings(name).some((s) => s.startsWith(needle)));
 			const seated = new Set(starts);
 			const contains = all.filter(
@@ -95,7 +109,7 @@
 	 *  registry resolves rather than the text. */
 	function isCurrentLanguage(name: string): boolean {
 		const canonical = (spelling: string) =>
-			getLanguageGrammar(spelling)?.name ?? spelling.toLowerCase();
+			getLanguageGrammar(spelling, activation)?.name ?? spelling.toLowerCase();
 		return canonical(name) === canonical(language);
 	}
 
@@ -120,13 +134,14 @@
 		highlightMoved = false;
 		menuOpen = false;
 		editing = true;
+		fieldDraft?.end();
+		// The field never saves on its own, so a close for either cause just closes it.
+		fieldDraft = drafts.open({ seed: info, current: () => info, close });
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
 		// a bare Enter re-commits what is already set.
 		activeIndex = 0;
-		// A first guess at the trigger's position, before the popout renders. Without it the
-		// popout mounts at the viewport's top-left corner while it waits to be measured, and
-		// focusing the field inside it drags the page up there, which is the page jumping to
-		// the top when a code block is created. The measurement below refines it.
+		// A first guess at the trigger's position before the popout is measured: mounted at the
+		// viewport's corner, focusing the field inside it would scroll the page up there.
 		const anchor = chipEl?.getBoundingClientRect();
 		if (anchor) {
 			listAt = {
@@ -144,10 +159,14 @@
 
 	function close(): void {
 		editing = false;
+		fieldDraft?.end();
+		fieldDraft = null;
 	}
 
 	function commit(value: string): void {
+		const writable = fieldDraft?.canWrite() ?? true;
 		close();
+		if (!writable) return;
 		// `text` is the picker's way of saying "no language"; the info string says it with ''.
 		onCommit(value.trim() === 'text' ? '' : value);
 	}
@@ -162,7 +181,8 @@
 			// A spelling the registry resolves is a name, not a search: it commits as typed, so
 			// `js` survives a picker whose rows are canonical. A moved highlight takes the row.
 			const typed = draft.trim();
-			const namesLanguage = !highlightMoved && typed !== '' && getLanguageGrammar(typed) !== null;
+			const namesLanguage =
+				!highlightMoved && typed !== '' && getLanguageGrammar(typed, activation) !== null;
 			commit(
 				namesLanguage ? typed : (suggestions[activeIndex] ?? (typed === '' ? language : typed))
 			);
@@ -206,10 +226,8 @@
 		copied = await onCopy();
 	}
 
-	// The confirmation lasts exactly as long as the gutter is shown: the pointer leaving the
-	// block, or focus leaving the gutter, hides it, and the next time it appears is a new
-	// gesture that should offer to copy again rather than still report the last one. Reverting
-	// on a clock would be sequencing on a timer, which G4.4 rules out.
+	// The copied confirmation clears when the pointer or focus leaves the gutter, so the next
+	// showing offers to copy again without a timer (G4.4).
 	function clearCopied(): void {
 		copied = false;
 	}
@@ -230,9 +248,8 @@
 		item.run();
 	}
 
-	// Escape is handled on the buttons, not on their container: the gutter is a labelled
-	// `group`, and a non-interactive role may not carry key handlers. Focus sits on the ⋮
-	// button while the menu is open, and on an item once the user tabs in, so both are covered.
+	// Escape is handled on the ⋮ button and the items, where focus sits while the menu is open:
+	// the gutter is a labelled `group`, and a non-interactive role may not carry key handlers.
 	function onMenuKeyDown(e: KeyboardEvent): void {
 		if (e.key !== 'Escape' || !menuOpen) return;
 		e.stopPropagation();
@@ -241,9 +258,8 @@
 		menuButtonEl?.focus();
 	}
 
-	// The menu outlives the click that opened it, so it closes on the next click anywhere
-	// else. Decided by what contains the click, not by the exact target: a click on a
-	// disabled item is still inside.
+	// The menu closes when focus leaves the gutter and its menu, judged by containment, so a
+	// click on a disabled item still counts as inside.
 	function onRailFocusOut(e: FocusEvent): void {
 		const next = e.relatedTarget;
 		if (next instanceof Node && (railEl?.contains(next) || menuEl?.contains(next))) return;
@@ -252,10 +268,8 @@
 	}
 
 	// ── Popout placement ──────────────────────────────────────────────────────
-	// Both popouts are `position: fixed`, like the table's action menu: an absolutely
-	// positioned one inside the block host would extend the editor's own scrollable area
-	// when it overhangs the last block, which is the page growing under the user.
-	// Fixed takes them out of flow entirely, so opening one can resize nothing.
+	// Both popouts are `position: fixed`: an absolute one overhanging the last block would grow
+	// the editor's scrollable area under the user.
 
 	interface Placement {
 		x: number;
@@ -269,27 +283,17 @@
 
 	const EDGE_MARGIN = 8;
 	const ANCHOR_GAP = 6;
-	/** A menu is a menu, not a column of the viewport: past this height it scrolls. The space
-	 *  actually available still wins when it is smaller. */
+	/** Past this height a popout scrolls; the space actually available wins when it is smaller. */
 	const MAX_POPOUT_HEIGHT = 320;
 
-	/**
-	 * Place a popout beside its trigger without ever covering it. Below is preferred, above is
-	 * taken when below cannot hold it and above can, and whichever side wins caps the popout's
-	 * height to the space actually there. A plain clamp into the viewport slides the box up over
-	 * the button that opened it, which is exactly what must not happen.
-	 */
+	/** Short of room below its trigger, a popout caps its height and scrolls rather than moving
+	 *  above, so one gesture always opens the same way. */
 	function placeAgainst(anchor: HTMLElement | undefined, popout: HTMLElement): Placement {
 		const a = (anchor ?? popout).getBoundingClientRect();
 		const size = popout.getBoundingClientRect();
-		// Always downward. Moving above when the space below runs short would make the menu
-		// appear on whichever side the block happened to sit, so the same gesture would open
-		// in two directions; a menu always under its trigger is the predictable one. When the
-		// space is short the popout scrolls inside what is there instead of moving.
 		const roomBelow = window.innerHeight - a.bottom - ANCHOR_GAP - EDGE_MARGIN;
 		const maxHeight = Math.min(MAX_POPOUT_HEIGHT, Math.max(120, roomBelow));
 		const y = a.bottom + ANCHOR_GAP;
-		// Right-aligned to the trigger, then held inside the viewport horizontally only.
 		const maxX = Math.max(EDGE_MARGIN, window.innerWidth - size.width - EDGE_MARGIN);
 		const x = Math.min(Math.max(EDGE_MARGIN, a.right - size.width), maxX);
 		return { x, y, maxHeight };
@@ -311,10 +315,8 @@
 		menuAt = placeAgainst(menuButtonEl, menuEl);
 	});
 
-	// A fixed popout does not move with the gutter it hangs off, so it is placed again against
-	// its trigger whenever the page scrolls or resizes. Placed again, not closed: closing it
-	// would throw away a menu the user had just opened and would race the scroll that focusing
-	// the field can cause, closing the picker in the same tick it opened.
+	// A fixed popout does not move with the gutter, so it is placed again on every scroll and
+	// resize; not closed, since focusing the field can itself scroll and would close the picker.
 	$effect(() => {
 		if (!editing && !menuOpen) return;
 		const reposition = (): void => {
@@ -339,9 +341,8 @@
 	const showMenu = $derived(menuItems !== undefined);
 </script>
 
-<!-- Lucide (ISC) path data, written out here rather than depended on: the editor ships two
-	dependencies and an icon package would be a third. Sized 14 / stroke 1.75 to match the
-	host app's menus. See THIRD-PARTY-NOTICES.md. -->
+<!-- Lucide (ISC) path data, inlined rather than adding an icon package; sized to match
+	the host app's menus. See THIRD-PARTY-NOTICES.md. -->
 {#snippet icon(paths: string)}
 	<svg
 		viewBox="0 0 24 24"
@@ -429,6 +430,7 @@
 		bind:this={pickerEl}
 		class="md-menu code-rail-popout code-lang-picker"
 		style={popoutStyle(listAt)}
+		{@attach menuPresence.track(close, { edits: true })}
 	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
@@ -489,6 +491,7 @@
 	</div>
 {/if}
 
+<!-- Not marked as editing: a host's items may only read, so the menu opens in reading mode too. -->
 {#if menuOpen}
 	<ul
 		bind:this={menuEl}
@@ -496,6 +499,7 @@
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
+		{@attach menuPresence.track(() => (menuOpen = false))}
 	>
 		{#each openMenuItems as item (item.id)}
 			<li role="none">
@@ -512,10 +516,8 @@
 {/if}
 
 <style>
-	/* Bare controls over the code box's top right, with no container of their own, so the code
-	   they sit above reads through between them. Positioned against the block host, whose
-	   box the code box fills below the host's 6px stand-off (editor.css, fencedCode), and out
-	   of the code box's own scroller so a horizontal scroll leaves them where they are. */
+	/* Positioned against the block host rather than inside the code box's scroller, so a
+	   horizontal scroll leaves the controls where they are. */
 	.code-rail {
 		position: absolute;
 		top: 12px;
@@ -531,9 +533,8 @@
 		transition: opacity 120ms ease-out;
 	}
 
-	/* Block hover or block focus, and nothing else, plus the two states that outlive both,
-	   since a popout must not vanish from under the pointer that opened it. Child and sibling
-	   combinators, so an outer container's hover never reveals a nested block's rail. */
+	/* Shown on block hover or focus, or while a popout is open; child and sibling combinators
+	   keep an outer container's hover from showing a nested block's controls. */
 	:global(.block-host:hover) > .code-rail,
 	:global(.code-block:focus) ~ .code-rail,
 	.code-rail:focus-within,
@@ -592,9 +593,8 @@
 		outline-offset: -1px;
 	}
 
-	/* The host app's own menu styling, so a code block's menus read as the app's. */
 	/* Panel, hairline, shadow, face and colour come from the shared `.md-menu` (editor.css);
-	   this adds only the picker's own layout. */
+	   this adds only the popouts' own layout. */
 	.code-rail-popout {
 		display: flex;
 		flex-direction: column;
@@ -614,7 +614,7 @@
 		margin: -4px -4px 4px;
 		padding: 8px 12px;
 		border-bottom: 1px solid var(--menu-search-divider, rgba(255, 255, 255, 0.08));
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 	}
 
 	.code-lang-search input {

@@ -1,31 +1,26 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parseInline } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathInline();
 });
-afterEach(resetPluginPlatformForTests);
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);
 
-// Every `$` in shell prose declines, because the `$` that ends its attempt has whitespace
-// before it. A decline that searches to the end of the block would cost one full block scan
-// per `$`, seconds per keystroke on a large paragraph.
+// Every `$` in shell prose declines, and a decline that searched to the block's end would cost
+// a full block scan per `$`, seconds per keystroke on a large paragraph.
 describe('inline math decline bounds', () => {
 	it('a $-flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '$x ', [32, 128]);
 		expectBoundedGrowth(growth);
 	}, 300_000);
 
-	// The bound is a lookup, and it answers with the next `$`, whichever one that is: a match
-	// ends at the first it meets, so a run of failures is a run of single lookups and the
-	// formula at the end keeps its own delimiters.
+	// The bound answers with the next `$`, and a match ends at the first it meets, so a run of
+	// failures is a run of single lookups and the formula at the end keeps its delimiters.
 	it('ends each attempt at the next $, so a declining run claims nothing', () => {
 		const raw = '$x '.repeat(400) + '$a+b$ tail';
 		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 1200, end: 1205 }]);

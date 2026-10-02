@@ -78,9 +78,8 @@ describe('nearestScrollContainer', () => {
 	});
 });
 
-// The two searches up the ancestors differ on one real host layout: a rounded card
-// (`overflow: hidden` at auto height) inside a scroller has to autoscroll the scroller while
-// being bounded by both boxes.
+// The two ancestor searches differ on one real layout: a rounded card (`overflow: hidden`, auto
+// height) inside a scroller must autoscroll the scroller while bounded by both boxes.
 describe('host-boundary walks', () => {
 	let root: HTMLDivElement;
 

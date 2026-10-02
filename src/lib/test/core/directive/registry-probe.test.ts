@@ -1,18 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { PluginBlockKind } from '$lib/core/nodes';
 import {
 	declarePluginKind,
 	isDirectiveRegistered,
 	registerDirective,
 	type CstNode
 } from '$lib/plugin';
-// The reset function is test-only, deliberately kept off the public barrel.
-import { __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 
-const PROBE = declarePluginKind('probe-note');
+// The reset function is test-only, deliberately kept off the public barrel.
+
+let PROBE: PluginBlockKind;
+beforeEach(() => {
+	PROBE = declarePluginKind('probe-note');
+});
 
 describe('isDirectiveRegistered (public probe)', () => {
-	beforeEach(() => __resetDirectiveRegistryForTests());
-
 	it('is reachable through the plugin barrel and reflects registration state', () => {
 		expect(isDirectiveRegistered('container', 'probe-note')).toBe(false);
 		registerDirective('container', 'probe-note', {

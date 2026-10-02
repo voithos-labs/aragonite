@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { detailsPlugin, DETAILS } from '$lib/plugins/details';
 import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc';
@@ -21,9 +20,7 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
  * the prelude nor a newly added family can drift out from under this guard.
  */
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
-	// The parser never renders, so no-op renderers satisfy the required options.
+beforeEach(() => {
 	installPlugins([
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -31,13 +28,11 @@ beforeAll(() => {
 		footnotesPlugin(),
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		mermaidPlugin({ renderer: async () => '<svg />' }),
+		latexPlugin(),
+		mermaidPlugin(),
 		parrotPlugin()
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 const PRELUDE = '<details>\n<summary>Versions</summary>\n\n[[toc]]\n\n</details>\n\n';
 

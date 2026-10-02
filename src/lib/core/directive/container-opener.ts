@@ -10,7 +10,13 @@ import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
 import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parseContainerBody, joinRaw } from '../parser';
-import { trailingLineEnding, type ParsedLine } from '../lines';
+import {
+	firstDisplayLine,
+	splitLines,
+	trailingLineEnding,
+	type LineEnding,
+	type ParsedLine
+} from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import {
@@ -31,15 +37,18 @@ export function registerDirectiveOpeners(): void {
 		// moves this with it. A colon fence collides with no built-in matcher; it only needs a gap.
 		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
+		readingNotFinal: directiveReadingNotFinal,
 		tryOpen(ctx) {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
 
-			const lineEnding = trailingLineEnding(ctx.line.raw);
+			// A one-line leaf at the end of the source takes the source's first break, else LF.
+			const sourceEnding = (ctx.lines[0]?.lineEnding || '\n') as LineEnding;
+			const lineEnding = trailingLineEnding(ctx.line.raw, sourceEnding);
 
 			if (fence.tier === 'leaf') {
-				const def = resolveDirective('leaf', fence.name);
-				const factory = resolveBlockDirectiveFactory('leaf', fence.name);
+				const def = resolveDirective('leaf', fence.name, ctx.grammar);
+				const factory = resolveBlockDirectiveFactory('leaf', fence.name, ctx.grammar);
 				if (factory) {
 					const parsed: ParsedDirective = {
 						fence,
@@ -72,13 +81,14 @@ export function registerDirectiveOpeners(): void {
 			// body stays inside this parse entry, so it inherits its scope.
 			const body = parseContainerBody(bodyText, DIRECTIVE_BODY_WRAP, {
 				scope: ctx.isDocumentParse ? 'document' : 'fragment',
-				depth: ctx.depth + 1
+				depth: ctx.depth + 1,
+				grammar: ctx.grammar
 			});
 			// isDirectiveCloser guarantees an all-colon line, so its length is the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
-			const factory = resolveBlockDirectiveFactory('container', fence.name);
+			const factory = resolveBlockDirectiveFactory('container', fence.name, ctx.grammar);
 			if (factory) {
 				const parsed: ParsedDirective = {
 					fence,
@@ -115,11 +125,8 @@ export function registerDirectiveOpeners(): void {
 
 // ── Closer indexing ─────────────────────────────────────────────────────────
 
-// A closer is an all-colon line, closing any opener whose colon count is <= its length.
-// Positions are indexed once per line array, keyed by array identity, because an
-// unclosed-opener flood otherwise rescans to EOF per opener (O(n^2)). `maxCounts` is a max-tree
-// over the closer run lengths, so "first closer at or after k with a long enough run" is a
-// descent, at a cost indifferent to how the run lengths are distributed.
+// Closer lines indexed once per line array: a flood of unclosed openers would otherwise rescan
+// to the end per opener. A closer closes any opener with at most its colon count.
 interface CloserIndex {
 	positions: Int32Array;
 	/** Heap-layout max-tree over the closer run lengths, padded to `leafBase` leaves. */
@@ -153,10 +160,8 @@ function closerIndex(lines: ParsedLine[]): CloserIndex {
 	return index;
 }
 
-/**
- * Smallest closer-index slot at or after `from` whose count is >= `min`, or -1. Padding leaves
- * hold 0 and an opener runs at least two colons, so they never match.
- */
+/** First closer index at or after `from` with a run of at least `min` colons, or -1. Padding
+ *  leaves hold 0, and an opener runs at least two colons, so they never match. */
 function firstCloserAtLeast(index: CloserIndex, from: number, min: number): number {
 	const descend = (node: number, lo: number, hi: number): number => {
 		if (hi <= from || index.maxCounts[node] < min) return -1;
@@ -166,6 +171,15 @@ function firstCloserAtLeast(index: CloserIndex, from: number, min: number): numb
 		return left !== -1 ? left : descend(node * 2 + 1, mid, hi);
 	};
 	return descend(1, 0, index.leafBase);
+}
+
+/** Whether a block with these bytes opens a container fence its own lines never close: it read on
+ *  for the closer, became a paragraph, and a closer typed below still completes it. */
+function directiveReadingNotFinal(raw: string): boolean {
+	const fence = matchDirectiveOpener(firstDisplayLine(raw).text);
+	if (!fence || fence.tier === 'leaf') return false;
+	const lines = splitLines(raw);
+	return findDirectiveCloser(lines, 0, lines.length, fence.colonCount) === -1;
 }
 
 /** Equivalent to scanning `isDirectiveCloser` forward from `afterIndex`, over the index. */

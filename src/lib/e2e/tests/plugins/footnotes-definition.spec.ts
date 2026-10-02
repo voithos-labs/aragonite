@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, activeBlockPath, capturedErrors } from './helpers';
+import { clickWordSettled, extendTo, stepTo } from '../presentation/helpers';
 
 /**
  * The GFM footnote definition as a container shaped like a list item: the definition side of the
@@ -75,8 +76,8 @@ test.describe('plugin container: footnote definition', () => {
 		const lifted = await readContainer(page, 1);
 		expect(lifted.kind).toBe('paragraph');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
-		// Numbering is over references, not definitions, so the now-orphaned reference keeps
-		// its number and renders rather than throwing.
+		// Numbering counts references, not definitions, so the orphaned reference keeps its number and
+		// renders rather than throwing.
 		await expect(page.locator('.footnote-ref')).toHaveText('1');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -132,6 +133,24 @@ test.describe('plugin container: footnote definition', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	// The body's first line reads as a fragment behind the marker, so the live join cleans up there
+	// the way it does in a paragraph.
+	test('live: a selection across two constructs in the body deletes without a run', async ({
+		page
+	}) => {
+		await editor.loadContent('A ref [^a] here.\n\n[^a]: Some **bold** and *italic* words\n');
+		await editor.setPresentationMode('live');
+		await editor.waitForRenderFlush();
+		await clickWordSettled(editor, page, 'Some');
+		await stepTo(editor, page, 'ArrowRight', 9);
+		await extendTo(editor, page, 'ArrowRight', [1, 0], 21);
+
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('[^a]: Some boalic words\n');
+		expect(await editor.bridge.getSource()).not.toContain('**');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('typing [^b]: body into a fresh paragraph forms the container live', async ({ page }) => {
 		// Split a new empty paragraph off the prose, then type a definition into it: reparsing the
 		// content turns the block into a footnote definition with one paragraph child.
@@ -139,10 +158,8 @@ test.describe('plugin container: footnote definition', () => {
 		await page.keyboard.press('Enter');
 		await editor.waitForRenderFlush();
 
-		// One key at a time: the `[^b]` prefix briefly mounts an inline reference widget on its
-		// closing `]`, and the body is typed against that widget's trailing edge before the
-		// reparse turns the line into a definition marker. The separating space is not typed,
-		// because `:` completes the marker to `[^b]: `.
+		// Typed key by key: `[^b]` briefly mounts a reference widget on its `]` and the body is typed
+		// against it before the reparse makes a definition. `:` completes the marker's space itself.
 		await editor.typeSlowly('[^b]:');
 		await editor.typeSlowly('brand new note');
 		await editor.bridge.waitForSourceContains('[^b]: brand new note');

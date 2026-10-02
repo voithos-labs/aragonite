@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
 
 const opts = {
 	lineHeight: 24,
@@ -77,9 +76,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
-	// Containers estimate from their child count: at least one line plus margins per child, and
-	// at least the wrapped length of the whole raw; going by the raw alone undercounts a container
-	// with several children.
+	// A container estimates at least one line plus margins per child, and at least the wrapped
+	// length of its whole raw, which alone undercounts a container with several children.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = {
@@ -147,9 +145,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
 	});
 
-	// A rendered image is far taller than its `![alt](url)` source, so the character-based
-	// estimate puts an image-only paragraph at about one line; the floor keeps windowing and the
-	// spacers honest.
+	// A rendered image is far taller than its `![alt](url)` source, so an image-only paragraph gets
+	// a floor instead of the one-line character estimate.
 	it('floors an image-bearing paragraph at imageBlockMinHeight', () => {
 		const o = createHeightOracle(opts);
 		const img: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![A photo|400](pic.png)' };
@@ -217,22 +214,12 @@ describe('createHeightOracle', () => {
 	it('estimates a collapsed container at one chrome row, open at its full raw', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-collapsible-chrome');
-		const collapsible = declarePluginKind('oracle-collapsible');
-		registerBlockKind(collapsible, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			// The estimator only estimates, so a do-nothing strip and rebuild are enough to satisfy
-			// the pair the group requires.
-			container: {
-				contract: 'strip',
-				rebuildRaw: () => {},
-				reservedChrome: {
-					kind: summary,
-					isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
-				}
+		const collapsible = testContainer('oracle-collapsible', {
+			contract: 'strip',
+			rebuildRaw: () => {},
+			reservedChrome: {
+				kind: summary,
+				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
 			}
 		});
 
@@ -246,18 +233,12 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(open, 800)).toBe(20 * 24 + 16);
 	});
 
-	// A descriptor's own O(1) estimate replaces the character-based default (a rendered diagram
-	// or embed dwarfs its source text). The block's margins are still added, and a measured height
-	// still wins.
+	// A descriptor's own estimate replaces the character-based default (a diagram dwarfs its
+	// source); the block's margins are still added, and a measured height still wins.
 	it('a descriptor estimateHeight wins over the default branch, plus block chrome', () => {
 		const o = createHeightOracle(opts);
-		const estimated = declarePluginKind('oracle-estimate-height');
-		registerBlockKind(estimated, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
+		const estimated = testLeaf('oracle-estimate-height', {
 			editable: false,
-			supportsInline: false,
-			closure: testClosure,
 			estimateHeight: () => 320
 		});
 		const node: CstNode = { kind: estimated, leadingTrivia: '', raw: 'x\n' };
@@ -269,20 +250,17 @@ describe('createHeightOracle', () => {
 	it('a collapsed container ignores estimateHeight (one chrome row wins)', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-estimate-chrome');
-		const collapsible = declarePluginKind('oracle-estimate-collapsed');
-		registerBlockKind(collapsible, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			estimateHeight: () => 320,
-			container: {
+		const collapsible = testContainer(
+			'oracle-estimate-collapsed',
+			{
 				contract: 'strip',
 				rebuildRaw: () => {},
 				reservedChrome: { kind: summary, isCollapsed: () => true }
+			},
+			{
+				estimateHeight: () => 320
 			}
-		});
+		);
 		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
 		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
 	});

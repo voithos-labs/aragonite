@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -14,14 +16,16 @@ function run(
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)!
+	};
 }
 
 function isLeafAt(doc: Document, path: number[]): boolean {
@@ -30,9 +34,8 @@ function isLeafAt(doc: Document, path: number[]): boolean {
 	return !('children' in node) || !node.children || node.children.length === 0;
 }
 
-// A cross-block merge reparses the joined raw and may change the kind, even leaf into container.
-// The caret is restored by focusing the block element at its path, so it must name a leaf
-// whatever the merge produced; a container path focuses a non-editable wrapper.
+// A cross-block merge can reparse a leaf into a container, and the caret restore focuses the
+// element at the caret's path, so the path must name a leaf, never a non-editable wrapper.
 describe('rangeDelete caret after a merge that re-parses into a container', () => {
 	// Caret at the start of the paragraph's second line, Shift+ArrowDown, Backspace:
 	// the surviving head keeps its line ending, so the join re-parses as a table.
@@ -43,7 +46,7 @@ describe('rangeDelete caret after a merge that re-parses into a container', () =
 			{ path: [1], offset: 0 }
 		);
 
-		expect(source).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
+		expect(source).toBe('| a | b |\n|---|---|\n| 1 | 2 |\n');
 		expect(doc.children[0].kind).toBe('table');
 		expect(isLeafAt(doc, caret.path)).toBe(true);
 	});

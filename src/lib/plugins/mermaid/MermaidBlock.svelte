@@ -9,10 +9,12 @@
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
+		POINTER_GESTURE_ATTR,
+		type Draft,
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
-	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
+	import { mermaidSlot, type MermaidRenderResult } from './mermaid-renderer';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -33,6 +35,7 @@
 		handleKeydown,
 		moveFocusOut,
 		captureScrollPosition,
+		openDraft,
 		getPresentationMode,
 		getTheme
 	} = createContainerBlock({
@@ -66,9 +69,9 @@
 		// Reading the theme here is what makes this effect re-run when the theme changes, and
 		// it must redraw because mermaid writes colors into the SVG.
 		const theme = getTheme();
-		if (isEmpty || !hasMermaidRenderer()) return;
+		if (isEmpty || !mermaidSlot.configured) return;
 		let stale = false;
-		void renderMermaid(current, theme).then(async (result) => {
+		void mermaidSlot.render(current, { theme }).then(async (result) => {
 			if (stale) return;
 			// A redraw replaces only the rendered element, so only focus inside it is handed back:
 			// the editor's hidden input and the toolbar are children of the box and survive.
@@ -87,7 +90,7 @@
 	const surfaceState = $derived(
 		isEmpty
 			? 'empty'
-			: !hasMermaidRenderer()
+			: !mermaidSlot.configured
 				? 'no-renderer'
 				: rendered?.error
 					? 'error'
@@ -144,9 +147,11 @@
 	const overlayView = createPanZoom();
 
 	// Turned on by focus, so an unfocused diagram hijacks neither the page nor the editor's own
-	// drag. Kept as state rather than read back from the DOM: the editor reads the same fact
-	// from the markup, so there is one value.
+	// drag. The markup attribute is written from this one value.
 	let gestureArmed = $state(false);
+	// The attribute that tells the editor's pointer handling a drag here is the diagram's own.
+	const viewportGesture = $derived({ [POINTER_GESTURE_ATTR]: gestureArmed ? '' : undefined });
+	const overlayGesture = { [POINTER_GESTURE_ATTR]: '' };
 
 	function onViewportWheel(e: WheelEvent): void {
 		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
@@ -185,20 +190,37 @@
 	let textareaEl = $state<HTMLTextAreaElement | undefined>();
 	let draft = $state('');
 	let editSeed = '';
+	// The box's text belongs to the document it was seeded from: a `source` swap drops it.
+	let session: Draft | null = null;
 
 	const editing = $derived(editRequested || (isEmpty && !isReading));
 
 	function seedDraft(): void {
 		editSeed = displayCode;
 		draft = editSeed;
+		session?.end();
+		session = openDraft({
+			seed: editSeed,
+			current: () => displayCode,
+			close: (cause) => {
+				if (cause === 'mode-change') commitEdit(false);
+			}
+		});
+	}
+
+	function endSession(): void {
+		session?.end();
+		session = null;
 	}
 
 	// The document can change under an open box (a host undo, a structural replace), and the
 	// blur commit would then write a draft seeded from bytes that are gone.
 	$effect(() => {
-		if (!editing || displayCode === editSeed) return;
-		seedDraft();
+		if (!editing) return endSession();
+		if (displayCode !== editSeed || !session) seedDraft();
 	});
+	// Unregistered only: the blur of a box a swap tore down still reads the dropped session.
+	$effect(() => () => session?.end());
 
 	// The box follows its text: a textarea has no intrinsic content height, and the inline
 	// height a native resize handle writes dies with the element on every exit from edit mode.
@@ -223,7 +245,7 @@
 		// a scroll container at the document's end clamps against the short layout in between.
 		const restoreScroll = captureScrollPosition();
 		editRequested = true;
-		void restoreScroll().then(() => textareaEl?.focus());
+		void restoreScroll().then(() => textareaEl?.focus({ preventScroll: true }));
 	}
 
 	function cancelEdit(): void {
@@ -237,15 +259,19 @@
 	function commitEdit(refocus: boolean): void {
 		if (!editing) return;
 		const value = draft;
+		const writable = session?.canWrite() ?? true;
 		editRequested = false;
+		if (!writable) return;
 		// The textarea value is LF-normalized, so the seed must be compared the same way:
 		// an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;
 		const lineEnding = getPluginMetadata<MermaidMetadata>(node)?.openerLineEnding ?? '\n';
-		updateOwnMetadata({ code: joinMermaidBody(value, lineEnding) });
-		// Only a keyboard commit refocuses; a blur commit must not yank focus back from
-		// wherever the user clicked.
-		if (refocus) refocusBlock();
+		// Only a keyboard commit puts the caret back on the block; a blur commit must not yank
+		// focus back from wherever the user clicked.
+		updateOwnMetadata(
+			{ code: joinMermaidBody(value, lineEnding) },
+			refocus ? { caret: { path: [], offset: 0 } } : undefined
+		);
 	}
 
 	// Logical lines, not visual: the box carries no editor caret geometry, so the newlines
@@ -339,7 +365,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
-				data-pointer-gesture={gestureArmed ? '' : undefined}
+				{...viewportGesture}
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
@@ -402,7 +428,7 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
-				data-pointer-gesture
+				{...overlayGesture}
 				onwheel={onOverlayWheel}
 				onpointerdown={(e) => {
 					e.stopPropagation();

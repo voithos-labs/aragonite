@@ -1,56 +1,27 @@
 /**
- * The block drag handle's two rules, kept out of the components that render it: which blocks
- * get one, and where it sits.
- *
- * Prose gets none: a paragraph, a heading, a quote and the note cards read as text on the
- * page, and a handle beside every one is noise. The blocks that get one are the objects a user
- * picks up whole: pictures, code, tables, equations, diagrams, list items, dividers. A block
- * without one can still be reordered by keyboard, and a dragged block still drops beside it.
+ * The block drag handle's two rules: which blocks get one (the objects a user picks up whole,
+ * never prose, as `schema/page-role.ts` tells them apart), and where it sits. A block without
+ * one still reorders by keyboard.
  */
 
 import type { NodeView } from '../core/node-views';
+import { isImageOnlyParagraph } from '../core/inline/picture';
+import type { InlineReading } from '../core/inline/inline-cache';
+import { blockPageRole } from '../schema/page-role';
 import { BLOCK_CONTENT_SELECTOR, DRAG_ANCHOR_ATTR } from './block-content-selector';
 
-/**
- * Prose (the page's background and its asides), plus the list wrapper, whose own handle would
- * sit in the gutter on top of its first item's and take the clicks with it. A list moves an
- * item at a time; the wrapper is not a thing to pick up.
- */
-const GRIPLESS_KINDS: ReadonlySet<string> = new Set([
-	'paragraph',
-	'heading',
-	'blockquote',
-	'admonition',
-	'githubAlert',
-	'list'
-]);
-
-/**
- * A paragraph holding nothing but images is a picture in the page, not prose: it reads as a
- * block of its own and is exactly what a user reaches to move. Missing a match here (an alt
- * text with an escaped bracket, an image beside a word) leaves a plain paragraph, no handle.
- */
-const IMAGE_ONLY_PARAGRAPH = /^\s*(?:!\[[^\]]*\](?:\([^)]*\)|\[[^\]]*\])\s*)+$/;
-
-export function isImageOnlyParagraph(node: NodeView): boolean {
-	return node.kind === 'paragraph' && IMAGE_ONLY_PARAGRAPH.test(node.raw);
+/** A picture's handle ignores `blockDragHandles`, since dragging is the only pointer way to
+ *  move one. The caller still checks reading mode. */
+export function showsDragHandle(
+	node: NodeView,
+	handlesEnabled: boolean,
+	reading: InlineReading
+): boolean {
+	if (isImageOnlyParagraph(node, reading)) return true;
+	return handlesEnabled && blockPageRole(node, reading) === 'object';
 }
 
-/**
- * An image's handle does not wait for `blockDragHandles`: dragging it is the only way to move
- * a picture with the pointer, and unlike prose it is a separate object a user expects to pick
- * up. The caller still checks reading mode, which shows no such controls at all.
- */
-export function showsDragHandle(node: NodeView, handlesEnabled: boolean): boolean {
-	if (isImageOnlyParagraph(node)) return true;
-	return handlesEnabled && !GRIPLESS_KINDS.has(node.kind);
-}
-
-/**
- * A list item's handle reorders it among its siblings and nowhere else: the drag stays inside
- * the enclosing list, so a lone item has nothing to trade places with and its handle promises
- * what the drop cannot deliver. It comes back the moment a second item joins the list.
- */
+/** A lone list item has no handle: its drag stays inside the list, with nothing to swap with. */
 export function showsListItemDragHandle(itemCount: number, handlesEnabled: boolean): boolean {
 	return handlesEnabled && itemCount > 1;
 }
@@ -58,13 +29,8 @@ export function showsListItemDragHandle(itemCount: number, handlesEnabled: boole
 /** A box within this many line-heights holds one row of content, margins included. */
 const SINGLE_LINE = 1.5;
 
-/**
- * Vertical centre of the handle. A one-line block centres on its row. A taller one uses the
- * first line-height of its own box, not its first line of text, since a card pads above that
- * and a handle level with the first code line hangs below the card's top. A declared anchor
- * element shorter than a line is a marker to centre on instead (a wrapped task item's
- * checkbox); a taller one is a card, which the first line-height already covers.
- */
+/** Centres on a one-line block's row, else a marker-sized drag anchor, else the box's first
+ *  line-height, since a card pads above its first line of text. */
 export function dragHandleAnchorY(host: HTMLElement): number | null {
 	const content = host.querySelector<HTMLElement>(BLOCK_CONTENT_SELECTOR);
 	if (!content) return null;
@@ -96,11 +62,8 @@ function markerRect(content: HTMLElement, line: number): DOMRect | null {
 	return rect.top - content.getBoundingClientRect().top > line ? null : rect;
 }
 
-/**
- * The box measured from: the content's own, unless it starts with an inline widget the caret
- * cannot enter (a picture in a paragraph), whose margin would otherwise put the handle above
- * the picture, level with its corner.
- */
+/** The content's box, unless it starts with a non-editable inline widget whose margin would
+ *  put the handle above the picture. */
 function paintedRect(content: HTMLElement): DOMRect {
 	const rect = content.getBoundingClientRect();
 	const widget = content.firstElementChild?.closest('[data-inline-widget]');
@@ -113,14 +76,8 @@ function bandRect(rect: DOMRect, line: number): DOMRect {
 	return new DOMRect(rect.x, rect.y, rect.width, Math.min(line, rect.height));
 }
 
-/**
- * Svelte attachment for the handle element: places the handle once the block has laid out, and
- * again on every pointerover inside its host, so it follows edits made while hovered.
- *
- * Placing it at mount is what makes the handle clickable where it appears: it is its own click
- * target before any hover, so one left at the stylesheet's default while the handle ends up
- * elsewhere is a target the pointer misses. One rAF-batched read per handle.
- */
+/** Places the handle once the block has laid out, so it is clickable before any hover, and on
+ *  each pointerover inside its host, so it follows edits made while hovered. */
 export function alignDragHandle(handle: HTMLElement): (() => void) | void {
 	const host = handle.parentElement;
 	if (!host) return;

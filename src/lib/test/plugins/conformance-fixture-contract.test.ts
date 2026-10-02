@@ -1,9 +1,6 @@
-// The conformance kit's fixture contract (the kind at `children[0]`, the kit's marker block
-// after it) was required but written down nowhere, so a plugin author met it as a bare
-// assertion failure. The message now states it, and this holds it to that.
-//
-// Miss-analysis: the kit's own suites all supplied conforming fixtures, so no test ever read
-// the failure an author gets, and a message that taught nothing could not regress.
+// The conformance kit's failure message states its fixture contract (the kind at `children[0]`,
+// the kit's marker block after it), so a plugin author learns the contract from the failure.
+// Miss-analysis: every kit suite supplied conforming fixtures, so none read the failure message.
 import { describe, it, expect } from 'vitest';
 import { checkCopyIsRawByteSlice } from '$lib/testing';
 
@@ -20,7 +17,7 @@ describe('checkCopyIsRawByteSlice fixture contract', () => {
 
 	it('names the offending kinds, so the fixture is diagnosable from the message alone', () => {
 		expect(() => checkCopyIsRawByteSlice('thematicBreak', 'lead paragraph\n\n---\n')).toThrow(
-			/expected "thematicBreak", got "paragraph"/
+			/holds a "paragraph" at \[0\], not the "thematicBreak" under test/
 		);
 	});
 });

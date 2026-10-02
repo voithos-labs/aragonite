@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// Miss-analysis: every truncated-endpoint pin cut inside prose lines, so no surviving slice
-// ever ended in a blank line — only indented code holds one inside a leaf's raw.
+// Miss-analysis: truncation cases cut only prose; only indented code keeps a blank line in its raw.
 function run(
 	source: string,
 	start: { path: number[]; offset: number },
@@ -14,12 +15,10 @@ function run(
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		start,
-		end,
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
 	return serialize(result.newDoc);
 }

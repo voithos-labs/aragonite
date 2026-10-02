@@ -20,10 +20,8 @@ function scrollTopOf(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
-// F4: an anchor held by index measures a different block after the shift and over-corrects by
-// about one block's height; holding it by id fixes that. Here a block's position is what tells
-// them apart, unlike the deep-jump cases, because the children really change. Driven in code on
-// a nested list, since the blocks above the fold are unmounted and there is nothing to click.
+// A block held by index measures a different block after an insert shifts the indices; held by id
+// it stays put. Driven in code, since the blocks above the viewport are unmounted.
 test('inserting a block above the fold holds the viewport via anchor remap (F4)', async ({
 	page
 }) => {
@@ -37,8 +35,8 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	expect(await cstBlockCount(page)).toBe(1);
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
-	// Step by step: going back to estimates only shows where the measured heights around the
-	// anchor differ from those estimates.
+	// Step by step: going back to estimates only shows where the measured heights around the held
+	// block differ from those estimates.
 	await progressiveScrollTo(editor, Math.round((await editorScrollHeight(page)) / 2));
 	await editor.waitForRenderFlush();
 
@@ -62,8 +60,8 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	).toBe(childCountBefore + 1);
 	await editor.waitForRenderFlush();
 
-	// The anchor child sits one index later after the insert; held by index instead of by id,
-	// the correction overshoots and it jumps by about the inserted block's height.
+	// The held child sits one index later after the insert; held by index instead of by id, the
+	// correction overshoots by about the inserted block's height.
 	const after = await page.evaluate((childIndex) => {
 		const host = document.querySelector(
 			`[data-block-path='${JSON.stringify([0, childIndex])}']`
@@ -80,9 +78,8 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	expect(pageErrors).toEqual([]);
 });
 
-// F6: `minmax(80px, max-content)` sizes a column to the cells mounted at that moment, so the
-// column reflows mid-scroll once its widest cell unmounts. The fix holds each column at the
-// widest cell seen so far, so it only ever grows.
+// `minmax(80px, max-content)` sizes a column to the cells mounted at that moment, so each column
+// is held at the widest cell seen so far, or it reflows mid-scroll once that cell unmounts.
 test('a column does not shrink when its widest cell scrolls out of the window (F6)', async ({
 	page
 }) => {
@@ -129,16 +126,15 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 	expect(pageErrors).toEqual([]);
 });
 
-// F7: with nothing scrolled above the viewport's top (localScrollTop is 0), the list's
-// `correctAnchorByStableId` would follow the moved block and shift the shared scrollTop. One
-// Alt+Up and one Alt+Down leave the structure as it was, so scrollTop must come back.
+// With nothing scrolled above the list's top (its localScrollTop is 0), following the moved block
+// would shift the shared scrollTop; one Alt+Up and one Alt+Down must bring scrollTop back.
 test('reordering a list item below the fold does not drift scrollTop (F7)', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Filler on both sides, so the list can move either way rather than stopping at an edge,
-	// with ALPHA tall and BETA short so following the anchor would move it by an uneven amount.
+	// Filler on both sides, so the list can move either way, with ALPHA tall and BETA short so
+	// following the moved block would shift by an uneven amount.
 	const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
 	const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
 	const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
@@ -199,3 +195,63 @@ test('reordering a list item below the fold does not drift scrollTop (F7)', asyn
 	).toBeLessThan(3);
 	expect(pageErrors).toEqual([]);
 });
+
+// F7 checks only the end of a cycle, where a jump on the way up and its mirror on the way down
+// cancel; one press alone must already leave the scroll where it was.
+for (const [key, item] of [
+	['Alt+ArrowUp', 'ZBETAITEM'],
+	['Alt+ArrowDown', 'ZALPHAITEM']
+] as const) {
+	test(`one ${key} on a list item below the fold leaves scrollTop alone (F7, per step)`, async ({
+		page
+	}) => {
+		const pageErrors = capturePageErrors(page);
+		const editor = new EditorPage(page);
+		await editor.goto();
+		const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
+		const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
+		const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
+		await editor.loadContent(`${pre}\n\n1. ${tall}\n2. ZBETAITEM\n\n${post}\n`);
+
+		const listTop = await revealedOffsetOf(page, editor, 'ZALPHAITEM');
+		await editor.scrollEditorTo(Math.round(listTop - 250));
+		await page.locator('[contenteditable="true"]', { hasText: item }).click();
+		await editor.waitForRenderFlush();
+		expect(
+			listTop - (await scrollTopOf(page)),
+			'the list sits below the viewport top'
+		).toBeGreaterThan(50);
+
+		const baseline = await scrollTopOf(page);
+		await page.keyboard.press(key);
+		await editor.bridge.waitForSourceMatches(/ZBETAITEM[\s\S]*ZALPHAITEM/);
+		await editor.waitForRenderFlush();
+
+		const moved = (await scrollTopOf(page)) - baseline;
+		expect(Math.abs(moved), `scrollTop moved ${moved}px on one ${key}`).toBeLessThan(3);
+		expect(pageErrors).toEqual([]);
+	});
+}
+
+/** Where the first block containing `text` sits in the editor's content, scrolling down a screen
+ *  at a time until it mounts. */
+async function revealedOffsetOf(page: Page, editor: EditorPage, text: string): Promise<number> {
+	for (let step = 0; step < 80; step++) {
+		const offset = await page.evaluate((t) => {
+			const ed = document.querySelector('.editor') as HTMLElement;
+			const host = [...document.querySelectorAll('[data-block-path]')].find((h) =>
+				(h.textContent || '').includes(t)
+			);
+			if (!host) return null;
+			return host.getBoundingClientRect().top - ed.getBoundingClientRect().top + ed.scrollTop;
+		}, text);
+		if (offset !== null) return offset;
+		await editor.scrollEditorTo(
+			await page.evaluate(() => {
+				const ed = document.querySelector('.editor') as HTMLElement;
+				return ed.scrollTop + ed.clientHeight * 0.7;
+			})
+		);
+	}
+	throw new Error(`${text} never mounted`);
+}

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -18,11 +18,10 @@ import type { AnyCommandId } from '$lib/schema/command-id';
 import {
 	registerInlineSyntax,
 	getInlineRungs,
-	__resetInlineSyntaxForTests,
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const registration = (editable: boolean) =>
 	({
@@ -41,13 +40,8 @@ const stubOpener = (priority: number): BlockOpener => ({
 });
 const recognizer = (): InlineSyntaxRecognizer => () => null;
 
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetInlineSyntaxForTests();
-});
-
 // The registries that soften on a dev server must still throw under test. registry-conflict.test.ts
-// covers the three block registries; this extends the guarantee to inline syntax and declaring.
+// covers the three block registries; this suite covers inline syntax and kind declaring.
 describe('register-once still throws on duplicate under test', () => {
 	it('registerInlineSyntax throws on a duplicate trigger', () => {
 		registerInlineSyntax('¬', recognizer());
@@ -65,7 +59,9 @@ describe('register-once still throws on duplicate under test', () => {
 describe('registerBlockCommand validates the name before touching the registry', () => {
 	it('an invalid name throws and leaves no orphaned handler', () => {
 		expect(() => registerBlockCommand('paragraph', 'Invalid Name', () => false)).toThrow();
-		expect(getBlockCommand('paragraph', 'Invalid Name' as AnyCommandId)).toBeUndefined();
+		expect(
+			getBlockCommand('paragraph', 'Invalid Name' as AnyCommandId, everyInstalledPlugin)
+		).toBeUndefined();
 	});
 });
 
@@ -92,7 +88,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		registerBlockComponent(kind, first);
 		asDevNotTest();
 		expect(() => registerBlockComponent(kind, second)).not.toThrow();
-		expect(getBlockComponent(kind)).toBe(second);
+		expect(getBlockComponent(kind, everyInstalledPlugin)).toBe(second);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
@@ -125,5 +121,6 @@ describe('dev re-registration replaces instead of throwing', () => {
 		let second: string | undefined;
 		expect(() => (second = declarePluginKind('dev-declare'))).not.toThrow();
 		expect(second).toBe(first);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 });

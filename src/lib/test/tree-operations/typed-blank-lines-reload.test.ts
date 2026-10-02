@@ -5,27 +5,30 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the
-// two paths, so a shape that only the typed side holds survived it.
+// two paths, so a shape that only the typed side holds would pass it.
 
 /** "1", Enter, Enter, "2": the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
-	splitNode(doc, 0, 1, undefined, undefined, undefined);
-	splitNode(doc, 1, 0, undefined, undefined, undefined);
-	updateNodeContent(doc, 2, '2\n');
+	splitNode(doc, 0, 1, createSharingState(), fixtureReading());
+	splitNode(doc, 1, 0, createSharingState(), fixtureReading());
+	updateNodeContent(doc, 2, '2\n', defaultGrammarView, createSharingState());
 	return doc;
 }
 
 describe('a typed blank line survives the reload', () => {
 	it('holds the Enter-split byte policy', () => {
 		const doc = parse('1\n');
-		splitNode(doc, 0, 1, undefined, undefined, undefined);
+		splitNode(doc, 0, 1, createSharingState(), fixtureReading());
 		expect(serialize(doc)).toBe('1\n\n\n');
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
+		splitNode(doc, 1, 0, createSharingState(), fixtureReading());
 		expect(serialize(doc)).toBe('1\n\n\n\n');
-		updateNodeContent(doc, 2, '2\n');
+		updateNodeContent(doc, 2, '2\n', defaultGrammarView, createSharingState());
 		expect(serialize(doc)).toBe('1\n\n\n2\n');
 	});
 
@@ -40,15 +43,13 @@ describe('a typed blank line survives the reload', () => {
 	});
 });
 
-// The tree-level case under the typed-fence e2e gesture, which pinned the earlier shape (a lone
-// blank line was document whitespace, so typing created a block below it) until this rule made
-// it a block of its own.
+// A lone blank line is a block of its own, so typing into it fills that block.
 describe('a lone blank document is the block you type into', () => {
 	it('fills that block rather than leaving a blank line above the new one', () => {
 		const doc = parse('\n');
 		expect(layout(doc.children)).toEqual([['paragraph', '', '\n']]);
 
-		updateNodeContent(doc, 0, '```\ncode\n```\n');
+		updateNodeContent(doc, 0, '```\ncode\n```\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('```\ncode\n```\n');
 		expect(layout(doc.children)).toEqual([['fencedCode', '', '```\ncode\n```\n']]);
@@ -56,18 +57,15 @@ describe('a lone blank document is the block you type into', () => {
 	});
 });
 
-// A blank block opened above an existing separator carries none of its own; the run below opens
-// it. Typing there ends the blank line, and with it the arrangement that let the separator go.
-// Miss-analysis: the split's own bytes were pinned, and so was typing into a blank line at the
-// document tail (where the blank half does carry a separator); no case typed into a blank line
-// with a block below it, the one shape whose reload merged the halves back.
+// A blank block Enter opens above a separator carries none, so typing into it takes the line back.
+// Miss-analysis: no case typed into a blank line with a block below it.
 describe('typing into the blank line an Enter opened', () => {
 	it('takes back the separator the blank line was standing in for', () => {
 		const doc = parse('Hello world\n\nSecond paragraph\n');
-		splitNode(doc, 0, 11, undefined, undefined, undefined);
+		splitNode(doc, 0, 11, createSharingState(), fixtureReading());
 		expect(serialize(doc)).toBe('Hello world\n\n\nSecond paragraph\n');
 
-		updateNodeContent(doc, 1, 'x\n');
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('Hello world\n\nx\n\nSecond paragraph\n');
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
@@ -75,8 +73,8 @@ describe('typing into the blank line an Enter opened', () => {
 
 	it('creates none at the tail, where the blank half already carried one', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 11, undefined, undefined, undefined);
-		updateNodeContent(doc, 1, 'x\n');
+		splitNode(doc, 0, 11, createSharingState(), fixtureReading());
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
 	});
@@ -90,7 +88,7 @@ describe('typing into the blank line an Enter opened', () => {
 			['paragraph', '', 'b\n']
 		]);
 
-		updateNodeContent(doc, 2, 'x\n');
+		updateNodeContent(doc, 2, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('a\n\n\nx\n\nb\n');
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
@@ -100,21 +98,18 @@ describe('typing into the blank line an Enter opened', () => {
 	// carries its line; a second one there reloads as one more empty paragraph.
 	it('leaves a follower that already carries the separator alone', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		splitNode(doc, 1, 0, undefined, undefined, undefined);
+		splitNode(doc, 0, 5, createSharingState(), fixtureReading());
+		splitNode(doc, 1, 0, createSharingState(), fixtureReading());
 
-		updateNodeContent(doc, 1, 'x\n');
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('Hello\n\nx\n\n\nSecond\n');
 		expectParseConverged(doc);
 	});
 });
 
-// A blank line a load produced carries the separator in its own `leadingTrivia` and leaves the
-// follower none, so the fill's new separator has to land on the follower instead: the shape
-// every reload produces, and the one branch `restoreSeparatorOnFill` alone cannot reach.
-// Miss-analysis: every case above drives the split-produced shape, where the follower already
-// carries the separator; none typed into a blank block the parser had produced.
+// A loaded blank line carries the separator itself, so the fill moves it onto the follower.
+// Miss-analysis: every case above drove the split shape, never a blank block the parser produced.
 describe('typing into a blank line the load created', () => {
 	it('hands the separator to the follower the blank line was standing in for', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
@@ -124,7 +119,7 @@ describe('typing into a blank line the load created', () => {
 			['paragraph', '', 'delta\n']
 		]);
 
-		updateNodeContent(doc, 1, 'x\n');
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('alpha\n\nx\n\ndelta\n');
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
@@ -134,7 +129,7 @@ describe('typing into a blank line the load created', () => {
 	it('finds the follower past the blocks a multi-block fill created', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 
-		updateNodeContent(doc, 1, 'p\n\nq\n');
+		updateNodeContent(doc, 1, 'p\n\nq\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('alpha\n\np\n\nq\n\ndelta\n');
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
@@ -145,7 +140,7 @@ describe('typing into a blank line the load created', () => {
 	it('hands a blank follower the separator without doubling the line', () => {
 		const doc = parse('a\n\n\n\nb\n');
 
-		updateNodeContent(doc, 1, 'x\n');
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('a\n\nx\n\n\nb\n');
 		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
@@ -155,7 +150,7 @@ describe('typing into a blank line the load created', () => {
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
-		splitNode(doc, 0, 0, undefined, undefined, undefined);
+		splitNode(doc, 0, 0, createSharingState(), fixtureReading());
 		expect(serialize(doc)).toBe('\na\n');
 		expect(layout(parse('\na\n').children)).toEqual(layout(doc.children));
 	});

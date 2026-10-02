@@ -4,6 +4,7 @@ import { parse } from '$lib/core/parser';
 import type { NodeView } from '$lib/core/node-views';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // How create mode opens and refuses: the state's own `canOpenCreate` check, and the entry's own
 // check of the range before it. The chord is the only entry allowed to create.
@@ -62,9 +63,9 @@ describe('the chord entry vets the range before the entry point', () => {
 			block: parse(source).children[0] as NodeView,
 			path: [0],
 			card,
-			mode,
 			selection,
-			crossBlockRange
+			crossBlockRange,
+			reading: fixtureReading({}, mode)
 		});
 	}
 
@@ -93,10 +94,8 @@ describe('the chord entry vets the range before the entry point', () => {
 		expect(card.getCreateTarget()).toBeNull();
 	});
 
-	// The block-local range is read off this block's own DOM traversal, which reports an endpoint
-	// in another block as the end of that traversal, so a cross-block drag hands over a range
-	// nobody selected, running to the block's end. Miss-analysis: every case here supplied a
-	// range the caller had really measured, so the one input that cannot be trusted never got in.
+	// A cross-block drag reads as a range running to this block's end, one nobody selected.
+	// Miss-analysis: every case supplied a range the caller had measured, never an untrusted one.
 	it('a cross-block range enters nothing, whatever the block-local offsets say', () => {
 		const { card, onOpen } = makeState();
 		enter(card, 'Alpha bravo charlie\n', { start: 6, end: 19 }, 'live', true);

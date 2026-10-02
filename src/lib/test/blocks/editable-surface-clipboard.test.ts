@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The order the shared clipboard handling keeps (docs/contributing/rules.md § the bug shape to
-// fear). The four editable blocks share `createClipboardHandlers`, which owns the steps that
-// must stay in step: the reading check, the cross-block copy and cut write, hiding a shown
-// source, and the one that matters most, calling `preventDefault` on a paste before any
-// await. The per-block remainders
-// (widget slice, rect payload, cell escaping) are exercised by the surface suites.
+// The step order `createClipboardHandlers` keeps for the four editable blocks: the reading
+// check, the cross-block copy and cut, hiding a shown source, and `preventDefault` on a paste
+// before any await. Per-block parts (widget slice, rect payload, cell escaping) are covered by
+// each block's own suite.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -39,18 +36,11 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
-/** A fully instrumented set of dependencies; each test overrides only what it exercises. A
- *  collapsed
- *  selection routes past writeCrossBlock{Copy,Cut}, so the intra-block tails run doc-free. */
+/** Every dependency logs its call; each test overrides only what it exercises. A collapsed
+ *  selection skips the cross-block copy and cut, so the in-block steps need no document. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
-		stickyColumn: { reset: () => log.push('reset') } as never,
-		edgeAffinity: {
-			reset: () => {},
-			get: () => null,
-			note: () => {},
-			noteTyping: () => {}
-		} as never,
+		caretMemory: { forget: () => log.push('forget') } as never,
 		selection: { isCrossBlock: false, anchor: null, focus: null } as never,
 		getDoc: () => null as never,
 		crossBlock: {
@@ -58,7 +48,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 				log.push('crossblock-paste');
 				return false;
 			},
-			performCrossBlockDeleteFromEvent: async () => void log.push('cross-delete')
+			performCrossBlockCut: async () => void log.push('cross-delete')
 		} as never,
 		isReadOnly: () => false,
 		caret: { getEl: () => null, getCursorOffset: () => null, focus: () => {} },
@@ -82,7 +72,7 @@ describe('clipboard skeleton: copy order', () => {
 			log.push('copyTail');
 		};
 		createClipboardHandlers(deps(log, { copyTail })).onCopy(rec.e);
-		expect(log).toEqual(['reset', 'copyTail']);
+		expect(log).toEqual(['forget', 'copyTail']);
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -93,7 +83,7 @@ describe('clipboard skeleton: copy order', () => {
 		createClipboardHandlers(
 			deps(log, { isReadOnly: () => true, copyTail: () => void (tailRan = true) })
 		).onCopy(rec.e);
-		expect(log).toEqual(['reset']);
+		expect(log).toEqual(['forget']);
 		expect(tailRan).toBe(false);
 		expect(rec.prevented).toBe(true);
 		expect(rec.written()).toBe(''); // jsdom's empty selection
@@ -113,7 +103,7 @@ describe('clipboard skeleton: copy order', () => {
 				copyTail: () => void (tailRan = true)
 			})
 		).onCopy(rec.e);
-		expect(log).toEqual(['reset', 'copyPreHook']);
+		expect(log).toEqual(['forget', 'copyPreHook']);
 		expect(tailRan).toBe(false);
 	});
 });
@@ -130,7 +120,7 @@ describe('clipboard skeleton: cut order', () => {
 				}
 			})
 		).onCut(rec.e);
-		expect(log).toEqual(['reset', 'fold', 'cutTail']);
+		expect(log).toEqual(['forget', 'fold', 'cutTail']);
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -151,7 +141,7 @@ describe('clipboard skeleton: cut order', () => {
 		).onCut(rec.e);
 		expect(folded).toBe(false);
 		expect(cutRan).toBe(false);
-		expect(log).toEqual(['reset', 'reset']); // outer cut + inner copy
+		expect(log).toEqual(['forget', 'forget']); // outer cut + inner copy
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -168,7 +158,7 @@ describe('clipboard skeleton: cut order', () => {
 				cutTail: () => void (cutRan = true)
 			})
 		).onCut(rec.e);
-		expect(log).toEqual(['reset', 'cutPreHook']);
+		expect(log).toEqual(['forget', 'cutPreHook']);
 		expect(cutRan).toBe(false);
 	});
 });
@@ -197,7 +187,7 @@ describe('clipboard skeleton: paste order', () => {
 				}
 			})
 		).onPaste(rec.e);
-		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
+		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('reading mode prevents and stays inert: no cross-block, no tail', async () => {
@@ -219,16 +209,13 @@ describe('clipboard skeleton: paste order', () => {
 		await createClipboardHandlers(deps(log, { pasteTail: () => void (tailRan = true) })).onPaste(
 			rec.e
 		);
-		expect(log).toEqual(['crossblock-paste', 'reset']);
+		expect(log).toEqual(['crossblock-paste', 'forget']);
 		expect(tailRan).toBe(false);
 	});
 });
 
-/** The call returns synchronously and the insertion runs on; drain the pending chain. */
-const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-
-// The API call is the gesture's sibling entry path, so what it must carry is the gesture's
-// own order of steps, not a second sequence written beside it.
+// `insertMarkdown` is a second way into a paste, so it must run the gesture's steps in the same
+// order; its promise resolves after the block's own paste step.
 describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];
@@ -240,9 +227,8 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 				}
 			})
 		);
-		expect(handlers.insertMarkdown('HELLO')).toBe(true);
-		await settled();
-		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
+		expect(await handlers.insertMarkdown('HELLO')).toBe(true);
+		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('hands the cross-block dispatch the payload, so a range is replaced rather than re-read', async () => {
@@ -258,8 +244,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 				} as never
 			})
 		);
-		expect(handlers.insertMarkdown('PAYLOAD')).toBe(true);
-		await settled();
+		expect(await handlers.insertMarkdown('PAYLOAD')).toBe(true);
 		expect(seen).toEqual(['PAYLOAD']);
 	});
 
@@ -269,8 +254,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 		const handlers = createClipboardHandlers(
 			deps(log, { isReadOnly: () => true, pasteTail: () => void (tailRan = true) })
 		);
-		expect(handlers.insertMarkdown('X')).toBe(false);
-		await settled();
+		expect(await handlers.insertMarkdown('X')).toBe(false);
 		expect(log).toEqual([]);
 		expect(tailRan).toBe(false);
 	});
@@ -278,16 +262,14 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('declines an empty payload', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
-		expect(handlers.insertMarkdown('')).toBe(false);
-		await settled();
+		expect(await handlers.insertMarkdown('')).toBe(false);
 		expect(log).toEqual([]);
 	});
 
 	it('normalizes CRLF the way a pasted payload is normalized', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
-		expect(handlers.insertMarkdown('a\r\nb')).toBe(true);
-		await settled();
-		expect(log).toEqual(['crossblock-paste', 'reset', 'pasteTail:a\nb']);
+		expect(await handlers.insertMarkdown('a\r\nb')).toBe(true);
+		expect(log).toEqual(['crossblock-paste', 'forget', 'pasteTail:a\nb']);
 	});
 });

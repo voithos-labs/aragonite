@@ -1,14 +1,13 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { capturePageErrors, waitForEditorHydrated } from '../../page-probes';
+import { capturePageErrors } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { SHOWCASE_MD, scanShowcase } from '../../showcase-document';
 
-// The `/` showcase mounts <Editor> with every bundled plugin installed the way a consumer would,
-// through subpath imports and injected latex and mermaid renderers, and exposes no `window.__test`
-// bridge, so this smoke test asserts through the rendered DOM only. It works out what to expect
-// from the demo document's bytes rather than its prose: the owner rewrites the document by hand,
-// and a pinned sentence would fail on that rewrite while saying nothing about whether the editor
-// still works. Requirements: e2e/requirements/plugins/showcase-route.md.
+// The `/` showcase mounts <Editor> with every bundled plugin the way a consumer would, with no
+// `window.__test` bridge, so this smoke test reads the rendered DOM. Expectations come from the
+// demo document's bytes rather than its prose, which is rewritten by hand. Requirements:
+// e2e/requirements/plugins/showcase-route.md.
 
 const scan = scanShowcase();
 const MATH_HOST = '[data-block-kind="mathBlock"], [data-block-kind="mathFence"]';
@@ -27,8 +26,8 @@ interface Sweep {
 	degraded: string[];
 	/** Per math block path: whether its widget mounted, and whether KaTeX painted inside it. */
 	math: Record<string, { island: boolean; engine: boolean }>;
-	/** Per mermaid block path: whether its widget mounted. The renderer runs asynchronously behind
-	 *  a dynamic import, so its SVG is left to the mermaid specs rather than pinned here. */
+	/** Per mermaid block path: whether its widget mounted; its async SVG is left to the mermaid
+	 *  specs. */
 	mermaid: Record<string, { island: boolean }>;
 }
 
@@ -111,8 +110,7 @@ test.describe('/ showcase route', () => {
 		// Set up before the navigation: a plugin that throws on install throws during hydration,
 		// which a listener attached afterwards never sees.
 		pageErrors = capturePageErrors(page);
-		await page.goto('/');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test.afterEach(() => {
@@ -127,15 +125,13 @@ test.describe('/ showcase route', () => {
 	test('mounts every block, none of them on the raw-editable fallback', async ({ page }) => {
 		const sweep = await sweepShowcase(page);
 
-		// The premise: the tour shows no kind that renders as raw text. A plugin that failed to
-		// install leaves the parser producing `htmlBlock` for the bytes it would have taken, and
-		// that is what shows up here.
+		// The tour shows no kind that renders as raw text: a plugin that failed to install leaves its
+		// bytes as `htmlBlock`.
 		expect(sweep.degraded, 'blocks that degraded to raw or to the render-error surface').toEqual(
 			[]
 		);
-		// A windowing check: the pass ran out of document rather than out of steps, the document's
-		// last block is among those mounted at the bottom, and the indices in between run
-		// unbroken from the first, so no block was skipped on the way down.
+		// The pass ran out of document rather than steps, the last block is mounted at the bottom, and
+		// the indices run unbroken from the first, so no block was skipped.
 		expect(sweep.reachedEnd, 'the pass never reached the end of the scrollport').toBe(true);
 		expect(sweep.atBottom).toContain(Math.max(...sweep.topLevel));
 		expect(sweep.topLevel).toEqual(sweep.topLevel.map((_, index) => index));
@@ -166,9 +162,8 @@ test.describe('/ showcase route', () => {
 			return;
 		}
 		await expect(entries.first()).toBeVisible();
-		// One entry per heading, so the outline walked the document rather than rendering a
-		// placeholder. A mismatch here means the file scan disagrees with the parser, not that the
-		// outline is missing, which the visibility check above covers.
+		// One entry per heading; a mismatch means the file scan disagrees with the parser, since the
+		// visibility check above covers a missing outline.
 		await expect(entries).toHaveCount(scan.headings.length);
 	});
 

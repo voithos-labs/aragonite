@@ -1,11 +1,6 @@
 import { test, expect } from '../../fixtures';
-import {
-	PluginsPage,
-	clickWidgetEnd,
-	revealWidget,
-	roundTripStable,
-	textRunCenter
-} from './helpers';
+import { PluginsPage, clickWidgetEnd, revealWidget, roundTripStable } from './helpers';
+import { textRunCenter, textRunRect } from '../../text-runs';
 import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
@@ -36,33 +31,6 @@ class MathPage extends PluginsPage {
 	async revealAtFormulaEnd(): Promise<void> {
 		await clickWidgetEnd(this.mathWidget);
 		await expect(this.mathWidget).toHaveCount(0);
-	}
-
-	/**
-	 * Vertical center of `needle`, in block [0]. A range over the substring alone (not the whole
-	 * text node, which may span the soft-wrapped break) isolates the line the needle sits on.
-	 */
-	async lineYContaining(needle: string): Promise<number> {
-		const y = await this.page.evaluate((text) => {
-			const wrapper = document.querySelector("[data-block-path='[0]']");
-			const editable = wrapper?.querySelector('[contenteditable]');
-			if (!editable) return null;
-			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const idx = node.textContent?.indexOf(text) ?? -1;
-				if (idx >= 0) {
-					const range = document.createRange();
-					range.setStart(node, idx);
-					range.setEnd(node, idx + text.length);
-					const rect = range.getBoundingClientRect();
-					return rect.top + rect.height / 2;
-				}
-			}
-			return null;
-		}, needle);
-		if (y === null) throw new Error(`no text node containing "${needle}" in block [0]`);
-		return y;
 	}
 
 	/** True when the collapsed selection currently sits inside block [0]. */
@@ -114,7 +82,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		const widgetBox = await editor.mathWidget.boundingBox();
 		if (!widgetBox) throw new Error('math widget has no bounding box');
-		const line2Y = await editor.lineYContaining('second visual line');
+		const line2 = await textRunRect(page, 'second visual line', { path: [0] });
+		const line2Y = line2.top + line2.height / 2;
 		// Premise: the second line renders below the widget, so the point below is
 		// genuinely a different visual line sharing the widget's column.
 		expect(line2Y).toBeGreaterThan(widgetBox.y + widgetBox.height);
@@ -140,9 +109,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	}) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "Before " is 7 characters: 7 steps reach the widget's leading edge and the eighth enters
-		// it. Under the Obsidian model entering opens the source in place rather than resting in
-		// an invisible selected-widget state waiting for Enter.
+		// "Before " is 7 characters: 7 steps reach the widget's leading edge and the eighth opens the
+		// source in place, never resting in an invisible selected-widget state.
 		for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 
@@ -188,9 +156,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
-		// The commit left the caret at the formula's trailing edge, so the next character lands
-		// immediately after the re-rendered widget: the End position does not survive the commit,
-		// the widget's trailing edge does.
+		// The End position does not survive the commit, but the widget's trailing edge does, so the
+		// next character lands right after the re-rendered widget.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2z$!');
 		expect(await editor.bridge.getSource()).toContain('Before $x^2z$! after');
@@ -257,15 +224,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		const pageErrors = capturePageErrors(page);
 
 		await editor.revealByClick();
-		// Extending by keyboard is decided from visual-line geometry, and a KaTeX font swap
-		// partway through a measurement, which happens under busy parallel workers, breaks the
-		// last-line check, so wait for fonts before the gesture.
+		// Keyboard extension reads visual-line geometry, and a KaTeX font swap mid-measurement, common
+		// under busy workers, breaks the last-line check, so fonts load first.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the caret the open source left. That
-		// caret sits inside the source, at a mid-block offset, and the block is one visual line,
-		// so the first Shift+ArrowDown extends to the line's end inside the block. Extending keeps
-		// the source open, unlike a collapsed End, which would leave the widget and close it. The
-		// second crosses into the next block, with the anchor staying inside the open source.
+		// The first Shift+ArrowDown extends to the line's end inside the open source, keeping it open
+		// where a collapsed End would close it; the second crosses into the next block.
 		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -277,9 +240,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(paths).not.toBeNull();
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 
-		// Blur while the cross-block selection is live. No mouse or keyboard gesture moves focus
-		// off the block without collapsing the selection, so the blur is fired directly. The
-		// commit must stop on a cross-block range rather than close the source under its anchor.
+		// No real gesture moves focus off the block without collapsing the selection, so the blur is
+		// fired directly; the commit must not close the source under a live cross-block range.
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await editor.waitForRenderFlush();
 
@@ -301,7 +263,7 @@ test.describe('plugin inline math: a double-click inside an open reveal', () => 
 
 			await editor.revealByClick();
 
-			const word = await textRunCenter(page, [0], 'beta');
+			const word = await textRunCenter(page, 'beta', { path: [0] });
 			await page.mouse.dblclick(word.x, word.y);
 			await editor.waitForRenderFlush();
 

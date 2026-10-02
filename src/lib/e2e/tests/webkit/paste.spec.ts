@@ -57,8 +57,7 @@ test.describe('webkit: paste through the dispatched clipboard event', () => {
 		await editor.paste();
 
 		await editor.bridge.waitForSourceMatches(/target\n\nfirst/);
-		const source = await editor.bridge.getSource();
-		expect(source.startsWith('first\n\nsecond\n\ntarget\n')).toBe(true);
-		expect(source.endsWith('first\n\nsecond')).toBe(true);
+		// The pasted last block gets its own line ending, so the file still ends in one.
+		expect(await editor.bridge.getSource()).toBe('first\n\nsecond\n\ntarget\n\nfirst\n\nsecond\n');
 	});
 });

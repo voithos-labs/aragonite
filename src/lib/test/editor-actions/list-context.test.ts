@@ -13,6 +13,10 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // that parses to several blocks is one of the split shapes under test.
 afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
 
+/** The two splits whose new item reads back as another tree, the item split's open defect. */
+const allowSplitReadBack = () =>
+	allowDevWarns(['invariant:stale-raw', 'tree-ops', 'invariant:reads-back']);
+
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
 const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
@@ -58,6 +62,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(newItem.children).toHaveLength(3);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
+		allowSplitReadBack();
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -88,8 +93,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 
-	// Miss-analysis (GH #98): every split test here used a single-block first half, so
-	// `innerIndex + 1` always was the second half and the splice boundary went unobserved.
+	// Miss-analysis (GH #98): every split test here used a first half that parsed to one block.
 	it('a plural first half stays whole; only the second half moves to the new item', async () => {
 		// Enter at the end of the blank line inside the item's indented code: the first half
 		// reparses to [code, blank], and the new item must start at the second half.
@@ -112,6 +116,7 @@ describe('list-context: splitItemAtOffset', () => {
 
 		const newItem = liveList().children![1];
 		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
+		allowSplitReadBack();
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {
@@ -263,6 +268,8 @@ describe('list-context: a moved item adopts its destination marker', () => {
 		// A promote needs a survivor left behind to renumber within the sublist.
 		expect(sublist.children).toHaveLength(subIds.length);
 		registerBlockListState(sublist, makeBlockListState(liveSublist, subIds) as any);
+		// Mounted, as the item holding a mounted sublist is: a promote commits it as a scope.
+		makeBlockListState(() => deps.doc.children[0].children![0]);
 
 		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: outerIds });
 

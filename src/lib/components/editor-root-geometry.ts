@@ -1,13 +1,11 @@
 /**
- * Editor-root geometry observers: the width and viewport-height watchers, the type-scale
- * measurement and the header-height compensation. Each observes the element its installing
- * `$effect` captured and returns the teardown; the values they feed (`widthVersion`,
- * `typeScale`, `viewportHeightVersion`) stay in `Editor.svelte`, which is what the rest of the
- * root reads. ResizeObserver already batches per callback, so there is no timer (G4.4).
+ * The editor root's size observers: each watches the element it is handed and returns its
+ * teardown, and the values they feed stay in `Editor.svelte`. ResizeObserver already batches
+ * per callback, so there is no timer (G4.4).
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import type { Scrollport } from '../cursor/scrollport';
+import type { RootListScroll, ScrollOwner } from '../cursor/scroll-owner';
 import { ESTIMATE_BASE_FONT_SIZE } from '../cursor/typography-estimates';
 import { onRoot, removeAll } from './editor-root-listeners';
 
@@ -59,12 +57,8 @@ export interface TypeScaleProbeDeps {
 	onScale(next: number): void;
 }
 
-/**
- * The width watcher's sibling: a font-size change puts the height estimates off several-fold,
- * so a document tall enough to need windowing can fail to window at all. No other box in the
- * root reports it, hence the `1em` element measured here; the scale is relative to the size
- * `HEIGHT_ESTIMATES` were calibrated at.
- */
+/** A font-size change can throw the height estimates off enough that windowing never starts;
+ *  the `1em` element reports it, as a scale against `HEIGHT_ESTIMATES`. */
 export function installTypeScaleProbe(el: HTMLElement, deps: TypeScaleProbeDeps): () => void {
 	const apply = (fontSizePx: number) => {
 		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
@@ -87,28 +81,32 @@ function borderBoxHeight(entries: ResizeObserverEntry[], el: HTMLElement): numbe
 
 // ── Header height ───────────────────────────────────────────────────
 
+// The header has already resized when its observer fires; there is no change left to run.
+const noChange = (): void => {};
+
 export interface HeaderSlotCompensationDeps {
 	el: HTMLElement;
-	port: Pick<Scrollport, 'scrollTop' | 'scrollBy'>;
-	ownsScrollCorrection(): boolean;
-	revealHoldsScroll(): boolean;
+	port: ScrollOwner['port'];
+	/** The root list's correction: a held target is re-placed, since the root list's top already
+	 *  counts the header. */
+	compensate: RootListScroll['compensate'];
 }
 
-/**
- * The header's height is not in the height table, so while the editor owns the scroll
- * correction a growing header would slide the document under the user. Compensating from the
- * header's own resize adds to `correctAnchor` instead of double-correcting; a scroll already
- * being held for a block wins over it.
- */
+/** The header is not in the height table, so its own resize adds to the scroll correction, or a
+ *  growing header would slide the document. */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
-	const { el, port } = deps;
+	const { el, port, compensate } = deps;
 	let lastHeight = el.getBoundingClientRect().height;
 	const observer = new ResizeObserver((entries) => {
 		const height = borderBoxHeight(entries, el);
 		const delta = height - lastHeight;
 		lastHeight = height;
-		if (delta === 0 || !deps.ownsScrollCorrection() || port.scrollTop() === 0) return;
-		if (!deps.revealHoldsScroll()) port.scrollBy(delta);
+		if (delta === 0) return;
+		// At the top the header is on screen, so the document moving down under it is expected.
+		compensate(noChange, (run) => {
+			run();
+			return port()?.scrollTop() === 0 ? 0 : delta;
+		});
 	});
 	observer.observe(el);
 	return () => observer.disconnect();

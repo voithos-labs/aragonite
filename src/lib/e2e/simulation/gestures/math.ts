@@ -2,9 +2,9 @@ import type { Page } from '@playwright/test';
 import type { Gestures } from '../gestures';
 import { type SimContext } from '../invariants';
 
-// Math gestures for the LaTeX extension (plugins route only). Each waits for the widget to
-// swap in or out and resyncs after the reparse; predicting across a change of kind, or across
-// `$…$` turning into a widget, would put the character count out.
+// Math gestures for the LaTeX extension (plugins route only). Each waits for the widget to swap
+// in or out and resyncs, since predicting across a change of kind, or across `$…$` turning into a
+// widget, would miscount.
 
 const INLINE_WIDGET = '.math-inline-widget';
 const BLOCK_RENDER = '.math-block-render';
@@ -19,8 +19,8 @@ async function waitForWidgetCount(page: Page, expected: number, timeout = 5000):
 }
 
 /**
- * Walking the caret out is what commits an open formula. Enter splits the block rather than
- * committing (see `latex-inline-reveal-commands`), so every edit here leaves by the caret.
+ * Walking the caret out commits an open formula; Enter splits the block instead
+ * (`latex-inline-reveal-commands`), so every edit here leaves by the caret.
  */
 export async function escapeRevealToCommit(ctx: SimContext, before: string): Promise<void> {
 	for (let i = 0; i < 40; i++) {
@@ -37,10 +37,8 @@ async function blockRaw(ctx: SimContext, index: number): Promise<string> {
 	);
 }
 
-// A plain `.click()` aims at the centre of the first box, which for the clipped 1px
-// `.katex-mathml` half is a corner outside the widget, so the click misses it. Aim at the
-// visible `.katex-html` characters instead, `xFraction` of the way across them, since opening
-// the formula puts the caret where the click landed.
+// A plain `.click()` aims at the first box's centre, which for the clipped 1px `.katex-mathml`
+// half misses the widget, so this aims `xFraction` across the visible `.katex-html` characters.
 export async function clickInlineWidget(page: Page, nth: number, xFraction = 0.5): Promise<void> {
 	const widget = page.locator(INLINE_WIDGET).nth(nth);
 	const glyphs = widget.locator('.katex-html');
@@ -96,8 +94,7 @@ export async function editInlineMath(ctx: SimContext, text: string): Promise<voi
 	const before = await editor.bridge.getSource();
 	const widgetCount = await page.locator(INLINE_WIDGET).count();
 
-	// Pressed at the end of the formula, so the caret sits inside the closing `$` and the typed
-	// byte lands last.
+	// At the end of the formula the caret sits inside the closing `$`, so the typed byte lands last.
 	await clickInlineWidget(page, 0, 1);
 	await waitForWidgetCount(page, widgetCount - 1); // the clicked widget opened to its source
 	await editor.waitForRenderFlush();
@@ -135,9 +132,8 @@ export async function editBlockMath(
 }
 
 /**
- * An edit to the text on either side of a widget that stays put, ending with the bytes as they
- * were: it drives the read-back that has to account for the widget's hidden bytes (G1.9). The
- * caller checks the widget count held.
+ * Edits the text on either side of a widget and restores it, driving the read-back that accounts
+ * for the widget's hidden bytes (G1.9); the caller checks the widget count held.
  */
 export async function deleteAroundInlineMath(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -154,9 +150,8 @@ export async function deleteAroundInlineMath(ctx: SimContext, blockIndex: number
 }
 
 /**
- * Shift+ArrowLeft selects the whole widget, then Backspace removes it. A Backspace beside it
- * cannot do this: on a kind that can show its source it opens the formula instead, and edits
- * there stay out of the tree, so that path never changes `getSource()`.
+ * Backspace beside a widget opens the formula instead, and an open formula keeps its edits out of
+ * the tree, so Shift+ArrowLeft selects the whole widget first.
  */
 export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -172,10 +167,8 @@ export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number
 }
 
 /**
- * The bytes must survive entering a formula with the caret: ArrowLeft across its end opens it,
- * and stepping out of the front closes it again unedited, so the round trip has to be identical.
- * Steps until the widget comes back, since the source length is unknown here, with a cap so an
- * extra press cannot walk far past the widget.
+ * ArrowLeft across the end opens the formula and stepping out of the front closes it unedited,
+ * so the round trip must be identical; the step count is capped so it cannot walk far past.
  */
 export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -197,10 +190,8 @@ export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number)
 }
 
 /**
- * Entering with the caret and committing by stepping out, as opposed to the click and blur that
- * `editInlineMath` covers. Backspace at the end opens the formula rather than deleting the
- * widget, and the edit lives in the DOM alone until the commit, which is checked by
- * `getSource()` staying unchanged while the source is shown. Resyncs after the reparse.
+ * Enters with the caret and commits by stepping out, unlike `editInlineMath`'s click and blur;
+ * the edit lives in the DOM alone until the commit, so `getSource()` must hold while it is open.
  */
 export async function backspaceRevealEditInlineMath(
 	ctx: SimContext,
@@ -237,9 +228,8 @@ export async function backspaceRevealEditInlineMath(
 }
 
 // ── Math fence ──────────────────────────────────────────────────────────────
-// Both gestures work from a prose block beside the fence and never focus it: it shows its
-// source on pointerdown, so a click would open the source rather than act on the block. What
-// is under test is the fence's raw text surviving two structural moves that never enter it.
+// Both gestures work from a prose block beside the fence and never focus it, since the fence shows
+// its source on pointerdown; the fence's raw text must survive two moves that never enter it.
 
 // Both ends of the range sit this far into the prose blocks beside the fence, so the range
 // covers real content on each side rather than only the block edges.
@@ -250,10 +240,8 @@ function trimTrailingNewlines(raw: string): string {
 }
 
 /**
- * Two blocks swap places and swap back. Halfway through, both the fence's raw text and its kind
- * are checked, so a move that rebuilt it as plain `fencedCode`, or lost a byte of its info
- * string, throws. The move back waits for the bytes to return identical, so a second press that
- * did nothing times out instead of passing.
+ * Halfway through the swap, the fence's raw text and kind are checked, so a move that rebuilt it
+ * as plain `fencedCode` throws; a move back that did nothing times out instead of passing.
  */
 export async function reorderPastMathFence(
 	ctx: SimContext,
@@ -291,11 +279,8 @@ export async function reorderPastMathFence(
 }
 
 /**
- * A range with the fence entirely inside it: neither end lands on the fence, so nothing opens
- * its source and the delete runs over a rendered, opaque block. Both blocks beside it must be
- * plain prose, so what is left over can be predicted byte for byte; comparing against it catches
- * a leftover piece of the fence, a stray backtick or half an info string, which is the damage
- * worth catching, since it reparses as a different kind and a line-level check would miss it.
+ * Neither end of the range lands on the fence, so the delete runs over a rendered block; the plain
+ * prose on both sides makes the leftover predictable byte for byte, catching a stray fence piece.
  */
 export async function deleteAcrossMathFence(
 	ctx: SimContext,

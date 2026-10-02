@@ -35,18 +35,37 @@ all of them flag the table endpoints as cell coordinates.
 
 ## Coverage-driven intra-table delete
 
-Intra-table Backspace dispatches by what the selection covers:
+Backspace, Delete and cut over cells of one table go by what the selection covers:
 
 - Whole-table coverage (every cell selected, by a second Ctrl+A press, say): delete the table block. When
-  the table is the document's only block, an empty paragraph replaces it in the same undo entry so
-  the document keeps ≥1 editable block, the caret lands in it (offset 0), and a single Ctrl+Z
-  restores the original table.
+  the table is the document's only block, the commit leaves an empty paragraph in its place (every
+  delete that takes a document's last block does), the caret lands in it (offset 0), and a single
+  Ctrl+Z brings the table back.
+- Whole-table coverage with a paragraph above and below: Backspace lands the caret at the end of
+  the one above, so a typed `x` joins its text.
+  - Miss-analysis: the whole-table cases all used a table alone in the document, so where the
+    caret went beside neighbours was never read.
+- The same with Delete: the caret lands at the start of the paragraph below, the side Delete
+  points, so a typed `x` opens it.
+  - Miss-analysis: only Backspace was ever pressed over a whole table, and the whole-table route
+    picked its side on its own, so it kept Backspace's side for Delete too.
+- Typing over a whole table (a second Ctrl+A in a table that's the document's only block, then
+  `x`) replaces the table with a paragraph holding `x`. A cut over it removes the table, the way
+  Backspace does.
+  - Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range
+    kept clearing the cells and nobody looked.
 - Whole-row coverage (every cell of one row, no cells from other rows): delete the row. It does
   nothing when only the header row would survive (≥1 body row required), mirroring Ctrl+Shift+Backspace.
   Deleting the header row promotes the next row to header.
 - Whole-column coverage (every row's same column, no other columns): delete the column. It does
   nothing when only one column remains (≥2 columns required), mirroring Alt+Shift+Backspace.
 - Subset / mixed coverage: clear the selected cells and preserve the table structure.
+- A table inside a quote or a list item gets the same treatment: a whole row or column goes, and
+  the whole table goes too, taking the quote or item it leaves empty with it (the paragraph below
+  stays). One Ctrl+Z brings the table back.
+  - Miss-analysis: every coverage row used a top-level table, and Backspace only asked what a
+    selection covers when it sat at the top level, so a nested table got its cells cleared and no
+    test ever looked.
 
 ## User interactions
 

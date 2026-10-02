@@ -6,9 +6,8 @@ import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replac
 
 // Find and replace is the one write that can take a code block's opener without a selection
 // endpoint: a match spanning the opener line substitutes it away and strands the closer,
-// which then absorbs the heading below (issue #58). Miss-analysis:
-// `search-replace-fence-escalation.test.ts` drove matches that end on the closer (issue #55)
-// and none that start above the opener, so this path's other half went unwatched.
+// which then absorbs the heading below.
+// Miss-analysis (GH #58): replace tests drove matches ending on the closer, never above the opener.
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 

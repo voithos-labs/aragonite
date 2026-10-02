@@ -8,9 +8,11 @@ import type { UndoEntry } from '$lib/undo/types';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the dev-mode
-// stale-raw check reads them as stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
+// them as stale, and the one-block check reads their childless list items as emptied.
+afterEach(() =>
+	allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block', 'invariant:reads-back'])
+);
 
 function stackBytes(entries: UndoEntry[]): string[] {
 	return entries.map((e) => serialize(e.snapshot));
@@ -48,8 +50,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Populates redo so both stacks have something to restore: a regression restoring
-		// only undo stays invisible to an undo-length-only assertion.
+		// Populates redo so both stacks have something to restore: a rollback restoring only
+		// undo would pass an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -86,8 +88,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const originalContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(originalContainer.children ?? []);
 
-		// Splices the live scope view, then trips the arity check: the real "throws AFTER
-		// all splices completed" path. Array (not tuple) typing lets the wrong arity compile.
+		// Splices the live scope view, then trips the arity check, so the throw comes after every
+		// splice. Array (not tuple) typing lets the wrong arity compile.
 		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -109,6 +111,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
+		// Held open, so the second commit below joins this entry rather than pushing its own.
+		void controller.undoStep({ path: asDocPath([0]), offset: 0 }, () => new Promise(() => {}));
 		// Pushes a real snapshot, so children[0] ends up copied out of it.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
@@ -122,14 +126,13 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const ownedContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(ownedContainer.children ?? []);
 
-		// A join into the same undo entry against an already copied node: the copy before
-		// write does nothing and the splice lands in place, where a top-level array swap
-		// cannot reach it.
+		// Joining an entry whose node is already copied, the splice lands in place, where a
+		// top-level array swap cannot reach it.
 		const scopes: MultiScopeTarget[] = [{ node: ownedContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
 					return [];
@@ -169,8 +172,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Two real commits then one undo leaves undo AND redo non-empty.
-		const appendItem = (raw: string, at: number): Promise<void> =>
+		// Two real commits then one undo leaves undo and redo non-empty.
+		const appendItem = (raw: string, at: number): Promise<boolean> =>
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 				snapshot: { path: asDocPath([0]), offset: 0 },

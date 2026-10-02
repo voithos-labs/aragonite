@@ -1,36 +1,27 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { composeCollapseProbe } from '$lib/editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { testContainer } from '$lib/test/harness/test-kinds';
+import type { PresentationMode } from '$lib/presentation-mode';
 
 // The details declaration without its rendering: a `reservedChrome.isCollapsed` reading
 // an `open` metadata flag.
 function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
-	const kind = declarePluginKind('collapse-probe-container');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		// It never commits, so a do-nothing strip contract and rebuild satisfy the
-		// required pairing.
-		container: {
-			contract: 'strip',
-			rebuildRaw: () => {},
-			reservedChrome: {
-				kind: chrome,
-				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
-			}
+	const kind = testContainer('collapse-probe-container', {
+		contract: 'strip',
+		rebuildRaw: () => {},
+		reservedChrome: {
+			kind: chrome,
+			isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
 		}
 	});
 	return kind;
 }
+
+const SOURCE = (): PresentationMode => 'source';
 
 function containerNode(kind: ReturnType<typeof declarePluginKind>, open: boolean): CstNode {
 	const node: CstNode = { kind, leadingTrivia: '', raw: '' };
@@ -39,12 +30,14 @@ function containerNode(kind: ReturnType<typeof declarePluginKind>, open: boolean
 }
 
 describe('composeCollapseProbe', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('derives from the descriptor probe when no explicit dep is supplied', () => {
 		const kind = registerCollapsible();
-		const probeCollapsed = composeCollapseProbe(undefined, () => containerNode(kind, false));
-		const probeOpen = composeCollapseProbe(undefined, () => containerNode(kind, true));
+		const probeCollapsed = composeCollapseProbe(
+			undefined,
+			() => containerNode(kind, false),
+			SOURCE
+		);
+		const probeOpen = composeCollapseProbe(undefined, () => containerNode(kind, true), SOURCE);
 
 		expect(probeCollapsed()).toBe(true); // open:false -> collapsed
 		expect(probeOpen()).toBe(false);
@@ -56,7 +49,8 @@ describe('composeCollapseProbe', () => {
 
 		const probe = composeCollapseProbe(
 			() => true,
-			() => node
+			() => node,
+			SOURCE
 		); // explicit agrees
 
 		expect(probe()).toBe(true);
@@ -81,9 +75,8 @@ describe('composeCollapseProbe', () => {
 		expect(fires[0].message).toMatch(/collapse-probe-container/);
 	});
 
-	// Reading mode is the one place the view may disagree with the document, because a
-	// toggle there writes no bytes. Without the exception the editor dev-warns for as
-	// long as the section stays open.
+	// Reading mode may show a view the document disagrees with, because a toggle there writes no
+	// bytes; without the exception the editor dev-warns as long as the section stays open.
 	it('allows a reading-mode view divergence without warning', () => {
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // the document says collapsed

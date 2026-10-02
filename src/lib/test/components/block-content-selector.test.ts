@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Read against BlockHost's real wrapper layout: the locator form returns every match, so
 // an extra child that is not named in it inflates the per-block count, and one of them
 // (`.decoration-overlay`) varies with the live decoration set.

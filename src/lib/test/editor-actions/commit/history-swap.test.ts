@@ -49,9 +49,31 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 	});
 });
 
-// Nothing else checks that undo keeps sharing the selection restore with the consumer's
-// setSelection; growing its own would re-open the stale notification the shared restore's
-// batching closed.
+// Miss-analysis: every history test restored into the tree the selection was made in.
+describe('history swap: the outgoing selection never meets the incoming tree', () => {
+	it('drops the standing range before the document swaps', async () => {
+		const { deps, history } = makeSetup();
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 1 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		const setDoc = deps.setDoc;
+		let heldAtSwap: unknown = 'not swapped';
+		deps.setDoc = (doc) => {
+			heldAtSwap = deps.selectionState.anchor;
+			setDoc(doc);
+		};
+
+		await history.requestUndo();
+
+		expect(heldAtSwap).toBeNull();
+	});
+});
+
+// Undo shares the selection restore with the consumer's setSelection; a restore of its own
+// could notify before the block is placed.
 describe('history swap: the restored selection notifies once, after the placement', () => {
 	it('emits after the applier has looked for the block, not before', async () => {
 		const log: string[] = [];
@@ -74,26 +96,71 @@ describe('history swap: the restored selection notifies once, after the placemen
 
 		expect(log).toEqual(['place', 'notify']);
 	});
+
+	// Dropping the outgoing range before the document swap must not announce it: the only
+	// notification is still the restored selection's.
+	it('stays at one notification when a cross-block range was standing', async () => {
+		const log: string[] = [];
+		const { deps } = makeEditorActionsDeps(
+			[makeNode('paragraph', 'aaa\n'), makeNode('paragraph', 'bbb\n')],
+			{ onSelectionChange: () => log.push('notify') }
+		);
+		deps.getBlockElByPath = () => {
+			log.push('place');
+			return null;
+		};
+		const history = createHistoryActions(deps, createUndoController(deps));
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		log.length = 0;
+
+		await history.requestUndo();
+
+		expect(log).toEqual(['place', 'notify']);
+	});
+
+	it('announces once when the restored selection no longer resolves', async () => {
+		const log: string[] = [];
+		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')], {
+			onSelectionChange: () => log.push('notify')
+		});
+		const history = createHistoryActions(deps, createUndoController(deps));
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [5], offset: 0 }, focus: { path: [5], offset: 0 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		log.length = 0;
+
+		await history.requestUndo();
+
+		expect(log).toEqual(['notify']);
+		expect(deps.selectionState.isCrossBlock).toBe(false);
+	});
 });
 
-// Flush, not discard: the pending `input` event must reach edit listeners (discarding
-// drops those bytes) and the debounce timer must be cleared.
-describe('history swap: batch flush', () => {
-	it('flushes a pending batch exactly once: emits its input event and clears the timer', async () => {
+describe('history swap: the typing batch ends', () => {
+	it('the keystroke after an undo opens its own entry, and the batch fires no edit', async () => {
 		vi.useFakeTimers();
 		try {
-			const { events, controller, history } = makeSetup();
-			const inputs: string[] = [];
-			events.on('edit', (e) => {
-				if (e.op === 'input') inputs.push(e.op);
-			});
+			const { deps, events, controller, history } = makeSetup();
+			const ops: string[] = [];
+			events.on('edit', (e) => ops.push(e.op));
 
-			// Starts a batch: the first keystroke pushes a snapshot and opens the pending input batch.
 			controller.pushUndoSnapshotDebounced([0], 1);
+			controller.armUndoPause();
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
+			expect(ops).toEqual(['undo']);
+			expect(deps.undoManager.canUndo).toBe(false);
 
-			expect(inputs).toHaveLength(1);
+			controller.pushUndoSnapshotDebounced([0], 1);
+			expect(deps.undoManager.canUndo).toBe(true);
 		} finally {
 			vi.useRealTimers();
 		}

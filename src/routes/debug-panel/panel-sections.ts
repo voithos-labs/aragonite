@@ -5,8 +5,8 @@
  */
 
 import type { Editor } from '$lib';
-import { parse } from '$lib/core/parser';
-import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
+import { readBlocks } from '$lib/core/parser';
+import { readInline, getContentRange, isProseKind } from '$lib/core/inline';
 import { dumpInlineTree } from '$lib/debug/inspect';
 import { findBlockPathForElement } from '$lib/selection/path-lookup';
 import { isBlockNode, nodeAt } from '$lib/tree-operations/node-primitives';
@@ -24,14 +24,16 @@ export function getFocusedBlockPath(): number[] | null {
 	return findBlockPathForElement(el);
 }
 
-export function dumpFocusedInlineTree(source: string): string {
+/** Read in the editor's grammar, so an editor with a syntax off dumps the tree it renders. */
+export function dumpFocusedInlineTree(editor: EditorInstance): string {
 	const path = getFocusedBlockPath();
 	if (!path) return '';
-	const doc = parse(source);
+	const grammar = editor.__test.getGrammar();
+	const doc = readBlocks(editor.getSource(), { grammar, scope: 'document' });
 	const node = nodeAt(doc, path);
 	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
 	const range = getContentRange(node);
-	const inline = parseInline(node.raw, range.start, range.end);
+	const inline = readInline(node.raw, range.start, range.end, undefined, grammar);
 	return dumpInlineTree(inline);
 }
 

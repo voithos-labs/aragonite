@@ -40,9 +40,8 @@ describe('indented code: never interrupts an open paragraph', () => {
 	});
 });
 
-// Miss-analysis (C-M5): every fixture indented with literal spaces or a leading tab, so the
-// matcher's missing tab-column expansion — the one thematic-break.ts already carries — had no
-// case. Expected shapes verified against cmark-gfm via api.github.com/markdown.
+// Miss-analysis: every fixture indented with spaces or a leading tab, never spaces then a tab.
+// Expected shapes checked against cmark-gfm via api.github.com/markdown.
 describe('indented code: a tab advances to the next 4-column stop (GFM §2.2)', () => {
 	const indents: { name: string; prefix: string; code: boolean }[] = [
 		{ name: 'two spaces then a tab', prefix: '  \t', code: true },

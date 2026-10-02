@@ -55,9 +55,8 @@ describe('column ops on a row-windowed table', () => {
 	});
 });
 
-// A single mounted row 0 makes the per-row change lookup an identity map, the one
-// arrangement under which mispairing scopes with changes is invisible. These mount the
-// arrangements real windowing leaves behind.
+// With only row 0 mounted the per-row change lookup is an identity map, which hides scopes
+// paired with the wrong changes, so these mount the arrangements real windowing leaves.
 describe('column ops pair each row scope with its own change', () => {
 	it('commits when the mounted slice starts past row 0', async () => {
 		const { deps, mutations } = makeWindowedTable([2]);

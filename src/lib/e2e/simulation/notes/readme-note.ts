@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The README note, in the style of a getting-started page. Typing it reproduces the loaded
- * document, so the end state still has to match, and the numbered steps, the fenced code body
- * (typed with `softEnter`) and the inline links all end up in what that check compares.
+ * The README note, in the style of a getting-started page, typed so it matches the loaded document:
+ * numbered steps, a fenced code body (typed with `softEnter`) and inline links.
  */
 export const README_NOTE: NoteFixture = {
 	name: 'readme-note',

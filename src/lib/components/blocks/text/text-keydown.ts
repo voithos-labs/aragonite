@@ -1,15 +1,15 @@
 /**
- * Pure raw and caret transforms for TextEditableBlock's structural gestures: changing a
+ * Pure text and caret transforms for TextEditableBlock's structural gestures: changing a
  * heading's level, demoting it to prose, inserting a hard break, inserting a literal tab.
  * The component owns the wiring; these own the string math.
  */
 
-import type { ContentRange } from '../../../core/inline';
+import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
 import {
 	displayLength,
 	ownTrailingLineEnding,
-	trailingLineEnding,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../../../core/lines';
 
 export interface TextEditResult {
@@ -18,66 +18,36 @@ export interface TextEditResult {
 }
 
 /**
- * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
- * ATX, an underline line for setext. Both sides read the kind's content range and nothing else, so
- * a prefix rewrite cannot disagree with the check that let the key through (`  ## x` is a heading
- * whose `#`s a `^#` regex never reaches). Null where the content is the whole displayed text.
+ * Drop the block's structure outside its content range, the same range the check that let the
+ * key through reads. Null where the content is the whole display.
  */
 export function demoteToParagraph(
 	raw: string,
 	content: ContentRange,
 	preEditOffset: number
 ): TextEditResult | null {
-	if (content.start > 0) return dropStructuralPrefix(raw, content.start, preEditOffset);
-	if (content.end < displayLength(raw))
-		return dropStructuralSuffix(raw, content.end, preEditOffset);
-	return null;
-}
-
-/** Drop everything before `contentStart`: a heading's marker prefix and any spaces before it,
- *  which sit ahead of every caret the content range allows. */
-export function dropStructuralPrefix(
-	raw: string,
-	contentStart: number,
-	preEditOffset: number
-): TextEditResult {
+	if (content.start === 0 && content.end === displayLength(raw)) return null;
+	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: raw.slice(contentStart),
-		caretOffset: Math.max(0, preEditOffset - contentStart)
+		newRaw: raw.slice(content.start, content.end) + endingPastContent(raw, content.end),
+		caretOffset: inContent - content.start
 	};
 }
 
-/** Drop everything past `contentEnd` but the block's own trailing line ending: the setext
- *  underline, which sits after every caret the content range allows. */
-export function dropStructuralSuffix(
-	raw: string,
-	contentEnd: number,
-	preEditOffset: number
-): TextEditResult {
-	return {
-		newRaw: raw.slice(0, contentEnd) + ownTrailingLineEnding(raw),
-		caretOffset: Math.min(preEditOffset, contentEnd)
-	};
+// The line ending the dropped structure ended in, a lone `\r` on a document's last line included.
+function endingPastContent(raw: string, contentEnd: number): string {
+	return /(?:\r\n?|\n)$/.exec(raw.slice(contentEnd))?.[0] ?? '';
 }
 
-/**
- * An ATX heading left with no text is a marker standing over nothing: unfocused it draws
- * nothing, since the marker-only data attribute only applies while focused, so the block would
- * survive invisibly and come back as a `#` on the next click. On blur it becomes the empty
- * paragraph it looks like.
- */
+/** An ATX heading with no text draws nothing when unfocused, so on blur it becomes the empty
+ *  paragraph it looks like rather than a `#` that reappears on the next click. */
 export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextEditResult | null {
 	if (content.start === 0 || content.end > content.start) return null;
 	return demoteToParagraph(raw, content, 0);
 }
 
-/**
- * Re-mark the block's content with an ATX prefix for `level`, replacing whatever structural bytes
- * the current kind keeps. It reads the same content range {@link demoteToParagraph} does, so an
- * indented `  ## x` or a setext underline is given up rather than left in the new heading's text.
- * `level === 0` is the demotion, and null there means the content already is the whole displayed
- * text. Idempotent, not a toggle: stripping happens only by asking for level 0.
- */
+/** Re-mark the content with an ATX prefix for `level`, replacing the current kind's structural
+ *  bytes. Not a toggle: level 0 demotes, and null there means there was nothing to strip. */
 export function cycleHeading(
 	raw: string,
 	content: ContentRange,
@@ -89,36 +59,68 @@ export function cycleHeading(
 	const newDisplay = prefix + raw.slice(content.start, content.end);
 	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: newDisplay + ownTrailingLineEnding(raw),
+		newRaw: newDisplay + endingPastContent(raw, content.end),
 		caretOffset: prefix.length + (inContent - content.start)
 	};
 }
 
-/**
- * Insert a GFM hard-break (a backslash at end of line) at `offset` within the display.
- * At end-of-display the break's own ending becomes the block's trailing ending, so the
- * break is transitional there until the next keystroke supplies its following line.
- */
-export function insertHardBreak(raw: string, offset: number): TextEditResult {
+/** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's.
+ *  At the content's end, the block's own ending stands in for it until the next key adds the line. */
+export function insertHardBreak(
+	raw: string,
+	offset: number,
+	ending: LineEnding,
+	content: ContentRange
+): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = ownTrailingLineEnding(raw);
-	// The break carries the block's own ending (G4.20): CommonMark reads a backslash
-	// before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
-	const breakBytes = '\\' + trailingLineEnding(raw);
-	const newDisplay = display.slice(0, offset) + breakBytes + display.slice(offset);
-	// At end-of-display the inserted ending is itself the trailing ending; reattaching
-	// the original would double it into a blank line and break list-item continuation.
-	const newRaw = offset >= display.length ? newDisplay : newDisplay + trailing;
+	if (offset === content.end && content.end < display.length) {
+		return {
+			newRaw: raw.slice(0, content.end) + '\\' + raw.slice(content.end),
+			caretOffset: content.end + 1
+		};
+	}
+	const lineTail = sameLineSuffixOf(raw, content.end);
+	if (offset >= content.start && offset < content.end && lineTail) {
+		return breakBeforeLine(
+			display.slice(0, offset) + '\\' + lineTail,
+			display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
+		);
+	}
+	return breakBeforeLine(display.slice(0, offset) + '\\', display.slice(offset));
+
+	/** `head`, the break's line ending, then `rest` on the new line. */
+	function breakBeforeLine(head: string, rest: string): TextEditResult {
+		const newDisplay = head + ending + rest;
+		// With nothing after the break, the inserted ending is itself the trailing ending;
+		// reattaching the original would double it into a blank line and break list continuation.
+		const newRaw = rest === '' ? newDisplay : newDisplay + trailing;
+		return {
+			newRaw,
+			caretOffset: Math.min(head.length + ending.length, displayLength(newRaw))
+		};
+	}
+}
+
+/** The key typed after a hard break's backslash, opening the break's own line at `lineEnd` (past a
+ *  heading's closing run). Works on the display text, without its trailing line ending. */
+export function openHardBreakLine(
+	display: string,
+	lineEnd: number,
+	ending: LineEnding,
+	key: string
+): { display: string; caret: number } {
+	const line = ending + key;
 	return {
-		newRaw,
-		caretOffset: Math.min(offset + breakBytes.length, displayLength(newRaw))
+		display: display.slice(0, lineEnd) + line + display.slice(lineEnd),
+		caret: lineEnd + line.length
 	};
 }
 
-/** Insert a literal tab character at `offset` within the display portion. */
-export function insertLiteralTab(raw: string, offset: number): TextEditResult {
-	const display = trimTrailingLineEnding(raw);
-	const trailing = ownTrailingLineEnding(raw);
-	const newDisplay = display.slice(0, offset) + '\t' + display.slice(offset);
-	return { newRaw: newDisplay + trailing, caretOffset: offset + 1 };
+/** A literal tab typed at `offset` into the displayed text. */
+export function insertLiteralTab(
+	display: string,
+	offset: number
+): { text: string; caretAfter: number } {
+	return { text: display.slice(0, offset) + '\t' + display.slice(offset), caretAfter: offset + 1 };
 }

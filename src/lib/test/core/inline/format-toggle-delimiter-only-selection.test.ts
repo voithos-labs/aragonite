@@ -4,11 +4,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { press } from './format-toggle-fixture';
 
-// A selection lying wholly inside a construct's delimiter run carries no content to unformat: it
-// clamps to nothing against that run's content, and the split's emission is the bytes unchanged
-// with the selection collapsed onto a caret — a no-op the user pays an undo entry and their
-// selection for. Miss-analysis: no case ever selected delimiter bytes alone, so neither the empty
-// clamp nor `coverageFlipped`'s excuse for the collapsed selection it emitted was ever asked.
+// A selection inside a delimiter run holds no content, so a write would spend an undo entry.
+// Miss-analysis: no case ever selected delimiter bytes alone.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 

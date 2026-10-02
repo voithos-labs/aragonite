@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
-import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_END, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { makeShimChildList, makeShimDeps } from '$lib/test/harness/editor-actions';
 
 function makeRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
@@ -33,8 +33,7 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
-	// Miss-analysis: the flag was a literal `true` nothing read, so no test could tell a
-	// declared value from the hardcoded one; the only test was the default it never left.
+	// Miss-analysis: the only test checked the default, which a hardcoded `true` also passed.
 	it('reports the declared editable value, re-read live', () => {
 		let declared = false;
 		const c = createContainerBlockComponent(
@@ -57,12 +56,6 @@ describe('createContainerBlockComponent', () => {
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
-	it('focus(FOCUS_LAST_START) cascades to the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		container(refs).focus(FOCUS_LAST_START);
-		expect(refs[1].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-	});
-
 	it('focus(<other offset>) targets the last child with CURSOR_END', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(3);
@@ -76,15 +69,10 @@ describe('createContainerBlockComponent', () => {
 	// The body is unmounted, so an entry from below must clamp to child 0, never the absent
 	// last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
-		return createContainerBlockComponent(makeShimDeps(refs, { isCollapsed: () => true }));
+		return createContainerBlockComponent(
+			makeShimDeps(refs, { childList: makeShimChildList(refs, { isCollapsed: () => true }) })
+		);
 	}
-
-	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		collapsedContainer(refs).focus(FOCUS_LAST_START);
-		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-		expect(refs[1].focus).not.toHaveBeenCalled();
-	});
 
 	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
 		const refs = [makeRef(), makeRef()];
@@ -126,7 +114,7 @@ describe('createContainerBlockComponent', () => {
 			]
 		};
 		const c = createContainerBlockComponent(
-			makeShimDeps([], { nodeChildrenLength: 1, node: imageOnly })
+			makeShimDeps([], { childList: makeShimChildList([], { count: () => 1 }), node: imageOnly })
 		);
 		expect(c.isVerticallyTransparent?.()).toBe(true);
 	});
@@ -247,9 +235,8 @@ describe('createContainerBlockComponent: whole-block focus (getFocusEl)', () => 
 	});
 });
 
-// The component always exposes measurePartialRects, which the search and decoration
-// overlays measure a childless container through. A container with children returns
-// nothing and is never asked: the overlay checks delegatesPainting, not this return.
+// The search and decoration overlays measure a childless container through measurePartialRects;
+// a container with children returns nothing, and the overlays never ask it.
 describe('createContainerBlockComponent: measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
@@ -260,7 +247,7 @@ describe('createContainerBlockComponent: measurePartialRects (opaque single-unit
 	}): BlockComponent {
 		return createContainerBlockComponent(
 			makeShimDeps([], {
-				nodeChildrenLength: over.childCount ?? 0,
+				childList: makeShimChildList([], { count: () => over.childCount ?? 0 }),
 				node: mermaidNode(),
 				getBoxEl: over.getBoxEl
 			})

@@ -336,7 +336,8 @@ test.describe('inline menus', () => {
 		test('the pick removes the trigger and the query, and the block lands through onCommit', async () => {
 			await editor.page.keyboard.press('Enter');
 			await editor.typeText('/ru');
-			await expect.poll(() => rows(editor)).toEqual(['Rule']);
+			// The bundled list finds the divider through its `rule` keyword.
+			await expect.poll(() => rows(editor)).toEqual(['Divider']);
 			await editor.page.keyboard.press('Enter');
 			await editor.bridge.waitForSourceContains('---');
 			expect(await editor.bridge.getSource()).not.toContain('/ru');

@@ -1,14 +1,14 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import { describe, expect, it, beforeEach } from 'vitest';
+import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
-import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
+import { registerDirective } from '$lib/core/directive/registry';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-activateDirectiveGrammar(); // before any parse
+beforeEach(activateDirectiveGrammar);
 
 const cases = [
 	':::note\nbody\n:::\n',
@@ -54,8 +54,9 @@ describe('directive container rebuild is the opener inverse', () => {
 // The dispatch half of the opener: a registered name resolves through the registry to its
 // `fromDirective` factory. No case above registers a name, so this is its only exercise.
 describe('registered-name dispatch via fromDirective', () => {
-	const CHART = declarePluginKind('directiveChartProbe');
-	beforeAll(() => {
+	let CHART: PluginBlockKind;
+	beforeEach(() => {
+		CHART = declarePluginKind('directiveChartProbe');
 		registerDirective('container', 'chart', {
 			kind: CHART,
 			// A factory can build a byte-exact node straight from the contract's
@@ -70,7 +71,6 @@ describe('registered-name dispatch via fromDirective', () => {
 			}
 		});
 	});
-	afterAll(() => __resetDirectiveRegistryForTests());
 
 	it('delegates a registered name to its factory node, not the generic kind', () => {
 		expect(parse(':::chart\nx\n:::\n').children[0].kind).toBe('directiveChartProbe');

@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
 	augmentBlockKind,
 	augmentBuiltin,
-	tryGetBlockKindDescriptor
+	tryGetBlockKindDescriptor,
+	FIXED_AT_REGISTRATION,
+	type BlockKindAugmentation
 } from '$lib/schema/block-kind-descriptor';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
@@ -17,8 +19,6 @@ const minimal = {
 	supportsInline: false,
 	closure: testClosure
 } as const;
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('augmentBlockKind rejects built-in kinds', () => {
 	it('throws when the kind is a built-in: a plugin cannot rewrite it', () => {
@@ -52,6 +52,75 @@ describe('container-group augments are gated on the registered category', () => 
 		expect(() => augmentBuiltin('paragraph', { container: { rebuildRaw: () => {} } })).toThrow(
 			/registered as a leaf/
 		);
+	});
+});
+
+// Miss-analysis: the fixed fields were refused by the augment type alone, and no test augmented
+// one through a cast, the way a JavaScript plugin reaches the runtime.
+describe('fields fixed at registration refuse every augment', () => {
+	let title: PluginBlockKind;
+	beforeEach(() => {
+		title = declarePluginKind('fixedTitle');
+	});
+	const lift = {
+		firstChildBackspace: 'lift-first-child-keep-container',
+		middleChildBackspace: 'default-merge'
+	};
+	const cases: { field: (typeof FIXED_AT_REGISTRATION)[number]; fields: () => object }[] = [
+		{ field: 'blockFocus', fields: () => ({ blockFocus: 'whole-block' }) },
+		{ field: 'supportsInline', fields: () => ({ supportsInline: true }) },
+		{
+			field: 'contentStart',
+			fields: () => ({ contentStart: { range: () => ({ start: 1, end: 1 }) } })
+		},
+		{
+			field: 'container.reservedChrome',
+			fields: () => ({ container: { reservedChrome: { kind: title } } })
+		},
+		{ field: 'container.unwrapRole', fields: () => ({ container: { unwrapRole: lift } }) }
+	];
+
+	it('names a case for every fixed field', () => {
+		expect(cases.map((c) => c.field).sort()).toEqual([...FIXED_AT_REGISTRATION].sort());
+	});
+
+	function registerContainer(name: string) {
+		const kind = declarePluginKind(name);
+		registerBlockKind(kind, {
+			...minimal,
+			mergeRole: 'container',
+			container: { contract: 'opaque', rebuildRaw: () => {} }
+		});
+		return kind;
+	}
+
+	for (const { field, fields } of cases) {
+		it(`augmentBlockKind refuses ${field} and leaves the descriptor as registered`, () => {
+			const kind = registerContainer(`fixed-${field.replace('.', '-')}`);
+			const before = { ...tryGetBlockKindDescriptor(kind) };
+			expect(() => augmentBlockKind(kind, fields() as BlockKindAugmentation)).toThrow(
+				new RegExp(`augmentBlockKind: .*${field.replace('.', '\\.')}.*fixed at registration`)
+			);
+			expect(tryGetBlockKindDescriptor(kind)).toEqual(before);
+		});
+	}
+
+	it('augmentBuiltin shares the refusal', () => {
+		expect(() =>
+			augmentBuiltin('blockquote', {
+				container: { unwrapRole: lift }
+			} as unknown as BlockKindAugmentation)
+		).toThrow(/augmentBuiltin: .*container\.unwrapRole.*fixed at registration/);
+	});
+
+	// An explicit undefined would spread over the registered value, so presence alone refuses.
+	it('refuses a fixed field set to undefined', () => {
+		const kind = declarePluginKind('fixedUndefined');
+		registerBlockKind(kind, { ...minimal, supportsInline: true });
+		expect(() =>
+			augmentBlockKind(kind, { supportsInline: undefined } as unknown as BlockKindAugmentation)
+		).toThrow(/supportsInline.*fixed at registration/);
+		expect(tryGetBlockKindDescriptor(kind)?.supportsInline).toBe(true);
 	});
 });
 

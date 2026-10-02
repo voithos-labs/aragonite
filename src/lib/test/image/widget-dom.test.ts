@@ -76,8 +76,7 @@ describe('buildImageWidget: broken-URL cache (per-instance isolation)', () => {
 	});
 });
 
-// Miss-analysis (#50): every widget-dom test asserted the widget's own DOM, none the path it
-// reports, and no fixture ever put a widget inside a block whose path the lookup stops short of.
+// Miss-analysis (GH #50): no test asserted the path a widget reports from inside a table cell.
 describe('buildImageWidget: the path a click emits', () => {
 	it('names the enclosing cell, not the table block the walk stops at (#50)', () => {
 		const host = document.createElement('div');
@@ -101,9 +100,7 @@ describe('buildImageWidget: the path a click emits', () => {
 	});
 });
 
-// Miss-analysis: nothing asserted what a `|WxH` size puts on the element, so the two attributes
-// read as "sizes the rendered widget" (syntax-tree.md § Inline nodes) while the decoded natural
-// ratio quietly won every layout back through the stylesheet's `height: auto`.
+// Miss-analysis: no test asserted what a `|WxH` size puts on the element, so `height: auto` won.
 describe('buildImageWidget: declared dimensions', () => {
 	function widgetFor(source: string): HTMLImageElement {
 		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');

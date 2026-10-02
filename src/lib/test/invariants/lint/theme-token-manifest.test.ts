@@ -1,15 +1,13 @@
 /**
- * Drift guard for the published theme-token manifest, pinning the consumer guide's "Theme
- * tokens" role table to `editor-theme.css`. The contract is both-themes: a themed token
- * carries a light and a dark value, and since it can satisfy that with the same value
- * twice, values are compared too and a deliberate one-value token joins
- * MODE_BLIND_BY_DESIGN. The manifest derives from the guide's own table rather than being
- * a hand-kept mirror.
+ * The consumer guide's "Theme tokens" role table, read as the published manifest, matches
+ * `editor-theme.css`. A themed token carries a light and a dark value; the same value twice
+ * would satisfy that, so values are compared too and a deliberate one-value token joins
+ * MODE_BLIND_BY_DESIGN.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { readEditorFile, stripComments } from './scan-source';
+import { readEditorFile } from './scan-source';
 import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
@@ -99,7 +97,7 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 
 	// Non-vacuity: a broken split (empty light block) passes every "both" assertion.
 	it('the block split and matcher are non-vacuous', () => {
-		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+		const css = readEditorFile('styles/editor-theme.css').code;
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
 		expect(declares(base, '--color-error')).toBe(true);
 		expect(declares(light, '--color-error')).toBe(true);

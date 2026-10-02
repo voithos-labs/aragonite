@@ -1,7 +1,4 @@
-// Miss-analysis: the kit's terminator cell reached only the two containers whose bodies are real
-// children, and its declaration check demanded a body child outright, so the one shipped shape it
-// could not accept (childless, body in metadata) was also the one shape with nowhere else to
-// cover this class, and the example plugin container was never enrolled.
+// Miss-analysis: no kit cell reached a childless container whose body lives in metadata.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	augmentBlockKind,
@@ -9,11 +6,7 @@ import {
 	setPluginMetadata,
 	getPluginMetadata
 } from '$lib/plugin';
-import {
-	resetPluginPlatformForTests,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '$lib/testing';
+import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
 import {
 	registerMermaidKind,
 	MERMAID,
@@ -47,7 +40,6 @@ const mermaidProfile: ContainerConformanceProfile = {
 
 describe('G4.3 conformance kit: the childless opaque container', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 
@@ -75,8 +67,8 @@ describe('G4.3 conformance kit: the childless opaque container', () => {
 		).rejects.toThrow(/the fixture body reached "mermaid"'s own bytes/);
 	});
 
-	// The hole enrolling it found: the declaration check demanded a body child, so this shape
-	// could never reach `declarations` at all, whatever else it declared.
+	// The declaration check reads a childless container's declarations too, rather than
+	// rejecting it for having no body child.
 	it('fails declaration sanity when a childless container declares a body wrap', async () => {
 		augmentBlockKind(MERMAID_KIND(), { container: { bodyWrap: { afterOpenerLine: true } } });
 

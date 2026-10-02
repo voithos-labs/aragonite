@@ -17,14 +17,25 @@ override the scroll the host wrote last.
 - Caret into a block that scrolled out of the window: the block mounts, scrolls into view, the caret lands, resolves `true`
 - Caret into a block still mounted but scrolled past the fold (the overscan strip): the block is
   scrolled back into view, so `true` means in view, not merely mounted
+- The same, with the block just below the viewport: it lands with its bottom at the viewport's
+  bottom edge (within 2px), not in the middle. Miss-analysis: the overscan scenario only ever put
+  the block above the viewport, so nothing pinned which edge a block below lands on once the
+  editor, not the focus call, does the scroll
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
-- Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
+- Intra-table cell rectangle: the same cell selection is restored, both corners counting cells, resolves `true`
+- Plain offsets on a table path, with no `cellCoordinate` flag: the offsets count cells, so the
+  rectangle paints and reads back with both corners flagged, resolves `true`
 - Collapsed-caret restore with a `selectionChange` subscriber attached: one emission, reporting
   the restored selection, never the one being left
 - Within-block range restore with the same subscriber: same, on the native-range route
 
 ## Edge cases
+
+- Collapsed caret on a container's own path (a list at offset 0): it lands in the list's first
+  item, and a typed `x` goes there, rather than into the list's wrapper where typing goes nowhere
+  - Miss-analysis: every collapsed scenario named a leaf, so nothing handed `setSelection` the
+    path of a block that holds other blocks
 
 - Offset past the end of the block's content: the caret clamps to the block end, resolves `true`
 - Reading mode (the block is inert, `contenteditable` off): the selection is still placed as a
@@ -35,9 +46,9 @@ override the scroll the host wrote last.
 - A user gesture (typing, clicking, scrolling) lands while a restore is still settling: the
   restore keeps settling and its boolean is unaffected. Only another programmatic reveal can
   change the outcome, and the user is not one: a host that branches on `false` must not be
-  sent down its fallback by ordinary interaction. Pinned in a unit test over the settle loop
-  (`test/cursor/editor-rects`), where the two ways of losing the property can be told apart
-  without a browser.
+  sent down its fallback by ordinary interaction. Pinned in a unit test over the scroll owner
+  (`test/cursor/scroll-owner-placement`), where a release and a newer placement can be told
+  apart without a browser.
 
 ## Error cases
 

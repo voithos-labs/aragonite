@@ -17,7 +17,10 @@ test.describe('insertMarkdown: declines', () => {
 	let editor: EditorPage;
 
 	const insert = (md: string): Promise<boolean> =>
-		editor.page.evaluate((text) => (window as any).__test.insertMarkdown(text) as boolean, md);
+		editor.page.evaluate(
+			(text) => (window as any).__test.insertMarkdown(text) as Promise<boolean>,
+			md
+		);
 
 	async function expectDeclinedWithoutMutation(): Promise<void> {
 		const before = await editor.bridge.getSource();
@@ -64,7 +67,7 @@ test.describe('insertMarkdown: declines', () => {
 
 	test('a resting gap caret declines; a caret in a real block takes the same payload', async () => {
 		await editor.loadContent(GAP_FIXTURE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret({ parentPath: [], index: 2 });
 

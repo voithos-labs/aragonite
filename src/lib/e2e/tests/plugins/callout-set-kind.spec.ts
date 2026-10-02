@@ -2,12 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
- * A plugin registering its own command: the `:::callout` container registers `callout.setKind` and
- * binds it to two chords that carry an argument (Mod+7 for 'callout', Mod+8 for 'aside'). Each test
- * presses a real key on an inner block and follows the chain end to end: keypress, eventToChord, the
- * block declining, the container's handleKeydown, the keymap, the registered handler, the metadata
- * commit and rebuildCalloutRaw. Mod+Shift+1 and Mod+Shift+2 would do nothing under real keyboard
- * simulation, because the browser translates a Shift-held digit ('1' becomes '!').
+ * A plugin registering its own command: `:::callout` registers `callout.setKind` and binds it to
+ * Mod+7 ('callout') and Mod+8 ('aside'). Each test presses a real key on an inner block and follows
+ * the chain from keypress through the container's keymap to the metadata commit and raw rebuild.
+ * Shift-held digits are avoided because the browser turns '1' into '!'.
  */
 
 const CALLOUT_DOC = ':::callout\nbody\n:::\n';

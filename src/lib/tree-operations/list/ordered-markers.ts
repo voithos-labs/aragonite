@@ -33,16 +33,14 @@ export function bumpOrderedMarker(marker: string): string {
 }
 
 /**
- * Renumber an ordered list's items in place from `fromIndex`, preserving marker suffixes.
- * `fromIndex = 0` resets the sequence to 1; `renumberOrderedListFrom` owns non-1 bases.
- * Every renumbered item's metadata and raw is written, so a live-tree caller must pass
- * `sharing`; construction-time callers on fresh nodes may omit it.
+ * Renumber an ordered list's items from `fromIndex`, keeping marker suffixes. Each item's metadata
+ * and raw is written, so each is copied out of the undo snapshot first.
  */
-export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: SharingState): void {
+export function renumberOrderedList(list: CstNode, fromIndex: number, sharing: SharingState): void {
 	if (!list.children) return;
 	if (!metadataOf(list, 'list')?.ordered) return;
 	for (let j = fromIndex; j < list.children.length; j++) {
-		const item = sharing ? ensureUnsharedChild(list, j, sharing) : list.children[j];
+		const item = ensureUnsharedChild(list, j, sharing);
 		const prevNum =
 			j > 0 ? parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0 : 0;
 		const meta = metadataOf(item, 'listItem');
@@ -52,15 +50,11 @@ export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: Shar
 	}
 }
 
-/**
- * Renumber an ordered list from an arbitrary `base`: seed item 0's marker with `base`
- * (suffix-preserving), then continue the sequence from item 1. No-op on unordered or
- * childless lists.
- */
-export function renumberOrderedListFrom(list: CstNode, base: number, sharing?: SharingState): void {
+/** Renumber an ordered list starting at `base`, keeping marker suffixes. */
+export function renumberOrderedListFrom(list: CstNode, base: number, sharing: SharingState): void {
 	if (!metadataOf(list, 'list')?.ordered) return;
 	if (!list.children || list.children.length === 0) return;
-	const first = sharing ? ensureUnsharedChild(list, 0, sharing) : list.children[0];
+	const first = ensureUnsharedChild(list, 0, sharing);
 	const meta = metadataOf(first, 'listItem');
 	meta.marker = String(base) + (meta.marker.replace(/^\d+/, '') || '. ');
 	rebuildListItemRaw(first);
@@ -70,9 +64,8 @@ export function renumberOrderedListFrom(list: CstNode, base: number, sharing?: S
 // ── Style templating ─────────────────────────────────────────────────────────
 
 /**
- * Rewrite `item`'s marker style to match `parentList`, templating the suffix from a
- * sibling so the destination list's choices are preserved. Numbers stay the caller's
- * renumber pass's job: only the glyph and punctuation suffix reconcile here.
+ * Rewrite `item`'s marker glyph and suffix to match `parentList`'s first item; the number is left
+ * to the caller's renumber pass.
  */
 export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
 	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
@@ -98,10 +91,8 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 }
 
 /**
- * Rewrite pasted items' markers to the enclosing list's style: an unordered list templates
- * the bullet glyph, an ordered list continues the sequence from `firstIndex`. Runs before
- * any splice: `$state` wraps entries lazily, so a marker written to a newly spliced item
- * bypasses reactivity.
+ * Rewrite pasted items' markers to the enclosing list's style before the splice, since `$state`
+ * wraps entries lazily and a marker written to an item already spliced would bypass reactivity.
  */
 export function templatePastedItemMarkers(
 	items: CstNode[],

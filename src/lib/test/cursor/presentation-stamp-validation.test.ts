@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The `data-presentation` attribute is read by the CSS and by the caret traversal, and only
-// the CSS half matches known values: an unrecognized value has to read as source here, or the
-// two disagree about the same block (#125). A block decoration can write one (E-F3), so this is
-// reachable through a supported API and not only by writing to the DOM directly.
-// Miss-analysis: every traversal suite writes a real mode, so no test ever handed the caret
-// traversal a value the stylesheet has no rule for, and nothing exercised the fallback.
+// The `data-presentation` attribute is read by the CSS and the caret traversal, and only the CSS
+// matches known values, so an unrecognized value must read as source here or the two disagree.
+// A block decoration can write one, so such a value arrives through a supported API.
+// Miss-analysis: every traversal suite wrote a real mode, so nothing exercised the fallback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asPresentationMode } from '$lib/presentation-mode';
 import { revealsNoMarkers, screenVisibilityOf } from '$lib/cursor/widget-offset';

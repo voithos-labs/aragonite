@@ -11,13 +11,11 @@ import type { AnyCommandId } from './command-id';
 export interface KeybindingOverride {
 	/** Chord string in the public format (Mod/Alt/Shift + key). See keybindings.ts. */
 	chord: string;
-	/** A command to bind (built-in or plugin id), or `null` to disable the chord. A disable
-	 *  removes the binding and drops the chord from `reservedChords()`, but the keypress is still
-	 *  consumed inside the editor rather than falling through to the browser's own default. */
+	/** A command to bind (built-in or plugin id), or `null` to disable the chord. A disabled chord
+	 *  leaves `reservedChords()` but is still consumed, so the browser's own default never runs. */
 	command: AnyCommandId | null;
-	/** Target one block kind's keymap — built-in, or a plugin kind via its exported
-	 *  kind constant (branded; a raw string literal won't typecheck). Omit for the
-	 *  editor-global scope. */
+	/** One block kind's keymap, a plugin kind named by its exported (branded) constant. Omit for
+	 *  the editor-global scope. */
 	kind?: AnyBlockKind;
 	/**
 	 * Static argument baked into the binding. `unknown` to match `KeyBinding.arg`: a plugin

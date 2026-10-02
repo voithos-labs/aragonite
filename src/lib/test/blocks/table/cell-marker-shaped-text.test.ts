@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-//
-// A cell whose text starts like a container marker. Cell bytes are never a block, so reading a
-// candidate back as one would refuse every such cell and leave the key to the browser, which
-// shows the delimiters live-mode.md § 4.4 keeps off screen. The rule itself is covered in
-// `blocks/text/construct-edge-delete.test.ts`; this covers the wiring.
-//
-// Miss-analysis: every case over that rule used prose-shaped fixtures, so nothing separated
-// "reads back as what the caller stores" from "reads back as a block".
+// A cell whose text starts like a container marker: cell bytes are never a block, so reading one
+// back as a block leaves the key to the browser, showing delimiters live-mode.md § 4.4 hides.
+// The rule is in `blocks/text/construct-edge-delete.test.ts`; this covers the cell wiring.
+// Miss-analysis: every case over that rule used prose-shaped fixtures, never marker-shaped text.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 
 let restoreLayout: () => void;
@@ -26,9 +27,8 @@ afterEach(async () => {
 });
 
 describe('the caret-edge delete still rewrites a cell whose text opens like a marker', () => {
-	// `- **a** b`, `> **a** b`, `1. **a** b`: each parses as a fragment into a list or a quote,
-	// and the caret sits past the strong's hidden closer, where the content byte goes along with
-	// the pair the cut empties.
+	// Each text parses alone as a list or a quote; the caret sits past the strong's hidden closer,
+	// where the content byte goes along with the pair the cut empties.
 	it.each([
 		['- **a** b', '| -  b | B |\n| --- | --- |\n| 1 | 2 |\n'],
 		['> **a** b', '| >  b | B |\n| --- | --- |\n| 1 | 2 |\n'],

@@ -11,6 +11,11 @@ function isTaskMarkerChecked(taskMarker: string): boolean {
 	return c === 'x' || c === 'X';
 }
 
+/** Whether a block's container marker prefix draws a task box, making the block the to-do's text. */
+export function ambientHoldsTaskBox(prefix: AmbientPrefix): boolean {
+	return typeof prefix !== 'string' && !!prefix.interactive?.some((r) => r.role === 'checkbox');
+}
+
 export function buildTaskItemAmbient(
 	metadata: ListItemMetadata | undefined,
 	onToggle: () => void
@@ -38,8 +43,7 @@ export function buildTaskItemAmbient(
 				end: boxStart + 3,
 				className: 'task-checkbox',
 				role: 'checkbox',
-				// One source of truth: read the marker that is already in the render key, not a
-				// second `taskChecked` field beside it
+				// Read from the marker already in the render key, not a second checked field.
 				ariaChecked: isTaskMarkerChecked(metadata.taskMarker),
 				// The drawn box is taller than the text beside it, so it centres on the box.
 				dragAnchor: true,

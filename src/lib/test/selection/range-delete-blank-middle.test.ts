@@ -2,24 +2,30 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { fixtureReading } from '../harness/fixture-grammar';
 
-// GH #73: a blank block covered as a range's middle is the separating line of the block after
-// it, and the delete splices through `deleteAtPath`, which hands nothing down to the successor,
-// while `clearRedundantSeparator` beside it only ever frees a separator.
-// Miss-analysis: every cross-block fixture put content blocks between its endpoints, so no case
-// deleted a blank block; the survivor blank-line cases cover the start block's own separator,
-// which is a different node from the one a deleted middle must hand down.
+// A blank block covered as a range's middle is the separating line of the block after it, but
+// the `deleteAtPath` splice hands nothing down to that successor, and `clearRedundantSeparator`
+// only ever frees a separator.
+// Miss-analysis: GH #73; every cross-block fixture put content blocks between its endpoints.
 
 const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, undefined, undefined);
+	rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading(),
+		'keyless'
+	);
 	return doc;
 }
 
@@ -33,14 +39,13 @@ describe('a deleted blank middle hands its line to the block below', () => {
 		expectParseConverged(doc);
 	});
 
-	// A table end endpoint survives as its own block rather than merging into the prose start, so
-	// the blank's successor is still there to be stranded — and a table cannot interrupt a
-	// paragraph, which is what makes the loss a lost block rather than lost bytes.
+	// A table end endpoint survives as its own block, so the blank's successor can be stranded; a
+	// table cannot interrupt a paragraph, so the loss is a whole block rather than bytes.
 	it('keeps a surviving table endpoint separated from the prose start', () => {
 		const doc = del(
 			`alpha\n\n\n${TABLE}`,
 			{ path: [0], offset: 3 },
-			{ path: [2], offset: 2, cellCoordinate: true }
+			{ path: [2], offset: 1, cellCoordinate: true }
 		);
 
 		expect(doc.children[1].leadingTrivia).toBe('\n');

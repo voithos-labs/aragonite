@@ -1,9 +1,8 @@
 /**
- * G4.56: every traversal over an inline tree or its rendered DOM is iterative. Inline nesting
+ * Every traversal over an inline tree or its rendered DOM is iterative (G4.56): inline nesting
  * depth comes from the input, so one call frame per level overflows the stack and strands the
- * block in a fallback it cannot recover from (#200). It covers `core/inline/`, `cursor/`,
- * `ambient/` and the live gesture code under `components/blocks/text/`, whose join rebuild goes
- * through the same pre-order (#226).
+ * block in a fallback it cannot recover from. The scan covers `core/inline/`, `cursor/`, `ambient/`
+ * and the live gesture code in `components/blocks/text/`, whose join rebuild walks the same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -12,7 +11,8 @@ import {
 	balancedCall,
 	callsAnywhere,
 	collectEditorSources,
-	EDITOR_SRC
+	EDITOR_SRC,
+	walkCode
 } from './scan-source';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
@@ -23,9 +23,8 @@ const SCOPE = [
 	'src/lib/components/blocks/text/'
 ];
 
-/** Keyed by the `path :: name` a hit reads as, which names one traversal, because the assertion
- *  below fails a scanned file that spells two walkers alike. A traversal that recurses is a stack
- *  overflow waiting for a deep enough document: empty by design, and an entry states one. */
+/** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
+ *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */
 const EXCEPTIONS: Record<string, string> = {};
 
 const TOUCHES_CHILDREN = /\.(children|childNodes)\b/;
@@ -42,8 +41,7 @@ interface Declaration {
 function bodyAfterParams(code: string, parenIndex: number): string | null {
 	const params = balancedCall(code, parenIndex + 1);
 	if (params === null) return null;
-	let at = parenIndex + 1 + params.length;
-	while (at < code.length && code[at] !== '{' && code[at] !== ';') at++;
+	const at = walkCode(code, parenIndex + 1 + params.length, (ch) => ch === '{' || ch === ';');
 	return code[at] === '{' ? balancedBlock(code, at + 1) : null;
 }
 
@@ -60,11 +58,8 @@ function walkerDeclarations(code: string): Declaration[] {
 	return out;
 }
 
-/**
- * Declarations on a call cycle; a self-call is a cycle of one, so both shapes fall out of a single
- * pass. Reachability is per declaration, and a call reaches every declaration with that name,
- * because which one the source means cannot be decided here and over-flagging is the safe side.
- */
+/** Declarations on a call cycle, a self-call being a cycle of one. A call reaches every declaration
+ *  with its name, since which one the source means cannot be decided here. */
 function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 	const reach = declarations.map(
 		(declaration) =>
@@ -94,9 +89,8 @@ function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 const recursiveWalkNames = (code: string): string[] =>
 	recursiveDeclarations(walkerDeclarations(code)).map((declaration) => declaration.name);
 
-/** Walker names a file spells more than once. An `EXCEPTIONS` key is a path and a name, so a
- *  repeat would exempt a traversal nobody stated, and a check keyed by name would hide one behind
- *  the other. */
+/** Walker names a file spells more than once: an `EXCEPTIONS` key is a path and a name, so a
+ *  repeat would exempt a traversal nobody stated. */
 function repeatedWalkerNames(code: string): string[] {
 	const seen = new Set<string>();
 	const repeats = new Set<string>();

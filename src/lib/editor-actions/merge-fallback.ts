@@ -1,35 +1,28 @@
 /**
- * The fallbacks for a merge that did not happen, in both directions: the sibling merge
- * (`block-edit-core`) and the list-item merge (`unwrap-strategies.listItemCascadeMiddle`).
+ * Where the caret goes after a merge that may not have happened, in both directions: the sibling
+ * merge (`block-edit-core`) and the list-item merge (`unwrap-strategies.listItemCascadeMiddle`).
  * A refused merge still moves the caret across the boundary the user pressed at.
  */
 
-import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
+import { CURSOR_END, CURSOR_START } from '../block-component';
+import type { CaretPosition } from '../selection/primitives';
 import type { StructuralChange } from '../tree-operations/structural-change';
 
-/**
- * A null result means the previous block had no reachable text leaf, or the join was
- * refused, so nothing merged: put the caret at its end instead. The nullable input makes
- * ignoring the no-merge case a compile error.
- */
-export function mergedElseFocusPrevious<T>(
-	result: T | null,
-	previous: BlockComponent | undefined
-): T | null {
-	if (result === null) previous?.focus(CURSOR_END);
-	return result;
+/** Null means nothing merged (no reachable text leaf, or a refused join), so the caret goes to
+ *  the previous block's end. */
+export function mergedElsePrevious(
+	joined: CaretPosition | null,
+	previous: CaretPosition['path']
+): CaretPosition {
+	return joined ?? { path: previous, offset: CURSOR_END };
 }
 
-/**
- * The forward counterpart, over the commit's own change: `noop` means the join was refused
- * (the joined bytes parse as several blocks, and one slot holds one node), so the caret
- * crosses into the block that stayed. Returns whether the merge happened.
- */
-export function mergedElseFocusNext(
+/** A `noop` change means the join was refused (the joined bytes parse as several blocks), so the
+ *  caret crosses into the next block's start. */
+export function mergedElseNext(
 	change: StructuralChange,
-	next: BlockComponent | undefined
-): boolean {
-	if (change.op !== 'noop') return true;
-	next?.focus(CURSOR_START);
-	return false;
+	joined: CaretPosition,
+	next: CaretPosition['path']
+): CaretPosition {
+	return change.op !== 'noop' ? joined : { path: next, offset: CURSOR_START };
 }

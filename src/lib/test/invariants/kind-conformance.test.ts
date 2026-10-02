@@ -1,15 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS, isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkCopyIsRawByteSlice, runKindConformance } from '$lib/testing';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The kit drives executors with hand-built endpoints, skipping SelectionState normalization,
-// which is exactly the false-cell shape it exercises.
-afterEach(() =>
-	allowDevWarns(['invariant:cross-block-endpoint-coordinates', 'collectCrossBlockText:startTable'])
-);
 
 // Swept over the descriptor registry, so registering a built-in kind enrolls it here:
 // a new kind is auto-covered the moment it registers.
@@ -21,10 +14,10 @@ const fixturedKinds = builtinKinds.filter((k) => getBlockKindDescriptor(k).confo
 describe.each(builtinKinds)('kind conformance — %s', (kind) => {
 	it('every headless closure cell holds or is recorded', async () => {
 		const report = await runKindConformance(kind, BUILTIN_KIND_PROFILES[kind]);
-		expect(new Set(report.cells.map((c) => c.column))).toEqual(
-			new Set(Object.keys(getBlockKindDescriptor(kind).closure))
+		expect(new Set(report.cells.map((c) => c.cell))).toEqual(
+			new Set([...Object.keys(getBlockKindDescriptor(kind).closure), 'rawWrite'])
 		);
-		for (const cell of report.cells) expect(cell.detail.length).toBeGreaterThan(0);
+		for (const cell of report.cells) expect(cell.detail?.length).toBeGreaterThan(0);
 	});
 });
 
@@ -48,36 +41,35 @@ describe('kind conformance: registry lockstep', () => {
 // ── Green-cell guards ────────────────────────────────────────────────────────
 
 describe('kind conformance: a fixtured kind produces green generic cells', () => {
-	// Pinning `executed`, not merely "the run resolved": a mechanism that quietly becomes
+	// Pinning `asserted`, not merely "the run resolved": a mechanism that quietly becomes
 	// `boundary` is an unexercised cell, and stays green under a resolve-only check.
 	it.each(fixturedKinds)('%s executes round-trip, merge, and undo (not boundary)', async (kind) => {
 		const report = await runKindConformance(kind, BUILTIN_KIND_PROFILES[kind]);
-		const executed = (column: string) =>
-			expect(report.cells.find((c) => c.column === column)?.status).toBe('executed');
-		executed('roundTrip');
-		executed('mergeBackspace');
-		executed('undo');
+		const asserted = (cell: string) =>
+			expect(report.cells.find((c) => c.cell === cell)?.status).toBe('asserted');
+		asserted('roundTrip');
+		asserted('mergeBackspace');
+		asserted('undo');
 	});
 
 	// Reverting the declared mode to `inherit-default` with the profile intact makes this
 	// throw rather than silently downgrade: the mode-contradiction guard below.
 	it('table clipboard executes its rectangular-copy mechanism', async () => {
 		const report = await runKindConformance('table', BUILTIN_KIND_PROFILES.table);
-		expect(report.cells.find((c) => c.column === 'clipboard')?.status).toBe('executed');
+		expect(report.cells.find((c) => c.cell === 'clipboard')?.status).toBe('asserted');
 	});
 
 	it('thematicBreak searchPaint executes the not-supported degradation', async () => {
 		const report = await runKindConformance('thematicBreak');
-		const cell = report.cells.find((c) => c.column === 'searchPaint');
+		const cell = report.cells.find((c) => c.cell === 'searchPaint');
 		expect(cell?.mode).toBe('not-supported');
-		expect(cell?.status).toBe('executed');
+		expect(cell?.status).toBe('asserted');
 	});
 });
 
 // ── Regression: the table false-cell shape ───────────────────────────────────
-// Miss-analysis: no executable cell exercised clipboard semantics, so a false
-// "copy is a plain byte slice" claim round-tripped past every gate. The prose case
-// proves the executor discriminates rather than always throwing.
+// Miss-analysis: no executable cell tested clipboard semantics, so a false byte-slice claim passed.
+// The prose case proves the executor discriminates rather than always throwing.
 
 describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
 	it('throws for a table declared inherit-default (the shipped bug shape)', () => {
@@ -92,9 +84,7 @@ describe('kind conformance: byte-slice clipboard executor is the false-cell guar
 });
 
 // ── Regression: a profile check may only cover an `implemented` cell ──────────
-// Miss-analysis: a profiled path that bypasses the declared mode runs `executed` whatever
-// the cell claims, leaving a mode revert unverified and the suite green. Pinned for the
-// whole class: any profiled cell reverted off `implemented`, not just table.clipboard.
+// Miss-analysis: a profiled path bypassing the declared mode reported `asserted` whatever the cell said.
 
 describe('kind conformance: a profile check is refused on a non-implemented cell', () => {
 	it('rejects a custom check declared over an inherit-default cell', async () => {

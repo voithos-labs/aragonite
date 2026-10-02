@@ -47,9 +47,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(itemBox.height).toBeLessThan(imageBox.height + 30);
 	});
 
-	// The renderer nests the widget one level deeper per wrapping construct (`em`, `strong`, `s`, a
-	// link's anchor), so a child-combinator `:has(> …)` misses them; the wrapper's own markers keep
-	// a trailing line box, hence the looser tolerance.
+	// The widget sits one level deeper per wrapping construct, past a child-combinator `:has(> …)`;
+	// the wrapper's markers keep a trailing line box, hence the looser tolerance.
 	for (const [shape, doc] of Object.entries(WRAPPED_LIST_IMAGE_DOCS)) {
 		test(`${shape}-wrapped list image keeps the ambient marker pinned`, async ({ page }) => {
 			await editor.loadContent(doc);
@@ -60,8 +59,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 			const imageBox = await page.locator('[data-image-widget] img').first().boundingBox();
 			if (!markerBox || !imageBox) throw new Error('layout boxes missing');
 
-			// Pinned at all, not merely near: under an inline-block anchor the marker and the image
-			// land close together anyway, so geometry alone cannot tell the link shape apart.
+			// Laid out as a marker at all, not merely near: under an inline-block `<a>` the marker
+			// and image land close anyway, so geometry alone cannot tell the link shape apart.
 			expect(await marker.evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
 			expect(
 				Math.abs(markerBox.y + markerBox.height - (imageBox.y + imageBox.height))

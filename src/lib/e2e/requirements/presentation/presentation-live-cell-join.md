@@ -18,6 +18,11 @@ reports where each gesture put the caret, and the source is what each scenario c
 
 ## Edge cases
 
+- a cell whose text opens with `# ` or `- ` cleans its join too: a cell stores text, so those
+  bytes open no heading and no list there, and the cleanup reads them the way the cell keeps
+  them (miss-analysis: every cell case started with a delimiter, so none held text a paragraph
+  would read as another block, which is how the cleanup used to read the cell)
+
 - source mode is unaffected: the same cut over the same bytes stays byte-literal, delimiters
   included, because there they are painted and the user aimed at them
 

@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, dragBetweenPoints } from './helpers';
 import { MERMAID_FENCE, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * The cross-block bytes for a pointer drag ending inside a rendered diagram
@@ -19,9 +20,9 @@ test.describe('pointer drag into a rendered diagram', () => {
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 	});
 
-	/** Press inside "Above text" after "Above ", then drag onto the diagram's middle. */
+	/** Mouse down inside "Above text" after "Above ", then drag onto the diagram's middle. */
 	async function dragIntoDiagram(): Promise<void> {
-		const start = await editor.pointForOffset([0], 6);
+		const start = await pointAtRaw(editor.page, [0], 6);
 		const box = await editor.page.locator('.mermaid-viewport').boundingBox();
 		if (!box) throw new Error('the rendered diagram has no bounding box');
 		const target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };

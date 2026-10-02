@@ -1,11 +1,11 @@
 /**
- * G4.64: the six files node-ops split into have a fixed order, and every import between them
- * points down that order. A module cycle between two of them can pass every behavioral test, so
- * only a source scan can hold the shape.
+ * The tree-operation files below have a fixed order, and every import between them points down
+ * that order (G4.64). A module cycle between two of them can pass every behavioral test, so only
+ * a source scan can hold the shape.
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, stripComments } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, importSpecifiers } from './scan-source';
 
 /** Lowest level first: a file may import only the levels below its own. */
 const LADDER = [
@@ -13,6 +13,8 @@ const LADDER = [
 	'unshare',
 	'settle',
 	'content-write',
+	'stored-as',
+	'leaf-range',
 	'node-ops',
 	'chain-rebuild'
 ] as const;
@@ -20,8 +22,6 @@ const LADDER = [
 type Rung = (typeof LADDER)[number];
 
 const LAYER_DIR = 'src/lib/tree-operations/';
-
-const IMPORT_SOURCE = /\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
 
 /** The level a listed file sits at, or -1 for every other file. */
 function rungOfFile(relPath: string): number {
@@ -36,21 +36,16 @@ function rungOfSpecifier(spec: string): number {
 	return name === undefined ? -1 : LADDER.indexOf(name as Rung);
 }
 
-/** Every specifier in `text` naming a level above `rung`, as `file -> specifier`. */
-function upwardEdges(relPath: string, rung: number, text: string): string[] {
-	const edges: string[] = [];
-	const re = new RegExp(IMPORT_SOURCE.source, IMPORT_SOURCE.flags);
-	let match: RegExpExecArray | null;
-	while ((match = re.exec(stripComments(text))) !== null) {
-		const spec = match[1] ?? match[2];
-		if (rungOfSpecifier(spec) > rung) edges.push(`${relPath} -> ${spec}`);
-	}
-	return edges;
+/** Every specifier in `code` naming a level above `rung`, as `file -> specifier`. */
+function upwardEdges(relPath: string, rung: number, code: string): string[] {
+	return importSpecifiers(code)
+		.filter(({ specifier }) => rungOfSpecifier(specifier) > rung)
+		.map(({ specifier }) => `${relPath} -> ${specifier}`);
 }
 
 describe('G4.64 the tree-ops layer order', () => {
-	// Library-internal: the order names six files under src/lib, so the plugin and consumer
-	// stand-ins have nothing to model.
+	// Library-internal: the order names files under src/lib, so the reference plugins and the
+	// consumer example have nothing to model.
 	const rungs = collectEditorSources(EDITOR_SRC)
 		.map((f) => ({ ...f, rung: rungOfFile(f.relPath) }))
 		.filter((f) => f.rung >= 0);
@@ -60,7 +55,7 @@ describe('G4.64 the tree-ops layer order', () => {
 	});
 
 	it('no import between the layers points upward', () => {
-		const violations = rungs.flatMap((f) => upwardEdges(f.relPath, f.rung, f.text));
+		const violations = rungs.flatMap((f) => upwardEdges(f.relPath, f.rung, f.code));
 		expect(violations).toEqual([]);
 	});
 
@@ -74,7 +69,9 @@ describe('G4.64 the tree-ops layer order', () => {
 		]);
 		expect(upwardEdges('settle.ts', settle, "import { x } from './unshare';")).toEqual([]);
 		expect(upwardEdges('settle.ts', settle, "import { x } from '../core/lines';")).toEqual([]);
-		expect(upwardEdges('settle.ts', settle, "import { x } from './list/terminator';")).toEqual([]);
+		expect(upwardEdges('settle.ts', settle, "import { x } from './list/ordered-markers';")).toEqual(
+			[]
+		);
 	});
 
 	it('a type-only import and a dynamic import are edges too', () => {

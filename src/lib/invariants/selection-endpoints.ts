@@ -1,14 +1,14 @@
 /**
- * G1.29: a cross-block endpoint's offset is read in its own block's coordinates. On a table that
- * means a cell index (a character offset there corrupts the grid through `rangeDelete`'s generic
- * branch); elsewhere a character offset inside `[0, displayLength(raw)]`; and inside a kind with
- * no character positions, one of those two ends, because anything between them cuts an opaque
- * block in half. A pair on the same path is exempt: a rectangle inside one table is not flagged.
+ * G1.29: a stored endpoint's offset is read in its own block's coordinates. On a block that counts
+ * cells (a table) it is a flagged cell index inside the grid, a rectangle's corners included.
+ * Elsewhere it's a character offset inside `[0, displayLength(raw)]`, and inside a kind with no
+ * character positions one of those two ends, because anything between them cuts an opaque block.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
+import { countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { InvariantViolation } from '../assert';
 
 /**
@@ -31,16 +31,11 @@ function resolve(doc: DocumentView, path: readonly number[]): NodeView | null {
 	return parent === doc ? null : (parent as NodeView);
 }
 
-function samePath(a: readonly number[], b: readonly number[]): boolean {
-	return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
 export function checkCrossBlockEndpointCoordinates(
 	doc: DocumentView,
 	anchor: EndpointCoordinate,
 	focus: EndpointCoordinate
 ): InvariantViolation | null {
-	if (samePath(anchor.path, focus.path)) return null;
 	for (const [role, point] of [
 		['anchor', anchor],
 		['focus', focus]
@@ -62,7 +57,14 @@ function checkCellCoordinate(
 	point: EndpointCoordinate,
 	node: NodeView
 ): InvariantViolation | null {
-	if (node.kind === 'table') return null;
+	if (countsCells(node)) {
+		if (point.offset >= 0 && point.offset < tableCellCount(node)) return null;
+		return {
+			code: 'endpoint-cell-index-out-of-range',
+			message: `cross-block ${role} [${point.path.join(',')}] carries cell index ${point.offset}, outside the table's 0..${tableCellCount(node) - 1}`,
+			detail: { role, path: [...point.path], offset: point.offset }
+		};
+	}
 	return {
 		code: 'endpoint-cell-coordinate-off-table',
 		message: `cross-block ${role} [${point.path.join(',')}] carries a cell index (${point.offset}) against a "${node.kind}", which has no cells`,
@@ -77,7 +79,7 @@ function checkCharOffset(
 ): InvariantViolation | null {
 	const detail = { role, path: [...point.path], offset: point.offset };
 	const at = `cross-block ${role} [${point.path.join(',')}]`;
-	if (node.kind === 'table') {
+	if (countsCells(node)) {
 		return {
 			code: 'endpoint-cell-coordinate',
 			message: `${at} addresses a table but carries a character offset (${point.offset})`,

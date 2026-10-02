@@ -7,12 +7,23 @@
 import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
 import type { CstNode, Document } from '../../core/nodes';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { nodeAt, writeOwnRaw } from '../node-primitives';
-import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
+import {
+	documentLineEnding,
+	isBlankText,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '../../core/lines';
+import { nodeAt } from '../node-primitives';
+import {
+	legalizeWrite,
+	settledCaretPosition,
+	updateNodeContent,
+	type SettledContent
+} from '../content-write';
+import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
-import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
-import { ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
+import { rebuildContainerRaw } from '../../schema/container-raw';
+import { ensureUnsharedPath } from '../unshare';
 import { rebuildUnsharedChain } from '../chain-rebuild';
 import { containerScopeState } from './parent-scope';
 import {
@@ -21,8 +32,9 @@ import {
 	type StructuralChange
 } from '../structural-change';
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
-import { spliceTerminatedItems } from '../list/terminator';
+import { spliceMany } from '../splice-many';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
 import type { MultiScopeTarget } from './paste-deps';
 import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -32,11 +44,8 @@ interface ContainerUnwrap {
 	/** Index within outer.children of the target descendant. */
 	spliceIndex: number;
 	items: CstNode[];
-	/**
-	 * Non-empty-target variant: merge the first clipboard item into the target leaf, splice
-	 * the rest as siblings, reattach post-caret residue to the last. Absent means the
-	 * descendant is empty and gets replaced wholesale.
-	 */
+	/** A non-empty target: the first item merges into the target leaf, the rest land as siblings
+	 *  with the residue on the last. Absent: the empty descendant is replaced whole. */
 	merge?: {
 		targetLeafPath: number[];
 		offset: number;
@@ -46,9 +55,8 @@ interface ContainerUnwrap {
 }
 
 /**
- * Whether to flatten the paste into a matching ancestor container. Empty target
- * descendants always unwrap; non-empty ones only in cross-block context, so a single-block
- * paste into a partially-filled item keeps the nested-sub-container behavior.
+ * Whether to flatten the paste into a matching ancestor container: an empty target always, a
+ * filled one only across blocks, so a single-block paste into a filled item nests a sub-container.
  */
 export function findContainerMatchingUnwrap(
 	doc: Document,
@@ -105,17 +113,16 @@ function isEmptyContainerChild(
 	postDelete: { node: CstNode | null; raw: string }
 ): boolean {
 	const rawOf = (n: CstNode) => (n === postDelete.node ? postDelete.raw : n.raw);
-	if (!node.children || node.children.length === 0) return rawOf(node).trim() === '';
+	if (!node.children || node.children.length === 0) return isBlankText(rawOf(node));
 	if (node.children.length !== 1) return false;
 	const c = node.children[0];
 	if (c.kind !== 'paragraph') return false;
-	return rawOf(c).trim() === '';
+	return isBlankText(rawOf(c));
 }
 
 /**
- * The one paragraph an unwrapped item's text may be spliced as. The merge slices a display
- * offset out of the target leaf and reattaches the residue, which only prose bytes can address,
- * so both writes re-check this rather than trusting the finder's check from a distance.
+ * The one paragraph an unwrapped item's text may be spliced as. Only prose bytes can take the
+ * merge's display offset, so both writes re-check rather than trust the finder.
  */
 function singleParagraphChildOf(node: CstNode): CstNode | null {
 	if (!node.children || node.children.length !== 1) return null;
@@ -125,29 +132,25 @@ function singleParagraphChildOf(node: CstNode): CstNode | null {
 
 export async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, unwrap.outerPath) as CstNode | null;
 	if (!outer) return;
 	const outerState = containerScopeState(ctx.controller, outer);
 
 	if (unwrap.merge) {
-		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx);
+		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx, start);
 		return;
 	}
 
 	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex);
 
-	const snapshot =
-		ctx.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
-
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot,
+		snapshot: start,
 		mutate: ([scopeView]) => {
-			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
+			spliceMany(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: unwrap.spliceIndex,
@@ -168,11 +171,18 @@ export async function applyContainerMatchingPaste(
 			detail: { source: 'container-matching', outerPath: unwrap.outerPath },
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
-			return ctx.controller.landCaret([...unwrap.outerPath, lastInsertedIdx], CURSOR_END);
+			return { path: docPathFrom([...unwrap.outerPath, lastInsertedIdx]), offset: CURSOR_END };
 		}
 	});
+}
+
+/** The merged leaf's write: the chain down to its holder, and where the write put its bytes. */
+interface MergedLeaf {
+	chain: CstNode[];
+	settled: SettledContent;
+	storedOffset: (offset: number) => number;
 }
 
 /** A single-item clipboard keeps everything in the target leaf. */
@@ -181,7 +191,8 @@ async function applyContainerMatchingMerge(
 	merge: NonNullable<ContainerUnwrap['merge']>,
 	outer: CstNode,
 	outerState: MultiScopeTarget['state'],
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	snapshot: CommitSnapshotArg
 ): Promise<void> {
 	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;
 	if (!targetLeaf) return;
@@ -199,7 +210,8 @@ async function applyContainerMatchingMerge(
 	}
 
 	// Post-delete bytes: dispatch applied the paste's delete half before picking this strategy.
-	const targetLineEnding = trailingLineEnding(merge.targetRaw);
+	const lineEnding = documentLineEnding(ctx.doc);
+	const targetLineEnding = trailingLineEnding(merge.targetRaw, lineEnding);
 	const targetDisplay = trimTrailingLineEnding(merge.targetRaw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
 	const displayAfter = targetDisplay.slice(merge.offset);
@@ -210,15 +222,27 @@ async function applyContainerMatchingMerge(
 	// siblings splice in, landing after the target.
 	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
-	const snapshot =
-		ctx.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
-	/** The merged leaf sits below the scope node, so copy its whole ancestor chain. */
-	const ownMergedLeafSpine = (sharing: SharingState) => {
-		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-		return { chain, ownedLeaf: chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing) };
+	const leafIndex = merge.targetLeafPath[merge.targetLeafPath.length - 1];
+	/**
+	 * The merged leaf's new text through the content write against its holder, whose ids follow
+	 * any kind change; the holder sits below the scope node, so its whole chain is copied first.
+	 */
+	const writeMergedLeaf = (text: string, sharing: SharingState): MergedLeaf => {
+		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing).slice(0, -1);
+		const holder = chain[chain.length - 1];
+		const body = { children: holder.children!, owner: holder, lineEnding };
+		const write = legalizeWrite(body, leafIndex, text, 'literal');
+		const settled = updateNodeContent(body, leafIndex, write, ctx.reading.grammar, sharing);
+		if (holder.childIds) {
+			applyStructuralChangeToIdsRefs(
+				settled.change,
+				holder.childIds,
+				new Array(holder.childIds.length)
+			);
+		}
+		return { chain, settled, storedOffset: write.storedOffset };
 	};
+	let merged: MergedLeaf | null = null;
 
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
@@ -226,13 +250,11 @@ async function applyContainerMatchingMerge(
 			snapshot,
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
-				const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-				writeOwnRaw(
-					ownedLeaf,
+				merged = writeMergedLeaf(
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
-					ctx.grammar
+					sharing
 				);
-				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
+				rebuildUnsharedChain(ctx.doc, merged.chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -240,16 +262,28 @@ async function applyContainerMatchingMerge(
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
-			afterTick: () =>
+			landing: () => {
 				// A char offset inside the merged leaf, not a block index, so land on the leaf
-				// itself: a container's focus(number) would clamp to its last child's end.
-				ctx.controller.landCaret(merge.targetLeafPath, displayBefore.length + firstItemText.length)
+				// itself: a container's entry offset would take its last child's end.
+				const joined = displayBefore.length + firstItemText.length;
+				if (!merged) return { path: docPathFrom(merge.targetLeafPath), offset: joined };
+				const holderPath = merge.targetLeafPath.slice(0, -1);
+				const holder = nodeAt(ctx.doc, holderPath) as CstNode | null;
+				const children = holder?.children ?? [];
+				const at = settledCaretPosition(
+					merged.settled,
+					leafIndex,
+					merged.storedOffset(joined),
+					children
+				);
+				return { path: docPathFrom([...holderPath, at.index]), offset: at.offset };
+			}
 		});
 		return;
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
+	const lastLineEnding = trailingLineEnding(lastLeaf.raw, lineEnding);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 	let residue: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 
@@ -258,15 +292,14 @@ async function applyContainerMatchingMerge(
 		snapshot,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
+			const { chain } = writeMergedLeaf(displayBefore + firstItemText + targetLineEnding, sharing);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
-				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
+				{ children: lastItem.children!, owner: lastItem, lineEnding },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
-				ctx.grammar,
+				ctx.reading.grammar,
 				sharing
 			);
 			// The write's fix-up can splice the item's own body, a list this commit's descriptor
@@ -280,8 +313,8 @@ async function applyContainerMatchingMerge(
 			}
 			// Both rebuilds run before the splice, so the children written to state carry correct
 			// raws in one reactive flush.
-			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
-			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
+			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
+			rebuildContainerRaw(remainingItems[remainingItems.length - 1], ctx.reading.grammar);
 
 			// The siblings land after the merged target, which keeps its own slot.
 			const insertAt = unwrap.spliceIndex + 1;
@@ -290,7 +323,7 @@ async function applyContainerMatchingMerge(
 				at: insertAt,
 				count: remainingItems.length
 			};
-			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems);
+			spliceMany(scopeView.children, insertAt, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
 			// The already-proxied tail below the spliced siblings; the merged target keeps
 			// its number.
@@ -302,15 +335,18 @@ async function applyContainerMatchingMerge(
 			detail: { source: 'container-matching-merge', outerPath: unwrap.outerPath },
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			// A char offset in the last spliced item's paragraph, so land on the paragraph rather
 			// than CURSOR_END on the item, at the position the residue's own fix-up left it in.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			const target = settledCaretTarget(residue, 0, lastDisplay.length, lastItem.children ?? []);
-			return ctx.controller.landCaret(
-				[...unwrap.outerPath, lastInsertedIdx, target.index],
-				target.offset
-			);
+			const children = lastItem.children ?? [];
+			const at = settledCaretPosition(residue, 0, lastDisplay.length, children);
+			const block = children[at.index];
+			const leaf = (block?.children?.length && leafAtRawOffset(block, at.offset)) || null;
+			return {
+				path: docPathFrom([...unwrap.outerPath, lastInsertedIdx, at.index, ...(leaf?.path ?? [])]),
+				offset: leaf?.offset ?? at.offset
+			};
 		}
 	});
 }

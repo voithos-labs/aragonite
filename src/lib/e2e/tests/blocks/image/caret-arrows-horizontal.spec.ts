@@ -78,9 +78,8 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		);
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('ArrowDown');
-		// One ArrowDown reaches the image paragraph. A vertical move passes over an image
-		// paragraph, and if there is nothing past it (the last block), creating a new paragraph
-		// is fine.
+		// One ArrowDown reaches the image paragraph; a vertical move passes over it, and past the
+		// last block a new paragraph may be created.
 		await page.keyboard.press('ArrowUp');
 		// The real assertion: no step left a caret inside the widget's hidden source span, verified
 		// by typing and reading the source back.

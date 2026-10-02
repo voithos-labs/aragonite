@@ -1,10 +1,9 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * Deleting across blocks, where the worst corruption bugs came from. Building a range must
- * really cross a block boundary and throw loudly if it quietly stayed inside one, so nothing
- * that did nothing counts as coverage; deleting one waits for the source to change, runs the
- * structural checks on the collapsed tree, then resyncs.
+ * Deleting across blocks. Building a range throws if it stayed inside one block, so a gesture
+ * that did nothing never counts as coverage; deleting one waits for the source to change, runs
+ * the structural checks on the collapsed tree, then resyncs.
  */
 
 // ── Build ──────────────────────────────────────────────────────────────────────
@@ -23,10 +22,7 @@ async function assertCrossBlockEngaged(ctx: SimContext, how: string): Promise<vo
 	}
 }
 
-/**
- * A one-line block is crossed in a single press and a wrapped one may need more, so this
- * presses up to `maxSteps` until the cross-block attribute appears, then checks that it did.
- */
+/** A wrapped block may need several keypresses to cross, so this tries up to `maxSteps`. */
 export async function extendSelectionAcross(
 	ctx: SimContext,
 	dir: 'down' | 'up',
@@ -52,10 +48,8 @@ export async function shiftClickAcross(
 	await assertCrossBlockEngaged(ctx, `shift-click ${JSON.stringify(targetPath)}`);
 }
 
-/**
- * Ctrl+A twice: the block, then the whole document. A one-block document never widens, so this
- * checks the range crossed a boundary and throws if the second press stayed inside one block.
- */
+/** Ctrl+A twice: the block, then the whole document. A one-block document never widens, so it
+ *  throws. */
 export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 	await ctx.editor.selectAll();
 	await ctx.editor.waitForRenderFlush();
@@ -66,11 +60,8 @@ export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 
 // ── Destroy ────────────────────────────────────────────────────────────────────
 
-/**
- * Waits for the selection to collapse and for the source to really change, so a delete that
- * quietly did nothing (the range never crossed a block, the key was ignored) fails here rather
- * than recording a stale tree.
- */
+/** Waits for the source to change, so a delete that did nothing fails here rather than
+ *  recording a stale tree. */
 async function destroyThenSweep(
 	ctx: SimContext,
 	act: () => Promise<void>,
@@ -111,4 +102,19 @@ export function typeOverSelection(ctx: SimContext, text: string): Promise<void> 
 
 export function pasteOverSelection(ctx: SimContext): Promise<void> {
 	return destroyThenSweep(ctx, () => ctx.page.keyboard.press('ControlOrMeta+v'), 'paste-over');
+}
+
+/** The range goes as the composition starts, and the IME writes into the block holding the
+ *  caret. Draw the range downward: one drawn upward holds its caret in a block the removal takes. */
+export function composeOverSelection(ctx: SimContext, text: string): Promise<void> {
+	const ime = ctx.ime;
+	if (!ime) throw new Error(`[${ctx.label}] IME gesture ran without a threaded CDP driver`);
+	return destroyThenSweep(
+		ctx,
+		async () => {
+			await ime.compose(text);
+			await ime.commit(text);
+		},
+		`compose-over ${JSON.stringify(text)}`
+	);
 }

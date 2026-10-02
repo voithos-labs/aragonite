@@ -1,23 +1,31 @@
 // Drives `cross-block/keydown.ts` as a unit. Its branches (destructive, command-candidate, extend,
 // collapse, document-edge, select-all) are module-private, so the only way in is
-// `createCrossBlockKeydown`. The mutation context is real (live document, undo controller and
-// selection), so a reading-mode check is proven by the bytes not moving, which a spy cannot do.
+// `createCrossBlockKeydown`. The document, undo controller and selection are real, so a
+// reading-mode check is proven by the bytes not moving, which a spy cannot do.
 
 import { vi } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispatch';
-import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
 import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import {
+	normalizeKeybindingOverrides,
+	type KeybindingOverride
+} from '$lib/schema/keybinding-overrides';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
+import { stubScrollOwner, stubScrollport } from '../../harness/stub-scrollport';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { commandContextWith } from '../../support/command-context';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -29,16 +37,22 @@ export interface KeydownEnvOptions {
 	 * them in, the only way to reach the caret-placing branch of `revealActiveEndpoint`.
 	 */
 	offWindowPaths?: number[][];
+	/** The consumer's `keybindings` prop, which the caret memory reads a chord through. */
+	keybindings?: KeybindingOverride[];
 }
 
 export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
 	// The extend branches scroll the moved endpoint into view; jsdom has no layout.
 	installEditorDomStubsForTests();
-	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
+	// One reading for the dispatch and the commits, as the editor hands both the same one.
+	const reading = fixtureReading({}, opts.presentationMode);
+	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source, {
+		reading
+	});
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
-	const stickyColumn = createStickyColumnState();
-	const edgeAffinity = createEdgeAffinityState();
+	const caretMemory = createCaretMemory();
+	const overrides = normalizeKeybindingOverrides(opts.keybindings);
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
@@ -58,29 +72,29 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		offWindow.delete(JSON.stringify(path));
 		return opts.revealTo ?? null;
 	});
-
-	const mutCtx: CrossBlockMutationContext = {
-		selection,
-		getDoc: () => harness.deps.doc,
-		getBlockElByPath,
-		revealPath,
-		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined,
-		getPresentationMode: undefined,
-		linkRef: undefined
+	// A stand-in for the caret landing whose every call mounts through `revealPath`, so a test
+	// reads each mount in one list.
+	const caretLanding: CrossBlockDispatchContext['caretLanding'] = {
+		mount: (path) => revealPath([...path]),
+		async park(pos) {
+			const ref = await revealPath([...pos.path]);
+			if (!ref?.parkCaret) return false;
+			ref.parkCaret(pos.offset);
+			return true;
+		},
+		async restore(selection) {
+			if ('gapCaret' in selection) return 'unplaced';
+			await revealPath(selection.focus.path.slice());
+			return 'applied';
+		}
 	};
 
-	const getPresentationMode = opts.presentationMode ? () => opts.presentationMode! : undefined;
 	// The real handler, so a format chord over a range moves the bytes it would move in production.
 	const crossBlockCommands = createCrossBlockCommands({
 		selection,
 		getDoc: () => harness.deps.doc,
-		getBlockElByPath,
-		revealPath,
 		controller,
-		getPresentationMode,
-		grammar: undefined,
+		reading,
 		getContentVersion: harness.contentVersion
 	});
 
@@ -88,36 +102,40 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	const ctx = {
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
 		getMyPath: () => opts.myPath ?? [0],
-		getIndex: () => 0,
 		selection,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
-		revealPath,
-		stickyColumn,
-		edgeAffinity,
+		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.
+		scrollOwner: stubScrollOwner(stubScrollport({ viewportHeight: 500 }), { getBlockElByPath }),
+		caretLanding,
+		caretMemory,
 		controller,
-		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-		pluginEditor: undefined,
-		getPresentationMode,
-		onCommandError,
-		crossBlockCommands,
-		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
+		reading,
+		events: harness.deps.events,
+		blockEdit: createBlockEditActions(harness.deps, controller),
+		pasteCoordinator: createPasteCoordinator(harness.deps, controller),
+		commands: commandContextWith(overrides, {
+			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
+			getPresentationMode: () => opts.presentationMode ?? 'source',
+			isCrossBlockRange: () => selection.isCrossBlock,
+			crossBlockCommands,
+			onCommandError
+		}),
+		activePlugins: everyInstalledPlugin,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
 
 	return {
 		...harness,
 		selection,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		controller,
 		ctx,
-		mutCtx,
 		revealed,
 		revealPath,
 		crossBlockCommands,
 		onCommandError,
-		keydown: createCrossBlockKeydown(ctx, mutCtx),
+		keydown: createCrossBlockKeydown(ctx),
 		source: () => serialize(harness.deps.doc)
 	};
 }

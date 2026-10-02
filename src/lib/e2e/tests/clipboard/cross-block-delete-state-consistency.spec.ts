@@ -83,7 +83,7 @@ test.describe('cross-block delete: BlockListState consistency', () => {
 		// Shift+click into body cell (row 1, col 0): the whole-row snap removes rows 0-1 and
 		// promotes "3|4", so the table's own row `BlockListState` must shrink with its children.
 		await editor.focusBlock(0, 2);
-		const cell = editor.page.locator('[role="cell"]').nth(2);
+		const cell = editor.page.locator('.table-cell').nth(2);
 		const box = await cell.boundingBox();
 		if (!box) throw new Error('body cell has no bounding box');
 		await editor.page.keyboard.down('Shift');

@@ -19,6 +19,7 @@ import {
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
+	trimWhitespace,
 	type CstNode,
 	type ParsedDirective,
 	type PluginBlockKind
@@ -45,7 +46,7 @@ export interface AdmonitionsOptions {
 /** Child 0 is the title (the opener line's info, editable); children 1+ are the body. */
 function admonitionFromDirective(kind: PluginBlockKind, titleKind: PluginBlockKind) {
 	return (parsed: ParsedDirective): CstNode => {
-		const title = parsed.fence.info.trim();
+		const title = trimWhitespace(parsed.fence.info);
 		const node: CstNode = {
 			kind,
 			leadingTrivia: parsed.leadingTrivia,
@@ -76,7 +77,8 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	const title = declarePluginKind(ADMONITION_TITLE);
 	const build = admonitionFromDirective(admonition, title);
 
-	// Every name resolves to one kind, which reads its variant back from metadata.
+	// Every name resolves to one kind, which reads its variant back from metadata. A name
+	// something else claimed first stays theirs.
 	for (const name of ADMONITION_KINDS) {
 		if (!isDirectiveRegistered('container', name)) {
 			registerDirective('container', name, { kind: admonition, fromDirective: build });
@@ -94,6 +96,9 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	});
 
 	registerBlockKind(admonition, {
+		label: 'Admonition',
+		// A note reads as part of the text around it, so it shows no drag handle.
+		pageRole: 'prose',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -106,10 +111,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 			rebuildRaw: rebuildAdmonitionRaw,
 			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: title },
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			}
+			unwrapRole: { middleChildBackspace: 'default-merge' }
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
@@ -132,7 +134,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		})
 	});
 
-	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+	registerChromeLeaf(title, { label: 'Title', blockClass: 'admonition-title' });
 	registerBlockComponent(admonition, defineBlockComponent(AdmonitionBlock));
 
 	if (options?.convertAlertsOnPaste) {

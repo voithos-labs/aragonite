@@ -48,9 +48,8 @@ test.describe('image popover anchoring', () => {
 		expect(popoverBox.y).toBeGreaterThanOrEqual(widgetBox.y);
 	});
 
-	// A sibling image's slow reload shifts the selected widget's y without resizing it, so
-	// listening only for `ResizeObserver`, `edit` and window resize strands the popover over the
-	// wrong image.
+	// A sibling image's slow reload moves the selected widget without resizing it, so listening
+	// only for `ResizeObserver`, `edit` and window resize strands the popover over the wrong image.
 	test('overlay re-anchors when a sibling image finishes loading and reflows', async ({ page }) => {
 		await editor.loadContent(
 			'![one|400](/test-fixtures/sample.png)\n\n![two|200](/test-fixtures/sample.png)\n'
@@ -62,8 +61,7 @@ test.describe('image popover anchoring', () => {
 		await page.locator('.md-image-properties').waitFor({ state: 'visible' });
 		await editor.waitForResizeObserverFlush();
 
-		// Shift the layout only image-1 sees, then dispatch its load event: the overlay must
-		// re-anchor.
+		// Shifts the layout only image-1 sees, then fires its load event: the overlay must follow.
 		await page.evaluate(
 			() =>
 				new Promise<void>((resolve) =>

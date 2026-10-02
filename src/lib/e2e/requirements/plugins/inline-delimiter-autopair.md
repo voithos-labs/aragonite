@@ -35,6 +35,14 @@ backtick does this on its own; a plugin trigger opts in with `autoPair: true` on
   a price and `$ ` a shell prompt, so neither keeps a stray `$` after it. A backtick keeps its
   pair for any byte, since `` `1` `` is code.
 - Backspace between the two takes both.
+- Only a pair the auto-pair wrote is dropped this way. `$$b` typed after `pay ` steps over the
+  partner and then types `b`, so a space typed between the two dollars afterwards writes
+  `pay $ $b` (regression: `pay $ b`, one dollar gone).
+- Any other write that takes the pair apart makes it the user's for good. `*` after `a ` writes
+  `a **`, Delete takes the partner, and pasting `*` back puts the same bytes there, but a space
+  typed between the stars then keeps both: `a * *` (regression: `a * `, the pasted star gone).
+  Miss-analysis: GH #478, only the auto-pair's own keys ever checked its record, so no case took
+  the pair apart by another route and built it back.
 
 ## Block openers
 

@@ -14,19 +14,16 @@ import {
 	arbRawString
 } from './arbitraries';
 
-// A generator that cannot draw a shape proves nothing about it, and the shapes below were missing
-// from generators whose properties are entirely about them: three structural ones drew pure ASCII
-// and two never drew CRLF. The minimums are a measurement kept as a check, counted per shape, so
-// a weight change that quietly starves one fails here rather than at the next review. Fixed seed
-// on purpose: a coverage floor that flakes is not a floor, which is also why this suite does not
-// run on fresh seeds.
+// A generator that cannot draw a shape proves nothing about it, so each generator's reach is
+// counted per shape against a minimum, and a weight change that quietly starves one fails here.
+// Fixed seed on purpose: a coverage floor that flakes is not a floor, which is also why this suite
+// does not run on fresh seeds.
 
 const DRAWS = 400;
 const SEED = 20260814;
 
-/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, the cluster whose base
- *  and mark a boundary can land between, and the two-byte line ending every offset either counts as
- *  one boundary or corrupts. */
+/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, a cluster a boundary can
+ *  split, and the two-byte line ending an offset either counts as one boundary or corrupts. */
 const SHAPES = {
 	'non-ASCII': (source: string) => [...source].some((char) => char.charCodeAt(0) > 0x7f),
 	'accented Latin': (source: string) => /[À-ɏ]/u.test(source),
@@ -39,11 +36,8 @@ const SHAPES = {
 
 type Shape = keyof typeof SHAPES;
 
-/**
- * A generator's minimum per shape: a count, or the reason that generator's own purpose puts the
- * shape out of reach. A reason keeps a missing shape declared rather than simply absent, the same
- * way the conformance kits do it; a minimum of zero would read as a measurement instead.
- */
+/** A generator's minimum per shape: a count, or the reason its purpose puts the shape out of
+ *  reach, so a missing shape stays declared rather than reading as a measured zero. */
 interface Lane {
 	name: string;
 	arbitrary: fc.Arbitrary<string>;
@@ -130,19 +124,16 @@ describe.each(LANES.map((lane) => [lane.name, lane] as const))(
 			expect(ascii / bytes.length).toBeGreaterThan(0.9);
 		});
 
-		// Lone surrogates are the one shape the corpus deliberately excludes: no UTF-8 boundary
-		// round-trips one, so no document holding one reaches the editor through any documented
-		// path. The gesture fuzzer's well-formedness check takes that as its precondition.
+		// Lone surrogates are excluded on purpose: no UTF-8 boundary round-trips one, so no document
+		// reaching the editor holds one, and the gesture fuzzer relies on that.
 		it('draws no ill-formed source', () => {
 			expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
 		});
 	}
 );
 
-// The byte shapes above say nothing about constructs, and the inline generator is the one whose
-// whole job is their adjacency. Two rows belong to where a typed byte goes: an asterisk nest whose
-// shared run serves both pairs, and a run around a bare autolink whose URL scanner swallows the
-// closer beside it.
+// The byte shapes above say nothing about constructs, and the inline generator's whole job is
+// their adjacency, so each construct it must reach gets a floor of its own.
 describe('arbInlineSource draws the construct adjacencies its properties are about', () => {
 	const draws = fc.sample(arbInlineSource, { numRuns: DRAWS, seed: SEED });
 

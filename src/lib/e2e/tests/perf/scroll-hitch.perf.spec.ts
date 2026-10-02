@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { writePerfResult } from './latency-harness';
 import {
 	installProbe,
@@ -130,23 +130,20 @@ test.describe('scroll hitch: a wheel tick in live mode over heavy blocks', () =>
 	});
 
 	test('math, code and diagrams on the plugins route', async ({ page }) => {
-		await page.goto('/test/plugins');
-		await page.waitForFunction(() => (window as any).__test !== undefined);
+		await gotoReady(page, '/test/plugins');
 		const editor = new EditorPage(page);
 		await editor.loadContent(MATH_CODE_DIAGRAMS);
 		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
 		await measure(page, editor, 'math-code-diagrams', DOWN_UP);
 	});
 
-	// The showcase as it ships: its own document, every demo plugin and the live-mode toolbars.
-	// Twice: with a caret in the first block, which keeps everything between it and the viewport
-	// mounted, and without one, where the window moves freely.
+	// The showcase as it ships, twice: with a caret in the first block, which keeps everything
+	// between it and the viewport mounted, and without one, where the window moves freely.
 	for (const focused of [true, false]) {
 		test(`the showcase document on the demo route, ${focused ? 'caret parked' : 'no caret'}`, async ({
 			page
 		}) => {
-			await page.goto('/');
-			await waitForEditorHydrated(page);
+			await gotoReady(page, '/');
 			const editor = new EditorPage(page);
 			if (focused) await page.locator('.editor [data-block-path]').first().click();
 			await measure(page, editor, focused ? 'showcase-focused' : 'showcase', DOWN_UP);

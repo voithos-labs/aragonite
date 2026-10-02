@@ -1,14 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockNearPoint, nearestBand } from '$lib/selection/nearest-block';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { blockNearPoint, descendToLevelChild, nearestBand } from '$lib/selection/nearest-block';
+import { blockAtPoint } from '$lib/selection/block-hit-test';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Which block a point off every block belongs to, and where inside it the gesture is answered.
-// The geometry half needs real layout and is pinned by e2e/tests/selection/dead-space-click.spec.ts;
-// this is the arithmetic, where the off-by-ones live.
+// The geometry needs real layout, so `e2e/tests/selection/dead-space-click.spec.ts` covers it.
 
 const BANDS = [
 	{ top: 100, bottom: 130 },
@@ -55,10 +52,8 @@ describe('nearestBand', () => {
 	});
 });
 
-// Where the endpoint gets hit-tested. The probe point is deliberately not returned, so this is
-// its only observation point: a grid kind records the point its own hook was handed. An
-// unclamped off-block point resolves to no offset at all on a text block, which would drop a
-// whole drag gesture whose moves were coalesced into one.
+// A grid kind records the point its hook is handed, the only view of the clamped point. Unclamped,
+// an off-block point resolves to no offset on a text block and drops a whole coalesced drag.
 describe('blockNearPoint', () => {
 	const BOXES = [
 		{ left: 100, right: 300, top: 100, bottom: 140 },
@@ -71,13 +66,7 @@ describe('blockNearPoint', () => {
 
 	beforeEach(() => {
 		probes = [];
-		const kind = declarePluginKind('probeRecordingKind');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('probeRecordingKind', {
 			foreignDragHitTest: (_wrapper, x, y) => {
 				probes.push({ x, y });
 				return CELL;
@@ -104,7 +93,6 @@ describe('blockNearPoint', () => {
 	afterEach(() => {
 		document.elementFromPoint = origFromPoint;
 		root.remove();
-		__resetSchemaRegistriesForTests();
 	});
 
 	function cellIn(path: number[]) {
@@ -150,5 +138,94 @@ describe('blockNearPoint', () => {
 	it('declines when nothing is mounted', () => {
 		root.replaceChildren();
 		expect(blockNearPoint(root, 10, 10)).toBeNull();
+	});
+});
+
+// Which child a point on a container's own box goes to, when the container has an editable row
+// of its own (no built-in one does), and the guard that ends the search.
+describe('descendToLevelChild', () => {
+	type Box = { left: number; right: number; top: number; bottom: number };
+	const CONTAINER: Box = { left: 0, right: 300, top: 100, bottom: 200 };
+	const TITLE: Box = { left: 20, right: 300, top: 100, bottom: 120 };
+	const CHILDREN: Box[] = [
+		{ left: 20, right: 300, top: 120, bottom: 150 },
+		{ left: 20, right: 300, top: 160, bottom: 190 }
+	];
+	let root: HTMLElement;
+	let boxes: { el: HTMLElement; box: Box }[];
+	const origFromPoint = document.elementFromPoint;
+
+	function mount(withTitle: boolean) {
+		root = document.createElement('div');
+		document.body.appendChild(root);
+		const container = host(root, [0], CONTAINER);
+		boxes = [{ el: container, box: CONTAINER }];
+		if (withTitle) editable(container, TITLE);
+		CHILDREN.forEach((box, i) => {
+			const child = host(container, [0, i], box);
+			editable(child, box);
+			boxes.push({ el: child, box });
+		});
+		// The innermost block host under the point, as the browser's hit test would find it.
+		document.elementFromPoint = ((x: number, y: number) =>
+			boxes.findLast(
+				({ box }) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
+			)?.el ?? null) as typeof document.elementFromPoint;
+	}
+
+	function host(parent: HTMLElement, path: number[], box: Box): HTMLElement {
+		const el = parent.appendChild(document.createElement('div'));
+		el.setAttribute('data-block-path', JSON.stringify(path));
+		el.getBoundingClientRect = () => box as DOMRect;
+		return el;
+	}
+
+	function editable(parent: HTMLElement, box: Box) {
+		const el = parent.appendChild(document.createElement('div'));
+		el.setAttribute('contenteditable', 'true');
+		el.getBoundingClientRect = () => box as DOMRect;
+	}
+
+	function descendFrom(x: number, y: number) {
+		const hit = blockAtPoint(root, x, y);
+		if (!hit) throw new Error('the fixture put no block under the point');
+		return descendToLevelChild(root, { hit, x, y });
+	}
+
+	afterEach(() => {
+		document.elementFromPoint = origFromPoint;
+		root.remove();
+	});
+
+	it('hands a point in the gutter to the child level with it, not the first one', () => {
+		mount(true);
+		const landed = descendFrom(5, 170);
+
+		expect(landed.hit.path).toEqual([0, 1]);
+		expect(landed).toMatchObject({ x: 21, y: 170 });
+	});
+
+	it('keeps a point level with the container’s own text row', () => {
+		mount(true);
+		expect(descendFrom(5, 110).hit.path).toEqual([0]);
+	});
+
+	// Without the guard the search re-hits the container forever; the hit-test budget turns that
+	// synchronous hang into a failure.
+	it('keeps the point when something the container draws covers the child', () => {
+		mount(false);
+		let hitTests = 0;
+		document.elementFromPoint = (() => {
+			if (++hitTests > 50) throw new Error('the walk never stopped re-hitting the container');
+			return boxes[0].el;
+		}) as typeof document.elementFromPoint;
+		const hit = blockAtPoint(root, 5, 170)!;
+		expect(descendToLevelChild(root, { hit, x: 5, y: 170 }).hit.path).toEqual([0]);
+	});
+
+	it('gives a point between children to the nearer one when the container has no text', () => {
+		mount(false);
+		expect(descendFrom(5, 110).hit.path).toEqual([0, 0]);
+		expect(descendFrom(5, 157).hit.path).toEqual([0, 1]);
 	});
 });

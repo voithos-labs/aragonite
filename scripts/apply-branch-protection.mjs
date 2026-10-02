@@ -1,12 +1,8 @@
-// One-shot: apply main-branch protection. Needs gh authenticated as a repo admin, and a repo
-// the API will take it on: protection is plan-gated, so a private free-plan repo answers 403.
-// Contexts are ci.yml's job names plus the externals declared below, both held in step by
-// `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. Admins are exempt so a
-// maintainer is never locked out of their own repo when the other one is unreachable; the price
-// is that an admin can also merge past a red check, deliberately and visibly.
-//
-// `main` alone is protected: `dev` is the integration branch and takes the repo-wide history
-// rewrites, which need the force push this rule forbids.
+// One-shot: apply branch protection to `main` (not `dev`, whose history rewrites need a force
+// push). Needs gh authenticated as a repo admin; a private free-plan repo answers 403. The required
+// checks are ci.yml's job names plus the externals below, held in step by
+// `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. Admins stay exempt, so a
+// maintainer can still merge when the other maintainer is unreachable.
 import { execFileSync } from 'node:child_process';
 
 const REPO = 'voithos-labs/aragonite';

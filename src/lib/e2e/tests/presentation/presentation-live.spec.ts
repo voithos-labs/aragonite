@@ -1,8 +1,9 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode } from './helpers';
+import { enterPresentationMode } from './helpers';
 import { PluginsPage } from '../plugins/helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Live mode: reading mode's marker-hiding CSS over an editable document, and markers that never
 // show, which is what separates it from both preview modes.
@@ -78,7 +79,7 @@ test.describe('live mode: markers never reveal', () => {
 		const headingMarker = ep.getBlock(0).locator('.md-marker').first();
 		const emphasisMarkers = ep.getBlock(1).locator('.md-marker');
 
-		const point = await centerOfWord(page, 'bold');
+		const point = await textRunCenter(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([1]);
@@ -99,9 +100,8 @@ test.describe('live mode: markers never reveal', () => {
 		await expect(page.locator(`[data-list-marker='task'] .task-checkbox`).first()).toBeVisible();
 
 		const bulletAmbient = page.locator(`[data-list-marker='bullet'] ${AMBIENT_MARKER}`).first();
-		// toBeHidden here on purpose: the bullet's own span is not display:none, it is emptied and
-		// repainted by a `::before`, which the next line reads. The rule at the top of this file
-		// is about spans a missing element would let pass; this one's presence is asserted below.
+		// toBeHidden here on purpose: the bullet's span is not display:none but emptied and repainted
+		// by a `::before`, and its presence is asserted below.
 		await expect(bulletAmbient).toBeHidden();
 		const painted = await bulletAmbient.evaluate((el) => getComputedStyle(el, '::before').content);
 		expect(painted).toContain('•');

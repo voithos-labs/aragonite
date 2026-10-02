@@ -8,7 +8,7 @@ import { serialize } from '$lib/core/serializer';
 import { assignChildIdsDeep } from '$lib/block-id';
 import { buildPastedReplacement } from '$lib/tree-operations';
 import {
-	mockRef,
+	stubBlockComponent,
 	makeEditorActionsDeps,
 	makeNestedHarness,
 	makeNode
@@ -18,13 +18,14 @@ import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
 
 /**
- * G2.8: after every structural op, `children`, the keyed-id array and the ref array stay the same
- * length and line up index for index. If they do not, Svelte destroys and recreates the wrong
- * component, dropping IME state or stranding focus. The ops drive the real action bundles, so
- * `applyStructuralChangeToIdsRefs` is what is under test. Reorder is the shape most likely to
- * break the alignment, because every moved position reuses an existing id instead of creating one.
+ * After every structural op, `children`, the keyed-id array and the ref array stay the same length
+ * and line up index for index (G2.8), or Svelte recreates the wrong component and drops IME state
+ * or focus. The ops drive the real action bundles, so `applyStructuralChangeToIdsRefs` is under
+ * test; reorder is the likeliest break, since every moved position reuses an existing id.
  */
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
@@ -39,12 +40,8 @@ interface TopHarness {
 
 const makeTop = (raws: string[]): TopHarness => makeTopFrom(raws.join('\n'));
 
-/**
- * Blank-separated like a parsed document, because two paragraphs with no blank line between them
- * are a lazy continuation that the fix-up merges the way a reload would (GH #61), plus the
- * trailing blank line the parse puts into `suffix`. A children-only fixture cannot hold one, which
- * left every branch that spends it unreachable from here (GH #168).
- */
+/** Blank-separated like a parsed document, since adjacent paragraphs are a lazy continuation the
+ *  fix-up merges, plus the trailing blank line the parse puts into `suffix`. */
 function makeTopFrom(source: string): TopHarness {
 	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(parse(source + '\n'));
 	const controller = createUndoController(deps);
@@ -99,7 +96,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['aaa\n', 'bbb\n', 'ccc\n']);
 		const [id0, , id2] = h.ids();
 
-		await h.actions.deleteBlock(1);
+		await h.actions.deleteBlock(1, 'keyless');
 
 		assertAligned(h);
 		expect(h.ids()).toEqual([id0, id2]);
@@ -109,10 +106,12 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['hello\n', 'tail\n']);
 		const [id0, id1] = h.ids();
 
-		await h.actions.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
-		]);
+		await h.actions.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), { ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		assertAligned(h);
 		expect(h.doc.children.length).toBeGreaterThan(2);
@@ -130,16 +129,16 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids()).toEqual([id1, id0, id2]);
 	});
 
-	// GH #168: the fix-up turns the document's trailing line into a block when a delete leaves the
-	// tail blank, and a change that does not report that growth costs one id on the next commit.
+	// Miss-analysis: children-only fixtures had no trailing blank line to become a block (GH #168).
+	// A change that hides that growth costs one id on the next commit.
 	it('a delete whose settle creates the folded tail line keeps arrays aligned', async () => {
 		const h = makeTopFrom('alpha\n\n\nbeta\n');
 
-		await h.actions.deleteBlock(2);
+		await h.actions.deleteBlock(2, 'keyless');
 		assertAligned(h);
 		expect(h.doc.children).toHaveLength(3);
 
-		await h.actions.deleteBlock(0);
+		await h.actions.deleteBlock(0, 'keyless');
 		assertAligned(h);
 	});
 
@@ -156,7 +155,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		await h.actions.mergeWithNext(0);
 		stable();
 		assertAligned(h);
-		await h.actions.deleteBlock(0);
+		await h.actions.deleteBlock(0, 'keyless');
 		stable();
 		assertAligned(h);
 	});
@@ -183,7 +182,7 @@ function makeContainer(source: string): ContainerHarness {
 	const reorder = createReorderAction(deps, controller);
 	replaceRefs(
 		state.innerBlockRefs,
-		(initial.children ?? []).map(() => mockRef())
+		(initial.children ?? []).map(() => stubBlockComponent())
 	);
 
 	return { doc: deps.doc, node, state, bundle, reorder };
@@ -235,7 +234,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		const [id0, , id2] = h.state.innerBlockIds;
 		const ref0 = h.state.innerBlockRefs[0];
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds).toEqual([id0, id2]);
@@ -246,10 +245,12 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		const h = makeContainer(BQ_TWO);
 		const [id0, id1] = h.state.innerBlockIds;
 
-		await h.bundle.blockEdit.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			makeNode('paragraph', 'y\n')
-		]);
+		await h.bundle.blockEdit.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
@@ -278,7 +279,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 		// Without rebuildRaw the container's stale raw still carries "aaaa", so the
 		// round-trip + content pair below is non-vacuous.
-		await h.bundle.blockEdit.deleteBlock(0);
+		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
 		stable();
 		assertContainerAligned(h);
 		expect(serialize(h.doc)).not.toContain('aaaa');
@@ -290,15 +291,10 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 	});
 });
 
-// ── Deep childIds backfill on reparse-into-container (G2.8 / #4 class) ─────────
+// ── Deep childIds backfill on reparse-into-container (G2.8) ────────────────────
 
-/**
- * A freshly parsed subtree spliced under a component id that is kept carries no `childIds`, so
- * undefined keys reach Svelte if the reused container renders before the re-init effect, which
- * crashes on duplicate keys once a nested container holds two or more children. The fill-in lives
- * in `stampStructuralChange`, the one function every new-node op routes through, so the check
- * covers every path; the fixture nests two such containers to meet the crash condition.
- */
+/** A reparsed subtree under a kept component id arrives with no `childIds`, and Svelte crashes on
+ *  duplicate keys in a nested container unless `stampStructuralChange` fills them in first. */
 const NESTED_LIST = '1. First.\n\n   Continuation.\n2. Second:\n   - x\n   - y\n';
 
 function assertDeepChildIdsAligned(children: CstNode[]) {
@@ -321,7 +317,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const nested = parse(NESTED_LIST).children;
 		expect(nested[0].kind).toBe('list'); // genuinely a container, or the test is vacuous
 
-		await h.actions.replaceBlock(0, nested);
+		await h.actions.replaceBlock(0, nested, undefined, { snapshotOffset: 0 });
 
 		assertAligned(h);
 		assertDeepChildIdsAligned(h.doc.children);
@@ -333,8 +329,15 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 
 		// The live paste path merges the clipboard and splices it through replaceBlock
 		// (defaultStructuralHook → buildPastedReplacement), a second route to the fill-in.
-		const replacement = buildPastedReplacement(h.doc.children[0], 4, nested);
-		await h.actions.replaceBlock(0, replacement);
+		const { nodes: replacement } = buildPastedReplacement(
+			h.doc.children[0],
+			4,
+			nested,
+			'\n',
+			defaultGrammarView,
+			TOP_SLOT
+		);
+		await h.actions.replaceBlock(0, replacement, undefined, { snapshotOffset: 0 });
 
 		assertAligned(h);
 		assertDeepChildIdsAligned(h.doc.children);

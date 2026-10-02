@@ -1,29 +1,22 @@
 // A plugin-declared grid: the grid kind, the row kind it holds, and the inline-bearing leaf a row
 // holds (the shape the built-in table has, registered the way a plugin would register it, with no
 // table metadata anywhere), plus the document and the stored-endpoint plan its suites test
-// against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
+// against.
 
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 const joinChildren = (node: CstNode, sep: string) =>
 	(node.children ?? []).map((child) => child.raw).join(sep);
 
 export function registerPluginGrid() {
-	const grid = declarePluginKind('pluginGrid');
-	const row = declarePluginKind('pluginGridRow');
-	const cell = declarePluginKind('pluginGridCell');
-	const base = { gapEdges: 'none', mergeRole: 'not-mergeable', closure: testClosure } as const;
-	registerBlockKind(grid, {
-		...base,
-		editable: true,
-		supportsInline: false,
+	const grid = testLeaf('pluginGrid', {
 		container: {
 			contract: 'grid',
 			rebuildRaw: (node) => {
@@ -31,10 +24,7 @@ export function registerPluginGrid() {
 			}
 		}
 	});
-	registerBlockKind(row, {
-		...base,
-		editable: true,
-		supportsInline: false,
+	const row = testLeaf('pluginGridRow', {
 		container: {
 			contract: 'grid',
 			rebuildRaw: (node) => {
@@ -42,7 +32,7 @@ export function registerPluginGrid() {
 			}
 		}
 	});
-	registerBlockKind(cell, { ...base, editable: true, supportsInline: true });
+	const cell = testLeaf('pluginGridCell', { supportsInline: true });
 	return { grid, row, cell };
 }
 
@@ -79,6 +69,11 @@ export function planStored(doc: Document, anchor: SelectionPoint, focus: Selecti
 	return {
 		start: selection.start!,
 		end: selection.end!,
-		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined)
+		plan: planCrossBlockFormat(
+			doc,
+			coverRange(doc, selection.start!, selection.end!),
+			'strong',
+			fixtureReading()
+		)
 	};
 }

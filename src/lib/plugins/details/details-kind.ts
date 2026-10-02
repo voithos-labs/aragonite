@@ -18,8 +18,9 @@ import {
 	parseContainerBody,
 	serializeChildren,
 	trimTrailingLineEnding,
+	displayLines,
 	matchFenceOpen,
-	matchFenceClose,
+	findFenceCloser,
 	htmlBlockTagLineMatcher,
 	OPENER_PRIORITIES,
 	type ContainerBodyWrap,
@@ -56,24 +57,48 @@ const canonicalTagLine = (text: string): TagVerdict =>
  *  and therefore of what closes the element in a browser. */
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
-/**
- * A `</details>` inside a fenced code block is content on both sides of the round trip, so
- * neither the recognizer nor the escape may count it. Stateful, because the fence is.
- */
-function createTagScanner(tagLine: (text: string) => TagVerdict) {
-	let fence: { marker: '`' | '~'; length: number } | null = null;
-	return (text: string): TagVerdict => {
+/** Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true; a fenced
+ *  code block's lines are skipped whole, since a `</details>` inside one is content. */
+function visitTagLines(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	tagLine: (text: string) => TagVerdict,
+	visit: (index: number, verdict: TagVerdict) => boolean | void
+): void {
+	for (let i = from; i < end; i++) {
+		const fence = matchFenceOpen(lines[i].text);
 		if (fence) {
-			if (matchFenceClose(text, fence.marker, fence.length)) fence = null;
-			return null;
+			const closer = findFenceCloser(lines, i + 1, end, fence);
+			i = closer === -1 ? end : closer;
+			continue;
 		}
-		const opened = matchFenceOpen(text);
-		if (opened) {
-			fence = { marker: opened.marker, length: opened.length };
-			return null;
-		}
-		return tagLine(text);
-	};
+		if (visit(i, tagLine(lines[i].text))) return;
+	}
+}
+
+/** The `</details>` line closing the element whose body starts at `from`, or -1; depth-counted, so
+ *  a nested element's closer doesn't end the outer one. */
+function closingTagLine(lines: readonly { text: string }[], from: number, end: number): number {
+	let depth = 1;
+	let closeIdx = -1;
+	visitTagLines(lines, from, end, canonicalTagLine, (i, tag) => {
+		if (tag === 'open') depth++;
+		else if (tag === 'close' && --depth === 0) closeIdx = i;
+		return closeIdx !== -1;
+	});
+	return closeIdx;
+}
+
+/** The opener read on for `</details>` in vain, or its summary line is still to come: the block
+ *  became an HTML block, and a closer typed below can still complete it. */
+function awaitsClosingTag(raw: string): boolean {
+	if (!raw.startsWith('<details')) return false;
+	const lines = displayLines(raw);
+	if (!OPEN_LINE.test(lines[0].text)) return false;
+	const summary = lines[1];
+	if (summary === undefined || (summary.text === '' && lines.length === 2)) return true;
+	return SUMMARY_LINE.test(summary.text) && closingTagLine(lines, 2, lines.length) === -1;
 }
 
 function unpairedTagLines(
@@ -81,23 +106,19 @@ function unpairedTagLines(
 	tagLine: (text: string) => TagVerdict,
 	settled: ReadonlySet<number>
 ): number[] {
-	const classify = createTagScanner(tagLine);
 	const openIndices: number[] = [];
 	const unpaired: number[] = [];
-	for (let i = 0; i < lines.length; i++) {
-		const verdict = classify(lines[i]);
-		if (settled.has(i)) continue;
+	const texts = lines.map((text) => ({ text }));
+	visitTagLines(texts, 0, texts.length, tagLine, (i, verdict) => {
+		if (settled.has(i)) return;
 		if (verdict === 'open') openIndices.push(i);
 		else if (verdict === 'close' && openIndices.pop() === undefined) unpaired.push(i);
-	}
+	});
 	return [...unpaired, ...openIndices];
 }
 
-/**
- * Two passes, because this recognizer and a browser disagree about what counts as a tag line,
- * and only repeating until nothing changes leaves neither of them holding a stray tag. It
- * terminates because every round escapes at least one line and escaping never creates a tag.
- */
+/** Repeats until nothing changes, since this recognizer and a browser disagree on what a tag line
+ *  is; every round escapes a line and escaping never creates a tag, so it ends. */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
 	for (;;) {
@@ -172,6 +193,8 @@ export function registerDetailsKind(): void {
 	const detailsSummary = declarePluginKind(DETAILS_SUMMARY);
 
 	registerBlockKind(details, {
+		label: 'Details',
+		dragLabel: 'Details',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -187,10 +210,7 @@ export function registerDetailsKind(): void {
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			},
+			unwrapRole: { middleChildBackspace: 'default-merge' },
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
@@ -216,7 +236,7 @@ export function registerDetailsKind(): void {
 		})
 	});
 
-	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
+	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });
 
 	registerBlockOpener(details, {
 		// Just below htmlBlock, which would otherwise take `<details>` as a type-6 block.
@@ -224,6 +244,7 @@ export function registerDetailsKind(): void {
 		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
 		// so this opener's paragraph behavior does not depend on that priority order.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
+		readingNotFinal: awaitsClosingTag,
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
 			if (!openMatch) return null;
@@ -233,22 +254,7 @@ export function registerDetailsKind(): void {
 			const summaryMatch = ctx.lines[summaryIdx].text.match(SUMMARY_LINE);
 			if (!summaryMatch) return null;
 
-			// Depth-counted so nested details recurse via parse rather than closing early.
-			let depth = 1;
-			let closeIdx = -1;
-			const classify = createTagScanner(canonicalTagLine);
-			for (let i = summaryIdx + 1; i < ctx.end; i++) {
-				const tag = classify(ctx.lines[i].text);
-				if (tag === 'open') {
-					depth++;
-				} else if (tag === 'close') {
-					depth--;
-					if (depth === 0) {
-						closeIdx = i;
-						break;
-					}
-				}
-			}
+			const closeIdx = closingTagLine(ctx.lines, summaryIdx + 1, ctx.end);
 			if (closeIdx === -1) return null; // unterminated declines to htmlBlock
 
 			const bodyText = ctx.lines
@@ -256,7 +262,10 @@ export function registerDetailsKind(): void {
 				.map((l) => l.raw)
 				.join('');
 			// A fresh parse entry, so the body's own line 0 must not read as the document top.
-			const body = parseContainerBody(bodyText, BODY_WRAP, { scope: 'fragment' });
+			const body = parseContainerBody(bodyText, BODY_WRAP, {
+				scope: 'fragment',
+				grammar: ctx.grammar
+			});
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

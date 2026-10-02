@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The DOM half of showing markers in preview-inline mode: md-construct-reveal is toggled on
 // the spans the render marked, hiding waits a tick (a brief cross-block state looks like the
 // caret leaving), everything freezes during a cross-block selection, and both showing and
@@ -43,12 +42,10 @@ describe('createConstructReveal: trigger', () => {
 			get node() {
 				return node;
 			},
-			get linkRef() {
-				return undefined;
+			get reading() {
+				return harness.deps.reading;
 			},
 			getEl: () => el,
-			getAmbientLength: () => 0,
-			getPresentationMode: () => harness.deps.presentationMode,
 			isCrossBlock: () => crossBlock
 		});
 	});

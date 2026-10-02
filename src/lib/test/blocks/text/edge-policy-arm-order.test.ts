@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's order is what the rule fixes (G4.12): which gesture family outranks
-// which decides every contested key, and a family added at the wrong rank changes behavior no
-// single branch's tests can see. Miss-analysis: the order was nine literal `if` lines with no
-// test naming it, so a reordering read as a refactor.
+// The caret-edge dispatch's branch order decides every contested key, so a branch added at the
+// wrong rank changes behavior no single branch's tests can see (G4.12).
+// Miss-analysis: no test named the order of the branches, so a reordering read as a refactor.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -35,7 +33,6 @@ describe('the declared branch order', () => {
 			'reading-mode',
 			'decoration-island',
 			'ambient-marker',
-			'hidden-suffix-delete',
 			'construct-edge-delete',
 			'marker-completion',
 			'construct-seat'
@@ -54,9 +51,8 @@ describe('the declared branch order', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// The other half of the same entry: the widget branch above it still runs, so an entity at the
-	// caret takes the destructive key as a selection. Its atomic delete is the part reading mode
-	// skips, which is why that branch reads the mode itself rather than being skipped entirely.
+	// The widget branch above the reading-mode entry still selects an entity at the caret, and
+	// reads the mode itself to skip only its atomic delete.
 	it('enters a widget at the caret in reading mode and commits nothing', () => {
 		const b = mount(true, 'a&copy;b\n');
 		const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });

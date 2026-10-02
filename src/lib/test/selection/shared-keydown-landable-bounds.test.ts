@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// A mode that hides a block's own markers makes raw 0 unreachable, so the block-exit branches
-// must fire at the bounds a caret can actually reach. The extenders and `moveFocus` are spied on
-// to observe the decision without DOM geometry.
-// Miss-analysis: the bounds came from the kind's declared content range, which a paragraph and a
-// fenced code block both declare as the whole raw, so a fixture that never rendered could answer
-// for them, and the two kinds whose runs carry no data attribute went untested.
+// Hiding a block's markers makes raw 0 unreachable, so block exits must fire at reachable bounds.
+// Miss-analysis: bounds came from declared content ranges, so kinds declaring none went untested.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
@@ -19,9 +15,11 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { createTextRender } from '../../components/blocks/text/text-render';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
-import { createStickyColumnState } from '../../cursor/sticky-column';
-import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { commandContext } from '$lib/test/support/command-context';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -34,7 +32,7 @@ interface Env {
  *  would answer for a document that never rendered. */
 function render(node: CstNode): HTMLElement {
 	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
-	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node));
+	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node, everyInstalledPlugin));
 	else createTextRender(deps).render();
 	return el;
 }
@@ -49,16 +47,16 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const moveFocus = vi.fn();
 	return {
 		moveFocus,
-		// Cast the members this fixture does not stand up, never the whole context: a blanket cast
-		// is what let a new required reader ship unanswered here.
+		// Cast only the members this fixture does not stand up, never the whole context, so a new
+		// required reader fails to type-check here.
 		ctx: {
 			// No plugins stood up here, so every installed one is active.
-			activePlugins: undefined,
+			commands: commandContext(),
+			reading: fixtureReading(),
 			getEl: () => el,
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,
 			getTextLen: () => source.replace(/\n+$/, '').length,
-			getAmbientLength: () => 0,
 			getMyPath: () => [0],
 			getIndex: () => 1,
 			crossBlock: {
@@ -68,12 +66,11 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			selection: {
 				resetSelectAllCount: () => {}
 			} as unknown as SharedKeydownContext['selection'],
-			stickyColumn: createStickyColumnState(),
-			edgeAffinity: createEdgeAffinityState(),
+			caretMemory: createCaretMemory(),
 			history: {} as SharedKeydownContext['history'],
 			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,
-			getBlockElByPath: () => null
+			scrollOwner: { place: () => ({ scroll: async () => true }) }
 		}
 	};
 }
@@ -179,10 +176,26 @@ describe('the keydown entry point notes the arrival', () => {
 	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
 		await handleSharedKeydown(press('ArrowRight'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('near');
+		expect(ctx.caretMemory.side()).toBe('near');
 		await handleSharedKeydown(press('ArrowLeft'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('far');
+		expect(ctx.caretMemory.side()).toBe('far');
 		await handleSharedKeydown(press('Home'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('outside');
+		expect(ctx.caretMemory.side()).toBe('outside');
+	});
+
+	// The shared handler reads the chord through the block's keymap before the memory sees it:
+	// the default reorder chord moves the block, so the caret's memory stays for the move's commit.
+	it('the reorder chord leaves the side and the pending marks alone', async () => {
+		const { ctx } = makeEnv('Title\n', 2, 'live');
+		await handleSharedKeydown(press('Home'), ctx);
+		ctx.caretMemory.pendingMarks.toggle('strong');
+		const reorder = new KeyboardEvent('keydown', {
+			key: 'ArrowUp',
+			altKey: true,
+			cancelable: true
+		});
+		await handleSharedKeydown(reorder, ctx);
+		expect(ctx.caretMemory.side()).toBe('outside');
+		expect([...(ctx.caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
 	});
 });

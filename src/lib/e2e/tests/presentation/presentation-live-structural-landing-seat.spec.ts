@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode, focusPath } from './helpers';
+import { enterPresentationMode, focusPath } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Where the caret ends up when an edit places it rather than a key step. The source is the
 // reference: the caret reports the same offset on either side of a hidden closer, so only the
@@ -29,7 +30,7 @@ const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 /** Exit a fence upward the way a user does: click its body, Home, Backspace. */
 async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
+	const point = await textRunCenter(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Home');
@@ -45,8 +46,8 @@ test.describe('live mode: a structural landing puts the caret outside the constr
 		ep = await enterLive(page);
 	});
 
-	// The caret ends at the paragraph's end, whose last bytes are a hidden `**`. It was placed
-	// there, not stepped there, so its side is construct-relative (live-mode.md § 4.2).
+	// The caret was placed at the paragraph's end, behind a hidden `**`, not stepped there, so its
+	// side is construct-relative (`docs/design/live-mode.md` § 4.2).
 	test('a byte typed after exiting a fence upward lands past the closing marker', async ({
 		page
 	}) => {

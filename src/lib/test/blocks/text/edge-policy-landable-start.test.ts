@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
 // Backspace at the first offset the caret can sit at is a block gesture (merge, or nothing), so
-// the destructive edge branch must do nothing there: a hidden run straddling the start, such as
-// an escape's backslash, would otherwise turn the key into a forward delete of the first visible
-// character (GH #108).
-// Miss-analysis: that branch's suite drove keys beside and inside constructs but never at the
-// block's first reachable offset, the one place the key belongs to the block, not the construct.
+// the destructive edge branch does nothing there, even with a hidden run such as an escape's
+// backslash before it.
+// Miss-analysis: GH #108, the branch's suite never pressed at the block's first reachable offset.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {

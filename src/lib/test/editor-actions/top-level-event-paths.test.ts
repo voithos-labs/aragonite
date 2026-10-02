@@ -1,33 +1,22 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '$lib/core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Top-level and container event paths agree: both emit the edit's target, never the
 // snapshot index.
 
-/** Not editable and not focused as a whole: the shape a merge from a neighbouring caret
- *  deletes. Every non-editable built-in takes the focus path instead, so the delete branch
- *  is reachable only through a plugin kind. */
+/** Not editable and not focused as a whole, the shape a merge from a neighbouring caret deletes;
+ *  only a plugin kind reaches it, since every non-editable built-in takes the focus path. */
 function inertNode(): CstNode {
-	const kind = declarePluginKind('spec-inert-top-level');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		closure: testClosure
+	const kind = testLeaf('spec-inert-top-level', {
+		editable: false
 	});
 	return { kind, leadingTrivia: '', raw: 'inert\n' };
 }
 
 describe('top-level event paths target the operated block', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	it('backspace-merge into a non-editable previous block emits delete at the neighbor', async () => {
 		const h = makeTopHarness([inertNode(), ...parse('text\n').children]);
 		await h.actions.mergeWithPrevious(1);
@@ -58,7 +47,7 @@ describe('top-level event paths target the operated block', () => {
 
 	it('a kind-changing updateBlockContent emits updateContent at the block', async () => {
 		const h = makeTopHarness('hello\n');
-		await h.actions.updateBlockContent(0, '# hello\n', 0);
+		await h.actions.updateBlockContent(0, '# hello\n', 'authored', 0);
 		const update = h.edits.find((e) => e.op === 'updateContent');
 		expect(update).toBeDefined();
 		expect(update!.path).toEqual([0]);

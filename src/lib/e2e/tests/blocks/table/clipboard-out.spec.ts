@@ -16,7 +16,7 @@ test.describe('table block: clipboard out', () => {
 
 	test('Ctrl+A inside a cell + Ctrl+C copies the cell text', async ({ page }) => {
 		await editor.loadContent(TABLE_ALIGNED);
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe('1');
@@ -28,7 +28,7 @@ test.describe('table block: clipboard out', () => {
 		page
 	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| a<br>b | world |\n');
-		await page.locator('[role="cell"]').nth(2).click(); // "a<br>b"
+		await page.locator('.table-cell').nth(2).click(); // "a<br>b"
 		await page.keyboard.press('ControlOrMeta+a'); // stage-1 select-all selects the cell content
 		await page.keyboard.press('ControlOrMeta+c');
 		// The browser default would copy rendered textContent ("ab"), losing the `<br>` source.
@@ -37,7 +37,7 @@ test.describe('table block: clipboard out', () => {
 
 	test('Ctrl+A in an empty cell copies an empty string', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n|  | 2 |\n');
-		await page.locator('[role="cell"]').nth(2).click();
+		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe('');
@@ -94,7 +94,7 @@ test.describe('table block: clipboard out', () => {
 
 	test('whole table copy after Ctrl+A 2nd press emits table raw', async ({ page }) => {
 		await editor.loadContent(TABLE_ALIGNED);
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
@@ -119,5 +119,37 @@ test.describe('table block: clipboard out', () => {
 				})
 			)
 			.toContain('<tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr>');
+	});
+
+	// Scrolled far enough that windowing takes the table out of the page, the focused cell goes
+	// with it, so Ctrl+C lands on the page body and the editor root copies.
+	test('a rectangle copied with the table scrolled away copies the rectangle, text and HTML', async ({
+		page
+	}) => {
+		const filler = Array.from({ length: 300 }, (_, i) => `para ${i}`).join('\n\n');
+		await editor.loadContent(`${TABLE_ALIGNED}\n${filler}\n`);
+		await dragBetweenCells(page, 1, 4);
+		await editor.waitForCrossBlock(true);
+		const scrollHeight = await page.evaluate(
+			() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+		);
+		await editor.scrollEditorTo(scrollHeight);
+		await expect(page.locator('.table-block')).toHaveCount(0);
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('ControlOrMeta+c');
+		await expect.poll(() => editor.readClipboard()).toBe('| B |\n| :---: |\n| 2 |\n');
+		await expect
+			.poll(() =>
+				page.evaluate(async () => {
+					const items = await navigator.clipboard.read();
+					for (const item of items) {
+						if (!item.types.includes('text/html')) continue;
+						return (await item.getType('text/html')).text();
+					}
+					return null;
+				})
+			)
+			.toContain('<tr><td>B</td></tr><tr><td>2</td></tr>');
 	});
 });

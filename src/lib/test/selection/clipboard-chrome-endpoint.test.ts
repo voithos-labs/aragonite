@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { getPluginMetadata, type AnyBlockKind } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { augmentBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { DETAILS } from '$lib/plugins/details/details-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
@@ -21,7 +22,10 @@ describe('cross-block copy ending in reserved chrome', () => {
 
 	it('mid-title endpoint synthesizes a reparseable note with truncated title, empty body', () => {
 		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3)))
+		);
 		const note = parse(text).children.find((c) => c.kind === 'callout');
 		expect(note).toBeDefined();
 		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
@@ -30,34 +34,44 @@ describe('cross-block copy ending in reserved chrome', () => {
 
 	it('whole-title endpoint (offset at chrome end) synthesizes the full title, empty body', () => {
 		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 5));
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 5)))
+		);
 		const note = parse(text).children.find((c) => c.kind === 'callout');
 		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Title');
 	});
 
-	// The details opener carries `open` in metadata; the synthesized container must
-	// hand rebuildRaw the live node's metadata so the flag round-trips to bytes.
-	for (const { label, src, open } of [
+	// The copied opener keeps the live `open` flag; a closed details is copied whole, since the
+	// range reaches past its title into the hidden body.
+	for (const { label, src, open, kinds, title } of [
 		{
 			label: 'open',
 			src: 'Above\n\n<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
-			open: true
+			open: true,
+			kinds: ['details-summary'],
+			title: 'Sum'
 		},
 		{
 			label: 'closed',
 			src: 'Above\n\n<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
-			open: false
+			open: false,
+			kinds: ['details-summary', 'paragraph'],
+			title: 'Summary'
 		}
 	]) {
-		it(`mid-summary endpoint (${label}) synthesizes a details with the open flag preserved`, () => {
+		it(`mid-summary endpoint (${label}) copies a details with the open flag preserved`, () => {
 			const doc = parse(src);
-			const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3)))
+			);
 			const details = parse(text).children.find((c) => c.kind === 'details');
 			expect(details).toBeDefined();
 			expect(getPluginMetadata<{ open: boolean }>(details!)?.open).toBe(open);
-			expect(details!.children?.map((c) => c.kind)).toEqual(['details-summary']);
-			expect(trimTrailingLineEnding(details!.children![0].raw)).toBe('Sum');
+			expect(details!.children?.map((c) => c.kind)).toEqual(kinds);
+			expect(trimTrailingLineEnding(details!.children![0].raw)).toBe(title);
 		});
 	}
 
@@ -77,7 +91,10 @@ describe('cross-block copy ending in reserved chrome', () => {
 		const doc = parse(
 			'Above\n\n<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n'
 		);
-		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3)))
+		);
 
 		expect(text).toContain('<details open>'); // the rogue wrapper still rebuilt
 		expect(getPluginMetadata<{ rogue?: boolean }>(doc.children[1])?.rogue).toBeUndefined();
@@ -87,13 +104,19 @@ describe('cross-block copy ending in reserved chrome', () => {
 	// its marker through the suffix arithmetic.
 	it('leaves the listItem marker-recovery path unchanged', () => {
 		const doc = parse('Above\n\n1. hello\n');
-		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0, 0], 3));
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0, 0], 3)))
+		);
 		expect(text).toBe('ove\n1. hel');
 	});
 
 	it('leaves a blockquote endpoint on the marker-recovery path', () => {
 		const doc = parse('Above\n\n> quoted\n');
-		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3)))
+		);
 		expect(text).toBe('ove\n> quo');
 	});
 });

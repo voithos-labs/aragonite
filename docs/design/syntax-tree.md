@@ -133,21 +133,41 @@ quote.raw; // '> a\n>\n> - one\n> - two\n'
 concatChildren(quote.children); // 'a\n\n- one\n- two\n', the raw with its `> ` stripped
 ```
 
+A strip container keeps its metadata on its first line, and nowhere else. A list item's `marker` is the bullet or number plus every space after it, so the spaces count toward the marker, not the paragraph, and the marker's width (plus any spaces in front of the marker) is the column its other lines are indented to:
+
+```ts
+parse('-  b\n').children[0].children[0].metadata; // { marker: '-  ', taskItem: false, ... }
+parse('- [ ]  b\n').children[0].children[0].metadata.taskMarker; // '[ ]  '
+parse('> > a\n').children[0].metadata; // { quoteDepth: 2 }
+```
+
+An edit that leaves a space at an item's content start leaves exactly those bytes, so the editor reads them the way this parse does. How, and what it costs, is in `editor.md` § The container `raw` contract.
+
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes.
+- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function reads a table line into cells and says where each one sits (`core/parsers/table-line.ts :: rowCellSpans`), and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.
 
-  One accepted normalization: GFM (§ 4.10) ignores body cells beyond the header width, so the parser truncates a wider row's children to the column count while the row's `raw` keeps the authored bytes.
+  The write goes into the row's own bytes. A row whose cells all match what its bytes read stays exactly as it was, ending included; a changed cell gets its new text inside its old padding (a space you type at a cell's edge is padding to GFM, so the row doesn't write it until a letter follows); a column added or removed cuts that cell out, or splices a padded one in, and leaves the other cells alone. (When every alignment is the same, a new delimiter cell can land at the end of the row instead of where the column went. It reads the same.) The delimiter row follows the same rule, so a column whose alignment held keeps its `:--`. Only a line with no bytes of its own (a new row), or one whose rewrite wouldn't read back as its cells, in the editor or in GFM, gets the plain spelling, `| a | b |`. A cell ending in a backslash keeps a space before the next pipe, since `x\|` would escape it. One exception: a row with no leading pipe whose first cell changes gets pipes too, since `# x` written bare at the start of a line would open a heading, and the rebuild doesn't know the grammar.
+
+  ```ts
+  const table = parse('|a|b|\n|-|:-|\n|1|  2  |\n').children[0];
+  table.children[1].children[1].raw = '2Q';
+  rebuildTableRaw(table);
+  table.raw; // '|a|b|\n|-|:-|\n|1|  2Q  |\n': that cell's text moved, nothing else did
+  ```
+
+  GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
 
   ```ts
   const table = parse('| a | b |\n| - | - |\n| 1 | 2 | 3 |\n').children[0];
   table.children[1].raw; // '| 1 | 2 | 3 |\n': the authored bytes, third cell included
   table.children[1].children.length; // 2: the model holds the header's column count
+  table.children[1].metadata.surplusCells; // ['3']: the cells past it, as written
   ```
 
-  A pure load-and-save round-trips the surplus untouched; the first table edit rebuilds the row from its children and drops it. Preserving the surplus would need phantom children, or a `raw` that disagrees with `children`, and either breaks the tree being the truth. So the truncation normalizes on first edit, like padding and delimiter normalization, and the dropped cells never entered the model and never rendered.
+  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes (padding too, unless the edit gives a pipe-less row its pipes). A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
-- **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild.
+- **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild, or metadata a rebuild left behind its bytes.
 
 Why a plugin author should care, rather than skim: get the contract wrong and the machinery will helpfully "fix" your container in ways that destroy it. An opaque container declared `'strip'` gets its chrome bytes checked against a decomposition that doesn't exist.
 
@@ -194,9 +214,11 @@ parse('```\nx\n').children[0];
 //   metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: false } }
 ````
 
+The fence grammar lives in one file, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it. The parser finds a closer with `findFenceCloser` (via `core/parsers/fenced-code.ts :: scanFence`), and the code block's renderer and caret rules, plus the plugin kinds that hold their own fence (math, mermaid), read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that shape legal, one opener line and one closer line, through the code block's own typing and through every write from outside a block. Typing in a plugin's fence doesn't reach the rule yet (#593).
+
 ### Blank lines
 
-The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included.
+The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included. Whitespace here means spaces and tabs (GFM § 2.1), so a line holding a non-breaking space is text, not a blank line.
 
 ```ts
 parse('a\n\n\n\nb\n').children;
@@ -227,11 +249,19 @@ A blank block is therefore doing two jobs at once: it's a block, and it's the se
 - **When a block becomes blank, the run it joins gives the second one back.** The count is a property of the whole run, not of one pair: a run of blank blocks and the block below it hold exactly one separator between them.
 - A run at the document head, or at the head of a plain container's body, holds none, because it separates from nothing. A chrome or opener line above the body counts as a line, so under one the run keeps its separator.
 
+The last line is the one line allowed to have no line ending, and a file saved without a final break keeps it that way through any structural edit and through typing (an inline paste still adds one for now): the commit ends the lines of the blocks an edit places, then takes the break back off whatever block ends up last (`docs/design/editor.md` § The commit primitive). One exception, on purpose. When the new last line is blank (Enter at the very end, ArrowDown past the last block, an empty inserted paragraph, the empty line Enter leaves in a last quote or list item), it keeps its break, since a blank line is nothing but its break and dropping it would drop the block too.
+
 `settle.ts` owns the primitives that settle this (to settle: re-derive the blank-line separators after a splice): clear a separator that went redundant, drop a doubled one, restore the slot's own at a fill, restore the follower's after the blank line it consumed, and settle the run a block joins by turning blank. Every splice that changes what precedes a block settles through them, and a primitive that derives its own trivia, like `splitNode`'s separator or `deleteNode`'s hand-down, still settles through them afterwards.
 
-One separator has no splice to derive it from: a sublist whose first item is empty. A content-less list marker can't interrupt a paragraph (GFM § 5.2, list items), so an item reading `- x` followed by an indented bare `- ` reloads as `x` with a `-` underline, which is a setext heading. The marker is the only evidence the item ever existed, and the merge that absorbs boundary lines has nothing to fold it into. Both paths that reach the shape (the Enter-then-Tab nesting move, and emptying the one item of a sublist) settle a blank line above the sublist, which is why nesting an empty item leaves a loose list (loose: a list whose items render with paragraph spacing, because a blank line sits inside it).
+Three separators have no splice to derive them from. The first is a list whose first item is empty, right under a paragraph. A content-less list marker can't interrupt a paragraph (GFM § 5.2, list items), so an item reading `- x` followed by an indented bare `- ` reloads as `x` with a `-` underline, which is a setext heading, and `para` over an emptied `- ` reloads the same way. The marker is the only evidence the item ever existed, and the merge that absorbs boundary lines has nothing to merge it into. Every path that reaches the shape (the Enter-then-Tab nesting move, emptying the first item, a replace or splice that lands such a list) writes a blank line above the list, which is why nesting an empty item leaves a loose list (loose: a list whose items render with paragraph spacing, because a blank line sits inside it).
 
-A container inherits all of this through strip-and-recurse. The exception is a container whose body sits between chrome lines of its own (`:::note` ... `:::`, `<summary>` ... `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. The kind declares the wrap it parses with and the separator settle reads that declaration, which makes this a property of the plugin API rather than a per-kind branch in the parser: inside a wrap, the line a settle frees above the body head belongs to the wrap, not to the run. A run that is the whole body sits against both chrome lines and has to give a line to each, since a reload strips both before it materializes any block.
+The second is a block an edit turns into text right under a table. A table takes any line below its rows that opens no other block as one more row (GFM example 201), reading the lines under it in the editor's grammar (a `$$` block with its closing line opens one, an indented line with indented code switched off opens none), so unwrapping a quote there, turning a heading into text, or deleting the block between would hand the text to the table. The merge that joins neighbours writes a blank line above the block instead: the edit made a paragraph, and the next key belongs in it.
+
+The third is the line between the two blocks a move leaves side by side. Where a blank line separated either of them from the moved block, the move writes one between them whenever the two, flush, would reload as something else: an HTML block reading every line below it as its text, a table or a rule under a paragraph read as its continuation or its setext underline, two quotes read as one. Two blocks flush against both sides of the moved block rejoin, which is what deleting that block would leave.
+
+A container inherits all of this through strip-and-recurse. In a body that ends where its indentation ends (a list item, a footnote definition), a whitespace-only line indented to the body belongs to the body. So a rebuild indents a blank line it writes at the end of the body when it's a block's own line (an empty block, or the line a paragraph keeps after you erase an underline). A separator line it writes stays bare, as the parser reads it. A blank line that was already there keeps its bytes, bare or indented, as long as the body still ends where the parser would end it. The exception is a container whose body sits between chrome lines of its own (`:::note` ... `:::`, `<summary>` ... `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. The kind declares the wrap it parses with and the separator settle reads that declaration, which makes this a property of the plugin API rather than a per-kind branch in the parser: inside a wrap, the line a settle frees above the body head belongs to the wrap, not to the run. A run that is the whole body sits against both chrome lines and has to give a line to each, since a reload strips both before it materializes any block.
+
+A body's indentation counts in columns, and a tab reaches the next multiple of four, as CommonMark expands it. The document keeps its tabs. Where a body's content column cuts through a tab, or leaves one off a multiple of four, the child holds those columns as spaces, so a child's bytes read on their own the way they read in the body. An edit doesn't touch those tabs: every line it didn't change keeps its bytes. A line you rewrite keeps its tab too when the tab still lands its text in the same place, and gets spaces only when the content column cut through it.
 
 ### Scope boundaries
 
@@ -241,7 +271,7 @@ A container inherits all of this through strip-and-recurse. The exception is a c
 
 ## 4. Inline nodes
 
-Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` after the block-level markers (after `## ` for a heading). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
+Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
 
 Inline nodes nest. `**bold *and italic***` is a strong containing a text and an emphasis, which itself contains a text:
 
@@ -281,22 +311,24 @@ The built-in kinds:
 
 Every GFM block type is implemented with its own kind:
 
-| Block type                 | Kind                      | Notes                                                                  |
-| -------------------------- | ------------------------- | ---------------------------------------------------------------------- |
-| ATX headings               | `heading`                 | `# ` through `###### `                                                 |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`                                          |
-| Paragraphs                 | `paragraph`               | The fallback for unstructured text                                     |
-| Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence |
-| Indented code              | `indentedCode`            | 4-space indent                                                         |
-| Blockquotes                | `blockquote`              | Strip container, recursive                                             |
-| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes. Strip containers                  |
-| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                    |
-| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, ...                                            |
-| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                                                   |
-| Tables                     | `table`                   | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table |
-| Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                 |
+| Block type                 | Kind                      | Notes                                                                                                                                                                                             |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ATX headings               | `heading`                 | `# ` through `###### ` (a tab after the `#`s works too). A closing run (`# Hi #`) isn't content, so it's drawn dimmed like the opening `#`s and hides with them in live mode                      |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop)                                                                                                                        |
+| Paragraphs                 | `paragraph`               | The fallback for unstructured text                                                                                                                                                                |
+| Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence                                                                                                                            |
+| Indented code              | `indentedCode`            | 4-space indent; an editor can switch it off (`syntax` prop)                                                                                                                                       |
+| Blockquotes                | `blockquote`              | Strip container, recursive                                                                                                                                                                        |
+| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers                                                                                        |
+| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                                                                                                                                               |
+| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, ...                                                                                                                                                                       |
+| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`. The label and title may span lines, and all three parts read with the inline link grammar (`inline-parsing.md` § One grammar per construct), processed values in `metadata` |
+| Tables                     | `table`                   | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table                                                                                                                            |
+| Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                                                                                                                                            |
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
+
+Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace, and inline math's `$`, which flanks the same way. Directive and bundled plugin grammars read GFM's whitespace too, through the same helpers (`src/lib/core/lines.ts :: isWhitespaceChar`, `trimWhitespace`). `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
 
 The table row's mismatch note, since it bites:
 
@@ -306,17 +338,15 @@ parse('| a | b |\n| - |\n').children.map((c) => c.kind); // ['paragraph']
 
 ### Pinned divergences from cmark-gfm
 
-Coverage is by block type; agreement with the reference implementation is close but not total. These four differences are pinned, not accidental, and each is byte-safe (the round trip holds either way):
+Coverage is by block type; agreement with the reference implementation is close but not total. These three differences are pinned, not accidental, and each is byte-safe (the round trip holds either way):
 
-| Source                                  | Here                                      | cmark-gfm                         |
-| --------------------------------------- | ----------------------------------------- | --------------------------------- |
-| A pipeless line below a table's body    | ends the table; the line is its own block | a one-cell body row               |
-| `-` followed by five spaces and content | a list item whose content is that text    | a list item holding indented code |
-| A bare `-` on its own line              | a paragraph                               | an empty list item                |
-| `- a`, blank line, `- b`                | two sibling `list` nodes                  | one loose list of two items       |
+| Source                                  | Here                                   | cmark-gfm                         |
+| --------------------------------------- | -------------------------------------- | --------------------------------- |
+| `-` followed by five spaces and content | a list item whose content is that text | a list item holding indented code |
+| A bare `-` on its own line              | a paragraph                            | an empty list item                |
+| `- a`, blank line, `- b`                | two sibling `list` nodes               | one loose list of two items       |
 
 ```ts
-parse('| a |\n| - |\n| 1 |\nplain\n').children.map((c) => c.kind); // ['table', 'paragraph']
 parse('-     text\n').children[0].children[0].children[0].raw; // 'text\n'
 parse('-\n').children.map((c) => c.kind); // ['paragraph']
 parse('- a\n\n- b\n').children.map((c) => c.kind); // ['list', 'list']

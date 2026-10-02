@@ -3,7 +3,7 @@
  * condition. Types 1-5 close on a per-type pattern; types 6-7 close on a blank line.
  */
 
-import type { ParsedLine } from '../lines';
+import { WHITESPACE_CLASS, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 import { OPEN_TAG_SOURCE, CLOSE_TAG_SOURCE } from '../inline/html-tag-grammar';
@@ -14,7 +14,9 @@ export type HtmlBlockType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 // Priority 1 → 7, first match wins. script/pre/style/textarea must stay out of type 6's
 // tag union: they close on their end tag, not on a blank line.
 
-const TYPE_1_OPEN = /^ {0,3}<(?:script|pre|style|textarea)(?:[\s/>]|$)/i;
+// A tag name ends at GFM whitespace (§2.1), `/`, `>` or the line's end.
+const TAG_NAME_END = `(?:${WHITESPACE_CLASS}|[/>]|$)`;
+const TYPE_1_OPEN = new RegExp(`^ {0,3}<(?:script|pre|style|textarea)${TAG_NAME_END}`, 'i');
 const TYPE_2_OPEN = /^ {0,3}<!--/;
 const TYPE_3_OPEN = /^ {0,3}<\?/;
 const TYPE_4_OPEN = /^ {0,3}<![A-Za-z]/;
@@ -23,16 +25,13 @@ const TYPE_6_TAGS =
 	'address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul';
 
 function type6Shape(names: string): string {
-	return `^ {0,3}<(/?)(?:${names})(?:[\\s/>]|$)`;
+	return `^ {0,3}<(/?)(?:${names})${TAG_NAME_END}`;
 }
 
 const TYPE_6_OPEN = new RegExp(type6Shape(TYPE_6_TAGS), 'i');
 
-/**
- * Recognize a type-6 tag line for one listed tag name, open or close. Built from the same
- * shape as the type-6 union so a container whose terminator is an html tag line tests the
- * spec's looseness (`   </details>`, `</DETAILS>`, `<details >`) rather than a copy of it.
- */
+/** Recognize a type-6 tag line, open or close, for one tag name, built from the type-6 union so a
+ *  terminator tests the spec's looseness (`</DETAILS>`, `<details >`) rather than a copy of it. */
 export function htmlBlockTagLineMatcher(
 	tagName: string
 ): (text: string) => 'open' | 'close' | null {
@@ -43,10 +42,11 @@ export function htmlBlockTagLineMatcher(
 	};
 }
 
-// CommonMark §6.6 complete-tag grammar at line scope, reusing the inline raw-HTML sources
-// (core/inline/html-tag-grammar.ts). Priority last: types 1 and 6 claim their names first,
-// which is what implements the spec's exclusion of the type-1 tag names.
-const TYPE_7_OPEN = new RegExp(`^ {0,3}(?:${OPEN_TAG_SOURCE}|${CLOSE_TAG_SOURCE})\\s*$`);
+// CommonMark §6.6's complete-tag grammar at line scope, from the inline raw-HTML sources. Last in
+// priority, so types 1 and 6 take their tag names first, as the spec requires.
+const TYPE_7_OPEN = new RegExp(
+	`^ {0,3}(?:${OPEN_TAG_SOURCE}|${CLOSE_TAG_SOURCE})${WHITESPACE_CLASS}*$`
+);
 
 export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	if (TYPE_1_OPEN.test(text)) return 1;

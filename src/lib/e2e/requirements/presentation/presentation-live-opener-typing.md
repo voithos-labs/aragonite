@@ -22,6 +22,16 @@ it takes no keystrokes, so an empty construct there is still allowed to paint no
 - the preview modes behave the same, on the focused block only.
 - reading mode paints neither.
 
+## Typing on a painted empty heading (live)
+
+- `# `, Home, `#`: the heading becomes `## `, as in source mode; inside a quote, `> ## ` becomes `> ### `
+- `#  #`, Home, `#`: `##  #`
+- a bare `#`, Home, `a`: `a#`, a paragraph
+- `# ` with the caret between the `#` and the space, `x`: `#x `
+
+Miss-analysis: the opener-typing scenarios typed only after the marker, so no scenario put the
+caret on a painted marker's left edge.
+
 ## Destructive parity
 
 - Backspace inside a painted `# ` takes the marker byte as source mode would, and does not demote the block: the demote handler reads the bound the offset traversal can land on, which now follows what is painted.

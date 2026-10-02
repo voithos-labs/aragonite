@@ -66,10 +66,8 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('日本');
 	});
 
-	// The redraw hands focus back to the element it replaced, and that hand-off declines an
-	// arrival whose relatedTarget is the outer element, so a recovery written more broadly leaves
-	// focus on the diagram itself, where the next AltGr or composition is dropped. Only the final
-	// state shows it, because the assertion above runs while the recovery is still under way.
+	// The redraw hands focus back only for an arrival not from the outer element; a broader hand-off
+	// leaves focus on the diagram, where the next AltGr or composition drops, seen only here.
 	test('focus settles on the host after the redraw, not on the new viewport', async ({ page }) => {
 		await editor.viewport.dblclick();
 		await expect(editor.page.getByTestId('mermaid-source')).toBeFocused();
@@ -88,9 +86,8 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('€');
 	});
 
-	// A toolbar click is focus arriving from inside the frame, and a hand-off that skips those
-	// leaves the next click on the diagram sitting on the element the plugin declared, where an
-	// IME composition is dropped while plain keydown still works, so nothing else goes red.
+	// A toolbar click is focus arriving from inside the frame; a hand-off that skipped it would leave
+	// the next click on the declared element, where only IME composition breaks.
 	test('a click after a toolbar button still reaches the editing host', async ({ page }) => {
 		await editor.block.hover();
 		await editor.block.getByTestId('mermaid-reset').click();
@@ -104,9 +101,8 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('€');
 	});
 
-	// The one declared element that owns its caret: the outer element must not take focus from it,
-	// or every keystroke of an edit session makes a paragraph instead of editing the draft. Typed
-	// rather than composed, because the CDP driver waits on `textContent`, which a textarea lacks.
+	// The outer element must not take focus from the textarea, or each keystroke makes a paragraph;
+	// typed, since the CDP driver waits on `textContent`, which a textarea lacks.
 	test('the edit textarea keeps its own caret', async ({ page }) => {
 		const before = await editor.bridge.getSource();
 		await editor.viewport.dblclick();
@@ -117,6 +113,6 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 
 		await expect(textarea).toBeFocused();
 		await expect(textarea).toHaveValue(/X/);
-		expect(await editor.bridge.getSource()).toBe(before); // uncommitted draft, no mint
+		expect(await editor.bridge.getSource()).toBe(before); // an uncommitted draft writes nothing
 	});
 });

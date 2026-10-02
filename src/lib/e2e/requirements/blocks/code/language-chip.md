@@ -47,8 +47,8 @@ cannot destroy it.
 
 - Only the info-string span of the opening fence line is rewritten. Indent, marker run,
   line ending, body and closer are byte-identical through the write.
-- The write goes through the one call every display commit in the block uses (`commitDisplay`,
-  G4.24), so the fence write rule runs over it like every other gesture, and it lands as one
+- The write goes through the content write every gesture uses, so the fence write rule runs over
+  it like every other gesture, and it lands as one
   undo entry, kept apart on both sides, so neither a burst of typing before it nor one after it
   joins the entry.
 - A typed spelling the registry resolves is a name, not a query: it commits as typed, so `rs`
@@ -141,6 +141,12 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
   character
 - one Mod+Z after a chip commit then a typed character reverts the character and keeps the
   info string
+
+## Across a source swap
+
+- the field typed into and still open at `setSource` is dropped: the next document keeps its own
+  info string and no `edit` fires (the field's blur cancels, so this holds on its own; the row
+  keeps it that way)
 
 ## Miss-analysis
 

@@ -3,28 +3,23 @@
  * `check-codebase-map.mjs` deliberately cannot see. So every pasted `codebase-map:`, `docs-links:`
  * or `docs-pack:` line is matched against what the script actually prints, green run and failure
  * run alike. `…` and `...` are the elision markers the docs already use, and match anything;
- * everything else is literal, so a drifted count or a reworded suffix reds the run.
+ * everything else is literal, so a drifted count or a reworded suffix fails the run.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
 
 const ROOT = path.resolve('.');
-
-/** Gitignored working area; its pastes ship nowhere. */
-const EXCLUDED_DIR = 'docs/superpowers';
 
 const PREFIXES = ['codebase-map:', 'docs-links:', 'docs-pack:'];
 
 // ── What the scripts print ───────────────────────────────────────────────────
 
-/**
- * Both scripts read their corpus from the working directory, so a failure run is a temp tree
- * holding one doc that breaks the rule. Without it only the green half of each message set
- * would ever be compared.
- */
+/** Both scripts read their corpus from the working directory, so a failure run is a temp tree
+ *  holding one doc that breaks the rule; without it only green-run messages would be compared. */
 const FAILURE_CORPORA: Record<string, (dir: string) => void> = {
 	'check-codebase-map.mjs': (dir) => {
 		mkdirSync(path.join(dir, 'docs/design'), { recursive: true });
@@ -68,17 +63,6 @@ function liveLines(): string[] {
 }
 
 // ── What the docs paste ──────────────────────────────────────────────────────
-
-function corpusDocs(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		const rel = path.relative(ROOT, full).split(path.sep).join('/');
-		if (entry.isDirectory()) {
-			if (rel !== EXCLUDED_DIR) corpusDocs(full, out);
-		} else if (entry.name.endsWith('.md')) out.push(rel);
-	}
-	return out;
-}
 
 /** A pasted line is one whose first token is a gate's prefix; the indented detail lines under
  *  a failure head name example files no live run reproduces, so they stay prose. */
@@ -154,7 +138,7 @@ export function elisionPattern(pasted: string): RegExp {
 	return new RegExp(`^${escaped.replace(/…|\\\.\\\.\\\./g, '.*')}$`);
 }
 
-const docs = [...corpusDocs(path.join(ROOT, 'docs')), 'README.md', 'CONTRIBUTING.md'];
+const docs = corpusFiles(['docs', 'README.md', 'CONTRIBUTING.md'], ['.md']);
 const pasted = docs.flatMap(pastedLines);
 const live = liveLines();
 
@@ -186,7 +170,7 @@ describe('pasted gate output ↔ what the gate prints', () => {
 describe('pasted gate output: self-tests', () => {
 	it('reads a real corpus and finds a paste of every gate prefix', () => {
 		expect(docs.length).toBeGreaterThan(20);
-		expect(docs).not.toContain(`${EXCLUDED_DIR}/queue-2026-08-26.md`);
+		expect(docs.some((doc) => doc.startsWith('docs/superpowers/'))).toBe(false);
 		for (const prefix of PREFIXES) {
 			expect(
 				pasted.filter((entry) => entry.text.startsWith(prefix)).length,

@@ -20,7 +20,7 @@ test.describe('sim gesture reachability: merge', () => {
 		await editor.goto();
 	});
 
-	// The three merge shapes all collapse two top-level blocks into one.
+	// The three top-level merge shapes all collapse two top-level blocks into one.
 	test('para→para merges block 1 into block 0', async ({ page }) => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		await mergeBackspaceAtStart(await makeCtx(page, editor), [1]);
@@ -42,6 +42,13 @@ test.describe('sim gesture reachability: merge', () => {
 		await mergeBackspaceAtStart(await makeCtx(page, editor), [1]);
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getSource()).toContain('tail');
+	});
+
+	// A list item's merge target can be a heading, which the gesture must join rather than refuse.
+	test('list M1 under a heading item joins', async ({ page }) => {
+		await editor.loadContent('- # Plan\n- next\n');
+		await mergeBackspaceAtStart(await makeCtx(page, editor), [0, 1, 0]);
+		expect(await editor.bridge.getSource()).toBe('- # Plannext\n');
 	});
 
 	// The two unwrap cases leave the container instead: they change the source, since a marker

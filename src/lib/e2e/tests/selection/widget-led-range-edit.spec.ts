@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { runCenter } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
 // An edit key over a whole-block range whose first inline node is a widget the caret cannot
 // enter (`requirements/selection/widget-led-range-edit.md`). The range is what the key edits;
@@ -19,7 +19,7 @@ async function selectWholeBlock(
 		await editor.selectAll();
 		return;
 	}
-	const at = await runCenter(page, 'opens');
+	const at = await textRunCenter(page, 'opens');
 	await page.mouse.click(at.x, at.y, { clickCount: 3 });
 }
 

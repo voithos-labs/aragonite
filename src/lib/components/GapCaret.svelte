@@ -6,18 +6,16 @@
 	 * input is refused at `beforeinput`.
 	 */
 	import { getContext } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../action-contracts';
+	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		HISTORY_KEY,
 		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
-	import { emitCommandError } from '../editor-events';
 	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { isReadingMode } from '../presentation-mode';
@@ -36,17 +34,16 @@
 	// two action bundles above depend on where this list sits.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const selection = services?.selection;
-	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
+	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
-	const history = getContext<HistoryActions | undefined>(HISTORY_KEY);
 
 	let proxyEl: HTMLElement | undefined = $state();
 	let composing = false;
 
-	const isReading = $derived(isReadingMode(policies?.presentationMode));
+	const isReading = $derived(isReadingMode(policies.presentationMode));
 
-	// Not a timing trick: the component exists only while it is the live gap. Focusing
-	// the contenteditable puts a caret in it (Chromium); no manual range needed.
+	// Mounted only while the gap is live; focusing the contenteditable gives it a caret, so no
+	// range is set by hand.
 	$effect(() => {
 		if (!proxyEl) return;
 		proxyEl.focus();
@@ -63,48 +60,22 @@
 		void focusActions?.moveFocus(index - 1, 'end', EXIT);
 	}
 
-	/** `insertParagraph`'s own `afterTick` focuses the new block, and that focus ends the gap. */
+	/** `insertParagraph`'s own landing focuses the new block, and that focus ends the gap. */
 	function mint(text: string): void {
 		void blockEdit?.insertParagraph(index, text);
 	}
 
-	/**
-	 * Undo, redo and plugin-global chords are handled here, where the key landed: no block holds
-	 * focus, and the root's own handler answers only a caret with no focused element at all.
-	 * Reading mode still takes the chord, or the browser's own undo would run on this element.
-	 */
-	function handleGlobalChord(
-		event: KeyboardEvent,
-		deps: {
-			history: HistoryActions;
-			doc: EditorDoc;
-			events: EditorServices['events'];
-			activation: EditorServices['activePlugins'];
-		}
-	): boolean {
+	/** Undo, redo and plugin-global chords run here, since no block has focus and the root answers
+	 *  only an unfocused caret; reading mode takes them too, so the browser's undo never runs. */
+	function handleGlobalChord(event: KeyboardEvent): boolean {
 		const chord = eventToChord(event);
-		if (!chord) return false;
-		const consumed = runGlobalChord(chord, policies?.keybindingOverrides(), {
-			isReading,
-			history: deps.history,
-			pluginEditor: deps.doc.pluginEditor,
-			activation: deps.activation,
-			onCommandError: (report) => emitCommandError(deps.events, report)
-		});
-		if (consumed) event.preventDefault();
-		return consumed;
+		if (!chord || !services || !runGlobalChord(chord, services.commands)) return false;
+		event.preventDefault();
+		return true;
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
-		if (history && editorDoc && services) {
-			const deps = {
-				history,
-				doc: editorDoc,
-				events: services.events,
-				activation: services.activePlugins
-			};
-			if (handleGlobalChord(event, deps)) return;
-		}
+		if (handleGlobalChord(event)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {
@@ -194,12 +165,8 @@
 		pointer-events: none;
 		animation: gap-caret-blink 1s step-end infinite;
 	}
-	/**
-	 * Absolutely positioned, so the zero-height wrapper keeps the boundary's layout, and given
-	 * a real box: Chromium fires no `beforeinput` on a zero-height editing host, which would
-	 * silently cost this element every keystroke. Click-through, or the strip would steal edge
-	 * clicks from both neighbours; the painted line is the caret, so this one never shows.
-	 */
+	/* A real box, since Chromium fires no `beforeinput` on a zero-height editing host;
+	   click-through, so it steals no edge clicks from either neighbour. */
 	.gap-caret-proxy {
 		position: absolute;
 		top: -0.6em;

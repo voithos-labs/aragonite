@@ -1,13 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	INLINE_PRIORITIES,
-	__resetInlineSyntaxForTests,
 	getInlineRungs,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../core/inline/scan/plugin-syntax';
-
-afterEach(() => __resetInlineSyntaxForTests());
 
 // Registration validation runs before any recognizer is consulted, so a bare
 // decliner stands in for every handler under test.
@@ -64,8 +61,8 @@ describe('inline priority order: registration rules', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^', priority: 40 })).not.toThrow();
 	});
 
-	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made visible
-	// to the fast bail by the registration itself, yet it registers like any reserved one.
+	// The fast bail checks `!` only once a handler is registered on it, yet `!` registers like
+	// any other reserved trigger.
 	it('rule 2: a prefix inline syntax handler on the scan-probed reserved trigger "!" is accepted', () => {
 		expect(() => registerInlineSyntax('!', decline, { prefix: '![[', priority: 40 })).not.toThrow();
 		expect(getInlineRungs('!')).toHaveLength(1);

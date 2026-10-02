@@ -1,12 +1,12 @@
 /**
  * A comment naming `<doc>.md § Section` is a claim about a heading, and `check-codebase-map.mjs`
- * resolves it so `npm run lint` reds when the heading is renamed. This is that reader's
- * non-vacuity half: a corpus that came back empty, a heading index that found no headings, or a
- * matcher that says yes to everything would each let the gate pass on nothing, and the same
- * restructure could quietly lobotomize the path and symbol checks that share the script.
+ * resolves it so `npm run lint` fails when the heading is renamed. These are that reader's
+ * self-tests: an empty corpus, an empty heading index or a matcher that says yes to everything
+ * would let the gate pass on nothing, as would a break in the path and symbol checks beside it.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
 import {
 	citingFiles,
 	headingKeys,
@@ -22,6 +22,8 @@ import {
 const ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
 
 const files = citingFiles(ROOTS);
+
+const PLANTED = 'tmp/zz-doc-corpus-probe.md';
 const pointers = files.flatMap((file) => pointersIn(file, readFileSync(file, 'utf8')));
 
 // ── The corpus ───────────────────────────────────────────────────────────────
@@ -33,6 +35,18 @@ describe('§ pointer corpus: non-vacuity', () => {
 			expect(files.filter((file) => file.endsWith(ext)).length, `no ${ext} file`).toBeGreaterThan(
 				0
 			);
+		}
+	});
+
+	// Holds on every machine, not only the owner's: `tmp/` is gitignored in every checkout.
+	it('drops a gitignored file that sits on disk', () => {
+		mkdirSync('tmp', { recursive: true });
+		writeFileSync(PLANTED, '# private\n');
+		try {
+			expect(existsSync(PLANTED)).toBe(true);
+			expect(corpusFiles(['tmp'], ['.md'])).not.toContain(PLANTED);
+		} finally {
+			rmSync(PLANTED);
 		}
 	});
 
@@ -93,7 +107,7 @@ describe('§ pointer resolution: self-tests', () => {
 		expect(resolvesAgainst(editorHeadings, 'undo-redo')).toBe(true);
 	});
 
-	// The pair this gate was filed for: one heading the doc carries, one it only sounds like.
+	// One heading the doc carries, and one it only sounds like.
 	it('separates a heading a doc has from a name it never had', () => {
 		const contract = headingsOf(readFileSync('docs/design/plugin-contract.md', 'utf8'));
 		expect(resolvesAgainst(contract, 'per-instance-enablement')).toBe(true);
@@ -116,8 +130,7 @@ describe('§ pointer resolution: self-tests', () => {
 });
 
 // ── The checks that share the script ─────────────────────────────────────────
-// The § reader was added beside these, and a restructure that broke them would still print a
-// clean summary line.
+// A restructure that broke these checks would still print a clean summary line.
 
 describe('path and symbol references: still enforced', () => {
 	it('parses both spellings of a reference out of a doc', () => {
@@ -130,6 +143,14 @@ describe('path and symbol references: still enforced', () => {
 			{ file: 'x.md', path: 'docs/README.md', symbol: undefined }
 		]);
 		expect(malformed).toEqual([]);
+	});
+
+	// Miss-analysis: the reader resolved spans starting with a path only; no test gave it a command.
+	it('reads the paths inside a backticked command, and nothing out of a plain word', () => {
+		expect(referencesIn('d.md', '`npx vitest run src/lib/nope.test.ts`').references).toEqual([
+			{ file: 'd.md', path: 'src/lib/nope.test.ts' }
+		]);
+		expect(referencesIn('d.md', 'Press `Mod+B` or run `npm test`.').references).toEqual([]);
 	});
 
 	it('reds on a missing file and on a symbol that file never names', () => {

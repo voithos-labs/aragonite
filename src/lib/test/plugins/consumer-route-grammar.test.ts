@@ -1,14 +1,12 @@
 /**
- * The consumer example's seed, parsed under the plugin set that route installs. A fixture
- * naming a directive some other installed plugin owns still renders, as that plugin's
- * block, so the drift is silent everywhere but the browser.
- * Miss-analysis: only `consumer-smoke` covered the consumer route, and CI runs it on
- * pull_request / push:main, never on the dev branch the renaming commit landed on.
+ * The consumer example's seed, parsed under the plugin set that route installs. A directive
+ * another installed plugin owns still renders, as that plugin's block, so the drift shows
+ * only in the browser.
+ * Miss-analysis: only `consumer-smoke` covered the consumer route, and CI never runs it on dev.
  */
-import { describe, it, expect, afterAll, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { detailsPlugin } from '$lib/plugins/details';
 import { emojiPlugin } from '$lib/plugins/emoji';
@@ -34,12 +32,9 @@ const consumerRouteSet = () => [
 	footnotesPlugin()
 ];
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins(consumerRouteSet());
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('the consumer example route parses its seed as the kinds its suite asserts', () => {
 	it('resolves every seeded construct to the plugin that claims it', () => {

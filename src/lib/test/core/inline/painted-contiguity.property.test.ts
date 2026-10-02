@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// `paintedRange` in `edge-seat.ts` reads a childless construct's visible span as the outer bounds
-// of its visible runs, and carves the two marker runs out of what is left. That rests on the runs
-// being contiguous: a hidden run in the middle would put the caret's written offset inside bytes
-// the user can see. A property over rendered documents rather than a keystroke-time assertion:
-// the claim is about the render path's output shape for a class of nodes, not about an instance.
+// `paintedRange` in `edge-seat.ts` takes a childless construct's visible span as the outer bounds
+// of its visible runs, which holds only if the runs are contiguous: a hidden run in the middle
+// would put the caret's written offset inside bytes the user can see.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { constructContentRange, parseInline } from '$lib/core/inline';
@@ -12,6 +9,7 @@ import { screenVisibility, visibleRuns, type VisibleRun } from '$lib/core/inline
 import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
 import { arbInlineSource, freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
 import '$lib/schema/built-in-descriptors';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(413771) } as const;
 
@@ -29,7 +27,7 @@ function childlessConstructs(nodes: readonly InlineNode[], out: InlineNode[] = [
 
 /** The same filter `paintedRange` applies before taking its outer bounds. */
 const paintedRunsOf = (node: InlineNode, raw: string): VisibleRun[] =>
-	visibleRuns([node], raw, LIVE).filter((run) => run.visible && run.text !== '');
+	visibleRuns([node], raw, LIVE, renderOptions()).filter((run) => run.visible && run.text !== '');
 
 /** The first gap between two painted runs, or null when they are one stretch. */
 function firstGap(runs: readonly VisibleRun[]): string | null {

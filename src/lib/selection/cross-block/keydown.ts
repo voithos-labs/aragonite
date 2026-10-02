@@ -1,18 +1,16 @@
-/**
- * Keydown + compositionstart half of the cross-block dispatcher. See dispatch.ts for the
- * composer that wires this together with the pointer half.
- */
+/** The keydown and compositionstart half of cross-block dispatch. */
 
 import { CURSOR_START } from '../../block-component';
-import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { BlockElLookup } from '../../editor-keys';
-import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
-import { isBlockNode } from '../../tree-operations/node-primitives';
+import type { Document } from '../../core/nodes';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { kindOfPath, replaceRange } from './range-replace';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
-import { eventToChord } from '../../schema/keybindings';
+import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
+import { commandForKey } from '../../schema/commands';
+import type { AnyCommandId } from '../../schema/command-id';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -23,40 +21,44 @@ import {
 } from '../keyboard-extend';
 import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
+import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
+import { selectInBlock } from '../caret-doors';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export interface CrossBlockKeydown {
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
+	handleCompositionEnd(): void;
 }
 
-export function createCrossBlockKeydown(
-	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext
-): CrossBlockKeydown {
+export function createCrossBlockKeydown(ctx: CrossBlockDispatchContext): CrossBlockKeydown {
 	return {
-		handleKeyDown: (e) => handleKeyDown(ctx, mutCtx, e),
-		handleCompositionStart: () => handleCompositionStart(ctx, mutCtx)
+		handleKeyDown: (e) => handleKeyDown(ctx, e),
+		handleCompositionStart: () => handleCompositionStart(ctx),
+		// The composition's own write is done, so a later write never joins its removal.
+		handleCompositionEnd: () => ctx.controller.endContinuedBurst()
 	};
+}
+
+/** What a keypress resolves to at the block at `getMyPath`, or at global scope with none. */
+export function commandAtBlock(
+	e: KeyboardEvent,
+	ctx: Pick<CrossBlockDispatchContext, 'getDoc' | 'getMyPath' | 'commands'>
+): AnyCommandId | null {
+	const kind = blockNodeAt(ctx.getDoc(), ctx.getMyPath())?.kind ?? null;
+	return commandForKey(e, kind, ctx.commands);
 }
 
 // ── Keydown ────────────────────────────────────────────────────────────────
 
-async function handleKeyDown(
-	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext,
-	e: KeyboardEvent
-): Promise<boolean> {
+async function handleKeyDown(ctx: CrossBlockDispatchContext, e: KeyboardEvent): Promise<boolean> {
 	const { selection } = ctx;
 
-	// Before the dispatch, not after: every branch below can consume the key and return, and the
-	// collapse and extend branches run no commit, so a reset deferred to the shared keydown never
-	// fires. The dispatcher holds a range, not a caret, so it supplies no measurement; a collapse
-	// does.
-	ctx.stickyColumn.noteKey(e);
-	ctx.edgeAffinity.note(e);
+	// Before the dispatch, since every branch below can consume the key and the collapse and
+	// extend branches commit nothing that would update the caret memory.
+	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx));
 
 	// Mode-independent: the doc-edge extend behaves identically from a caret and an active range,
 	// so it dispatches once, ahead of the mode split.
@@ -65,7 +67,7 @@ async function handleKeyDown(
 	}
 
 	if (selection.isCrossBlock) {
-		const handled = await handleCrossBlockActive(ctx, mutCtx, e);
+		const handled = await handleCrossBlockActive(ctx, e);
 		if (handled) return true;
 	}
 
@@ -75,7 +77,6 @@ async function handleKeyDown(
 /** Keystroke dispatch while cross-block mode is already active. */
 async function handleCrossBlockActive(
 	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext,
 	e: KeyboardEvent
 ): Promise<boolean> {
 	const el = ctx.getEl();
@@ -84,58 +85,32 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Ctrl+C / Ctrl+X intentionally pass through: the copy/cut event writes synchronously via
-	// e.clipboardData.setData, since Tauri's wry webview refuses navigator.clipboard.writeText.
-	// Without a caret at the endpoint Chromium retargets to <body>, caught by editor-root-clipboard.
+	// Ctrl+C and Ctrl+X pass through to the copy and cut events, which write the clipboard
+	// synchronously; Tauri's webview refuses `navigator.clipboard.writeText`.
 
-	// Extend/collapse/copy stay live in reading mode; these two branches delete.
+	// Extend, collapse and copy stay live in reading mode. The reading-mode checks below keep a key
+	// quiet, and go once one check in front of every key handler refuses it.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
-		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
+		if (isReadingMode(ctx.reading.mode)) return true;
+		await replaceRange(ctx, { kind: 'none', gesture: e.key });
 		return true;
 	}
 
-	// Before the command candidates, because a format toggle is not a type-replace: deleting the
-	// range and dispatching at the collapsed caret would leave empty marker pairs where the text
-	// stood. The command dispatcher decides which of these ids has a cross-block handler and
-	// which are declined.
+	// Before the command candidates: deleting the range and toggling a format at the collapsed
+	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		await dispatchOverRange(ctx, e, myPath);
 		return true;
 	}
 
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
-		// Mount the delete's own caret, not the pre-delete start path: `rangeDelete` returns the
-		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
-		// `runCommand` exists (the wrapper path has none).
-		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
-		const collapsedCaret = await performCrossBlockDelete(mutCtx);
-		await ctx.afterReactivity();
-		const postDeleteDoc = getDoc();
-		const revealTarget = collapsedCaret?.path ?? fallbackPath;
-		const target = await ctx.revealPath(revealTarget);
+		if (isReadingMode(ctx.reading.mode)) return true;
 		const chord = eventToChord(e);
-		if (target?.runCommand && chord) {
-			dispatchKeyCommand(
-				chord,
-				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
-				{
-					history: ctx.history,
-					pluginEditor: ctx.pluginEditor,
-					activation: ctx.activePlugins,
-					getPresentationMode: ctx.getPresentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock,
-					crossBlockCommands: ctx.crossBlockCommands
-				},
-				ctx.getKeybindingOverrides(),
-				ctx.onCommandError
-			);
-		}
+		if (chord) await replaceRange(ctx, { kind: 'command', chord });
 		return true;
 	}
 
@@ -152,11 +127,25 @@ async function handleCrossBlockActive(
 		if (ext) {
 			e.preventDefault();
 			if (ext.kind === 'cell') {
-				selection.extendFocus({ path: selection.focus!.path.slice(), offset: ext.offset });
+				selection.extendFocus(cellPoint(selection.focus!.path, ext.offset));
 			} else if (ext.direction === 'forward') {
-				extendFocusToNextBlock(selection, doc, el, ext.fromCellPath, 'vertical');
+				extendFocusToNextBlock(
+					selection,
+					doc,
+					ctx.reading.grammar,
+					el,
+					ext.fromCellPath,
+					'vertical'
+				);
 			} else {
-				extendFocusToPreviousBlock(selection, doc, el, ext.fromCellPath, 'start');
+				extendFocusToPreviousBlock(
+					selection,
+					doc,
+					ctx.reading.grammar,
+					el,
+					ext.fromCellPath,
+					'start'
+				);
 			}
 			await revealActiveEndpoint(ctx);
 			return true;
@@ -168,7 +157,15 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
-		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, getBlockElByPath);
+		extendFocusToNextBlock(
+			selection,
+			doc,
+			ctx.reading.grammar,
+			focusEl,
+			focusPath,
+			axis,
+			getBlockElByPath
+		);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -177,29 +174,37 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side, getBlockElByPath);
+		extendFocusToPreviousBlock(
+			selection,
+			doc,
+			ctx.reading.grammar,
+			focusEl,
+			focusPath,
+			side,
+			getBlockElByPath
+		);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
 
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		await collapseTo(ctx, 'start', doc, getBlockElByPath);
+		await collapseTo(ctx, 'start', doc);
 		return true;
 	}
 
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
-		await collapseTo(ctx, 'start', doc, getBlockElByPath);
+		await collapseTo(ctx, 'start', doc);
 		return true;
 	}
 	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
 		e.preventDefault();
-		await collapseTo(ctx, 'end', doc, getBlockElByPath);
+		await collapseTo(ctx, 'end', doc);
 		return true;
 	}
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		selectWholeDocument(selection, doc, getBlockElByPath);
 		return true;
@@ -217,14 +222,15 @@ async function handleCrossBlockEntry(
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
-		selection.incrementSelectAllCount();
-		if (selection.selectAllCount === 1) {
-			applySurfaceContentRange(el);
-			return true;
-		}
-		selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
+		// Ended before the count moves, since ending a selected widget restarts the run.
+		const first = selection.selectAllCount === 0;
+		selection.batch(() => {
+			if (first) selectInBlock(selection, () => applySurfaceContentRange(el));
+			selection.incrementSelectAllCount();
+		});
+		if (!first) selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
 		return true;
 	}
 
@@ -233,11 +239,8 @@ async function handleCrossBlockEntry(
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
-/**
- * A swallowed format chord, handed to the command dispatcher with the range still painted. It
- * resolves against the kind of the block that took the keystroke, exactly as a single-block
- * keystroke would, so a consumer's rebinding reaches the same handler the default chord does.
- */
+/** Resolves a swallowed format chord against the kind of the block that took the key, as a
+ *  single-block keystroke would, so a consumer's rebinding reaches the same handler. */
 async function dispatchOverRange(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent,
@@ -245,51 +248,35 @@ async function dispatchOverRange(
 ): Promise<void> {
 	const chord = eventToChord(e);
 	if (!chord) return;
-	const surface = await ctx.revealPath(path);
+	const surface = await ctx.caretLanding.mount(path);
 	dispatchKeyCommand(
 		chord,
 		// The block may have no `runCommand` of its own; the range's handler is reached in the
 		// dispatcher ahead of any per-block `runCommand`, so an absent one is not a decline.
 		{
 			kind: kindOfPath(path, ctx.getDoc()),
-			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
+			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false,
+			getPath: () => path
 		},
-		{
-			history: ctx.history,
-			pluginEditor: ctx.pluginEditor,
-			activation: ctx.activePlugins,
-			getPresentationMode: ctx.getPresentationMode,
-			isCrossBlockRange: () => ctx.selection.isCrossBlock,
-			crossBlockCommands: ctx.crossBlockCommands
-		},
-		ctx.getKeybindingOverrides(),
-		ctx.onCommandError
+		ctx.commands
 	);
 }
 
-/**
- * Keys owned by the block-level handler at the caret, which must run at a collapsed caret
- * rather than over stale block indices. After the range delete they dispatch through the
- * merged block's command registry.
- */
-function isCommandCandidateKey(e: KeyboardEvent): boolean {
+/** Keys the block-level handler owns, which must run at a collapsed caret rather than over stale
+ *  block indices, so they dispatch after the range is removed. */
+export function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
 	return false;
 }
 
-/**
- * The chords the cross-block range handles itself: swallowed before the browser's own bold (or
- * Ctrl+K kill-line) runs and before the delete-and-redispatch branch sees them, then handed to
- * the command dispatcher, which routes a format id to the cross-block handler and declines the
- * rest (`CROSS_BLOCK_RANGE_COMMAND_IDS` and `RANGE_DECLINED_COMMAND_IDS` in `schema/commands`).
- * Mod+Shift+X is listed on its own because unshifted Mod+X is the block cut.
- */
-function isClaimedRewriteChord(e: KeyboardEvent): boolean {
+/** Chords the range handles itself, swallowed before the browser's bold or Ctrl+K kill-line runs.
+ *  Mod+Shift+X is here on its own, since unshifted Mod+X is the block cut. */
+export function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
-	// Literal comparisons, not a character class: the chord scan (G4.29) reads the keys a file
-	// compares, and a regex would hide this file's use of Mod+B/I/E/K from it.
+	// Literal comparisons, not a character class: the chord scan reads the keys a file compares,
+	// and a regex would hide this file's use of Mod+B/I/E/K from it (G4.29).
 	if (e.shiftKey) return e.key === 'x' || e.key === 'X';
 	return (
 		e.key === 'b' ||
@@ -303,66 +290,35 @@ function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	);
 }
 
-/**
- * Collapses, and corrects the side the arrow key already recorded: the key has a direction but
- * the caret took no step, it jumped to the range's own edge, where the side depends on the
- * construct there (live-mode.md § 4.2). Without this the caret keeps the arrow's side and the
- * first typed byte joins the construct the collapse landed in front of.
- */
+/** Corrects the side the arrow key recorded: the caret jumped to the range's edge, where the side
+ *  depends on the construct there (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge). */
 async function collapseTo(
 	ctx: CrossBlockDispatchContext,
 	to: 'start' | 'end',
-	doc: Document,
-	getBlockElByPath: BlockElLookup
+	doc: Document
 ): Promise<void> {
-	ctx.edgeAffinity.noteExtreme();
-	await collapseCrossBlock(ctx.selection, to, doc, getBlockElByPath, ctx.revealPath);
+	await collapseCrossBlock(ctx.selection, to, doc, ctx.caretLanding.restore);
+	// After the restore, which forgets how the caret arrived.
+	ctx.caretMemory.noteExtreme();
 }
 
-/** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
-function kindOfPath(path: number[], doc: Document): AnyBlockKind {
-	let node: CstNode | Document = doc;
-	for (const i of path) {
-		const child: CstNode | undefined = node.children?.[i];
-		if (!child) break;
-		node = child;
-	}
-	// The root's 'document' kind is outside AnyBlockKind; dispatch treats it as an unknown kind.
-	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
-}
-
-/**
- * Brings the focus endpoint into view after an extend. A cell-coordinate focus addresses the
- * table block by cell index, so the cell path is mounted to bring in a windowed-out row, then
- * the dispatch caret is put there to keep the next keystroke routed. At the cell's start, not
- * its end: an end caret in the last cell makes ArrowRight read as leaving the table.
- * `parkCaret`, never `focus`: this runs while an extend grows, and `focus` would end the range
- * (G2.12).
- */
+/** Parks the caret at the focus endpoint, never ending the range (G2.12) and never opening a
+ *  closed body. A cell takes its start, since ArrowRight at its end reads as leaving the table. */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
 	const landing = focus && ctx.selection.cellLandingFor(focus);
-	// A landing that deepened the path is a cell; anything else lands as itself.
+	// A landing that deepened the path is a cell; anything else lands as itself. A cell that never
+	// mounted falls through, so the mounted table still scrolls the endpoint into view.
 	if (focus && landing && !pathsEqual(landing.path, focus.path)) {
-		const cellRef = await ctx.revealPath(landing.path);
-		// A null ref means the cell never mounted; fall through to scroll the mounted table so
-		// the endpoint still stays in view.
-		if (cellRef) {
-			cellRef.parkCaret?.(CURSOR_START);
+		if (await ctx.caretLanding.park({ path: docPathFrom(landing.path), offset: CURSOR_START })) {
 			return;
 		}
 	}
-	// A windowed-out text endpoint cannot be scrolled to while unmounted. Mount it and put the
-	// dispatch caret in it, as the table-cell case above does.
+	// A windowed-out text endpoint cannot be scrolled to while unmounted, so it mounts first.
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
-		const ref = await ctx.revealPath(focus.path);
-		if (ref) {
-			ref.parkCaret?.(focus.offset);
-			scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
-			return;
-		}
+		await ctx.caretLanding.park({ path: docPathFrom(focus.path), offset: focus.offset });
 	}
-	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+	scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 }
 
 async function handleDocEdgeExtend(
@@ -376,6 +332,7 @@ async function handleDocEdgeExtend(
 	extendFocusToDocEdge(
 		ctx.selection,
 		ctx.getDoc(),
+		ctx.reading.grammar,
 		el,
 		ctx.getMyPath(),
 		direction,
@@ -387,14 +344,11 @@ async function handleDocEdgeExtend(
 
 // ── CompositionStart ───────────────────────────────────────────────────────
 
-function handleCompositionStart(
-	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext
-): boolean {
-	ctx.stickyColumn.reset();
-	ctx.edgeAffinity.reset();
+/** Unawaited: the removal commits before the replace's first await, so the range is gone before
+ *  the IME writes, and the composed text joins its undo entry. */
+function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
+	ctx.caretMemory.forget();
 	if (!ctx.selection.isCrossBlock) return false;
-	if (isReadingMode(ctx.getPresentationMode)) return false;
-	performCrossBlockDeleteSync(mutCtx);
+	void replaceRange(ctx, { kind: 'composition' });
 	return true;
 }

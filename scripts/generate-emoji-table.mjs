@@ -67,7 +67,7 @@ export async function loadGemojiDb(input) {
 // ── CLI ────────────────────────────────────────────────────────────────────────
 
 /** @param {string[]} argv */
-function parseInput(argv) {
+export function parseInput(argv) {
 	let input;
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === '--input') input = argv[++i];

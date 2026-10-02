@@ -42,9 +42,8 @@ test.describe('blockquote navigation: exit on empty trailing line', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	// Exiting a nested quote has to rebuild the outer quote's raw too, or a `> >` line is left
-	// stranded. The exit climbs one level per Enter, the same convention a list outdent uses,
-	// so reaching the document takes one press per level.
+	// Exiting a nested quote rebuilds the outer quote's raw too, or a `> >` line is stranded. The
+	// exit climbs one level per Enter, as a list outdent does.
 	test('nested quote (depth 2) exit leaves no stranded "> >" line', async () => {
 		await editor.loadContent('> Outer\n> > Inner\n');
 		const inner = editor.page.locator('[contenteditable="true"]', { hasText: /^Inner$/ });

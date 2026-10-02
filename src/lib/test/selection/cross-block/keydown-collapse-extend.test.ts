@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The navigation branches, live in reading mode because nothing they do is an edit. Two things
 // are invisible if only one direction is tested: which endpoint an unshifted arrow collapses to
 // (left/up to range start, right/down to end), and whether a shifted arrow grows or shrinks.
@@ -15,9 +14,8 @@ function envAcrossFirstTwo(presentationMode?: 'reading') {
 	return env;
 }
 
-// Ctrl and Cmd collapse to one Mod, and `reservedChords()` exports the collapsed chord, so both
-// branches must handle both forms. Miss-analysis: the e2e cover presses `ControlOrMeta`, which is
-// Meta only on macOS and no runner is macOS, so half the chord went untested (#69).
+// Ctrl and Cmd collapse to one Mod (as `reservedChords()` exports it), so both forms must work.
+// Miss-analysis: GH #69; e2e presses `ControlOrMeta`, Meta only on macOS, and no runner is macOS.
 const DOC_EDGE_CHORDS = [
 	['Ctrl', { ctrlKey: true, shiftKey: true }],
 	['Cmd', { metaKey: true, shiftKey: true }]

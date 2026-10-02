@@ -4,11 +4,10 @@ import { STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
  * The cross-block selection overlay over containers with no children
- * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block caught in a cross-block
- * range has no child hosts at all, so the block itself must take the whole-block overlay, both
- * rendered and in its error state, the same box a container with children takes when the range
- * covers it whole. It lives in the plugins project because only plugin kinds produce containers
- * with no children; the built-in overlay is pinned in tests/selection/overlay.spec.ts.
+ * (requirements/plugins/mermaid-selection-overlay.md): a mermaid block in a range has no child
+ * hosts, so the block takes the whole-block overlay, rendered or in its error state. Only plugin
+ * kinds have no children, hence the plugins project; the built-in case is
+ * selection/overlay.spec.ts.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -37,7 +36,7 @@ test.describe('cross-block selection overlay: childless opaque container', () =>
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 	});
 
-	test('an upward sweep ending on the diagram paints its endpoint box', async ({ page }) => {
+	test('an upward sweep ending on the diagram paints its full-block overlay', async ({ page }) => {
 		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
@@ -46,11 +45,9 @@ test.describe('cross-block selection overlay: childless opaque container', () =>
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);
 
-		// The container provides measurePartialRects, so as the range's start it paints its own
-		// full box, through the endpoint rects rather than the overlay used in between.
-		const endpoint = page.locator("[data-block-path='[1]'] > .selection-overlay-endpoint");
-		await expect.poll(() => endpoint.count()).toBeGreaterThan(0);
-		const box = await endpoint.first().boundingBox();
+		// The range holds the diagram whole, so it paints one box, as it does strictly inside.
+		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
+		const box = await page.locator(MIDDLE_OVERLAY).boundingBox();
 		expect(box!.width).toBeGreaterThan(0);
 		expect(box!.height).toBeGreaterThan(0);
 	});

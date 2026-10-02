@@ -1,19 +1,11 @@
 <script lang="ts" module>
 	/**
-	 * A limestone-styled list menu the editor opens at a point: a block's context menu (rows run
+	 * A list menu the editor opens at a point: a block's context menu (rows run
 	 * that kind's registered actions) and the prose menu's clipboard rows with its "Insert block"
 	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without
 	 * ever taking focus, so the caret it acts on stays exactly where it is.
 	 */
-	import { isPluginInstalled } from '../../schema/plugin-install';
-	import type { MenuIconName } from './MenuIcon.svelte';
-
-	interface BlockMenuItem {
-		id: string;
-		label: string;
-		icon: MenuIconName;
-		md: string;
-	}
+	import type { MenuIconName } from '../../menu-icons';
 
 	export interface MenuEntry {
 		id: string;
@@ -26,48 +18,6 @@
 		/** A flyout: hover or ArrowRight opens these beside the row; a pick is one of their ids. */
 		children?: MenuEntry[];
 	}
-
-	// Blocks that stand on their own when empty. A heading is not one: it is text turned into a
-	// heading, which the selection popover offers, so it is deliberately not here.
-	const BUILT_IN: readonly BlockMenuItem[] = [
-		{ id: 'bullet', label: 'Bulleted list', icon: 'list', md: '- ' },
-		{ id: 'numbered', label: 'Numbered list', icon: 'list-ordered', md: '1. ' },
-		{ id: 'todo', label: 'To-do list', icon: 'square-check', md: '- [ ] ' },
-		{ id: 'quote', label: 'Quote', icon: 'text-quote', md: '> ' },
-		{ id: 'divider', label: 'Divider', icon: 'minus', md: '---\n' },
-		{ id: 'code', label: 'Code block', icon: 'code', md: '```\n\n```\n' },
-		{
-			id: 'table',
-			label: 'Table',
-			icon: 'table',
-			md: '| Column | Column |\n| --- | --- |\n|  |  |\n'
-		}
-	];
-	// Listed only while the plugin that reads the syntax is installed.
-	const FROM_PLUGINS: readonly { plugin: string; item: BlockMenuItem }[] = [
-		{ plugin: 'latex', item: { id: 'math', label: 'Math block', icon: 'sigma', md: '$$\n\n$$\n' } },
-		{
-			plugin: 'admonitions',
-			item: { id: 'note', label: 'Note', icon: 'info', md: ':::note\n\n:::\n' }
-		}
-	];
-
-	/** Every insertable block, keyed by id, for resolving a pick from either level of the menu. */
-	export function insertSnippets(): Map<string, string> {
-		const all = [
-			...BUILT_IN,
-			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
-		];
-		return new Map(all.map((item) => [item.id, item.md]));
-	}
-
-	/** Every insertable block as one flat list, for a flyout that is already a level down. */
-	export function insertFlyoutEntries(): MenuEntry[] {
-		return [
-			...BUILT_IN,
-			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
-		].map(({ id, label, icon }) => ({ id, label, icon }));
-	}
 </script>
 
 <script lang="ts">
@@ -75,6 +25,7 @@
 	import { BLOCK_MENU_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
 	import MenuIcon from './MenuIcon.svelte';
+	import type { MenuPresence } from './menu-presence.svelte';
 
 	let {
 		x,
@@ -83,7 +34,8 @@
 		items,
 		label = BLOCK_MENU_LABEL,
 		onPick,
-		onClose
+		onClose,
+		menuPresence
 	}: {
 		x: number;
 		y: number;
@@ -93,6 +45,7 @@
 		label?: string;
 		onPick: (id: string) => void;
 		onClose: () => void;
+		menuPresence: MenuPresence;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
@@ -212,6 +165,7 @@
 	class="md-menu block-menu"
 	role="menu"
 	aria-label={label}
+	{@attach menuPresence.track(() => onClose(), { edits: true })}
 	style:left="{left}px"
 	style:top="{top}px"
 >
@@ -249,6 +203,7 @@
 						class="md-menu block-menu block-menu-flyout"
 						role="menu"
 						{@attach keepFlyoutOnScreen}
+						{@attach menuPresence.track(() => (flyout = null), { edits: true })}
 					>
 						{#each item.children as child, j (child.id)}
 							<button
@@ -285,7 +240,7 @@
 	.block-menu-label {
 		flex: 1;
 	}
-	/* limestone's submenu: a second panel hung off the row's right edge. */
+	/* The submenu: a second panel hung off the row's right edge. */
 	.block-menu-flyout {
 		position: absolute;
 		left: 100%;

@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
-//
-// The task checkbox is a click target inside the item's marker span, a contenteditable="false"
-// element rather than a real input. Its handler is built by `buildTaskItemAmbient` but supplied
-// by ListItemBlock as `toggleTask`, carrying three rules the builder knows nothing about: the
+// The task checkbox is a `contenteditable="false"` click target in the item's marker span, built
+// by `buildTaskItemAmbient` but handled by ListItemBlock's `toggleTask`, which adds the
 // reading-mode check, clearing a cross-block selection, and the paired metadata write. Only a
-// mounted item connects the rendered span to those rules.
+// mounted item connects the span to those rules.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, blockHostAt } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	blockHostAt,
+	pressKeyAt
+} from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
@@ -66,8 +69,7 @@ describe('list item task checkbox', () => {
 		expect(mounted.source()).toBe('- [ ] todo\n');
 	});
 
-	// Both directions: a handler that always targeted index 0 would pass the first
-	// case alone.
+	// A handler that always targeted index 0 would pass the first case alone.
 	it('toggles only the item whose box was clicked', async () => {
 		mounted = mountEditor({ source: '- [ ] one\n- [ ] two\n' });
 
@@ -82,5 +84,49 @@ describe('list item task checkbox', () => {
 		await clickCheckbox(mounted, 1);
 
 		expect(mounted.source()).toBe('- [ ] one\n- [x] two\n');
+	});
+});
+
+// The keyboard route to the same toggle: the chord bubbles from the item's paragraph to the
+// item's own keydown handler, so a regression at either step shows here.
+describe('list item task toggle on Mod+Enter', () => {
+	const MOD_ENTER = { key: 'Enter', ctrlKey: true };
+
+	it('toggles the box of the item holding the caret', async () => {
+		mounted = mountEditor({ source: '- [ ] one\n- [ ] two\n' });
+
+		const event = await pressKeyAt(mounted, [0, 1, 0], 0, MOD_ENTER);
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(mounted.source()).toBe('- [ ] one\n- [x] two\n');
+	});
+
+	it('declines on a plain item, leaving the key unclaimed', async () => {
+		mounted = mountEditor({ source: '- one\n' });
+
+		const event = await pressKeyAt(mounted, [0, 0, 0], 0, MOD_ENTER);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(mounted.source()).toBe('- one\n');
+	});
+
+	// The key bubbles through every enclosing item, so a declining child must not hand the
+	// toggle to the task item it sits in.
+	it('leaves an enclosing task alone when the caret is in a plain child item', async () => {
+		mounted = mountEditor({ source: '- [ ] parent\n  - child\n' });
+
+		const event = await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, MOD_ENTER);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(mounted.source()).toBe('- [ ] parent\n  - child\n');
+	});
+
+	it('declines in reading mode', async () => {
+		mounted = mountEditor({ source: '- [ ] one\n', presentationMode: 'reading' });
+
+		const event = await pressKeyAt(mounted, [0, 0, 0], 0, MOD_ENTER);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(mounted.source()).toBe('- [ ] one\n');
 	});
 });

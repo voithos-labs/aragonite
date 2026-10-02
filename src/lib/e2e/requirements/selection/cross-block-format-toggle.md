@@ -48,6 +48,10 @@ single block to create one in.
   default chord is taken one layer earlier
 - plain typing over the same cross-block range still replaces it, and one undo
   restores the document, so the toggle narrowed nothing else
+- taking the bold off `**[ ] a**` in a plain list item leaves `- [ ] a`, and the editor shows the
+  checkbox a reload would show: the text left at an item's first slot keeps its checkbox in step
+  - Miss-analysis: the toggle wrote each leaf in place with no checkbox reconcile, and every
+    toggle scenario ran over plain paragraphs, so no text ended up opening with `[ ] `
 
 ## Error cases
 

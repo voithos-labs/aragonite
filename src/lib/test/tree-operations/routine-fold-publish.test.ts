@@ -3,12 +3,9 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// The path B-F1's fix-up opens: routine typing writes outside the commit, so a fix-up that
-// merges there splices the list with no change descriptor to write out. The parallel id array is
-// what keyed rendering reads, and a length it never regains is permanent.
-// Miss-analysis: every merge case runs through the commit, where the returned change resyncs the
-// arrays; the routine path was pinned for bytes only, because before the fill branch ran the
-// fix-up it could not splice at all.
+// Routine typing writes outside the commit, so a fix-up that merges there must still resync the
+// parallel id array keyed rendering reads, or its length stays wrong.
+// Miss-analysis: every merge case ran through the commit; typing was checked for bytes only.
 
 /** A list above a blank line: filling that line with indented prose makes the list absorb it. */
 const SOURCE = '- a\n\n\nzz\n';
@@ -18,7 +15,7 @@ describe('a routine content write whose settle folds', () => {
 		const h = makeTopHarness(SOURCE);
 		const before = h.getBlockIds();
 
-		await h.actions.updateBlockContent(1, '  b\n', 0);
+		await h.actions.updateBlockContent(1, '  b\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('- a\n\n  b\n\nzz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
@@ -31,7 +28,7 @@ describe('a routine content write whose settle folds', () => {
 		const h = makeNestedHarness('> - a\n>\n>\n> zz\n', { index: 0 });
 		const before = [...h.state.innerBlockIds];
 
-		await h.bundle.blockEdit.updateBlockContent(1, '  b\n', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '  b\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('> - a\n>\n>   b\n>\n> zz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();

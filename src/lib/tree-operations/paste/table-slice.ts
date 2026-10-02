@@ -3,9 +3,10 @@
  * preserves caret continuity for the break-and-splice paste path.
  */
 
-import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes';
+import type { CstNode, TableRowMetadata } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { rebuildContainerRaw } from '../../schema/container-raw';
+import { rebuildTableRaw } from '../../schema/container-rebuilders';
+import { promoteFirstRowToHeader } from '../table-mutations';
 
 export type RowGoes = 'first' | 'second';
 
@@ -15,39 +16,38 @@ export function sliceTableAtRow(
 	rowGoes: RowGoes
 ): { firstHalf: CstNode | null; secondHalf: CstNode | null } {
 	const rows = table.children!;
-	const meta = metadataOf(table, 'table');
-
 	const splitAt = rowGoes === 'first' ? sliceRow + 1 : sliceRow;
-	const firstRows = rows.slice(0, splitAt);
-	const secondRows = rows.slice(splitAt);
+	const firstHalf = buildHalf(rows.slice(0, splitAt), table);
+	const secondHalf = buildHalf(rows.slice(splitAt), table);
 
-	const firstHalf = buildHalf(firstRows, meta);
-	const secondHalf = buildHalf(secondRows, meta);
-
-	if (firstHalf) rebuildContainerRaw(firstHalf);
-	if (secondHalf) rebuildContainerRaw(secondHalf);
+	if (firstHalf) rebuildTableRaw(firstHalf);
+	if (secondHalf) rebuildTableRaw(secondHalf);
 
 	return { firstHalf, secondHalf };
 }
 
-function buildHalf(rows: CstNode[], sourceMeta: TableMetadata): CstNode | null {
+function buildHalf(rows: CstNode[], table: CstNode): CstNode | null {
 	if (rows.length === 0) return null;
+	const sourceMeta = metadataOf(table, 'table');
 	const cloned: CstNode[] = rows.map(
-		(row, idx) =>
+		(row) =>
 			({
 				...row,
-				metadata: { isHeader: idx === 0 } as TableRowMetadata,
+				metadata: { ...metadataOf(row, 'tableRow'), isHeader: false } as TableRowMetadata,
 				children: row.children!.map((cell) => ({ ...cell }) as CstNode)
 			}) as CstNode
 	);
-	return {
+	const half: CstNode = {
 		kind: 'table',
 		leadingTrivia: '',
-		raw: '',
+		// The rebuild reads the delimiter line and the line ending off the raw it replaces.
+		raw: table.raw,
 		metadata: {
 			columnCount: sourceMeta.columnCount,
 			alignments: sourceMeta.alignments.slice()
-		} as TableMetadata,
+		},
 		children: cloned
 	};
+	promoteFirstRowToHeader(half);
+	return half;
 }

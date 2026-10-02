@@ -1,12 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
-activateDirectiveGrammar(); // before any parse
+beforeEach(activateDirectiveGrammar);
 
 const parseOnly = (source: string) => void parse(source);
+
+// Without the directive grammar every opener is prose, and the bounds below measure the paragraph.
+it('reads an opener as a directive container', () => {
+	expect(parse(':::a\nx\n:::\n').children[0].kind).toBe(DIRECTIVE_CONTAINER);
+});
 
 // A flood of unclosed container openers can forward-scan to EOF per opener, O(n^2). Measured as
 // the N-versus-4N ratio, so the bound does not depend on the machine.

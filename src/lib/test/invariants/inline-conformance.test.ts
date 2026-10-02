@@ -3,8 +3,8 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { FLANKING_CASES, INTRA_WORD_UNDERSCORE_CASES } from '../support/flanking-corpus';
 
-// G2.3 flanking-algorithm edges only: basic emphasis, reference forms, and autolink
-// trimming are covered in test/core/inline/**. The §6.2 tables are single-sourced in
+// Flanking-algorithm edges only (G2.3): basic emphasis, reference forms, and autolink
+// trimming are covered in test/core/inline/**. The §6.2 tables live in
 // test/support/flanking-corpus.ts, shared with scan/emphasis-flanking.test.ts, which
 // runs the same cases against the scanner rather than the full pipeline.
 

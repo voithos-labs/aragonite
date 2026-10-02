@@ -20,3 +20,19 @@ source-mode edit.
 - Clicking away with no change to a field does not add an undo entry
 - Switching the popover from one image to another never writes the previous popover's local field state onto the new target. Each popover is bound to the image identity (`paragraphPath` + `sourceStart`) at mount; commits go to that captured target whatever the live widget selection is.
 - Pending alt edits commit on image-switch (not just on outside-click), targeting the original image. Escape discards pending edits without committing.
+- A switch between source and live with an alt draft open and no press (a host shortcut, say):
+  the field closes, the draft lands in source, and the caret comes back to the image's paragraph
+  - Miss-analysis: every commit case ended the field with a press, so the switch's own close,
+    which had Escape's rule, never met a draft
+- An undo taken while the popover is open closes it, since an undo's caret ends the selected image
+  (#673). The close commits nothing, so the source holds exactly the undone bytes, and the alt
+  field, opened again on the reselected image, reads the undone alt.
+- A replace from the find bar, done by keys with the image selected, rewrites the image's alt while
+  the toolbar stays open: the alt field then reads the new alt, and an edit to it keeps the
+  replacement rather than putting the old alt back
+  - Miss-analysis: once an undo closed the toolbar, the undo spec was the only write under it, so
+    nothing wrote while the toolbar stayed open
+- Clicking away after a switch leaves no uncaught error: the popover's effects read the last
+  image it showed, not a selection that is already gone.
+  - Miss-analysis: the switch case threw on every run, but the shared fixture only failed on
+    tagged console lines, and an uncaught page error carries no tag.

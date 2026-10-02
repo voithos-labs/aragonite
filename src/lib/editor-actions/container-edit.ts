@@ -1,74 +1,28 @@
 /**
- * The root ContainerEditActions: the debounced undo checkpoint for typing outside a commit,
- * the document-root reactivity nudge, the leaf write path, and `commitContainer`.
+ * The root ContainerEditActions: what a container reaches the editor root for, which is the
+ * document's line ending, the container commit, the two things a keystroke needs the root for
+ * (grouping it with its typing burst, and the write that keeps the leaf in place), and the caret
+ * landing with the whole-document read a delete's caret needs.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
-import type { SharingState } from '../tree-operations/sharing';
-import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { rebuildUnsharedChain, type AncestrySeamFold } from '../tree-operations/chain-rebuild';
-import type { StructuralChange } from '../tree-operations/structural-change';
-import { publishAncestryFolds, publishScopeFold } from './ancestry-folds';
+import { documentLineEnding } from '../core/lines';
 import type { EditorActionsDeps, UndoController } from './deps';
+import { createLeafTyping } from './leaf-write';
+import { survivorAfterRemoval } from '../selection/caret-target';
 
 export function createContainerEditActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): ContainerEditActions {
+	const { typeInLeaf, writeLeafInPlace } = createLeafTyping(deps, controller);
 	return {
-		pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
-			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
-		},
-
-		armDebouncedPause(): void {
-			controller.armUndoPause();
-		},
-
-		nudgeReactivity(): void {
-			// Raw writes made outside a commit become visible through this nudge, which makes
-			// Svelte re-read doc.children.
-			deps.doc.children = [...deps.doc.children];
-		},
-
-		withUnsharedSpine(
-			absPath: number[],
-			write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
-		): boolean {
-			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
-			// Read before the write: no level of the rebuild can recover the leaf's old bytes
-			// itself, and the ancestor fix-up needs them to locate the leaf's region.
-			const leafPreviousRaw = chain[chain.length - 1]?.raw;
-			const written = write(chain, deps.sharing) ?? { op: 'noop' };
-			// Unconditional: this path exists to write bytes, and a short chain or a `noop`
-			// change says nothing about whether `write` changed any.
-			deps.bumpContentVersion();
-			// The write's own fix-up can splice the child list it wrote in, and a short chain means
-			// the copy never reached that list, so there is nothing to write to state.
-			if (chain.length === absPath.length) {
-				publishScopeFold(deps, chain[absPath.length - 2], written);
-			}
-			// Containers that collapsed while their ancestors were rebuilt: a splice in the
-			// container's parent, not in the child list written above. The undo function is
-			// dropped on purpose (this path is not a commit, so nothing rolls back), and the
-			// caret landing (`foldLandingFor`) needs a tick this synchronous path has not got.
-			const folds: AncestrySeamFold[] = [];
-			const replacements = rebuildUnsharedChain(
-				deps.doc,
-				chain,
-				deps.sharing,
-				folds,
-				deps.grammar,
-				leafPreviousRaw === undefined ? undefined : { path: absPath, leafPreviousRaw }
-			);
-			publishAncestryFolds(deps, folds);
-			return replacements.length > 0;
-		},
-
-		commitContainer(args): Promise<void> {
-			return controller.commitContainerStructural(args);
-		}
+		lineEnding: () => documentLineEnding(deps.doc),
+		commitContainer: (args) => controller.commitContainerStructural(args),
+		typeInLeaf,
+		writeLeafInPlace,
+		land: (pos) => deps.caretLanding.land(pos),
+		survivorAfterRemoval: (removedPath, gesture) =>
+			survivorAfterRemoval(deps.doc, removedPath, gesture)
 	};
 }

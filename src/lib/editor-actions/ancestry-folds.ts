@@ -40,13 +40,8 @@ export function publishAncestryFolds(
 	};
 }
 
-/**
- * Where the caret goes after a collapse: the container's index is gone (the reparse recreates
- * every block in the collapsed range), so a focus aimed at it has nothing to land on.
- * `scopePath` is the committing list's own path; the collapse's depth names the parent. The
- * chain rebuilds innermost first, so the last collapse is the outermost, the one whose index
- * swallowed the others and the only place still addressable after them all.
- */
+/** Where the caret goes after a collapse recreated the blocks in its range. The last collapse is
+ *  the outermost (innermost rebuilds first), so its index is the only one still addressable. */
 export function foldLandingFor(
 	folds: readonly AncestrySeamFold[],
 	scopePath: readonly number[]
@@ -87,9 +82,8 @@ function publishDocScope(deps: EditorActionsDeps, change: StructuralChange): voi
  */
 function publishContainerScope(owner: CstNode, change: StructuralChange): void {
 	const state = getStateForNode(owner);
-	// A container that never mounted has no ids to keep, and this runs after the collapse, so
-	// one fresh id per surviving child is the whole answer; applying the change to an array
-	// that never held those children would give it the wrong shape (G1.36).
+	// A never-mounted container has no ids to keep, so fresh ids for the surviving children are
+	// the whole answer; the change applied to an array that never held them misshapes it (G1.36).
 	if (!owner.childIds) {
 		owner.childIds = assignIds(owner.children ?? []);
 		return;

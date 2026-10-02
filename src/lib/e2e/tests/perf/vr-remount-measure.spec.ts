@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { spacerCount } from './vr-helpers';
 
 // A block that mounts again at the height it was measured at costs the scroll nothing: it is
@@ -70,8 +71,7 @@ async function wheel(page: Page, editor: EditorPage, ticks: number, px: number):
 test('wheeling back up over measured blocks writes the scroll never', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	// The plugins route renders the inline math, in source mode, so no mode switch is involved.
-	await page.goto('/test/plugins');
-	await page.waitForFunction(() => (window as any).__test !== undefined);
+	await gotoReady(page, '/test/plugins');
 	const editor = new EditorPage(page);
 	await editor.loadContent(HEAVY);
 	await editor.waitForRenderFlush();

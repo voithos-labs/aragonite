@@ -1,18 +1,16 @@
 /**
- * Editor-root presentation-mode switch: keep the caret across a mode change. The pre phase is
- * the last moment the outgoing mode owns the DOM (past it, the mode's render key has rebuilt
- * every block from its own CST bytes), so the caret is captured and the block blurred there;
- * the post phase drops the geometry the old markers set and puts the caret back through the
- * shared restore path. The two `$effect`s stay in `Editor.svelte`, a mode read plus one call.
+ * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret and blurs
+ * the block while the outgoing mode still owns the DOM; `afterFlip` drops the outgoing markers'
+ * geometry and restores the caret through the shared restore path.
  */
 
 import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
-import type { HeightOracle } from '../cursor/height-oracle';
-import { domTextOffsetAtNode } from '../cursor/widget-offset';
+import type { CaretMemory } from '../cursor/caret-memory';
+import type { LayoutState } from '../reactivity/layout-state.svelte';
+import type { MenuPresence } from './menu/menu-presence.svelte';
+import type { DraftRegistry } from './draft-registry';
+import { rawOffsetAt } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
@@ -31,12 +29,19 @@ export interface ModeFlipDeps {
 	announceSelection(): void;
 	getBlockElByPath: BlockElLookup;
 	isHostChrome(node: Node | null): boolean;
-	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
-	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
+	caretMemory: Pick<CaretMemory, 'forget'>;
+	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
+	menus: Pick<MenuPresence, 'closeAll'>;
+	/** The blur in `beforeFlip` already committed the focused draft, which ended it, so this
+	 *  close reaches only a draft nothing focused and writes each draft at most once. */
+	drafts: Pick<DraftRegistry, 'closeAll'>;
 	events: EditorEvents;
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
 	 *  scroll position. */
 	restoreCaret(path: number[], offset: number): Promise<unknown>;
+	/** Make the editor's reading answer `mode` (null: the requested mode again), so an edit the
+	 *  blur commits lands in the mode it was typed in. */
+	holdOutgoingMode(mode: PresentationMode | null): void;
 }
 
 export interface ModeFlip {
@@ -71,20 +76,28 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		if (!path) return null;
 		const contentEl = deps.getBlockElByPath(path);
 		if (!contentEl?.contains(node)) return null;
-		const offset = toClampedRawOffset(
-			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
-			ambientLengthOf(contentEl)
-		);
+		const offset = rawOffsetAt(contentEl, node, sel.focusOffset);
 		return { path, offset };
 	}
 
-	// A post-tick focus like every structural op's; the restore path clamps the saved offset to
-	// one the caret can sit at in the new mode. Standing aside for a focused text field keeps
-	// the restore from stealing a host field mid-typing.
+	// The restore path clamps the offset to one the new mode allows; a focused text field is
+	// left alone, so the restore cannot steal a host field mid-typing.
 	async function restoreAfterFlush(caret: FlipCaret, to: PresentationMode): Promise<void> {
 		await tick();
 		if (deps.mode !== to || isTextEntrySurface(document.activeElement)) return;
 		await deps.restoreCaret(caret.path, caret.offset);
+	}
+
+	// A mode change blurs the block, so revealed markers and a composition close as on any blur;
+	// the host's header is exempt.
+	function blurForFlip(): void {
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !deps.editorEl?.contains(active)) return;
+		if (deps.isHostChrome(active)) return;
+		active.blur();
+		// A blur the editor performs announces the selection it drops: the document listener only
+		// reports a range the browser still anchors in the root, and this one is gone.
+		deps.announceSelection();
 	}
 
 	return {
@@ -92,31 +105,25 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 			if (to === preFlipSeenMode) return;
 			const from = preFlipSeenMode;
 			preFlipSeenMode = to;
-			// Reading keeps its entry snapshot: it has no caret of its own to recapture on the way out.
-			if (from !== 'reading') flipCaret = captureCaret();
-			// A mode change counts as a blur: showing markers or an in-progress composition closes
-			// through the blur handling that already exists. The host's own header is exempt, or a
-			// mode toggle would blur a title field mid-edit.
-			const active = document.activeElement;
-			if (
-				active instanceof HTMLElement &&
-				deps.editorEl?.contains(active) &&
-				!deps.isHostChrome(active)
-			) {
-				active.blur();
-				// A blur the editor performs announces the selection it drops: the document listener
-				// only reports a range the browser still anchors in the root, and this one is gone.
-				deps.announceSelection();
+			deps.holdOutgoingMode(from);
+			try {
+				// Reading keeps its entry snapshot: it has no caret of its own to recapture on the way out.
+				if (from !== 'reading') flipCaret = captureCaret();
+				blurForFlip();
+			} finally {
+				deps.holdOutgoingMode(null);
 			}
 		},
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// Which markers paint just changed: an edge recorded against the old geometry no longer
-			// names the offset the user meant, and every measured height is the other mode's. No
-			// width bump with it: focus is gone, and a rebuild would lose the block held in place.
-			deps.edgeAffinity.reset();
-			deps.heightOracle.dropMeasured();
+			// A menu opened in one mode offers that mode's edits. First, since a close may write, and
+			// the caret restore below must read the tree it leaves.
+			deps.menus.closeAll('mode-change');
+			deps.drafts.closeAll('mode-change');
+			// The caret memory and measured heights belong to the outgoing mode's markers.
+			deps.caretMemory.forget();
+			deps.layout.forgetMeasuredHeights();
 			if (to === 'reading') {
 				// The gap caret is the editor's own, not the browser's, so no blur reaches it:
 				// the mode change clears it rather than each entry path.

@@ -1,85 +1,63 @@
 /**
- * Cross-block event dispatch, wired by `components/blocks/editable-surface.ts` and by
- * `Editor.svelte` for the editor root. The factory returns handlers each caller runs at the top
- * of its own event handlers; single-block handling stays with the caller. Keydown lives in
- * `keydown.ts` and pointer in `pointer.ts`; paste and type-replace pass through here.
+ * Cross-block event dispatch: handlers an editable block, or the editor root, runs at the top of
+ * its own event handlers, before its single-block handling.
  */
 
-import type { BlockEditActions, HistoryActions } from '../../action-contracts';
-import type { BlockComponent } from '../../block-component';
-import type {
-	BlockElLookup,
-	DocumentGetter,
-	LinkReferenceResolverRef,
-	PluginEditorLookup,
-	PresentationModeGetter
-} from '../../editor-keys';
+import type { BlockEditActions } from '../../action-contracts';
+import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
+import type { ScrollOwner } from '../../cursor/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../cursor/edge-affinity';
-import type { CrossBlockMutationContext } from './ops';
+import type { SelectedWidgetHandle } from '../primitives';
+import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
-import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
+import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
-import type { GrammarView } from '../../schema/block-openers';
+import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import { normalizeLineEndings } from '../../core/lines';
 import { isReadingMode } from '../../presentation-mode';
-import { performCrossBlockDelete } from './ops';
-import { handleCrossBlockPaste } from './paste';
-import { handleCrossBlockTypeReplace } from './type-replace';
+import { replaceRange } from './range-replace';
 import { createCrossBlockKeydown } from './keydown';
-import { createCrossBlockPointer } from './pointer';
+import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export interface CrossBlockDispatchContext {
 	getEl: () => HTMLElement | null;
 	getMyPath: () => number[];
-	getIndex: () => number;
 
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
-	revealPath: (path: number[]) => Promise<BlockComponent | null>;
+	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
+	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
 	 *  window. See `cursor/scroll-ancestors`. */
 	getScrollHost: () => UserScrollport | null;
+	/** Brings the endpoint a keyboard extend reached to the nearest edge. */
+	scrollOwner: Pick<ScrollOwner, 'place'>;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
-	history: HistoryActions;
-	// Passed so a post-delete command dispatch reaches a plugin-global handler and contains its
-	// throw. Required but nullable, so a new context constructor cannot silently skip it.
-	pluginEditor: PluginEditorLookup | undefined;
-	/** The effective presentation mode; the reading-mode check on the destructive branches reads it. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, forwarded to the delete's join cleanup. Required
-	 *  but nullable like `pluginEditor`, so a new construction site cannot silently skip it. */
-	linkRef: LinkReferenceResolverRef | undefined;
-	onCommandError: CommandErrorSink | undefined;
-	/** The handler a format chord takes over the live range; the dispatcher routes there rather
-	 *  than declining. Non-nullable: without it a format chord is swallowed and nothing happens. */
-	crossBlockCommands: CrossBlockCommandRouter;
-	getKeybindingOverrides: () => KeybindingOverrideMap;
+	/** How the editor reads its bytes: the removal's join cleanup and the paste reparse read it. */
+	reading: Reading;
+	/** The editor's command dispatch, which runs a chord pressed over a range. */
+	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** Block grammar forwarded to the paste reparse. Required but nullable like `pluginEditor`;
-	 *  `undefined` means the global grammar. */
-	grammar: GrammarView | undefined;
-	/** The plugins this instance activated, forwarded to the paste transforms. Required but
-	 *  nullable like `grammar`; `undefined` means every installed plugin. */
-	activePlugins: PluginActivation | undefined;
+	/** The plugins this instance activated, forwarded to the paste hooks. */
+	activePlugins: PluginActivation;
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
 
-	getCursorOffset: () => number | null;
+	/** An image selected whole, which a shift-press grows its range from. */
+	selectedWidget: SelectedWidgetHandle;
 
 	/** Svelte's `tick()`, awaited after mutations so the DOM has updated. */
 	afterReactivity: () => Promise<void>;
@@ -93,80 +71,73 @@ export interface PointerPressOptions {
 	/** The raw offset the press anchors at, from a block that resolves its own press better than
 	 *  the browser's hit test does. Absent, the point is hit-tested. */
 	anchorOffset?: number;
+	/** A block that runs its own drag from a press (a table's cell rectangle) installs it here, told
+	 *  of a press in the padding the editor placed itself, where no native drag runs. */
+	ownDrag?: (padding: PaddingPress | null) => void;
 }
 
 export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
-	/** `replacement` stands in for the clipboard's own text, for a caller that already turned the
-	 *  payload into markdown and must not re-read the event past its awaits. A null event is a
-	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
+	/** `replacement` stands in for the clipboard text, for a caller that already converted the
+	 *  payload and can't re-read the event after its awaits. A null event is a scripted insert. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
+	/** Whether `handleBeforeInput` takes `e`, known before it runs: a character typed over a range. */
+	claimsBeforeInput(e: InputEvent): boolean;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
-	/** Type-replace from a caller with no `InputEvent`: the editor root, where a range over a block
-	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
+	/** A character typed over a range from a caller with no `InputEvent`: the editor root, where a
+	 *  range over a block with no character position leaves no element for `beforeinput`. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
-	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
-	performCrossBlockDeleteFromEvent(): Promise<void>;
+	/** After the composed text's write, whether or not there was one. */
+	handleCompositionEnd(): void;
+	/** The delete half of a cut, run once the handler wrote the clipboard synchronously. */
+	performCrossBlockCut(): Promise<void>;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
-	const mutationCtx: CrossBlockMutationContext = {
-		selection: ctx.selection,
-		getDoc: ctx.getDoc,
-		getBlockElByPath: ctx.getBlockElByPath,
-		revealPath: ctx.revealPath,
-		controller: ctx.controller,
-		pushUndoSnapshot: () =>
-			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		grammar: ctx.grammar,
-		getPresentationMode: ctx.getPresentationMode,
-		linkRef: ctx.linkRef
-	};
-
-	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
+	const keydown = createCrossBlockKeydown(ctx);
 	const pointer = createCrossBlockPointer(ctx);
 
-	// The reading-mode checks for the mutating handlers live here, so every construction site
-	// (each editable block, the editor root) inherits them. Keydown checks its own destructive
-	// branches, since it also carries navigation, which stays live.
-	const reading = () => isReadingMode(ctx.getPresentationMode);
+	const claimsBeforeInput = (e: InputEvent): boolean =>
+		ctx.selection.isCrossBlock && e.inputType === 'insertText';
 
 	const insertText = async (text: string): Promise<boolean> => {
-		if (reading()) return true;
+		// Refused quietly here, since the range replace's refusal warns about a key the editor lets
+		// through; this check goes once one reading-mode check sits in front of every key handler.
+		if (isReadingMode(ctx.reading.mode)) return true;
 		if (!ctx.selection.isCrossBlock) return false;
-		await handleCrossBlockTypeReplace(ctx, mutationCtx, text);
+		await replaceRange(ctx, { kind: 'text', text });
 		return true;
 	};
 
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
+		handleCompositionEnd: keydown.handleCompositionEnd,
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
-			if (reading()) {
-				e?.preventDefault();
-				return true;
-			}
-			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
+			if (!ctx.selection.isCrossBlock) return false;
+			e?.preventDefault();
+			// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
+			// clipboard read, and `??` would make that depend on callers never passing ''.
+			const text =
+				replacement !== undefined
+					? replacement
+					: normalizeLineEndings(e?.clipboardData?.getData('text/plain') ?? '');
+			await replaceRange(ctx, { kind: 'paste', text });
+			return true;
 		},
+		claimsBeforeInput,
 		handleBeforeInput: async (e) => {
-			if (reading()) {
-				e.preventDefault();
-				return true;
-			}
-			if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
+			if (!claimsBeforeInput(e)) return false;
 			e.preventDefault();
 			return insertText(e.data ?? '');
 		},
 		insertText,
-		performCrossBlockDeleteFromEvent: async () => {
-			// Reached from cut handlers after the clipboard write; declining the delete
-			// degrades a reading-mode cut to a copy.
-			if (reading()) return;
-			await performCrossBlockDelete(mutationCtx);
+		performCrossBlockCut: async () => {
+			await replaceRange(ctx, { kind: 'none', gesture: 'cut' });
 		}
 	};
 }

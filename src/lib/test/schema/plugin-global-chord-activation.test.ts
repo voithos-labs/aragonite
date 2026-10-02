@@ -1,6 +1,4 @@
-// Miss-analysis: the plugin-global chord suites drove one activation-blind dispatch each, so
-// nothing asked what a SECOND editor makes of a chord the first editor's plugin registered
-// process-wide (GH #265).
+// Miss-analysis: GH #265; each plugin-global chord suite used one editor, never asking a second.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
@@ -8,20 +6,13 @@ import {
 	resolveBinding,
 	resolveGlobalBinding,
 	runGlobalChord,
-	pluginGlobalChords,
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests,
-	type GlobalChordContext
+	pluginGlobalChords
 } from '$lib/schema/commands';
+import type { CommandDispatchContext } from '$lib/schema/block-commands';
 import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
+import { commandContext } from '../support/command-context';
 
 const CHORD = 'Mod+Shift+9';
 
@@ -30,21 +21,15 @@ const notListing = activationFor(['other']);
 
 let ran = 0;
 
-function chordContext(activation: typeof listing): GlobalChordContext {
-	return {
-		isReading: false,
-		history: { requestUndo() {}, requestRedo() {} },
+function chordContext(activation: typeof listing): CommandDispatchContext {
+	return commandContext({
 		pluginEditor: (name) =>
 			activation.isActive(name) ? ({} as never as EditorContext) : undefined,
 		activation
-	};
+	});
 }
 
 beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
-	__resetInstalledPluginsForTests();
 	ran = 0;
 	installPlugins([
 		definePlugin({
@@ -61,17 +46,17 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(resolveGlobalBinding(CHORD, undefined, listing)?.command).toBe('scoped.act');
 		expect(resolveBinding(CHORD, 'paragraph', undefined, listing)?.command).toBe('scoped.act');
 		expect(isDefaultGlobalChord(CHORD, listing)).toBe(true);
-		expect(runGlobalChord(CHORD, undefined, chordContext(listing))).toBe(true);
+		expect(runGlobalChord(CHORD, chordContext(listing))).toBe(true);
 		expect(ran).toBe(1);
 	});
 
-	// The key that does nothing: without the activation the keypress is swallowed and nothing
-	// runs, so the chord reaches neither the plugin nor the host.
+	// Resolving the chord here would swallow the keypress and run nothing, so it would reach
+	// neither the plugin nor the host.
 	it('the editor that never listed it resolves nothing and lets the press through', () => {
 		expect(resolveGlobalBinding(CHORD, undefined, notListing)).toBeNull();
 		expect(resolveBinding(CHORD, 'paragraph', undefined, notListing)).toBeNull();
 		expect(isDefaultGlobalChord(CHORD, notListing)).toBe(false);
-		expect(runGlobalChord(CHORD, undefined, chordContext(notListing))).toBe(false);
+		expect(runGlobalChord(CHORD, chordContext(notListing))).toBe(false);
 		expect(ran).toBe(0);
 	});
 

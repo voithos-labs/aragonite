@@ -14,20 +14,28 @@ import {
 	registerInlineWidgetKind,
 	registerBlockKind,
 	registerBlockOpener,
-	isInlineKindDeclared,
 	simpleLeafClosure,
-	matchFenceOpen,
-	matchFenceClose,
+	fenceAnatomy,
+	fenceRawWrite,
+	fenceShapeOfRaw,
+	matchFenceInfo,
+	scanFence,
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
+	displayLines,
+	joinDisplayLines,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	trimWhitespace,
 	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
-	type FenceOpen,
-	type NodeView
+	type WriteContext,
+	type WriteRule
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
@@ -36,7 +44,6 @@ export const MATH_FENCE = 'mathFence';
 
 // ── Recognition ──────────────────────────────────────────────────────────────
 
-const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 function indexDollars(raw: string): Int32Array {
@@ -54,12 +61,8 @@ const nextDollarFrom = createScanIndex(indexDollars);
 /** Money, written the way prose writes it: a whole number between the delimiters. */
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
-/**
- * Pandoc's rule, with one difference. A match always ends at the next `$`, whichever one that
- * is, and a closer that does not qualify leaves the opener literal; a closer needs a non-space
- * before it and no digit after it. Our addition: a span that is only a number is a price
- * (`$5$`), so a typed price stays prose.
- */
+/** Pandoc's rule: a match ends at the next `$`, and a closer with a space before it or a digit
+ *  after leaves the opener literal. Added: a span that is only a number (`$5$`) stays prose. */
 function recognizeMath(
 	raw: string,
 	pos: number,
@@ -69,7 +72,7 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespace(opener)) return null;
+	if (isFlankingSpace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
 	// opener, or the match would end on the second `$` of its own opener.
 	if (opener === '$') return null;
@@ -78,7 +81,7 @@ function recognizeMath(
 	// range leaves the `$` literal.
 	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
-	if (isWhitespace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
+	if (isFlankingSpace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
 	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
@@ -86,9 +89,6 @@ function recognizeMath(
 // ── Registration ─────────────────────────────────────────────────────────────
 
 export function registerMathInline(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
 		autoPair: true
@@ -159,69 +159,59 @@ function mathCaretAtPoint(
  * Round-trip stays byte-level on `raw`, so this never feeds serialization.
  */
 export function mathDisplaySource(source: string): string {
-	if (/^[ \t]*(?:`{3,}|~{3,})/.test(source)) {
-		const firstBreak = source.indexOf('\n');
-		if (firstBreak === -1) return '';
-		const body = source
-			.slice(firstBreak + 1)
-			.replace(/(?:\r?\n)?[ \t]*(?:`{3,}|~{3,})[ \t]*\r?\n?$/, '');
-		return body.trim();
-	}
+	const fence = fenceAnatomy(source);
+	if (fence) return trimWhitespace(source.slice(fence.bodyStart, fence.closerStart));
 	let inner = source;
 	if (inner.startsWith('$$')) inner = inner.slice(2);
 	if (inner.endsWith('$$')) inner = inner.slice(0, -2);
-	return inner.trim();
+	return trimWhitespace(inner);
 }
 
 // ── Writing a block's own bytes ────────────────────────────────────────────────
 
-/** The line ending `raw` carries, or '' where it ends mid-line. */
-const endingOf = (raw: string) => raw.slice(trimTrailingLineEnding(raw).length);
+/** The ending a restored closer line takes: the block's own, else the document's. */
+const closerEnding = (ctx: WriteContext) => trailingLineEnding(ctx.node.raw, ctx.lineEnding);
 
-/** A CRLF document leaves a carriage return at the end of every line split on `\n`. */
-function splitCarriageReturn(line: string): { text: string; cr: string } {
-	return line.endsWith('\r') ? { text: line.slice(0, -1), cr: '\r' } : { text: line, cr: '' };
-}
-
-/**
- * Put back a closer a truncating write dropped, declared on both math kinds as
- * `normalizeRawWrite`. Bytes reaching a block this way never came from the user typing its fence,
- * so a range that ran out of the body leaves the block standing rather than degrading it to a
- * paragraph, the same answer a fenced code block gives. A first line that no longer opens the
- * block is left alone: those bytes have stopped being its syntax.
- */
-function normalizeMathBlockRaw(raw: string, node: NodeView): string {
+/** The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
+ *  block does; a first line that does not open the block is left alone. */
+function normalizeMathBlockRaw(raw: string, ctx: WriteContext): string {
 	const display = trimTrailingLineEnding(raw);
-	const lines = display.split('\n');
-	const { text, cr } = splitCarriageReturn(lines[0]);
+	const lines = displayLines(display);
+	const { text } = lines[0];
 	if (!text.startsWith(BLOCK_FENCE)) return raw;
 	if (text === BLOCK_FENCE) {
-		if (lines.slice(1).some((line) => splitCarriageReturn(line).text === BLOCK_FENCE)) return raw;
-		return display + (endingOf(node.raw) || '\n') + BLOCK_FENCE + endingOf(raw);
+		if (lines.slice(1).some((line) => line.text === BLOCK_FENCE)) return raw;
+		return display + closerEnding(ctx) + BLOCK_FENCE + ownTrailingLineEnding(raw);
 	}
 	if (isBlockMathOpener(text)) return raw;
 	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
-	lines[0] = text + BLOCK_FENCE + cr;
-	return lines.join('\n') + endingOf(raw);
+	lines[0] = { ...lines[0], text: text + BLOCK_FENCE };
+	return joinDisplayLines(lines) + ownTrailingLineEnding(raw);
 }
 
-/** The same rule for the ```math form, whose closer is always a line of its own. The run to close
- *  on comes from the written opener, not the block's old one. */
-function normalizeMathFenceRaw(raw: string, node: NodeView): string {
-	const display = trimTrailingLineEnding(raw);
-	const lines = display.split('\n');
-	const fence = matchMathFence(splitCarriageReturn(lines[0]).text);
-	if (!fence) return raw;
-	const closes = (line: string) =>
-		matchFenceClose(splitCarriageReturn(line).text, fence.marker, fence.length);
-	if (lines.slice(1).some(closes)) return raw;
-	const closer = fence.indent + fence.marker.repeat(fence.length);
-	return display + (endingOf(node.raw) || '\n') + closer + endingOf(raw);
-}
+const mathBlockWrite: WriteRule = {
+	normalize: normalizeMathBlockRaw,
+	// A restored closer line goes after every written byte; only the one-line form's closer lands
+	// mid-write, at the end of line 0.
+	mapOffset: (raw, offset) => {
+		const { text } = displayLines(raw)[0];
+		const closesLineZero =
+			text.startsWith(BLOCK_FENCE) && text !== BLOCK_FENCE && !isBlockMathOpener(text);
+		return closesLineZero && offset > text.length ? offset + BLOCK_FENCE.length : offset;
+	}
+};
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
 
 const BLOCK_FENCE = '$$';
+
+/** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
+ *  became a paragraph, and a closer typed below still makes it math. */
+function awaitsBlockFenceCloser(raw: string): boolean {
+	if (!raw.startsWith(BLOCK_FENCE)) return false;
+	const [opener, ...rest] = displayLines(raw);
+	return opener.text === BLOCK_FENCE && !rest.some((line) => line.text === BLOCK_FENCE);
+}
 
 /** The length ≥ 4 test keeps the open/close pair disjoint; anything else `$$`-prefixed
  *  (`$$ x` with no same-line close) is not an opener and falls to a paragraph. */
@@ -237,6 +227,9 @@ export function registerMathBlock(): void {
 	// A block that holds its own source, like `fencedCode`: `serialize` re-emits
 	// `leadingTrivia + raw`, so a raw built from the exact fence bytes round-trips byte for byte.
 	registerBlockKind(mathBlock, {
+		label: 'Math block',
+		// A formula's source makes a poor label on the drag ghost.
+		dragLabel: 'Equation',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -245,7 +238,7 @@ export function registerMathBlock(): void {
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		caretTargetAtPoint: mathCaretAtPoint,
-		normalizeRawWrite: normalizeMathBlockRaw,
+		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -271,6 +264,7 @@ export function registerMathBlock(): void {
 		// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
+		readingNotFinal: awaitsBlockFenceCloser,
 		tryOpen(ctx) {
 			const text = ctx.line.text;
 			if (!text.startsWith(BLOCK_FENCE)) return null;
@@ -307,24 +301,20 @@ export function registerMathBlock(): void {
 // GitHub's third math form: a block holding its own source, like the `$$` block, rendered by
 // the same component.
 
-const FENCE_INFO_TOKEN = 'math';
-
-function matchMathFence(text: string): FenceOpen | null {
-	const fence = matchFenceOpen(text);
-	return fence && fence.info.split(/\s+/)[0] === FENCE_INFO_TOKEN ? fence : null;
-}
+const matchMathFence = matchFenceInfo('math');
 
 export function registerMathFence(): void {
 	const mathFence = declarePluginKind(MATH_FENCE);
 
 	registerBlockKind(mathFence, {
+		label: 'Math block',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
-		normalizeRawWrite: normalizeMathFenceRaw,
+		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -357,23 +347,12 @@ export function registerMathFence(): void {
 			const fence = matchMathFence(ctx.line.text);
 			if (!fence) return null;
 
-			let closeIdx = -1;
-			for (let i = ctx.index + 1; i < ctx.end; i++) {
-				if (matchFenceClose(ctx.lines[i].text, fence.marker, fence.length)) {
-					closeIdx = i;
-					break;
-				}
-			}
+			const scan = scanFence(ctx, fence);
 			// An unterminated fence backs out, so the built-in fencedCode takes it as a plain
 			// `math` code block, matching the `$$` block.
-			if (closeIdx === -1) return null;
-
-			const raw = ctx.lines
-				.slice(ctx.index, closeIdx + 1)
-				.map((l) => l.raw)
-				.join('');
-			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, consumed: closeIdx + 1 - ctx.index };
+			if (scan.closer === -1) return null;
+			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw: scan.raw };
+			return { node, consumed: scan.consumed };
 		}
 	});
 }

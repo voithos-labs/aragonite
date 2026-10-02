@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { pointInGap } from '../../text-runs';
 
 // The public caret-placing method, driven through the bridge the way a host shell answering a
 // click on its own toolbar calls it (`requirements/selection/place-caret-at-point.md`). No
@@ -54,10 +55,15 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 	test('a point beside a line lands the caret at the end of that line', async () => {
 		// Long enough to wrap, so "end of that line" and "end of the block" differ.
 		await editor.loadContent(`${'alpha '.repeat(60).trim()}\n`);
-		const root = await rootBox();
 		const para = await blockBox(0);
+		const margin = await pointInGap(
+			editor.editorContainer,
+			editor.page.locator(`[data-block-path='[0]']`),
+			'right',
+			para.top + 6
+		);
 
-		expect(await placeAt(root.right - 5, para.top + 6)).toBe(true);
+		expect(await placeAt(margin.x, margin.y)).toBe(true);
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -76,6 +82,24 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		await editor.bridge.waitForSourceContains('!');
 
 		expect((await editor.bridge.getSource()).trim()).toBe('!first para\n\nsecond para');
+	});
+
+	// The tail is windowed out, so the landing mounts it first; the end it lands at is the outside
+	// of the hidden closer, as an End key there would be.
+	test('live mode: a point below a windowed-out tail lands after a closing marker', async () => {
+		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		const body = Array.from({ length: 200 }, (_, i) => `paragraph ${i}`).join('\n\n');
+		await editor.loadContent(`${body}\n\n**a**\n`);
+		await editor.waitForRenderFlush();
+		await expect(editor.page.locator(`[data-block-path='[200]']`)).toHaveCount(0);
+		const root = await rootBox();
+
+		expect(await placeAt(root.left + 40, root.bottom + 200)).toBe(true);
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceContains('x');
+
+		const source = await editor.bridge.getSource();
+		expect(source.slice(source.lastIndexOf('\n\n'))).toBe('\n\n**a**x\n');
 	});
 
 	// A false answer is what lets the shell do something else with the click.

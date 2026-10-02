@@ -5,6 +5,8 @@
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
+import type { GrammarView } from '../../../schema/block-openers';
+import { resolvesIn } from '../../../schema/plugin-activation';
 import { inlineDescendants } from '../walk';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
@@ -27,28 +29,28 @@ import {
 	isScanProbeTrigger,
 	type InlineRung
 } from './plugin-syntax';
+import { BUILTIN_TRIGGERS } from './triggers';
 
-// Every character that can start a construct or anchor a lookback: the dispatch cases below
-// plus `@` (GFM email lookback). `!` and `]` are deliberately absent, mattering only in ranges
-// that also contain `[`; a plugin registration makes `!` visible (plugin-syntax.ts).
-const SPECIAL_CHARS = '\\`&\n<[*_~@';
+// Every character that always sends a range through the scan loop: the built-in triggers the
+// table marks `always`, plus `@`, which anchors the GFM email lookback without a handler.
+const SPECIAL = new Uint8Array(128);
+for (const [char, { scanned }] of BUILTIN_TRIGGERS) {
+	if (scanned === 'always') SPECIAL[char.charCodeAt(0)] = 1;
+}
+SPECIAL[0x40] = 1; // @
 
-// GFM bare http/www autolinks contain no character from the set above, so their starts get
-// conditional probes: `:` counts only when `//` follows, `w`/`W` only on a `www.` prefix. The
-// lookahead may read past `end` and over-trigger, which costs one wasted scan, never a node.
+// Bare http/www autolinks hold no character above, so `:` counts only before `//` and `w`/`W`
+// only on `www.`; a lookahead past `end` costs one wasted scan, never a node.
 const PROBE_SCHEME = 2;
 const PROBE_WWW = 3;
-
-const SPECIAL = new Uint8Array(128);
-for (let i = 0; i < SPECIAL_CHARS.length; i++) SPECIAL[SPECIAL_CHARS.charCodeAt(i)] = 1;
 SPECIAL[0x3a] = PROBE_SCHEME; // :
 SPECIAL[0x57] = PROBE_WWW; // W
 SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
 function needsScan(raw: string, start: number, end: number): boolean {
-	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them only when
-	// something is registered; an unregistered scan pays one always-false test per character.
+	// Registered plugin triggers are held out of SPECIAL, so check them only when something
+	// is registered; an unregistered scan pays one always-false test per character.
 	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
@@ -79,15 +81,18 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	return false;
 }
 
-// Tries a trigger's plugin handlers in dispatch order: the first whose prefix matches at `ctx.pos`
-// and whose recognizer claims wins. The claim checks live here once, for both dispatch paths,
-// after the decline so a declining handler pays nothing and leaves `ctx` untouched.
-function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
+// The first handler whose prefix matches at `ctx.pos`, whose plugin this editor lists and whose
+// recognizer returns a node wins; that node is checked here, once for both dispatch paths.
+function tryRungs(
+	ctx: ScanContext,
+	rungs: InlineRung[] | undefined,
+	grammar: GrammarView
+): InlineNode | null {
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
 	for (const rung of rungs) {
-		if (!raw.startsWith(rung.prefix, pos)) continue;
-		const node = rung.recognizer(raw, pos, end);
+		if (!raw.startsWith(rung.prefix, pos) || !resolvesIn(grammar.activation, rung.owner)) continue;
+		const node = rung.recognizer(raw, pos, end, grammar);
 		if (!node) continue;
 		if (node.start !== pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" started at ${node.start}, expected ${pos}`);
@@ -95,10 +100,8 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
 		}
-		// A block's scan range is not always its whole raw (a heading's excludes the closing `#`
-		// run, a table cell's the `|`), so a recognizer searching the whole string claims bytes the
-		// block still needs, and the only trace is wrong caret offsets. Ending exactly at `end` is
-		// fine; only past it is a fault.
+		// A block's scan range is not always its whole raw (a setext heading's stops before its
+		// underline), so a recognizer that reads past `end` takes bytes the block still needs.
 		if (node.end > end) {
 			throw new Error(
 				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
@@ -111,22 +114,21 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 	return null;
 }
 
-// A plugin handler that creates a built-in kind (an `image` over `![[cat.png]]`) borrows the
-// editor's model for its own bytes, and the editor's writers emit built-in grammar, so a resize
-// would rewrite the author's syntax as GFM; the claim tells the writers whose syntax it is.
-// Descendants are marked by the same rule; a plugin's own kind needs no mark. Assigned, never
-// merged, so a recognizer cannot name its own claimer.
+// A built-in node a plugin handler created (an `image` over `![[cat.png]]`) is marked with that
+// handler, so the editor's writers re-serialize it in the plugin's syntax rather than GFM.
 function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
 	for (const inline of inlineDescendants([node])) {
 		if (isBuiltinInlineKind(inline.kind)) inline.syntaxClaim = claim;
 	}
 }
 
+/** `grammar` is the editor's: a handler whose plugin it leaves out never runs, so its bytes stay text. */
 export function scanInline(
 	raw: string,
 	start: number,
 	end: number,
-	resolver?: LinkReferenceResolver
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
 ): InlineNode[] {
 	if (start >= end) return [];
 	if (!needsScan(raw, start, end)) {
@@ -134,19 +136,19 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
-	// Reserved-trigger prefix handlers are consulted before the switch so they can outrank a
-	// built-in one: a built-in handler consumes its trigger and advances (`handleBang` eats `![`
-	// whole), so the scan never returns to a position the switch has read. The check is hoisted
-	// so an empty registry costs nothing.
+	// Plugin handlers on a built-in trigger run before the switch, whose handler consumes the
+	// trigger (`handleBang` eats `![` whole); hoisted so an empty registry costs nothing.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {
-			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]));
+			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]), grammar);
 			if (node) {
 				appendNode(ctx, node);
 				continue;
 			}
 		}
+		// A switch with direct calls, not a lookup in the trigger table: an indirect call per
+		// trigger measured slower. A test holds the cases equal to the table's rows.
 		switch (raw[ctx.pos]) {
 			case '\\':
 				handleBackslash(ctx);
@@ -179,7 +181,7 @@ export function scanInline(
 				break;
 			default: {
 				if (hasInlineSyntax()) {
-					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]));
+					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]), grammar);
 					if (node) {
 						appendNode(ctx, node);
 						break;

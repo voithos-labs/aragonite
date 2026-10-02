@@ -78,9 +78,8 @@ test.describe('live mode: a selection out of one construct and into another', ()
 
 test.describe('live mode: the join across a block boundary', () => {
 	/**
-	 * From inside the bold of one paragraph to the start of the next. Once the selection crosses a
-	 * block boundary it extends whole blocks at a time, so the far endpoint is a block start rather
-	 * than the inside of a second construct; the two-sided case is covered in the unit tests.
+	 * Once the selection crosses a block boundary it extends whole blocks, so the far endpoint is a
+	 * block start; the two-sided case is in the unit tests.
 	 */
 	async function selectAcrossBlocks(ep: EditorPage, page: Page): Promise<void> {
 		await clickWordSettled(ep, page, 'Alpha');

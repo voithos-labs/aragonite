@@ -7,24 +7,15 @@
 import {
 	computeInlineContent,
 	headingLevel,
+	trimWhitespace,
+	walkBlocks,
 	type DocumentView,
-	type InlineNode,
-	type NodeView
+	type EditorContext,
+	type InlineNode
 } from '$lib/plugin';
 
 /** Deepest heading level a document can list; `[[toc]]` has no meaning past GFM's six. */
 export const MAX_HEADING_DEPTH = 6;
-
-/**
- * The depth from this editor's `{ plugin, options }` entry, else `fallback`, which is the
- * factory argument's default for a plain install. Options arrive as `unknown`, so anything but
- * a whole number in 1..6 is not a depth and falls back rather than listing nothing.
- */
-export function resolveMaxDepth(options: unknown, fallback: number): number {
-	const declared = (options as { maxDepth?: unknown } | undefined)?.maxDepth;
-	if (typeof declared !== 'number' || !Number.isInteger(declared)) return fallback;
-	return declared >= 1 && declared <= MAX_HEADING_DEPTH ? declared : fallback;
-}
 
 export interface TocEntry {
 	/** Stable and unique per position: the keyed-loop identity. */
@@ -52,28 +43,26 @@ export function projectInlineText(nodes: readonly InlineNode[], raw: string): st
 	return text;
 }
 
-export function collectHeadings(document: DocumentView | undefined, maxDepth: number): TocEntry[] {
+/** Labels read through `read`, the editor's inline parse, so syntax it left out stays text. */
+export function collectHeadings(
+	document: DocumentView | undefined,
+	maxDepth: number,
+	read: EditorContext['computeInlineContent'] = computeInlineContent
+): TocEntry[] {
 	const entries: TocEntry[] = [];
-
-	const walk = (children: readonly NodeView[], basePath: number[]): void => {
-		children.forEach((node, index) => {
-			const path = [...basePath, index];
-			const level = headingLevel(node);
-			if (level !== null) {
-				if (level <= maxDepth) {
-					entries.push({
-						id: path.join('.'),
-						path,
-						level,
-						label: projectInlineText(computeInlineContent(node), node.raw).trim()
-					});
-				}
-			} else if (node.children && node.children.length > 0) {
-				walk(node.children, path);
-			}
-		});
-	};
-
-	walk(document?.children ?? [], []);
+	if (!document) return entries;
+	walkBlocks(document, (node, path) => {
+		const level = headingLevel(node);
+		if (level === null) return;
+		if (level <= maxDepth) {
+			entries.push({
+				id: path.join('.'),
+				path,
+				level,
+				label: trimWhitespace(projectInlineText(read(node), node.raw))
+			});
+		}
+		return 'skip';
+	});
 	return entries;
 }

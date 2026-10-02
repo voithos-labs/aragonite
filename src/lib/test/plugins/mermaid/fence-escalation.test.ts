@@ -1,38 +1,25 @@
-// Miss-analysis: the round-trip property only checks bodies the opener produced, so it can only
-// draw bodies that already fit inside their fence; the edit path, where a body the block never
-// parsed is written back into it, had no property at all. The container kit's terminator cell
-// covers this class elsewhere but cannot reach this shape: it drives the last child through
-// `bodyWrite`, and this container has neither.
+// Miss-analysis: the round-trip property never drew a body written back by an edit.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '$lib';
-import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-import {
-	registerMermaidKind,
-	rebuildMermaidRaw,
-	type MermaidMetadata
-} from '$lib/plugins/mermaid/mermaid-kind';
+import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { makeTopHarness } from '$lib/test/harness/editor-actions';
 
-/** The whole edit path: a shallow metadata merge, then the kind's rebuild. */
-function commitCode(source: string, code: string): { node: CstNode; doc: Document } {
-	const doc = parse(source);
-	const node = doc.children[0];
-	expect(node.kind).toBe('mermaid');
-	const meta = getPluginMetadata<MermaidMetadata>(node);
-	setPluginMetadata<MermaidMetadata>(node, { ...meta!, code });
-	rebuildMermaidRaw(node);
-	return { node, doc };
+/** The commit a code edit makes (`updateOwnMetadata`), through the chain rebuild. */
+async function commitCode(source: string, code: string): Promise<{ node: CstNode; doc: Document }> {
+	const { deps, actions } = makeTopHarness(source);
+	expect(deps.doc.children[0].kind).toBe('mermaid');
+	expect(await actions.updateBlockMetadata(0, { code })).toBe(true);
+	return { node: deps.doc.children[0], doc: deps.doc };
 }
 
 describe('a mermaid body carrying a fence run', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 
-	it('grows the opener and the closer past the run, so the block survives its next parse', () => {
-		const { node, doc } = commitCode('```mermaid\ngraph TD\n```\n', 'graph TD\n```\nafter\n');
+	it('grows the opener and the closer past the run, so the block survives its next parse', async () => {
+		const { node, doc } = await commitCode('```mermaid\ngraph TD\n```\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\nafter\n````\n');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(serialize(parse(node.raw))).toBe(node.raw);
@@ -40,37 +27,40 @@ describe('a mermaid body carrying a fence run', () => {
 
 	// Marker-aware, not backtick-blind: a tilde fence is closed by tildes, so a backtick run in
 	// the body is ordinary content and growing the fence would rewrite bytes for nothing.
-	it('leaves a tilde fence alone around a backtick body', () => {
-		const { node, doc } = commitCode('~~~mermaid\ngraph TD\n~~~\n', 'graph TD\n```\nafter\n');
+	it('leaves a tilde fence alone around a backtick body', async () => {
+		const { node, doc } = await commitCode('~~~mermaid\ngraph TD\n~~~\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('~~~mermaid\ngraph TD\n```\nafter\n~~~\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	it('escalates a tilde fence for a tilde run', () => {
-		const { node, doc } = commitCode('~~~mermaid\ngraph TD\n~~~\n', 'graph TD\n~~~~\n');
+	it('escalates a tilde fence for a tilde run', async () => {
+		const { node, doc } = await commitCode('~~~mermaid\ngraph TD\n~~~\n', 'graph TD\n~~~~\n');
 		expect(node.raw).toBe('~~~~~mermaid\ngraph TD\n~~~~\n~~~~~\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
 	// An unterminated block has no closer line to grow, and the parser reads it to the end of
 	// the input either way; adding one would invent bytes the author never wrote.
-	it('grows the opener of an unterminated block and creates no closer', () => {
-		const { node } = commitCode('```mermaid\ngraph TD\n', 'graph TD\n```\nafter\n');
+	it('grows the opener of an unterminated block and creates no closer', async () => {
+		const { node } = await commitCode('```mermaid\ngraph TD\n', 'graph TD\n```\nafter\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\nafter\n');
 	});
 
-	it('keeps a closer already longer than the escalated opener, and its authored indent', () => {
-		const { node } = commitCode('```mermaid\ngraph TD\n  `````  \n', 'graph TD\n```\n');
+	it('keeps a closer already longer than the escalated opener, and its authored indent', async () => {
+		const { node } = await commitCode('```mermaid\ngraph TD\n  `````  \n', 'graph TD\n```\n');
 		expect(node.raw).toBe('````mermaid\ngraph TD\n```\n  `````  \n');
 	});
 
-	it('rewrites nothing when the body carries no run of its own', () => {
-		const { node } = commitCode('```mermaid\ngraph TD\n```\n', 'graph LR\n');
+	it('rewrites nothing when the body carries no run of its own', async () => {
+		const { node } = await commitCode('```mermaid\ngraph TD\n```\n', 'graph LR\n');
 		expect(node.raw).toBe('```mermaid\ngraph LR\n```\n');
 	});
 
-	it('carries the authored CRLF through an escalation', () => {
-		const { node, doc } = commitCode('```mermaid\r\ngraph TD\r\n```\r\n', 'graph TD\r\n```\r\n');
+	it('carries the authored CRLF through an escalation', async () => {
+		const { node, doc } = await commitCode(
+			'```mermaid\r\ngraph TD\r\n```\r\n',
+			'graph TD\r\n```\r\n'
+		);
 		expect(node.raw).toBe('````mermaid\r\ngraph TD\r\n```\r\n````\r\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});

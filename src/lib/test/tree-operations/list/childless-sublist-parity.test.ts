@@ -1,8 +1,8 @@
 /**
- * U1 and the empty-item exit partition an item's children by one promote/lift rule, so a
- * matching-ordered sublist with no items must land the same way in both and keep its bytes,
- * in either representation of childless. Miss-analysis: each entry path was tested alone, so
- * the two dispositions of one shape were never compared as a class.
+ * `unwrapFirstItemFromList` and the empty-item exit sort an item's children by one lift rule, so
+ * a matching-ordered sublist with no items must end up the same in both, bytes intact, whether
+ * its children are `undefined` or `[]`.
+ * Miss-analysis: each entry path was tested alone, never compared with the other on one shape.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -60,7 +60,7 @@ describe.each(CHILDLESS_SHAPES)('matching-ordered sublist with $label', ({ child
 	});
 
 	it('exit lifts it as a top-level block, bytes intact', () => {
-		const { blocks } = buildExitReplacement(blankFirstParagraph(fixture()), 0);
+		const { blocks } = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n');
 
 		expect(sublistIn(blocks)).toBeDefined();
 		expect(serializeBlocks(blocks)).toContain(GHOST_RAW);
@@ -68,7 +68,7 @@ describe.each(CHILDLESS_SHAPES)('matching-ordered sublist with $label', ({ child
 
 	it('both entry points give it the same disposition', () => {
 		const unwrapped = unwrapFirstItemFromList(fixture());
-		const exited = buildExitReplacement(blankFirstParagraph(fixture()), 0).blocks;
+		const exited = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n').blocks;
 
 		expect(sublistIn(unwrapped)).toBeDefined();
 		expect(sublistIn(exited)?.raw).toBe(sublistIn(unwrapped)?.raw);

@@ -14,13 +14,8 @@ export const EDITOR_SRC = path.resolve('src/lib');
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
 export const ROUTES_SRC = path.resolve('src/routes');
 
-/**
- * The roots a repo-wide scan must cover: the library, plus the repo's only first-party
- * stand-ins for an external author (the reference plugins and the consumer example). A
- * rule that holds for `src/lib` and not for them ships a reference implementation that
- * models the violation. A genuinely library-internal lint opts out by passing
- * `EDITOR_SRC` explicitly and saying why.
- */
+/** The library plus the reference plugins and the consumer example, which stand in for an outside
+ *  author and must not model a violation. A library-only lint passes `EDITOR_SRC` and says why. */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
 	path.resolve('src/routes/test/plugins'),
@@ -36,85 +31,89 @@ export interface SourceFile {
 	code: string;
 }
 
-/**
- * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
- * scan. A marker inside a string, template or regex literal is text: blanking one truncates the
- * line and drops whatever followed from the census that reads it.
- */
-export function stripComments(text: string): string {
+/** Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
+ *  scan. A comment marker inside a string, template or regex literal is text and stays. */
+export function stripComments(text: string, language: SourceLanguage): string {
 	let out = '';
-	let i = 0;
-	while (i < text.length) {
-		const span = spanAt(text, i);
-		if (span === null) {
-			out += text[i];
-			i++;
-			continue;
-		}
-		out += strippedSpan(text, i, span);
-		i = span.end;
+	let at = 0;
+	for (const span of commentSpans(text, language)) {
+		out += text.slice(at, span.start) + text.slice(span.start, span.end).replace(/[^\n]/g, ' ');
+		at = span.end;
 	}
-	return out;
+	return out + text.slice(at);
 }
 
 /**
- * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
- * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
- * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code;
- * `includeStyles` adds `.css`, off by default so a code-shape scan never reads stylesheet
- * text (a `url(//…)` would blank as a comment).
+ * Every file under `root` ending in one of `extensions`, as sorted posix paths from the repo
+ * root. A directory named in `skip` is not entered. The one directory walk the lints share.
  */
-export function collectEditorSources(
-	dir?: string,
-	options: { includeTests?: boolean; includeStyles?: boolean } = {}
-): SourceFile[] {
+export function collectFiles(
+	root: string,
+	options: { extensions: readonly string[]; skip?: readonly string[] }
+): string[] {
 	const repoRoot = path.resolve('.');
-	const files: SourceFile[] = [];
-
+	const found: string[] = [];
 	function walk(current: string): void {
 		for (const entry of readdirSync(current, { withFileTypes: true })) {
 			const full = path.join(current, entry.name);
 			if (entry.isDirectory()) {
-				if (!options.includeTests && (entry.name === 'test' || entry.name === 'e2e')) continue;
-				walk(full);
-				continue;
+				if (!options.skip?.includes(entry.name)) walk(full);
+			} else if (options.extensions.some((extension) => entry.name.endsWith(extension))) {
+				found.push(path.relative(repoRoot, full).split(path.sep).join('/'));
 			}
-			const isScannable =
-				(entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
-				entry.name.endsWith('.svelte') ||
-				(options.includeStyles === true && entry.name.endsWith('.css'));
-			if (!isScannable) continue;
-			const text = readFileSync(full, 'utf8');
-			files.push({
-				relPath: path.relative(repoRoot, full).split(path.sep).join('/'),
-				text,
-				code: stripComments(text)
-			});
 		}
 	}
+	walk(path.resolve(root));
+	return found.sort();
+}
 
-	for (const root of dir === undefined ? REPO_WIDE_ROOTS : [dir]) walk(root);
-	return files;
+/** A source file by its path from the repo root, comments blanked in `code`. */
+export function readSource(relPath: string): SourceFile {
+	return sourceFile(relPath, readFileSync(path.resolve(relPath), 'utf8'));
+}
+
+/** `text` as the file at `relPath`, lexed in the language its extension names. */
+export function sourceFile(relPath: string, text: string): SourceFile {
+	return { relPath, text, code: stripComments(text, languageOf(relPath)) };
+}
+
+/** Each character's class in `file.code`, read in the language the file's path names. */
+export function fileClasses(file: SourceFile): Uint8Array {
+	return lexicalClasses(file.code, languageOf(file.relPath));
+}
+
+/** Every `.ts`/`.svelte` file under `dir` (default `REPO_WIDE_ROOTS`) but `.d.ts`, and `test`/`e2e`
+ *  unless `includeTests`; `.css` too with `includeStyles`. */
+export function collectEditorSources(
+	dir?: string,
+	options: { includeTests?: boolean; includeStyles?: boolean } = {}
+): SourceFile[] {
+	const extensions = options.includeStyles ? ['.ts', '.svelte', '.css'] : ['.ts', '.svelte'];
+	const skip = options.includeTests ? [] : ['test', 'e2e'];
+	return (dir === undefined ? REPO_WIDE_ROOTS : [dir])
+		.flatMap((root) => collectFiles(root, { extensions, skip }))
+		.filter((relPath) => !relPath.endsWith('.d.ts'))
+		.map(readSource);
 }
 
 export function readEditorFile(relFromEditor: string): SourceFile {
-	const full = path.join(EDITOR_SRC, relFromEditor);
-	const repoRoot = path.resolve('.');
-	const text = readFileSync(full, 'utf8');
-	return {
-		relPath: path.relative(repoRoot, full).split(path.sep).join('/'),
-		text,
-		code: stripComments(text)
-	};
+	return readSource(
+		path.relative(path.resolve('.'), path.join(EDITOR_SRC, relFromEditor)).split(path.sep).join('/')
+	);
+}
+
+/** The bundled plugins, by directory name under `src/lib/plugins`. */
+export function bundledPluginDirs(): string[] {
+	return readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name)
+		.sort();
 }
 
 // ── Literal-aware walk ───────────────────────────────────────────────────────
 
-/**
- * Visit each character of `code` from `from` that is real code: strings, templates, comments
- * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
- * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
- */
+/** Visit each character of `code` from `from` that is real code, stepping over literals and
+ *  comments whole; returns the index `visit` stopped at, or `code.length` if it ran out. */
 export function walkCode(
 	code: string,
 	from: number,
@@ -131,16 +130,64 @@ export function walkCode(
 	return code.length;
 }
 
-/**
- * The non-code span starting at `i` (a string, template, comment or regex literal), or null where
- * code continues. The one place the lexing rules live.
- */
-function spanAt(code: string, i: number): Span | null {
+export interface LiteralSpan {
+	start: number;
+	/** Index just past the literal's closing quote, backtick or regex flags. */
+	end: number;
+	kind: 'string' | 'template' | 'regex';
+}
+
+/** Every string, template and regex literal in `code`, outermost first; comments are skipped. */
+export function literalSpans(code: string): LiteralSpan[] {
+	const out: LiteralSpan[] = [];
+	for (let i = 0; i < code.length; i++) {
+		const span = spanAt(code, i);
+		if (span === null) continue;
+		if (span.kind === 'template') out.push({ start: i, end: span.end, kind: 'template' });
+		else if (span.kind === 'literal') {
+			out.push({ start: i, end: span.end, kind: code[i] === '/' ? 'regex' : 'string' });
+		}
+		i = span.end - 1;
+	}
+	return out;
+}
+
+/** The value of the string or template literal starting at `at`, or null where none starts
+ *  there or a `${…}` interpolation makes it unknowable. */
+export function stringLiteralAt(code: string, at: number): { value: string; end: number } | null {
+	const span = spanAt(code, at);
+	if (span === null || span.kind === 'comment' || code[at] === '/') return null;
+	if (code[span.end - 1] !== code[at] || span.end - at < 2) return null;
+	const body = code.slice(at + 1, span.end - 1);
+	if (span.kind === 'template' && body.includes('${')) return null;
+	const escapes: Record<string, string> = { n: '\n', t: '\t', r: '\r' };
+	return { value: body.replace(/\\(.)/gs, (_, ch: string) => escapes[ch] ?? ch), end: span.end };
+}
+
+/** The regex literal starting at `at`, compiled, or null where none starts there. */
+export function regexLiteralAt(code: string, at: number): { value: RegExp; end: number } | null {
+	const span = spanAt(code, at);
+	if (span === null || span.kind !== 'literal' || code[at] !== '/') return null;
+	const literal = code.slice(at, span.end);
+	const close = literal.lastIndexOf('/');
+	try {
+		return { value: new RegExp(literal.slice(1, close), literal.slice(close + 1)), end: span.end };
+	} catch {
+		return null;
+	}
+}
+
+/** The string, template, comment or regex literal starting at `i`, or null where code continues.
+ *  Script and stylesheet rules live only here; markup's are in `classifyComponent`. */
+function spanAt(code: string, i: number, language: BodyLanguage = 'script'): Span | null {
 	const ch = code[i];
 	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
+	if (language === 'stylesheet') {
+		return code.startsWith('/*', i) ? { end: skipBlockComment(code, i), kind: 'comment' } : null;
+	}
 	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
-	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches this
-	// only in code position, and G4.57's TypeScript check fails if a `.ts` file ever writes one.
+	// Markup's comment form, read in script mode too for a caller that hands it markup; the
+	// TypeScript differential fails if a `.ts` file ever writes one (G4.57).
 	if (ch === '<') {
 		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
 	}
@@ -154,21 +201,6 @@ function spanAt(code: string, i: number): Span | null {
 interface Span {
 	end: number;
 	kind: 'comment' | 'template' | 'literal';
-}
-
-/** A span as `stripComments` writes it: a comment blanks, a template keeps its own bytes and
- *  its `${…}` interpolations stay code. */
-function strippedSpan(text: string, start: number, span: Span): string {
-	const source = text.slice(start, span.end);
-	if (span.kind === 'comment') return source.replace(/[^\n]/g, ' ');
-	if (span.kind !== 'template') return source;
-	let out = '';
-	let at = start;
-	skipTemplate(text, start, (from, to) => {
-		out += text.slice(at, from) + stripComments(text.slice(from, to));
-		at = to;
-	});
-	return out + text.slice(at, span.end);
 }
 
 /** Index just past the string at `i`; an unterminated one ends at its line, as JS requires. */
@@ -194,16 +226,21 @@ function skipTemplate(
 		if (ch === '\\') j++;
 		else if (ch === '`') return j + 1;
 		else if (ch === '$' && code[j + 1] === '{') {
-			let depth = 1;
-			const close = walkCode(code, j + 2, (c) => {
-				if (c === '{') depth++;
-				else if (c === '}') return --depth === 0;
-			});
+			const close = closingBrace(code, j + 2);
 			onInterpolation?.(j + 2, close);
 			j = close;
 		}
 	}
 	return code.length;
+}
+
+/** The `}` closing a brace opened just before `from`, its interior read as script. */
+function closingBrace(code: string, from: number): number {
+	let depth = 1;
+	return walkCode(code, from, (c) => {
+		if (c === '{') depth++;
+		else if (c === '}') return --depth === 0;
+	});
 }
 
 function endOfLine(code: string, i: number): number {
@@ -239,12 +276,12 @@ function skipRegex(code: string, i: number): number | null {
 	return null;
 }
 
-/**
- * Operand position, which is where a `/` opens a regex; after a value it divides. `}` is not
- * one: TypeScript's own parser finds no regex preceded by `}` anywhere in the tree, while
- * Svelte markup (`{a}/{b}`) is full of the shape.
- */
-const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';']);
+/** Operand position, where a `/` opens a regex; after a value it divides. `}` and a lone `<` or `>`
+ *  are left out, since Svelte markup (`{a}/{b}`, `</p>`) is full of those shapes. */
+const REGEX_OPERAND_CHARS = new Set([
+	...['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';'],
+	...['+', '-', '*', '%', '^', '~']
+]);
 
 /** Reserved words an expression directly follows, so a `/` after one opens a regex (`if` for
  *  Svelte's `{#if …}`). A plain identifier never joins: it can be a value. */
@@ -269,7 +306,10 @@ function opensRegex(code: string, at: number): boolean {
 	let i = at - 1;
 	while (i >= 0 && /\s/.test(code[i])) i--;
 	if (i < 0) return true;
-	if (code[i] === '>') return code[i - 1] === '=';
+	if (code[i] === '>') return code[i - 1] === '=' || code[i - 1] === '>';
+	if (code[i] === '<') return code[i - 1] === '<';
+	// After a postfix `i++` or `i--` the slash divides.
+	if ((code[i] === '+' || code[i] === '-') && code[i - 1] === code[i]) return false;
 	if (REGEX_OPERAND_CHARS.has(code[i])) return true;
 	let start = i + 1;
 	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;
@@ -277,9 +317,6 @@ function opensRegex(code: string, at: number): boolean {
 	return REGEX_OPERAND_WORDS.has(code.slice(start, i + 1));
 }
 
-// ── Lexical classification ───────────────────────────────────────────────────
-
-/** Class names in the order {@link lexicalClasses} numbers them. */
 // ── Prose surfaces ──────────────────────────────────────────────────────
 
 /** A component mounting an editable surface of its own. */
@@ -299,36 +336,339 @@ export function isProseSurface(file: SourceFile): boolean {
 		file.relPath.endsWith('.svelte') &&
 		SURFACE_FACTORY.test(file.code) &&
 		INSTALLS_BEFOREINPUT.test(file.code) &&
-		READS_INLINE_POLICY.test(stripComments(file.text))
+		READS_INLINE_POLICY.test(file.code)
 	);
 }
 
+// ── Lexical classification ───────────────────────────────────────────────────
+
+/** How a file lexes, picked from its path by {@link languageOf}. */
+export type SourceLanguage = 'script' | 'stylesheet' | 'component';
+
+/** The language of a `<script>` or `<style>` body, which holds no markup. */
+type BodyLanguage = Exclude<SourceLanguage, 'component'>;
+
+export function languageOf(relPath: string): SourceLanguage {
+	if (relPath.endsWith('.css')) return 'stylesheet';
+	return relPath.endsWith('.svelte') ? 'component' : 'script';
+}
+
+/** Class names in the order {@link lexicalClasses} numbers them. */
 export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
 
 const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);
 
 /** Each character's class, exported so the differential can hold this lexer against TypeScript's. */
-export function lexicalClasses(code: string): Uint8Array {
+export function lexicalClasses(code: string, language: SourceLanguage): Uint8Array {
 	const out = new Uint8Array(code.length);
-	classifyRange(code, 0, code.length, out);
+	if (language === 'component') classifyComponent(code, out);
+	else classifyRange(code, 0, code.length, out, language);
 	return out;
 }
 
-/** A template's `${…}` interiors are code, which is how `stripComments` already reads them. */
-function classifyRange(code: string, from: number, to: number, out: Uint8Array): void {
+export interface CommentSpan {
+	start: number;
+	/** Index just past the comment's closing syntax, or its line's end for a `//` comment. */
+	end: number;
+	kind: 'line' | 'block' | 'markup';
+}
+
+/** Every comment in `text`, in order: what `stripComments` blanks and the comment lints read. */
+export function commentSpans(text: string, language: SourceLanguage): CommentSpan[] {
+	const classes = lexicalClasses(text, language);
+	const out: CommentSpan[] = [];
+	for (let i = 0; i < text.length; i++) {
+		if (classes[i] !== COMMENT) continue;
+		let run = i;
+		while (run < text.length && classes[run] === COMMENT) run++;
+		// Two comments can touch (`/* a *//* b */`), so each ends where its own syntax closes.
+		const end = Math.min(spanAt(text, i)?.end ?? run, run);
+		const kind = text[i] === '<' ? 'markup' : text[i + 1] === '/' ? 'line' : 'block';
+		out.push({ start: i, end, kind });
+		i = end - 1;
+	}
+	return out;
+}
+
+/** A comment's text lines, comment syntax stripped and blank lines dropped. */
+export function commentText(text: string, span: CommentSpan): string[] {
+	return text
+		.slice(span.start, span.end)
+		.split('\n')
+		.map((line) =>
+			line
+				.trim()
+				.replace(/^\/\*+|^\*+\/?|^\/\/+|^<!--|-->$|\*+\/$/g, '')
+				.trim()
+		)
+		.filter((line) => line !== '');
+}
+
+/** A template's `${…}` interiors lex as script. */
+function classifyRange(
+	code: string,
+	from: number,
+	to: number,
+	out: Uint8Array,
+	language: BodyLanguage
+): void {
 	out.fill(CODE, from, to);
 	for (let i = from; i < to; i++) {
-		const span = spanAt(code, i);
+		const span = spanAt(code, i, language);
 		if (span === null) continue;
 		const end = Math.min(span.end, to);
 		if (span.kind === 'comment') out.fill(COMMENT, i, end);
 		else if (span.kind === 'literal') out.fill(code[i] === '/' ? REGEX : STRING, i, end);
 		else {
 			out.fill(TEMPLATE, i, end);
-			skipTemplate(code, i, (start, close) => classifyRange(code, start, Math.min(close, to), out));
+			skipTemplate(code, i, (start, close) =>
+				classifyRange(code, start, Math.min(close, to), out, 'script')
+			);
 		}
 		i = span.end - 1;
 	}
+}
+
+const TAG_NAME = /[\w:-]*/y;
+
+/** Between tags, Svelte reads a `{` then a `/` that opens no comment as a block closer (`{/if}`),
+ *  so no regex opens there; inside a tag it's an expression. */
+const BLOCK_CLOSER = /\{\s*\/(?![/*])\w*\s*\}?/y;
+
+/** Markup, where `//` and `/*` are prose; a `<script>` or `<style>` body lexes in its own language. */
+function classifyComponent(code: string, out: Uint8Array): void {
+	// The tag being read, '' for a closing tag, null between tags.
+	let tag: string | null = null;
+	for (let i = 0; i < code.length; i++) {
+		const ch = code[i];
+		if (ch === '{') {
+			BLOCK_CLOSER.lastIndex = i;
+			const closer = tag === null && BLOCK_CLOSER.test(code);
+			i = closer ? BLOCK_CLOSER.lastIndex - 1 : classifyExpression(code, i, out);
+		} else if (tag !== null) {
+			if (ch === '"' || ch === "'") i = classifyAttributeValue(code, i, out);
+			else if (ch === '>') {
+				if (tag === 'script' || tag === 'style') i = classifyBody(code, i + 1, tag, out);
+				tag = null;
+			}
+		} else if (code.startsWith('<!--', i)) {
+			const end = skipMarkupComment(code, i);
+			out.fill(COMMENT, i, end);
+			i = end - 1;
+		} else if (ch === '<' && /[A-Za-z/]/.test(code[i + 1] ?? '')) {
+			TAG_NAME.lastIndex = i + 1;
+			tag = TAG_NAME.exec(code)?.[0] ?? '';
+		}
+	}
+}
+
+/** Classifies a `<script>` or `<style>` body from `from`; returns the index before its closing tag. */
+function classifyBody(
+	code: string,
+	from: number,
+	tag: 'script' | 'style',
+	out: Uint8Array
+): number {
+	const close = code.indexOf(`</${tag}`, from);
+	const end = close < 0 ? code.length : close;
+	classifyRange(code, from, end, out, tag === 'script' ? 'script' : 'stylesheet');
+	return end - 1;
+}
+
+/** Classifies the `{…}` opening at `open` as script; returns its closing brace. */
+function classifyExpression(code: string, open: number, out: Uint8Array): number {
+	const close = closingBrace(code, open + 1);
+	classifyRange(code, open + 1, close, out, 'script');
+	return close;
+}
+
+/** A quoted attribute value is a string whose `{…}` interpolations are script, as a template's
+ *  are; returns its closing quote. */
+function classifyAttributeValue(code: string, at: number, out: Uint8Array): number {
+	const quote = code[at];
+	const interpolations: number[] = [];
+	let j = at + 1;
+	while (j < code.length && code[j] !== quote) {
+		if (code[j] === '{') {
+			interpolations.push(j);
+			j = closingBrace(code, j + 1);
+		}
+		j++;
+	}
+	out.fill(STRING, at, Math.min(j + 1, code.length));
+	for (const open of interpolations) classifyExpression(code, open, out);
+	return j;
+}
+
+// ── Enclosing function ───────────────────────────────────────────────────────
+
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
+
+/** The nearest named function around `at`, or `<module>` at the top level; allowlists key on
+ *  `relPath :: name`, which survives edits above the site. */
+export function enclosingFunction(code: string, at: number, classes: Uint8Array): string {
+	let from = at;
+	for (let hop = 0; hop < 24; hop++) {
+		const open = innermostOpener(code, classes, from);
+		if (open === null) return '<module>';
+		from = open;
+		const paren =
+			code[open] === '{'
+				? parameterListOf(code, classes, open)
+				: code[open] === '(' && parameterListAt(code, classes, open)
+					? open
+					: null;
+		if (paren === null) continue;
+		const name = functionNameBefore(code, classes, paren);
+		if (name !== null) return name;
+	}
+	return '<module>';
+}
+
+/** The innermost bracket still open at `at`, or null at the top level. */
+export function openerBefore(code: string, at: number, classes: Uint8Array): number | null {
+	return innermostOpener(code, classes, at);
+}
+
+/** Whether the `(` at `open` starts a parameter list rather than an argument list: the
+ *  `function` keyword before it, or a body or arrow after it. */
+export function isParameterList(code: string, open: number, classes: Uint8Array): boolean {
+	return parameterListAt(code, classes, open);
+}
+
+function innermostOpener(text: string, cls: Uint8Array, at: number): number | null {
+	let depth = 0;
+	for (let i = at - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') {
+			if (depth === 0) return i;
+			depth--;
+		}
+	}
+	return null;
+}
+
+function matchingOpen(text: string, cls: Uint8Array, close: number): number | null {
+	let depth = 0;
+	for (let i = close; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === ')') depth++;
+		else if (text[i] === '(' && --depth === 0) return i;
+	}
+	return null;
+}
+
+function matchingClose(text: string, cls: Uint8Array, open: number): number {
+	let depth = 0;
+	for (let i = open; i < text.length; i++) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '(') depth++;
+		else if (ch === ')' && --depth === 0) return i;
+	}
+	return text.length;
+}
+
+function skipBack(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i >= 0 && (cls[i] !== CODE || /\s/.test(text[i]))) i--;
+	return i;
+}
+
+function skipForward(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i < text.length && (cls[i] !== CODE || /\s/.test(text[i]))) i++;
+	return i;
+}
+
+function identifierBefore(text: string, at: number): string {
+	let start = at + 1;
+	while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
+	return text.slice(start, at + 1);
+}
+
+function parameterListAt(text: string, cls: Uint8Array, open: number): boolean {
+	const before = skipBack(text, cls, open - 1);
+	const name = identifierBefore(text, before);
+	if (name === 'function') return true;
+	if (identifierBefore(text, skipBack(text, cls, before - name.length)) === 'function') return true;
+
+	let after = skipForward(text, cls, matchingClose(text, cls, open) + 1);
+	if (text[after] === ':') {
+		let depth = 0;
+		for (after++; after < text.length; after++) {
+			if (cls[after] !== CODE) continue;
+			const ch = text[after];
+			if (ch === '(' || ch === '[' || ch === '<') depth++;
+			else if (ch === ')' || ch === ']' || ch === '>') depth--;
+			else if (depth <= 0 && (ch === '{' || ch === ';' || ch === ',' || ch === '=')) break;
+		}
+	}
+	return text.startsWith('=>', after) || text[after] === '{';
+}
+
+/** The `(` of the parameter list a `{` closes over, or null where the brace opens a plain block
+ *  or an object literal. Only a return type and an arrow may sit between the two. */
+function parameterListOf(text: string, cls: Uint8Array, brace: number): number | null {
+	let depth = 0;
+	let between = '';
+	for (let i = brace - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (depth === 0) {
+			if (ch === ')') {
+				const gap = between.replace(/\s|=>/g, '');
+				return gap === '' || gap.startsWith(':') ? matchingOpen(text, cls, i) : null;
+			}
+			if (ch === ';' || ch === '{' || ch === '}' || ch === '(' || ch === '[') return null;
+		}
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') depth--;
+		between = ch + between;
+	}
+	return null;
+}
+
+/** The name a parameter list at `paren` declares: `function name(`, `name(` for a method, or
+ *  `const name = (` and `name: (` for an assigned arrow. Null for a control statement. */
+function functionNameBefore(text: string, cls: Uint8Array, paren: number): string | null {
+	const before = skipTypeParameters(text, cls, skipBack(text, cls, paren - 1));
+	const direct = identifierBefore(text, before);
+	if (CONTROL_KEYWORDS.has(direct)) return null;
+	if (direct !== '' && direct !== 'function' && direct !== 'async') return direct;
+	const anchor = direct === '' ? before : skipBack(text, cls, before - direct.length);
+	if (text[anchor] !== '=' && text[anchor] !== ':') return null;
+	const declared = text[anchor] === ':' ? anchor : annotationColonBefore(text, cls, anchor);
+	const named = identifierBefore(text, skipBack(text, cls, declared - 1));
+	return named === '' ? null : named;
+}
+
+/** The `:` of a declaration's type annotation, so `const f: Cleaner = (x) => …` reads as `f`. */
+function annotationColonBefore(text: string, cls: Uint8Array, assign: number): number {
+	let depth = 0;
+	for (let i = assign - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '>' || ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '<' || ch === '(' || ch === '[' || ch === '{') depth--;
+		else if (depth === 0 && ch === ':') return i;
+		if (depth === 0 && (ch === ';' || ch === ',' || ch === '{' || ch === '}')) break;
+	}
+	return assign;
+}
+
+/** Back over a type-parameter list, so `function pick<T>(…)` names `pick` and not the module. */
+function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
+	if (text[at] !== '>') return at;
+	let depth = 0;
+	for (let i = at; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === '>') depth++;
+		else if (text[i] === '<' && --depth === 0) return skipBack(text, cls, i - 1);
+	}
+	return at;
 }
 
 // ── Raw-write statements ─────────────────────────────────────────────────────
@@ -336,12 +676,8 @@ function classifyRange(code: string, from: number, to: number, out: Uint8Array):
 /** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
 const MAX_STATEMENT_SPAN = 600;
 
-/**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and not at a
- * newline: Prettier wraps exactly the long concatenations G4.20's literal check reads, and
- * stopping at the first newline truncates them to `.raw =` with no right-hand side in sight.
- * G4.28 reads the same statements as its bare-write census.
- */
+/** Every `<expr>.raw = …;` / `.raw += …;` statement, ended at the semicolon rather than a newline,
+ *  since Prettier wraps exactly the long concatenations the line-ending check reads (G4.20). */
 export function rawAssignments(
 	sources: SourceFile[]
 ): Array<{ relPath: string; statement: string }> {
@@ -371,11 +707,12 @@ export function rawAssignments(
 // ── Call arguments ───────────────────────────────────────────────────────────
 
 /**
- * A call to `name`. A spread (`...name(`) counts as one, because these scans read call sites and
- * a result spread into an array is where one of them hid; a property access (`x.name(`) does not.
+ * A call to `name`. A spread (`...name(`) counts as one, since a result spread into an array is
+ * still a call site; a property access (`x.name(`) does not, unless `name` spells it (`x.name`).
  */
 function callSiteRegex(name: string): RegExp {
-	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
+	const literal = name.replace(/[.$]/g, '\\$&');
+	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${literal}\\s*\\(`, 'g');
 }
 
 export interface CallSite {
@@ -385,16 +722,24 @@ export interface CallSite {
 	args: string | null;
 }
 
-/** Every call to `name` in comment-stripped code, the declaration skipped. */
+/** Every call to `name` in comment-stripped code, declarations skipped. */
 export function callSites(code: string, name: string): CallSite[] {
 	const out: CallSite[] = [];
 	const re = callSiteRegex(name);
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-		out.push({ index: m.index, args: balancedCall(code, m.index + m[0].length) });
+		const args = balancedCall(code, m.index + m[0].length);
+		if (args !== null && hasTypedParameter(args)) continue;
+		out.push({ index: m.index, args });
 	}
 	return out;
+}
+
+/** A top-level `name:` or `name?:` is a typed parameter, which only a declaration has: a method
+ *  signature in an interface or class. */
+function hasTypedParameter(args: string): boolean {
+	return callArguments(args).some((arg) => /^[\w$]+\??:/.test(arg));
 }
 
 /** The argument text of every balanced call to `name`; pass comment-stripped code. */
@@ -446,23 +791,182 @@ export function balancedRegion(code: string, openIndex: number): string | null {
 
 /** A call's top-level arguments: split on the commas outside every bracket and literal. */
 export function callArguments(args: string): string[] {
+	return splitTopLevel(args, ',');
+}
+
+/**
+ * `code` split on `separator` outside every bracket and literal, each part trimmed. A separator
+ * inside a longer operator (`++`, `+=`) does not split.
+ */
+export function splitTopLevel(code: string, separator: string): string[] {
 	const out: string[] = [];
 	let depth = 0;
 	let start = 0;
-	walkCode(args, 0, (ch, i) => {
+	walkCode(code, 0, (ch, i) => {
 		if (ch === '(' || ch === '[' || ch === '{') depth++;
 		else if (ch === ')' || ch === ']' || ch === '}') depth--;
-		else if (ch === ',' && depth === 0) {
-			out.push(args.slice(start, i).trim());
+		else if (ch === separator && depth === 0 && !partOfOperator(code, i)) {
+			out.push(code.slice(start, i).trim());
 			start = i + 1;
 		}
 	});
-	out.push(args.slice(start).trim());
+	out.push(code.slice(start).trim());
 	return out;
+}
+
+function partOfOperator(code: string, i: number): boolean {
+	const ch = code[i];
+	return code[i - 1] === ch || code[i + 1] === ch || code[i + 1] === '=';
 }
 
 /** The last top-level argument of a call's argument text: the slot the threading scans read. */
 export function lastArgument(args: string): string {
 	const parts = callArguments(args);
 	return parts[parts.length - 1];
+}
+
+// ── Import specifiers ────────────────────────────────────────────────────────
+
+export interface ImportSpecifier {
+	specifier: string;
+	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
+}
+
+/** Every module a file imports or re-exports from, read in code position only. A static,
+ *  side-effect or re-export form must start its line, so a CSS `@import` never counts. */
+export function importSpecifiers(code: string): ImportSpecifier[] {
+	const out: ImportSpecifier[] = [];
+	walkCode(code, 0, (ch, at) => {
+		if (ch !== 'i' && ch !== 'e') return;
+		const keyword = code.startsWith('import', at) ? 'import' : 'export';
+		if (!code.startsWith(keyword, at) || !isWordAt(code, at, keyword.length)) return;
+		const found = readImport(code, at, keyword);
+		if (found !== null) out.push(found);
+	});
+	return out;
+}
+
+function isWordAt(code: string, at: number, length: number): boolean {
+	return !/[\w$.@]/.test(code[at - 1] ?? '') && !/[\w$]/.test(code[at + length] ?? '');
+}
+
+function readImport(
+	code: string,
+	at: number,
+	keyword: 'import' | 'export'
+): ImportSpecifier | null {
+	const next = skipSpaces(code, at + keyword.length);
+	if (keyword === 'import' && code[next] === '(') {
+		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic');
+	}
+	if (!startsLine(code, at)) return null;
+	if (keyword === 'import') {
+		if (code[next] === "'" || code[next] === '"') return stringSpecifier(code, next, 'side-effect');
+	} else {
+		const clause = code.startsWith('type', next) ? skipSpaces(code, next + 4) : next;
+		if (code[clause] !== '{' && code[clause] !== '*') return null;
+	}
+	const from = fromClauseEnd(code, next);
+	return from === null
+		? null
+		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport');
+}
+
+/** Just past the `from` that ends an import clause, or null where the statement has none. */
+function fromClauseEnd(code: string, from: number): number | null {
+	let depth = 0;
+	let found: number | null = null;
+	walkCode(code, from, (ch, i) => {
+		if (ch === '{') depth++;
+		else if (ch === '}') depth--;
+		else if (depth === 0 && (ch === ';' || ch === '=' || ch === '(')) return true;
+		else if (depth === 0 && code.startsWith('from', i) && isWordAt(code, i, 4)) {
+			found = skipSpaces(code, i + 4);
+			return true;
+		}
+	});
+	return found;
+}
+
+function stringSpecifier(
+	code: string,
+	at: number,
+	kind: ImportSpecifier['kind']
+): ImportSpecifier | null {
+	if (code[at] !== "'" && code[at] !== '"') return null;
+	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind };
+}
+
+function skipSpaces(code: string, at: number): number {
+	while (at < code.length && /\s/.test(code[at])) at++;
+	return at;
+}
+
+function startsLine(code: string, at: number): boolean {
+	let i = at - 1;
+	while (i >= 0 && (code[i] === ' ' || code[i] === '\t')) i--;
+	return i < 0 || code[i] === '\n';
+}
+
+// ── Hand-rolled lexing ───────────────────────────────────────────────────────
+
+/** A comparison of one character against a bracket or a quote. */
+const CHARACTER_TEST = /[!=]==\s*(['"`])[()[\]{}'"`]\1|(['"`])[()[\]{}'"`]\2\s*[!=]==/g;
+
+/** A literal naming a comment marker, the first step of stripping comments by hand. */
+const COMMENT_MARKERS = new Set(['//', '/*', '*/', '<!--', '-->']);
+
+/** What in a suite file's own code reads source by hand instead of through this module: a
+ *  directory walk, a comment marker, or a bracket or quote test outside a {@link walkCode} callback. */
+export function handRolledLexing(file: SourceFile): string[] {
+	const { code } = file;
+	const classes = fileClasses(file);
+	const found: string[] = [];
+	if (/\breaddirSync\b/.test(code)) found.push('a directory walk: use collectFiles');
+	for (let start = 0, end = 1; start < code.length; start = end, end = start + 1) {
+		while (end < code.length && classes[end] === classes[start]) end++;
+		const text = code.slice(start, end);
+		const marker =
+			classes[start] === REGEX
+				? /\\\/\\\/|\\\/\\\*|<!--/.test(text)
+				: (classes[start] === STRING || classes[start] === TEMPLATE) &&
+					COMMENT_MARKERS.has(text.slice(1, -1));
+		if (marker) found.push(`a comment marker ${text}: use stripComments or lexicalClasses`);
+	}
+	for (const loop of code.matchAll(/\b(?:for|while)\s*\(/g)) {
+		if (classes[loop.index] !== CODE) continue;
+		const end = loopEnd(code, loop.index + loop[0].length - 1);
+		for (const test of code.slice(loop.index, end).matchAll(CHARACTER_TEST)) {
+			const at = loop.index + test.index + test[0].search(/[!=]==/);
+			if (classes[at] !== CODE || insideWalkCallback(code, at, classes)) continue;
+			found.push(`a character walk testing ${test[0]}: use walkCode`);
+		}
+	}
+	return found;
+}
+
+/** Just past the statement a loop header opening at `open` governs. */
+function loopEnd(code: string, open: number): number {
+	const header = balancedRegion(code, open);
+	if (header === null) return code.length;
+	const bodyStart = skipSpaces(code, open + header.length);
+	if (code[bodyStart] === '{') return bodyStart + (balancedRegion(code, bodyStart)?.length ?? 0);
+	let depth = 0;
+	return walkCode(code, bodyStart, (ch) => {
+		if (ch === '(' || ch === '[' || ch === '{') depth++;
+		else if (ch === ')' || ch === ']' || ch === '}') depth--;
+		else if (ch === ';' && depth === 0) return true;
+	});
+}
+
+function insideWalkCallback(code: string, at: number, classes: Uint8Array): boolean {
+	for (let open = innermostOpener(code, classes, at); open !== null;) {
+		if (
+			code[open] === '(' &&
+			identifierBefore(code, skipBack(code, classes, open - 1)) === 'walkCode'
+		)
+			return true;
+		open = innermostOpener(code, classes, open);
+	}
+	return false;
 }

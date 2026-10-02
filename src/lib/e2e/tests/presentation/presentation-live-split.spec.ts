@@ -7,9 +7,9 @@ import {
 	enterPresentationMode,
 	focusOffset,
 	landAt,
-	stepTo,
-	visibleText
+	stepTo
 } from './helpers';
+import { textOutsideMarkers } from '../../text-runs';
 
 // What Enter inside a construct writes in live mode: a closed pair above, a reopened one below,
 // and the URL of a split link in both halves. The source is the reference, because a hidden
@@ -147,9 +147,8 @@ test.describe('live mode: a cut at a construct edge hands it over whole', () => 
 	});
 });
 
-// Whitespace at the end of a block paints nothing (a hard break with no line after it), so a cut
-// that would strand it drops it: keeping it makes the pair reload as a different shape, and a
-// byte-literal cut prints the delimiters the user never saw.
+// Whitespace at a block's end paints nothing, so a cut that would strand it drops it: kept, the
+// pair would reload as a different shape.
 test.describe('live mode: a cut that would strand terminal whitespace', () => {
 	const TRAILING = ['~~foo~~  ', '', 'tail'].join('\n');
 
@@ -162,8 +161,8 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 		await ep.bridge.waitForSourceContains('~~foo~~\n\n');
 
 		// The screen is what licensed the drop, so the screen is what it answers to.
-		expect(await visibleText(ep, 0)).toBe('foo');
-		expect(await visibleText(ep, 1)).toBe('');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(1))).toBe('');
 		expect(await ep.bridge.getSource()).not.toContain('~~foo\n');
 
 		// Reload convergence: the bytes the split wrote come back as the same screen.
@@ -171,13 +170,12 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 		await ep.loadContent(written);
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getSource()).toBe(written);
-		expect(await visibleText(ep, 0)).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
 	});
 });
 
-// A construct with no children has no interior a cut can land in (live-mode.md § 4.4): two
-// halves of a URL are not two URLs, so the cut moves to the construct's nearer edge and one
-// half takes it whole, every byte intact.
+// A construct with no children has no interior a cut can land in (`docs/design/live-mode.md` §
+// 4.4), so the cut moves to its nearer edge and one half takes it whole.
 test.describe('live mode: a cut through a childless construct', () => {
 	test('takes the whole autolink into the half the caret was nearer', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
@@ -188,13 +186,12 @@ test.describe('live mode: a cut through a childless construct', () => {
 
 		expect(await ep.bridge.getSource()).toBe('<https://example.com>\n\n tail\n');
 		// No bracket reaches the screen on either side, which is the point of moving the cut.
-		expect(await visibleText(ep, 0)).toBe('https://example.com');
+		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('https://example.com');
 	});
 });
 
-// The split's inverse. Without cleanup at the join the closing and reopening runs end up back to
-// back, `Some **bo****ld** text`, gaining a pair on every repeat, and a split link comes back as
-// two anchors on one destination.
+// The split's inverse: without cleanup at the join the closing and reopening runs meet as
+// `Some **bo****ld** text`, and a split link comes back as two anchors.
 test.describe('live mode: Enter then Backspace round-trips', () => {
 	test('merging the halves back restores the original bytes', async ({ page }) => {
 		const ep = await enterMode(page, 'live');

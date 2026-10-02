@@ -10,7 +10,6 @@ import { editorEnv } from './env';
 import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
-import { pluginKindOwner } from './schema/plugin-install';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 
@@ -36,9 +35,8 @@ export interface EditorError {
 	 */
 	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard' | 'link';
 	error: unknown;
-	/** Origin-specific: `path` for render, `op`+`path` for commit, `kind`+`command`
-	 *  (+`plugin`) for a command throw, `source` for decoration, `url` for link, and the
-	 *  paste's start path for clipboard when it was aimed at a range. */
+	/** Origin-specific: `path` for render, `op`+`path` for commit, `kind`+`command` (+`plugin`) for a
+	 *  command, `source` for decoration, `url` for link, the aimed-at start path for clipboard. */
 	context?: {
 		path?: number[];
 		op?: OperationKind;
@@ -53,6 +51,7 @@ export interface EditorError {
 // ── Map of event name → handler payload ─────────────────────────────────
 
 export interface EditorEventMap {
+	/** Fires at each write, as it lands: a structural edit, one keystroke, an undo or a redo. */
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
 	error: EditorError;
@@ -61,9 +60,17 @@ export interface EditorEventMap {
 	/** The theme name after a `theme` prop change (never fired at mount), for a plugin
 	 *  that paints its own colors and so cannot pick the change up from CSS. */
 	themeChange: string;
-	/** `true` when an editor-owned menu (the right-click menu and its flyouts) opens, `false` when
-	 *  it closes, so a host's own controls over the selection can step aside rather than stack. */
+	/** `true` when an editor-owned menu or popover opens while none was, `false` when the last one
+	 *  closes, so a host's own controls over the selection can step aside rather than stack. */
 	menuChange: boolean;
+	/** A `source` prop write replaced the whole document. Fires once the new tree, its selection
+	 *  and its link references are in place; an `edit` never fires for it. */
+	sourceSwap: SourceSwapEvent;
+}
+
+/** `generation` counts whole-document replacements since mount, starting at 1. */
+export interface SourceSwapEvent {
+	generation: number;
 }
 
 export interface EditorEvents {
@@ -126,11 +133,7 @@ export function createEditorEvents(): EditorEvents {
 // One builder per origin that has more than one emission site, kept here so the code that
 // owns the channel owns the payload shape too.
 
-/**
- * Report a command that threw to the `error` channel, naming the command and its owning
- * plugin; does nothing when there is no events object. A `plugin` passed in wins over the
- * kind lookup, so a global command's own owner is never overwritten by one.
- */
+/** Report a thrown command to the `error` channel with the plugin that registered it. */
 export function emitCommandError(
 	events: EditorEvents | undefined,
 	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }
@@ -141,17 +144,13 @@ export function emitCommandError(
 		context: {
 			kind: report.kind,
 			command: report.command,
-			plugin:
-				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
+			plugin: report.plugin
 		}
 	});
 }
 
-/**
- * Report a blocked link activation to the `error` channel: the scheme allowlist refused the URL,
- * which a host may want to log or show. Fires for the default activation only; a consumer
- * supplying `onLinkActivate` owns its own policy.
- */
+/** Report a link the scheme allowlist refused to the `error` channel. Default activation only: a
+ *  consumer supplying `onLinkActivate` owns its own policy. */
 export function emitBlockedLinkError(events: EditorEvents | undefined, url: string): void {
 	events?.emit('error', {
 		origin: 'link',
@@ -160,11 +159,8 @@ export function emitBlockedLinkError(events: EditorEvents | undefined, url: stri
 	});
 }
 
-/**
- * Report a clipboard failure to the `error` channel. `path` addresses the range the paste
- * was aimed at, and is left out where there is none to name, since `[]` would report the
- * document root, which holds no caret.
- */
+/** Report a clipboard failure to the `error` channel. `path` is left out when the paste aimed at
+ *  no range, since `[]` would name the document root, which holds no caret. */
 export function emitClipboardError(
 	events: EditorEvents,
 	report: { error: unknown; path?: number[] }

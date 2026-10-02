@@ -1,47 +1,43 @@
 /**
  * Plugin-facing global commands: create a process-wide command id, register a handler that
- * receives the dispatching editor's `EditorContext`, and optionally bind a chord among the
- * plugin-global chords (last in precedence). Beside `block-commands`, not in `commands.ts`, so
- * `commands → command-id` stays one-directional.
+ * receives the dispatching editor's `EditorContext` and the dispatch's argument, and optionally
+ * bind a chord among the plugin-global chords (last in precedence). Beside `block-commands`, not
+ * in `commands.ts`, so `commands → command-id` stays one-directional.
  */
 import { mintCommandId, type PluginCommandId } from './command-id';
 import {
 	registerCommand,
 	registerPluginGlobalBinding,
 	assertPluginGlobalChordAvailable,
+	globalCommandOwner,
+	runPluginCommand,
 	warnDeadKeyCommand
 } from './commands';
-import { currentInstallingPlugin } from './plugin-install';
-import type { EditorContext } from './plugin-install';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
 
 export function registerGlobalCommand(
 	name: string,
-	handler: (editor: EditorContext) => boolean,
+	handler: (editor: EditorContext, arg?: unknown) => boolean,
 	opts?: { chord?: string }
 ): PluginCommandId {
 	// Validate the chord before creating the id: a collision must not leave a created name and a
 	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
-	const owner = currentInstallingPlugin();
-	// The owner is what lets a plugin ask for its own name again, and what names the prior owner
-	// in a cross-plugin collision.
-	const id = mintCommandId(name, owner);
+	const id = mintCommandId(name);
 	registerCommand(id, (ctx) => {
 		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
-		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not dead,
-		// so it must not use up the dead-key warning a truly unreachable id gets.
-		const editor = ctx.pluginEditor(owner ?? '');
+		const owner = globalCommandOwner(id);
+		// A global handler takes a context it can't run without, so a missing one declines, and
+		// that is inert rather than dead; a block handler runs with `ctx.editor` undefined instead.
+		const editor = pluginEditorFor(ctx.pluginEditor, owner);
 		if (!editor) return false;
-		try {
-			return handler(editor);
-		} catch (error) {
-			ctx.onCommandError?.({ command: id, plugin: owner ?? undefined, error });
-			return true;
-		}
+		return runPluginCommand(owner, { command: id }, ctx.onCommandError, () =>
+			handler(editor, ctx.arg)
+		);
 	});
-	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id }, owner);
+	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
 	return id;
 }

@@ -7,9 +7,7 @@ import {
 } from '$lib/plugins/latex/math-source';
 
 // The painted source's slicer, over both block shapes: the `$$` pair and GitHub's ```math fence.
-// Miss-analysis: math-source.ts carried no unit test, so the slicer was exercised only through
-// the `$$` block's e2e, and the fence shape it never recognized looked right as long as no
-// scenario asked what it painted or what a completion rebuilt.
+// Miss-analysis: only the `$$` block's e2e reached the slicer, never the fence shape.
 
 describe('completeBareMathSource rebuilds from the block’s own delimiters', () => {
 	const completes: Array<[label: string, source: string, text: string, caret: number]> = [
@@ -41,6 +39,26 @@ describe('completeBareMathSource rebuilds from the block’s own delimiters', ()
 			expect(completeBareMathSource(source)).toBeNull();
 		});
 	}
+});
+
+// Miss-analysis: every math fixture was LF, so no case saw the opener line read with its `\r`.
+describe('math sources on CRLF keep their line endings', () => {
+	const completes: Array<[source: string, text: string, caret: number]> = [
+		['```math\r\n```', '```math\r\n\r\n```', 9],
+		['$$\r\n$$', '$$\r\n\r\n$$', 4]
+	];
+	for (const [source, text, caret] of completes) {
+		it(`completes ${JSON.stringify(source)} on CRLF`, () => {
+			expect(completeBareMathSource(source)).toEqual({ text, caret });
+		});
+	}
+
+	it('reads a CRLF $$ block as a fence around its body', () => {
+		const source = '$$\r\nx^2\r\n$$';
+		const { start, end } = mathBodySpan(source);
+		expect(source.slice(start, end)).toBe('x^2');
+		expect(renderMathSource(source).querySelectorAll('.md-fence-line')).toHaveLength(2);
+	});
 });
 
 describe('mathBodySpan names the body of either shape', () => {

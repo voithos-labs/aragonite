@@ -12,15 +12,20 @@ import { registerBlockComponent, defineBlockComponent } from './block-component-
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 
 export function definePluginBlock<
-	P extends Partial<BlockComponentProps> & Record<string, unknown>
+	P extends Partial<BlockComponentProps> & Record<string, unknown>,
+	Options extends object = Record<never, never>
 >(config: {
 	name: string;
 	kind: string;
 	component: Component<P, BlockComponentExports>;
 	register: () => void;
-}): EditorPlugin {
-	return definePlugin({
+	defaults?: Options;
+	parseOptions?(raw: unknown): Partial<Options>;
+}): EditorPlugin<Options> {
+	return definePlugin<Options>({
 		name: config.name,
+		defaults: config.defaults,
+		parseOptions: config.parseOptions,
 		setup() {
 			config.register();
 			registerBlockComponent(

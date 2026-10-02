@@ -19,17 +19,36 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(violation?.message).toContain('anchor');
 	});
 
+	// A flagged index past the last cell reads rows that don't exist: copy invents empty rows and
+	// delete throws.
+	it('flags a cell index past the last cell', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [0], offset: 4, cellCoordinate: true },
+			{ path: [1], offset: 0 }
+		);
+		expect(violation?.code).toBe('endpoint-cell-index-out-of-range');
+	});
+
 	it('passes a flagged table endpoint', () => {
 		const cell = { path: [0], offset: 1, cellCoordinate: true };
 		expect(checkCrossBlockEndpointCoordinates(doc(), cell, { path: [1], offset: 0 })).toBeNull();
 	});
 
-	// An intra-table rectangle shares the table path and leaves its focus unflagged
-	// by the SelectionPoint convention: the offsets are cell indices regardless.
-	it('exempts a same-path pair', () => {
-		expect(
-			checkCrossBlockEndpointCoordinates(doc(), { path: [0], offset: 0 }, { path: [0], offset: 3 })
-		).toBeNull();
+	// Miss-analysis: no row held a rectangle's bare focus to the guard.
+	it('flags the bare focus of a rectangle inside one table', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [0], offset: 0, cellCoordinate: true },
+			{ path: [0], offset: 3 }
+		);
+		expect(violation?.code).toBe('endpoint-cell-coordinate');
+		expect(violation?.message).toContain('focus');
+	});
+
+	it('passes a rectangle inside one table with both corners flagged', () => {
+		const corner = (offset: number) => ({ path: [0], offset, cellCoordinate: true });
+		expect(checkCrossBlockEndpointCoordinates(doc(), corner(0), corner(3))).toBeNull();
 	});
 
 	it('ignores endpoints that resolve to prose or to nothing', () => {
@@ -47,9 +66,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(violation?.message).toContain('focus');
 	});
 
-	// Miss-analysis (M-3): the fixtures only ever put a char offset on a table, so the flag's
-	// other direction, a cell index stored against a block that has no cells, was never
-	// asked, and `cellCoordinate` short-circuited before any node was resolved.
+	// Miss-analysis: fixtures only put a char offset on a table, never a cell index on a non-table.
 	it('flags a cell coordinate on a block that is not a table', () => {
 		const violation = checkCrossBlockEndpointCoordinates(
 			doc(),
@@ -119,18 +136,31 @@ describe('G1.29 character-offset range', () => {
 	});
 });
 
-// #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
-// passes through with its character offset intact: the shape the belt exists for.
+// Normalization passes a flagged point through untouched, so a cell index a caller put on a
+// block with no cells reaches the storing site as written.
 describe('G1.29 fires from the storing site', () => {
-	it('warns when a length-1 table path is stored with a character offset', () => {
+	it('warns when a cell index is stored against a paragraph', () => {
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
 
-		selection.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
+		selection.enterCrossBlock(
+			{ path: [0], offset: 1, cellCoordinate: true },
+			{ path: [1], offset: 2, cellCoordinate: true }
+		);
 
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([
 			'invariant:cross-block-endpoint-coordinates'
 		]);
+	});
+
+	it('stores a character offset on a table path as the cell index it names', () => {
+		const tree = doc();
+		const selection = createSelectionState({ getDoc: () => tree });
+
+		selection.enterCrossBlock({ path: [0], offset: 3 }, { path: [1], offset: 0 });
+
+		expect(selection.anchor).toEqual({ path: [0], offset: 3, cellCoordinate: true });
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent when the shared path snapped a whole-block endpoint', () => {

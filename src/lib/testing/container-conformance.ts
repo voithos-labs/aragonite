@@ -1,57 +1,71 @@
 /**
- * G4.3: the container conformance kit, published at `@voithos-labs/aragonite/testing`. Register
- * your kind, then point the kit at it with fixtures and a coverage table saying, per invariant,
- * whether it asserts or is excused; a silent skip is not allowed and a thin reason fails the run.
- * The plugin guide's "Conformance-testing a container" says what each cell expects. A cell that
- * asserts drives the real per-kind action path, stopping at the nested-action default and a DOM.
+ * The container conformance kit, published at `@voithos-labs/aragonite/testing`. Register your
+ * kind, then run the kit with fixtures and a coverage table saying, per invariant, whether the cell
+ * asserts or is excused; a thin excuse fails the run. What each cell expects:
+ * `docs/guide/plugin-testing.md` § The container checkup.
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { splitLines, trailingLineEnding } from '../core/lines';
+import { keepOpenTail } from '../tree-operations/open-tail';
+import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
+import { ancestorsOf } from '../core/paths';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
-import { createListContext } from '../editor-actions/list-context';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
 } from '../editor-actions/nested/nested-actions';
 import { createNestedFocus } from '../editor-actions/nested/nested-focus';
-import { createTableMutationsContext } from '../editor-actions/table-context';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
-import { isBlockOpenerRegistered } from '../schema/block-openers';
-import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { defaultGrammarView, isBlockOpenerRegistered } from '../schema/block-openers';
+import { kitReading } from './kit-reading';
+import {
+	getBlockKindDescriptor,
+	isGridDescriptor,
+	type BlockKindDescriptor
+} from '../schema/block-kind-descriptor';
+import {
+	childHoldingLastLine,
+	lastLine,
+	rebuildContainerRawIfContainer
+} from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
-import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
+import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { walkUnsharing } from '../tree-operations/unshare';
 import { assertParseConverged } from './parse-convergence';
+import { mountBlockListState } from './headless-block-list.svelte';
 import {
 	createHeadlessActions,
-	mountBlockListState,
 	recordingFocus,
 	stubBlockEdit,
-	stubStickyColumn
+	stubCaretMemory
 } from './headless-actions';
 import {
 	assert,
-	assertExemptionDocumented,
 	assertIndices,
 	assertIs,
-	assertRebuildIsParseCanonical,
+	assertRebuildKeepsParsedBytes,
 	assertReasonDocumented,
 	fail,
 	findFirstOfKind,
-	firstChildOfKind,
 	nodeAtPath,
 	pathPassesThroughKind,
-	type ConformanceCoverage
+	runCells,
+	subjectNode,
+	subjectPath,
+	type CellOutcome,
+	type CellReport,
+	type ConformanceCoverage,
+	type KitCell
 } from './conformance-core';
+import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -74,30 +88,23 @@ export interface LocalIndexFixture {
 export interface TerminatorCollisionFixture {
 	source: string;
 	bodyRaw: string;
-	/**
-	 * Required when the fixture node parses with no children (a whole block whose body lives in
-	 * metadata): the kit hands over bytes already run through the kind's `bodyWrite` rule and the
-	 * fixture puts them wherever that container's body lives. The rebuild and the comparison
-	 * against a fresh parse stay the kit's.
-	 */
+	/** Required when the fixture node parses childless (its body lives in metadata): puts the
+	 *  kit's `bodyWrite`-normalized bytes wherever that container keeps its body. */
 	writeBody?: (node: CstNode, body: string) => void;
 }
 
 export interface ContainerConformanceProfile {
 	/** A nesting where this kind is an intermediate ancestor of the doc-rooted `leafPath`. */
 	deepNesting: { source: string; leafPath: number[] };
-	/** Required when `localIndex` asserts (strip/opaque kinds; grid has its own path). */
+	/** Required when `localIndex` asserts on a strip or opaque kind. */
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
 	/** Required when `terminatorCollision` asserts. `bodyRaw` goes through the kind's
 	 *  `bodyWrite` rule, so it names the bytes a user types, not what reaches the tree. */
 	terminatorCollisionFixture?: TerminatorCollisionFixture;
-	/**
-	 * Why no behavioral cell asserts. A profile excusing every one of them tests nothing while
-	 * reporting a reviewed reason per cell, so the all-excused shape is declared once, at the
-	 * profile, rather than assembled cell by cell.
-	 */
+	/** Why no behavioral cell asserts: required when the profile excuses them all, and rejected
+	 *  when any cell asserts. */
 	wholeProfileExemption?: string;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
@@ -106,76 +113,91 @@ export interface ContainerConformanceProfile {
 	terminatorCollision: ConformanceCoverage;
 }
 
+/** The built-in profiles' hooks for the ops only a built-in kind's own context can drive (a table
+ *  column insert, a list indent). Internal: no published API can perform either op. */
+export interface BuiltinContainerProfile extends ContainerConformanceProfile {
+	drivers?: { gridLocalIndex?: () => Promise<void>; multiScope?: () => Promise<void> };
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 
 export type ConformanceCell =
-	'localIndex' | 'ancestry' | 'multiScope' | 'focusBubble' | 'terminatorCollision' | 'declarations';
-
-export interface ConformanceCellReport {
-	cell: ConformanceCell;
-	status: 'asserted' | 'exempt' | 'boundary';
-	reason?: string;
-}
+	| 'localIndex'
+	| 'ancestry'
+	| 'multiScope'
+	| 'focusBubble'
+	| 'terminatorCollision'
+	| 'titleRow'
+	| 'declarations';
 
 export interface ContainerConformanceReport {
 	kind: AnyBlockKind;
-	cells: ConformanceCellReport[];
+	cells: CellReport<ConformanceCell>[];
 }
 
 // ── Cell manifest ────────────────────────────────────────────────────────────
 
-export interface ContainerConformanceCell {
-	cell: ConformanceCell;
-	/** The profile's declaration for this cell; `declarations` answers unconditionally. */
-	coverage: (profile: ContainerConformanceProfile) => ConformanceCoverage;
-	run: (kind: AnyBlockKind, profile: ContainerConformanceProfile) => void | Promise<void>;
+export interface ContainerCellContext {
+	kind: AnyBlockKind;
+	profile: BuiltinContainerProfile;
 }
 
-/**
- * The kit's cells as data, so every sweep runs the same set: {@link runContainerConformance} and
- * the registry-derived built-in sweep both iterate this rather than listing cells by hand, which
- * is what makes cell N+1 unmissable at either caller.
- */
-export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = [
+/** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
+ *  same set; `titleRow` and `declarations` declare no coverage and always run. */
+export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
+	ConformanceCell,
+	ContainerCellContext
+>[] = [
 	{
 		cell: 'localIndex',
-		coverage: (profile) => profile.localIndex,
-		run: (kind, profile) =>
-			getBlockKindDescriptor(kind).containerContract === 'grid'
-				? checkGridLocalIndexAddressing()
-				: checkStripLocalIndexAddressing(profile)
+		coverage: ({ profile }) => profile.localIndex,
+		run: ({ kind, profile }) =>
+			isGridDescriptor(getBlockKindDescriptor(kind))
+				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
+				: checkStripLocalIndexAddressing(kind, profile)
 	},
-	{ cell: 'ancestry', coverage: (profile) => profile.ancestry, run: checkInnermostFirstAncestry },
+	{
+		cell: 'ancestry',
+		coverage: ({ profile }) => profile.ancestry,
+		run: ({ kind, profile }) => checkInnermostFirstAncestry(kind, profile)
+	},
 	{
 		cell: 'multiScope',
-		coverage: (profile) => profile.multiScope,
-		run: checkOneUndoPerMultiScope
+		coverage: ({ profile }) => profile.multiScope,
+		run: ({ kind, profile }) => driverOf(kind, profile, 'multiScope', 'an op spanning two scopes')()
 	},
 	{
 		cell: 'focusBubble',
-		coverage: (profile) => profile.focusBubble,
-		run: checkFocusBubbleTermination
+		coverage: ({ profile }) => profile.focusBubble,
+		run: ({ kind, profile }) => checkFocusBubbleTermination(kind, profile)
 	},
 	{
 		cell: 'terminatorCollision',
-		coverage: (profile) => profile.terminatorCollision,
-		run: checkTerminatorCollision
+		coverage: ({ profile }) => profile.terminatorCollision,
+		run: ({ kind, profile }) => checkTerminatorCollision(kind, profile),
+		falsify: ({ kind }) => refuseExcusedCollision(kind)
 	},
-	{ cell: 'declarations', coverage: () => ({ mode: 'assert' }), run: checkDeclarationSanity }
+	{
+		cell: 'titleRow',
+		run: ({ kind }) => checkTitleRowFeedsNoMetadata(kind)
+	},
+	{
+		cell: 'declarations',
+		run: ({ kind, profile }) => checkDeclarationSanity(kind, profile)
+	}
 ];
 
-/** The cells whose coverage a profile declares. `declarations` is the kit's, not the author's. */
-const BEHAVIORAL_CELLS = CONTAINER_CONFORMANCE_CELLS.filter((c) => c.cell !== 'declarations');
-
 /**
- * A profile must assert at least one behavioral cell. `declarations` is excluded on purpose: it
- * asserts for every kind, so counting it would let a profile that excuses everything pass.
+ * A profile must assert at least one cell it declares. `declarations` doesn't count: it asserts
+ * for every kind, so counting it would let a profile that excuses everything pass.
  */
 export function assertProfileCoverageFloor(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
-	const asserts = BEHAVIORAL_CELLS.filter((c) => c.coverage(profile).mode === 'assert');
+	const asserts = CONTAINER_CONFORMANCE_CELLS.filter(
+		(c) => c.coverage?.({ kind, profile }).mode === 'assert'
+	);
 	if (asserts.length > 0) {
 		assert(
 			profile.wholeProfileExemption === undefined,
@@ -201,44 +223,43 @@ export async function runContainerConformance(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<ContainerConformanceReport> {
-	const cells: ConformanceCellReport[] = [];
-	const failures: string[] = [];
-
+	const earlier: string[] = [];
 	try {
 		assertProfileCoverageFloor(kind, profile);
 	} catch (error) {
-		failures.push(`coverageFloor: ${(error as Error).message}`);
+		earlier.push(`coverageFloor: ${(error as Error).message}`);
 	}
-
-	for (const { cell, coverage: read, run } of CONTAINER_CONFORMANCE_CELLS) {
-		const coverage = read(profile);
-		try {
-			if (coverage.mode === 'assert') {
-				await run(kind, profile);
-				cells.push({ cell, status: 'asserted' });
-			} else {
-				assertExemptionDocumented(coverage, `${kind} ${cell}`);
-				cells.push({ cell, status: coverage.mode, reason: coverage.reason });
-			}
-		} catch (error) {
-			failures.push(`${cell}: ${(error as Error).message}`);
-		}
-	}
-
-	if (failures.length > 0) {
-		throw new Error(`container conformance failed for "${kind}":\n  - ${failures.join('\n  - ')}`);
-	}
+	const cells = await runCells(
+		CONTAINER_CONFORMANCE_CELLS,
+		// A published profile never supplies drivers: no published API can perform their ops.
+		{ kind, profile: { ...profile, drivers: undefined } },
+		{ subject: kind, heading: `container conformance failed for "${kind}"` },
+		earlier
+	);
 	return { kind, cells };
 }
 
 // ── (a) local-index addressing ───────────────────────────────────────────────
 
-/**
- * Asserts that the addressed child is the one that changed (by content) and that the emitted path
- * is the chain of local indices. The non-first, non-zero setup is what tells local addressing from
- * global: at chain [0,0] child 0 the two are the same.
- */
+function driverOf(
+	kind: AnyBlockKind,
+	profile: BuiltinContainerProfile,
+	driver: 'gridLocalIndex' | 'multiScope',
+	op: string
+): () => Promise<void> {
+	const run = profile.drivers?.[driver];
+	if (run) return run;
+	const cell = driver === 'gridLocalIndex' ? 'localIndex' : 'multiScope';
+	fail(
+		`"${kind}" asserts ${cell}, but the kit drives ${op} only for the built-in kinds that own ` +
+			`one, so declare it boundary (or exempt, when the kind owns no such op)`
+	);
+}
+
+/** Asserts the addressed child is the one removed and the emitted path is the chain of local
+ *  indices; the fixture avoids chain [0,0] child 0, where local and global indices coincide. */
 export async function checkStripLocalIndexAddressing(
+	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<void> {
 	const fixture = profile.localIndexFixture;
@@ -252,6 +273,7 @@ export async function checkStripLocalIndexAddressing(
 
 	const outer = parse(fixture.source).children[0];
 	const { deps, doc, events } = createHeadlessActions([outer]);
+	const kindNode = subjectNode(doc, kind, containerChain, 'localIndexFixture');
 	const controller = createUndoController(deps);
 	const rootContainerEdit = createContainerEditActions(deps, controller);
 
@@ -269,9 +291,9 @@ export async function checkStripLocalIndexAddressing(
 				},
 				path: containerChain.slice(0, depth + 1)
 			},
-			stickyColumn: stubStickyColumn(),
-			getPresentationMode: undefined,
-			linkRef: undefined,
+			caretMemory: stubCaretMemory(),
+			reading: kitReading(),
+			stamps: createDocumentStamps(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
 				focus: parentBundle?.focus ?? recordingFocus(),
@@ -283,17 +305,16 @@ export async function checkStripLocalIndexAddressing(
 		if (depth < containerChain.length - 1) node = node.children![containerChain[depth + 1]];
 	}
 
-	const kindNode = node;
 	assert(kindNode.children!.length > 1, 'kind node has ≥2 children to target a non-first one');
 	const targetMarker = kindNode.children![targetChild].raw;
 
 	const seen: EditEvent[] = [];
 	events.on('edit', (e) => seen.push(e));
 
-	await parentBundle!.blockEdit.deleteBlock(targetChild);
+	await parentBundle!.blockEdit.deleteBlock(targetChild, 'keyless');
 
 	// The commit replaced the ancestor nodes, so resolve again through the live document.
-	const liveKind = nodeAtPath(doc, containerChain);
+	const liveKind = subjectNode(doc, kind, containerChain, 'the document after the delete');
 	const remaining = (liveKind.children ?? []).map((c) => c.raw);
 	assert(!remaining.includes(targetMarker), `local index ${targetChild} was the child removed`);
 	const editEvent = seen.find((e) => e.op === 'delete');
@@ -308,72 +329,6 @@ export async function checkStripLocalIndexAddressing(
 	// Compared against a fresh parse, not byte round-trip, which is trivially true here: this
 	// catches an op that left the container's raw stale or its shape different.
 	assertParseConverged(doc, 'doc converges after a local-index op');
-}
-
-/**
- * Grid local addressing: a table column op addresses cells by (rowIdx, colIdx) and emits
- * the table's own local path. The leading paragraph keeps the table at a non-zero doc
- * index, so a flat global offset would not coincide with the local one.
- */
-export async function checkGridLocalIndexAddressing(): Promise<void> {
-	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
-	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
-	const { ctx, deps, doc, events } = mountTableMutations(parsed.children, 1);
-
-	const seen: EditEvent[] = [];
-	events.on('edit', (e) => seen.push(e));
-
-	// Pinning the new cell's position by content is what proves cells are addressed by
-	// local column index rather than appended at the end.
-	await ctx.insertColumnRight(0);
-
-	const liveTable = deps.doc.children[1];
-	for (const row of liveTable.children!) {
-		const cells = row.children!.map((c) => c.raw);
-		assertIs(cells.length, 3, 'every row gained one cell');
-		assert(cells[0] !== '', 'column 0 unchanged');
-		assertIs(cells[1], '', 'new empty cell landed at the addressed colIdx 1');
-		assert(cells[2] !== '', 'original second cell shifted to colIdx 2');
-	}
-	const editEvent = seen.find((e) => e.op === 'tableInsertColumn');
-	assert(editEvent, 'tableInsertColumn edit event fired');
-	assertIndices(editEvent.path, [1], 'column op emits the table’s own local path');
-
-	// The same check the strip case makes, which the grid case above went without: a column op
-	// that left the table's raw stale, or a row the delimiter no longer describes, fails here.
-	assertParseConverged(doc, 'doc converges after a grid column op');
-}
-
-/** The table-mutations mount both grid cells share: headless deps, controller, row states, ctx. */
-function mountTableMutations(children: CstNode[], tableIndex: number) {
-	const table = children[tableIndex];
-	const { deps, doc, events } = createHeadlessActions(children);
-	const controller = createUndoController(deps);
-	const rootContainerEdit = createContainerEditActions(deps, controller);
-
-	const rowsState = mountBlockListState(() => table);
-	// commitColumnEdit resolves each row through expectStateForNode, so register them.
-	for (const row of table.children!) mountBlockListState(() => row);
-
-	const ctx = createTableMutationsContext({
-		get node() {
-			return table;
-		},
-		get myPath() {
-			return [tableIndex];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: rootContainerEdit,
-		controller,
-		focusCell: () => {},
-		announceReorder: () => {}
-	});
-	return { ctx, deps, doc, events };
 }
 
 // ── (b) innermost-first ancestry rebuild ─────────────────────────────────────
@@ -392,19 +347,15 @@ export function checkInnermostFirstAncestry(
 	const marker = `zzmark-${kind}`;
 	leaf.raw = marker + '\n';
 
-	// Fresh sharing state, no callback for merged containers, and the global grammar: this checks
-	// only that raw propagates, and a kit owning neither ids nor refs could reconcile no splice in
-	// the parent's child list anyway.
-	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, undefined);
+	// Fresh sharing state, no merge callback and the global grammar: the check covers only raw
+	// propagation, and the kit owns no ids to reconcile a splice with.
+	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, defaultGrammarView);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }
 
-/**
- * Mutation probe proving the ancestry check is non-vacuous: a reversed (outer→inner)
- * rebuild leaves the root stale for a strip/opaque container. Returns false for a
- * container that re-derives its whole subtree (grid), which is why grid excuses ancestry.
- */
+/** Shows the ancestry check can fail: an outer-to-inner rebuild leaves a strip or opaque root
+ *  stale. False for a grid, which re-derives its whole subtree and so excuses ancestry. */
 export function reversedAncestryLeavesRootStale(profile: ContainerConformanceProfile): boolean {
 	const { source, leafPath } = profile.deepNesting;
 	const doc = parse(source);
@@ -413,93 +364,16 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	const marker = 'reversed-mark';
 	leaf.raw = marker + '\n';
 
-	const ancestors: CstNode[] = [];
-	let cur: Document | CstNode = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		cur = cur.children![leafPath[depth]];
-		ancestors.push(cur);
-	}
 	// Outermost-first: each ancestor rebuilt before its descendants are fresh.
-	for (const a of ancestors) rebuildContainerRawIfContainer(a);
+	for (const ancestor of ancestorsOf(doc, leafPath)) rebuildContainerRawIfContainer(ancestor);
 
 	return !root.raw.includes(marker);
 }
 
-// ── (c) one undo entry per multi-scope op ────────────────────────────────────
-
-/**
- * A multi-scope op is kind-specific: it drives through the kind's own context, not a
- * generic bundle, so only the built-ins that own one are dispatched here.
- */
-export async function checkOneUndoPerMultiScope(kind: AnyBlockKind): Promise<void> {
-	if (kind === 'list') return checkListIndentOneUndo();
-	if (kind === 'table') return checkTableColumnOneUndo();
-	fail(
-		`"${kind}" asserts multiScope but the kit drives no multi-scope op for it — ` +
-			`declare the cell exempt if the kind owns no ≥2-scope op`
-	);
-}
-
-async function checkListIndentOneUndo(): Promise<void> {
-	// Indenting item 1 under item 0 spans outer-list + the new nested-list scope.
-	const list = firstChildOfKind('- alpha\n- beta\n', 'list');
-	const { deps } = createHeadlessActions([list]);
-	const controller = createUndoController(deps);
-
-	const listState = mountBlockListState(() => list);
-	// indentItem reaches into prevItem (item 0) through expectStateForNode, so register each item.
-	for (const item of list.children!) mountBlockListState(() => item);
-
-	const ctx = createListContext({
-		scope: {
-			get index() {
-				return 0;
-			},
-			get node() {
-				return list;
-			},
-			get path() {
-				return [0];
-			}
-		},
-		state: listState,
-		parentBlockEdit: stubBlockEdit(),
-		parentFocus: recordingFocus(),
-		parentListContext: undefined,
-		controller,
-		getPresentationMode: undefined,
-		linkRef: undefined
-	});
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.indentItem(1);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'list indentItem (multi-scope) pushes exactly ONE undo entry');
-	assertIs(deps.doc.children[0].children!.length, 1, 'item 1 was indented out of the outer list');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope strip op');
-}
-
-async function checkTableColumnOneUndo(): Promise<void> {
-	const table = firstChildOfKind('| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n', 'table');
-	const { ctx, deps } = mountTableMutations([table], 0);
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.insertColumnRight(0);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'table insertColumn (multi-scope) pushes exactly ONE undo entry');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope grid op');
-}
-
 // ── (d) focus-bubble termination at root ─────────────────────────────────────
 
-/**
- * Bubble an out-of-range ArrowUp through a real 2-level chain (kind-under-test → strip
- * outer at its own top edge → recording root) and assert it reaches the root exactly
- * once. Driving the kind's own bundle rather than `dispatchMoveFocus` is what catches a
- * container whose focus wiring re-enters or double-escapes.
- */
+/** Bubbles an out-of-range ArrowUp through the kind's own focus bundle, under a blockquote at its
+ *  top edge, and asserts the root sees it once, catching wiring that re-enters or escapes twice. */
 export async function checkFocusBubbleTermination(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
@@ -507,8 +381,7 @@ export async function checkFocusBubbleTermination(
 	const source = profile.focusSource;
 	if (!source) fail('focusBubble asserts but the profile carries no focusSource');
 
-	const innerNode = findFirstOfKind(parse(source), kind);
-	assert(innerNode, `focusSource contains a "${kind}" node`);
+	const innerNode = subjectNode(parse(source), kind, 'first', 'focusSource');
 	assert((innerNode.children?.length ?? 0) > 0, `"${kind}" node has children`);
 
 	const rootFocus = recordingFocus();
@@ -522,9 +395,9 @@ export async function checkFocusBubbleTermination(
 					return node;
 				},
 				path: [index],
-				stickyColumn: stubStickyColumn(),
-				getPresentationMode: undefined,
-				linkRef: undefined,
+				caretMemory: stubCaretMemory(),
+				reading: kitReading(),
+				stamps: createDocumentStamps(),
 				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
 			}
 		);
@@ -547,13 +420,8 @@ export async function checkFocusBubbleTermination(
 
 // ── (f) terminator collision ─────────────────────────────────────────────────
 
-/**
- * Writes a terminator-shaped line into the container's body through `bodyWrite`, the same entry
- * point the commit path uses, and requires the live tree to still match a fresh parse. That match
- * is the test, not byte round-trip: `serialize(parse(s)) === s` holds right through a collision
- * while the container silently stops containing what it says it does. A container with no children
- * (body in metadata) writes the same bytes through the fixture's own `writeBody`.
- */
+/** Writes a terminator-shaped body line through `bodyWrite`, as the commit path does, and requires
+ *  the tree to match a fresh parse, since byte round-trip holds even through a collision. */
 export function checkTerminatorCollision(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
@@ -563,11 +431,11 @@ export function checkTerminatorCollision(
 		fail('terminatorCollision asserts but the profile carries no terminatorCollisionFixture');
 
 	const doc = parse(fixture.source);
-	const node = doc.children[0];
-	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
+	const node = subjectNode(doc, kind, [0], 'terminatorCollisionFixture');
 
 	const bodyWrite = getBlockKindDescriptor(kind).bodyWrite;
-	const body = bodyWrite ? bodyWrite.normalize(fixture.bodyRaw) : fixture.bodyRaw;
+	const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
+	const body = bodyWrite ? bodyWrite.normalize(fixture.bodyRaw, ctx) : fixture.bodyRaw;
 	const children = node.children ?? [];
 	const before = node.raw;
 	if (children.length > 0) {
@@ -581,7 +449,8 @@ export function checkTerminatorCollision(
 		}
 		fixture.writeBody(node, body);
 	}
-	rebuildContainerRawIfContainer(node);
+	// Through the chain rebuild a commit runs, which also re-reads the container's metadata.
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, defaultGrammarView);
 
 	// Without this the cell passes on a container the write never reached, which is how a body
 	// written to the wrong place would look like it survived a collision it never saw.
@@ -589,32 +458,67 @@ export function checkTerminatorCollision(
 	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);
 }
 
+/** An opaque container wraps its body between its own marker lines, so a body line can reproduce
+ *  its closer whatever it declares; a declared `bodyWrite` is tested on any contract. */
+function refuseExcusedCollision(kind: AnyBlockKind): void {
+	const descriptor = getBlockKindDescriptor(kind);
+	if (descriptor.containerContract !== 'opaque' && !descriptor.bodyWrite) return;
+	fail(
+		`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'}, ` +
+			`and a body line reproducing its terminator truncates it, so assert terminatorCollision ` +
+			`with a fixture whose body does`
+	);
+}
+
+// ── (g) title row feeds no metadata ──────────────────────────────────────────
+
+/** Written into the title row; distinctive enough that no fixture's title is it already. */
+const TITLE_PROBE = 'probe title';
+
+/** A title keystroke skips an opaque container's metadata re-read, so the row is written through
+ *  that keystroke's rebuild and the tree has to match a fresh parse, every metadata key included. */
+export function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
+	const descriptor = getBlockKindDescriptor(kind);
+	const chromeKind = descriptor.reservedChrome?.kind;
+	if (descriptor.containerContract !== 'opaque' || chromeKind === undefined) {
+		return {
+			status: 'exempt',
+			detail: `"${kind}" has no title row whose keystrokes skip the metadata re-read`
+		};
+	}
+	const fixture = descriptor.conformanceFixture;
+	if (fixture === undefined) {
+		fail(`${kind} declares a title row but carries no conformanceFixture to write it in`);
+	}
+	const doc = parse(fixture);
+	const leafPath = [...subjectPath(doc, kind, 'first', `${kind} conformanceFixture`), 0];
+	const title = nodeAtPath(doc, leafPath);
+	assertIs(
+		title.kind,
+		chromeKind,
+		`${kind} conformanceFixture opens a "${kind}" with its title row`
+	);
+
+	const leafPreviousRaw = title.raw;
+	title.raw = TITLE_PROBE + trailingLineEnding(title.raw, documentLineEnding(doc));
+	const sharing = createSharingState();
+	const chain = walkUnsharing(doc, leafPath, sharing, false);
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView, {
+		path: leafPath,
+		leafPreviousRaw
+	});
+	assertParseConverged(doc, `${kind} after a keystroke in its title row`);
+}
+
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
-/**
- * Hold the kind to its schema declarations. A declared `unwrapRole` must name implemented
- * strategies because the nested dispatcher indexes them unguarded, and a capability whose only
- * job is a cell's repair may not ship behind that cell's excuse.
- */
+/** Holds the kind to its declarations: an `unwrapRole` names implemented strategies, which the
+ *  nested dispatcher indexes unguarded. */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
-
-	// A fact about the grammar, not about the declaration: an opaque container wraps its body
-	// between marker lines of its own, so a body line can reproduce its closer whether or not the
-	// kind declares the repair. The `bodyWrite` branch stays, because a declared repair is tested
-	// on any contract.
-	const owesCollisionAnswer = descriptor.containerContract === 'opaque' || !!descriptor.bodyWrite;
-	if (owesCollisionAnswer && profile.terminatorCollision.mode !== 'assert') {
-		fail(
-			`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'} ` +
-				`but its profile marks terminatorCollision "${profile.terminatorCollision.mode}" — a body ` +
-				`line reproducing the terminator truncates the container, so assert the cell with a ` +
-				`fixture whose body does`
-		);
-	}
 
 	const role = descriptor.unwrapRole;
 	if (role) {
@@ -646,19 +550,51 @@ export function checkDeclarationSanity(
 	}
 
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
-	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
-	assert(node, `deepNesting fixture contains a "${kind}" node`);
-	assertRebuildIsParseCanonical(descriptor, node, kind);
+	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
+	assertLastLineChildHoldsIt(kind, node);
+	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
+	assertRebuildKeepsParsedBytes(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
 }
 
-/**
- * `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
- * rebuilt with and without it are the same bytes. A rebuilder that ignores the hint passes here
- * by construction, which is what makes the argument optional to adopt.
- */
+/** The child `lastLineChild` names (or its contract's default) ends on the container's own last
+ *  line, which the open last line's release walks down to. */
+function assertLastLineChildHoldsIt(kind: AnyBlockKind, node: CstNode): void {
+	const holder = childHoldingLastLine(node);
+	if (holder < 0) return;
+	const childLine = lastLine(node.children![holder].raw);
+	assert(
+		lastLine(node.raw).endsWith(childLine),
+		`${kind} names child ${holder} as holding its last line, but that child's last line ` +
+			`"${childLine}" is not the end of the container's "${lastLine(node.raw)}"`
+	);
+}
+
+/** A -1 answer says the container's own bytes hold its last line, so giving that line's ending up
+ *  there alone must survive a rebuild; a child that really holds it writes the ending back. */
+function assertOwnLastLineHoldsIt(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor,
+	source: string
+): void {
+	const node = subjectNode(parse(source), kind, 'first', 'deepNesting');
+	if (childHoldingLastLine(node) >= 0) return;
+	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
+	keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
+	const released = doc.children[0].raw;
+	descriptor.rebuildRaw!(doc.children[0]);
+	assertIs(
+		doc.children[0].raw,
+		released,
+		`${kind} answers that its own bytes hold its last line, but a rebuild after that line ` +
+			`gives its ending up writes the ending back`
+	);
+}
+
+/** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
+ *  rebuilt with and without it give the same bytes. */
 function assertHintedRebuildMatchesFull(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,
@@ -668,8 +604,8 @@ function assertHintedRebuildMatchesFull(
 	if (!children?.length) return;
 	const index = children.length - 1;
 	const previousRaw = children[index].raw;
-	// Doubling keeps whatever line shape the fixture's own child had, and with one operand the
-	// cross-node join census still reads this as a kind re-emitting its own bytes.
+	// Doubling keeps the child's own line shape, and with one operand the cross-node join check
+	// still reads it as the kind re-emitting its own bytes.
 	children[index].raw = previousRaw.repeat(2);
 
 	descriptor.rebuildRaw!(node, { index, previousRaw });
@@ -686,11 +622,8 @@ function assertHintedRebuildMatchesFull(
  *  ends in it by accident. */
 const CONTENT_START_PROBE = 'probe';
 
-/**
- * `container.contentStartSpace` swallows the user's space, so the bytes only stay honest where the
- * rebuild writes that space back on a content line. A kind that declares it without doing so eats
- * the keystroke instead of holding it.
- */
+/** `container.contentStartSpace` swallows the user's space, so a line that was empty and gains
+ *  text must be written with the marker's space, or the keystroke is lost. */
 function assertContentStartSpaceIsRebuilt(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor
@@ -700,13 +633,18 @@ function assertContentStartSpaceIsRebuilt(
 	if (fixture === undefined) {
 		fail(`${kind} declares container.contentStartSpace but carries no conformanceFixture to probe`);
 	}
-	const node = parse(fixture).children.find((child) => child.kind === kind);
-	assert(node?.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
+	const doc = parse(fixture);
+	const node = subjectNode(doc, kind, 'first', `${kind} conformanceFixture`);
+	assert(node.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
 
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
 	const last = node.children[node.children.length - 1];
-	last.raw = CONTENT_START_PROBE + (trailingLineEnding(last.raw) || '\n');
+	const ending = trailingLineEnding(last.raw, documentLineEnding(doc));
+	// Emptied first, the way a bare marker opens its container with an empty child.
+	last.raw = ending;
+	descriptor.rebuildRaw!(node);
+	last.raw = CONTENT_START_PROBE + ending;
 	descriptor.rebuildRaw!(node);
 
 	const lines = splitLines(node.raw)
@@ -716,20 +654,16 @@ function assertContentStartSpaceIsRebuilt(
 	const line = lines[0];
 	assert(
 		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
-		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for a body ` +
-			`child holding "${CONTENT_START_PROBE}" — the consumed space is only deferred where the ` +
-			`rebuild re-emits the marker's own trailing space on a content line`
+		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for an ` +
+			`empty body child given "${CONTENT_START_PROBE}": the consumed space only appears where ` +
+			`the rebuild writes the marker's own space on a line that gains text`
 	);
 }
 
-/**
- * `container.bodyWrap` is tested, never taken on trust: the code that recomputes blank-line
- * separators reads it to decide whether a freed blank line belongs to the wrap, and a kind whose
- * parse disagrees loses the start of its body on reload
- * (`tree-operations/settle.clearRedundantSeparator`).
- */
+/** `container.bodyWrap` is tested, not trusted: `clearRedundantSeparator` reads it to place a freed
+ *  blank line, and a kind whose parse disagrees loses the start of its body on reload. */
 function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
-	if (descriptor.containerContract === 'grid') return;
+	if (isGridDescriptor(descriptor)) return;
 	const fixture = descriptor.conformanceFixture;
 	if (fixture === undefined) {
 		fail(
@@ -738,24 +672,19 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 				`whose top level opens a "${kind}" carrying a body`
 		);
 	}
-	// A kind with no standalone recognizer (listItem) can only ever be nested, so it is tested
-	// where the fixture puts it. Openers alone misread directive kinds, whose recognizer is the
-	// shared `:::`.
+	// A kind with no recognizer of its own (listItem) is tested where the fixture nests it; a
+	// directive kind's recognizer is the shared `:::`, which the opener registry does not list.
 	const doc = parse(fixture);
 	const opensAtTop = isBlockOpenerRegistered(kind) || isDirectiveKind(kind);
-	const node = opensAtTop
-		? doc.children.find((child) => child.kind === kind)
-		: findFirstOfKind(doc, kind);
+	const path = subjectPath(doc, kind, 'first', `${kind} conformanceFixture`);
 	assert(
-		node,
-		`${kind} conformanceFixture must ${opensAtTop ? 'open' : 'carry'} a "${kind}"` +
-			`${opensAtTop ? ' at the top level' : ''} — the bodyWrap probe rebuilds and reparses that ` +
-			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
-			`asserted`
+		!opensAtTop || path.length === 1,
+		`${kind} conformanceFixture must open a "${kind}" at the top level — the bodyWrap probe ` +
+			`rebuilds that node and reparses its bytes as a document of their own`
 	);
-	// A container that keeps its body in metadata parses with no children, so there is no body
-	// child for a blank line to be stripped from. Nothing is left to test, and the declaration has
-	// to be absent: a wrap the parse can never perform would lie to the separator fix-up.
+	const node = nodeAtPath(doc, path);
+	// A container whose body lives in metadata parses childless, so it has no wrap to test and
+	// must declare none: the blank-line fix-up would trust a wrap the parse never performs.
 	if (!node.children?.length) {
 		assertIs(
 			descriptor.bodyWrap?.afterOpenerLine,
@@ -767,7 +696,7 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	}
 
 	const expected = node.children.length;
-	const ending = trailingLineEnding(node.raw) || '\n';
+	const ending = trailingLineEnding(node.raw, documentLineEnding(doc));
 	node.innerPrefix = '';
 	descriptor.rebuildRaw!(node);
 	const withoutPrefix = node.raw;

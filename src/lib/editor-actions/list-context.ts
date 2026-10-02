@@ -5,30 +5,32 @@
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
-import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-component';
+import { CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode, ListItemMetadata } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { trailingLineEnding } from '../core/lines';
+import type { LineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
-import type { PresentationModeGetter } from '../editor-keys';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
-	type StructuralChange
+	trackChildIds
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, assertSplitLanding, emptyParagraph } from '../tree-operations';
+import { spliceChildren } from '../tree-operations/children';
+import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
+import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
+import { lastCaretLeaf } from '../selection/path-lookup';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
-import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList,
 	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
 import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
+import { fragmentReaderAt } from '../tree-operations/list/task-paragraph';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import { settleSublistSeparator } from '../tree-operations/list/sublist-separator';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -37,21 +39,24 @@ import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {
 	scope: NodeScope;
+	/** The document's line ending, which the lines an item insert or a list exit creates take. */
+	getLineEnding: () => LineEnding;
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
 	parentListContext: ListContext | undefined;
 	controller: UndoController;
-	/** The live effective mode, for the mid-item split's marker rebalance. Nullable rather
-	 *  than optional so the composing container answers. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver, nullable for the same reason as the mode. */
-	linkRef: InlineResolverRef | undefined;
+	/** The editor's reading, for the mid-item split's reparse and marker rebalance. */
+	reading: Reading;
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
- *  unchecked. */
-function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstNode[]): CstNode {
+ *  unchecked; it starts from `source`'s bytes, so its marker line takes the item's indent. */
+function mintFollowerItem(
+	prevMeta: ListItemMetadata | undefined,
+	children: CstNode[],
+	source?: NodeView
+): CstNode {
 	const inheritTask = prevMeta?.taskItem === true;
 	return buildListItem(
 		{
@@ -60,18 +65,25 @@ function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstN
 			taskChecked: false,
 			taskMarker: inheritTask ? '[ ] ' : null
 		},
-		children
+		children,
+		source
 	);
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
+	/** Item `index` of this list, at `offset`; a container position the landing resolves to a leaf. */
+	const itemAt = (index: number, offset: number) => ({
+		path: extendDocPath(deps.scope.path, index),
+		offset
+	});
+
 	return {
-		async indentItem(itemIndex: number): Promise<void> {
+		async indentItem(itemIndex: number): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children || itemIndex === 0) return;
+			if (!node.children || itemIndex === 0) return false;
 
 			const prevItem = node.children[itemIndex - 1];
-			if (!prevItem.children) return;
+			if (!prevItem.children) return false;
 
 			const ordered = metadataOf(node, 'list').ordered;
 			const existingNestedIdx = prevItem.children.findIndex(
@@ -94,35 +106,41 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						path: [...deps.scope.path, itemIndex - 1]
 					};
 
-			await deps.controller.commitMultiScope({
+			// The moved item's path below this list once it lands in the previous item.
+			let movedTo: number[] = [];
+			return deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.scope.path }, destination],
 				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
+					const at = destScope.children.length;
+					movedTo = existingNestedList
+						? [itemIndex - 1, existingNestedIdx, at]
+						: [itemIndex - 1, at, 0];
 
-					let destList: CstNode;
+					// Each branch renumbers the moved item's marker through `sharing`, which copies it first.
 					if (existingNestedList) {
-						destList = destScope.node;
+						const destList = destScope.node;
 						destScope.children.push(movedItem);
 						// Adopt the destination sublist's marker style, as a paste does. A fresh list
 						// (the else branch) has no convention to adopt.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
 						normalizeItemMarkerToList(moved, destList);
+						renumberOrderedList(destList, 0, sharing);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
 						destScope.children.push(shell);
 						// Write, then read back (tree-operations/unshare.ts): the writes below go
-						// through the value in the tree, not the list the proxy has now observed.
-						destList = destScope.children[destScope.children.length - 1];
+						// through the value in the tree, not the list the proxy has observed.
+						const destList = destScope.children[destScope.children.length - 1];
+						renumberOrderedList(destList, 0, sharing);
+						// A new sublist sits below the commit's chain, which never rebuilds it; the
+						// blank-line rule below reads its bytes too.
+						destScope.rebuild(destList);
+						settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					}
-
-					// Renumbering writes the moved item's marker; `sharing` copies it first.
-					renumberOrderedList(destList, 0, sharing);
-					rebuildListRaw(destList);
-					// After the rebuild, since the blank-line rule reads the sublist's own bytes.
-					settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					renumberOrderedList(outerScope.node, itemIndex, sharing);
 
 					return [
@@ -135,36 +153,44 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { action: 'indentItem', itemIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
+				// The moved item's last leaf, at its start; the walk runs over this list's own items.
+				landing: () => {
+					const items: DocumentView = {
+						kind: 'document',
+						prefix: '',
+						children: deps.scope.node.children ?? [],
+						suffix: ''
+					};
+					const leaf = lastCaretLeaf(items, movedTo);
+					return leaf && { path: docPathFrom([...deps.scope.path, ...leaf]), offset: CURSOR_START };
 				}
 			});
 		},
 
-		async unindentItem(itemIndex: number): Promise<void> {
-			if (!deps.parentListContext || !deps.scope.node.children) return;
-			await deps.parentListContext.promoteNestedItem(
+		async unindentItem(itemIndex: number): Promise<boolean> {
+			if (!deps.parentListContext || !deps.scope.node.children) return false;
+			return deps.parentListContext.promoteNestedItem(
 				deps.parentListContext.getContainingItemIndex(),
 				deps.scope.node,
 				itemIndex
 			);
 		},
 
-		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
+		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children) return;
+			if (!node.children) return false;
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
 				newItem = mintFollowerItem(
 					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
-					// The new item's body is nothing but a line ending, so it takes the list's
-					// (G4.20); rebuildListItemRaw derives the item's raw from it.
-					[emptyParagraph('', trailingLineEnding(node.raw))]
+					// rebuildListItemRaw derives the item's raw from its body's line ending.
+					[emptyParagraph('', deps.getLineEnding())],
+					prevItem
 				);
 			}
 
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.scope.path }],
 				snapshot: { path: docPathFrom(deps.scope.path), offset: 0 },
 				mutate: ([scope]) => {
@@ -179,23 +205,25 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { itemIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
-				}
+				landing: () => itemAt(itemIndex + 1, 0)
 			});
 		},
 
-		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
+		async splitItemAtOffset(
+			itemIndex: number,
+			innerIndex: number,
+			offset: number
+		): Promise<boolean> {
 			const outerList = deps.scope.node;
-			if (!outerList.children) return;
+			if (!outerList.children) return false;
 
 			const item = outerList.children[itemIndex];
-			if (!item.children) return;
+			if (!item.children) return false;
 
 			const itemState = expectStateForNode(item);
 
 			// Both lists in one commit, so mid-item Enter is a single undo entry.
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes: [
 					{ node: outerList, state: deps.state, path: deps.scope.path },
 					{ node: item, state: itemState, path: [...deps.scope.path, itemIndex] }
@@ -211,24 +239,29 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const preSpliceLen = itemChildren.length;
 
 					const split = performSplit(
-						{ children: itemChildren, ownerKind: itemScope.node.kind, owner: itemScope.node },
+						itemScope.body,
 						innerIndex,
 						offset,
 						sharing,
-						deps.getPresentationMode?.(),
-						deps.linkRef
+						deps.reading,
+						// The new item inherits this one's task marker, so its first block reads
+						// as this item's first block does.
+						fragmentReaderAt(itemScope.node, 0, deps.reading.grammar)
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several
-					// blocks stays with this item (G1.34 checks the index).
-					const landing = split.secondHalfIndex;
-					assertSplitLanding(split, landing);
-					const secondHalf = itemChildren.splice(landing);
+					// blocks stays with this item.
+					const cutAt = split.secondHalfIndex;
+					const secondHalf = itemChildren.splice(cutAt);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const newItem = mintFollowerItem(metadataOf(itemScope.node, 'listItem'), secondHalf);
+					const newItem = mintFollowerItem(
+						metadataOf(itemScope.node, 'listItem'),
+						secondHalf,
+						itemScope.node
+					);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
@@ -238,7 +271,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// blocks, several when the cut bytes reparse to more than one.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, landing - innerIndex)
+						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, cutAt - innerIndex)
 					];
 				},
 				op: {
@@ -246,9 +279,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(CURSOR_EXACT_START);
-				}
+				landing: () => itemAt(itemIndex + 1, CURSOR_EXACT_START)
 			});
 		},
 
@@ -256,39 +287,33 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			parentItemIdx: number,
 			nestedListNode: NodeView,
 			nestedItemIdx: number
-		): Promise<void> {
+		): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children || !nestedListNode.children) return;
+			if (!node.children || !nestedListNode.children) return false;
 
 			const parentItem = node.children[parentItemIdx];
-			if (!parentItem?.children) return;
+			if (!parentItem?.children) return false;
 
 			const nestedIdxInParent = parentItem.children.indexOf(nestedListNode);
-			if (nestedIdxInParent === -1) return;
+			if (nestedIdxInParent === -1) return false;
 
-			// Removing the last item empties the nested list, which needs a third scope to splice
-			// the empty list out of parentItem's children.
-			const nestedListWillEmpty = nestedListNode.children.length === 1;
-
+			// The move can empty the nested list and then the parent item, so both are scopes.
 			const scopes: MultiScopeTarget[] = [
 				{ node, state: deps.state, path: deps.scope.path },
 				{
 					node: nestedListNode,
 					state: expectStateForNode(nestedListNode),
 					path: [...deps.scope.path, parentItemIdx, nestedIdxInParent]
-				}
-			];
-			let parentItemScopeIdx = -1;
-			if (nestedListWillEmpty) {
-				parentItemScopeIdx = scopes.length;
-				scopes.push({
+				},
+				{
 					node: parentItem,
 					state: expectStateForNode(parentItem),
 					path: [...deps.scope.path, parentItemIdx]
-				});
-			}
+				}
+			];
+			let promotedAt = parentItemIdx + 1;
 
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes,
 				// The promoted item's pre-move path (its nested-list slot).
 				snapshot: {
@@ -296,50 +321,44 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					offset: 0
 				},
 				mutate: (scopeViews) => {
-					const outerScope = scopeViews[0];
-					const nestedScope = scopeViews[1];
+					const [outerScope, nestedScope] = scopeViews;
 					const sharing = outerScope.sharing;
+					// Opened before the move, since the cleanup below can splice any of the three lists.
+					const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
 					// The promoted item is moved and written (marker normalization, renumbering),
 					// so copy it before it leaves the nested list.
 					const item = ensureUnsharedChild(nestedScope.node, nestedItemIdx, sharing);
-					nestedScope.children.splice(nestedItemIdx, 1);
-
-					const changes: StructuralChange[] = new Array(scopes.length);
-					changes[1] = { op: 'delete', at: nestedItemIdx, count: 1 };
-
-					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
-						const parentItemChildren = scopeViews[parentItemScopeIdx].children;
-						const nestedIdx = parentItemChildren.indexOf(nestedScope.node);
-						if (nestedIdx !== -1) {
-							parentItemChildren.splice(nestedIdx, 1);
-							changes[parentItemScopeIdx] = { op: 'delete', at: nestedIdx, count: 1 };
-						} else {
-							changes[parentItemScopeIdx] = { op: 'noop' };
-						}
-					}
-
-					if (!nestedListWillEmpty) {
-						renumberOrderedList(nestedScope.node, 0, sharing);
-					}
-
+					spliceChildren(nestedScope.node, nestedItemIdx, 1, []);
 					normalizeItemMarkerToList(item, outerScope.node);
+					spliceChildren(outerScope.node, promotedAt, 0, [item]);
 
-					outerScope.children.splice(parentItemIdx + 1, 0, item);
-					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
+					// What the move emptied goes, up to this list, which now holds the promoted item.
+					const outerCount = outerScope.children.length;
+					cascadeCleanupEmptyAncestors(
+						outerScope.node,
+						[parentItemIdx, nestedIdxInParent, nestedItemIdx],
+						sharing,
+						deps.reading.grammar,
+						outerScope.lineEnding
+					);
+					promotedAt -= outerCount - outerScope.children.length;
 
-					renumberOrderedList(outerScope.node, parentItemIdx + 1, sharing);
+					if (nestedScope.children.length > 0) renumberOrderedList(nestedScope.node, 0, sharing);
+					renumberOrderedList(outerScope.node, promotedAt, sharing);
 
-					return changes;
+					return ledgers.map((ledger) => {
+						const change = ledger.read();
+						ledger.release();
+						return change;
+					});
 				},
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(CURSOR_START);
-				}
+				landing: () => itemAt(promotedAt, CURSOR_START)
 			});
 		},
 
@@ -348,26 +367,29 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			return -1;
 		},
 
-		async exitListAtItem(itemIndex: number): Promise<void> {
+		async exitListAtItem(itemIndex: number): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children) return;
+			if (!node.children) return false;
 
 			// In a nested list one Enter outdents one level, like Shift+Tab. Only the outermost
 			// list exits straight to a paragraph.
 			if (deps.parentListContext) {
-				await deps.parentListContext.promoteNestedItem(
+				return deps.parentListContext.promoteNestedItem(
 					deps.parentListContext.getContainingItemIndex(),
 					node,
 					itemIndex
 				);
-				return;
 			}
 
-			const replacement = buildExitReplacement(node, itemIndex);
-			await deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
-				replacementIndex: replacement.paragraphIndex,
-				offset: 0
-			});
+			const replacement = buildExitReplacement(node, itemIndex, deps.getLineEnding());
+			// The caret sat in an item, which an offset into the list can't name; the live read
+			// records it.
+			return deps.parentBlockEdit.replaceBlock(
+				deps.scope.index,
+				replacement.blocks,
+				{ replacementIndex: replacement.paragraphIndex, offset: 0 },
+				{ snapshotOffset: 0 }
+			);
 		}
 	};
 }

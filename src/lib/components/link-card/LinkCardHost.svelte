@@ -1,44 +1,48 @@
 <script lang="ts">
 	import type { Document } from '../../core/nodes';
-	import type { UndoController } from '../../editor-actions/deps';
+	import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 	import type { EditorEvents } from '../../editor-events';
-	import type { LinkReferenceResolverRef } from '../../editor-keys';
-	import type { GrammarView } from '../../schema/block-openers';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { resolveHref } from '../../core/inline-render';
 	import LinkCard from './LinkCard.svelte';
 	import { createLinkCardCommitter } from './link-card-commit';
 	import type { LinkCardState } from './link-card-state.svelte';
+	import type { MenuPresence } from '../menu/menu-presence.svelte';
+	import type { Reading } from '../../schema/reading';
+	import type { CommandDispatchContext } from '../../schema/block-commands';
+	import { commandForKey } from '../../schema/commands';
+	import { blockNodeAt } from '../../tree-operations/node-primitives';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
 	let {
 		card,
-		controller,
+		inlineRange,
 		events,
 		getDoc,
 		getEditorEl,
 		measureRange,
-		landCaret,
 		activateLink,
 		resolveLinkUrl,
 		caretRestore,
-		linkRef,
-		grammar
+		reading,
+		menuPresence,
+		commands
 	}: {
 		card: LinkCardState;
-		controller: UndoController;
+		inlineRange: InlineRangeCommit;
 		events: EditorEvents;
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
-		landCaret: (path: number[], offset: number) => Promise<boolean>;
 		activateLink: (url: string, event: MouseEvent) => void;
 		/** The consumer's href rewrite, the first thing the render path applies. */
 		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
-		linkRef?: LinkReferenceResolverRef;
-		grammar?: GrammarView;
+		reading: Reading;
+		menuPresence: MenuPresence;
+		/** The editor's command dispatch, which says what a keypress means at the card's block. */
+		commands: CommandDispatchContext;
 	} = $props();
 
 	let cardEl: HTMLDivElement | undefined = $state();
@@ -50,12 +54,10 @@
 		getEditorEl,
 		getTarget: card.getTarget,
 		getCreateTarget: card.getCreateTarget,
-		controller,
+		inlineRange,
 		events,
 		measureRange,
-		landCaret,
-		linkRef,
-		grammar
+		reading
 	});
 
 	$effect(() => {
@@ -64,17 +66,15 @@
 		return linkCard.syncCardToLink(() => cardEl ?? null);
 	});
 
-	// A target that stops resolving unrenders the card but leaves the state set, so its
-	// document-capture listeners live on and the next write that makes it resolve again
-	// resurrects it holding a draft from before. Closing is the only honest answer.
+	// A target that stops resolving closes the card, or a later write that makes it resolve
+	// again would bring it back holding an old draft.
 	$effect(() => {
 		const target = card.getTarget();
 		if (target && !linkCard.resolve(target)) card.close();
 	});
 
-	// A create target names bytes by range alone, so a write from outside the gesture moves them
-	// under it. The commit path closes before it writes, and the handler re-reads the target, so
-	// only an outside edit closes the card here.
+	// A create target is a bare range, which any other write would shift under it; the card's own
+	// commit closes it before writing, so only an outside edit closes it here.
 	$effect(() => {
 		if (!card.getCreateTarget()) return;
 		return events.on('edit', () => {
@@ -82,9 +82,8 @@
 		});
 	});
 
-	// A click outside dismisses the card without changing anything and leaves the caret where it
-	// just landed. Escape is document-level because the opening click leaves the caret in the
-	// document: the card sits beside a live caret until the user steps into it, and both close.
+	// A click outside closes the card and leaves the caret where it landed. Escape is read at the
+	// document because a clicked card sits beside a caret that stays there.
 	$effect(() => {
 		if (!card.getTarget() && !card.getCreateTarget()) return;
 		const onPointerDown = (e: PointerEvent) => {
@@ -103,7 +102,7 @@
 				e.stopPropagation();
 			}
 			card.close();
-			if (inCard) caretRestore.restore();
+			if (inCard) void caretRestore.restore();
 		};
 		document.addEventListener('pointerdown', onPointerDown, true);
 		document.addEventListener('keydown', onKeyDown, true);
@@ -129,6 +128,14 @@
 		linkCard.commitCreate(target, url);
 	}
 
+	// Resolved at the block the card edits, so a consumer's rebinding of the chord is the one
+	// the card takes.
+	function opensCard(e: KeyboardEvent): boolean {
+		const path = card.getTarget()?.path ?? card.getCreateTarget()?.path;
+		const kind = path ? (blockNodeAt(getDoc(), path)?.kind ?? null) : null;
+		return commandForKey(e, kind, commands) === 'link.openCard';
+	}
+
 	function remove(): void {
 		const target = card.getTarget();
 		if (!target) return;
@@ -141,7 +148,11 @@
 	{@const target = card.getTarget()!}
 	{@const resolved = linkCard.resolve(target)}
 	{#if resolved}
-		<div bind:this={cardEl} class="md-link-card-anchor">
+		<div
+			bind:this={cardEl}
+			class="md-link-card-anchor"
+			{@attach menuPresence.track(() => card.close(), { edits: true })}
+		>
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
 					url={resolved.url}
@@ -150,6 +161,7 @@
 					onCommit={commit}
 					onOpenLink={activateLink}
 					onRemove={remove}
+					{opensCard}
 					resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
 				/>
 			{/key}
@@ -157,7 +169,11 @@
 	{/if}
 {:else if card.getCreateTarget()}
 	{@const create = card.getCreateTarget()!}
-	<div bind:this={cardEl} class="md-link-card-anchor">
+	<div
+		bind:this={cardEl}
+		class="md-link-card-anchor"
+		{@attach menuPresence.track(() => card.close(), { edits: true })}
+	>
 		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
 			<LinkCard
 				url=""
@@ -165,6 +181,7 @@
 				canWrite={true}
 				onCommit={commitCreate}
 				onOpenLink={activateLink}
+				{opensCard}
 				resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
 			/>
 		{/key}

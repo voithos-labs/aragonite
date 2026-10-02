@@ -1,14 +1,14 @@
 # Feature: single-block paste crosses the live join
 
-A paste over a selection inside one block is a delete then an insert, and its delete
-half joins two sides like every merge, range delete, cut and type-over: the two sides
-the cut leaves meet at a join. In live mode the delimiter runs a cut strands are bytes
-the user never saw, so a literal splice pastes them into view: an unmatched `**` is
-not a construct, so it renders as plain visible text. Every other join already went
-through `cleanJoinedRaw`, and the paste paths spliced their own bytes instead, which
-is what this pins closed. Driven on `/test/editor`; what is checked is what the block
-shows (its text minus the spans a marker-hiding mode drops), not only the source,
-because the source is legitimately allowed to differ per mode.
+A paste over a selection inside one block replaces that selection with the pasted
+text, same as typing over it. In live mode the range can end halfway through a
+construct, and the delimiter runs the cut strands are bytes you never saw. Pasted
+literally, an unmatched `**` isn't a construct anymore, so it shows up as plain text.
+So the paste goes through the same replace typing uses (`replaceRangeInLeaf`), with
+the pasted text already in the join (where the two sides the cut leaves meet): it
+keeps a run the text fills back in, and drops one it doesn't. Driven on `/test/editor`; what's checked is what the block shows (its
+text minus the spans a marker-hiding mode drops), not only the source, since the
+source is allowed to differ per mode.
 
 ## Happy paths
 
@@ -24,6 +24,9 @@ because the source is legitimately allowed to differ per mode.
   bytes it wrote)
 - source: the same cell paste is byte-literal too, since the walk crosses the
   painted delimiters one character at a time and the halves it leaves stand as cut
+- live, at the top level and in a list item: pasting `X` over the whole word in
+  `**bold** text` gives `**X** text`, same bytes as typing `X` over that selection.
+  The pasted text fills the bold back in, so there's nothing stranded to clean up
 
 ## Edge cases
 
@@ -38,3 +41,9 @@ because the source is legitimately allowed to differ per mode.
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+
+## Miss-analysis
+
+The paste rows only ever cut a range that left a run unpaired, never one the pasted
+text fills back in, so nobody noticed the cut got cleaned up before the text arrived
+(and dropped the bold that typing keeps).

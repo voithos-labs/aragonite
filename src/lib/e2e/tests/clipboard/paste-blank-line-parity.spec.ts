@@ -9,8 +9,8 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.goto();
 	});
 
-	// Enter separates, so the first press already puts a blank line between the halves and
-	// the second is what makes the empty block; its own line is the third newline.
+	// Enter separates, so the first keypress already puts a blank line between the halves and the
+	// second makes the empty block, whose own line is the third newline.
 	test('typed: an explicitly created empty block is a third block', async () => {
 		await editor.loadContent('');
 		await editor.focusBlockAtPath([0], 0);
@@ -22,8 +22,8 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 
 		const typedCount = await editor.getDomBlockCount();
 		expect(typedCount).toBe(3);
-		// The blocks the bytes reload as: the shape survives the round trip (issue #20).
-		await editor.loadContent(await editor.bridge.getSource());
+		// The blocks the bytes reload as: the shape survives the round trip.
+		await editor.reloadContent();
 		expect(await editor.getDomBlockCount()).toBe(typedCount);
 	});
 
@@ -79,5 +79,21 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('twoZ');
 		expect(src).not.toContain('worldZ');
+	});
+});
+
+test.describe('a paste keeps the joins between the clipboard’s own blocks', () => {
+	test('a heading over a paragraph lands flush, as the clipboard held it', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('hello world\n');
+		await editor.seedClipboard('# T\nbody');
+		await editor.focusBlockAtPath([0], 5);
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('body');
+
+		const asLf = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
+		expect(asLf).toBe('hello\n\n# T\nbody\n world\n');
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });

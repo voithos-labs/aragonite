@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 
 // How character references are recognized and composed
 // (`requirements/inline-editing/entity-references.md`). How the caret and Delete treat the
-// resulting widget is a separate concern, pinned in `entity-widget.spec.ts`.
+// resulting widget is `entity-widget.spec.ts`.
 
 test.describe('inline editing: entity references', () => {
 	let editor: EditorPage;

@@ -53,10 +53,8 @@ test.describe('list Tab', () => {
 		expect(source).not.toMatch(/^\s+1\. B$/m);
 	});
 
-	// `indentItem` passes `focus(-1)` down to the leaf paragraph, and a leaf handing -1 straight to
-	// `cursor.setRaw` throws `IndexSizeError` and silently does nothing. Only a target with no
-	// marker in front of it, so not the first child of its list item, reaches that, hence the
-	// extra paragraph.
+	// A leaf handing `indentItem`'s `focus(-1)` straight to `cursor.setRaw` throws; only a target
+	// that is not its item's first child reaches that, hence the extra paragraph.
 	test('Tab cascades cursor to start of moved item continuation paragraph', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n\n  continuation\n');
 		// Item 2 is the second listItem at path [0, 1]; its first paragraph is the "Item 2" line,
@@ -87,6 +85,17 @@ test.describe('list Tab', () => {
 		// Nesting, not just the typed char: bare 'Xthree' also passes when Tab
 		// no-ops and only the typing lands.
 		expect(src).toMatch(/^ {2}- Xthree$/m);
+	});
+
+	test('Tab on an item ending in a table lands at the start of its last cell', async () => {
+		await editor.loadContent('- a\n- b\n\n  | h1 | h2 |\n  | -- | -- |\n  | c1 | c2 |\n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.page.keyboard.press('Tab');
+		await editor.bridge.waitForSourceMatches(/^ {2}- b$/m);
+
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('x');
+		expect(await editor.bridge.getSource()).toContain('| c1 | xc2 |');
 	});
 
 	test('Tab into a fresh nested list focuses the moved item', async () => {

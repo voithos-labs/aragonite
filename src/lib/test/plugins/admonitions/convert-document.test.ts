@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -72,5 +72,14 @@ describe('convertGithubAlertsInDocument', () => {
 		const doc = parse(converted);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'admonition', 'fencedCode']);
 		expect(serialize(doc)).toBe(converted);
+	});
+});
+
+// Miss-analysis: every document fixture was LF, so no alert sat on an unterminated CRLF last line.
+describe('convertGithubAlertsInDocument in a CRLF document', () => {
+	it("closes an alert on the unterminated last line with the document's ending", () => {
+		expect(convertGithubAlertsInDocument('a\r\n\r\n> [!NOTE]').converted).toBe(
+			'a\r\n\r\n:::note\r\n:::'
+		);
 	});
 });

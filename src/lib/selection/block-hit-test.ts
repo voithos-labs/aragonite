@@ -7,22 +7,19 @@
 import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
-import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
-import { offsetFromViewportPoint } from '../cursor/point-offset';
+import { cellPoint, type SelectionEndpoint } from './primitives';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
+import { pathsEqual } from './path-math';
 
 export interface BlockHit {
 	path: number[];
-	/**
-	 * The editable element a character offset is hit-tested against, or null when the kind has
-	 * none (a table grid, or a whole-block kind whose body is all markers and buttons).
-	 * Hit-testing the wrapper instead would return a plausible but wrong offset, not a refusal.
-	 */
+	/** The element carrying the block's path; a container's children are block hosts inside it. */
+	host: HTMLElement;
+	/** The editable element a character offset is hit-tested against, or null when the kind has
+	 *  none: hit-testing the wrapper instead returns a plausible but wrong offset. */
 	charSurface: HTMLElement | null;
-	/**
-	 * Maps a point to a row-major cell index for a grid kind such as a table. Bound to this
-	 * block's wrapper, taken from the kind descriptor.
-	 */
+	/** Maps a point to a row-major cell index for a grid kind such as a table. */
 	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
 	/**
 	 * Where a click inside a grid kind puts the caret, as a child path plus offset; read when
@@ -49,9 +46,9 @@ export function blockAtPoint(
 			const caretTarget = descriptor?.caretTargetAtPoint;
 			return {
 				path,
-				// A grid kind's first contenteditable is a cell, not the block, so a kind with the
-				// drag hook reports no text element. The whole-block input and the selection
-				// overlay are skipped for the same reason: neither holds the block's characters.
+				host: wrapper,
+				// A grid kind's first contenteditable is a cell, not the block; the whole-block
+				// input and the selection overlay hold none of the block's characters either.
 				charSurface: dragHitTest
 					? null
 					: (wrapper.querySelector(
@@ -66,12 +63,17 @@ export function blockAtPoint(
 	return null;
 }
 
-/**
- * The selection endpoint a pointer over `hit` addresses: a cell index for a grid kind, a
- * character offset where the block has text, and otherwise the whole block, whose end is
- * chosen later against the other endpoint. Both drag paths use this, so neither can hit-test
- * characters against a block that has none.
- */
+/** Whether the hit's editable text belongs to the block itself, not to a child inside it (a
+ *  quote's first line is its first child's). False where editing is off, as in reading mode. */
+export function holdsOwnText(hit: BlockHit): boolean {
+	const surface = hit.charSurface;
+	if (!surface?.matches('[contenteditable="true"]')) return false;
+	const owner = readBlockPath(surface.closest('[data-block-path]'));
+	return owner !== null && pathsEqual(owner, hit.path);
+}
+
+/** The selection endpoint a pointer over `hit` addresses. A block with no text yields the whole
+ *  block, so no drag hit-tests characters against it; its end is chosen against the other end. */
 export function endpointAtPoint(
 	hit: BlockHit,
 	clientX: number,
@@ -79,13 +81,15 @@ export function endpointAtPoint(
 ): SelectionEndpoint | null {
 	if (hit.foreignDragHitTest) {
 		const cellIdx = hit.foreignDragHitTest(clientX, clientY);
-		// `cellCoordinate` routes a collapse and a scroll-into-view to the cell itself, as the
-		// keyboard path does.
-		return cellIdx === null
-			? null
-			: ({ path: hit.path, offset: cellIdx, cellCoordinate: true } satisfies CellSelectionPoint);
+		// A cell point's `cellCoordinate` routes a collapse and a scroll-into-view to the cell
+		// itself, as the keyboard path does.
+		return cellIdx === null ? null : cellPoint(hit.path, cellIdx);
 	}
 	if (!hit.charSurface) return { path: hit.path, wholeBlock: true };
-	const offset = offsetFromViewportPoint(hit.charSurface, clientX, clientY);
+	// A block's own text answers a point on its frame as a click there does; a container's first
+	// child's text answers only a point on it.
+	const offset = holdsOwnText(hit)
+		? caretOffsetAtPoint(hit.charSurface, clientX, clientY)
+		: offsetFromViewportPoint(hit.charSurface, clientX, clientY);
 	return offset === null ? null : { path: hit.path, offset };
 }

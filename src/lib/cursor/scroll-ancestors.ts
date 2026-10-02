@@ -1,16 +1,13 @@
 /**
- * "What scrolls" and "what clips" are two walks, never one: the scrolling walk asks for
- * `auto`/`scroll` and stops at the first answer, the clipping walk asks for anything that bounds
- * the visible region and collects the whole chain, since visibility is their intersection.
- * An `overflow: hidden` auto-height card matches a clipping predicate while doing neither.
+ * Ancestor walks for "what scrolls" (the first `auto`/`scroll` ancestor) and "what clips" (the
+ * whole chain of ancestors bounding the visible region, since visibility is their intersection).
  * `selection/drag-pointer.ts` keeps its own inner walk, so a change here does not change it.
  */
 
 // Scrollable through script: `element.scrollTop = n` moves it. `hidden` qualifies.
 const SCRIPT_SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
-// Scrollable by the user, which is what a drag may autoscroll. `hidden` is excluded by
-// convention, not capability: a user cannot wheel it back, so autoscrolling it would
-// strand content out of reach.
+// Scrollable by the user, which is what a drag may autoscroll. `hidden` is left out: a user cannot
+// wheel it back, so autoscrolling it would strand content out of reach.
 const USER_SCROLLABLE_VALUES = new Set(['auto', 'scroll']);
 // What can bound the visible region. `clip` joins here and only here: it never scrolls,
 // so it is no autoscroll answer, but a block past its edge is unreachable.
@@ -39,12 +36,8 @@ export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HT
 /** What a drag can autoscroll: an element, or the page's own viewport. */
 export type UserScrollport = HTMLElement | Window;
 
-/**
- * What a drag autoscrolls to bring more of `el` into reach: the nearest user-scrollable
- * ancestor, or the window when the page's own viewport is the scroll container. Always answers
- * on purpose: a null for the page-scrolled case would read as "no autoscroll target", and
- * `document.scrollingElement` is no substitute (its rect is the document box).
- */
+/** What a drag autoscrolls to bring more of `el` into reach: the nearest user-scrollable ancestor,
+ *  or the window. Never null, which would read as "no autoscroll target". */
 export function userScrollportFor(el: HTMLElement): UserScrollport {
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && !isPageBox(cur)) {
@@ -57,12 +50,8 @@ export function userScrollportFor(el: HTMLElement): UserScrollport {
 	return window;
 }
 
-/**
- * Every ancestor that bounds what can be seen of `el`, outermost-last. The whole chain,
- * not the nearest: only the intersection answers "is this visible", and the innermost
- * match alone can be a rounded card that bounds nothing. Callers intersect the window
- * viewport with these; an empty result means the window alone bounds it.
- */
+/** Every ancestor that bounds what can be seen of `el`, outermost last: only their intersection
+ *  with the window viewport answers visibility. Empty means the window alone bounds it. */
 export function clippingAncestors(el: HTMLElement): HTMLElement[] {
 	const bounds: HTMLElement[] = [];
 	let cur: HTMLElement | null = el.parentElement;
@@ -76,9 +65,8 @@ export function clippingAncestors(el: HTMLElement): HTMLElement[] {
 	return bounds;
 }
 
-/** First scrollable descendant of `el` in document order. A block-host wrapper sits
- *  outside a block's internal scroll container, so finding what scrolls beneath the host
- *  means looking inward, not up. */
+/** First scrollable descendant of `el` in document order: a block host wraps the block's own
+ *  scroll container, so what scrolls beneath it is found by looking inward. */
 export function firstScrollableDescendant(el: HTMLElement): HTMLElement | null {
 	const queue: HTMLElement[] = [];
 	for (const child of el.children) {

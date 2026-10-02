@@ -1,20 +1,44 @@
 <script module lang="ts">
 	import { parrotPlugin } from '$lib/plugins/parrot';
+	import { emojiPlugin } from '$lib/plugins/emoji';
+	import { admonitionsPlugin } from '$lib/plugins/admonitions';
+	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
 	// Module scope so the entry arrays stay identity-stable across (SSR) renders.
-	const listedPlugins = [parrotPlugin(), blockBadgePlugin];
+	const listedPlugins = [
+		parrotPlugin(),
+		blockBadgePlugin,
+		emojiPlugin(),
+		admonitionsPlugin(),
+		DEMO_LATEX
+	];
 	const unlistedPlugins = [docStatsPlugin];
 
-	// The listing editor renders first, so the parrot opener is live before the second editor
-	// parses: both hold a parrot CST node, and only the second resolves no component for it.
-	const SEED = '# Heading\n\n%%parrot party responsibly\n\nBody\n';
+	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc and
+	// footnotes in both editors, so their labels and numbers show which inline syntax each reads.
+	const listedReadsPlugins = [...listedPlugins, DEMO_TOC, DEMO_FOOTNOTES];
+	const unlistedReadsPlugins = [...unlistedPlugins, DEMO_TOC, DEMO_FOOTNOTES];
+	const READS_SEED =
+		'# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n\n' +
+		'n $[^x]$ m [^y]\n\n[^x]: first note\n\n[^y]: second note\n';
+
+	// The first editor reads a parrot block, an emoji, a note and math; the second lists none of
+	// those plugins, so it reads the same bytes as paragraphs, plain text and a generic directive.
+	const SEED =
+		'# Heading :smile:\n\n%%parrot party responsibly\n\n:::note\n\nTip\n\n:::\n\n$**x**$\n\nBody\n';
 </script>
 
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor, serialize } from '$lib';
+	import { parseConverges } from '$lib/testing/parse-convergence';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+	const seed = $derived(data.reads ? READS_SEED : SEED);
+	const mode = $derived(data.reads ? 'live' : 'source');
 
 	let listing = $state<ReturnType<typeof Editor>>();
 	let notListing = $state<ReturnType<typeof Editor>>();
@@ -22,10 +46,8 @@
 	trackParityDocument(() => listing);
 	trackParityDocument(() => notListing);
 
-	// Nothing in the DOM shows which chords an instance took: a chord this one never took is a
-	// chord the host keeps, and only `reservedChords` and `claimsChord` answer that. Recorded
-	// from a real keystroke as it passes, so the spec presses the keys rather than inventing an
-	// event.
+	// Nothing in the DOM shows which chords an instance handles, so `claimsChord` is recorded
+	// from each real keystroke as it passes.
 	const claims: { listing: boolean; notListing: boolean }[] = [];
 
 	$effect(() => {
@@ -40,7 +62,15 @@
 			reserved: (pane: 'listing' | 'notListing') => [
 				...((pane === 'listing' ? listing : notListing)?.reservedChords() ?? [])
 			],
-			claims: () => claims
+			claims: () => claims,
+			converged: (pane: 'listing' | 'notListing') => {
+				const editor = pane === 'listing' ? listing : notListing;
+				return !!editor && parseConverges(editor.__test.getDocument(), editor.__test.getGrammar());
+			},
+			source: (pane: 'listing' | 'notListing') => {
+				const editor = pane === 'listing' ? listing : notListing;
+				return editor ? serialize(editor.__test.getDocument()) : '';
+			}
 		};
 		return () => document.removeEventListener('keydown', record, true);
 	});
@@ -48,12 +78,22 @@
 
 <div class="activation-harness aragonite-editor-theme">
 	<div class="pane" data-testid="editor-listing">
-		<h2>lists parrot + block-badge</h2>
-		<Editor bind:this={listing} source={SEED} plugins={listedPlugins} />
+		<h2>lists parrot, block-badge, emoji, admonitions, latex</h2>
+		<Editor
+			bind:this={listing}
+			source={seed}
+			plugins={data.reads ? listedReadsPlugins : listedPlugins}
+			presentationMode={mode}
+		/>
 	</div>
 	<div class="pane" data-testid="editor-not-listing">
 		<h2>lists neither</h2>
-		<Editor bind:this={notListing} source={SEED} plugins={unlistedPlugins} />
+		<Editor
+			bind:this={notListing}
+			source={seed}
+			plugins={data.reads ? unlistedReadsPlugins : unlistedPlugins}
+			presentationMode={mode}
+		/>
 	</div>
 </div>
 

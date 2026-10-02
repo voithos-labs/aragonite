@@ -1,28 +1,25 @@
 // @vitest-environment jsdom
-// Miss-analysis: the depth tests covered the renderer that builds this DOM
-// (`core/inline-render-nesting.test.ts`) and nothing that reads it back, so every traversal in
-// caret space recursed once per level over a fragment the renderer had just survived.
+// Miss-analysis: depth tests covered only the renderer, never the traversals reading its DOM back.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
-import { createRangeFromOffsets } from '../../cursor/content-offsets';
+import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { domDescendants } from '../../cursor/dom-walk';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import {
 	containerDomTextLength,
+	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode,
+	placeCaretAtRaw,
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-// Inline nesting comes from the input, so the rendered DOM is as deep as the source asks. The
-// cap is jsdom's O(depth²) `matches` and `closest` cost, not the real ceiling, and it assumes
-// the default V8 stack: raising `--stack-size` makes these pass even against a recursive walk.
+// The rendered DOM is as deep as the source asks. The cap is jsdom's O(depth²) selector cost and
+// assumes the default V8 stack: a raised `--stack-size` lets even a recursive walk pass.
 const DOM_DEPTH = 8_000;
 const LEAF = 'mn';
 
-/** `head`, then a chain of spans around `LEAF`, then `tail`, built detached so jsdom pays for
- *  the depth once. The deepest span holds `LEAF` as two text nodes, so a search for the first
- *  or last match there has an order to get right. */
+/** Built detached so jsdom pays for the depth once. The deepest span holds `LEAF` as two text
+ *  nodes, so a first- or last-match search there has an order to get right. */
 function nestedSpans(depth: number): HTMLElement {
 	let chain = document.createElement('span');
 	for (const char of LEAF) chain.appendChild(document.createTextNode(char));
@@ -59,7 +56,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 	}, 120_000);
 
 	it('puts the caret at a range on the deepest text node', () => {
-		const range = createRangeFromOffsets(
+		const range = createRangeAtDomTextOffsets(
 			root,
 			asDomTextOffset(4),
 			asDomTextOffset(4 + LEAF.length)
@@ -78,28 +75,26 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 	it('puts the caret at the ambient caret on the deepest text node', () => {
 		const block = nestedSpans(DOM_DEPTH);
 		block.replaceChild(buildAmbientSpan('> '), block.firstChild!);
-		// jsdom's own attach traversal overflows at this depth and it drops a detached range, so
-		// the position is read where it is set. The real selection is tested shallow in
-		// `ambient-dom.test.ts`.
-		const seated: Range[] = [];
-		const addRange = vi
-			.spyOn(window.Selection.prototype, 'addRange')
-			.mockImplementation((range) => void seated.push(range));
+		// jsdom's attach traversal overflows at this depth and drops a detached range, so the
+		// position is read where it is set; `ambient-dom.test.ts` tests the real selection.
+		const seated: [Node, number][] = [];
+		const write = vi
+			.spyOn(window.Selection.prototype, 'setBaseAndExtent')
+			.mockImplementation((node, offset) => void seated.push([node, offset]));
 
 		try {
-			expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+			expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		} finally {
-			addRange.mockRestore();
+			write.mockRestore();
 		}
 		expect(seated).toHaveLength(1);
-		expect(seated[0].startContainer.textContent).toBe(LEAF[0]);
-		expect(seated[0].startOffset).toBe(0);
+		expect(seated[0][0].textContent).toBe(LEAF[0]);
+		expect(seated[0][1]).toBe(0);
 	}, 120_000);
 });
 
-// `fromEnd` is a mirrored pre-order, not the traversal reversed: each level's children come
-// last first while a parent still comes before them, so only the leaf order ends up reversed,
-// which is what a search for the last match reads off it.
+// `fromEnd` is a mirrored pre-order, not the reversed traversal: a parent still precedes its
+// children, so only the leaf order ends up reversed, which a last-match search relies on.
 describe('domDescendants under fromEnd', () => {
 	it('walks each level last child first, with parents still ahead of children', () => {
 		const root = document.createElement('div');

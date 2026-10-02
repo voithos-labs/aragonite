@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '$lib/core/nodes';
 import {
@@ -27,7 +28,7 @@ const imageInlines: InlineNode[] = [image(0, 11), text(11, 16, ' tail')];
 
 describe('widgetAtCursor', () => {
 	it('returns leading edge with atRight=false when cursor is at the widget start', () => {
-		expect(widgetAtCursor(0, imageInlines, IMAGE_RAW)).toEqual({
+		expect(widgetAtCursor(0, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: false,
@@ -36,7 +37,7 @@ describe('widgetAtCursor', () => {
 	});
 
 	it('returns trailing edge with atRight=true when cursor is at the widget end', () => {
-		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW)).toEqual({
+		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: true,
@@ -45,21 +46,21 @@ describe('widgetAtCursor', () => {
 	});
 
 	it('returns null when cursor is strictly inside the widget range', () => {
-		expect(widgetAtCursor(5, imageInlines, IMAGE_RAW)).toBeNull();
+		expect(widgetAtCursor(5, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null when cursor is past the widget in plain text', () => {
-		expect(widgetAtCursor(14, imageInlines, IMAGE_RAW)).toBeNull();
+		expect(widgetAtCursor(14, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null for a null offset', () => {
-		expect(widgetAtCursor(null, imageInlines, IMAGE_RAW)).toBeNull();
+		expect(widgetAtCursor(null, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
 	});
 
 	it('treats a <br> rawHtml node as a live widget but a non-live tag as plain', () => {
 		const brRaw = 'a<br>b';
 		const brInlines = [text(0, 1, 'a'), rawHtml(1, 5), text(5, 6, 'b')];
-		expect(widgetAtCursor(1, brInlines, brRaw)).toEqual({
+		expect(widgetAtCursor(1, brInlines, brRaw, undefined, defaultGrammarView)).toEqual({
 			start: 1,
 			end: 5,
 			atRight: false,
@@ -68,7 +69,7 @@ describe('widgetAtCursor', () => {
 
 		const spanRaw = 'a<span>b';
 		const spanInlines = [text(0, 1, 'a'), rawHtml(1, 7), text(7, 8, 'b')];
-		expect(widgetAtCursor(1, spanInlines, spanRaw)).toBeNull();
+		expect(widgetAtCursor(1, spanInlines, spanRaw, undefined, defaultGrammarView)).toBeNull();
 	});
 });
 
@@ -79,7 +80,7 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];
 
 	it('forward keys resolve the boundary to the following widget (B, leading edge)', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'forward')).toEqual({
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'forward', defaultGrammarView)).toEqual({
 			start: 11,
 			end: 22,
 			atRight: false,
@@ -88,16 +89,18 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 	});
 
 	it('backward keys resolve the boundary to the preceding widget (A, trailing edge)', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'backward')).toEqual({
-			start: 0,
-			end: 11,
-			atRight: true,
-			kind: 'image'
-		});
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'backward', defaultGrammarView)).toEqual(
+			{
+				start: 0,
+				end: 11,
+				atRight: true,
+				kind: 'image'
+			}
+		);
 	});
 
 	it('defaults to the preceding widget (backward) when no direction is given', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES)).toEqual({
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, undefined, defaultGrammarView)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: true,
@@ -106,7 +109,7 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 	});
 
 	it('direction is inert away from a shared boundary (single trailing edge)', () => {
-		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, 'forward')).toEqual({
+		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, 'forward', defaultGrammarView)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: true,
@@ -117,11 +120,14 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 
 describe('findWidgetNodeByStart', () => {
 	it('finds a live widget by its source start offset', () => {
-		expect(findWidgetNodeByStart(0, imageInlines, IMAGE_RAW)).toEqual({ start: 0, end: 11 });
+		expect(findWidgetNodeByStart(0, imageInlines, IMAGE_RAW, defaultGrammarView)).toEqual({
+			start: 0,
+			end: 11
+		});
 	});
 
 	it('returns null when no widget starts at the given offset', () => {
-		expect(findWidgetNodeByStart(11, imageInlines, IMAGE_RAW)).toBeNull();
+		expect(findWidgetNodeByStart(11, imageInlines, IMAGE_RAW, defaultGrammarView)).toBeNull();
 	});
 });
 
@@ -142,15 +148,18 @@ describe('widget nested inside a link node', () => {
 	];
 
 	it('findWidgetNodeByStart finds the nested image by its raw start', () => {
-		expect(findWidgetNodeByStart(1, nestedInlines, NESTED_RAW)).toEqual({ start: 1, end: 13 });
+		expect(findWidgetNodeByStart(1, nestedInlines, NESTED_RAW, defaultGrammarView)).toEqual({
+			start: 1,
+			end: 13
+		});
 	});
 
 	it('findWidgetNodeByStart returns null for the link node start (not a widget)', () => {
-		expect(findWidgetNodeByStart(0, nestedInlines, NESTED_RAW)).toBeNull();
+		expect(findWidgetNodeByStart(0, nestedInlines, NESTED_RAW, defaultGrammarView)).toBeNull();
 	});
 
 	it('widgetAtCursor finds the nested image at its leading edge', () => {
-		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW)).toEqual({
+		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW, undefined, defaultGrammarView)).toEqual({
 			start: 1,
 			end: 13,
 			atRight: false,
@@ -159,7 +168,7 @@ describe('widget nested inside a link node', () => {
 	});
 
 	it('widgetAtCursor finds the nested image at its trailing edge', () => {
-		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW)).toEqual({
+		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW, undefined, defaultGrammarView)).toEqual({
 			start: 1,
 			end: 13,
 			atRight: true,
@@ -172,30 +181,38 @@ describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
 	it('finds a leading widget after skipping blank text', () => {
 		const raw = '  ![a](x.png)\n';
 		const inlines = [text(0, 2, '  '), image(2, 13)];
-		expect(findFirstEdgeWidget(inlines, raw)).toMatchObject({ start: 2, end: 13, kind: 'image' });
+		expect(findFirstEdgeWidget(inlines, raw, defaultGrammarView)).toMatchObject({
+			start: 2,
+			end: 13,
+			kind: 'image'
+		});
 	});
 
 	it('finds a trailing widget after skipping blank text', () => {
 		const raw = '![a](x.png)  \n';
 		const inlines = [image(0, 11), text(11, 13, '  ')];
-		expect(findLastEdgeWidget(inlines, raw)).toMatchObject({ start: 0, end: 11, kind: 'image' });
+		expect(findLastEdgeWidget(inlines, raw, defaultGrammarView)).toMatchObject({
+			start: 0,
+			end: 11,
+			kind: 'image'
+		});
 	});
 
 	it('returns null when non-blank text precedes the first widget', () => {
 		const raw = 'hi ![a](x.png)\n';
 		const inlines = [text(0, 3, 'hi '), image(3, 14)];
-		expect(findFirstEdgeWidget(inlines, raw)).toBeNull();
+		expect(findFirstEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null when non-blank text follows the last widget', () => {
 		const raw = '![a](x.png) hi\n';
 		const inlines = [image(0, 11), text(11, 14, ' hi')];
-		expect(findLastEdgeWidget(inlines, raw)).toBeNull();
+		expect(findLastEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null for empty inline content', () => {
-		expect(findFirstEdgeWidget([], '')).toBeNull();
-		expect(findLastEdgeWidget([], '')).toBeNull();
+		expect(findFirstEdgeWidget([], '', defaultGrammarView)).toBeNull();
+		expect(findLastEdgeWidget([], '', defaultGrammarView)).toBeNull();
 	});
 });
 

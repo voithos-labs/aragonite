@@ -1,7 +1,7 @@
 /** Find a container node's `BlockListState` by identity (a view works too). A `WeakMap`,
  *  so entries are collected once the node is unreachable. */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { tick } from 'svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
@@ -13,17 +13,13 @@ const stateRegistry = new WeakMap<NodeView, BlockListState>();
 export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	stateRegistry.set(node, state);
-	if (DEV && existing && existing !== state) {
+	if (isDevChecks() && existing && existing !== state) {
 		void reportContestedClaim(node, existing, state);
 	}
 }
 
-/**
- * A dev-mode signal, not a guarantee. Svelte creates the new mount of a structural remount
- * before tearing the old one down, so two components registering inside one flush says nothing
- * about ownership; ask again afterwards, where a loser still holding child refs means either a
- * second live owner or a teardown whose clearing never reached the live slots.
- */
+/** Checked a tick later because Svelte mounts a remount's new component before tearing down the
+ *  one it replaces; a replaced state still holding child refs after that has a live rival. */
 async function reportContestedClaim(
 	node: NodeView,
 	loser: BlockListState,
@@ -44,9 +40,8 @@ export function getStateForNode(node: NodeView): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
 
-/** The strict version, for a caller holding a live-tree node whose container must be
- *  mounted. `getStateForNode` stays for the ancestor traversals where a missing entry is a
- *  valid answer. */
+/** The strict lookup, for a live-tree node whose container must be mounted. Ancestor
+ *  traversals, where a missing entry is a valid answer, use `getStateForNode`. */
 export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {

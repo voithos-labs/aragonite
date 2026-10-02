@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
-//
-// The toggle plans from `SelectionState.start/end`, which snap a table endpoint to whole rows,
-// not from the anchor/focus the gesture stored. Highlight, clipboard copy and range delete already
-// agree on the snapped cell set; a toggle planning from the raw pair would mark a different one.
-//
-// Miss-analysis: every plan case builds its own points and calls `planCrossBlockFormat` directly,
-// so the snap sat between the toggle and the plan with no test on that edge at all.
+// The toggle plans from the covered range, which snaps a table endpoint to whole rows, so it marks
+// the cell set the highlight, copy and range delete agree on.
+// Miss-analysis: every plan case called `planCrossBlockFormat` with its own points, past the snap.
 import { describe, expect, it } from 'vitest';
-import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -27,12 +22,5 @@ describe('a toggle over a range whose table endpoint sits mid-row', () => {
 		expect(env.source()).toBe(
 			'**head**\n\n| **Ha** | **Hb** |\n| --- | --- |\n| **a1** | **a2** |\n'
 		);
-	});
-
-	// The contrast that makes the assertion above mean something: the raw pair stops one cell short.
-	it('stops at the raw endpoint when the unsnapped pair is planned directly', () => {
-		const env = makeKeydownEnv(SOURCE);
-		const plan = planCrossBlockFormat(env.deps.doc, DOC_START, MID_ROW_CELL, 'strong', undefined)!;
-		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [1, 1, 0]]);
 	});
 });

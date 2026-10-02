@@ -1,82 +1,93 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createCaretRestore } from '$lib/selection/caret-restore';
+import { createCaretRestore, type CaretRestoreDeps } from '$lib/selection/caret-restore';
+import type { EditorSelection } from '$lib/selection/primitives';
+import type { SelectionRestoreOutcome } from '$lib/selection/selection-restore';
 
-// What a caret survives when a menu or overlay input takes focus, and what happens when a
-// commit rebuilt the DOM under it meanwhile.
+// What the document selection survives while a menu or overlay input borrows focus: it goes back
+// through the caret landing by path, and the editor root takes focus when it can't.
 
 let root: HTMLElement;
-let leaf: HTMLElement;
 let chromeInput: HTMLInputElement;
+let live: EditorSelection | null;
+let restored: EditorSelection[];
+let outcome: SelectionRestoreOutcome;
+let deps: CaretRestoreDeps;
+
+const caretAt = (path: number[], offset: number): EditorSelection => ({
+	anchor: { path, offset },
+	focus: { path, offset }
+});
 
 beforeEach(() => {
 	document.body.replaceChildren();
 	root = document.createElement('div');
 	root.tabIndex = -1;
-	leaf = document.createElement('div');
-	leaf.setAttribute('contenteditable', 'true');
-	leaf.textContent = 'hello world';
-	root.append(leaf);
 	chromeInput = document.createElement('input');
 	document.body.append(root, chromeInput);
+	live = caretAt([3], 4);
+	restored = [];
+	outcome = 'applied';
+	deps = {
+		getEditorEl: () => root,
+		read: () => live,
+		restore: async (selection) => {
+			restored.push(selection);
+			return outcome;
+		}
+	};
 });
 
-function seatCaret(offset: number): void {
-	const range = document.createRange();
-	range.setStart(leaf.firstChild!, offset);
-	range.collapse(true);
-	const selection = window.getSelection()!;
-	selection.removeAllRanges();
-	selection.addRange(range);
-}
-
 describe('caret restore', () => {
-	it('puts the caret back in its leaf after chrome took focus', () => {
-		const restore = createCaretRestore(() => root);
-		seatCaret(4);
+	// Miss-analysis: the saved caret was a DOM range, and every test kept its block mounted, so
+	// none saw it lost once the find bar's jump windowed the block out.
+	it('puts the saved selection back through the caret landing, by path', async () => {
+		const restore = createCaretRestore(deps);
+		restore.saveCurrent();
+		live = caretAt([190], 0);
+		chromeInput.focus();
+
+		await restore.restore();
+
+		expect(restored).toEqual([caretAt([3], 4)]);
+		expect(document.activeElement).toBe(chromeInput);
+	});
+
+	it.each(['unresolvable', 'unplaced'] as const)(
+		'falls back to the editor root when the restore comes back %s',
+		async (miss) => {
+			outcome = miss;
+			const restore = createCaretRestore(deps);
+			restore.saveCurrent();
+			chromeInput.focus();
+
+			await restore.restore();
+
+			expect(document.activeElement).toBe(root);
+		}
+	);
+
+	it('falls back to the root when there was no caret to save', async () => {
+		live = null;
+		const restore = createCaretRestore(deps);
 		restore.saveCurrent();
 		chromeInput.focus();
 
-		restore.restore();
+		await restore.restore();
 
-		expect(document.activeElement).toBe(leaf);
-		const selection = window.getSelection()!;
-		expect(selection.focusNode).toBe(leaf.firstChild);
-		expect(selection.focusOffset).toBe(4);
-	});
-
-	it('falls back to the editor root for a range outside it, never placing a foreign caret', () => {
-		const restore = createCaretRestore(() => root);
-		const foreign = document.createElement('div');
-		foreign.textContent = 'elsewhere';
-		document.body.append(foreign);
-		const range = document.createRange();
-		range.setStart(foreign.firstChild!, 2);
-		restore.save(range);
-
-		restore.restore();
-
+		expect(restored).toEqual([]);
 		expect(document.activeElement).toBe(root);
 	});
 
-	it('falls back to the root when nothing was saved at all', () => {
-		const restore = createCaretRestore(() => root);
-		chromeInput.focus();
-
-		restore.restore();
-
-		expect(document.activeElement).toBe(root);
-	});
-
-	it('clears the slot, so a second restore cannot re-caret position a stale range', () => {
-		const restore = createCaretRestore(() => root);
-		seatCaret(4);
+	it('clears the slot, so a second restore cannot put a stale selection back', async () => {
+		const restore = createCaretRestore(deps);
 		restore.saveCurrent();
-		restore.restore();
+		await restore.restore();
 		chromeInput.focus();
 
-		restore.restore();
+		await restore.restore();
 
+		expect(restored).toHaveLength(1);
 		expect(document.activeElement).toBe(root);
 	});
 });

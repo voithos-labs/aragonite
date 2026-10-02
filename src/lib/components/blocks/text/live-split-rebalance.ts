@@ -10,21 +10,22 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { Reading } from '../../../schema/reading';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
+import { isBlankText } from '../../../core/lines';
 import {
 	getInlineConstructPolicy,
 	type LiveSplitRebalancer
 } from '../../../schema/inline-construct-policy';
-import { soleProseReparse } from './screen-diff';
+import { readBlocks } from '../../../core/parser';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -33,15 +34,20 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	offset,
 	firstRaw,
 	secondRaw,
-	linkRef
+	reading
 ) => {
 	const read = readSplitBytes(node, offset, firstRaw, secondRaw);
 	if (read === null) return null;
-	const resolver = linkRef?.current;
-	const inlines = parseInline(read.raw, read.contentStart, read.contentEnd, resolver);
+	const inlines = readInline(
+		read.raw,
+		read.contentStart,
+		read.contentEnd,
+		reading.resolver,
+		reading.grammar
+	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
 	// reopening them would move delimiters the user is looking at: the literal cut stands.
-	if (paintsOnlyChrome(inlines, read.raw)) return null;
+	if (paintsOnlyChrome(inlines, read.raw, { grammar: reading.grammar })) return null;
 	const moved = wholeConstructEdge(inlines, offset);
 	const at = moved ?? offset;
 	const bytes = moved === null ? read : { ...read, cut: moved };
@@ -58,7 +64,7 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	for (const candidate of candidates) {
 		// The dropped bytes are the check's business, not the caller's: what the caller gets back
 		// is the two halves, whatever the candidate had to declare to earn them.
-		if (candidate !== null && parsesBack(bytes, seam, candidate, resolver)) {
+		if (candidate !== null && parsesBack(bytes, seam, candidate, reading)) {
 			return { firstRaw: candidate.firstRaw, secondRaw: candidate.secondRaw };
 		}
 	}
@@ -119,12 +125,8 @@ export interface ChainLink {
 	contentEnd: number;
 }
 
-/**
- * The edge a cut moves to rather than landing inside a childless never-extend construct: two
- * halves of a URL are not two URLs, and half an escape is a literal backslash, so the whole
- * construct goes to the half the caret was nearer (live-mode.md § 4.4). Null where the cut lands
- * in no such construct. Innermost wins, as everywhere else.
- */
+/** Where a cut inside a childless never-extend construct (a URL, an escape) moves to: the edge the
+ *  caret was nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
 function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
 	let found: number | null = null;
 	for (const node of inlineDescendants(inlines)) {
@@ -138,12 +140,8 @@ function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): num
 	return found;
 }
 
-/**
- * Every construct holding `offset`, outermost first, or null when one of them refuses. A kind
- * with no policy, one whose split behavior is plain, and one whose content bounds are unknown
- * cannot be cut open, and cutting the constructs inside one would strand its pair. Exported for
- * the depth test, which has to reach it with a tree no real split could be rendered at.
- */
+/** Every construct holding `offset`, outermost first, or null when one cannot be cut open, since
+ *  cutting the constructs inside it would strand its pair. Exported for the depth test. */
 export function splittableChainAt(
 	inlines: readonly InlineNode[],
 	offset: number
@@ -166,11 +164,8 @@ export function splittableChainAt(
 	return chain;
 }
 
-/**
- * Whether a cut at `offset` lands in this construct. One with children includes its content
- * bounds, so its edges reach the chain; one without children counts only its strict interior,
- * since its edges are ordinary cut points. Text is content, and nothing under it is a construct.
- */
+/** Whether a cut at `offset` lands in this construct: one with children includes its content
+ *  bounds; one without counts only its strict interior, since its edges are ordinary cut points. */
 function holdsOffset(node: InlineNode, offset: number): boolean {
 	if (node.kind === 'text') return false;
 	const content = constructContentRange(node);
@@ -199,11 +194,8 @@ interface RebalancedHalves {
 	droppedTail?: string;
 }
 
-/**
- * Innermost first, so a closer written before its enclosing one nests the halves as the original
- * did. A side with no content takes the whole construct: a pair enclosing nothing is invisible
- * leftovers live mode may never write.
- */
+/** Innermost first, so the halves nest as the original did. A side with no content takes the whole
+ *  construct, since live mode never writes a pair enclosing nothing. */
 function seamParts(bytes: SplitBytes, chain: readonly ChainLink[], offset: number): SeamParts {
 	let leftEnd = offset;
 	let rightStart = bytes.cut;
@@ -238,11 +230,8 @@ const assemble = (bytes: SplitBytes, seam: SeamParts): RebalancedHalves => ({
 	secondRaw: seam.openers + seam.tail + bytes.secondResidue
 });
 
-/**
- * The same cut with a boundary space handed to the plain text beside it. Markdown opens and
- * closes a run against a word, never whitespace, so a space left inside kills the construct; a
- * space's formatting is invisible, so moving it both parses and looks unchanged.
- */
+/** The same cut with a boundary space handed to the plain text beside it: a run cannot open or close
+ *  against whitespace, and a space's formatting is invisible anyway. */
 function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHalves | null {
 	const trailing = seam.closers !== '' && seam.head.endsWith(' ');
 	const leading = seam.openers !== '' && seam.tail.startsWith(' ');
@@ -257,16 +246,13 @@ function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHal
 	};
 }
 
-/**
- * The cut with a whitespace-only tail dropped rather than handed to either half. Whitespace at
- * the end of a block is a hard break with no following line, so it draws nothing, and
- * live-mode.md § 4.5 lets live mode drop what it never showed.
- */
+/** The cut with a whitespace-only tail dropped: trailing whitespace draws nothing, and live mode
+ *  may drop what it never showed (`docs/design/live-mode.md` § 4.5). */
 function assembleDroppingTerminalTrivia(
 	bytes: SplitBytes,
 	seam: SeamParts
 ): RebalancedHalves | null {
-	if (seam.openers !== '' || seam.tail === '' || seam.tail.trim() !== '') return null;
+	if (seam.openers !== '' || seam.tail === '' || !isBlankText(seam.tail)) return null;
 	return {
 		firstRaw: seam.head + seam.closers + bytes.firstResidue,
 		secondRaw: bytes.secondResidue,
@@ -289,40 +275,44 @@ export function parsesBack(
 	bytes: SplitBytes,
 	seam: SeamParts,
 	candidate: RebalancedHalves,
-	resolver: LinkReferenceResolver | undefined
+	reading: Reading
 ): boolean {
-	const first = soleProseBlock(candidate.firstRaw, resolver);
-	const second = soleProseBlock(candidate.secondRaw, resolver);
+	const first = soleProseBlock(candidate.firstRaw, reading);
+	const second = soleProseBlock(candidate.secondRaw, reading);
 	if (first === null || second === null) return false;
 	// Each half must be a block a reparse keeps. Empty is one; whitespace-only is not, since the
 	// document reads those bytes as a blank line and the pair comes back a different shape.
-	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
+	if (readsAsBlankLine(first.visible) || readsAsBlankLine(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
 	// The render check below counts characters while CSS collapses a trailing run to nothing, so
 	// the "the screen never showed it" rule is tested here rather than taken on trust.
-	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
+	if (candidate.droppedTail !== undefined && !isBlankText(candidate.droppedTail)) return false;
 	const whole = renderedText(
-		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver),
+		readInline(bytes.raw, bytes.contentStart, bytes.contentEnd, reading.resolver, reading.grammar),
 		bytes.raw,
-		CONTENT_VISIBILITY
+		CONTENT_VISIBILITY,
+		{ grammar: reading.grammar }
 	);
 	if (!whole.startsWith(first.visible)) return false;
-	// The line ending the cut landed on is the one character a split legitimately consumes; a
-	// dropped tail is the only other, and the candidate names those bytes rather than the check
-	// inferring them.
+	// A split may consume only the line ending the cut landed on and a dropped tail, which the
+	// candidate names rather than the check inferring it.
 	const rest = whole.slice(first.visible.length);
 	const tail = second.visible + (candidate.droppedTail ?? '');
 	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;
 }
 
-const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';
+const readsAsBlankLine = (visible: string): boolean => visible !== '' && isBlankText(visible);
 
-function soleProseBlock(raw: string, resolver: LinkReferenceResolver | undefined): HalfRead | null {
-	const sole = soleProseReparse(raw, resolver);
-	if (sole === null) return null;
+/** A half read as a top-level fragment: exactly one prose block, or null. */
+function soleProseBlock(raw: string, reading: Reading): HalfRead | null {
+	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
+	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
+	const block = blocks[0];
+	const range = getContentRange(block);
+	const nodes = readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar);
 	return {
-		visible: renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY),
-		kinds: constructKinds(sole.nodes)
+		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, { grammar: reading.grammar }),
+		kinds: constructKinds(nodes)
 	};
 }

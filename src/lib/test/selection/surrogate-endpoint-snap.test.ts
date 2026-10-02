@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
-//
 // A UTF-16 offset can land inside a surrogate pair, and the public `setSelection` takes plain
-// numbers, so the endpoint normalization is the only place that can refuse one. Miss-analysis:
-// every generator feeding the endpoint normalizers draws pure ASCII, and the one suite that could
-// have drawn this shape clamps the offset away before asserting, so no test had ever handed a
-// normalizer an offset that splits a pair (#167).
+// numbers, so the endpoint normalization is the only place that can refuse one.
+// Miss-analysis: GH #167; every generator feeding the endpoint normalizers drew pure ASCII.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { normalizeCharEndpoint } from '../../selection/char-endpoint-snap';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 /** 'a' + U+1F466 (a surrogate pair at offsets 1–2) + 'b'. */
 const BOY = 'a\u{1F466}b\n\ntail\n';
@@ -38,12 +37,10 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 	state.enterCrossBlock({ path: [0], offset: startOffset }, { path: [1], offset: endOffset });
 	const { newDoc } = rangeDelete(
 		doc,
-		state.start!,
-		state.end!,
+		rangeCoverage(doc, coverRange(doc, state.start!, state.end!)),
 		createSharingState(),
-		undefined,
-		undefined,
-		undefined
+		fixtureReading(),
+		'keyless'
 	);
 	return serialize(newDoc);
 }

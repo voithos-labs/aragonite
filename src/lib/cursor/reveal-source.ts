@@ -1,15 +1,11 @@
 /**
  * Swapping between a rendered view and its editable source: the caret logic shared by inline
- * widgets and blocks that render by default (both inject the swap and the revealed flag). The
- * caret is placed only through `cursor/widget-offset.ts`, converting block-source offsets to
- * DOM-walk offsets by adding `getAmbientLength()` in the one `placeCaret` function.
- * Precondition `source.length === sourceEnd - sourceStart`, asserted at entry (G1.26).
+ * widgets and blocks that render by default (both inject the swap and the revealed flag).
+ * Precondition: `source.length === sourceEnd - sourceStart`, asserted at entry (G1.26).
  */
 
 import { tick } from 'svelte';
-import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
-import { restoreCaretAtWalkOffset } from './focused-caret';
-import { clampToLandableRaw } from './widget-offset';
+import { placeCaretAtRaw } from './widget-offset';
 import { assertInvariant } from '../assert';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
@@ -22,8 +18,6 @@ export interface SourceRevealDeps {
 	get sourceEnd(): number;
 	/** The source's raw bytes; `length` must equal `sourceEnd - sourceStart`. */
 	get source(): string;
-	/** Rendered marker prefix length the DOM walk counts but block source excludes. */
-	getAmbientLength(): number;
 	/** Whether the editable source is currently shown. Owned by the consumer
 	 *  (inline: a captured text node; block: a reactive flag). */
 	isRevealed(): boolean;
@@ -43,14 +37,10 @@ export interface SourceReveal {
 }
 
 export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
-	/** Places the caret at a block-source offset, converting to a DOM-walk offset with the prefix. */
+	// Offset 0 of a source that opens with hidden markers (a block hiding its `$$` fence lines) is
+	// before those markers, where typing would land outside the fence, so the write clamps.
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
-		// Offset 0 of a source that opens with hidden markers (a block hiding its `$$` fence lines)
-		// is before those markers, so typing there would land outside the fence. The caret goes to
-		// the nearest position it can sit at, which changes nothing wherever nothing hides.
-		const ambient = deps.getAmbientLength();
-		const seat = clampToLandableRaw(container, blockSourceOffset, ambient);
-		restoreCaretAtWalkOffset(container, toDomTextOffset(asRawOffset(seat), ambient));
+		placeCaretAtRaw(container, blockSourceOffset, { clamp: 'reachable' });
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {

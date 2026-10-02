@@ -10,8 +10,8 @@ test.describe('text editing: edge cases', () => {
 		await editor.goto();
 	});
 
-	// Where the merge does not apply, the caret is the whole outcome: source and block count
-	// cannot move, so asserting only those reads the press as doing nothing (issue #138).
+	// Where the merge does not apply, the caret is the whole outcome: source and block count cannot
+	// move, so asserting only those reads the keypress as doing nothing.
 	for (const [label, doc, landing, after] of [
 		['heading above heading', '# Heading A\n\n## Heading B\n', 11, '# Heading A\n\n## Heading B\n'],
 		// The empty heading the caret leaves demotes on blur: a rule of its own, not a merge.
@@ -32,9 +32,8 @@ test.describe('text editing: edge cases', () => {
 		});
 	}
 
-	// The thematic break takes whole-block focus, so a Backspace beside it focuses it and only
-	// a second press deletes: the same two-step a mermaid diagram gets
-	// (`plugins/mermaid-focus.spec.ts` pins the plugin counterpart).
+	// The thematic break takes whole-block focus, so a Backspace beside it focuses it and a second
+	// deletes it, the two-step `plugins/mermaid-focus.spec.ts` checks for the plugin.
 	test('Backspace after thematic break focuses it, and a second press deletes it', async () => {
 		await editor.loadContent('Before\n\n---\n\nAfter\n');
 		const original = await editor.bridge.getSource();

@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
-import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
@@ -82,8 +81,7 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		// Through the dev-warning channel, not the console: an error swallowed where no gate can
-		// see it is how a subscriber overflowed the stack on every run unnoticed (GH #246).
+		// Through the dev-warning channel, not the console, so a test gate sees the error.
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
 	});
 
@@ -98,8 +96,8 @@ describe('createEditorEvents', () => {
 
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
-		// `devWarn` is silent in production, so with no console branch the consumer's own exception
-		// vanishes where an unguarded throw would have shown up (GH #246).
+		// `devWarn` is silent in production, so without a console branch the consumer's exception
+		// would vanish.
 		expect(errSpy.mock.calls.map((args) => args[args.length - 1])).toEqual([thrown]);
 		errSpy.mockRestore();
 	});
@@ -157,10 +155,8 @@ describe('editor-events: error channel', () => {
 });
 
 describe('emitCommandError', () => {
-	afterEach(() => __resetInstalledPluginsForTests());
-
-	it("emits origin:'command' attributing the kind, command, and recorded plugin owner", () => {
-		recordPluginKindOwner('demoNote', 'admonitions');
+	// The dispatch names the plugin that registered the command; the report passes it through.
+	it("emits origin:'command' attributing the kind, command, and reported plugin", () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));
@@ -169,6 +165,7 @@ describe('emitCommandError', () => {
 		emitCommandError(events, {
 			kind: 'demoNote' as AnyBlockKind,
 			command: 'note.setVariant',
+			plugin: 'admonitions',
 			error: boom
 		});
 
@@ -182,7 +179,7 @@ describe('emitCommandError', () => {
 		});
 	});
 
-	it('omits the plugin when the kind has no recorded owner', () => {
+	it('omits the plugin when no plugin registered the command', () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));
@@ -192,8 +189,6 @@ describe('emitCommandError', () => {
 		expect(captured[0].context).toEqual({ kind: 'paragraph', command: 'x.y', plugin: undefined });
 	});
 
-	// A global command reports its owner directly and has no kind, so the `plugin` passed in has
-	// to win and must never be overwritten by a lookup that has no kind to work from.
 	it('attributes a global command by its direct plugin, with no kind', () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];

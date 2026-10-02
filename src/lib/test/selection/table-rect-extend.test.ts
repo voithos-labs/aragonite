@@ -26,7 +26,7 @@ function tableDoc(cols = 3, rows = 4): DocumentView {
 	} as unknown as DocumentView;
 }
 
-const at = (offset: number): SelectionPoint => ({ path: [0], offset });
+const at = (offset: number): SelectionPoint => ({ path: [0], offset, cellCoordinate: true });
 const extend = (doc: DocumentView, offset: number, key: ArrowKey) =>
 	intraTableRectExtension(doc, at(offset), at(offset), key);
 
@@ -72,6 +72,10 @@ describe('intraTableRectExtension', () => {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'x' }]
 		} as unknown as DocumentView;
 		expect(intraTableRectExtension(nonTable, at(0), at(0), 'ArrowDown')).toBeNull();
+		// Character offsets on the table path: no corner counts cells.
+		expect(
+			intraTableRectExtension(doc, { path: [0], offset: 4 }, { path: [0], offset: 4 }, 'ArrowDown')
+		).toBeNull();
 		// Different paths — a cross-block selection, not an intra-table rectangle.
 		expect(
 			intraTableRectExtension(doc, { path: [0], offset: 4 }, { path: [1], offset: 0 }, 'ArrowDown')

@@ -132,9 +132,8 @@ test.describe('live mode: a table cell hops at its reachable bound', () => {
 	});
 });
 
-// The cell's bounds do not check the mode on purpose: they follow what the screen shows. In
-// preview-inline a ref label is hidden until the caret comes near it, so the same hop fires
-// there; the key that would otherwise do nothing was never live-only.
+// The cell's bounds follow what the screen shows, not the mode: in preview-inline a ref label is
+// hidden until the caret nears it, so the same hop fires there.
 test.describe('preview-inline: a cell hops at whatever is hidden right now', () => {
 	test('a cell ending in an unrevealed ref label hops to the next cell', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'preview-inline', DOC);

@@ -1,16 +1,14 @@
 /**
- * G4.38: every editable block publishes `insertMarkdown`. The shared clipboard code creates it
- * for all of them, but Svelte 5 instance exports cannot be spread, so the last step is written by
- * hand per component and `BlockComponent` declares the member optional: the next block would
- * compile fine and silently decline every `editor.insertMarkdown`. Two routes deliver it, and
- * this reads whichever one the component actually uses: an instance export, or the object it
- * hands `publishRefSlot` (GH #148).
+ * Every editable block publishes `insertMarkdown` (G4.38). `BlockComponent` declares the member
+ * optional, so a block missing it would compile and quietly ignore every `editor.insertMarkdown`.
+ * A leaf built on `createEditableLeaf` exports the factory's `blockApi` (G4.73), whose type requires
+ * it, so the scan reads the components that build their own text area, by whichever route each uses.
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 
-/** A component owning an editable element: the two factories that create one. */
-const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
+/** A component building its own editable element. */
+const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
 
 /** The exported step: an instance export, not a mention. */
 const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+insertMarkdown\b/;
@@ -28,37 +26,22 @@ function surfaceComponents(): Array<{ relPath: string; code: string }> {
 
 // ── The published-object route ───────────────────────────────────────────
 
-/**
- * Members of the object a component hands `publishRefSlot`, or null where it publishes no such
- * object. Matched to the published argument by name: an object nothing publishes is as misleading
- * as an instance export nobody reads.
- */
+/** Members of the object a component hands `publishRefSlot`, or null where it publishes none.
+ *  Matched to the published argument by name, since an object nothing publishes doesn't count. */
 function publishedSurfaceMembers(code: string): string[] | null {
-	const at = code.search(/\bsatisfies\s+BlockComponent\b/);
-	if (at < 0) return null;
-	const close = code.lastIndexOf('}', at);
-	if (close < 0) return null;
-
-	let depth = 0;
-	let open = -1;
-	for (let i = close; i >= 0; i--) {
-		if (code[i] === '}') depth += 1;
-		else if (code[i] === '{' && --depth === 0) {
-			open = i;
-			break;
-		}
+	for (const declared of code.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)) {
+		const open = declared.index + declared[0].length - 1;
+		const literal = balancedRegion(code, open);
+		if (literal === null) continue;
+		if (!/^\s*satisfies\s+BlockComponent\b/.test(code.slice(open + literal.length))) continue;
+		const name = new RegExp(String.raw`\b${declared[1]}\b`);
+		if (!callsTo(code, 'publishRefSlot').some((args) => name.test(args))) return null;
+		return callArguments(literal.slice(1, -1)).flatMap((member) => {
+			const key = /^([A-Za-z_$][\w$]*)\s*(?::|\(|$)/.exec(member);
+			return key ? [key[1]] : [];
+		});
 	}
-	if (open < 0) return null;
-
-	const declared = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, open));
-	if (!declared) return null;
-	if (!new RegExp(String.raw`publishRefSlot\s*\([^)]*\b${declared[1]}\b`).test(code)) return null;
-
-	return code
-		.slice(open + 1, close)
-		.split(/[,\n]/)
-		.map((entry) => entry.split(':')[0].trim())
-		.filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+	return null;
 }
 
 function publishesDoor(code: string): boolean {
@@ -70,7 +53,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
 
 	it('found the editable-surface components to inspect', () => {
-		expect(components.length).toBeGreaterThanOrEqual(4);
+		expect(components.length).toBeGreaterThanOrEqual(3);
 	});
 
 	it('every editable-surface component publishes insertMarkdown', () => {
@@ -78,8 +61,8 @@ describe('G4.38 insertion entry-point surface parity', () => {
 		expect(silent, RULE).toEqual([]);
 	});
 
-	// The cell is the whole population for that route, and the first check that would stop proving
-	// anything: losing it leaves this scanning exports only, the blind spot #148 named.
+	// The cell is the only component on the published-object route, so losing it would leave this
+	// scan reading instance exports alone.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
 		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();
@@ -92,10 +75,10 @@ describe('G4.38 insertion entry-point surface parity', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the factory matcher covers both surface factories and nothing else', () => {
+	it('the factory matcher covers the surface factory and nothing else', () => {
 		expect(SURFACE_FACTORY_RE.test('const s = createEditableSurface({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('import type { EditableLeaf } from')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('import type { EditableSurface } from')).toBe(false);
 	});
 
 	it('the publish matcher demands an export, not a mention', () => {
@@ -120,6 +103,14 @@ describe('G4.38 insertion entry-point surface parity', () => {
 			'measurePartialRects',
 			'insertMarkdown'
 		]);
+	});
+
+	it('the literal reader reads past a brace inside a string member', () => {
+		const src = [
+			"const self = { label: '}', focus, insertMarkdown } satisfies BlockComponent;",
+			'return publishRefSlot(slots, index, self);'
+		].join('\n');
+		expect(publishedSurfaceMembers(src)).toEqual(['label', 'focus', 'insertMarkdown']);
 	});
 
 	it('a literal nothing publishes is not a channel', () => {

@@ -12,10 +12,9 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// The `header` slot: the app's own content inside the editor's scroll container, above the
-// block list. Mounting it beside `.block-list` rather than around it is what leaves the
-// windowing arithmetic alone while the title still scrolls away. The real risk is a header that
-// changes height while the user is scrolled deep, which has its own scroll correction.
+// The `header` slot: the app's own content inside the editor's scroll container, mounted beside
+// `.block-list` so windowing's arithmetic is untouched while the title still scrolls away. A header
+// that changes height while the user is scrolled deep has its own scroll correction.
 
 // Enough to window several screens deep without loading megabytes in every scroll case.
 const WINDOWED_BYTES = 500_000;
@@ -60,8 +59,8 @@ test('the header mounts beside the block list, above the first block, and scroll
 	const firstBlock = (await editor.getBlock(0).boundingBox())!;
 	expect(firstBlock.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
 
-	// Measured against the scrollTop as it is, not the one requested: a measure pass after the
-	// load can settle the estimated heights a few dozen pixels away from it.
+	// Measured against the scrollTop as it is, not as requested: a measure pass after the load can
+	// leave it a few dozen pixels away.
 	await editor.scrollEditorTo(300);
 	const scrolled = (await headerEl(page).boundingBox())!;
 	const scrollTop = await editor.editorContainer.evaluate((el) => el.scrollTop);
@@ -156,8 +155,8 @@ test('a plain click on a link in the header follows it', async ({ page }) => {
 	const editor = await gotoWithHeader(page);
 	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
-	// The app's own content is not document content, so the editor's rule about modifier-clicks
-	// on links stops at the slot; without that exception the root handler would cancel this.
+	// The app's content is not document content, so the editor's modifier-click rule for links stops
+	// at the header; otherwise the root handler would cancel this.
 	await page.locator('[data-testid="hero-link"]').click();
 	expect(await page.evaluate(() => location.hash)).toBe('#hero-link');
 	expect(pageErrors).toEqual([]);
@@ -170,15 +169,15 @@ test('a text field in the header keeps its own Find chord', async ({ page }) => 
 	const focusedTestId = () =>
 		page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
 
-	// "Focus is inside the root" stopped meaning "focus is in this editor's content" the moment
-	// the slot existed, so a text field of the app's keeps the shortcuts the editor reserves.
+	// Focus inside the root does not mean focus in this editor's content, so an app field in the
+	// header keeps the shortcuts the editor reserves.
 	await page.locator('[data-testid="hero-title"]').click();
 	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(0);
 	expect(await focusedTestId()).toBe('hero-title');
 
-	// The control: the same field mounted outside the root already behaves this way, so the
-	// check above is about the slot rather than about text fields in general.
+	// The same field mounted outside the root already behaves this way, so the check above is about
+	// the header.
 	await page.locator('[data-testid="outside-title"]').click();
 	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(0);
@@ -193,8 +192,7 @@ test('a caret in the header is not reported as the document caret', async ({ pag
 	const caretRect = () =>
 		page.evaluate(() => (window as any).__test.rects.caretRect() as DOMRect | null);
 
-	// A caret in a block does report, so the null below comes from the slot rather than from
-	// there being no selection.
+	// A caret in a block does report, so the null below comes from the header field.
 	await editor.focusBlockEnd(0);
 	expect(await caretRect()).not.toBeNull();
 
@@ -257,10 +255,8 @@ test('a host-mode header renders above the first block and never writes the ance
 	const firstBlock = (await entry.locator(TOP_LEVEL_HOSTS).first().boundingBox())!;
 	expect(firstBlock.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
 
-	// Left above the editor so the growth happens off screen below: the browser's own anchoring
-	// has no reason to move, which leaves the editor writing the ancestor's scrollTop as the
-	// only thing that could. Without the observer's exception for this mode it shifts by the
-	// whole difference.
+	// Left above the editor so the growth happens off screen below: the browser's own scroll
+	// anchoring has no reason to move, leaving the editor's write as the only possible shift.
 	await page.evaluate(() => {
 		(document.querySelector('[data-testid="scroller"]') as HTMLElement).scrollTop = 1500;
 	});
@@ -287,8 +283,7 @@ test('the host-mode find bar sits at the editor top edge, over the header', asyn
 	await page.keyboard.press('ControlOrMeta+f');
 	await expect(entry.locator('.search-bar')).toHaveCount(1);
 
-	// For good, in this mode: the root never scrolls, so the bar never leaves the header.
-	// Accepted rather than mounting the bar somewhere else depending on the mode.
+	// The root never scrolls in this mode, so the bar never leaves the header.
 	const bar = (await entry.locator('.search-bar').boundingBox())!;
 	const header = (await entry.locator('[data-testid="flow-header"]').boundingBox())!;
 	expect(bar.y).toBeLessThan(header.y + header.height);

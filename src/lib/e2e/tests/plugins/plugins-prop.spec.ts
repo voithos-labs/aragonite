@@ -1,11 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
-// The `/test/plugins` harness installs its four dogfood plugins through the `<Editor plugins>`
-// prop. These tests pin the prop itself, and that it runs before the seed parses, reading the CST
-// by path through `window.__test`. Each plugin's editing and rendering lives in its own spec, and
-// installing twice in one process is covered by the unit suite, so reloading the page is the only
-// repeat here.
+// The `/test/plugins` harness installs its four plugins through the `<Editor plugins>` prop. These
+// tests cover the prop itself and that it runs before the seed parses; each plugin's behaviour has
+// its own spec, and installing twice in one process is unit-covered.
 
 test.describe('plugins prop: install before the first parse', () => {
 	let editor: PluginsPage;

@@ -29,7 +29,7 @@ test.describe('table block: BlockComponent cursor contract', () => {
 		page
 	}) => {
 		// Click the body row's second cell ("2") and place the caret at offset 1, the end.
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('End');
 
 		const surface = await readTableSurface(page);
@@ -44,7 +44,7 @@ test.describe('table block: BlockComponent cursor contract', () => {
 	test('caret at origin (rowIdx=0, colIdx=0): shallow getCursorOffset still returns null', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Home');
 
 		const surface = await readTableSurface(page);

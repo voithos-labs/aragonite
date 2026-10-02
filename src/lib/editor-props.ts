@@ -20,13 +20,19 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
+import type { InsertEntry } from './schema/insert-catalogue';
 import type { EditorPluginEntry } from './schema/plugin-install';
+import type { SyntaxOptions } from './schema/registry-view';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
+export type { SyntaxOptions } from './schema/registry-view';
 export type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export interface EditorProps {
+	/** The Markdown the editor mounts with. A later write replaces the document, clearing undo,
+	 *  when it differs from `getSource()`, and does nothing when it doesn't. The editor never
+	 *  writes back into it. */
 	source?: string;
 	resolveImageUrl?: ResolveImageUrl;
 	resolveLinkUrl?: ResolveLinkUrl;
@@ -48,12 +54,10 @@ export interface EditorProps {
 	 *  block (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  staying fixed, which is what lets the editor keep its own scroll container and windowing. */
 	header?: Snippet;
-	/** The block drag handle (default on; reading mode never shows it). Hovering shows it;
-	 *  touch, which cannot hover, shows it outright. Only the blocks a user picks up whole have
-	 *  one (code, tables, equations, diagrams, pictures, list items, dividers, cards), never
-	 *  prose (paragraph, heading, quote, note). `false` removes them, except on a picture, whose
-	 *  handle is the only way to move it with a pointer. Keyboard reorder (Alt+Arrow) is always
-	 *  available, as is the table's right-click cell menu. */
+	/** The block drag handle (default on; never in reading mode), shown on hover, or outright on
+	 *  touch. Only blocks a user picks up whole have one (code, tables, equations, diagrams,
+	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
+	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode
@@ -86,6 +90,17 @@ export interface EditorProps {
 	 *  array also says which plugins are enabled: this editor activates exactly what it
 	 *  lists, and no prop at all activates everything installed. */
 	plugins?: readonly EditorPluginEntry[];
+	/** GFM syntaxes to switch off in this editor, each on by default and read once at mount:
+	 *  `indentedCode: false` reads a line indented by a tab or four spaces as prose, and
+	 *  `setextHeading: false` reads `===` or `---` under text as prose or a divider. Only the
+	 *  reading changes: a loaded file keeps every byte, and saves as it came. */
+	syntax?: SyntaxOptions;
+}
+
+export interface InsertMarkdownOptions {
+	/** `caret` (the default) inserts where the caret is; `below` inserts into a new paragraph
+	 *  after the top-level block that holds it. */
+	placement?: 'caret' | 'below';
 }
 
 /** The `bind:this` handle a consumer can name and hold a ref to. */
@@ -98,32 +113,33 @@ export interface EditorInstance {
 	 * own declared kind name.
 	 */
 	getBlockKindAt(path: number[]): AnyBlockKind | null;
+	/**
+	 * The live selection, or null when nothing is focused. While an image is selected whole it is
+	 * a caret at the image's edge its selection came from (its end after a click).
+	 */
 	getSelection(): EditorSelection | null;
 	/**
-	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
-	 * first, and true means it got there, not merely that it mounted. Never throws: an
-	 * out-of-range offset clamps in that endpoint's own coordinate space (a table
-	 * endpoint's row-major cell index clamps to the last cell, not a character position),
-	 * and an unresolvable path, or a scroll that never arrives, resolves false.
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view first,
+	 * and true means it got there, not merely that it mounted. Never throws: an out-of-range
+	 * offset clamps in its own coordinate space (a table's cell index to the last cell), and an
+	 * unresolvable path, or a scroll that never arrives, resolves false. A caret at the start of a
+	 * list lands in its first item; one inside a closed body lands on its title row.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**
 	 * Put the caret at a viewport point exactly as a click there would: the point clamps into the
-	 * nearest block's box, the block under it decides where the caret goes, and a live cross-block
-	 * range ends first. A shell with its own controls beside the document decides whether a click
-	 * on its territory comes here; the editor decides where the caret goes. False when no
-	 * focusable position resolves. A point below the document resolves against the CST, not the
-	 * rendered slice: past an unmounted tail it takes the point and lands there once that mounts.
+	 * nearest block's box, the block under it picks the spot, and a live cross-block range ends
+	 * first. A host decides which of its clicks come here. False when no focusable position
+	 * resolves; a point past an unmounted tail lands there once that mounts.
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
-	 * Insert markdown at the caret exactly as pasting it would, minus the clipboard: paste
-	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
-	 * focus at the end of the insertion. True means the pipeline took the text, not that its
-	 * commit has flushed; read the result back through the `edit` event. False, and nothing
-	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
+	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
+	 * delete-selection-first, one undo entry, focus at the end. Resolves true once the insert has
+	 * landed; false, with nothing changed, with no caret, in reading mode, or at a gap caret.
+	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
 	 */
-	insertMarkdown(md: string): boolean;
+	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
 	 * Run a command by id at the focused element, or across a painted range where the id has a
 	 * cross-block handler (a format toggle marks every block it touches, a table works by its
@@ -133,21 +149,18 @@ export interface EditorInstance {
 	 */
 	runCommand(commandId: string, arg?: unknown): boolean;
 	/**
-	 * Whether `runCommand(id)` would reach that command's handler right now, asked in the same
-	 * place that would run it, so a host can grey a toolbar button out instead of hiding it.
-	 * False wherever dispatch declines before it starts: an unknown id, reading mode, a block-local
-	 * id with nothing focused (a gap caret included, where only the global ids stay live), and the
-	 * link editor while a cross-block range is painted. True means reachable, not successful: the
-	 * handler still decides whether it writes, and over a range it may reach no block at all.
+	 * Whether `runCommand(id)` would reach that command's handler right now, so a host can grey a
+	 * toolbar button out instead of hiding it. False wherever dispatch declines before it starts:
+	 * an unknown id, reading mode, a block-local id with nothing focused (a gap caret included,
+	 * where only the global ids stay live), and the link editor while a cross-block range is
+	 * painted. True means reachable, not successful: the handler still decides whether it writes.
 	 */
 	canRunCommand(commandId: string): boolean;
 	/**
-	 * Whether the command's toggle reads on where a keypress would land: the read a toolbar paints
-	 * its pressed state from, answered by the same bytes the toggle would rewrite. State, not
-	 * whether the command is allowed, so a disabled button may still paint pressed. Over a
-	 * cross-block range the answer is the range's own coverage: true only where every block it
-	 * touches has the mark; the link editor reads on inside the construct its card would edit, in
-	 * live mode alone. False for an id with no state of its own, and with nothing focused.
+	 * Whether the command's toggle reads on where a keypress would land: a toolbar's pressed
+	 * state, from the same bytes the toggle would rewrite. State, not permission, so a disabled
+	 * button may still paint pressed. Over a cross-block range, true only where every touched block
+	 * has the mark. False for an id with no state, and with nothing focused.
 	 */
 	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;
@@ -156,15 +169,19 @@ export interface EditorInstance {
 	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
 	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
 	getInlineMenus(): InlineMenuRegistry;
+	/**
+	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
+	 * editor activated registered. The list the right-click flyout draws, for a host building its own
+	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`. A fresh frozen list per call.
+	 */
+	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**
-	 * Every modifier chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd).
-	 * Composed live from the kind keymaps, the command tables, the plugins this editor activated,
-	 * the `keybindings` overrides and the search option, so a host's accelerator table is derived,
-	 * not hand-copied. Bare keys are outside the contract: a focused document owns them. So is a
-	 * chord turned off with `command: null`, free for the host to use app-wide yet still swallowed
-	 * inside the editor, where letting the browser handle it would bypass the CST undo stack.
+	 * Every modifier chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd), composed
+	 * live from the kind keymaps, command tables, active plugins, `keybindings` overrides and search,
+	 * so a host's accelerator table is derived. Bare keys aren't listed, nor is a chord turned off
+	 * with `command: null`, which the editor still swallows so it can't bypass the undo stack.
 	 */
 	reservedChords(): ReadonlySet<string>;
 	/** Whether this instance consumes that keystroke, answered with the editor's own chord

@@ -1,17 +1,13 @@
-import { type SimContext, assertStructuralIntegrity } from '../invariants';
+import { type SimContext, actThenResync, assertStructuralIntegrity } from '../invariants';
 
 // Gestures for a native GitHub alert (plugins route, `?seed=admonitions`). A `> [!TYPE]`
-// blockquote is its own `githubAlert` container: the marker lives only in the container's raw
-// text and metadata, and the bytes are never rewritten to `:::`. Each waits for the block to
-// change kind or shape and resyncs; the merge and unwrap gestures check that the kind holds
-// and the marker goes, which is what the container's `unwrapRole` promises.
+// blockquote is its own `githubAlert` container, and its bytes are never rewritten to `:::`. Each
+// waits for the block to change kind or shape and resyncs; the merge and unwrap gestures check the
+// kind and marker against what the container's `unwrapRole` promises.
 
 /**
- * The marker built by typing. Typed one key at a time, so the editor sees the blockquote form
- * at `>`, the inline handler for `[`, and the change to an alert at `]` as three separate input
- * events; a bug confined to those in-between states is invisible to a one-shot insert. No
- * second Enter, which would leave the quote. The body waits for the alert kind, since the
- * change of kind has to put the caret in the body first.
+ * Typed key by key, so the blockquote at `>`, the inline handler at `[` and the alert at `]` arrive
+ * as three input events a one-shot insert never produces; the body waits for the alert kind.
  */
 export async function typeGithubAlert(
 	ctx: SimContext,
@@ -38,9 +34,8 @@ export async function typeGithubAlert(
 }
 
 /**
- * The merge has to stay inside the alert: the kind and marker survive, the document root keeps
- * its count, and only the alert's own child count drops. All four are checked, so a bug in how
- * a middle child unwraps cannot record a corrupted tree as if it were right.
+ * The merge stays inside the alert: kind, marker and the root's count hold and only the alert's
+ * child count drops, so a middle child that unwraps wrongly throws.
  */
 export async function mergeGithubAlertMiddleChild(
 	ctx: SimContext,
@@ -74,9 +69,8 @@ export async function mergeGithubAlertMiddleChild(
 }
 
 /**
- * `lift-first-child-drop-opener`: the alert loses its kind and its body reparses as a plain
- * block. Checks that exactly one alert disappeared, which holds even with other alerts in the
- * document, and that the `:::` form never appears.
+ * `lift-first-child-drop-opener`: exactly one alert disappears (other alerts may exist) and its
+ * body reparses as a plain block, never as the `:::` form.
  */
 export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -101,9 +95,8 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 }
 
 /**
- * A move inside the alert: the body child swaps places while the kind, the marker, the alert's
- * own position and its child count all hold. A bug that moved the whole alert among the
- * document's blocks, or rebuilt it as a plain blockquote, throws on one of those checks.
+ * The body child swaps places while the alert's kind, marker, position and child count hold, so
+ * moving the whole alert or rebuilding it as a blockquote throws.
  */
 export async function reorderGithubAlertBodyChild(
 	ctx: SimContext,
@@ -111,14 +104,12 @@ export async function reorderGithubAlertBodyChild(
 	childIndex: number,
 	dir: -1 | 1
 ): Promise<void> {
-	const { page, editor, tracker } = ctx;
+	const { page, editor } = ctx;
 	const before = await alertShape(ctx, alertIndex);
-	const beforeSource = await editor.bridge.getSource();
 
 	await editor.clickBlockAtPath([alertIndex, childIndex], 0);
 	await editor.waitForRenderFlush();
-	await page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown');
-	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, beforeSource);
+	await actThenResync(ctx, () => page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown'));
 
 	const after = await alertShape(ctx, alertIndex);
 	if (
@@ -133,7 +124,6 @@ export async function reorderGithubAlertBodyChild(
 		);
 	}
 	await assertStructuralIntegrity(ctx);
-	tracker.resync(await editor.bridge.getSource());
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

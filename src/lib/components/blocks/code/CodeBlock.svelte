@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
-	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
+	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		EDITOR_POLICIES_KEY,
@@ -9,27 +9,26 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asDomTextOffset } from '../../../cursor/coordinate-spaces';
-	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import {
-		createRangeFromOffsets,
-		setCursorOffset,
-		getRangeOffsets,
-		getSelectionOffsets,
-		hasSelection
-	} from '../../../cursor/content-offsets';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+		CONTENT_EMPTY_ATTR,
+		holdsOnlyMarkerChrome,
+		selectRawRange,
+		type RawRange
+	} from '../../../cursor/widget-offset';
+	import { createSurfaceBackend } from '../../../cursor/surface-backend';
+	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
-		withKeydownVerdict,
-		type RawRange
+		editableSurfaceAttributes
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
-	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
+	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
 	import {
+		getCloserFor,
 		getLineLeadingWhitespace,
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
@@ -37,12 +36,9 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
-	import {
-		fenceShapeOf,
-		reconcileFenceWrite,
-		writeFenceInfo
-	} from '../../../schema/fenced-code-raw';
-	import { hidesMarkers } from '../../../presentation-mode';
+	import { fenceShapeOf, writeFenceInfo } from '../../../schema/fenced-code-raw';
+	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
+	import { hidesMarkers, paintsFocusedMarkers } from '../../../presentation-mode';
 	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
 	import {
@@ -52,16 +48,18 @@
 		clampEnterOffsetToBody,
 		clampRangeToBody,
 		computeFenceRangedEdit,
+		computeRangedEdit,
 		crossesFenceBoundary,
 		fenceEditSpan,
-		isStructureOnlyRange
+		isStructureOnlyRange,
+		orderedRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
-	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+	import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
+	import { withOwnEnding } from '../surface-write';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
-	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -73,60 +71,53 @@
 		focusActions,
 		controller,
 		pasteCoordinator,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		getEditorRoot,
-		grammar,
 		activePlugins,
-		events: editorEvents
+		events: editorEvents,
+		reading
 	} = wiring.deps;
-	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		presentationMode: getPresentationMode,
-		onPasteImage,
-		onRunCode,
-		codeMenuItems
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const { menuPresence, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { onPasteImage, onRunCode, codeMenuItems } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const presentationMode = $derived(reading.mode());
 	const readOnly = $derived(presentationMode === 'reading');
+	// A fence line takes edits where the mode paints it, as the focused block's markers; where it
+	// is hidden, an edit that reaches it clamps to the body. A caret arriving lands in the body.
+	const fenceLinesEditable = $derived(paintsFocusedMarkers(presentationMode));
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
-	let preEditOffset = 0;
 
-	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(
-		() => el ?? null
-	);
+	const backend = createSurfaceBackend({ getEl: () => el ?? null });
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
-		getAmbientLength: () => 0,
 		backend,
+		// A caret arriving from outside lands on the body in every mode, by a column or a placed
+		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
+		columnWindow: () => bodyWindow(node),
+		clampLanding: (offset) => clampCaretToBody(node, offset),
+		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
 		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset) => {
-			preEditOffset = offset;
+		requestCaret: (at) => {
+			pendingCursorOffset = at;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
-		getPresentationMode,
-		getFocusOffset,
-		getTextLen,
-		readText,
-		// Gives back the caret the reconciled bytes need: the write rule can grow the
-		// fence or drop a character, either of which moves the caret off the DOM's.
-		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset)
+		getFocusOffset: backend.getFocusOffset,
+		getTextLen: () => plainTextOf(el).length,
+		readText: () => plainTextOf(el),
+		handleKeydown: onKeyDown,
+		handleBeforeInput: onBeforeInput
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -137,23 +128,9 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// Every way of landing a caret clamps it onto editable content: a caret on a fence line
-	// takes keystrokes the fence check refuses, and a caret merely remembered there is as
-	// dead as a placed one, so both clamp.
-	export function focus(offset: number): void {
-		editableSurface.surface.focus(clampCaretToBody(node, offset));
-	}
-
-	export function parkCaret(offset: number): void {
-		editableSurface.surface.parkCaret(clampCaretToBody(node, offset));
-	}
-
-	// A fence line is a visual line the column lookup would otherwise land on, and a caret there
-	// takes keystrokes the fence check refuses, so the search is bounded to the body.
-	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		editableSurface.surface.focusAtColumn(x, from, bodyWindow(node));
-	}
-
+	export const focus = editableSurface.surface.focus;
+	export const parkCaret = editableSurface.surface.parkCaret;
+	export const focusAtColumn = editableSurface.surface.focusAtColumn;
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
@@ -165,24 +142,17 @@
 		return trimTrailingLineEnding(node.raw);
 	}
 
-	/**
-	 * The one place this block commits displayed text: no gesture calls `updateBlockContent`
-	 * directly (checked by `lint/code-commit-funnel`). The fence rule runs inside rather than at
-	 * each caller, so every gesture gets fence reconciliation without asking.
-	 */
-	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
-		const written = reconcileFenceWrite({
-			display,
-			caret,
-			fence: fenceShapeOf(node),
-			mode: 'authored'
-		});
-		void blockEdit.updateBlockContent(
+	/** Commits edited display text and returns the caret as stored, since the fence rule can grow
+	 *  the fence or drop a character; null when the write was refused. */
+	function commitDisplay(display: string, undoAnchor: number, caret: number): number | null {
+		const write = blockEdit.updateBlockContent(
 			index,
-			written.display + trailingLineEnding(node.raw),
-			undoAnchor
+			withOwnEnding(node, display),
+			'authored',
+			undoAnchor,
+			caret
 		);
-		return written.caret;
+		return write.admitted ? write.caret : null;
 	}
 
 	$effect(() => {
@@ -190,34 +160,24 @@
 		if (node.raw === lastRenderedRaw && pendingCursorOffset === null && pendingSelection === null)
 			return;
 
-		el.replaceChildren(renderCodeBlock(node));
+		el.replaceChildren(renderCodeBlock(node, activePlugins));
 		anchorTrailingNewline(el);
-		// The container's own data attribute, and the only thing that still reads emptiness:
-		// both the marker-hiding CSS and the caret traversal key off it. The side gutter does
-		// not check it, since a fence with no content gets one either way.
+		// The marker-hiding CSS and the caret traversal read this attribute; the side gutter does
+		// not, since an empty fence gets one either way.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
 
-		// Restore only while this block still holds focus: an edit reparsing to multiple
-		// blocks moves the caret to the split-off sibling, and a blur would otherwise yank
-		// the global selection back. The pending fields clear either way, never set again.
+		// Restore only while this block holds focus: an edit reparsing into several blocks moves
+		// the caret to the split-off sibling. The pending fields clear either way.
 		if (pendingSelection !== null) {
-			consumePendingRestore(el, pendingSelection, (range) => {
-				const domRange = createRangeFromOffsets(
-					el!,
-					asDomTextOffset(range.start),
-					asDomTextOffset(range.end)
-				);
-				if (!domRange) return;
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(domRange);
-			});
+			consumePendingRestore(el, pendingSelection, (range) =>
+				selectRawRange(el!, range.start, range.end)
+			);
 			pendingSelection = null;
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
 			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				setCursorOffset(el!, asDomTextOffset(offset))
+				backend.setRaw(asRawOffset(offset), { clamp: 'exact' })
 			);
 			pendingCursorOffset = null;
 		}
@@ -225,13 +185,14 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// ── The rail ──────────────────────────────────────────────────────────────
+	// A commit can turn this block into another kind (a `math` info string makes a math fence),
+	// and a step deferred past that commit then has no code block left to act on.
+	const isStillCode = () => node.kind === 'fencedCode';
 
-	// The side gutter stands in for the fence markers a mode draws nothing for, so never in
-	// source mode, which always draws its own. A block with no content does draw dimmed markers
-	// and still gets the gutter: the picker is how a language is set, and a fence with none is
-	// exactly where it is wanted. The two overlapping is the same accepted overlap as a focused
-	// preview block showing both fence and gutter.
+	// ── The side gutter ───────────────────────────────────────────────────────
+
+	// The side gutter stands in for fence markers the mode does not draw, so source mode never gets
+	// one. An empty fence gets it too, dimmed markers and all: the picker is how a language is set.
 	const showRail = $derived(hidesMarkers(presentationMode));
 	const infoString = $derived(metadataOf(node, 'fencedCode').info);
 
@@ -242,32 +203,29 @@
 	}
 
 	function runRequest(): CodeRunRequest {
-		return { code: bodyText(), info: infoString, path: myPath };
+		return {
+			code: bodyText(),
+			info: infoString,
+			language: fenceLanguage(infoString),
+			path: myPath
+		};
 	}
 
-	/**
-	 * A fence with no language and no body, the moment it takes focus. Keyed on the first focus
-	 * after mounting, not on the edit that made it: a block made by an insert command mounts
-	 * after that commit and never hears it, so the caret arriving is the only signal every path
-	 * shares. Loading a document focuses nothing and opens no pickers.
-	 */
+	/** Offers the language picker on the first focus of an empty fence with no language. Keyed on
+	 *  focus, since a block an insert command creates mounts after that commit. */
 	let autoOpenLanguage = $state(false);
 	let languageOffered = false;
 	function onSurfaceFocus(): void {
 		if (languageOffered || readOnly || !showRail) return;
 		languageOffered = true;
-		// A caret that stepped into an existing fence is passing through, and a picker taking
-		// focus there traps that movement. A typed opener is still being written, and a click
-		// or an insert command places the caret with no arrival key recorded: those are the
-		// moments the user is authoring.
-		const steppedIn = metadataOf(node, 'fencedCode').closed && edgeAffinity.get() !== null;
-		const offerLanguage = infoString === '' && bodyText().trim() === '' && !steppedIn;
-		// Deferred past the commit's own focus work. Creating a fence focuses this block twice,
-		// once as it mounts and once when the commit places its caret, so opening on the first
-		// would put the field up only for the second to blur it away. A fence that is still
-		// bare is completed first, with or without a language, so the picker opens over a
-		// real block.
+		// A caret that stepped into an existing fence is passing through, and a picker would trap
+		// it; a click or an insert command records no arrival key, and that is the user authoring.
+		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.side() !== null;
+		const offerLanguage = infoString === '' && isBlankText(bodyText()) && !steppedIn;
+		// Deferred past the commit's own caret placement, which focuses this block a second time
+		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(() => {
+			if (!isStillCode()) return;
 			const completed = completeBareFence();
 			if (!offerLanguage) return;
 			if (completed) {
@@ -280,22 +238,17 @@
 		});
 	}
 
-	/**
-	 * A fence with no body line, whether a just-typed opener or an opener against its closer, is
-	 * a block whose only bytes are its own markers: nowhere for a caret, so those markers have to
-	 * be drawn. Writes an opener, one empty body line and a closer, with the caret on that line.
-	 * Block math gets this from the Enter completion, which a fence cannot use: ``` parses as an
-	 * unclosed fence the moment it is typed, so no paragraph is left to complete.
-	 */
+	/** A fence with no body line has nowhere for a caret, so it is written as opener, one empty
+	 *  body line and closer, with the caret on that line. True when it wrote. */
 	function completeBareFence(): boolean {
 		if (!el) return false;
 		const meta = metadataOf(node, 'fencedCode');
 		const slice = sliceFencedCode(node);
 		const text = getDisplayText();
-		const ending = trailingLineEnding(node.raw);
+		const ending = editableSurface.lineEnding();
 		const offset = backend.getRaw() ?? 0;
 		if (!meta.closed) {
-			if (slice.body.trim() !== '') return false;
+			if (!isBlankText(slice.body)) return false;
 			const closer = meta.fenceMarker.repeat(meta.fenceLength);
 			const completed = text + ending + ending + closer;
 			pendingCursorOffset = commitDisplay(completed, offset, text.length + ending.length);
@@ -322,9 +275,8 @@
 	// What the language chip writes: the opener's info string, through the one commit above so
 	// the fence rule runs over it, kept apart so no typing on either side joins its undo entry.
 	function commitLanguage(info: string): void {
-		// Bytes that did not change, or were refused, close the field without writing: no undo
-		// entry and no edit event. The starting value is `meta.info` trimmed, so comparing bytes
-		// alone would let a bare Enter respell a fence whose info string carries padding.
+		// Unchanged or refused bytes close the field without writing. The field starts from the
+		// trimmed info, so comparing fence bytes alone would let a bare Enter respell padding.
 		if (info === infoString) {
 			returnCaretToBody();
 			return;
@@ -338,22 +290,16 @@
 		returnCaretToBody();
 	}
 
-	/**
-	 * This block's own call, not `moveFocus`: the side gutter belongs to one block. Offset 0 is
-	 * not the body: on an unclosed fence the opener run counts as content by design, which is
-	 * what lets a just-typed ` ``` ` be deleted back out, so `focus(0)` would leave the caret
-	 * before the backticks and the next keystroke would rewrite the opener. `clampRangeToBody`
-	 * clamps unconditionally, which is the "wherever the body starts" this needs.
-	 */
+	/** Puts the caret at the body start after the side gutter closes; not `focus(0)`, which on an
+	 *  unclosed fence sits before the backticks. */
 	function returnCaretToBody(): void {
-		// Focus first and place the caret through the pending-caret field the render effect
-		// reads. A bare `focus()` after a tick races the commit's own re-render, which replaces
-		// every child of the container and loses the caret.
+		// The caret goes through the pending field the render effect reads: a bare `focus()` after
+		// a tick races the commit's re-render, which replaces every child and loses the caret.
 		el?.focus({ preventScroll: true });
 		void tick().then(() => {
-			// Read the body after the commit lands. Writing a language lengthens the opener, so
-			// an offset measured against the node from before the commit points into the info
-			// string that just grew, putting the caret inside `js` where typing splits it.
+			if (!isStillCode()) return;
+			// Read the body after the commit lands: a new language lengthens the opener, so an
+			// offset taken before the commit would put the caret inside the info string.
 			const at = clampRangeToBody(node, { start: 0, end: 0 }).start;
 			pendingCursorOffset = at;
 			focus(at);
@@ -365,34 +311,37 @@
 	const onInput = editableSurface.onInput;
 	const onCompositionEnd = editableSurface.onCompositionEnd;
 
-	// An IME deletes the selection as it starts composing, and the `insertCompositionText`
-	// beforeinput event is not cancelable, so a selection crossing a fence is shrunk onto its
-	// body here, before the composition takes over.
+	// An IME deletes the selection as it starts composing, and its `insertCompositionText` is not
+	// cancelable, so with the fence lines hidden the block deletes the body part itself first.
 	function onCompositionStart(): void {
-		const sel = el ? getSelectionOffsets(el) : null;
-		if (sel && crossesFenceBoundary(node, sel)) {
-			const span = fenceEditSpan(node, sel);
-			setSelection(span.start, span.end);
-		}
+		const sel = backend.getRawSelection();
 		editableSurface.onCompositionStart();
+		if (!sel || sel.start === sel.end || fenceLinesEditable) return;
+		const edit = computeFenceRangedEdit(node, sel, '');
+		const caret = edit ? edit.newCursor : clampCaretToBody(node, sel.start);
+		// Synchronous, since the IME composes at wherever the caret is once this handler returns.
+		if (edit) pendingCursorOffset = commitDisplay(edit.newText, caret, caret);
+		else setSelection(caret, caret);
+		editableSurface.notePreEditOffset(caret);
 	}
 
-	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+	function onBeforeInput(e: InputEvent): void {
 		if (guardFenceRangedEdit(e)) return;
 		// Soft break: Shift+Enter, and mobile/IME insertLineBreak without a keydown.
 		// Gated on !composing so an IME emitting it mid-composition does not sync.
 		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
-			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
-			const branchPreEditOffset = backend.getRaw() ?? 0;
 			const result = computeCodeEnter({
 				display: getDisplayText(),
 				selection: enterSpliceSpan(currentRange()),
 				mode: 'soft',
-				ending: trailingLineEnding(node.raw)
+				ending: editableSurface.lineEnding()
 			});
-			pendingCursorOffset = commitDisplay(result.newText, branchPreEditOffset, result.newCursor);
+			pendingCursorOffset = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.newCursor
+			);
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -400,7 +349,10 @@
 		if (!data || data.length !== 1) return;
 
 		const text = getDisplayText();
-		const selOffsets = getSelectionOffsets(el);
+		const rawSelection = backend.getRawSelection();
+		// A wrap is the one range edit that reaches here; with the fence lines hidden it wraps the body.
+		const selOffsets =
+			rawSelection && !fenceLinesEditable ? fenceEditSpan(node, rawSelection) : rawSelection;
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
@@ -415,6 +367,8 @@
 			return;
 		}
 
+		// A marker run is syntax, not code: a backtick typed onto one widens the fence instead.
+		if (collapsed && !isInBody(offset)) return;
 		const result = computeAutoPair({
 			text,
 			selection: selOffsets ?? { start: offset, end: offset },
@@ -425,64 +379,71 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffset(el, asDomTextOffset(result.caretOffset));
+			backend.setRaw(asRawOffset(result.caretOffset), { clamp: 'exact' });
 			return;
 		}
 		if (result.kind === 'wrap') {
 			// Both endpoints sit inside the body, so whatever is inserted ahead of the
 			// wrap's start moves its end by the same amount.
-			const start = commitDisplay(result.newText, preEditOffset, result.selection.start);
+			const start = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.selection.start
+			);
+			if (start === null) return;
 			const shift = start - result.selection.start;
 			pendingSelection = { start, end: result.selection.end + shift };
 		} else {
-			pendingCursorOffset = commitDisplay(result.newText, preEditOffset, result.caretOffset);
+			pendingCursorOffset = commitDisplay(
+				result.newText,
+				editableSurface.getPreEditOffset(),
+				result.caretOffset
+			);
 		}
 	}
 
 	// ── Fence-crossing edits ──────────────────────────────────────────────────
 
-	/**
-	 * Where an Enter-family splice lands (the `code.newline` command and the soft
-	 * break): a caret clamps out of the fence lines, a selection is replaced on its
-	 * body span like every other ranged edit here.
-	 */
+	/** Where an Enter or soft break splices: a caret clamps out of the fence lines, and a
+	 *  selection is replaced on its body span like every other ranged edit here. */
 	function enterSpliceSpan(range: RawRange): RawRange {
 		if (range.start !== range.end) return fenceEditSpan(node, range);
 		const at = clampEnterOffsetToBody(node, range.start);
 		return { start: at, end: at };
 	}
 
-	/**
-	 * The one check for every browser edit that rewrites a range here: delete, forward delete,
-	 * typing over a selection, word delete and drag. One that crosses a fence line is moved
-	 * onto the body rather than left to splice the fence away.
-	 */
+	/** The one check for every browser edit that rewrites a range here. With the fence lines
+	 *  hidden, one that crosses a fence line moves onto the body instead of splicing it away. */
 	function guardFenceRangedEdit(e: InputEvent): boolean {
-		if (composing || !el) return false;
-		const range = pendingEditRange(e, el);
+		if (composing || !el || fenceLinesEditable) return false;
+		const range = pendingEditRange(e);
 		if (!range) return false;
-		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
+		if (wrapsBody(e, range)) return false;
+		// Chromium's own replace of a range opening on a highlighted token also removes the hidden
+		// opener, so the block writes every replacement, inside the body or not.
+		if (!crossesFenceBoundary(node, range) && !replacesRange(e, range)) {
+			return guardHiddenFenceDelete(e, range);
+		}
 
 		e.preventDefault();
 		const insert = rangedEditInsertion(e, fenceEditSpan(node, range));
 		if (insert === null) return true;
 		const edit = computeFenceRangedEdit(node, range, insert);
 		if (!edit) return true;
-		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
-		// anchor is read fresh rather than trusting `preEditOffset` (see the soft break above).
-		pendingCursorOffset = commitDisplay(edit.newText, backend.getRaw() ?? 0, edit.newCursor);
+		pendingCursorOffset = commitDisplay(
+			edit.newText,
+			editableSurface.getPreEditOffset(),
+			edit.newCursor
+		);
 		return true;
 	}
 
 	/**
-	 * A delete while the fence lines are hidden is applied here, whatever range the browser
-	 * reports: Chromium, deleting the last visible character of a line, also removes the
-	 * unrendered nodes beside it, which is the opener's whole fence line, so a Backspace on the
-	 * last body character would leave `\n\`\`\`` and reparse the block into a fresh fence. The
-	 * span is clamped to the body.
+	 * A delete while the fence lines are hidden is applied here, clamped to the body: Chromium,
+	 * deleting the last visible character of a line, also removes the unrendered fence line beside it.
 	 */
 	function guardHiddenFenceDelete(e: InputEvent, range: RawRange): boolean {
-		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
+		if (!/^delete(?!By)/.test(e.inputType)) return false;
 		e.preventDefault();
 		const span = clampRangeToBody(node, range);
 		if (span.end > span.start) {
@@ -496,38 +457,50 @@
 		return true;
 	}
 
-	/**
-	 * What the pending edit will rewrite. `getTargetRanges()` is the authority, since a word
-	 * delete at a collapsed caret reports the word rather than the caret; it is feature-detected
-	 * because jsdom does not implement it.
-	 */
-	function pendingEditRange(e: InputEvent, surface: HTMLElement): RawRange | null {
+	function isInBody(offset: number): boolean {
+		const body = bodyWindow(node);
+		return offset >= body.start && offset <= body.end;
+	}
+
+	function replacesRange(e: InputEvent, range: RawRange): boolean {
+		const replacing = e.inputType === 'insertText' || e.inputType === 'insertReplacementText';
+		return replacing && range.start !== range.end;
+	}
+
+	/** A bracket or quote typed over a range wraps it (the auto-pair path), unless the range
+	 *  holds no body at all. */
+	function wrapsBody(e: InputEvent, range: RawRange): boolean {
+		if (e.inputType !== 'insertText' || e.data?.length !== 1 || range.start === range.end) {
+			return false;
+		}
+		return getCloserFor(e.data) !== null && !isStructureOnlyRange(node, range);
+	}
+
+	/** `getTargetRanges()` wins, since a word delete at a collapsed caret reports the word; it is
+	 *  feature-detected because jsdom lacks it. */
+	function pendingEditRange(e: InputEvent): RawRange | null {
 		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-		if (targets.length > 0) return getRangeOffsets(surface, targets[0]);
-		const selected = getSelectionOffsets(surface);
+		if (targets.length > 0) return backend.rawRangeOf(targets[0]);
+		const selected = backend.getRawSelection();
 		if (selected) return selected;
 		const caret = backend.getRaw();
 		return caret === null ? null : { start: caret, end: caret };
 	}
 
-	/**
-	 * The text each handled input type writes over its span: only a payload that can be read off
-	 * the event, or built here, is moved onto the body, and every other type is refused, meaning
-	 * null, the event prevented and nothing committed. Text carried on a `dataTransfer` would
-	 * reach `parse()` without the paste transforms (G4.11).
-	 */
+	/** The text an input type writes over its span, or null to refuse it. A `dataTransfer`
+	 *  payload is refused, since it would skip the paste transforms (G4.11). */
 	function rangedEditInsertion(e: InputEvent, span: RawRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
 		switch (e.inputType) {
 			case 'insertText':
 				return e.data ?? '';
 			case 'insertLineBreak':
-				return trailingLineEnding(node.raw);
+				return editableSurface.lineEnding();
 			// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or
 			// IME insertParagraph is the same gesture arriving without a keydown.
 			case 'insertParagraph':
 				return (
-					trailingLineEnding(node.raw) + getLineLeadingWhitespace(getDisplayText(), span.start)
+					editableSurface.lineEnding() + getLineLeadingWhitespace(getDisplayText(), span.start)
 				);
 			default:
 				return null;
@@ -538,19 +511,14 @@
 		if (composing) return;
 		if (!el) return;
 
-		preEditOffset = backend.getRaw() ?? 0;
-
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand, getPath: () => myPath })) return;
 	}
-
-	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
 
 	// ── Commands ────────────────────────────────────────────────────────
 
-	export function runCommand(id: CommandId): boolean {
-		if (reorderRunCommand(id, reorder, () => myPath)) return true;
+	export const runCommand = editableSurface.command((id: CommandId): boolean => {
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':
@@ -573,24 +541,21 @@
 			default:
 				return false;
 		}
-	}
+	});
 
 	function codeBackspace(): boolean {
-		if (!el || hasSelection()) return false;
+		if (!el || backend.getRawSelection() !== null) return false;
 		const offset = backend.getRaw() ?? 0;
-		// offset===0 is the universal contract; the classifyFenceBoundary check catches the
-		// fence boundary, where a native Backspace would delete the opener's terminating `\n`.
+		// Offset 0 always leaves the block; so does the body start, where a native Backspace would
+		// delete the opener's terminating `\n`.
 		if (
 			offset === 0 ||
 			classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
 		) {
-			// At the top of an empty fence the block is the only thing the key could mean: there
-			// is no text to delete and nothing to merge, and stepping the caret out leaves a
-			// block the user just asked to be rid of. A fence with a body keeps the step-out,
-			// since one keypress must never take code with it.
-			if (bodyText().trim() === '') {
-				void blockEdit.deleteBlock(index);
-				focusActions.moveFocus(index - 1, 'end');
+			// At the top of an empty fence the key can only mean the block, so it goes; a fence
+			// with a body keeps the step-out, since one keypress must never take code with it.
+			if (isBlankText(bodyText())) {
+				void blockEdit.deleteBlock(index, 'Backspace');
 				return true;
 			}
 			focusActions.moveFocus(index - 1, 'end');
@@ -603,14 +568,14 @@
 		const pairSpan = { start: offset - 1, end: offset + 1 };
 		if (isBetweenEmptyPair(text, offset) && !crossesFenceBoundary(node, pairSpan)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-			pendingCursorOffset = commitDisplay(newText, preEditOffset, offset - 1);
+			pendingCursorOffset = commitDisplay(newText, offset, offset - 1);
 			return true;
 		}
 		return false;
 	}
 
 	function codeDelete(): boolean {
-		if (!el || hasSelection()) return false;
+		if (!el || backend.getRawSelection() !== null) return false;
 		const offset = backend.getRaw() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// The root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -625,8 +590,7 @@
 	// textContent, so the CST never sees the edit; Enter goes through the CST instead.
 	function codeNewline(): boolean {
 		if (!el) return false;
-		// Read the caret live: cross-block dispatch calls runCommand without an
-		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
+		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
@@ -645,7 +609,7 @@
 
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
-			closeUnclosedFenceAndDescend(exit.newText);
+			closeUnclosedFenceAndDescend(exit.newText, offset);
 			return true;
 		}
 		if (exit.kind !== 'none') {
@@ -662,7 +626,7 @@
 
 		// Electric indent: between an empty bracket pair, expand into three lines with an
 		// extra indent on the middle. Quote pairs stay inline; a selection is replaced.
-		const ending = trailingLineEnding(node.raw);
+		const ending = editableSurface.lineEnding();
 		if (span.start === span.end && isBetweenEmptyBracketPair(text, span.start)) {
 			const at = span.start;
 			const indent = getLineLeadingWhitespace(text, at);
@@ -683,9 +647,8 @@
 		return true;
 	}
 
-	// Leaving a closed fence with Enter lands inside the fence's own container: the next
-	// sibling, or a new paragraph made there. Without this a nested last child would hand
-	// the caret outside its container.
+	// Leaving a closed fence with Enter stays inside the fence's own container (the next sibling,
+	// or a new paragraph there), so a nested last child keeps the caret inside.
 	function exitDownward(): void {
 		const container = myPath.length > 1 ? nodeAt(getDoc(), myPath.slice(0, -1)) : null;
 		const isNestedLastChild = !!container?.children && index === container.children.length - 1;
@@ -695,9 +658,9 @@
 
 	// Leaving an unclosed fence downward writes its closer, which stops a save and reload from
 	// absorbing the blocks below into it. Closer and new paragraph land as one commit.
-	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
+	function closeUnclosedFenceAndDescend(closedDisplay: string, caretBefore: number): void {
 		const meta = metadataOf(node, 'fencedCode');
-		const lineEnding = trailingLineEnding(node.raw);
+		const lineEnding = editableSurface.lineEnding();
 		const closedFence: CstNode = {
 			kind: 'fencedCode',
 			leadingTrivia: '',
@@ -705,12 +668,14 @@
 			metadata: { ...meta, closed: true }
 		};
 		// The blank separator line and the paragraph's own line are both pure line
-		// ending, so both take the fence's (G4.20), the same one the closer above got.
+		// ending, so both take the one the closer above got.
 		const paragraphBelow = emptyParagraph(lineEnding, lineEnding);
-		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
-			replacementIndex: 1,
-			offset: 0
-		});
+		void blockEdit.replaceBlock(
+			index,
+			[closedFence, paragraphBelow],
+			{ replacementIndex: 1, offset: 0 },
+			{ snapshotOffset: caretBefore }
+		);
 	}
 
 	void ({
@@ -726,14 +691,15 @@
 
 	function currentRange(): { start: number; end: number } {
 		if (!el) return { start: 0, end: 0 };
-		const sel = getSelectionOffsets(el);
+		const sel = backend.getRawSelection();
 		if (sel) return sel;
 		const cursor = backend.getRaw() ?? 0;
 		return { start: cursor, end: cursor };
 	}
 
-	function applyIndentResult(result: IndentResult): void {
-		const start = commitDisplay(result.text, result.selection.start, result.selection.start);
+	function applyIndentResult(result: IndentResult, caretBefore: number): void {
+		const start = commitDisplay(result.text, caretBefore, result.selection.start);
+		if (start === null) return;
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = start;
 			return;
@@ -744,20 +710,21 @@
 		pendingSelection = { start, end: result.selection.end + shift };
 	}
 
-	// Both gestures rewrite whole lines, so their range clamps off the fence lines: the
-	// multi-line counterpart of `codeNewline`'s `clampEnterOffsetToBody`. `el` is needed
-	// only because `currentRange()` reads the DOM selection through it.
+	// Indent and dedent rewrite whole lines, so their range clamps off the fence lines. `el` is
+	// checked only because `currentRange()` reads the DOM selection through it.
 	function indentSelection(): void {
 		if (!el) return;
-		applyIndentResult(indentLines(getDisplayText(), clampRangeToBody(node, currentRange())));
+		const range = clampRangeToBody(node, currentRange());
+		applyIndentResult(indentLines(getDisplayText(), range), range.start);
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
 		const text = getDisplayText();
-		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
+		const range = clampRangeToBody(node, currentRange());
+		const result = dedentLines(text, range);
 		if (result.text === text) return;
-		applyIndentResult(result);
+		applyIndentResult(result, range.start);
 	}
 
 	// ── Pointer + clipboard ─────────────────────────────────────────────
@@ -769,8 +736,7 @@
 	// Code has no marker prefix, so a selection of its DOM text is a slice of its raw: copy
 	// falls back to the shared visible-selection default, and cut writes that before deleting.
 	const clipboard = createClipboardHandlers({
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		crossBlock,
@@ -778,24 +744,26 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		// Copy is verbatim while the delete clamps: the clipboard keeps the literal bytes
-		// selected, fence characters included, and only the body half is removed.
+		// Copy is verbatim; where the fence lines are hidden the delete clamps, so the clipboard keeps
+		// the fence characters selected while only the body half is removed.
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
-			const selOffsets = getSelectionOffsets(el);
+			const selOffsets = backend.getRawSelection();
 			if (!selOffsets) return;
-			const edit = computeFenceRangedEdit(node, selOffsets, '');
+			const edit = fenceLinesEditable
+				? computeRangedEdit(getDisplayText(), selOffsets, '')
+				: computeFenceRangedEdit(node, selOffsets, '');
 			if (!edit) return;
 			pendingCursorOffset = commitDisplay(edit.newText, edit.newCursor, edit.newCursor);
 		},
 		pasteTail: async (pastedText) => {
 			if (!el) return;
-			// Paste refuses where typing refuses: a target confined to fence structure has
-			// nothing to paste into. The tree-op owns the splice, so the span goes to it.
+			// Where the fence lines are hidden, paste refuses where typing refuses: a target confined
+			// to fence structure has nothing to paste into. The tree-op owns the splice.
 			const target = currentRange();
-			if (isStructureOnlyRange(node, target)) return;
-			const sel = fenceEditSpan(node, target);
+			if (!fenceLinesEditable && isStructureOnlyRange(node, target)) return;
+			const sel = fenceLinesEditable ? orderedRange(target) : fenceEditSpan(node, target);
 			const result = await pasteDispatch(
 				{
 					pastedText,
@@ -807,7 +775,7 @@
 					doc: getDoc(),
 					blockEdit,
 					controller: pasteCoordinator,
-					grammar,
+					reading,
 					activePlugins
 				}
 			);
@@ -819,23 +787,25 @@
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
 
-	export function insertMarkdown(md: string): boolean {
+	export function insertMarkdown(md: string): Promise<boolean> {
 		return clipboard.insertMarkdown(md);
 	}
 </script>
 
+<!-- The textbox role arrives through the spread, where the compiler cannot see it. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="code-block"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	role="textbox"
+	{...editableSurfaceAttributes(node, null)}
 	spellcheck="false"
 	oninput={onInput}
 	onfocus={onSurfaceFocus}
-	onkeydown={onKeyDownTraced}
-	onbeforeinput={onBeforeInput}
+	onkeydown={editableSurface.onKeyDown}
+	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}
@@ -843,11 +813,12 @@
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
-<!-- Beside the walk container, never inside it: the render effect replaces that element's
-	children on every commit, and the offset walk counts everything that survives there. -->
+<!-- Beside the editable element, never inside it: the render effect replaces that element's
+	children on every commit, and the offset traversal would count the gutter's text. -->
 {#if showRail}
 	<CodeBlockRail
 		info={infoString}
+		activation={activePlugins}
 		editable={!readOnly}
 		autoOpen={autoOpenLanguage}
 		onCommit={commitLanguage}
@@ -855,6 +826,8 @@
 		onRun={onRunCode ? () => onRunCode(runRequest()) : undefined}
 		onCopy={copyBody}
 		menuItems={codeMenuItems ? () => codeMenuItems(runRequest()) : undefined}
+		{menuPresence}
+		{drafts}
 	/>
 {/if}
 

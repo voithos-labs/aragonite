@@ -3,9 +3,9 @@
  * Per-kind parsers live in parsers/; this file holds dispatch and shared utilities only.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import type { CstNode, Document } from './nodes';
-import { splitLines, type ParsedLine } from './lines';
+import { isBlankLine, isBlankText, splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
 import {
 	defaultGrammarView,
@@ -24,10 +24,8 @@ registerBuiltInOpeners();
 registerTableCompleter();
 
 /**
- * Container-nesting cap: past it the remaining prefix parses as paragraph content instead of
- * recursing, so pathological input degrades rather than overflowing the stack. Sits well under
- * the empirical crash point, with headroom for the tree walks that recurse to the same depth.
- * Byte-preserving, since only a top-level node's `raw` serializes and that is fixed first.
+ * Container-nesting cap: past it the rest parses as paragraph text instead of recursing, so deep
+ * input cannot overflow the stack. Bytes are unaffected: the top-level `raw` is fixed first.
  */
 export const MAX_NESTING_DEPTH = 512;
 
@@ -36,28 +34,27 @@ export const MAX_NESTING_DEPTH = 512;
 /** Whether `source` is a whole document or one block's bytes read standalone. */
 export type ParseScope = 'document' | 'fragment';
 
-/**
- * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
- * the global openers. It filters only the top-level opener dispatch: nested container reparses
- * and the paragraph-interrupt scan read the global grammar, the documented enablement boundary,
- * so a top-level disabled kind is skipped and a nested one is not. `opts.scope` reaches openers
- * as `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
- */
+/** Parse GFM to a lossless CST, with every installed plugin's openers and `'document'` scope by
+ *  default. Code inside the editor calls {@link readBlocks}, which takes both. */
 export function parse(
 	source: string,
 	opts?: { grammar?: GrammarView; scope?: ParseScope }
 ): Document {
+	return readBlocks(source, {
+		grammar: opts?.grammar ?? defaultGrammarView,
+		scope: opts?.scope ?? 'document'
+	});
+}
+
+/** `parse` for code inside the editor: the grammar is the editor's, so it is never left out. */
+export function readBlocks(
+	source: string,
+	read: { grammar: GrammarView; scope: ParseScope }
+): Document {
 	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
-	const result = parseBlocks(
-		lines,
-		0,
-		lines.length,
-		opts?.grammar ?? defaultGrammarView,
-		0,
-		(opts?.scope ?? 'document') === 'document'
-	);
-	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
+	const result = parseBlocks(lines, 0, lines.length, read);
+	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length, source.length);
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
 
@@ -67,20 +64,29 @@ interface ParseBlocksResult {
 }
 
 /**
- * The entry point incremental parsing re-parses ranges through: a block-aligned window parses
- * identically to a full parse of the window's text. A window is a fragment unless its caller
- * says otherwise, so `parse` alone defaults to document scope. Blank-line rule
- * (`design/syntax-tree.md`): the first blank line of a run separates and becomes the next
- * block's `leadingTrivia`; every later one is an empty paragraph carrying its own bytes.
+ * A task item's body read on its own, as a write into the item's first paragraph reads it: the
+ * line after the task marker is paragraph text (GFM task lists), and later lines parse as blocks.
  */
+export function parseTaskItemBody(source: string, grammar: GrammarView): Document {
+	const lines = splitLines(source);
+	const result = parseBlocks(lines, 0, lines.length, {
+		grammar,
+		scope: 'fragment',
+		firstLineIsParagraph: true
+	});
+	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
+}
+
+/** Parse `lines[start, end)` into blocks; a block-aligned window parses as its text would whole
+ *  (`docs/design/syntax-tree.md` § Blank lines). `firstLineIsParagraph` forces paragraph text. */
 export function parseBlocks(
 	lines: ParsedLine[],
 	start: number,
 	end: number,
-	grammar: GrammarView = defaultGrammarView,
-	depth: number = 0,
-	isDocumentParse: boolean = false
+	read: { grammar: GrammarView; scope: ParseScope; depth?: number; firstLineIsParagraph?: boolean }
 ): ParseBlocksResult {
+	const { grammar, depth = 0, firstLineIsParagraph = false } = read;
+	const isDocumentParse = read.scope === 'document';
 	const children: CstNode[] = [];
 	let pendingTrivia = '';
 	// Nothing precedes the window's first block, so its separator is already spent, which is
@@ -118,7 +124,10 @@ export function parseBlocks(
 			grammar,
 			depth
 		};
-		const { node, consumed } = parseNextBlock(ctx);
+		const { node, consumed } =
+			firstLineIsParagraph && index === start
+				? parseParagraph(lines, index, end, pendingTrivia, grammar)
+				: parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
 		separatorSpent = false;
@@ -135,17 +144,12 @@ export interface ContainerBodyWrap {
 	beforeCloserLine?: boolean;
 }
 
-/**
- * Parse a container body between the container's own fence lines; a body starting at the
- * container's first line (blockquote, list item) has no wrap and uses `parse`. A blank line
- * against a fence line separates as it does between blocks, landing in `prefix`/`suffix` while
- * the rest of its run becomes body content; one with no body on its far side separated nothing
- * and stays content. `opts.scope` is required: a new entry cannot recover it (G4.27).
- */
+/** Parse a body between the container's own fence lines (`docs/design/syntax-tree.md` § Blank
+ *  lines); a body on the container's first line uses `parse`. `opts.scope` is required (G4.27). */
 export function parseContainerBody(
 	bodyText: string,
 	wrap: ContainerBodyWrap,
-	opts: { scope: ParseScope; depth?: number }
+	opts: { scope: ParseScope; depth?: number; grammar: GrammarView }
 ): Document {
 	const lines = splitLines(bodyText);
 	let first = 0;
@@ -162,14 +166,7 @@ export function parseContainerBody(
 		suffix = lines[last].raw;
 	}
 
-	const inner = parseBlocks(
-		lines,
-		first,
-		last,
-		defaultGrammarView,
-		opts.depth ?? 0,
-		opts.scope === 'document'
-	);
+	const inner = parseBlocks(lines, first, last, opts);
 	return { kind: 'document', prefix, children: inner.children, suffix: inner.suffix + suffix };
 }
 
@@ -178,7 +175,7 @@ export function parseContainerBody(
 function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	// At the cap everything becomes a paragraph, covering the bytes without another stack frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
-		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
@@ -187,18 +184,15 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 			reportNonAdvancingOpener(ctx, result);
 			continue;
 		}
-		if (DEV) assertOpenerRawMatches(ctx, result);
+		if (isDevChecks()) assertOpenerRawMatches(ctx, result);
 		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.
-	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 }
 
-/**
- * The dev warning behind the call site's decline. An opener that consumed nothing is declined in
- * every build, not just DEV: returning it would leave `index` where it was and spin the parse
- * loop forever, and declining is always safe because the paragraph fallback covers the line.
- */
+/** The dev warning behind the call site's decline. An opener that consumed nothing is declined in
+ *  every build, or it would spin the parse loop; the paragraph fallback covers the line. */
 function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-advance', () => ({
 		code: 'opener-did-not-advance',
@@ -209,11 +203,8 @@ function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): 
 	}));
 }
 
-/**
- * DEV-only trust check on a plugin opener's `raw`, at the one site the parser consumes it:
- * bytes that do not match the consumed lines silently break the round-trip, since serialize
- * reads `raw` alone. Tree-shaken in production.
- */
+/** Dev-only check that a plugin opener's `raw` matches the lines it consumed: serialize reads `raw`
+ *  alone, so a mismatch silently breaks the round-trip. */
 function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-raw', () =>
 		result.node.raw === joinRaw(ctx.lines, ctx.index, ctx.index + result.consumed)
@@ -230,27 +221,10 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 // ── Shared utilities ────────────────────────────────────────────────────
 
-/**
- * GFM §2.1: a blank line holds nothing but spaces and tabs. Deliberately not `String.trim()`,
- * which admits all Unicode whitespace: a non-breaking space is content, and a line holding one
- * continues its block.
- */
-const NON_BLANK_CHAR = /[^ \t]/;
-
-export function isBlankLine(text: string): boolean {
-	return !NON_BLANK_CHAR.test(text);
-}
-
-/**
- * Nothing but blank lines: what the blank-line rule makes an empty paragraph from. Blankness is
- * the parser's rule (GFM §2.1), never `String.trim()`: a non-breaking space is content.
- */
-export function isBlankSource(source: string): boolean {
-	return splitLines(source).every((line) => isBlankLine(line.text));
-}
+export { isBlankLine };
 
 export function isBlankParagraph(node: { kind: string; raw: string }): boolean {
-	return node.kind === 'paragraph' && isBlankSource(node.raw);
+	return node.kind === 'paragraph' && isBlankText(node.raw);
 }
 
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {

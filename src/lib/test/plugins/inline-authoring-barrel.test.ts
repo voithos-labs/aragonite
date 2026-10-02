@@ -5,8 +5,7 @@ import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
-	isInlineKindDeclared,
-	__clearDeclaredPluginInlineKindsForTests
+	isInlineKindDeclared
 } from '$lib/schema/plugin-kind';
 import type {
 	InlineSyntaxRecognizer,
@@ -19,8 +18,8 @@ import type {
 	ImageSyntaxRewriter
 } from '$lib/plugin';
 
-// The inline authoring API is not frozen yet. This pins the symbols a plugin imports from
-// `@voithos-labs/aragonite/plugin` to their core implementations, so a dropped or mis-wired
+// The inline authoring API is not frozen yet, so the suite pins the symbols a plugin imports
+// from `@voithos-labs/aragonite/plugin` to their core implementations: a dropped or mis-wired
 // re-export fails here rather than in a downstream plugin.
 describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	it('re-exports the inline registration functions from their core modules', () => {
@@ -35,11 +34,9 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	});
 
 	it('isInlineKindDeclared probes the declared-set without throwing', () => {
-		__clearDeclaredPluginInlineKindsForTests();
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(false);
 		declarePluginInlineKind('probe-kind');
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(true);
-		__clearDeclaredPluginInlineKindsForTests();
 	});
 
 	it('keeps the internal inline modules off the barrel', () => {
@@ -54,8 +51,7 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 			'getInlineRungs',
 			'getUnreservedRungs',
 			'getPrefixRungs',
-			'__resetInlineSyntaxForTests',
-			'__resetInlineWidgetsForTests'
+			'__resetSchemaRegistriesForTests'
 		]) {
 			expect(pluginBarrel).not.toHaveProperty(seam);
 		}

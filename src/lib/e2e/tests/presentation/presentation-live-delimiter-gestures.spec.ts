@@ -82,6 +82,18 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 	});
 });
 
+// A backtick typed at a hidden closer is written by the keydown path, which records the pair as
+// the auto-pair's own just as the `beforeinput` path does: Backspace between the two takes both.
+test('live mode: Backspace takes both of a pair written at a hidden closer', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', 'x **b** y\n');
+	await ep.focusBlock(0, 7);
+	await page.keyboard.type('`');
+	await ep.bridge.waitForSourceMatches(/``/);
+	await page.keyboard.press('Backspace');
+
+	await expect.poll(() => ep.bridge.getSource()).toBe('x **b** y\n');
+});
+
 test.describe('live mode: a construct typed to completion is left behind', () => {
 	let ep: EditorPage;
 

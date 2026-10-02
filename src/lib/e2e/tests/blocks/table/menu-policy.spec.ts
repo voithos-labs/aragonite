@@ -16,7 +16,7 @@ test.describe('table block: cell menu dismissal', () => {
 	});
 
 	test('clicking outside the menu closes it without committing', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		const before = await editor.bridge.getSource();
 
@@ -31,7 +31,7 @@ test.describe('table block: cell menu dismissal', () => {
 	});
 
 	test('Escape closes the menu without committing', async ({ page }) => {
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		const before = await editor.bridge.getSource();
 
@@ -69,7 +69,7 @@ test.describe('table block: the cell menu and the editor’s switches', () => {
 		await editor.loadContent(TABLE);
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await editor.waitForRenderFlush();
 
 		await expect(page.getByRole('menu')).toHaveCount(0);

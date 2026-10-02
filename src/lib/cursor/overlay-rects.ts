@@ -3,11 +3,8 @@
 import type { DomTextOffset } from './coordinate-spaces';
 import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from './widget-offset';
 
-/**
- * Client rects covering the DOM-walk range [startOffset, endOffset) within `el` (see
- * `cursor/widget-offset.ts`). The `getClientRects` check keeps jsdom unit tests from
- * crashing; real pixel geometry is covered by e2e.
- */
+/** Client rects covering the DOM-walk range [startOffset, endOffset) within `el`. The
+ *  `getClientRects` check keeps jsdom unit tests from crashing. */
 export function measurePartialRectsInContentEditable(
 	el: HTMLElement,
 	startOffset: DomTextOffset,

@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-// Miss-analysis: every splice test spliced a handful of blocks, so no test ever handed a mutation
-// more items than V8 takes as arguments: the count the splices scale with was untested.
+// Miss-analysis: every splice test spliced a handful of blocks, never past V8's argument limit.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { spliceChildrenSettled } from '$lib/tree-operations/settle';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /** Past V8's argument limit (~125k), so one spread would raise a RangeError. */
 const OVER_LIMIT = 200_000;
@@ -36,28 +36,22 @@ describe('a document-scaled splice', () => {
 			innerPrefix: '',
 			innerSuffix: ''
 		};
-		spliceChildrenSettled(container, 0, 1, clipboard());
+		const sharing = createSharingState();
+		spliceChildrenSettled(container, 0, 1, clipboard(), defaultGrammarView, sharing, '\n');
 		expect(container.children).toHaveLength(OVER_LIMIT);
 		expect(container.childIds).toHaveLength(OVER_LIMIT);
 	});
 
 	it('lands through the paste route', async () => {
 		const harness = makeEditorActionsDeps([para('original\n')]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 
-		await replaceBlockAtParent({
-			doc: harness.doc,
-			blockPath: [0],
-			replacement: clipboard(),
-			controller,
-			undoEntry: 'join',
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0],
+			clipboard(),
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
+		);
 
 		expect(harness.doc.children).toHaveLength(OVER_LIMIT);
 		expect(harness.getBlockIds()).toHaveLength(OVER_LIMIT);

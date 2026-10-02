@@ -4,36 +4,38 @@ import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
-// GH #173: `deleteNode`'s neighbour merge looked downward only, so a merge whose rewritten
-// survivor gained indentation stopped interrupting the indentation-delimited block above it and
-// the live tree kept a block its own reload merges away.
-// Miss-analysis: the delete pins all move a block into a join, never rewrite the survivor's own
-// bytes, so nothing in the suite could observe the upper edge; the G2.13 join lane excludes the
-// shape by direction (a merge reads fewer blocks where #166's class read more).
+// A merge whose survivor gains indentation can stop interrupting the indentation-delimited block
+// above it, so the neighbour merge checks the survivor's upper edge as well as the lower one.
+// Miss-analysis: GH #173, no delete case rewrote the survivor's own bytes.
 
 describe('a merge whose survivor the block above absorbs', () => {
 	it('asks the join at the survivor’s upper edge', () => {
-		const doc = parse(
-			'- foo@bar.com\n\n  \n| H0 |\n| --- | --- |\n\n\n[ref]: https://example.com\n'
-		);
+		// Indented code: a list item or footnote already takes an indented blank line in on load.
+		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
-		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, undefined);
+		const merged = mergeIntoPrevDeepLeaf(doc, 2, createSharingState(), fixtureReading());
 
-		expect(serialize(doc)).toBe(
-			'- foo@bar.com\n\n  | H0 |\n| --- | --- |\n\n\n[ref]: https://example.com\n'
-		);
+		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
+		expect(doc.children[0].raw).toBe('    code\n\n    x\n');
 		expect(describeConvergence(doc)).toBeNull();
+		// The join sits in the block that absorbed it, before the `x`.
+		expect(merged).toMatchObject({
+			index: 0,
+			targetPath: [],
+			joinOffset: '    code\n\n    '.length
+		});
 	});
 
-	// The downward edge the hand-rolled merge already covered, so routing the delete through the
-	// shared window walker (GH #179) cannot have cost it.
 	it('still asks the join the delete itself opened below', () => {
 		const doc = parse('a\n# h\nb\n');
 		expect(doc.children).toHaveLength(3);
 
-		const change = deleteNode(doc, 1);
+		const change = deleteNode(doc, 1, defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('a\nb\n');
 		expect(describeConvergence(doc)).toBeNull();

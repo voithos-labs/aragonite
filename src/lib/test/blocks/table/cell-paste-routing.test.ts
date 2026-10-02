@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-//
-// Where a paste dropped on a cell ends up. `table-cell-paste.test.ts` drives the cell's hook with
-// arguments a test supplies; what decides that the hook runs at all, which is the cell's paste
-// handler, the dispatcher, and the handling registered for `tableCell`, was only ever asserted in
-// the browser. Two things can go wrong and both destroy the table silently: the generic inline
-// handling taking the paste, and a pasted newline reaching `cell.raw`.
+// Where a paste dropped on a cell ends up: through the cell's paste handler, the dispatcher and
+// the handling registered for `tableCell`. Either failure breaks the table silently: the generic
+// inline handling taking the paste, or a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
-import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import {
+	installLayoutStubs,
+	mountEditor,
+	type MountedEditor
+} from '$lib/test/harness/mount-editor.svelte';
 import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);

@@ -1,9 +1,7 @@
 /**
- * Children mutations that keep `childIds` in step, for writes outside a commit scope (descendants
- * and ancestors found by walking the tree, see the `node-primitives.ts` header). Inside a commit
- * scope the StructuralChange descriptor keeps ids and refs in step; here a hand-rolled splice
- * would let the id array drift and break Svelte's keyed each. The same shape change invalidates
- * `childSpans`, so both arrays are updated here.
+ * Children mutations that keep `childIds` and `childSpans` in step, for writes outside a commit
+ * scope (descendants and ancestors found by walking the tree, `node-primitives.ts` header). A
+ * hand-rolled splice there would let the id array drift and break Svelte's keyed each.
  */
 
 import type { CstNode } from '../core/nodes';
@@ -22,10 +20,8 @@ export function pushChild(container: CstNode, child: CstNode): void {
 }
 
 /**
- * Bring `childIds` back to `children`'s length after an in-place children swap. The
- * surviving prefix keeps its ids: fresh ids for all would remount every child under
- * Svelte's keyed each, the identity the swapping branches exist to preserve. No-op when
- * the array is absent; the mounting BlockList backfills it.
+ * Bring `childIds` back to `children`'s length after an in-place swap. The surviving prefix keeps
+ * its ids, since fresh ones would remount every child under Svelte's keyed each.
  */
 export function resyncChildIds(container: CstNode): void {
 	dropChildSpans(container);

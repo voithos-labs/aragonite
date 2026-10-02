@@ -1,40 +1,21 @@
 // The check behind `EditorInstance.canRunCommand`, asked where commands are dispatched. What
 // matters is that the two agree: an answer that disagrees with what running the command then does
 // is a greyed-out button lying about the click under it.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	canRunCommandById,
 	runCommandById,
 	dispatchKeyCommand,
 	registerBlockCommand,
-	__resetBlockCommandsForTests,
-	type CommandDispatchContext,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
-import { __removePluginCommandsForTests } from '$lib/schema/commands';
 import { TOOLBAR_COMMANDS } from '$lib/index';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { allowDevWarns } from '../support/warn-gate';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-
-afterEach(() => {
-	__resetBlockCommandsForTests();
-	__removePluginCommandsForTests();
-});
-
-function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
-	return {
-		history: { requestUndo: () => {}, requestRedo: () => {} },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source',
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined,
-		...over
-	};
-}
+import { commandContext as context } from '../support/command-context';
 
 /** A focused block that answers every built-in id, so the answer comes from the dispatch alone. */
 const surface = (): KindCommandTarget => ({ kind: 'paragraph', runCommand: () => true });
@@ -56,8 +37,8 @@ describe('the toolbar scenario', () => {
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), context())).toBe(true);
 	});
 
-	// No router passed in, which is what an older construction of the checks hands the dispatch:
-	// the rewrites decline rather than falling through to the focused block's own offsets.
+	// With no cross-block router passed in, the rewrites decline rather than falling through to the
+	// focused block's own offsets.
 	it('a painted range with no cross-block branch declines the rewrites and nothing else', () => {
 		const ctx = context({ isCrossBlockRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
@@ -84,9 +65,7 @@ describe('the toolbar scenario', () => {
 });
 
 describe('the read agrees with the dispatch it describes', () => {
-	// Miss-analysis: every scenario drove a target with no `getCommandContext`, the one shape where
-	// working the levels out again gives exactly the dispatch's answer, so the check's missing
-	// plugin-command level agreed everywhere the matrix looked.
+	// Miss-analysis: no scenario's target had `getCommandContext`, so the missing plugin level hid.
 	it('every (id, scenario) verdict is what the entry point then answers', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.agree', () => true);
 		const scenarios = [
@@ -145,10 +124,17 @@ describe('the read agrees with the dispatch it describes', () => {
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' }
 		]);
 		expect(canRunCommandById('format.toggleStrong', surface(), ctx)).toBe(false);
-		expect(dispatchKeyCommand('Mod+Alt+G', surface(), ctx, overrides)).toBe(false);
+		expect(
+			dispatchKeyCommand('Mod+Alt+G', surface(), { ...ctx, keybindingOverrides: () => overrides })
+		).toBe(false);
 
 		const collapsed = context();
 		expect(canRunCommandById('format.toggleStrong', surface(), collapsed)).toBe(true);
-		expect(dispatchKeyCommand('Mod+Alt+G', surface(), collapsed, overrides)).toBe(true);
+		expect(
+			dispatchKeyCommand('Mod+Alt+G', surface(), {
+				...collapsed,
+				keybindingOverrides: () => overrides
+			})
+		).toBe(true);
 	});
 });

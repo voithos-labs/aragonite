@@ -28,23 +28,27 @@ export const MARKER_FAMILY_SELECTOR = Object.values(FAMILY_CLASS)
 	.join(', ');
 
 /**
- * The family `el` belongs to, or null for anything else. A `contenteditable="false"` marker is a
- * container's leading marker prefix (`> `, `- `), which keeps its box in every mode
- * (`ambient/ambient-cursor.ts`), so it belongs to no family.
+ * Whether `el` is a container's leading marker prefix (`> `, `- `): the read-only marker span a
+ * container draws before its first child's text, which keeps its box in every mode.
  */
+export function isMarkerPrefixSpan(el: Element): boolean {
+	return (
+		el.classList.contains(FAMILY_CLASS.marker) && el.getAttribute('contenteditable') === 'false'
+	);
+}
+
+/** The family `el` belongs to, or null for anything else. A marker prefix span belongs to none,
+ *  since no mode hides it. */
 export function markerFamilyOf(el: Element): MarkerFamily | null {
 	const classes = el.classList;
-	if (classes.contains(FAMILY_CLASS.marker)) {
-		return el.getAttribute('contenteditable') === 'false' ? null : 'marker';
-	}
+	if (classes.contains(FAMILY_CLASS.marker)) return isMarkerPrefixSpan(el) ? null : 'marker';
 	if (classes.contains(FAMILY_CLASS['fence-line'])) return 'fence-line';
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
 	return null;
 }
 
-/** Whether the content-empty override shows `family` (`styles/editor.css`, same scoping). A
- *  reference label is lookup metadata rather than a marker the caret types against, so it stays
- *  hidden, and a container holding only labels shows nothing. */
+/** Whether the content-empty override in `styles/editor.css` shows `family`. A reference label
+ *  is lookup metadata, not a marker the caret types against, so it stays hidden. */
 export function familyPaintsAlone(family: MarkerFamily): boolean {
 	return family !== 'ref-label';
 }
@@ -60,12 +64,8 @@ export interface VisibilityContext {
 	readonly chromePaints: boolean;
 }
 
-/**
- * What the user sees of a container under `mode`. `chromePaints` is the container's own
- * content-empty condition (live-mode.md § 4.1); reading mode ignores it, since it takes no
- * keystrokes and a construct with nothing behind its markers may show nothing. The preview modes'
- * per-span reveal is DOM state the DOM traversal handles; this answers for an unrevealed container.
- */
+/** Reading mode ignores the content-empty condition (live-mode.md § 4.1), since it takes no
+ *  keystrokes. Answers for an unrevealed container: a preview's per-span reveal is DOM state. */
 export function screenVisibility(
 	mode: PresentationMode,
 	container: { chromePaints: boolean }
@@ -86,13 +86,8 @@ export function screenVisibility(
 	}
 }
 
-/**
- * The content behind every marker family, whatever the container shows: what a rewrite's
- * before/after text comparison needs, since markers hide the moment content arrives and a
- * comparison against the screen would read that as bytes lost. Sound only behind a
- * {@link paintsOnlyChrome} check: over markers the user is looking at, this reading calls those
- * bytes unseen and would allow dropping them.
- */
+/** The content behind every marker family, for a rewrite's before/after comparison. Sound only
+ *  behind a {@link paintsOnlyChrome} check, or it lets visible markers drop (live-mode.md § 2). */
 export const CONTENT_VISIBILITY: VisibilityContext = { hidesMarkers: true, chromePaints: false };
 
 /** A container whose markers stand over no content: every family the override shows is visible. */
@@ -117,18 +112,13 @@ export interface VisibleRun {
 	visible: boolean;
 }
 
-/**
- * `nodes` as runs of raw bytes, each carrying what it shows under `ctx`. Read off the rendered
- * DOM rather than derived per kind, because only the renderer knows which bytes a construct shows
- * (G4.33), and a re-derivation would drift from it. Top-level nodes render one at a time, so a
- * clipped list (the surviving side of a block join) keeps correct offsets instead of a running
- * count that assumes contiguity.
- */
+/** Read off the rendered DOM, since only the renderer knows which bytes a construct shows
+ *  (G4.33). Each top-level node renders alone, so a clipped list keeps its offsets. */
 export function visibleRuns(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): VisibleRun[] {
 	const runs: VisibleRun[] = [];
 	for (const node of nodes) {
@@ -142,24 +132,19 @@ export function renderedText(
 	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): string {
 	let out = '';
 	for (const run of visibleRuns(nodes, raw, ctx, opts)) if (run.visible) out += run.text;
 	return out;
 }
 
-/**
- * Whether `nodes` are markers standing over nothing, and therefore all on screen (live-mode.md
- * § 4.1). The inline half of the content-empty rule, for a caller with no DOM to read the
- * `data-content-empty` attribute from. A block's own markers (a `## ` prefix, a fence line) sit
- * outside the inline content range, so an empty block answers false and the code that owns them
- * is unaffected.
- */
+/** Whether `nodes` are markers over no content, which stay on screen (live-mode.md § 4.1). A
+ *  block's own markers (`## `, a fence) sit outside the inline range: an empty block is false. */
 export function paintsOnlyChrome(
 	nodes: readonly InlineNode[],
 	raw: string,
-	opts: RenderInlineOptions = {}
+	opts: RenderInlineOptions
 ): boolean {
 	return (
 		renderedText(nodes, raw, CONTENT_VISIBILITY, opts) === '' &&

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import {
 	findOpening,
 	isProseOffset,
@@ -11,6 +12,7 @@ import type { InlineMenuSource } from '$lib/inline-menu/types';
 import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import type { NodeView } from '$lib/core/node-views';
 import { parse } from '$lib/core/parser';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 const source = (over: Partial<InlineMenuSource> & { name: string; trigger: string }) =>
 	({ items: () => [], ...over }) satisfies InlineMenuSource;
@@ -52,7 +54,7 @@ describe('findOpening', () => {
 	});
 
 	it('finds nothing in a run that typed no trigger', () => {
-		// The `#` was already there: typing on after it is not a press of the trigger.
+		// The `#` was already there, so typing on after it does not type the trigger.
 		expect(findOpening([tag, link], 'see #a', 6, 5)).toBeNull();
 		expect(findOpening([tag, link], 'x', 1, 0)).toBeNull();
 	});
@@ -125,14 +127,14 @@ describe('sessionQuery', () => {
 	});
 });
 
-// Miss-analysis: the only position any test ever excluded was an inline code span, so the other
-// bytes a reader does not read as prose were never asked about at all.
+// Miss-analysis: the only non-prose position any test checked was an inline code span.
 describe('isProseOffset', () => {
 	/** Whether a trigger typed at the `|` in `raw` would be in prose. */
 	const at = (raw: string): boolean => {
 		const offset = raw.indexOf('|');
 		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
-		return isProseOffset(resolvedInlineContent(leaf), offset);
+		const reading = fixtureReading();
+		return isProseOffset(resolvedInlineContent(leaf, reading), offset, reading.grammar);
 	};
 
 	it('is true in ordinary text and in a link’s own text, which is prose', () => {
@@ -161,10 +163,21 @@ describe('isProseOffset', () => {
 		expect(at('see https://a/|b here')).toBe(false);
 		expect(at('see <span data="a|b"> here')).toBe(false);
 	});
+
+	// Miss-analysis: every case used a built-in construct, never a plugin widget's source.
+	describe('inside a plugin widget', () => {
+		beforeEach(() => {
+			registerMathInline();
+		});
+
+		it('is false in an inline formula’s source, which is not prose', () => {
+			expect(at('see $x |#y$ here')).toBe(false);
+			expect(at('see $x$ |#y')).toBe(true);
+		});
+	});
 });
 
-// Miss-analysis: every position case ran through the inline tree, which holds a link only once
-// the parser has closed one, so a destination the author was still typing was never asked about.
+// Miss-analysis: every case had a closed link, so no test typed into a destination with no `)`.
 describe('isUnclosedDestination', () => {
 	/** Whether a trigger typed at the `|` in `raw` sits in a destination with no `)` yet. */
 	const at = (raw: string): boolean =>

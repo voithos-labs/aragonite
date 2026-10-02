@@ -1,27 +1,22 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderCodeBlock } from '$lib/components/blocks/code/code-renderer';
-import {
-	bootstrapCodeLanguages,
-	__resetBootForTests
-} from '$lib/components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '$lib/components/blocks/code/code-languages';
+import { bootstrapCodeLanguages } from '$lib/components/blocks/code/code-bootstrap';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode } from '$lib/core/nodes';
 import { fencedCode } from './fenced-code-fixture';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
-// Language registry is register-once; reset + re-bootstrap before every test so a
-// leaked registration can't let one describe's grammar bleed into the next.
+// The language registry is register-once, so each test resets it, or one describe's grammar
+// would leak into the next.
 beforeEach(() => {
-	__resetRegistryForTests();
-	__resetBootForTests();
 	bootstrapCodeLanguages();
 });
 
 describe('renderCodeBlock', () => {
 	it('renders opener marker + tokenized body + closer marker', () => {
 		const node = fencedCode('```javascript\nconst x = 42;\n```\n', 'javascript');
-		const frag = renderCodeBlock(node);
+		const frag = renderCodeBlock(node, everyInstalledPlugin);
 
 		const markers = frag.querySelectorAll('.md-marker');
 		expect(markers.length).toBeGreaterThan(0);
@@ -33,7 +28,7 @@ describe('renderCodeBlock', () => {
 
 	it('renders info string with .md-lang class', () => {
 		const node = fencedCode('```python\nprint()\n```\n', 'python');
-		const frag = renderCodeBlock(node);
+		const frag = renderCodeBlock(node, everyInstalledPlugin);
 
 		const langSpan = frag.querySelector('.md-lang');
 		expect(langSpan).not.toBeNull();
@@ -56,7 +51,9 @@ describe('renderCodeBlock', () => {
 
 	for (const [name, node] of shapes) {
 		it(`preserves textContent invariant: ${name}`, () => {
-			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+			expect(renderCodeBlock(node, everyInstalledPlugin).textContent).toBe(
+				trimTrailingLineEnding(node.raw)
+			);
 		});
 	}
 });
@@ -70,7 +67,7 @@ describe('renderCodeBlock: fence-line wrappers', () => {
 
 	it('wraps opener and closer, opener owns its trailing `\\n`', () => {
 		const node = fencedCode('```javascript\nconst x = 42;\n```\n', 'javascript');
-		const lines = fenceLines(renderCodeBlock(node));
+		const lines = fenceLines(renderCodeBlock(node, everyInstalledPlugin));
 
 		expect(lines.length).toBe(2);
 		const [opener] = lines;
@@ -83,10 +80,10 @@ describe('renderCodeBlock: fence-line wrappers', () => {
 
 	it('closer wrapper owns the line break that precedes it (bottom blank collapses)', () => {
 		const node = fencedCode('```\nhello\n```\n');
-		const lines = fenceLines(renderCodeBlock(node));
+		const lines = fenceLines(renderCodeBlock(node, everyInstalledPlugin));
 		const closer = lines[1];
 
-		// Leading `\n` re-homed off the body's last line, then the fence marker.
+		// The closer line starts with the body's last line ending, then the fence marker.
 		expect(closer.firstChild?.nodeType).toBe(Node.TEXT_NODE);
 		expect(closer.firstChild?.textContent).toBe('\n');
 		expect(closer.textContent).toBe('\n```');
@@ -94,7 +91,7 @@ describe('renderCodeBlock: fence-line wrappers', () => {
 
 	it('empty-body closer carries no leading `\\n` (opener `\\n` is the only separator)', () => {
 		const node = fencedCode('```\n```\n');
-		const lines = fenceLines(renderCodeBlock(node));
+		const lines = fenceLines(renderCodeBlock(node, everyInstalledPlugin));
 
 		expect(lines.length).toBe(2);
 		expect(lines[1].textContent).toBe('```');
@@ -103,7 +100,7 @@ describe('renderCodeBlock: fence-line wrappers', () => {
 
 	it('an unclosed fence wraps only the opener line', () => {
 		const node = fencedCode('```js\nconst x = 1\n', 'js', { closed: false });
-		const lines = fenceLines(renderCodeBlock(node));
+		const lines = fenceLines(renderCodeBlock(node, everyInstalledPlugin));
 
 		expect(lines.length).toBe(1);
 		expect(lines[0].textContent).toBe('```js\n');
@@ -120,7 +117,7 @@ describe('renderCodeBlock: indented opener fence (parser accepts 0–3 spaces)',
 			it(`preserves textContent: ${indent}-space ${marker} opener`, () => {
 				const raw = `${pad}${fence}js\ncode\n${fence}\n`;
 				const node = fencedCode(raw, 'js', { fenceMarker: marker });
-				const frag = renderCodeBlock(node);
+				const frag = renderCodeBlock(node, everyInstalledPlugin);
 				expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 			});
 		}
@@ -130,14 +127,13 @@ describe('renderCodeBlock: indented opener fence (parser accepts 0–3 spaces)',
 		const raw = '  ```js\nconst x = 1\n```\n';
 		const node = fencedCode(raw, 'js');
 		const host = document.createElement('div');
-		host.appendChild(renderCodeBlock(node));
-		// CodeBlock.readText() is el.textContent; commitInput writes readText() + '\n'.
+		host.appendChild(renderCodeBlock(node, everyInstalledPlugin));
 		expect(host.textContent + '\n').toBe(raw);
 	});
 });
 
-// CodeBlock reads its rendered textContent back as raw on commit (CodeBlock.readText), so a
-// stray or dropped trailing `\r` is a CRLF round-trip corruption; interiors are pinned below.
+// CodeBlock reads its rendered textContent back as raw on commit, so a stray or dropped
+// trailing `\r` corrupts a CRLF round trip.
 describe('renderCodeBlock: CRLF trailing line ending', () => {
 	const shapes: Array<[string, CstNode]> = [
 		['closed no-info', fencedCode('```\r\nhello\r\nworld\r\n```\r\n')],
@@ -150,24 +146,28 @@ describe('renderCodeBlock: CRLF trailing line ending', () => {
 
 	for (const [name, node] of shapes) {
 		it(`preserves textContent: ${name}`, () => {
-			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+			expect(renderCodeBlock(node, everyInstalledPlugin).textContent).toBe(
+				trimTrailingLineEnding(node.raw)
+			);
 		});
 	}
 });
 
-// Keeping an all-blank body's separator (so it renders N blank lines, not N−1) must
-// not disturb byte parity: textContent stays trimTrailingLineEnding(raw) in every mode.
+// An all-blank body keeps its separator so it renders N blank lines, not N−1, and textContent
+// must still equal the raw without its trailing line ending.
 describe('renderCodeBlock: all-blank body byte parity', () => {
 	for (const blanks of [1, 2, 3]) {
 		it(`preserves textContent: ${blanks} blank line(s)`, () => {
 			const node = fencedCode('```\n' + '\n'.repeat(blanks) + '```\n');
-			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+			expect(renderCodeBlock(node, everyInstalledPlugin).textContent).toBe(
+				trimTrailingLineEnding(node.raw)
+			);
 		});
 	}
 });
 
-// A closer with no final line ending hits trimTrailingLineEnding's no-op branch in
-// trimSliceTail; textContent must still equal the raw verbatim or the closer dies on readback.
+// A closer with no final line ending has nothing to trim, so textContent must equal the raw
+// verbatim or the closer is lost on readback.
 describe('renderCodeBlock: closer without a final line ending', () => {
 	for (const [name, raw] of [
 		['LF', '```\ncode\n```'],
@@ -175,15 +175,15 @@ describe('renderCodeBlock: closer without a final line ending', () => {
 	] as const) {
 		it(`preserves textContent: ${name}`, () => {
 			const node = fencedCode(raw);
-			const frag = renderCodeBlock(node);
+			const frag = renderCodeBlock(node, everyInstalledPlugin);
 			expect(frag.textContent).toBe(raw);
 			expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
 	}
 });
 
-// tokenizeBody highlights an LF copy (template.innerHTML would drop every interior `\r`) and
-// restores each line's own ending positionally, reaching `\n` INSIDE token spans too.
+// `tokenizeBody` highlights an LF copy, since `innerHTML` drops every interior `\r`, then
+// restores each line's own ending by position, inside token spans too.
 describe('renderCodeBlock: CRLF interior in the language path', () => {
 	const shapes: Array<[string, CstNode]> = [
 		['multi-line tagged body', fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js')],
@@ -205,20 +205,22 @@ describe('renderCodeBlock: CRLF interior in the language path', () => {
 
 	for (const [name, node] of shapes) {
 		it(`preserves textContent: ${name}`, () => {
-			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+			expect(renderCodeBlock(node, everyInstalledPlugin).textContent).toBe(
+				trimTrailingLineEnding(node.raw)
+			);
 		});
 	}
 
 	it('restores the interior `\\r` while highlighting still resolves tokens', () => {
 		const node = fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js');
-		const frag = renderCodeBlock(node);
+		const frag = renderCodeBlock(node, everyInstalledPlugin);
 		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
 		expect(frag.textContent).toContain('let a = 1\r\nlet b = 2');
 	});
 
 	it('a token span still wraps the whole multi-line literal after restore', () => {
 		const node = fencedCode('```js\r\nconst s = `a\r\nb`\r\n```\r\n', 'js');
-		const frag = renderCodeBlock(node);
+		const frag = renderCodeBlock(node, everyInstalledPlugin);
 		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
 	});
 });

@@ -1,14 +1,13 @@
 /**
- * Built-in block-kind descriptors and inline-construct policies, applied by an explicit
- * `registerBuiltInDescriptors()` call from `core/inline/index.ts` and
- * `components/built-in-blocks.ts`: the `sideEffects` list names built paths, never the source
- * paths used inside this library, so only a binding something calls survives tree-shaking. Kept
- * apart from `block-kind-descriptor.ts` so that module registers nothing itself.
+ * Built-in block-kind descriptors and inline-construct policies. Nothing registers on import:
+ * `core/inline/index.ts` and `components/built-in-blocks.ts` call `registerBuiltInDescriptors()`,
+ * since the `sideEffects` list names built paths and tree-shaking keeps only a called binding.
  */
 
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
+import { matchHeading } from '../core/parsers/heading';
 import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBlockKind } from './block-kind-descriptor';
@@ -17,35 +16,28 @@ import {
 	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildTableRaw,
-	rebuildTableRowRaw
+	rebuildTableRowRaw,
+	tableLastLineChild
 } from './container-rebuilders';
-import { normalizeCellRaw } from './table-cell-raw';
-import { normalizeFencedRaw } from './fenced-code-raw';
+import { tableCellWrite } from './table-cell-raw';
+import { fencedCodeWrite } from './fenced-code-raw';
+import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
+import {
+	containerEstimate,
+	proseEstimate,
+	singleLineEstimate,
+	sourceLinesEstimate
+} from './height-estimates';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
-// Headings carry a `# ` prefix that is not part of the editable text.
+// The heading's marker bytes, its `# ` and any closing `#` run, sit outside the editable text.
 function headingContentRange(node: NodeView): { start: number; end: number } {
-	const raw = node.raw;
-	const displayEnd = displayLength(raw);
-	let i = 0;
-	while (i < raw.length && raw[i] === ' ') i++;
-	while (i < raw.length && raw[i] === '#') i++;
-	if (i < raw.length && raw[i] === ' ') i++;
-	return { start: i, end: displayEnd };
-}
-
-// Setext headings carry a trailing underline line that is structural, not content.
-function setextHeadingContentRange(node: NodeView): { start: number; end: number } {
-	const raw = node.raw;
-	const end = displayLength(raw);
-	const underlineStart = raw.lastIndexOf('\n', end - 1);
-	if (underlineStart === -1) return { start: 0, end };
-	let contentEnd = underlineStart;
-	if (contentEnd > 0 && raw[contentEnd - 1] === '\r') contentEnd--;
-	return { start: 0, end: contentEnd };
+	const heading = matchHeading(node.raw);
+	if (!heading) return { start: 0, end: displayLength(node.raw) };
+	return { start: heading.contentStart, end: heading.contentEnd };
 }
 
 // ── Keymaps ───────────────────────────────────────────────────────────────
@@ -64,9 +56,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
-	// The live-mode link card. The chord is taken even when no card opens (a caret outside every
-	// link does nothing): `reservedChords()` reports it as taken, and letting it through would
-	// trigger the browser's own Mod+K.
+	// The live-mode link card. The chord is taken even where no card opens, since letting it
+	// through would trigger the browser's own Mod+K.
 	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
@@ -77,10 +68,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
-// The cell is what holds the caret inside a table, so all of the table's keys bind on this kind:
-// an override scoped to `table` would apply to a block the caret never sits in. Plain arrows stay
-// unbound because they depend on where the caret is, which a chord cannot express; they live in
-// `cell-keydown-plan.ts`.
+// The cell holds the caret inside a table, so the table's keys bind here; a `table` override would
+// miss. Plain arrows depend on the caret's position, so `cell-keydown-plan.ts` handles them.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'cell.enter' },
 	{ chord: 'Tab', command: 'cell.tab' },
@@ -101,8 +90,8 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
 	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
 	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
-	// Moves the whole table among its siblings. Alt+Arrow, the reorder chord every other kind
-	// uses, is already taken by the row reorder a caret in a cell means first.
+	// Moves the whole table among its siblings, since Alt+Arrow, the reorder chord every other
+	// kind uses, moves the row the caret is in.
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
 ];
@@ -171,6 +160,8 @@ function registerBuiltInInlinePolicies(): void {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
+			// A code span's content is literal, so a `#` typed there is code, not a tag.
+			prose: kind === 'inlineCode' ? 'none' : 'all',
 			mark: { nestingRank, ...mark }
 		});
 	});
@@ -181,24 +172,27 @@ function registerBuiltInInlinePolicies(): void {
 		autoUnwrapOnEmpty: true,
 		splitBehavior: 'close-and-reopen',
 		revealable: true,
-		cardEditable: true
+		cardEditable: true,
+		// The text is prose; the destination and the title are not.
+		prose: 'content'
 	});
 	// An image with an empty alt is still an image, and a split inside one moves bytes only.
 	registerInlineConstructPolicy('image', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: true
+		revealable: true,
+		// Its alt text is an attribute of the picture, not prose on the page.
+		prose: 'none'
 	});
-	// An autolink's `<` and `>` are a link's delimiters in another spelling: the destination is the
-	// text, so a character landing between the brackets changes where the link goes. Never-extend
-	// for the same reason the bracket form is (live-mode.md § 4.2), and split plainly: two halves
-	// of a URL are not two URLs.
+	// An autolink's text is its destination, so neither edge extends and a split stays plain
+	// (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).
 	registerInlineConstructPolicy('autolink', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: false
+		revealable: false,
+		prose: 'none'
 	});
 	// Marker runs with no data attribute, always hidden in live mode: the `\X` pair and the
 	// trailing-space run delete as one unit, so nothing may rewrite their markers around an edit.
@@ -225,6 +219,8 @@ export function registerBuiltInDescriptors(): void {
 	registerBuiltInInlinePolicies();
 
 	registerBlockKind('paragraph', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose',
 		editable: true,
@@ -239,14 +235,15 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('heading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
-		getContentRange: headingContentRange,
 		// Live mode shows no `## `, so the first Backspace the user can aim at it removes the
 		// structure they can see; the second merges, through the usual path.
-		contentStartBackspace: 'demote-first',
+		contentStart: { range: headingContentRange, backspace: 'demote-first' },
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
 		closure: proseLeafClosure({
@@ -256,12 +253,14 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('setextHeading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
-		getContentRange: setextHeadingContentRange,
-		contentStartBackspace: 'demote-first',
+		contentStart: { range: setextHeadingContentRange, backspace: 'demote-first' },
+		rawWrite: setextHeadingWrite,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',
 		closure: proseLeafClosure({
@@ -271,12 +270,15 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('fencedCode', {
+		pageRole: 'object',
+		dragLabel: 'Code',
+		estimateHeight: sourceLinesEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
 		// Enter inside the fence writes a code newline, so neither edge can grow a sibling.
 		gapEdges: 'both',
-		normalizeRawWrite: normalizeFencedRaw,
+		rawWrite: fencedCodeWrite,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
 			{ chord: 'Tab', command: 'code.indent' },
@@ -311,16 +313,15 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('thematicBreak', {
+		pageRole: 'object',
+		dragLabel: 'Divider',
+		estimateHeight: singleLineEstimate,
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
 		// Leading edge only: its focused Enter already inserts a paragraph below.
 		gapEdges: 'before',
-		keymap: [
-			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
-			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
-		],
 		conformanceFixture: '---\n',
 		closure: {
 			roundTrip: { mode: 'inherit-default' },
@@ -347,6 +348,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('indentedCode', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -356,6 +359,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('htmlBlock', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -365,6 +370,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -374,12 +381,18 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
 		// Enter inside a cell stays in the grid, so neither edge can grow a sibling.
 		gapEdges: 'both',
-		container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
+		container: {
+			contract: 'grid',
+			rebuildRaw: rebuildTableRaw,
+			lastLineChild: tableLastLineChild
+		},
 		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRaw' },
@@ -406,6 +419,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableRow', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -434,12 +449,14 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableCell', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: true,
 		contextDependentKind: true,
-		normalizeRawWrite: normalizeCellRaw,
+		rawWrite: tableCellWrite,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
 		// No `conformanceFixture`: the table opener creates the cells, so one is never the
@@ -467,12 +484,14 @@ export function registerBuiltInDescriptors(): void {
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'copy/cut synthesize a GFM sub-table for the selected rectangle (intraTableRectPayload → copyRectangleAsSubTable, cell index)'
+				via: 'copy/cut, from a cell or the editor root, write the selected rectangle as a GFM sub-table and an HTML table (gridClipboard → copyRectangleAsSubTable, cell index)'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (table cell edits)' }
 		}
 	});
 	registerBlockKind('unrecognized', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'self-merge',
 		editable: true,
@@ -491,6 +510,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('blockquote', {
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -523,6 +544,9 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('list', {
+		// Its items carry the handles: one on the list would sit over its first item's.
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -559,6 +583,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('listItem', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -566,7 +592,8 @@ export function registerBuiltInDescriptors(): void {
 		container: { contract: 'strip', rebuildRaw: rebuildListItemRaw },
 		keymap: [
 			{ chord: 'Tab', command: 'list.indent' },
-			{ chord: 'Shift+Tab', command: 'list.unindent' }
+			{ chord: 'Shift+Tab', command: 'list.unindent' },
+			{ chord: 'Mod+Enter', command: 'list.toggleTask' }
 		],
 		conformanceFixture: '- item\n',
 		closure: containerClosure({

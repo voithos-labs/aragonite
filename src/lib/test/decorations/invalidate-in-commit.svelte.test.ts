@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the decoration suites called `invalidate()` from outside any commit and the
-// commit suites registered no decoration source, so nothing ever called the public handle from
-// the `edit` handler a commit emits into (GH #262).
+// Miss-analysis (GH #262): no test called the public `invalidate()` from a commit's `edit` handler.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';

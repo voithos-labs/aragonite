@@ -1,24 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { parse } from '../../core/parser';
+import { registerChromePluginsForTests } from './chrome-plugins';
 
 describe('collectCrossBlockText', () => {
 	it('preserves blank line between two top-level paragraphs', () => {
 		const doc = parse('first\n\nsecond\n');
-		const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, { path: [1], offset: 6 });
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 6 }))
+		);
 		expect(text).toBe('first\n\nsecond');
 	});
 
 	it('preserves blank lines between three paragraphs with partial endpoints', () => {
 		const doc = parse('abc\n\ndef\n\nghi\n');
-		const text = collectCrossBlockText(doc, { path: [0], offset: 1 }, { path: [2], offset: 2 });
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 1 }, { path: [2], offset: 2 }))
+		);
 		expect(text).toBe('bc\n\ndef\n\ngh');
 	});
 
 	it('preserves blank line when end block is the immediate next sibling', () => {
 		const doc = parse('aa\n\nbb\n');
-		const text = collectCrossBlockText(doc, { path: [0], offset: 1 }, { path: [1], offset: 1 });
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 1 }, { path: [1], offset: 1 }))
+		);
 		expect(text).toBe('a\n\nb');
 	});
 
@@ -26,8 +37,10 @@ describe('collectCrossBlockText', () => {
 		const doc = parse('- first\n- second\n');
 		const text = collectCrossBlockText(
 			doc,
-			{ path: [0, 0, 0], offset: 1 },
-			{ path: [0, 1, 0], offset: 3 }
+			rangeCoverage(
+				doc,
+				coverRange(doc, { path: [0, 0, 0], offset: 1 }, { path: [0, 1, 0], offset: 3 })
+			)
 		);
 		expect(text).toContain('irst');
 		expect(text).toContain('sec');
@@ -35,7 +48,10 @@ describe('collectCrossBlockText', () => {
 
 	it('collects text across a blockquote and a following paragraph', () => {
 		const doc = parse('> inside\n\nafter\n');
-		const text = collectCrossBlockText(doc, { path: [0, 0], offset: 0 }, { path: [1], offset: 5 });
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, { path: [0, 0], offset: 0 }, { path: [1], offset: 5 }))
+		);
 		expect(text).toContain('inside');
 		expect(text).toContain('after');
 	});
@@ -52,7 +68,10 @@ describe('collectCrossBlockText', () => {
 
 		it('emits full table.raw when selection spans the whole table', () => {
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, { path: [2], offset: 6 });
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [2], offset: 6 }))
+			);
 			expect(text).toBe(`Before.\n\n${tableRaw}\nAfter.`);
 		});
 
@@ -60,7 +79,10 @@ describe('collectCrossBlockText', () => {
 			// Anchor in cell 4 (row 1, col 1) → snaps down to row-start (cell 3); emits
 			// whole rows 1..2, not a col-1..2 sub-rectangle.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, cell(4), { path: [2], offset: 6 });
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, cell(4), { path: [2], offset: 6 }))
+			);
 			expect(text).toBe('| 1 | 2 | 3 |\n| --- | --- | --- |\n| 4 | 5 | 6 |\n\nAfter.');
 		});
 
@@ -68,40 +90,89 @@ describe('collectCrossBlockText', () => {
 			// Focus in cell 4 (row 1) snaps up to the row's last cell, emitting whole rows 0..1,
 			// including cells the user did not drag across.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, cell(4));
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, cell(4)))
+			);
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
-		it('intra-table same-path selection is not snapped: sub-rectangle band preserved', () => {
-			// Both endpoints on the same table: rectangular sub-cell copy stays, the
-			// row-band rounding is the existing intra-table behavior, untouched by snap.
+		// Miss-analysis (#565): these rows asserted the whole-row output as intended, so no test ever
+		// compared the root's copy of a rectangle with the cell's own.
+		it('a pair inside one table copies its rectangle, as the cell copy does', () => {
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, cell(1), cell(4));
-			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, cell(1), cell(4)))
+			);
+			expect(text).toBe('| B |\n| --- |\n| 2 |\n');
 		});
 
 		it('returns empty string when both endpoints share a zero-length table portion', () => {
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, cell(4), cell(4));
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, cell(4), cell(4)))
+			);
 			expect(text).toBe('');
 		});
 
-		it('keeps the focus cell row when the intra-table focus lands on a row-start cell', () => {
-			// Anchor cell 0 (row 0, col 0), focus cell 3 (row 1, col 0). The end cell is
-			// inclusive — its row must be captured; an exclusive end drops row 1.
+		it('keeps the focus cell’s row when the rectangle ends on a row-start cell', () => {
+			// The end cell is inclusive: an exclusive end would drop row 1.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, cell(0), cell(3));
-			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, cell(0), cell(3)))
+			);
+			expect(text).toBe('| A |\n| --- |\n| 1 |\n');
 		});
 
 		it('emits each table fully when selection spans two tables and surrounding paragraphs', () => {
 			const doc = parse(
 				'a\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nb\n\n| C | D |\n| --- | --- |\n| 3 | 4 |\n\nc\n'
 			);
-			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, { path: [4], offset: 1 });
+			const text = collectCrossBlockText(
+				doc,
+				rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [4], offset: 1 }))
+			);
 			expect(text).toBe(
 				'a\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nb\n\n| C | D |\n| --- | --- |\n| 3 | 4 |\n\nc'
 			);
+		});
+	});
+
+	// Miss-analysis: every container copy test put an endpoint outside the container, so the copy
+	// that holds one whole with both endpoints inside it never ran.
+	describe('a container the range holds whole is copied whole', () => {
+		beforeEach(registerChromePluginsForTests);
+
+		const copied = (source: string, a: SelectionPoint, b: SelectionPoint): string => {
+			const doc = parse(source);
+			return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, a, b)));
+		};
+
+		it('select-all over a document that is one quote', () => {
+			const quote = '> a\n>\n> b\n';
+			expect(copied(quote, { path: [0, 0], offset: 0 }, { path: [0, 1], offset: 1 })).toBe(quote);
+		});
+
+		it('select-all over a document that is one open details', () => {
+			const details = '<details open>\n<summary>Sum</summary>\n\nShown\n\n</details>\n';
+			expect(copied(details, { path: [0, 0], offset: 0 }, { path: [0, 1], offset: 5 })).toBe(
+				details
+			);
+		});
+
+		it('a list both of whose items the range holds', () => {
+			const list = '- a\n- b\n';
+			expect(copied(list, { path: [0, 0, 0], offset: 0 }, { path: [0, 1, 0], offset: 1 })).toBe(
+				list
+			);
+		});
+
+		it('not a quote whose first paragraph the range starts inside', () => {
+			const quote = '> a\n>\n> b\n';
+			expect(copied(quote, { path: [0, 0], offset: 1 }, { path: [0, 1], offset: 1 })).toBe('\n\nb');
 		});
 	});
 });

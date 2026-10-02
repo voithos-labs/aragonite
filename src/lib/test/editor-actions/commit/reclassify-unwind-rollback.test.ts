@@ -1,37 +1,28 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
-import { declarePluginKind, registerBlockKind } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { asDocPath } from '$lib/selection/path-math';
-import { testClosure } from '$lib/test/support/closure';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
-// A commit that unwinds after the chain rebuild changed a container's kind wrote a
+// A commit that unwinds after its chain rebuild changed a container's kind has written a
 // replacement into a live nested children array, which no other rollback step reaches:
 // the array swap restores `doc.children` and `savedChildren` restores the swapped-out
 // node's own children, not the index now holding a different node.
 
 let THROWING: AnyBlockKind;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
-	THROWING = declarePluginKind('spec-throwing-rebuild');
-	registerBlockKind(THROWING, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: {
-			contract: 'opaque',
-			rebuildRaw: () => {
-				throw new Error('rebuildRaw exploded');
-			}
+	THROWING = testContainer('spec-throwing-rebuild', {
+		rebuildRaw: () => {
+			throw new Error('rebuildRaw exploded');
 		}
 	});
 });
@@ -51,6 +42,11 @@ function makeDoc() {
 /** Takes the snapshot and copies the ancestors, so the joining commit below finds the
  *  outer blockquote already copied and splices into its live children array. */
 async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
+	// Held open, so the throwing commit joins this entry rather than pushing its own.
+	void h.controller.undoStep(
+		{ path: asDocPath([0, 0, 0]), offset: 0 },
+		() => new Promise(() => {})
+	);
 	await h.controller.commitMultiScope({
 		scopes: [{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) }],
 		snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
@@ -70,7 +66,7 @@ async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 				{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) },
 				{ node: h.thrower(), path: [1], state: createBlockListState(h.thrower) }
 			],
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: ([innerScope]) => {
 				innerScope.children[0].raw = '[!TIP]\n';
 				return [{ op: 'noop' }, { op: 'noop' }];
@@ -83,6 +79,11 @@ async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 }
 
 describe('a commit that unwinds after a container was re-kinded', () => {
+	// Without the alert grammar the completed marker re-kinds nothing, and both cases below pass.
+	it('reads the completed marker as an alert', () => {
+		expect(parse('> > [!TIP]\n').children[0].children![0].kind).toBe(GITHUB_ALERT);
+	});
+
 	it('puts the original node back in its slot', async () => {
 		const h = makeDoc();
 		await seedUndoUnit(h);
@@ -96,7 +97,7 @@ describe('a commit that unwinds after a container was re-kinded', () => {
 		expect(h.inner().kind).toBe('blockquote');
 	});
 
-	// The slot alone is not enough: a swap keeps the bytes, so the replacement would
+	// The index alone is not enough: a swap keeps the bytes, so the replacement would
 	// serialize identically. Only the restored body distinguishes the two.
 	it('leaves the restored body and the bytes as they were before the commit', async () => {
 		const h = makeDoc();

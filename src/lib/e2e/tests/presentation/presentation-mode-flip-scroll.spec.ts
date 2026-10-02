@@ -108,10 +108,8 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 			expect(await scrollTop(page), `out of ${mode}`).toBeCloseTo(parked, 0);
 		});
 	}
-	// What is mounted, not the scroll number. The mode change blurs before it puts the caret back,
-	// so anything that recomputes the window in that gap drops the caret's block from the mounted
-	// set and the restore has to scroll it back. Mounted and still out of sight says the block was
-	// held; the scroll assertions above only say the number did not move (#221).
+	// Checks what is mounted, not the scroll number: the mode change blurs before restoring the
+	// caret, and a window recompute in that gap would drop the block and make the restore scroll.
 	test('the caret block rides a flip mounted, never scrolled back into view', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', TALL);
 		await clickBlockSettled(ep, 1);
@@ -131,22 +129,23 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 		expect(await scrollTop(page), 'out of live').toBeCloseTo(parked, 0);
 	});
 
-	// The block under the user's eyes, not the scroll number: when mounted blocks above the
-	// viewport change height at the switch, holding the number would slide the content, so the
-	// windowing correction moves the number by exactly what those blocks lost.
-	test('a flip that resizes mounted blocks above the viewport holds the block in view', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'source', FENCED);
-		await ep.scrollEditorTo(PARKED * 3);
-		const before = await topVisibleHost(page);
-		expect(before, 'a block is in view').not.toBeNull();
+	test.describe('with mounted blocks resizing above the viewport', () => {
+		// Mounted blocks above the viewport change height at the switch, so holding the scroll number
+		// would slide the content; the correction moves it by exactly what those blocks lost.
+		test('a flip that resizes mounted blocks above the viewport holds the block in view', async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'source', FENCED);
+			await ep.scrollEditorTo(PARKED * 3);
+			const before = await topVisibleHost(page);
+			expect(before, 'a block is in view').not.toBeNull();
 
-		await flipTo(ep, page, 'live-toggle', 'live');
-		const after = await topVisibleHost(page);
-		expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
-		// One tolerance, not one per fence: each correction is a fraction of a pixel, and the
-		// scroll container keeps the pixel the scroller refuses for the next correction.
-		expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(1);
+			await flipTo(ep, page, 'live-toggle', 'live');
+			const after = await topVisibleHost(page);
+			expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
+			// One tolerance, not one per fence: each correction is a fraction of a pixel, and the
+			// scroll container keeps the pixel the scroller refuses for the next correction.
+			expect(Math.abs(after!.top - before!.top), 'at the same place').toBeLessThan(1);
+		});
 	});
 });

@@ -9,9 +9,8 @@ import { capturePageErrors } from '../../page-probes';
 // follow `--editor-font-size`; otherwise a document just under the threshold at the default
 // size is mounted whole at 2rem.
 
-// Sized to sit either side of the activation threshold: under it at the default size, over it
-// at 2rem. The rendered height at 2rem is checked below, so this is a real crossing rather than
-// a miscount the scaling introduced.
+// Sized to sit under the activation threshold at the default size and over it at 2rem; the
+// rendered height at 2rem is checked below, so the crossing is real.
 const NEAR_WATERMARK_BLOCKS = 80;
 const NEAR_WATERMARK_DOC = `${Array.from(
 	{ length: NEAR_WATERMARK_BLOCKS },
@@ -27,8 +26,7 @@ async function settleScale(editor: EditorPage): Promise<void> {
 }
 
 /** Windowing turns off at a lower height than it turns on at, and the route's own document is
- *  over the threshold, so without loading a one-block document first the fixture meets the
- *  lower threshold instead. */
+ *  over the threshold, so a one-block document is loaded first. */
 async function loadNearWatermark(editor: EditorPage): Promise<void> {
 	await editor.loadContent('baseline\n');
 	await editor.loadContent(NEAR_WATERMARK_DOC);
@@ -79,9 +77,8 @@ test('a live type-scale change re-estimates the off-window set', async ({ page }
 	await settleScale(editor);
 	const after = await editorScrollHeight(page);
 
-	// The few dozen mounted blocks correct themselves through their own resize either way;
-	// without estimates that follow the text size the other thousands do not, and the total
-	// height barely moves.
+	// The few dozen mounted blocks correct themselves through their own resize; without estimates
+	// that follow the text size the other thousands do not, and the total height barely moves.
 	console.log(`type-scale reflow ${JSON.stringify({ blockCount, before, after })}`);
 	expect(after / before).toBeGreaterThan(1.4);
 	expect(pageErrors).toEqual([]);

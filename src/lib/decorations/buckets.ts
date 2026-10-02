@@ -40,11 +40,8 @@ export function groupDecorationsByPath(
 	return groupByPathKey(decs, (dec, index) => ({ dec, index }));
 }
 
-/**
- * Group decorations under every strict ancestor of their own path. A grid paints its cells'
- * decorations itself, since a cell has no BlockHost overlay, so this lets it read one bucket
- * instead of the full list.
- */
+/** Group decorations under every strict ancestor of their own path, so a grid, which paints
+ *  its cells' decorations itself, reads one bucket instead of the full list. */
 export function groupDecorationsByAncestor(
 	decs: readonly Decoration[]
 ): Map<string, IndexedDecoration[]> {
@@ -79,12 +76,8 @@ export interface CollapsedCellMark {
 	dec: MarkDecoration;
 }
 
-/**
- * Collapse a grid's descendant cell marks to one entry per `(row, col)`, unioning their
- * class tokens so two sources in one cell cascade-compose instead of stacking translucent
- * rects. `containerDepth` is the grid container's path length; the cell coordinates sit at
- * `path[depth]` and `path[depth + 1]`.
- */
+/** Collapse a grid's cell marks to one entry per `(row, col)`, unioning class tokens so two
+ *  sources in one cell compose instead of stacking translucent rects. */
 export function collapseCellMarks(
 	descMarks: readonly IndexedDecoration<MarkDecoration>[],
 	containerDepth: number

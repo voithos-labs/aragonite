@@ -1,17 +1,19 @@
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
+import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
-import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
-import { deletePluginEntries, registerOnce } from './register-once';
-import type { ChildRawChange } from './child-spans';
+import { currentInstallingPlugin } from './plugin-install';
+import { createBlockKindRegistry } from './plugin-registry';
+import type { ChildRawChange, StripRebuild } from './child-spans';
 import type { ClosureBlock } from './closure';
-import type { KeyBinding } from './keybindings';
+import { registeredChord, type KeyBinding } from './keybindings';
+import type { HeightEstimateEnv } from './height-estimates';
+import { rejectIncoherentPairs } from './registration-pairs';
 
 /**
- * The Backspace-merge roles (`docs/design/editor.md`, "Merge eligibility: roles, not pairs").
- * Here rather than in `merge-rules.ts` so the descriptor registry can import it without a cycle.
- * The runtime role check (G1.30) derives its list from this tuple, so it is never re-listed.
+ * The Backspace-merge roles (`docs/design/editor.md` § Merge eligibility: roles, not pairs).
+ * The runtime role check reads its list from this tuple, so the type and the check agree (G1.30).
  */
 export const MERGE_ROLES = [
 	'prose',
@@ -23,41 +25,25 @@ export const MERGE_ROLES = [
 
 export type MergeRole = (typeof MERGE_ROLES)[number];
 
-/** The runtime role check (G1.30), for registrations the `MergeRole` type cannot bind (a cast). */
+/** Catches a role the `MergeRole` type cannot, one that arrived through a cast (G1.30). */
 export const isKnownMergeRole = (role: string): boolean =>
 	(MERGE_ROLES as readonly string[]).includes(role);
 
 /**
- * The first-child Backspace strategies, each saying whether it lifts child 0 out of the container.
- * The `reservedChrome` coherence check (G1.37) reads that answer, so a new strategy cannot arrive
- * without one.
+ * How Backspace at the start of a container's child releases it, as a registration declares it;
+ * strategies live in `editor-actions/unwrap-strategies.ts`. Absent, on a container with no title
+ * row: child 0 hands the Backspace to the parent, and later children follow merge-rules.
  */
-const FIRST_CHILD_BACKSPACE_LIFTS = {
-	'lift-first-child-drop-opener': true,
-	'lift-first-child-keep-container': true,
-	'keep-reserved-chrome': false,
-	'list-item-cascade': false
-} as const;
-
-export type FirstChildBackspace = keyof typeof FIRST_CHILD_BACKSPACE_LIFTS;
-
-export const liftsFirstChild = (strategy: FirstChildBackspace): boolean =>
-	FIRST_CHILD_BACKSPACE_LIFTS[strategy];
-
-/**
- * Backspace-at-start behavior for a container's children; strategies live in
- * `editor-actions/unwrap-strategies.ts`. Absent = default (first child delegates upward;
- * middle children follow merge-rules).
- */
-export interface UnwrapRole {
-	/**
-	 * `'-drop-opener'` is the blockquote shape: the opener line leaves with the lifted child, so
-	 * the remainder reparses as a plain quote. `'-keep-container'` is the shape `rebuildRaw`
-	 * re-emits, so the remainder keeps its kind. `'keep-reserved-chrome'` declines, because child 0
-	 * is the container's title row and a lift would carry it out.
-	 */
-	firstChildBackspace: FirstChildBackspace;
+export interface ContainerUnwrapRole {
+	firstChildBackspace:
+		'lift-first-child-drop-opener' | 'lift-first-child-keep-container' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
+}
+
+/** The unwrap role the editor reads back: a container with a title row keeps child 0 in place. */
+export interface UnwrapRole {
+	firstChildBackspace: ContainerUnwrapRole['firstChildBackspace'] | 'keep-reserved-chrome';
+	middleChildBackspace: ContainerUnwrapRole['middleChildBackspace'];
 }
 
 /**
@@ -83,6 +69,63 @@ export interface CaretTarget {
 	offset: number;
 }
 
+/**
+ * `authored` when the user is typing in the block, so bytes may be the block's own syntax half
+ * written; `literal` for content that arrives whole (a paste, a replace, a range delete).
+ */
+export type WriteMode = 'authored' | 'literal';
+
+/** What a write rule reads besides the bytes. */
+export interface WriteContext {
+	/** The block whose bytes are written: the kind's own node, or for a body write its container. */
+	node: NodeView;
+	mode: WriteMode;
+	/** The document's line ending, which a line the rule writes takes when the block has none. */
+	lineEnding: LineEnding;
+}
+
+/**
+ * How a kind makes written bytes legal: `normalize` repairs them, and `mapOffset` says where an
+ * offset into the written bytes lands in the repaired ones. `normalize` must be idempotent.
+ */
+export interface WriteRule {
+	normalize(raw: string, ctx: WriteContext): string;
+	mapOffset(raw: string, offset: number, ctx: WriteContext): number;
+}
+
+/**
+ * Child 0 is a title row of this kind, its bytes in the container's raw: always present, one
+ * line, cleared rather than deleted, never rekinded. Register it with `registerChromeLeaf`. No
+ * container metadata may come from the row's bytes, so typing in it re-reads none.
+ */
+export interface ReservedChrome {
+	kind: AnyBlockKind;
+	/**
+	 * A pure check of the collapsed state (node in, boolean out; no DOM, no component state).
+	 * Collapse-aware traversals stop at the title row rather than reach into the hidden body.
+	 */
+	isCollapsed?: (node: NodeView) => boolean;
+	/**
+	 * The metadata patch that expands a collapsed node, so focusing a hidden body child opens
+	 * it. Null or absent: no way to expand, and focus goes to the title row.
+	 */
+	expandPatch?: (node: NodeView) => Record<string, unknown> | null;
+}
+
+/**
+ * How a clipboard whose top block is this kind merges into a same-kind ancestor instead of
+ * nesting as a sub-container. Absent means always nest.
+ */
+export interface ContainerPaste {
+	/** Confirms the merge against the candidate ancestor (e.g. equal list ordered flags). */
+	matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
+	/**
+	 * Pasting into a non-empty single block: splice the clipboard items as siblings into the
+	 * enclosing container when it matches, split it when it does not (the list paste shape).
+	 */
+	siblingAbsorb: boolean;
+}
+
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -92,171 +135,130 @@ export interface BlockKindDescriptor {
 	 */
 	closure: ClosureBlock;
 	/**
-	 * Markdown that parses to a tree containing this kind, for the conformance suite; omit for
-	 * kinds a document parse never yields on their own. G1.24 checks a declared fixture, not
-	 * whether one exists.
+	 * The block's name, to a screen reader and in the block menu ("Diagram"). Omitted, the kind
+	 * name in words stands in. Built-in kinds are named in `a11y-strings.ts`, not here.
+	 */
+	label?: string;
+	/**
+	 * Markdown that parses to a tree holding this kind, for the conformance suite. Omit it for a
+	 * kind no document parse yields alone; only a declared fixture is checked (G1.24).
 	 */
 	conformanceFixture?: string;
 	/**
 	 * `'whole-block'` opts an opaque, childless block into the focus-then-delete model: arrow
-	 * traversal stops on it, and Backspace/Delete focuses it before a second press deletes.
+	 * traversal stops on it, and Backspace/Delete focuses it before a second keypress deletes.
 	 */
 	blockFocus?: 'whole-block';
 	/**
-	 * The edges at which this kind's own editing cannot insert a sibling paragraph, so a boundary
-	 * beside it gets a gap caret (`selection/gap-caret.ts`). Required, with `'none'` the explicit
-	 * answer that the block itself, or an existing control, already covers insertion at both edges.
+	 * Edges where this kind's own editing cannot insert a sibling paragraph, so the boundary gets a
+	 * gap caret (`selection/gap-caret.ts`). `'none'`: the block or a control covers both edges.
 	 */
 	gapEdges: 'before' | 'after' | 'both' | 'none';
 	isContainer: boolean;
 	/**
-	 * How a container's `raw` relates to its children (container kinds only). `'strip'`: the outer
-	 * syntax wraps a body, and `strip(raw) === serialize(children)`. `'grid'`: cells parse straight
-	 * from `raw`, and that equality does not hold; a cell index addresses the outer grid as
-	 * `row * width + column`, rows of equal width read off row 0. `'opaque'`: `raw` is authoritative,
-	 * exempt from the stale-raw byte check, and its `rebuildRaw` must be deterministic over the
-	 * children, metadata and inner blank lines.
+	 * How `raw` relates to the children: `docs/design/syntax-tree.md` § The container contract.
+	 * A grid's cell index is `row * width + column`, every row as wide as row 0.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
 	/**
-	 * How this container's opener parses a body that sits between marker lines of the container's
-	 * own (a fence, an HTML tag): the parse then pulls the blank line next to each marker into
-	 * `innerPrefix`/`innerSuffix` (`core/parser.parseContainerBody`), so that line belongs to the
-	 * wrap rather than to a body block. Absent means the body starts on the container's own first
-	 * line (blockquote, list item) and `innerPrefix` is always empty.
+	 * For a body between the container's own marker lines (a fence, an HTML tag), whose parse gives
+	 * each marker's neighbouring blank line to `innerPrefix`/`innerSuffix`. Absent: body on line one.
 	 */
 	bodyWrap?: ContainerBodyWrap;
+	/** The child holding the container's last line, or -1 for its own bytes (a header-only table's
+	 *  delimiter). Absent: a strip's last child unless an inner suffix ends it, a grid's last row. */
+	lastLineChild?: (node: NodeView) => number;
 	/**
 	 * The kind has no opener of its own, so `parse(raw)` would not reproduce it: its container's
 	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
 	 */
 	contextDependentKind?: boolean;
 	/**
-	 * Make `raw` legal as this kind's own bytes: escape what the grammar would restructure, and
-	 * repair the block's own syntax around a write that broke it (`schema/fenced-code-raw.ts` is
-	 * the worked example). Reads `node` for the block's own shape, must be idempotent, and must
-	 * give callers a caret mapping when a prefix of the input does not map to a prefix of the
-	 * output. Every write path applies it.
+	 * Make `raw` legal as this kind's own bytes (`schema/fenced-code-raw.ts` is the worked example).
+	 * `ctx.node` is the block as it stood before the write.
 	 */
-	normalizeRawWrite?: (raw: string, node: NodeView) => string;
+	rawWrite?: WriteRule;
 	/**
-	 * Make text legal as a child's raw inside this container's body (container kinds only):
-	 * `normalizeRawWrite`'s counterpart on the container side, for a container whose fixed closing
-	 * line (`</details>`) a body write could otherwise reproduce and truncate on. Applied at the
-	 * write paths before the reparse that derives the kind, since the escape changes what the
-	 * bytes parse to. `normalize` is idempotent and works line by line; `mapOffset` is its exact
-	 * caret mapping.
+	 * Make text legal as a child's raw in this container's body, before the reparse, for a container
+	 * whose closing line (`</details>`) a body write could reproduce. `ctx.node` is the container.
 	 */
-	bodyWrite?: {
-		normalize: (raw: string) => string;
-		mapOffset: (raw: string, offset: number) => number;
-	};
-	/**
-	 * Child 0 is a reserved leaf of the given kind: a title row whose bytes live in the container's
-	 * own raw. Enforced: always present, single-line, cleared rather than deleted by range edits,
-	 * never changes kind. Register the title kind itself with `registerChromeLeaf`.
-	 */
-	reservedChrome?: {
-		kind: AnyBlockKind;
-		/**
-		 * A pure check of the collapsed state (node in, boolean out; no DOM, no component state).
-		 * Collapse-aware traversals stop at the title row rather than reach into the hidden body.
-		 */
-		isCollapsed?: (node: NodeView) => boolean;
-		/**
-		 * A pure metadata patch that expands a collapsed node, so focusing a child hidden in the
-		 * body opens the container. Absent or null means there is no way to expand, and the focus
-		 * lands on the title row instead.
-		 */
-		expandPatch?: (node: NodeView) => Record<string, unknown> | null;
-	};
-	/**
-	 * How a clipboard whose top block is this kind merges into a same-kind ancestor instead of
-	 * nesting as a sub-container. Absent means always nest.
-	 */
-	containerPaste?: {
-		/** Confirms the merge against the candidate ancestor (e.g. equal list ordered flags). */
-		matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
-		/**
-		 * Pasting into a non-empty single block: splice the clipboard items as siblings into the
-		 * enclosing container when it matches, split it when it does not (the list paste shape).
-		 */
-		siblingAbsorb: boolean;
-	};
-	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
+	bodyWrite?: WriteRule;
+	reservedChrome?: ReservedChrome;
+	containerPaste?: ContainerPaste;
 	unwrapRole?: UnwrapRole;
 	/**
-	 * `'complete-marker'` consumes every space typed at the content start of an empty child, at any
-	 * child index, repeated keypresses included. A `rebuildRaw` that normalizes the marker's
-	 * trailing space is what makes the first keypress honest: the space it took reappears the
-	 * moment content arrives. Without one, every keypress is simply eaten.
+	 * The first space typed at a child's content start, while its marker lacks one, is the marker's:
+	 * written into the marker's line at once, or by `rebuildRaw` when an empty line gains text.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */
 	reorderChildren?: ReorderChildrenRole;
-	/** Chord -> command map, consulted before the global table so a kind can shadow a global. */
+	/** Chord -> command map, consulted before the global table so a kind can shadow a global.
+	 *  Registration throws on a malformed chord and stores the rest normalized. */
 	keymap?: KeyBinding[];
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
+	/** The registration's `contentStart.range`. Absent = the default `start=0, end=displayLength`. */
+	getContentRange?: ContentStart['range'];
+	/** The registration's `contentStart.backspace`. */
+	contentStartBackspace?: ContentStart['backspace'];
 	/**
-	 * Content range (post-marker offsets) in a node's raw, for prose kinds whose markers occupy
-	 * a prefix of it. Absent = the default `start=0, end=displayLength`.
+	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
+	 * (ignoring it is correct). Return `{ rereads: true }` to have the new bytes read whole.
 	 */
-	getContentRange?: (node: NodeView) => { start: number; end: number };
-	/**
-	 * `'demote-first'` makes Backspace at the content start give up this kind's own structural
-	 * bytes before merging: the first keypress a user can aim at markers they cannot see
-	 * (live-mode.md § 4.4). Marker-hiding modes only; requires `getContentRange` (G1.32). Absent
-	 * means the merge cascade.
-	 */
-	contentStartBackspace?: 'demote-first';
-	/**
-	 * Recompute `raw` from children + metadata; built-ins in `schema/container-rebuilders.ts`.
-	 * `changed` names the one child whose own raw just moved, for a rebuilder that can rewrite
-	 * that child's region instead of re-reading every child. Ignoring it is always correct.
-	 */
-	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void;
+	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
 	/**
-	 * Translate a foreign drag's viewport point into an internal focus offset, for a kind with
-	 * its own coordinate addressing; null when the point is outside an addressable region.
-	 * Patched in from `components/built-in-blocks.ts`, so schema keeps no component import.
+	 * A foreign drag's viewport point as an offset in the kind's own addressing, or null outside it.
+	 * Added from `components/built-in-blocks.ts`, so schema keeps no component import.
 	 */
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 	/**
-	 * Translate a point in this block's box into a caret position in the kind's own addressing.
-	 * Answers for every point in the box, unlike {@link foreignDragHitTest}: it snaps to the
-	 * nearest leaf where a drag would decline off-cell.
+	 * A point in the block's box as a caret position in the kind's own addressing. Unlike
+	 * {@link foreignDragHitTest} it answers every point, snapping to the nearest leaf.
 	 */
 	caretTargetAtPoint?: (
 		blockEl: HTMLElement,
 		clientX: number,
 		clientY: number
 	) => CaretTarget | null;
-	/** O(1) content-height estimate in px for virtual rendering, with no subtree traversal. The
-	 *  `HeightOracle` (estimates block heights) adds the block's frame; a measured height still
-	 *  wins. */
-	estimateHeight?: (node: NodeView, env: { width: number }) => number;
+	/**
+	 * O(1) content height in px for windowing, frame excluded; a measured height still wins.
+	 * `height-estimates.ts` has the common shapes. Absent: the container or prose estimate.
+	 */
+	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
+
+	// ── Presentation ──────────────────────────────────────────────────────────
+
+	/**
+	 * `'prose'` is text the user writes in: no drag handle, and a right-click opens clipboard rows.
+	 * `'object'`, the default, is picked up whole, with a handle and a block menu.
+	 */
+	pageRole?: 'prose' | 'object';
+	/** What the drag ghost calls the block, for one whose text reads badly as a label (a formula's
+	 *  source). Absent, the ghost shows the block's first words; blank throws. */
+	dragLabel?: string;
 }
 
 /**
- * The descriptor's fields as data, for the check that holds the published field reference
- * (`docs/design/plugin-contract.md`) to this type. Complete in both directions below, so the list
- * cannot drift from the type it enumerates.
+ * The descriptor's fields as data, for the check that holds the field table in
+ * `docs/design/plugin-contract.md` to this type; the compile check below keeps the list complete.
  */
 export const DESCRIPTOR_FIELDS = [
 	'mergeRole',
 	'editable',
 	'closure',
+	'label',
 	'conformanceFixture',
 	'blockFocus',
 	'gapEdges',
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'contextDependentKind',
-	'normalizeRawWrite',
+	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
 	'containerPaste',
@@ -271,7 +273,9 @@ export const DESCRIPTOR_FIELDS = [
 	'renderImagesAsWidgets',
 	'foreignDragHitTest',
 	'caretTargetAtPoint',
-	'estimateHeight'
+	'estimateHeight',
+	'pageRole',
+	'dragLabel'
 ] as const satisfies readonly (keyof BlockKindDescriptor)[];
 
 type MissingDescriptorField = Exclude<
@@ -281,22 +285,51 @@ type MissingDescriptorField = Exclude<
 const _descriptorFieldsAreComplete: MissingDescriptorField extends never ? true : never = true;
 void _descriptorFieldsAreComplete;
 
+// ── Registration ────────────────────────────────────────────────────────────
+
 /**
- * Container-only fields as one unit: `contract` and `rebuildRaw` are required together, and a
- * leaf has no way to carry any of them. Each field is documented on `BlockKindDescriptor`, the
- * flat read-side shape this group normalizes into.
+ * Where a prose kind's content starts, for one whose markers take a prefix of its raw. The
+ * Backspace behavior needs the range, so the two travel together.
  */
-export interface ContainerDescriptorGroup {
-	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void;
-	bodyWrap?: ContainerBodyWrap;
-	reservedChrome?: BlockKindDescriptor['reservedChrome'];
-	containerPaste?: BlockKindDescriptor['containerPaste'];
-	unwrapRole?: UnwrapRole;
-	contentStartSpace?: BlockKindDescriptor['contentStartSpace'];
-	reorderChildren?: ReorderChildrenRole;
-	bodyWrite?: BlockKindDescriptor['bodyWrite'];
+export interface ContentStart {
+	/** The content range (post-marker offsets) in a node's raw. */
+	range: (node: NodeView) => { start: number; end: number };
+	/**
+	 * In modes that hide markers, Backspace at the content start strips this kind's markers before
+	 * merging (`docs/design/live-mode.md` § 4.4 Cutting a construct open).
+	 */
+	backspace?: 'demote-first';
 }
+
+/** Container-only fields as one unit, so a leaf can't carry any of them. Each is documented on
+ *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
+interface ContainerBase {
+	contract: 'strip' | 'grid' | 'opaque';
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
+	bodyWrap?: ContainerBodyWrap;
+	lastLineChild?: (node: NodeView) => number;
+	containerPaste?: ContainerPaste;
+	contentStartSpace?: 'complete-marker';
+	reorderChildren?: ReorderChildrenRole;
+	bodyWrite?: WriteRule;
+}
+
+interface ContainerWithoutChrome extends ContainerBase {
+	reservedChrome?: never;
+	unwrapRole?: ContainerUnwrapRole;
+}
+
+/** Backspace at a title row's start never lifts it out, so only the middle strategy is declared. */
+interface ContainerWithChrome extends ContainerBase {
+	reservedChrome: ReservedChrome;
+	unwrapRole?: {
+		/** Implied: Backspace at the start of the title row keeps it. */
+		firstChildBackspace?: never;
+		middleChildBackspace: ContainerUnwrapRole['middleChildBackspace'];
+	};
+}
+
+export type ContainerDescriptorGroup = ContainerWithChrome | ContainerWithoutChrome;
 
 // One source for both the type-level Omit and the runtime strip: excess-property checks bite
 // only fresh literals, so a widened value can structurally smuggle these keys past the types.
@@ -304,6 +337,7 @@ export const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',
@@ -314,85 +348,188 @@ export const CONTAINER_ONLY_KEYS = [
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
-// The list's completeness as a compile error: a group field missed here stays in the flat
-// registration shape, so a leaf could declare it and survive the strip. `contract` is the one
-// group field with no flat counterpart; it normalizes to `containerContract`, which the list has.
+// A group field missing from the list would stay in the flat shape, where a leaf could declare it
+// past the strip. `contract` is exempt: it normalizes to `containerContract`, which is listed.
 type MissingContainerOnlyKey = Exclude<
-	Exclude<keyof ContainerDescriptorGroup, 'contract'>,
+	Exclude<keyof ContainerWithChrome | keyof ContainerWithoutChrome, 'contract'>,
 	ContainerOnlyKey
 >;
 const _containerOnlyKeysAreComplete: MissingContainerOnlyKey extends never ? true : never = true;
 void _containerOnlyKeysAreComplete;
 
-function stripContainerOnlyKeys<T extends object>(fields: T): Omit<T, ContainerOnlyKey> {
+// Read-shape fields a registration declares only through a group, stripped for the same reason.
+const GROUPED_KEYS = [...CONTAINER_ONLY_KEYS, 'getContentRange', 'contentStartBackspace'] as const;
+type GroupedKey = (typeof GROUPED_KEYS)[number];
+
+function stripGroupedKeys<T extends object>(fields: T): Omit<T, GroupedKey> {
 	const stripped = { ...fields } as Record<string, unknown>;
-	for (const key of CONTAINER_ONLY_KEYS) delete stripped[key];
-	return stripped as Omit<T, ContainerOnlyKey>;
+	for (const key of GROUPED_KEYS) delete stripped[key];
+	return stripped as Omit<T, GroupedKey>;
+}
+
+/**
+ * The fields another field constrains, so only a registration sets them. One list drives the
+ * registration and augment types and the augment's runtime refusal; `container.` names a group field.
+ */
+export const FIXED_AT_REGISTRATION = [
+	'blockFocus',
+	'supportsInline',
+	'contentStart',
+	'container.reservedChrome',
+	'container.unwrapRole'
+] as const;
+type FixedField = (typeof FIXED_AT_REGISTRATION)[number];
+type FixedTopKey = Exclude<FixedField, `container.${string}`>;
+type ContainerFieldOf<F> = F extends `container.${infer Key}` ? Key : never;
+type FixedContainerKey = ContainerFieldOf<FixedField>;
+
+/** The fields no other field constrains, shared by both registration shapes. */
+type RegistrationBase = Omit<BlockKindDescriptor, GroupedKey | FixedTopKey>;
+
+/**
+ * A block focused as one unit: arrow traversal stops on it, and Backspace/Delete focuses it before
+ * a second press deletes. No caret enters it, so it has no inline content, content start or title row.
+ */
+export interface WholeBlockRegistration extends RegistrationBase {
+	blockFocus: 'whole-block';
+	supportsInline: false;
+	contentStart?: never;
+	container?: ContainerWithoutChrome;
+}
+
+/** A block the caret enters: a text leaf, or a container whose children take the caret. */
+export interface CaretBlockRegistration extends RegistrationBase {
+	blockFocus?: never;
+	supportsInline: boolean;
+	contentStart?: ContentStart;
+	container?: ContainerDescriptorGroup;
 }
 
 /**
  * The write-side shape `registerBlockKind` accepts. `isContainer` is derived
  * (`container !== undefined`), never declared.
  */
-export interface BlockKindRegistration extends Omit<BlockKindDescriptor, ContainerOnlyKey> {
-	container?: ContainerDescriptorGroup;
-}
+export type BlockKindRegistration = WholeBlockRegistration | CaretBlockRegistration;
 
 /**
  * The augment shape: top-level fields replace; a partial `container` group merges into the
- * existing group, and is refused outright for a kind registered as a leaf.
+ * existing group, and is refused outright for a kind registered as a leaf. Fields another field
+ * depends on are fixed at registration, and naming one throws.
  */
-export type BlockKindAugmentation = Partial<Omit<BlockKindRegistration, 'container'>> & {
-	container?: Partial<ContainerDescriptorGroup>;
+export type BlockKindAugmentation = Partial<RegistrationBase> & {
+	[Key in FixedTopKey]?: never;
+} & {
+	container?: Partial<ContainerBase> & { [Key in FixedContainerKey]?: never };
 };
 
 // ── Registry ────────────────────────────────────────────────────────────────
 
-const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
+// Never filtered by activation: a kind an editor left out still needs its descriptor to degrade.
+const registry = createBlockKindRegistry<BlockKindDescriptor>({
+	label: 'registerBlockKind',
+	isBuiltin: isBuiltinBlockKind
+});
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
-	const isDuplicate = registry.has(kind);
-	const owner = isDuplicate ? pluginKindOwner(kind) : null;
-	registerOnce(
-		isDuplicate,
-		() => {
-			registry.set(kind, normalizeRegistration(registration));
-			enqueueRegistrationCheck(kind);
-		},
+	rejectBlankLabel('registerBlockKind', kind, 'label', registration.label);
+	rejectBlankLabel('registerBlockKind', kind, 'dragLabel', registration.dragLabel);
+	rejectIncoherentPairs(kind, registration);
+	const descriptor = normalizeRegistration(registration);
+	if (descriptor.keymap)
+		descriptor.keymap = registeredKeymap('registerBlockKind', kind, descriptor.keymap);
+	const owner = registry.ownerOf(kind);
+	registry.register(
+		kind,
+		descriptor,
 		`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
 			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
+	enqueueRegistrationCheck(kind);
 }
 
-// The flat part is stripped and isContainer derived, so the `container` group is the only source
-// of container fields: a widened or stale-keyed registration object cannot leak through.
+// A blank label would render as an empty `aria-label`, leaving the block's textbox unnamed.
+function rejectBlankLabel(
+	entry: string,
+	kind: AnyBlockKind,
+	field: 'label' | 'dragLabel',
+	label: string | undefined
+): void {
+	if (label === undefined || label.trim() !== '') return;
+	throw new Error(
+		`${entry}: "${kind}" has a blank ${field}; give it a name or omit ${field} for the default.`
+	);
+}
+
+// Every chord is checked and normalized once here, so the resolvers compare stored chords as is.
+function registeredKeymap(entry: string, kind: AnyBlockKind, keymap: KeyBinding[]): KeyBinding[] {
+	return keymap.map((binding) => ({
+		...binding,
+		chord: registeredChord(binding.chord, `${entry}: "${kind}" keymap`)
+	}));
+}
+
+// The flat part is stripped and isContainer derived, so each group is the only source of its
+// fields: a widened or stale-keyed registration object cannot leak through.
 function normalizeRegistration(registration: BlockKindRegistration): BlockKindDescriptor {
-	const { container, ...rest } = registration;
-	const flat = stripContainerOnlyKeys(rest);
-	if (!container) return { ...flat, isContainer: false };
-	const { contract, ...containerFields } = container;
-	return { ...flat, ...containerFields, isContainer: true, containerContract: contract };
+	const { container, contentStart, ...rest } = registration;
+	const flat: BlockKindDescriptor = { ...stripGroupedKeys(rest), isContainer: false };
+	if (contentStart) {
+		flat.getContentRange = contentStart.range;
+		if (contentStart.backspace) flat.contentStartBackspace = contentStart.backspace;
+	}
+	if (!container) return flat;
+	const { contract, unwrapRole, ...containerFields } = container;
+	const descriptor: BlockKindDescriptor = {
+		...flat,
+		...containerFields,
+		isContainer: true,
+		containerContract: contract
+	};
+	// A title row implies its first-child strategy; the read shape spells it out for the dispatch.
+	if (container.reservedChrome) {
+		descriptor.unwrapRole = {
+			firstChildBackspace: 'keep-reserved-chrome',
+			middleChildBackspace: unwrapRole?.middleChildBackspace ?? 'default-merge'
+		};
+	} else if (container.unwrapRole) descriptor.unwrapRole = container.unwrapRole;
+	return descriptor;
 }
 
-// Throws if the kind was never registered, so partial data cannot create one. The built-in versus
-// plugin check lives in the two public entries below; the leaf/container check lives here so
-// both entries share it.
+// A JavaScript caller or a cast gets past the augment types. Presence alone refuses, since an
+// explicit undefined would spread over the registered value.
+function rejectFixedFields(entry: string, kind: AnyBlockKind, fields: BlockKindAugmentation): void {
+	for (const field of FIXED_AT_REGISTRATION) {
+		const [group, key] = field.startsWith('container.')
+			? [fields.container, field.slice('container.'.length)]
+			: [fields, field];
+		if (!group || !(key in group)) continue;
+		throw new Error(
+			`${entry}: cannot augment "${kind}" with ${field}; it is fixed at registration`
+		);
+	}
+}
+
+// Throws if the kind was never registered, so partial data cannot create one.
 function mergeBlockKindFields(
 	entry: string,
 	kind: AnyBlockKind,
 	fields: BlockKindAugmentation
 ): void {
-	const existing = registry.get(kind);
+	const existing = registry.getIgnoringActivation(kind);
 	if (!existing) {
 		throw new Error(
 			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
 		);
 	}
+	rejectFixedFields(entry, kind, fields);
+	rejectBlankLabel(entry, kind, 'label', fields.label);
+	rejectBlankLabel(entry, kind, 'dragLabel', fields.dragLabel);
 	const { container, ...rest } = fields;
-	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
+	const next: BlockKindDescriptor = { ...existing, ...stripGroupedKeys(rest) };
+	if (rest.keymap) next.keymap = registeredKeymap(entry, kind, rest.keymap);
 	if (container) {
 		if (!existing.isContainer) {
 			throw new Error(
@@ -400,7 +537,7 @@ function mergeBlockKindFields(
 			);
 		}
 		// Merge, never unset: skipping undefined keeps an explicitly-undefined group field from
-		// breaking the contract/rebuild pairing. Keyed off the group, not a hand-kept field list.
+		// breaking the contract/rebuild pairing.
 		const { contract, ...group } = container;
 		next.containerContract = contract ?? existing.containerContract;
 		Object.assign(
@@ -408,15 +545,13 @@ function mergeBlockKindFields(
 			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
 		);
 	}
-	registry.set(kind, next);
+	registry.update(kind, next);
 	enqueueRegistrationCheck(kind);
 }
 
 /**
- * Merge fields into a plugin's own registration: the public authoring entry. Rejects built-in
- * kinds (built-in wiring uses the internal `augmentBuiltin`) and kinds owned by a different
- * plugin, so one plugin overwriting another's kind is a throw rather than a silent override. A
- * kind with no recorded owner (declared outside any plugin install) stays open.
+ * Merge fields into a plugin's own kind. Throws for a built-in or another plugin's kind, so an
+ * overwrite is never silent; a kind whose descriptor no plugin owns stays open.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
@@ -425,7 +560,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 				`plugin-declared kinds.`
 		);
 	}
-	const owner = pluginKindOwner(kind);
+	const owner = registry.ownerOf(kind);
 	const installer = currentInstallingPlugin();
 	if (owner !== null && owner !== installer) {
 		throw new Error(
@@ -439,16 +574,15 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 }
 
 /**
- * Internal entry for augmenting a built-in descriptor: the top-level wiring
- * (`components/built-in-blocks.ts`) patches in behavior this file cannot import. Kept off the
- * public `@voithos-labs/aragonite/plugin` API so a plugin cannot rewrite a built-in.
+ * Patch a built-in descriptor with behavior schema cannot import (`components/built-in-blocks.ts`).
+ * Kept off the plugin API so a plugin cannot rewrite a built-in.
  */
 export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	mergeBlockKindFields('augmentBuiltin', kind, fields);
 }
 
 export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {
-	const d = registry.get(kind);
+	const d = registry.getIgnoringActivation(kind);
 	if (!d) {
 		throw new Error(
 			`getBlockKindDescriptor: no descriptor registered for kind "${kind}". ` +
@@ -459,7 +593,46 @@ export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor 
 }
 
 export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
-	return registry.get(kind);
+	return registry.getIgnoringActivation(kind);
+}
+
+/** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
+ *  cell is in a grid when its parent row is one. */
+export function isGridKind(kind: AnyBlockKind): boolean {
+	return isGridDescriptor(tryGetBlockKindDescriptor(kind));
+}
+
+/** {@link isGridKind} for a caller already holding the descriptor. */
+export function isGridDescriptor(descriptor: BlockKindDescriptor | undefined): boolean {
+	return descriptor?.containerContract === 'grid';
+}
+
+/** Whether a block of this kind is broken with no children: every container, except one focused
+ *  as a whole block, which is its own caret target. */
+export function mustHoldChild(kind: AnyBlockKind): boolean {
+	const descriptor = tryGetBlockKindDescriptor(kind);
+	return !!descriptor?.isContainer && descriptor.blockFocus !== 'whole-block';
+}
+
+/** Whether an endpoint on this block's own path counts cells rather than characters. Tables only:
+ *  a plugin grid's endpoints stay character offsets on deep cell paths. */
+export function countsCells(
+	node: NodeView | DocumentView
+): node is Extract<NodeView, { kind: 'table' }> {
+	return 'raw' in node && node.kind === 'table';
+}
+
+/**
+ * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
+ * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
+ */
+export function tableCellCount(node: NodeView): number {
+	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
+/** A cell index clamped into a table's grid: the one upper bound every cell-space caller uses. */
+export function clampCellIndex(node: NodeView, cellIdx: number): number {
+	return Math.min(Math.max(cellIdx, 0), Math.max(tableCellCount(node) - 1, 0));
 }
 
 /**
@@ -472,10 +645,5 @@ export function isBlockKindRegistered(kind: string): boolean {
 
 /** Every kind currently registered. Caller must not mutate. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
-	return Array.from(registry.keys());
-}
-
-/** Test-only. Removes every non-built-in descriptor; built-ins survive. */
-export function __removePluginBlockKindsForTests(): void {
-	deletePluginEntries(registry, isBuiltinBlockKind);
+	return registry.records().map((r) => r.key);
 }

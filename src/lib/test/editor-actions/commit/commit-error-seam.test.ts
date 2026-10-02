@@ -1,6 +1,6 @@
-// `docs/design/editor.md` §12: the `error` event is the one report for every contained
-// failure, and `origin: 'commit'` is the commit's share of it. Both throw sites here run
-// plugin code: the snapshot push's ref walk and the post-tick callback.
+// The `error` event reports every contained failure, and `origin: 'commit'` is the commit's
+// share of it. Both throw sites here run plugin code: the snapshot push's ref walk and the
+// post-tick callback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -11,7 +11,7 @@ import type { EditorError } from '$lib/editor-events';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	mockRef
+	stubBlockComponent
 } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
@@ -32,7 +32,7 @@ function harness() {
 }
 
 describe('the commit sequence contains and attributes every throw site', () => {
-	it('reports a throwing afterTick without unwinding the committed tree', async () => {
+	it('reports a throwing landing without unwinding the committed tree', async () => {
 		const { deps, errors, controller, state } = harness();
 
 		await controller.commitMultiScope({
@@ -40,11 +40,12 @@ describe('the commit sequence contains and attributes every throw site', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			op: { kind: 'appendBlock', detail: { itemIndex: 0 }, eventPath: asDocPath([0]) },
 			mutate: ([scope]) => {
-				scope.children[0].raw = '- edited\n';
+				// A copy: the undo entry still holds the item itself.
+				scope.children[0] = { ...scope.children[0], raw: '- edited\n' };
 				return [{ op: 'noop' }];
 			},
-			afterTick: () => {
-				throw new Error('plugin afterTick blew up');
+			landing: () => {
+				throw new Error('plugin landing blew up');
 			}
 		});
 
@@ -58,7 +59,7 @@ describe('the commit sequence contains and attributes every throw site', () => {
 	it('reports a throwing cursor read from the snapshot push and rejects the commit', async () => {
 		const { deps, errors, controller, state } = harness();
 		deps.setBlockRefs([
-			mockRef({
+			stubBlockComponent({
 				getCursorPosition: (): never => {
 					throw new Error('plugin getCursorPosition blew up');
 				}

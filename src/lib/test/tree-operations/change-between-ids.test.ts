@@ -8,6 +8,7 @@ import { parse } from '$lib/core/parser';
 import { deleteAtPath } from '$lib/tree-operations/path-mutate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { BlockComponent } from '$lib/block-component';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // How a caller running several splice functions reports: each writes its net splice into the id
 // array, and one contiguous window is read back off which ids survived where.
@@ -67,8 +68,6 @@ describe('changeBetweenIds', () => {
 		expect(changeBetweenIds([], ['a'])).toEqual({ op: 'insert', at: 0, count: 1 });
 	});
 
-	// A repeated id would make the window ambiguous; ids are unique per position by construction,
-	// and the reader must not silently map a duplicate to the wrong origin.
 	it('leaves ids and children in lockstep for the shape a settle fold produces', () => {
 		const change = changeBetweenIds(['a', 'b', 'c', 'd'], ['a']);
 		const ids = ['id-0', 'id-1', 'id-2', 'id-3'];
@@ -83,8 +82,8 @@ describe('trackChildIds', () => {
 		const ledger = trackChildIds(doc);
 		const sharing = createSharingState();
 
-		deleteAtPath(doc, [2], sharing);
-		deleteAtPath(doc, [1], sharing);
+		deleteAtPath(doc, [2], sharing, defaultGrammarView);
+		deleteAtPath(doc, [1], sharing, defaultGrammarView);
 
 		expect(ledger.read()).toEqual({ op: 'delete', at: 1, count: 2 });
 	});

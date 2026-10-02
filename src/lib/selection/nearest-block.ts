@@ -1,15 +1,15 @@
 /**
  * The mounted block nearest a viewport point, and the endpoint that point addresses. A gesture
- * that must answer every point (a dead-space click, a drag into the margin) resolves an
- * off-block point here instead of declining it. The clamped probe point stays inside this
- * module: hit-testing a text block at the original point would return no offset at all. Only
- * mounted blocks are measured; a caller answering for a windowed-out tail handles that itself.
+ * that must answer every point (a dead-space click, a drag into the margin) resolves an off-block
+ * point here: clamped into the nearest box, then handed down a container to the child level with
+ * it. Only mounted blocks are measured; a caller handling an unmounted tail does so itself.
  */
 
 import { clampPointIntoBox } from '../cursor/point-offset';
-import { blockAtPoint, endpointAtPoint, type BlockHit } from './block-hit-test';
+import { blockAtPoint, endpointAtPoint, holdsOwnText, type BlockHit } from './block-hit-test';
 import type { SelectionEndpoint } from './primitives';
 import { readBlockPath } from './path-lookup';
+import { isStrictAncestorOf } from './path-math';
 
 // ── Bands ──────────────────────────────────────────────────────────────────
 
@@ -32,12 +32,8 @@ export function measureBlocks(root: HTMLElement): MeasuredBlock[] {
 	}));
 }
 
-/**
- * The band a `y` belongs to. `belowAll` marks a point past the last band, the end-of-document
- * gesture, which lands at a trailing corner rather than under its own x. A y in a gap resolves to
- * the nearest band, so no point is left unanswered. Bands arrive in document order and may nest,
- * so containment scans forward, outermost wins.
- */
+/** The band a `y` belongs to; a y in a gap resolves to the nearest band, so no point is left
+ *  unanswered. `belowAll` marks a point past the last band, which lands at a trailing corner. */
 export function nearestBand(
 	bands: BlockBand[],
 	y: number
@@ -64,8 +60,8 @@ export function nearestBand(
 
 // ── Probing ────────────────────────────────────────────────────────────────
 
-/** The band's own probe point: {@link clampPointIntoBox}, except that `belowAll` takes the
- *  trailing corner — the block's last position — rather than the point's own x. */
+/** The point a band is hit-tested at: {@link clampPointIntoBox}, except that `belowAll` takes the
+ *  trailing corner (the block's last position) rather than the point's own x. */
 export function probePointIn(
 	rect: DOMRect,
 	x: number,
@@ -90,23 +86,57 @@ export function blockNearPoint(
 	clientY: number
 ): NearestBlock | null {
 	const direct = blockAtPoint(editorRoot, clientX, clientY);
-	if (direct) return addressedAt(direct, clientX, clientY);
+	if (direct)
+		return addressedAt(descendToLevelChild(editorRoot, { hit: direct, x: clientX, y: clientY }));
 
 	const rects = blockHosts(editorRoot).map((el) => el.getBoundingClientRect());
 	const band = nearestBand(rects, clientY);
 	if (!band) return null;
 	const probe = probePointIn(rects[band.index], clientX, clientY, band.belowAll);
 	const hit = blockAtPoint(editorRoot, probe.x, probe.y);
-	return hit && addressedAt(hit, probe.x, probe.y);
+	return hit && addressedAt(descendToLevelChild(editorRoot, { hit, ...probe }, band.belowAll));
+}
+
+// ── Descent ────────────────────────────────────────────────────────────────
+
+/** A hit and the point it was hit-tested at. */
+export interface ProbedHit {
+	hit: BlockHit;
+	x: number;
+	y: number;
+}
+
+/** Hands a point on a container's own box (a quote's gutter, a list's indent) down to the child
+ *  level with it, at any depth; a container with its own editable row keeps an unmatched point. */
+export function descendToLevelChild(
+	root: HTMLElement,
+	probed: ProbedHit,
+	belowAll = false
+): ProbedHit {
+	let current = probed;
+	for (;;) {
+		const { hit, x, y } = current;
+		// A grid kind resolves points inside itself through its own hooks.
+		if (hit.foreignDragHitTest || hit.caretTargetAtPoint) return current;
+		const rects = blockHosts(hit.host).map((el) => el.getBoundingClientRect());
+		const band = nearestBand(rects, y);
+		if (!band) return current;
+		if (holdsOwnText(hit) && !rects.some((r) => y >= r.top && y <= r.bottom)) return current;
+		const probe = probePointIn(rects[band.index], x, y, belowAll);
+		const next = blockAtPoint(root, probe.x, probe.y);
+		// Something drawn over the child answered instead, so the container keeps the point.
+		if (!next || !isStrictAncestorOf(hit.path, next.path)) return current;
+		current = { hit: next, ...probe };
+	}
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-function addressedAt(hit: BlockHit, probeX: number, probeY: number): NearestBlock {
-	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, probeX, probeY) };
+function addressedAt({ hit, x, y }: ProbedHit): NearestBlock {
+	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, x, y) };
 }
 
-/** The one selector for the mounted hosts, so the two walks above cannot drift apart. */
+/** The one selector for the mounted hosts, so the lookups above can't drift apart. */
 function blockHosts(root: HTMLElement): HTMLElement[] {
 	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')];
 }

@@ -1,13 +1,13 @@
 /**
- * G4.10: every directory under `src/lib/plugins/` must surface in package.json
- * `exports`, which verify-pack derives the tarball's manifest from; a dir absent from it
- * is silently unshippable. Subset, not equality: a plugin may publish extra subpaths. The
- * sideEffects sub-check flags one detectable hazard, an unlisted top-level CSS import.
+ * Every directory under `src/lib/plugins/` surfaces in package.json `exports`, which verify-pack
+ * derives the tarball's manifest from, or it silently never ships (G4.10). Subset, not equality:
+ * a plugin may publish extra subpaths. The sideEffects sub-check flags one detectable hazard, an
+ * unlisted top-level CSS import.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { collectEditorSources } from './scan-source';
+import { bundledPluginDirs, collectEditorSources } from './scan-source';
 import { requiredPackPaths } from '../../../../../scripts/pack-manifest.mjs';
 
 const PLUGIN_SRC = path.resolve('src/lib/plugins');
@@ -20,14 +20,6 @@ interface PackageManifest {
 function readPackage(): PackageManifest {
 	const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8'));
 	return { exports: pkg.exports ?? {}, sideEffects: pkg.sideEffects ?? [] };
-}
-
-/** Bundled plugin directory names (README.md and other files are not dirs). */
-function pluginDirs(): string[] {
-	return readdirSync(PLUGIN_SRC, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
-		.map((e) => e.name)
-		.sort();
 }
 
 /** A top-level side-effect CSS import (`import 'x.css';`), the latex renderer shape. */
@@ -76,7 +68,7 @@ function missingSideEffects(
 // ── The parity scan ──────────────────────────────────────────────────────────
 
 describe('G4.10 plugin package/pack parity', () => {
-	const names = pluginDirs();
+	const names = bundledPluginDirs();
 	const pkg = readPackage();
 	const exportKeys = new Set(Object.keys(pkg.exports));
 	const distPaths = new Set(requiredPackPaths());

@@ -15,7 +15,7 @@ export default defineConfig({
 	test: {
 		include: ['src/lib/test/**/*.test.ts', 'src/lib/e2e/lint/**/*.test.ts'],
 		setupFiles: [
-			'./src/lib/test/support/register-built-ins.ts',
+			'./src/lib/test/support/plugin-platform.ts',
 			'./src/lib/test/support/warn-gate.ts'
 		],
 		// The warn gate's claim doors sit in file-level afterEach hooks that must run before the

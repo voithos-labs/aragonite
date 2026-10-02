@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import type { DocumentView } from '$lib/core/node-views';
@@ -6,17 +6,48 @@ import { createEditorEvents, type EditEvent } from '$lib/editor-events';
 import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
 import type { InlineMenuItem, InlineMenuSource } from '$lib/inline-menu/types';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
+import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { grammarListing } from '../plugins/activation/grammar-listing';
+import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import type { EditorContext } from '$lib/schema/plugin-install';
+
+/** The context a pick's commit is handed here; these suites never write through it. */
+const noWrites = {
+	insertMarkdown: async () => false,
+	runCommand: () => false
+} as unknown as EditorContext;
+
+// `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
+const masker = definePlugin({
+	name: 'masker',
+	setup() {
+		const kind = declarePluginInlineKind('masked');
+		registerInlineSyntax('%', (raw, pos, end) => {
+			const close = raw[pos + 1] === '%' ? raw.indexOf('%%', pos + 2) : -1;
+			return close >= 0 && close + 2 <= end ? { kind, start: pos, end: close + 2 } : null;
+		});
+	}
+});
+beforeEach(() => installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]));
+const MASKED = '%%a `b` c%%';
+const scopedLinkRef = fixtureReading({ grammar: grammarListing(['listed']) });
+const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
 
 const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
 
-const typedEdit = (path: number[]): EditEvent =>
-	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
+const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
-/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
- *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
-function harness(initial: string, { arrive = true, writeFails = false } = {}) {
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. `writeFails`
+ *  makes the range splice throw; `writeDeclines` makes it write nothing, as reading mode does. */
+function harness(
+	initial: string,
+	{ arrive = true, writeFails = false, writeDeclines = false, reading = fixtureReading() } = {}
+) {
 	let doc = parse(initial) as unknown as DocumentView;
-	/** Which block the caret is in; most tests give one and never leave it. */
 	let block = 0;
 	let caret: number | null = initial.length;
 	let mode: PresentationMode = 'source';
@@ -24,6 +55,11 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 	const errors: unknown[] = [];
 	events.on('error', (e) => errors.push(e.error));
 	const landed: number[] = [];
+	/** Each range splice, one undo entry apiece. */
+	const commits: string[] = [];
+	/** How deep the undo join is, and whether each splice ran inside one. */
+	let joinDepth = 0;
+	const splicesInJoin: boolean[] = [];
 
 	/** Put `raw` in one block, reparsing the document the way an edit there would. */
 	function write(index: number, raw: string): void {
@@ -40,22 +76,34 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		getMode: () => mode,
 		events,
 		editorId: 'editor-test',
+		reading,
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
-		// the one the state has to hold off.
-		commitRange: async (path, start, end, bytes) => {
+		// the one the state has to hold off; the caret then lands where the commit says.
+		commitRange: async (path, start, end, bytes, caretAfter) => {
 			if (writeFails) throw new Error('write refused');
+			if (writeDeclines) return false;
+			commits.push(bytes);
+			splicesInJoin.push(joinDepth > 0);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
-		},
-		landCaret: async (_path, offset) => {
-			caret = offset;
-			landed.push(offset);
+			caret = caretAfter;
+			landed.push(caretAfter);
 			events.emit('selectionChange', null);
 			await tick();
 			return true;
-		}
+		},
+		undoStep: async (_path, _offset, run) => {
+			joinDepth++;
+			try {
+				await run();
+			} finally {
+				joinDepth--;
+			}
+		},
+		ownerOfNewSource: () => noWrites,
+		drafts: createDraftRegistry(createDocumentStamps())
 	});
 
 	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
@@ -73,6 +121,9 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 		menu,
 		errors,
 		landed,
+		commits,
+		splicesInJoin,
+		insideJoin: () => joinDepth > 0,
 		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
@@ -87,7 +138,16 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 				await tick();
 			}
 		},
-		/** A burst the editor publishes as a single change: fast typing, an IME commit. */
+		/** Keys whose bytes have landed but whose read has not run: the `edit` is out and its read
+		 *  waits a tick, or the `edit` itself is still deferred. */
+		typeUnread(text: string, { notified = true } = {}) {
+			const raw = doc.children[block]?.raw ?? '';
+			const at = caret ?? raw.length;
+			write(block, raw.slice(0, at) + text + raw.slice(at));
+			caret = at + text.length;
+			if (notified) events.emit('edit', typedEdit([block]));
+		},
+		/** A burst the editor reports as a single change: fast typing, an IME commit. */
 		async burst(text: string) {
 			await settle();
 			const raw = doc.children[block]?.raw ?? '';
@@ -97,10 +157,8 @@ function harness(initial: string, { arrive = true, writeFails = false } = {}) {
 			events.emit('edit', typedEdit([block]));
 			await tick();
 		},
-		/**
-		 * The caret reaches a block no read has seen and the first byte lands there in a single
-		 * read: the line Enter just made, typed on before the split's own change is read.
-		 */
+		/** The caret reaches a block no read has seen and its first byte lands in the same read:
+		 *  the line Enter just made, typed on before the split's own change is read. */
 		async arriveAndType(index: number, text: string) {
 			await settle();
 			block = index;
@@ -204,9 +262,7 @@ describe('a typed trigger opens its source', () => {
 		expect(unprimed.menu.getOpen()).toBeNull();
 	});
 
-	// Miss-analysis: every test reached a new leaf through a read of its own, so none ever let the
-	// caret's arrival and the first byte there publish as one change, which is what fast typing
-	// after Enter does.
+	// Miss-analysis: no test let a new leaf's arrival and first byte land as one change.
 	it('opens where a new leaf’s arrival and its first byte are one read', async () => {
 		const h = harness('see\n\n\n');
 		h.menu.registry.addSource(tags());
@@ -220,7 +276,7 @@ describe('a typed trigger opens its source', () => {
 		const h = harness('see ');
 		h.menu.registry.addSource(tags());
 		await h.moveTo(4);
-		// keydown `#`, its byte, keydown `w`, its byte: two presses, one published change.
+		// keydown `#`, its byte, keydown `w`, its byte: two keypresses, one reported change.
 		h.menu.primeBaseline();
 		h.menu.primeBaseline();
 		await h.burst('#w');
@@ -257,6 +313,21 @@ describe('a typed trigger opens its source', () => {
 		await h.type('#');
 		expect(h.raw()).toBe('see [text](#');
 		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	// Miss-analysis: no harness handed the menu an editor's ref, so the prose check ran without one.
+	it.each([
+		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ resolver: toR }), false],
+		['an unresolved reference link’s label', '[t][r]', 5, fixtureReading(), true],
+		['a code span inside an unlisted plugin’s construct', MASKED, 6, scopedLinkRef, false],
+		['the same code span where every plugin is on', MASKED, 6, fixtureReading(), true]
+	])('reads the editor’s ref for %s', async (_, source, at, reading, opens) => {
+		const h = harness(source, { reading });
+		h.menu.registry.addSource(tags({ opensAt: () => true }));
+		await h.moveTo(at);
+		await h.type('#');
+		expect(h.raw()).toBe(source.slice(0, at) + '#' + source.slice(at));
+		expect(h.menu.getOpen() !== null).toBe(opens);
 	});
 
 	it('does not open in reading mode', async () => {
@@ -312,8 +383,7 @@ describe('an open session follows the caret', () => {
 });
 
 describe('the list a source lands', () => {
-	// Miss-analysis: every source a test wrote made its own ids unique, so nothing ever handed
-	// the list two rows under one id, which is what the keyed render cannot draw.
+	// Miss-analysis: every test source gave unique ids, so no list held two rows under one id.
 	it('keeps the first of two rows sharing an id, and reports the source', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(
@@ -393,11 +463,53 @@ describe('navigation and commit', () => {
 		expect(h.landed).toEqual([10]);
 		expect(h.menu.getOpen()).toBeNull();
 		expect(onCommit.mock.calls[0][0]).toMatchObject({ id: 'world' });
-		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
+		expect(onCommit.mock.calls[0][1]).toMatchObject({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
-	// Miss-analysis: every commit test used a one-line insert, so nothing ever offered the write
-	// point bytes a paragraph's raw cannot hold, and no test could see it take them.
+	// Miss-analysis: every pick here came after the last key's read had run, never ahead of it.
+	it.each([
+		['its read is pending', true],
+		['its edit is still deferred', false]
+	])(
+		'replaces the whole typed query when the pick comes before the last key: %s',
+		async (_, notified) => {
+			const onCommit = vi.fn();
+			const h = harness('see ');
+			h.menu.registry.addSource(tags({ onCommit }));
+			await h.type('#wo');
+			h.typeUnread('r', { notified });
+
+			expect(h.menu.commit()).toBe(true);
+			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+
+			expect(h.raw()).toBe('see #work');
+			expect(onCommit.mock.calls[0][1]).toMatchObject({
+				query: 'wor',
+				path: [0],
+				start: 4,
+				end: 8
+			});
+		}
+	);
+
+	// Miss-analysis: no test asked whether the block onCommit inserts shares the pick's undo entry.
+	it('runs the splice and an awaited onCommit inside one undo join', async () => {
+		const h = harness('see ');
+		let release!: () => void;
+		const onCommit = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+
+		h.menu.commit();
+		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+		await tick();
+		expect(h.splicesInJoin).toEqual([true]);
+		expect(h.insideJoin()).toBe(true);
+		release();
+		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
+	});
+
+	// Miss-analysis: every commit test used a one-line insert, never bytes a paragraph cannot hold.
 	it('refuses a pick whose insert holds a line break, and reports it', async () => {
 		const h = harness('see ');
 		h.menu.registry.addSource(tags({ items: () => [item('bad', 'a\n\nb')] }));
@@ -423,8 +535,7 @@ describe('navigation and commit', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	// Miss-analysis: every commit test gave the state a write that resolves, so none ever let the
-	// range splice refuse, and the rejection nobody was waiting on went unseen.
+	// Miss-analysis: every commit test gave the state a write that resolves, never one that throws.
 	it('reports a pick whose write fails, and leaves the typed bytes alone', async () => {
 		const h = harness('see ', { writeFails: true });
 		h.menu.registry.addSource(tags());
@@ -434,6 +545,23 @@ describe('navigation and commit', () => {
 		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
 		expect(String(h.errors[0])).toMatch(/write refused/);
 		expect(h.raw()).toBe('see #wo');
+	});
+
+	// Miss-analysis: the refusal cases threw, so none let the splice resolve having written nothing.
+	it('a pick whose write is declined lands no caret and runs no onCommit', async () => {
+		const onCommit = vi.fn();
+		const h = harness('see ', { writeDeclines: true });
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await tick();
+		await tick();
+		await tick();
+
+		expect(h.raw()).toBe('see #wo');
+		expect(h.landed).toEqual([]);
+		expect(onCommit).not.toHaveBeenCalled();
 	});
 
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
@@ -507,8 +635,7 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 3, end: 4, query: '' });
 	});
 
-	// Miss-analysis: the only failing write a test had ever given the state was a source that
-	// throws, which never reaches the trigger `open` types before the list would show.
+	// Miss-analysis: no test let the trigger write from `open` fail, only a source that throws.
 	it('reports a failed trigger write, and opens nothing', async () => {
 		const h = harness('mid', { writeFails: true });
 		h.menu.registry.addSource(tags());
@@ -517,6 +644,36 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		await vi.waitFor(() => expect(h.errors).toHaveLength(1));
 		expect(String(h.errors[0])).toMatch(/write refused/);
 		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('types a given query after the trigger in the same write, and opens over it', async () => {
+		const h = harness('see ');
+		const writes: string[] = [];
+		h.menu.registry.addSource(
+			tags({ onCommit: () => {}, items: ({ query }) => (writes.push(query), [item(query)]) })
+		);
+		expect(h.menu.registry.open('tags', { query: 'wo' })).toBe(true);
+		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
+		expect(h.raw()).toBe('see #wo');
+		expect(h.commits).toEqual(['#wo']);
+		expect(h.landed).toEqual([7]);
+		expect(h.menu.getOpen()).toMatchObject({ start: 4, end: 7, query: 'wo' });
+		expect(writes).toEqual(['wo']);
+	});
+
+	it('writes a query the source does not accept, and opens nothing over it', async () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'two words' })).toBe(true);
+		await vi.waitFor(() => expect(h.raw()).toBe('see #two words'));
+		expect(h.menu.getOpen()).toBeNull();
+	});
+
+	it('refuses a query holding a line break, writing nothing', () => {
+		const h = harness('see ');
+		h.menu.registry.addSource(tags());
+		expect(h.menu.registry.open('tags', { query: 'a\nb' })).toBe(false);
+		expect(h.raw()).toBe('see ');
 	});
 
 	it('declines an unknown name, reading mode, and a lost caret, writing nothing', async () => {
@@ -539,8 +696,7 @@ describe('the registry', () => {
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/already exists/);
 	});
 
-	// Miss-analysis: every registry test registered its source before the first keystroke, so none
-	// let `seen` outlive a source.
+	// Miss-analysis: every registry test added its source first, so `seen` never outlived one.
 	it('starts a source added again from a fresh baseline', async () => {
 		const h = harness('see ');
 		const handle = h.menu.registry.addSource(tags());
@@ -556,21 +712,80 @@ describe('the registry', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
 	});
 
-	// Miss-analysis: every registry test ran against a live editor, so none ever added a source
-	// after the editor unmounted and watched the handle it got back open nothing, ever.
+	// Miss-analysis: every registry test ran against a live editor, never one already unmounted.
 	it('refuses a source added after the editor is gone', () => {
 		const h = harness('a ');
 		h.menu.dispose();
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/tags/);
 	});
 
-	// An empty trigger would open on every keystroke and a trigger with a line break could never
-	// be typed, so both are refused where a source arrives rather than skipped where it is read.
+	// An empty trigger would open on every keystroke and one with a line break could never be
+	// typed, so both are refused when the source is added.
 	it('refuses a trigger that is empty or holds a line break', () => {
 		const h = harness('a ');
 		expect(() => h.menu.registry.addSource(tags({ trigger: '' }))).toThrow(/trigger/);
 		expect(() => h.menu.registry.addSource(tags({ name: 'nl', trigger: '#\n' }))).toThrow(
 			/trigger/
 		);
+	});
+});
+
+// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell.
+describe('a table cell', () => {
+	const CELL = [0, 1, 1];
+
+	/** A caret in the empty cell of a two-row table, typed into a byte at a time. */
+	function cellHarness() {
+		const doc = parse('| a | b |\n| --- | --- |\n| c |  |\n') as unknown as DocumentView;
+		const cell = doc.children[0].children![1].children![1] as { raw: string };
+		let caret = 0;
+		const commits: string[] = [];
+		const events = createEditorEvents();
+		const menu = createInlineMenuState({
+			getDoc: () => doc,
+			getSelection: () => ({
+				anchor: { path: CELL, offset: caret },
+				focus: { path: CELL, offset: caret }
+			}),
+			getMode: () => 'source',
+			events,
+			editorId: 'editor-cell',
+			reading: fixtureReading(),
+			commitRange: async (_path, _start, _end, bytes) => {
+				commits.push(bytes);
+				return true;
+			},
+			undoStep: async (_path, _offset, run) => void (await run()),
+			ownerOfNewSource: () => noWrites,
+			drafts: createDraftRegistry(createDocumentStamps())
+		});
+		menu.registry.addSource(tags());
+		return {
+			menu,
+			commits,
+			async type(text: string) {
+				events.emit('selectionChange', null);
+				await tick();
+				for (const ch of text) {
+					cell.raw = cell.raw.slice(0, caret) + ch + cell.raw.slice(caret);
+					caret += 1;
+					events.emit('edit', typedEdit(CELL));
+					await tick();
+				}
+			}
+		};
+	}
+
+	it('a trigger typed in a cell stays text and opens nothing', async () => {
+		const h = cellHarness();
+		await h.type('#wo');
+		expect(h.menu.getOpen()).toBeNull();
+		expect(h.menu.registry.isOpen).toBe(false);
+	});
+
+	it('open(name) with the caret in a cell declines, writing nothing', () => {
+		const h = cellHarness();
+		expect(h.menu.registry.open('tags')).toBe(false);
+		expect(h.commits).toEqual([]);
 	});
 });

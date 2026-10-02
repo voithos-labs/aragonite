@@ -1,18 +1,12 @@
 /**
- * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification, the delete-commit snapshot rule. No DOM, no state. Path-level predicates
- * live in `./path-math`.
+ * Pure primitives for cross-block selection: types, overlay classification of a covered range,
+ * the delete-commit snapshot rule. Path-level predicates live in `./path-math`.
  */
 
-import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
-import type { DocumentView, NodeView } from '../core/node-views';
-import {
-	comparePaths,
-	isPathBetween,
-	isStrictAncestorOf,
-	pathHasPrefix,
-	pathsEqual
-} from './path-math';
+import type { CommitSnapshotArg } from '../action-contracts';
+import { SELECTION_END } from '../block-component';
+import type { RangeCoverage } from './range-coverage';
+import { comparePaths, pathsEqual, type DocPath } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
@@ -31,6 +25,29 @@ export interface CharSelectionPoint {
 	cellCoordinate?: false;
 }
 
+/** An inline widget selected whole, by the block it sits in and the byte it starts at. A snapshot:
+ *  a popover commit targets the image it opened on, and writes nothing once another holds it. */
+export interface WidgetTarget {
+	paragraphPath: number[];
+	sourceStart: number;
+	/** The caret just before the widget was selected: the edge it was entered from, and where
+	 *  undo puts the caret back. */
+	preSelectOffset: number;
+}
+
+/** An inline widget selected whole (an image), as the raw span of the block at `path`. */
+export interface SelectedWidgetRange {
+	path: number[];
+	start: number;
+	end: number;
+}
+
+/** The widget selected whole, read live, and the way to end that selection. */
+export interface SelectedWidgetHandle {
+	range(): SelectedWidgetRange | null;
+	clear(): void;
+}
+
 /** Cell-space endpoint: `offset` is a row-major table cell index; `path` addresses the table block. */
 export interface CellSelectionPoint {
 	path: number[];
@@ -41,8 +58,8 @@ export interface CellSelectionPoint {
 /**
  * One selection endpoint, discriminated on `cellCoordinate`; an empty path is the document
  * root. `offset` keeps its name on both variants and the flag says which space it is in, so
- * read it through {@link charOffsetOf} or {@link cellIndexOf}. The exception: a selection
- * inside one table shares the table path and carries cell indices on unflagged points.
+ * read it through {@link charOffsetOf} or {@link cellIndexOf}. `SelectionState` flags every
+ * point on a table path, so a host may pass plain numbers there.
  */
 export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
@@ -58,6 +75,21 @@ export interface WholeBlockEndpoint {
  * an unresolved endpoint cannot reach a consumer.
  */
 export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
+
+/** Where a caret goes after an edit: a document path, which may name a container, and an offset
+ *  into the node there, raw or one of the special caret values in `block-component.ts`. */
+export interface CaretPosition {
+	readonly path: DocPath;
+	readonly offset: number;
+}
+
+/** What an edit hands back for the caret: a position, or a stored selection to put back. */
+export type Landing = CaretPosition | EditorSelection;
+
+/** A cell endpoint: the grid's path, a row-major cell index, and the flag saying so. */
+export function cellPoint(path: readonly number[], cellIdx: number): CellSelectionPoint {
+	return { path: path.slice(), offset: cellIdx, cellCoordinate: true };
+}
 
 export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
 	return 'wholeBlock' in endpoint;
@@ -104,12 +136,8 @@ export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 
 // ── Normalization ──────────────────────────────────────────────────────────
 
-/**
- * `{start, end}` in document order: by path, then by offset when the paths match. Exported to
- * consumers as `normalizeSelection`. The offset tiebreak works in either space: two endpoints
- * sharing a table's path carry row-major cell indices, whose order is document order inside
- * that table.
- */
+/** `{start, end}` in document order: by path, then by offset, which orders cell indices on a
+ *  shared table path too, since row-major order is document order inside the table. */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
 	end: SelectionPoint;
@@ -124,84 +152,62 @@ export function normalize(selection: EditorSelection): {
 
 // ── Undo snapshot ──────────────────────────────────────────────────────────
 
-/** A join delete uses the caller's undo snapshot; every other delete records its own position. */
-export function deleteSnapshot(
-	options: { undoEntry?: UndoEntryMode } | undefined,
-	path: number[],
-	offset = 0
-): CommitSnapshotArg {
-	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
-}
-
-// ── Range walk ─────────────────────────────────────────────────────────────
-
-/** Every block path strictly between `start` and `end`, at every nesting level. */
-export function walkBetween(doc: DocumentView, start: number[], end: number[]): number[][] {
-	if (comparePaths(start, end) >= 0) return [];
-
-	const result: number[][] = [];
-
-	function visit(node: NodeView | DocumentView, path: number[]): void {
-		if (isPathBetween(path, start, end)) {
-			result.push([...path]);
-		}
-		if (!node.children) return;
-		for (let i = 0; i < node.children.length; i++) {
-			const childPath = [...path, i];
-			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
-			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
-			if (comparePaths(childPath, end) >= 0) break;
-			visit(node.children[i], childPath);
-		}
-	}
-
-	visit(doc, []);
-	return result;
+/** Where undo puts the caret back after a range delete, when nothing is focused. */
+export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
+	return { path: docPathFrom(path), offset };
 }
 
 // ── Overlay classification ─────────────────────────────────────────────────
 
 export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
 
-/**
- * Position of a block relative to a selection, for overlay rendering. 'single-block'
- * tells the caller to delegate to the browser instead of painting.
- */
+/** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
+ *  browser, and a subtree the range holds whole is 'middle' with nothing inside it painting. */
 export function classifyBlockForSelection(
-	path: number[],
-	selection: EditorSelection
+	path: readonly number[],
+	coverage: RangeCoverage
 ): BlockSelectionClass {
-	const { start, end } = normalize(selection);
-	if (comparePaths(start.path, end.path) === 0) {
-		return comparePaths(path, start.path) === 0 ? 'single-block' : 'outside';
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) {
+		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	if (comparePaths(path, start.path) === 0) return 'start';
-	if (comparePaths(path, end.path) === 0) return 'end';
-	if (isPathBetween(path, start.path, end.path)) return 'middle';
+	const root = coverage.rootHolding(path);
+	if (root) return pathsEqual(root, path) ? 'middle' : 'outside';
+	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
+	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
 }
 
-/**
- * Whether this block paints the range over its whole box: the range holds its entire subtree and
- * no ancestor's box already covers it, or it is the one block a whole-block range holds. A
- * container's own decoration (a GitHub alert's badge) has no child host to paint it, so the
- * covering block takes the box in one piece and its children paint nothing.
- */
+/** Whether the block paints the range over its whole box, so a container's own decoration (an
+ *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
-	selection: EditorSelection,
+	coverage: RangeCoverage,
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const { start, end } = normalize(selection);
-	return (
-		holdsSubtree(path, start.path, end.path) &&
-		!holdsSubtree(path.slice(0, -1), start.path, end.path)
-	);
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) return false;
+	const root = coverage.rootHolding(path);
+	return root !== null && pathsEqual(root, path);
 }
 
-/** The range holds this block's whole subtree: inside it in document order, and not an ancestor
- *  of the end endpoint, whose own descendants the range cuts through. */
-function holdsSubtree(path: readonly number[], start: number[], end: number[]): boolean {
-	return isPathBetween(path, start, end) && !isStrictAncestorOf(path, end);
+/** The end-exclusive offsets an endpoint block measures its highlight between: a kept table
+ *  edge's cells, or its text from the start or up to the end. */
+export function endpointMeasureSpan(
+	classification: BlockSelectionClass,
+	coverage: RangeCoverage
+): { from: number; to: number } {
+	const { startEdge, endEdge, startCells, endCells } = coverage;
+	const from = classification === 'end' ? 0 : (startCells?.from ?? textOffset(startEdge, 0));
+	const to =
+		classification === 'start'
+			? SELECTION_END
+			: (endCells?.to ?? textOffset(endEdge, SELECTION_END));
+	return { from, to };
+}
+
+// A cell pair inside one table measures its rectangle, which reads no offset.
+function textOffset(edge: SelectionPoint | null, fallback: number): number {
+	return edge && !edge.cellCoordinate ? charOffsetOf(edge, 'endpointMeasureSpan') : fallback;
 }

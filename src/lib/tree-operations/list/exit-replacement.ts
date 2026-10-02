@@ -1,7 +1,7 @@
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import type { LineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-primitives';
 import { assembleListHalf } from './list-builders';
@@ -9,15 +9,13 @@ import { partitionItemChildren } from './item-partition';
 import { orderedBaseOf } from './ordered-markers';
 
 /**
- * The parent-level replacement when a list item exits its list, laid out as
- * `[firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]`. Matching-type
- * nested items rejoin the surviving halves; everything else lifts as a top-level block.
- * `paragraphIndex` is the exit paragraph's slot, the caller's focus target. Input is not
- * mutated.
+ * The replacement when an item exits its list: the list's halves around a fresh exit paragraph at
+ * `paragraphIndex`, the item's same-type nested items rejoining the halves and the rest lifted.
  */
 export function buildExitReplacement(
 	list: NodeView,
-	itemIndex: number
+	itemIndex: number,
+	lineEnding: LineEnding
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	const items = list.children ?? [];
 	const exitedItem = items[itemIndex];
@@ -37,8 +35,7 @@ export function buildExitReplacement(
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
 
-	// Every byte this op creates is a line ending, so it takes the list's (G4.20).
-	const lineEnding = trailingLineEnding(list.raw);
+	// Every byte this op creates is a line ending, the document's.
 	const exitParagraph = emptyParagraph('', lineEnding);
 
 	// Preserve the original list's starting number across the split.

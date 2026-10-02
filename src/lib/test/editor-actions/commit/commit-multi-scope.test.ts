@@ -6,9 +6,11 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the dev-mode
-// stale-raw check reads them as stale; the ids and refs under test do not care.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
+// them as stale, and the one-block check reads their childless list items as emptied.
+afterEach(() =>
+	allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block', 'invariant:reads-back'])
+);
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -81,10 +83,8 @@ describe('commitMultiScope', () => {
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
 
-	// A container that never mounted has no `childIds` at all, which is not the same as an
-	// empty one, and the paste commit reaches exactly that scope through its unmounted stand-in
-	// (`tree-operations/paste/parent-scope.ts`). Miss-analysis: every fixture in this file
-	// creates ids first, so the commit was only ever asked to grow an array that already fit.
+	// The paste commit can reach a never-mounted container, whose `childIds` is absent, not empty.
+	// Miss-analysis: every fixture here creates ids first, so no commit grew an array from nothing.
 	it('a scope that never mounted publishes one id per child, not one per insert', async () => {
 		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n', '- c\n'])]);
 		const owned = deps.doc.children[0];
@@ -210,7 +210,7 @@ describe('commitMultiScope', () => {
 		};
 		const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
 			scopes: [scopeA, scopeB],
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			// @ts-expect-error mutate must return exactly one StructuralChange per scope
 			mutate: () => [{ op: 'noop' }]
 		};

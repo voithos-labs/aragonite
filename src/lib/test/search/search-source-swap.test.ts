@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { makeSearchHarness } from './harness';
 
 // A swap and an edit in place both bump the edit counter, so the generation counter is the
-// only way to tell them apart: only the `source` prop branch bumps it.
+// only way to tell them apart: only the document swap bumps it.
 function makeSwapHarness(source: string) {
 	let doc = parse(source);
 	let generation = 0;
@@ -15,8 +15,8 @@ function makeSwapHarness(source: string) {
 		state,
 		currentDoc: () => doc,
 		notifyEdit: () => engine.notifyEdit(),
-		// What the editor's `source !== lastSource` branch does: a fresh tree, a generation bump,
-		// then the edit notification any commit also sends.
+		// What the editor's document swap does: a fresh tree, a generation bump, then the edit
+		// notification any commit also sends.
 		swapTo(next: string) {
 			doc = parse(next);
 			generation++;

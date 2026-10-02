@@ -1,18 +1,15 @@
 import { test, expect } from '../../fixtures';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
 
-// The `/changelog` dogfood route renders the repo's own changelog, one release family per
-// document, behind a route-prepended `[[toc]]` inside a collapsed `<details>`, under all nine
-// bundled plugins. No `window.__test` bridge, so this smoke asserts through rendered DOM only. The
-// shared fixture also fails on any `[invariant:…]` console fire, so a green run additionally
-// proves the changelog loads without tripping an invariant under all nine plugins. Requirements:
-// e2e/requirements/plugins/changelog-route.md.
+// The `/changelog` route renders the repo's changelog, one release family per document, behind a
+// prepended `[[toc]]` inside a collapsed `<details>`, under all nine bundled plugins. The route has
+// no `window.__test` bridge, so assertions read the rendered DOM; the shared fixture's console
+// watch also proves the changelog loads without tripping an invariant.
 
 // The `<details>` opener bytes, read from the live document the route registers for the parity
-// check. With no bridge on this route it is the only byte-level read available, and the opener is
-// exactly where a committed disclosure would land.
+// check: the only byte-level read this route offers, and where a committed disclosure lands.
 function outlineRaw(page: Page): Promise<string> {
 	return page.evaluate(() => {
 		const registry = (
@@ -24,8 +21,7 @@ function outlineRaw(page: Page): Promise<string> {
 
 test.describe('/changelog route', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/changelog');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/changelog');
 		await expect(page.locator('.block-host').first()).toBeVisible();
 	});
 

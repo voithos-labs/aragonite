@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the language offer was pinned by clicking into a fence, where no arrival key
-// is recorded, so moving through an empty fence with the keyboard never meets the picker
-// that took its focus.
+// Miss-analysis: the language offer was tested by clicking into a fence, never by keyboard arrival.
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { mountCode, type MountedCode } from './mount-code';
 
 const BARE_FENCE = '```\n```\n';
@@ -19,11 +16,11 @@ afterEach(async () => {
 });
 
 async function focusFence(arrival: 'step' | 'seat'): Promise<void> {
-	const edgeAffinity = createEdgeAffinityState();
-	if (arrival === 'step') edgeAffinity.note({ key: 'ArrowRight', altKey: false });
+	const caretMemory = createCaretMemory();
+	if (arrival === 'step') caretMemory.noteKey({ key: 'ArrowRight' }, null);
 	mounted = mountCode(BARE_FENCE, {
 		policies: { presentationMode: () => 'live' },
-		services: { edgeAffinity }
+		services: { caretMemory }
 	});
 	mounted.el.focus();
 	flushSync();
@@ -41,14 +38,14 @@ describe('a bare fence taking the caret', () => {
 	it('completes and offers a language when the caret was placed, not stepped', async () => {
 		await focusFence('seat');
 
-		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', expect.anything());
+		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', 'authored', expect.anything(), 4);
 		expect(picker()).not.toBeNull();
 	});
 
 	it('completes but keeps the caret when the caret stepped in from a neighbour', async () => {
 		await focusFence('step');
 
-		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', expect.anything());
+		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', 'authored', expect.anything(), 4);
 		expect(picker()).toBeNull();
 	});
 });

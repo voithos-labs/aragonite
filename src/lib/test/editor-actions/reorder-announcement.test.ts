@@ -5,69 +5,44 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { movedBlockToPosition } from '$lib/a11y-strings';
-import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/block-component';
+import { makeEditorActionsDeps, mountEveryBlock } from '$lib/test/harness/editor-actions';
+import type { RecordedLanding } from '$lib/testing/headless-actions';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { takeDevWarns } from '../support/warn-gate';
 
 // What a reorder reports, at both levels: the a11y announcement and where the caret goes. A
 // move can make two neighbours merge, and the merge changes both the destination and the
 // sibling count, neither of which the pre-commit node can answer, since the commit copies it.
-// Miss-analysis: onReorder had no test at any level, so the container's stale total shipped;
-// the caret index was tested at the primitive alone, never at the action that uses it.
+// Miss-analysis: onReorder had no test at any level, and the caret index only at the primitive.
 
-/**
- * Every index answers, and each records the index it was asked for. A merge's change carries
- * `idMap: {0:0}`, so the array itself holds `undefined` where a mounted editor holds a
- * component; this models the mounted document rather than the headless splice.
- */
-function refsAnsweringEverySlot(
-	slots: (BlockComponent | undefined)[],
-	focused: number[]
-): (BlockComponent | undefined)[] {
-	return new Proxy(slots, {
-		get(target, prop, receiver) {
-			if (typeof prop === 'string' && /^\d+$/.test(prop)) {
-				const index = Number(prop);
-				return mockRef({ focus: () => focused.push(index) });
-			}
-			return Reflect.get(target, prop, receiver);
-		}
-	});
-}
-
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source));
-	const focused: number[] = [];
-	const refs = refsAnsweringEverySlot(harness.getBlockRefs(), focused);
-	const deps = new Proxy(harness.deps, {
-		get: (target, prop) => (prop === 'blockRefs' ? refs : Reflect.get(target, prop, target))
-	});
+/** Deps in `mode`, and a controller that records what the edit live region was told. */
+function announcingDeps(source: string, mode: PresentationMode) {
 	const announced: string[] = [];
-	const reorder = createReorderAction(deps, createUndoController(harness.deps), (to, total) =>
-		announced.push(movedBlockToPosition(to + 1, total))
-	);
-	return { doc: harness.doc, reorder, announced, focused };
+	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
+	const controller = createUndoController(harness.deps, (message) => announced.push(message));
+	return { harness, announced, controller };
 }
 
-function makeContainer(source: string) {
-	const harness = makeEditorActionsDeps(parse(source));
+/** The leaves the caret landed in, from the position the move reported, and what the landing did. */
+const landedIn = (harness: { landings: readonly RecordedLanding[] }) => () =>
+	harness.landings.map((landing) => [landing.leafPath, landing.outcome]);
+
+function makeTop(source: string, mode: PresentationMode = 'source') {
+	const { harness, announced, controller } = announcingDeps(source, mode);
+	mountEveryBlock(harness.deps);
+	const reorder = createReorderAction(harness.deps, controller);
+	return { doc: harness.doc, reorder, announced, landed: landedIn(harness) };
+}
+
+function makeContainer(source: string, mode: PresentationMode = 'source') {
+	const { harness, announced, controller } = announcingDeps(source, mode);
 	const node = () => harness.doc.children[0];
-	const state = createBlockListState(node);
-	const focused: number[] = [];
-	const refs = refsAnsweringEverySlot(state.innerBlockRefs, focused);
-	registerBlockListState(
-		node(),
-		new Proxy(state, {
-			get: (target, prop) => (prop === 'innerBlockRefs' ? refs : Reflect.get(target, prop, target))
-		})
-	);
-	const announced: string[] = [];
-	const reorder = createReorderAction(
-		harness.deps,
-		createUndoController(harness.deps),
-		(to, total) => announced.push(movedBlockToPosition(to + 1, total))
-	);
-	return { doc: harness.doc, node, reorder, announced, focused };
+	registerBlockListState(node(), createBlockListState(node));
+	mountEveryBlock(harness.deps);
+	const reorder = createReorderAction(harness.deps, controller);
+	return { doc: harness.doc, node, reorder, announced, landed: landedIn(harness) };
 }
 
 describe('reorder announcement and landing: document scope', () => {
@@ -89,8 +64,8 @@ describe('reorder announcement and landing: document scope', () => {
 
 		await h.reorder.nudgeReorderUnit([1], 1);
 
-		// Index 1 after the merge, and the ref that got there is the moved block's own.
-		expect(h.focused).toEqual([1]);
+		// Index 1 after the merge, where the moved block is now.
+		expect(h.landed()).toEqual([[[1], 'placed']]);
 	});
 
 	it('reports the plain permutation unchanged', async () => {
@@ -101,7 +76,7 @@ describe('reorder announcement and landing: document scope', () => {
 		expect(serialize(h.doc)).toBe('b\n\nc\n\na\n');
 		expect(h.announced).toEqual(['Moved block to position 3 of 3']);
 		// A drop is not a request to edit what was dropped: it focuses nothing.
-		expect(h.focused).toEqual([]);
+		expect(h.landed()).toEqual([]);
 	});
 });
 
@@ -121,6 +96,25 @@ describe('reorder announcement and landing: container scope', () => {
 
 		await h.reorder.nudgeReorderUnit([0, 1], 1);
 
-		expect(h.focused).toEqual([1]);
+		expect(h.landed()).toEqual([[[0, 1], 'placed']]);
+	});
+});
+
+// Reading mode refuses the move commands first; called anyway, the action must announce no move.
+// Miss-analysis: every announcement case wrote; none asked the action about a refused commit.
+describe('a reorder the commit refuses', () => {
+	it.each([
+		['document', () => makeTop('a\n\nb\n', 'reading'), [0]],
+		['container', () => makeContainer('> a\n>\n> b\n', 'reading'), [0, 0]]
+	] as const)('at %s scope resolves false and announces nothing', async (_, make, from) => {
+		const h = make();
+		const before = serialize(h.doc);
+
+		const moved = await h.reorder.moveReorderUnit([...from], 1);
+
+		expect(h.announced).toEqual([]);
+		expect(moved).toBe(false);
+		expect(serialize(h.doc)).toBe(before);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });

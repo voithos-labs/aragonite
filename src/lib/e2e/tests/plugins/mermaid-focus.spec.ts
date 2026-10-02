@@ -90,11 +90,8 @@ test.describe('mermaid whole-block focus', () => {
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
 	});
 
-	// The plugin container's own handling of global chords. No inner block handles them here and
-	// the editor root declines while the box holds focus, so this block is the only thing between
-	// the keypress and the browser's own undo, which would rewrite the document behind the undo
-	// stack. Rebinding proves it reads the consumer's overrides and not just the built-in table:
-	// a consumer's `Mod+Alt+U` reaches every other block and has to reach this one too.
+	// No inner block handles global chords and the editor root declines while the box holds focus, so
+	// the container stands between the key and the browser's own undo; a rebound chord must reach it.
 	test('undo fires while the diagram holds focus, built-in chord and rebind alike', async ({
 		page
 	}) => {
@@ -188,11 +185,8 @@ test.describe('mermaid whole-block focus', () => {
 		expect([doc.texts[0], doc.texts[2]]).toEqual(['Above text', 'tail text']);
 	});
 
-	// The container factory's share of whole-block copying: the gesture is handled once in
-	// handleWholeBlockKeys, so mermaid gets Mod+C and Mod+X like the built-in thematic break,
-	// pinned in clipboard/whole-block-atomic-copy. navigator.clipboard.writeText rewrites line
-	// endings to the operating system's, CRLF on Windows, and the block markdown is written with
-	// LF, so the comparison normalizes to LF.
+	// The container factory handles whole-block Mod+C and Mod+X once, as for the thematic break.
+	// `navigator.clipboard.writeText` writes the OS line ending, so the comparison normalizes to LF.
 	const readClipboardLF = () => editor.readClipboard().then((t) => t.replaceAll('\r\n', '\n'));
 
 	test('Mod+C while focused copies the diagram markdown; the document is unchanged', async ({

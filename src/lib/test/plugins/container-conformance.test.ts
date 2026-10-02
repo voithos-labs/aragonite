@@ -1,17 +1,29 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { augmentBlockKind, declaredPluginKind, type UnwrapRole } from '$lib/plugin';
 import {
-	resetPluginPlatformForTests,
+	augmentBlockKind,
+	declarePluginKind,
+	declaredPluginKind,
+	registerBlockKind,
+	type BlockKindRegistration
+} from '$lib/plugin';
+import {
 	reversedAncestryLeavesRootStale,
 	runContainerConformance,
 	type ContainerConformanceProfile
 } from '$lib/testing';
+import { checkDeclarationSanity } from '$lib/testing/container-conformance';
+import { testClosure } from '$lib/test/support/closure';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { registerGithubAlert } from '$lib/plugins/admonitions/github-alert-kind';
+import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
+import { parse } from '$lib/core/parser';
+import { childHoldingLastLine } from '$lib/schema/container-raw';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// The G4.3 kit pointed at real plugin containers, the audience it is for. Unlike the
-// built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its kinds
-// from the registry, an author opts in explicitly with a profile.
+// The container conformance kit pointed at real plugin containers, the audience it is for.
+// Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
+// kinds from the registry, an author opts in explicitly with a profile.
 
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
@@ -62,7 +74,6 @@ const detailsProfile: ContainerConformanceProfile = {
 
 describe('G4.3 conformance kit: plugin containers', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});
@@ -77,9 +88,10 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'multiScope:exempt',
 			'focusBubble:asserted',
 			'terminatorCollision:asserted',
+			'titleRow:asserted',
 			'declarations:asserted'
 		]);
-		expect(report.cells.find((c) => c.cell === 'multiScope')?.reason).toBe(NO_MULTI_SCOPE_OP);
+		expect(report.cells.find((c) => c.cell === 'multiScope')?.detail).toBe(NO_MULTI_SCOPE_OP);
 	});
 
 	// A second, differently-shaped container (HTML opener, not a `:::` directive)
@@ -93,6 +105,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'ancestry',
 			'focusBubble',
 			'terminatorCollision',
+			'titleRow',
 			'declarations'
 		]);
 	});
@@ -108,7 +121,6 @@ describe('G4.3 conformance kit: plugin containers', () => {
 // nothing, so these break a plugin container on purpose and require the red.
 describe('G4.3 conformance kit: a broken plugin container fails', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});
@@ -125,20 +137,28 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		);
 	});
 
-	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
-		// The cast is the point: a JS plugin can declare an unwrapRole nothing
-		// implements, and the nested Backspace dispatcher indexes it unguarded.
-		augmentBlockKind(CALLOUT_KIND(), {
+	// The cast is the point: a JS plugin can register an unwrapRole nothing implements, and the
+	// nested Backspace dispatcher indexes it unguarded. Augment refuses the field, so it registers.
+	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', () => {
+		const kind = declarePluginKind('unwrap-typo');
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
 			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
 				unwrapRole: {
-					firstChildBackspace: 'no-such-strategy' as UnwrapRole['firstChildBackspace'],
+					firstChildBackspace: 'no-such-strategy',
 					middleChildBackspace: 'default-merge'
 				}
 			}
-		});
+		} as unknown as BlockKindRegistration);
 
-		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
-			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/
+		expect(() => checkDeclarationSanity(kind, calloutProfile)).toThrow(
+			/unwrap-typo first-child unwrap strategy "no-such-strategy" is implemented/
 		);
 	});
 
@@ -155,7 +175,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 
 	// `bodyWrite` exists only to repair a terminator collision, so a profile excusing that
 	// cell ships the repair unchecked behind a reason that reads as if it were reviewed.
-	it('fails declaration sanity when bodyWrite ships with an excused terminatorCollision cell', async () => {
+	it('fails terminatorCollision when bodyWrite ships with the cell excused', async () => {
 		await expect(
 			runContainerConformance(DETAILS_KIND(), {
 				...detailsProfile,
@@ -164,7 +184,21 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 					reason: 'red-test bait: excusing the one cell that drives the bodyWrite repair'
 				}
 			})
-		).rejects.toThrow(/declarations: details declares container\.bodyWrite/);
+		).rejects.toThrow(/terminatorCollision: details declares container\.bodyWrite/);
+	});
+
+	// Miss-analysis: only the bodyWrite branch of the excused-collision check had a case, so an
+	// opaque container excusing the cell passed once that branch was dropped.
+	it('fails terminatorCollision when an opaque container excuses it', async () => {
+		await expect(
+			runContainerConformance(CALLOUT_KIND(), {
+				...calloutProfile,
+				terminatorCollision: {
+					mode: 'exempt',
+					reason: 'red-test bait: an opaque container claiming its terminator cannot collide'
+				}
+			})
+		).rejects.toThrow(/terminatorCollision: callout is an opaque container/);
 	});
 
 	// The bodyWrap check reads the descriptor's own fixture, so a container with none
@@ -177,9 +211,8 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		);
 	});
 
-	// Miss-analysis (#78): the broken-container suite exercised every fail() branch of the
-	// bodyWrap check but never its early return, so the silent skip of a nested fixture had no
-	// failing case. Callout is the hardest pick: its recognizer is the shared ::: opener.
+	// Miss-analysis: no case hit the bodyWrap check's early return on a nested fixture (GH #78).
+	// Callout is the hardest pick: its recognizer is the shared `:::` opener.
 	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
 
@@ -197,6 +230,41 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 			/declarations: callout declares container\.contentStartSpace/
 		);
 	});
+
+	// The title row sits on the opener line, so naming it walks the open last line into the wrong one.
+	it('fails declaration sanity when lastLineChild names a child above the last line', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { container: { lastLineChild: () => 0 } });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout names child 0 as holding its last line/
+		);
+	});
+
+	// A quote-shaped alert's last child holds its last line, so a -1 answer leaves that child's
+	// ending behind when the file loses its final line break.
+	it('fails declaration sanity when lastLineChild answers -1 for a child’s line', () => {
+		registerGithubAlert();
+		const alert = declaredPluginKind(GITHUB_ALERT);
+		augmentBlockKind(alert, { container: { lastLineChild: () => -1 } });
+
+		expect(() =>
+			checkDeclarationSanity(alert, {
+				...calloutProfile,
+				deepNesting: { source: '> [!NOTE]\n> a\n>\n> b\n', leafPath: [0, 1] }
+			})
+		).toThrow(/githubAlert answers that its own bytes hold its last line/);
+	});
+
+	it.each([7, -2, 0.5])(
+		'reads a lastLineChild answer of %s as the container’s own bytes, and warns',
+		(answer) => {
+			augmentBlockKind(CALLOUT_KIND(), { container: { lastLineChild: () => answer } });
+			const callout = parse(':::callout T\nbody\n:::\n').children[0];
+
+			expect(childHoldingLastLine(callout)).toBe(-1);
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:last-line-child-range']);
+		}
+	);
 
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(

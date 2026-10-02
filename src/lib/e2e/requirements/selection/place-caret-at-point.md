@@ -23,6 +23,12 @@ its release, the drag release, a live native range) is in `dead-space-click.md`.
 
 ## Edge cases
 
+- In live mode, a point below a long document whose last block is windowed out and ends in
+  `**a**`: the editor mounts that block and lands at its end on the outside of the hidden `**`,
+  so a typed `x` gives `**a**x`, the same as a point below a mounted end.
+  - Miss-analysis: the windowed-out tail was only unit-tested with stub blocks, and no scenario
+    here ran in live mode, where the side of a hidden closer is the whole difference.
+
 - A point below a document ending in a thematic break returns `false` and focuses no
   block: a rule holds no character position, and a false answer leaves the shell free
   to do something else with the click.

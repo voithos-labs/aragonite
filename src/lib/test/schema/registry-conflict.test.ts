@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
@@ -18,6 +18,7 @@ import {
 import { registerCommand, getCommand } from '$lib/schema/commands';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const minimal = {
 	gapEdges: 'none',
@@ -30,8 +31,6 @@ const minimal = {
 // Guard fires on registry.has before the entry is read, so a stub entry is enough.
 const stubComponent = {} as BlockComponentEntry;
 const stubOpener: BlockOpener = { priority: 999, tryOpen: () => null, interruptsParagraph: false };
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('schema registries are register-once', () => {
 	it('registerBlockKind throws on a built-in re-registration', () => {
@@ -71,12 +70,11 @@ describe('__resetSchemaRegistriesForTests', () => {
 		__resetSchemaRegistriesForTests();
 
 		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
-		expect(getBlockComponent(kind)).toBeUndefined();
+		expect(getBlockComponent(kind, everyInstalledPlugin)).toBeUndefined();
 		expect(listRegisteredOpeners().some((o) => o.kind === kind)).toBe(false);
 
-		// Built-ins survive the reset.
 		expect(getBlockKindDescriptor('paragraph')).toBeDefined();
-		expect(getCommand('history.undo')).toBeDefined();
+		expect(getCommand('history.undo', everyInstalledPlugin)).toBeDefined();
 
 		// Declared-kind set cleared, so the name is re-declarable.
 		expect(() => declarePluginKind('ephemeral-kind')).not.toThrow();

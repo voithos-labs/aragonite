@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-//
 // The placement behind the public `placeCaretAtPoint`: no click was recorded and no target
-// inspected, so what is decidable here is the clamp, the landing, and the range-ending reset.
+// inspected, so this suite covers the clamp, where the caret goes, and the range-ending reset.
 // The click checks in front of it are `dead-space-caret-routing.test.ts`.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
@@ -9,10 +8,9 @@ import { CURSOR_END } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret, type DeadSpaceCaretDeps } from '$lib/selection/dead-space-caret';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { makeEmptyGapScope } from '../harness/editor-actions';
 import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
-import { makeEdgeAffinity } from '../harness/editor-actions';
 import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
@@ -26,6 +24,8 @@ describe('placeCaretAtPoint landing walk', () => {
 	let component: BlockComponent;
 	let focusByPath: Mock<(path: number[], offset: number) => void>;
 	let leafSnap: Mock<(x: number, y: number) => void>;
+	// The cell a path inside the table names.
+	let leaf: BlockComponent;
 	let resetSelectionForClick: Mock<() => void>;
 	const origFromPoint = document.elementFromPoint;
 
@@ -34,7 +34,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		const { host, grid } = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
 		root.appendChild(host);
-		// The probe point is clamped into the box, where the topmost element is the grid.
+		// The point is clamped into the box, where the topmost element is the grid.
 		document.elementFromPoint = (() => grid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
@@ -44,9 +44,9 @@ describe('placeCaretAtPoint landing walk', () => {
 			focusable: true,
 			focus: vi.fn(),
 			getCursorOffset: () => null,
-			focusByPath,
-			getBlockComponentByPath: () => ({ snapCaretToPoint: leafSnap }) as unknown as BlockComponent
+			focusByPath
 		} as unknown as BlockComponent;
+		leaf = { snapCaretToPoint: leafSnap } as unknown as BlockComponent;
 		resetSelectionForClick = vi.fn(() => {});
 	});
 
@@ -62,11 +62,11 @@ describe('placeCaretAtPoint landing walk', () => {
 		reset: () => void = resetSelectionForClick
 	) {
 		return createDeadSpaceCaret({
-			getBlockComponent: () => component,
+			getBlockComponent: (path) => (path.length > 1 ? leaf : component),
 			resetSelectionForClick: reset,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,
-			revealBlock: async () => component,
+			land: async () => 'placed',
 			...overrides
 		});
 	}
@@ -81,9 +81,8 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(resetSelectionForClick).toHaveBeenCalledOnce();
 	});
 
-	// A point outside the block's box reaches an editable element only because it is clamped
-	// into the box first, and the element is handed the clamped point, the one a click inside
-	// the box would have produced. Both axes, since the margin band runs beside and above the text.
+	// A margin point reaches an editable element only once clamped into the block's box, and the
+	// element gets that clamped point. Both axes, since the margin band runs beside and above.
 	it('clamps a point in the margin band into the block’s own box', () => {
 		expect(placeAt(20, TABLE_BOX.top + 20)).toBe(true);
 		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
@@ -102,27 +101,28 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(focusByPath).toHaveBeenCalledWith([0, 1], CURSOR_END);
 	});
 
-	// Miss-analysis: the below-document case above only ever ran with the whole document
-	// mounted, so "last mounted band" and "last block" were the same index and no test could
-	// tell which one the walk read.
+	// Miss-analysis: the below-document case only ran fully mounted, where last band = last block.
 	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
-		const tail = { editable: true, focusable: true, focus: vi.fn() } as unknown as BlockComponent;
-		const revealBlock = vi.fn(async () => tail);
-		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock });
+		const land = vi.fn(async () => 'placed' as const);
+		const caret = makeCaret({ lastBlockIndex: () => 9, land });
 
 		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
 
-		await vi.waitFor(() => expect(tail.focus).toHaveBeenCalledWith(CURSOR_END));
-		expect(revealBlock).toHaveBeenCalledWith(9);
-		// The rendered slice's own last block is never touched — that landing is the defect.
+		await vi.waitFor(() => expect(land).toHaveBeenCalledWith({ path: [9], offset: CURSOR_END }));
+		// The rendered slice's own last block is never touched; a caret there is the defect.
 		expect(focusByPath).not.toHaveBeenCalled();
 	});
 
-	it('leaves the selection alone while a reveal that resolves nothing focusable is in flight', async () => {
-		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock: async () => null });
-		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
-		await Promise.resolve();
-		expect(resetSelectionForClick).not.toHaveBeenCalled();
+	// Miss-analysis: the click's reset ran after the tail's caret was placed, and forgot the side
+	// the end landing had just recorded; no test read the order.
+	it('resets the selection before the tail landing, so the side the landing records survives', async () => {
+		const order: string[] = [];
+		const land = vi.fn(async () => (order.push('land'), 'placed' as const));
+		const caret = makeCaret({ lastBlockIndex: () => 9, land }, () => order.push('reset'));
+
+		caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000);
+
+		await vi.waitFor(() => expect(order).toEqual(['reset', 'land']));
 	});
 
 	it('returns false when the point resolves nothing focusable', () => {
@@ -144,10 +144,10 @@ describe('placeCaretAtPoint landing walk', () => {
 
 		beforeEach(() => {
 			selection = createSelectionState();
-			const stickyColumn = createStickyColumnState();
+			const caretMemory = createCaretMemory();
 			// The real reset, not a spy: what this case asserts is the selection's fate, and a spy
 			// would pass on a call that ends nothing.
-			endRange = () => resetForPointerDown(selection, stickyColumn, makeEdgeAffinity(), false);
+			endRange = () => resetForPointerDown(selection, caretMemory, false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});
 

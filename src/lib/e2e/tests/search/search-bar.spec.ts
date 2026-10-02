@@ -75,6 +75,65 @@ test.describe('search: open and close', () => {
 	});
 });
 
+test.describe('search: closing returns to the caret', () => {
+	const LONG =
+		Array.from({ length: 45 }, (_, i) =>
+			i === 42 ? 'The zebra lives far below.' : `Line ${i} with some words on it.`
+		).join('\n\n') + '\n';
+
+	test('Esc after stepping to a far match scrolls back to the caret, and typing lands there', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(LONG);
+		const home = page.locator("[data-block-path='[12]']");
+		await home.locator('[contenteditable="true"]').click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('ControlOrMeta+f');
+		await findInput(page).waitFor({ state: 'visible' });
+		await typeQuery(editor, 'zebra');
+		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
+		await page.keyboard.press('Enter');
+		await expect(home).not.toBeInViewport();
+
+		await page.keyboard.press('Escape');
+		await expect(findInput(page)).toHaveCount(0);
+		await expect(home).toBeInViewport();
+
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('Line 12 with some words on it.x');
+	});
+
+	test('Esc after a match so far away that the caret’s block left the window still puts it back', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(
+			Array.from({ length: 200 }, (_, i) =>
+				i === 190 ? 'The zebra lives far below.' : `Line ${i} with some words on it.`
+			).join('\n\n') + '\n'
+		);
+		const home = page.locator("[data-block-path='[1]']");
+		await home.locator('[contenteditable="true"]').click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('ControlOrMeta+f');
+		await findInput(page).waitFor({ state: 'visible' });
+		await typeQuery(editor, 'zebra');
+		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
+		await page.keyboard.press('Enter');
+		await expect(home).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(findInput(page)).toHaveCount(0);
+		await expect(home).toBeInViewport();
+
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('Line 1 with some words on it.x');
+	});
+});
+
 test.describe('search: toggles', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {

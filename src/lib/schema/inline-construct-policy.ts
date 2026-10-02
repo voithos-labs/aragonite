@@ -1,18 +1,19 @@
 /**
  * Per-inline-kind editing policy: how a construct behaves at its edges, whether emptying it
  * unwraps it, how a split treats its markers, whether preview-inline may show its markers, and
- * what a format chord writes for it. It lives in `schema/` because that is the only directory
- * `tree-operations`, `selection`, `components` and `core/inline` can all import. The rows are
- * data; the split rebalancer is a function the component layer registers, so this file never
- * imports it.
+ * what a format chord writes for it. The rows are data; the live split and join rewrites are
+ * functions the component layer registers here.
  */
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
+import type { Reading } from './reading';
+import type { StoredAs } from './stored-as';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
-import { deletePluginEntries, registerOnce } from './register-once';
+import { registerOnce } from './register-once';
+import { everyInstalledPlugin } from './plugin-activation';
+import { createInlineKindRegistry } from './plugin-registry';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -43,15 +44,27 @@ export interface InlineConstructPolicy {
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
 	revealable: boolean;
-	/** Whether the link card is how this construct's destination is edited, the only way left in a
-	 *  mode that shows the user no URL (live-mode.md § 4.6). Absent reads as no: an image's
-	 *  destination has its own editor, and an autolink's destination is the text on screen. */
+	/** Whether the link card edits this construct's destination, the only way in a mode that hides
+	 *  the URL (`docs/design/live-mode.md` § 4.6 The link card). Absent reads as no. */
 	cardEditable?: boolean;
 	/** Absent for a construct no format chord addresses. */
 	mark?: InlineMarkPolicy;
+	/**
+	 * How much of the construct is prose, where a trigger such as `#` may open the inline menu.
+	 * Absent reads as `'all'`, or `'none'` for an inline widget kind.
+	 */
+	prose?: InlineProseExtent;
 }
 
-const policies = new Map<AnyInlineKind, InlineConstructPolicy>();
+export type InlineProseExtent = 'none' | 'content' | 'all';
+
+// Read with no editor at hand: a row matters only for a node of its kind, and only an editor
+// that activated the kind's plugin parses one, so the rows answer for every installed plugin.
+const policies = createInlineKindRegistry<InlineConstructPolicy>({
+	label: 'registerInlineConstructPolicy',
+	isBuiltin: isBuiltinInlineKind
+});
+const policyOf = (kind: AnyInlineKind) => policies.get(kind, everyInstalledPlugin);
 
 export function registerInlineConstructPolicy(
 	kind: AnyInlineKind,
@@ -59,15 +72,15 @@ export function registerInlineConstructPolicy(
 ): void {
 	assertMarkCommandMintable(kind, policy.mark);
 	assertCardImpliesRevealable(kind, policy);
-	registerOnce(
-		policies.has(kind),
-		() => policies.set(kind, policy),
+	policies.register(
+		kind,
+		policy,
 		`registerInlineConstructPolicy: "${kind}" is already registered. Policies are register-once.`
 	);
 }
 
 /** Runs before the register-once check, so it throws in every environment: that check forgives a
- *  duplicate row, never an invalid one. G1.31 states the rule and still backs it up. */
+ *  duplicate row, never an invalid one. */
 function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy | undefined): void {
 	if (!mark || isBuiltinInlineKind(kind) || !isBuiltinCommandId(mark.command)) return;
 	throw new Error(
@@ -75,9 +88,8 @@ function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy |
 	);
 }
 
-/** The code that opens the card reaches only revealable kinds (`link-at-point.ts`), so a row that
- *  asks for the card without `revealable` asks for something that can never open. Thrown here
- *  rather than left as a silent no-op at the click. */
+/** The card opens only on revealable kinds (`link-at-point.ts`), so a row asking for it without
+ *  `revealable` throws here rather than failing silently at the click. */
 function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstructPolicy): void {
 	if (!policy.cardEditable || policy.revealable) return;
 	throw new Error(
@@ -87,23 +99,23 @@ function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstruc
 
 /** Undefined for a kind with no row: absent means "no live-mode construct behavior at all". */
 export function getInlineConstructPolicy(kind: AnyInlineKind): InlineConstructPolicy | undefined {
-	return policies.get(kind);
+	return policyOf(kind);
 }
 
 /** Whether the preview-inline mode may show this kind's markers. */
 export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
-	return policies.get(kind)?.revealable === true;
+	return policyOf(kind)?.revealable === true;
 }
 
 /** Whether the link card may address this kind's destination. */
 export function isCardEditableInlineKind(kind: AnyInlineKind): boolean {
-	return policies.get(kind)?.cardEditable === true;
+	return policyOf(kind)?.cardEditable === true;
 }
 
 export function listInlineConstructPolicies(): readonly (InlineConstructPolicy & {
 	kind: AnyInlineKind;
 })[] {
-	return [...policies].map(([kind, policy]) => ({ kind, ...policy }));
+	return policies.entries(everyInstalledPlugin).map(([kind, policy]) => ({ kind, ...policy }));
 }
 
 // ── The mark vocabulary ─────────────────────────────────────────────────────
@@ -111,7 +123,7 @@ export function listInlineConstructPolicies(): readonly (InlineConstructPolicy &
 /** A kind's mark policy, or undefined for a kind no chord addresses. The toggle paths check this
  *  before writing any delimiter. */
 export function getInlineMarkPolicy(kind: AnyInlineKind): InlineMarkPolicy | undefined {
-	return policies.get(kind)?.mark;
+	return policyOf(kind)?.mark;
 }
 
 export interface InlineMark {
@@ -123,11 +135,13 @@ export interface InlineMark {
  *  second lookup that could miss. */
 export function listInlineMarks(): readonly InlineMark[] {
 	const marks: InlineMark[] = [];
-	for (const [kind, policy] of policies) if (policy.mark) marks.push({ kind, mark: policy.mark });
+	for (const [kind, policy] of policies.entries(everyInstalledPlugin)) {
+		if (policy.mark) marks.push({ kind, mark: policy.mark });
+	}
 	return marks.sort((a, b) => a.mark.nestingRank - b.mark.nestingRank);
 }
 
-/** The mark a command toggles, or null when no row claims that command. */
+/** The mark a command toggles, or null when no row names that command. */
 export function inlineMarkForCommand(command: string): InlineMark | null {
 	return listInlineMarks().find((entry) => entry.mark.command === command) ?? null;
 }
@@ -135,23 +149,16 @@ export function inlineMarkForCommand(command: string): InlineMark | null {
 // ── Split rebalancer ────────────────────────────────────────────────────────
 
 /**
- * The link-reference resolver a rewrite parses with, typed structurally rather than by naming
- * `editor-keys`' type, which would pull the editor's context module into every module this table
- * serves (`inline-cache` gives the same reason). Registration is process-wide while the resolver
- * belongs to one editor, so it is passed on each call, never at registration.
- */
-export type InlineResolverRef = { current?: LinkReferenceResolver; signature?: string };
-
-/**
  * The one live-mode split rewrite, consulting each construct's own `splitBehavior`, so
  * `splitNode` needs neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
+ * Registration is process-wide, so the editor's reading is passed on each call.
  */
 export type LiveSplitRebalancer = (
 	node: NodeView,
 	offset: number,
 	firstRaw: string,
 	secondRaw: string,
-	linkRef: InlineResolverRef | undefined
+	reading: Reading
 ) => { firstRaw: string; secondRaw: string } | null;
 
 let splitRebalancer: LiveSplitRebalancer | undefined;
@@ -184,17 +191,12 @@ export interface JoinSeam {
 	seam: number;
 	start: JoinEndpoint;
 	end: JoinEndpoint;
-	/** Belongs to one editor, so it is passed on the call: a reference link parsed without it reads
-	 *  as plain brackets, and the cleanup would skip a construct the user saw as a link. */
-	linkRef: InlineResolverRef | undefined;
-	/** Text the caller will insert at the join once the cleanup returns. Absent for a plain delete;
-	 *  when present it is part of the bytes the cleanup has to check, since typed text changes what
-	 *  a surviving delimiter pairs against. */
-	typed?: string;
-	/** The container's marker prefix the surviving side sits under (`- `, `> `). Absent where the
-	 *  block has none. The result is parsed back through it: an item's body starting with a space
-	 *  would otherwise reparse under a wider marker than the tree holds. */
-	ambientPrefix?: string;
+	/** Text the caller will insert at the join after the cleanup, `''` for a plain delete. The
+	 *  cleanup checks it too, since typed text changes what a surviving delimiter pairs against. */
+	typed: string;
+	/** Where the joined bytes will be stored, with the editor's reading: the cleanup reads each
+	 *  candidate back there, a list item's marker line or a cell's text included. */
+	store: StoredAs;
 }
 
 /** The bytes a cleanup wrote and where the two sides now meet in them: dropping characters from
@@ -223,12 +225,6 @@ export function registerLiveJoinSeamCleaner(cleaner: LiveJoinSeamCleaner): void 
 
 export function getLiveJoinSeamCleaner(): LiveJoinSeamCleaner | undefined {
 	return joinSeamCleaner;
-}
-
-/** Test-only. Drops every plugin-registered row; built-in rows and the rebalancer stay, being
- *  built-in registrations. */
-export function __resetInlineConstructPoliciesForTests(): void {
-	deletePluginEntries(policies, isBuiltinInlineKind);
 }
 
 /** Test-only, and separate on purpose: only a suite testing this one function wants it cleared,

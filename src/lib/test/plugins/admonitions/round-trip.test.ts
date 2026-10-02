@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import type { AdmonitionMetadata } from '$lib/plugins/admonitions/kinds';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -33,6 +33,16 @@ describe('admonition round-trip (registered)', () => {
 		expect(node.children?.[0].kind).toBe('admonition-title');
 		expect(node.children?.[0].raw).toBe('Pro tip\n');
 		expect(node.children?.[1].kind).toBe('paragraph');
+	});
+
+	// Miss-analysis: every title was spaced with ASCII, never a typed non-breaking space.
+	it('trims Markdown whitespace off the title and keeps a non-breaking space', () => {
+		expect(parse(':::tip \tPro tip\t\nBody.\n:::\n').children[0].children?.[0].raw).toBe(
+			'Pro tip\n'
+		);
+		expect(parse(':::tip\u00a0Pro tip\nBody.\n:::\n').children[0].children?.[0].raw).toBe(
+			'\u00a0Pro tip\n'
+		);
 	});
 
 	it('gives an untitled admonition an empty title leaf', () => {

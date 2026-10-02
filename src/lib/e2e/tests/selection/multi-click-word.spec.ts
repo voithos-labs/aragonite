@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { nativeSelectionText, pastLineEnd, runCenter } from './multi-click-helpers';
+import { nativeSelectionText, pastLineEnd } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
 // The word level of the click order (`requirements/selection/multi-click-word.md`), driven with
 // real double-clicks on the plugins page so a rendered formula stands beside the word.
@@ -14,7 +15,7 @@ test.describe('multi-click: the word inline syntax handler', () => {
 	});
 
 	async function doubleClickOn(needle: string): Promise<void> {
-		const at = await runCenter(editor.page, needle);
+		const at = await textRunCenter(editor.page, needle);
 		await editor.page.mouse.dblclick(at.x, at.y);
 	}
 

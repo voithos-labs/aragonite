@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
-//
-// ListBlock is the one container that renders its children through an `{#each}` of its own
-// rather than a BlockList, so it does the slice arithmetic itself: every item's index, path and
-// key is `bounds.start + localIndex`, and only a window with a nonzero start tells that apart
-// from the loop index. jsdom has no layout, so the windowed cases stub the two measurements
-// scroll position is mapped through, the same trade `mount-table.ts` makes for caret rects.
+// ListBlock renders its items through its own `{#each}` rather than a BlockList, so every item's
+// index, path and key is `bounds.start + localIndex`, which only a window with a nonzero start
+// tells apart from the loop index. jsdom has no layout, so the windowed cases stub the two
+// measurements the scroll position is mapped through.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import ListBlock from '$lib/components/blocks/list/ListBlock.svelte';
 import { CURSOR_END } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
-import { installLayoutStubs } from '../editor-mount';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { componentAt } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -84,8 +83,8 @@ describe('list renders its items', () => {
 		expect(mounted.spacers()).toEqual([]);
 	});
 
-	// The marker belongs to the item's own bytes, so renumbering is the parser's business; what
-	// this checks is that the each-block emits them in source order rather than renumbering.
+	// The marker is part of the item's own bytes, so the list renders it as written, in source
+	// order, and never renumbers.
 	it('renders ordered markers in source order, from the list start number', () => {
 		mounted = mountList('3. gamma\n4. delta\n5. epsilon\n');
 
@@ -109,11 +108,11 @@ describe('list renders its items', () => {
 	it('resolves the addressed item, not merely the first one', () => {
 		mounted = mountList('- alpha\n- beta\n');
 
-		const second = mounted.instance.containerApi.getBlockComponentByPath([1, 0]);
+		const second = componentAt(mounted.instance.containerApi.childList(), [1, 0]);
 
 		expect(second?.getCursorOffset).toBeDefined();
-		expect(second).not.toBe(mounted.instance.containerApi.getBlockComponentByPath([0, 0]));
-		expect(mounted.instance.containerApi.getBlockComponentByPath([2])).toBeNull();
+		expect(second).not.toBe(componentAt(mounted.instance.containerApi.childList(), [0, 0]));
+		expect(componentAt(mounted.instance.containerApi.childList(), [2])).toBeNull();
 	});
 });
 

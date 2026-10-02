@@ -37,9 +37,8 @@ test.describe('per-block error boundary', () => {
 
 	test('undo restoring healthy bytes retries the render on the same instance', async ({ page }) => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
-		// An undoable edit to the block that is then broken, so one undo restores both the good
-		// bytes and the paragraph kind in the same mounted block: a short document never
-		// unmounts it, so the error boundary cannot recover on its own.
+		// An undoable edit to the block that then breaks, so one undo restores the bytes and the kind
+		// in the same mounted block, which a short document never unmounts for the boundary to recover.
 		await editor.clickBlock(1);
 		await editor.typeText('X');
 		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));

@@ -2,9 +2,8 @@ import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 
-// Rule-id-level ratchet: a violation whose rule id is not in the committed allowlist fails
-// the gate, and the allowlist only shrinks. Fails CLOSED — a missing or unparseable file
-// throws here rather than waiving everything.
+// A violation whose rule id is not in the committed allowlist fails the check, and the list only
+// shrinks. A missing or unparseable allowlist throws here rather than waiving everything.
 const baseline = JSON.parse(
 	readFileSync(new URL('./axe-baseline.json', import.meta.url), 'utf-8')
 ) as { allow: { id: string }[] };

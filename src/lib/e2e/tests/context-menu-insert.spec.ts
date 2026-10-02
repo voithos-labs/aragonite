@@ -29,6 +29,19 @@ test.describe('right-click menu: Insert block', () => {
 		expect(await editor.bridge.getSource()).toBe('first\n\n```\n\n```\n\nsecond\n');
 	});
 
+	test('one Ctrl+Z takes the inserted block and its paragraph back together', async ({ page }) => {
+		const before = 'first\n\nsecond\n';
+		await editor.loadContent(before);
+		await page.getByText('first').click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert block' }).hover();
+		await page.getByRole('menuitem', { name: 'Code block' }).click();
+		await editor.bridge.waitForSourceEquals('first\n\n```\n\n```\n\nsecond\n');
+		await editor.waitForRenderFlush();
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+	});
+
 	test('a nested block and a table cell get no Insert block row', async ({ page }) => {
 		await editor.loadContent('- item text\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		await page.getByText('item text').click({ button: 'right' });
@@ -36,7 +49,7 @@ test.describe('right-click menu: Insert block', () => {
 		await expect(page.getByRole('menuitem', { name: 'Insert block' })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: 'Insert block' })).toHaveCount(0);
 	});

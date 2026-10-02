@@ -1,7 +1,7 @@
 // A scope `path` that does not address its `node` must bail, not fall back to the caller's
 // never-copied node: the splice would land on the node the snapshot shares and silently
-// corrupt the newest undo entry (G1.19 and G1.22 are dev-only warnings). Its sibling
-// (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach instead.
+// corrupt the newest undo entry, which the dev warnings don't catch in production. The
+// keystroke's in-place write (`leaf-write.ts`) likewise writes nothing on a too-short path.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -11,18 +11,19 @@ import type { MultiScopeTarget } from '$lib/action-contracts';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem } from '$lib/test/harness/list-fixtures';
+import { asDocPath } from '$lib/selection/path-math';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);
 	const controller = createUndoController(deps);
 	const state = makeBlockListState(() => deps.doc.children[0]);
 	// A pushed snapshot is what makes the live node shared, so a write through it corrupts history.
-	controller.pushUndoSnapshot(0, 0);
+	deps.undoManager.push(controller.captureCurrentState());
 	const scopes: MultiScopeTarget[] = [{ node: deps.doc.children[0], state, path: scopePath }];
-	const commit = (): Promise<void> =>
+	const commit = (): Promise<boolean> =>
 		controller.commitMultiScope({
 			scopes,
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: scope.children.length - 1, count: 1 }];
@@ -32,8 +33,8 @@ function harness(scopePath: number[]) {
 }
 
 describe('commitMultiScope bails on a scope path that ran off the tree', () => {
-	// [99]: the whole walk misses. [0, 99]: the walk stops partway, so the fallback handed
-	// over the ancestor, the same bug one level less obvious.
+	// [99]: the whole walk misses. [0, 99]: the walk stops partway, where a fallback would
+	// hand over the ancestor instead.
 	for (const scopePath of [[99], [0, 99]]) {
 		it(`writes nothing through the shared tree for path [${scopePath.join(',')}]`, async () => {
 			const { deps, commit } = harness(scopePath);

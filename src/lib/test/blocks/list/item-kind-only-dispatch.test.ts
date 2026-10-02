@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
-//
-// Tab reaches a list item by bubbling: the inner paragraph declines it without calling
-// `preventDefault`, so the item's box is the second thing to see a key still travelling. That is
-// why the item dispatches kind commands only: resolving global ones here would re-run the chords
-// the focused block owns, undo among them. `dispatchKindCommand`'s own tests show it returns
-// false; what only a mount shows is what false means here: no `preventDefault`, and a
-// `ListContext` nothing touched.
+// Tab reaches a list item by bubbling after the inner paragraph declines it, so the item
+// dispatches only its kind's commands: resolving global ones would re-run chords the focused
+// block already owns, undo among them. A declined key keeps `defaultPrevented` false and leaves
+// the `ListContext` untouched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '../editor-mount';
-import { mountItem, pressOn, type MountedItem } from './mount-item';
+import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { mountItem, type MountedItem } from './mount-item';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { dispatchKey } from '$lib/test/harness/settle';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -26,20 +24,20 @@ afterEach(async () => {
 });
 
 describe('a list item claims its own kind chords and nothing else', () => {
-	// The control. Both cases below say "nothing took this key", and without a key that is
-	// taken on the same box, deleting the handler would leave them passing.
+	// The control: the cases below assert that nothing took the key, which a deleted handler
+	// would also pass.
 	it('claims the chords its kind declares', () => {
 		mounted = mountItem(NESTABLE, 1);
 
-		expect(pressOn(mounted.content, { key: 'Tab' })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab' }).defaultPrevented).toBe(true);
 		expect(mounted.listContext.indentItem).toHaveBeenCalledWith(1);
 
-		expect(pressOn(mounted.content, { key: 'Tab', shiftKey: true })).toBe(true);
+		expect(dispatchKey(mounted.content, { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(
+			true
+		);
 		expect(mounted.listContext.unindentItem).toHaveBeenCalledWith(1);
 	});
 
-	// Why only kind commands are dispatched here: were global ones resolved too, these
-	// chords would run here as well as at the focused block.
 	it('leaves the global chords to the leaf that already owns them', () => {
 		mounted = mountItem(NESTABLE, 1);
 
@@ -49,19 +47,18 @@ describe('a list item claims its own kind chords and nothing else', () => {
 			{ key: 'y', ctrlKey: true },
 			{ key: 'b', ctrlKey: true }
 		]) {
-			expect(pressOn(mounted.content, init)).toBe(false);
+			expect(dispatchKey(mounted.content, init).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 		expect(mounted.listContext.unindentItem).not.toHaveBeenCalled();
 	});
 
-	// `eventToChord` returns null for a modifier being held. A second copy of this set is how
-	// CapsLock once slipped through and cleared the sticky column.
+	// `eventToChord` returns null for a held modifier, CapsLock included, so the item takes none.
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountItem(NESTABLE, 1);
 
 		for (const key of ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock']) {
-			expect(pressOn(mounted.content, { key })).toBe(false);
+			expect(dispatchKey(mounted.content, { key }).defaultPrevented).toBe(false);
 		}
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});
@@ -72,7 +69,7 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		mounted = mountItem(NESTABLE, 1);
 		mounted.content.addEventListener('keydown', (e) => e.preventDefault(), { capture: true });
 
-		pressOn(mounted.content, { key: 'Tab' });
+		dispatchKey(mounted.content, { key: 'Tab' });
 
 		expect(mounted.listContext.indentItem).not.toHaveBeenCalled();
 	});

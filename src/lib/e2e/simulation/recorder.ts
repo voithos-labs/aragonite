@@ -15,10 +15,9 @@ export interface ManifestEntry {
 }
 
 /**
- * Pairs a screenshot with the known editor state at each checkpoint, so a later reviewer can
- * judge what looks broken against the recorded source. The run directory is named after the
- * seed with no timestamp, so the files are reproducible too, and it sits outside
- * `test-results/`, which Playwright wipes at the start of every run.
+ * Pairs a screenshot with the editor state at each checkpoint, for a reviewer to judge against
+ * the recorded source. The run directory is named after the seed, with no timestamp, and sits
+ * outside `test-results/`, which Playwright wipes at the start of every run.
  */
 export class Recorder {
 	private readonly entries: ManifestEntry[] = [];
@@ -32,8 +31,7 @@ export class Recorder {
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		const index = this.entries.length;
 		const screenshot = `${pad(index)}-${label}.png`;
-		// Let any pending render and layout finish before the screenshot, so the captured
-		// frame shows the settled state rather than one mid-change.
+		// Lets pending render and layout finish, so the frame is not caught mid-change.
 		await this.editor.waitForRenderFlush();
 		// The full page, not just the viewport: a long note runs off screen, and the visual
 		// review needs the whole document at each checkpoint.
@@ -41,11 +39,11 @@ export class Recorder {
 			path: `${this.runDir}/${screenshot}`,
 			fullPage: true
 		});
-		const [expectedSource, cstDump, selection, undoStack] = await Promise.all([
+		const [expectedSource, cstDump, selection, undoDepth] = await Promise.all([
 			this.editor.bridge.getSource(),
 			this.page.evaluate(() => (window as any).__test.dumpTree()),
 			this.page.evaluate(() => (window as any).__test.dumpSelection()),
-			this.page.evaluate(() => (window as any).__test.dumpUndoStack())
+			this.editor.bridge.getUndoDepth()
 		]);
 		this.entries.push({
 			index,
@@ -54,7 +52,7 @@ export class Recorder {
 			expectedSource,
 			cstDump,
 			selection,
-			undoDepth: parseUndoDepth(undoStack),
+			undoDepth,
 			screenshot
 		});
 	}
@@ -73,9 +71,4 @@ export function runDirForSeed(seed: number): string {
 
 function pad(n: number): string {
 	return String(n).padStart(2, '0');
-}
-
-function parseUndoDepth(dump: string): number {
-	const match = /undo-depth=(\d+)/.exec(dump);
-	return match ? Number(match[1]) : 0;
 }

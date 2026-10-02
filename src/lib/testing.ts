@@ -1,24 +1,17 @@
 // The plugin-testing API, published at the `@voithos-labs/aragonite/testing` subpath. For test
 // processes only, and nothing here may import a test runner: the kits run inside an author's
-// own case, so failures come back as plain `Error`s. The registries register once with no way
-// to unregister (docs/contributing/casebook.md), so every registration reachable from
-// `@voithos-labs/aragonite/plugin` must wire its reset into the combined reset below.
+// own case, so failures come back as plain `Error`s.
 
 import { editorEnv } from './env';
 import { __resetSchemaRegistriesForTests } from './schema/registry-reset';
-import { __resetPasteSurfacesForTests } from './tree-operations/paste-surfaces';
-import { __resetPasteTransformsForTests } from './tree-operations/paste/paste-transforms';
-import { __resetInlineSyntaxForTests } from './core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from './core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from './schema/plugin-kind';
-import { __resetDirectiveRegistryForTests } from './core/directive/registry';
+import { activationFor, everyInstalledPlugin } from './schema/plugin-activation';
+import { applyPasteTransforms as runPasteTransforms } from './tree-operations/paste/paste-transforms';
 
 /**
  * Reset the plugin platform's process-global registration state so a plugin's test suite
- * can re-install between cases: call it in `beforeEach`, then re-run your setup. Built-in
- * schema registrations and all runtime state (undo stack, selection, DOM/CST) survive,
- * except that the paste reset clears every registered paste target, so a case exercising
- * built-in paste afterward must re-register. Throws outside a detected test environment.
+ * can re-install between cases: call it in `beforeEach`, then re-run your setup. Every
+ * registration a plugin can make is dropped; the editor's built-ins and all runtime state
+ * (undo stack, selection, DOM/CST) survive. Throws outside a detected test environment.
  */
 export function resetPluginPlatformForTests(): void {
 	if (!editorEnv.isTest) {
@@ -30,12 +23,6 @@ export function resetPluginPlatformForTests(): void {
 		);
 	}
 	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	__resetPasteTransformsForTests();
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-	__resetDirectiveRegistryForTests();
 }
 
 // ── Editor env override ──────────────────────────────────────────────────────
@@ -49,30 +36,37 @@ export { configureEditorEnv, resetEditorEnv } from './env';
 export { installEditorDomStubsForTests } from './testing/mount-dom-stubs';
 
 // ── Paste pipeline ───────────────────────────────────────────────────────────
-// The production pipeline itself, not a test-only copy: the very function every
-// clipboard-to-parse path runs (G4.11), so driving it observes the registered
-// transforms rather than a re-implementation of them.
 
-export { applyPasteTransforms } from './tree-operations/paste/paste-transforms';
+/**
+ * The production paste pipeline, the very function every clipboard-to-parse path runs (G4.11),
+ * over `text` as an editor whose `plugins` prop lists `plugins` would run it; absent, every
+ * installed plugin's transforms run.
+ */
+export function applyPasteTransforms(text: string, plugins?: readonly string[]): string {
+	return runPasteTransforms(text, plugins ? activationFor(plugins) : everyInstalledPlugin);
+}
 
 // ── Where dev warnings go ────────────────────────────────────────────────────
-// The channel every editor dev warning reaches, so a suite can build its own fail-on-warning
-// check: register a callback, empty it per case, and fail on anything left unaccounted for.
-// It works with any runner, and registering one silences the console line.
+// The channel every editor dev warning reaches, for a suite's own fail-on-warning check: register
+// a callback, empty it per case, fail on leftovers. Registering one silences the console line.
 
 export { setDevWarnSink } from './dev-warn';
 export type { DevWarnEntry, DevWarnSink } from './dev-warn';
 
-// ── Container conformance kit (G4.3) ─────────────────────────────────────────
+// ── Conformance kits: the shared vocabulary ──────────────────────────────────
+// Every kit reports a cell as a `CellReport`; the container and inline profiles declare each
+// cell's coverage as a `ConformanceCoverage`.
+
+export type { CellReport, CellStatus, ConformanceCoverage } from './testing/conformance-core';
+
+// ── Container conformance kit ────────────────────────────────────────────────
 
 export {
 	runContainerConformance,
 	reversedAncestryLeavesRootStale
 } from './testing/container-conformance';
-export type { ConformanceCoverage } from './testing/conformance-core';
 export type {
 	ConformanceCell,
-	ConformanceCellReport,
 	ContainerConformanceProfile,
 	ContainerConformanceReport,
 	LocalIndexFixture
@@ -84,10 +78,9 @@ export type {
 
 export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';
 export type {
+	KindCell,
 	KindCellCheck,
 	KindCellContext,
-	KindCellReport,
-	KindCellStatus,
 	KindConformanceProfile,
 	KindConformanceReport
 } from './testing/kind-conformance';
@@ -98,8 +91,14 @@ export type {
 
 export { runInlineKindConformance } from './testing/inline-conformance';
 export type {
-	InlineCellReport,
 	InlineConformanceCell,
 	InlineConformanceProfile,
 	InlineConformanceReport
 } from './testing/inline-conformance';
+
+// ── Inline-menu commit conformance cell ──────────────────────────────────────
+// What a source's `onCommit` is held to: a commit that waits writes nothing into a note the host
+// loaded meanwhile.
+
+export { checkInlineMenuCommitAcrossSwap } from './testing/inline-menu-conformance';
+export type { InlineMenuCommitCase } from './testing/inline-menu-conformance';

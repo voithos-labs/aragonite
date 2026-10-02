@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import type {
 	EditorContext,
@@ -13,6 +13,7 @@ import {
 	highlightOccurrencesPlugin,
 	type HighlightOccurrencesOptions
 } from '$lib/plugins/highlight-occurrences';
+import { TYPING_PAUSE_MS } from '$lib/plugins/highlight-occurrences/highlight-occurrences-plugin';
 import { OCCURRENCE_CLASS } from '$lib/plugins/highlight-occurrences/occurrences';
 import { onEditorCallbacks } from '$lib/schema/plugin-install';
 
@@ -30,9 +31,14 @@ function editorStub() {
 	// as a count a single shared mock could reach by unsubscribing one channel twice.
 	const offSelection = vi.fn();
 	const offEdit = vi.fn();
+	const offSourceSwap = vi.fn();
+	const offs: Record<string, () => void> = {
+		selectionChange: offSelection,
+		edit: offEdit,
+		sourceSwap: offSourceSwap
+	};
+	const handlers: Record<string, (payload: unknown) => void> = {};
 	let added: DecorationSource | undefined;
-	let selectionHandler: ((sel: EditorSelection) => void) | undefined;
-	let editHandler: ((event: { op: string }) => void) | undefined;
 
 	const editor = {
 		decorations: {
@@ -45,13 +51,9 @@ function editorStub() {
 			}
 		},
 		events: {
-			on: (name: string, handler: (event: never) => void) => {
-				if (name === 'selectionChange') {
-					selectionHandler = handler as unknown as (sel: EditorSelection) => void;
-					return offSelection;
-				}
-				editHandler = handler as unknown as (event: { op: string }) => void;
-				return offEdit;
+			on: (name: string, handler: (payload: unknown) => void) => {
+				handlers[name] = handler;
+				return offs[name];
 			}
 		}
 	} as unknown as EditorContext;
@@ -62,9 +64,11 @@ function editorStub() {
 		dispose,
 		offSelection,
 		offEdit,
+		offSourceSwap,
 		source: () => added,
-		fireSelection: (sel: EditorSelection) => selectionHandler?.(sel),
-		fireEdit: (op: string) => editHandler?.({ op })
+		fireSelection: (sel: EditorSelection) => handlers.selectionChange?.(sel),
+		fireEdit: (op: string) => handlers.edit?.({ op }),
+		fireSourceSwap: (generation: number) => handlers.sourceSwap?.({ generation })
 	};
 }
 
@@ -102,26 +106,50 @@ describe('highlightOccurrencesPlugin wiring', () => {
 		expect(marks[0].class).toBe(OCCURRENCE_CLASS);
 	});
 
-	it('disposes the source and unsubscribes from both channels on cleanup', () => {
+	it('disposes the source and unsubscribes from every channel on cleanup', () => {
 		const wired = attach();
 		expect(typeof wired.cleanup).toBe('function');
 		wired.cleanup!();
 		expect(wired.dispose).toHaveBeenCalledTimes(1);
 		expect(wired.offSelection).toHaveBeenCalledTimes(1);
 		expect(wired.offEdit).toHaveBeenCalledTimes(1);
+		expect(wired.offSourceSwap).toHaveBeenCalledTimes(1);
 	});
 
-	it('holds the marks back while typing and paints them when the burst flushes', () => {
-		const wired = attach();
-		wired.fireSelection(caret([0], 0));
-		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
+	// The editor fires `input` per keystroke, ahead of the keystroke's `editEpoch`.
+	it('holds the marks back while typing and paints them once typing pauses', () => {
+		vi.useFakeTimers();
+		try {
+			const wired = attach();
+			wired.fireSelection(caret([0], 0));
+			expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
 
-		// A keystroke: `editEpoch` bumps with no `edit` event before it.
-		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
+			wired.fireEdit('input');
+			expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
+			vi.advanceTimersByTime(TYPING_PAUSE_MS - 1);
+			wired.fireEdit('input');
+			expect(wired.source()!.provide(DOC, { editEpoch: 2 })).toEqual([]);
+			vi.advanceTimersByTime(TYPING_PAUSE_MS - 1);
+			expect(wired.invalidate).toHaveBeenCalledTimes(1); // the selection change alone
 
-		wired.fireEdit('input');
-		expect(wired.invalidate).toHaveBeenCalledTimes(2); // the selection change, then the flush
-		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
+			vi.advanceTimersByTime(1);
+			expect(wired.invalidate).toHaveBeenCalledTimes(2);
+			expect(wired.source()!.provide(DOC, { editEpoch: 2 })).toHaveLength(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('times no pause past its cleanup', () => {
+		vi.useFakeTimers();
+		try {
+			const wired = attach();
+			wired.fireEdit('input');
+			wired.cleanup!();
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it('reads a structural op as an immediate repaint, not a typing burst', () => {
@@ -130,6 +158,16 @@ describe('highlightOccurrencesPlugin wiring', () => {
 
 		wired.fireEdit('paste');
 		expect(wired.invalidate).toHaveBeenCalledTimes(1); // no second: the epoch bump repaints
+		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
+	});
+
+	// A host that places the caret in the new document before its `editEpoch` lands must still
+	// see the marks: the swap announces itself, so the epoch is not read as a keystroke.
+	it('reads a source swap as a document change, not a typing burst', () => {
+		const wired = attach();
+		wired.fireSelection(caret([0], 0));
+
+		wired.fireSourceSwap(1);
 		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
 	});
 
@@ -144,12 +182,8 @@ describe('highlightOccurrencesPlugin wiring', () => {
 });
 
 describe('highlightOccurrencesPlugin through the install platform', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-	afterEach(() => resetPluginPlatformForTests());
-
-	// A plugin installs once per process, so an author's suite reinstalls between cases: a
-	// registration that ignored the test reset throws here, and a duplicated onEditor call
-	// fails the count.
+	// An author's suite reinstalls between cases, so a registration ignoring the test reset
+	// throws here and a duplicated onEditor call fails the count.
 	it('reinstalls across the reset boundary, registering exactly one callback each time', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);

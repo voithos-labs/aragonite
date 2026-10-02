@@ -144,9 +144,8 @@
 	.entry {
 		margin: 1rem;
 	}
-	/* The rounded card matches the "scrolls or clips" test but does neither, so code that
-	   stopped at the innermost match would autoscroll an element that cannot move. The padding
-	   is needed: host mode drops the editor's own, and the drag handle hangs off to the left. */
+	/* The card's overflow rounds its corners but nothing inside it scrolls, so autoscroll must
+	   look past it. The padding makes room for the drag handle, since host mode drops the editor's. */
 	.card {
 		overflow: hidden;
 		border-radius: 8px;

@@ -22,9 +22,8 @@ test.describe('link styling + affordance', () => {
 
 		await expect(link).toHaveCSS('text-decoration-line', 'underline');
 
-		// "Is the accent, non-default" without pinning a hex: the link and the autolink resolve the
-		// same `--color-accent` token and both differ from body text, so the comparison survives a
-		// theme change.
+		// The link and the autolink resolve the same `--color-accent` token and both differ from
+		// body text, so the check survives a theme change without naming a hex.
 		const linkColor = await link.evaluate((el) => getComputedStyle(el).color);
 		const autoColor = await page
 			.locator('a.md-autolink', { hasText: 'auto.example.com' })
@@ -68,9 +67,8 @@ test.describe('link styling + affordance', () => {
 		await page.keyboard.down('Control');
 		await expect(editor.editorContainer).toHaveAttribute('data-mod-active', '');
 
-		// The page can lose focus while the modifier is physically down (OS shortcut, alt-tab): the
-		// keyup never arrives, so the blur/visibility reset must clear the pointer affordance on
-		// its own.
+		// The page can lose focus while the modifier is held (an OS shortcut, alt-tab) and the
+		// keyup never arrives, so the blur and visibility reset must clear the pointer on its own.
 		await page.evaluate(() => {
 			window.dispatchEvent(new Event('blur'));
 		});

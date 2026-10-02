@@ -93,8 +93,9 @@ describe('table parser: structure', () => {
 		expect((doc.children[0].metadata as TableMetadata).columnCount).toBe(2);
 	});
 
-	it('terminates the table at the first line without a pipe', () => {
-		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\nNot a row\n');
+	// A line without a pipe right below the rows is a row (`table-pipeless-row.test.ts`).
+	it('terminates the table at a blank line', () => {
+		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nNot a row\n');
 		expect(doc.children).toHaveLength(2);
 		const table = doc.children[0];
 		expect(table.kind).toBe('table');
@@ -104,8 +105,7 @@ describe('table parser: structure', () => {
 		expect(para.raw).toContain('Not a row');
 	});
 
-	// Miss-analysis: mutation-testing tableHeaderCells showed dropping its pipe guard flipped
-	// pipeless prose above a delimiter row into a table with every suite green (GFM § 4.10).
+	// Miss-analysis: no case put pipeless prose above a delimiter row (GFM § 4.10).
 	it('refuses a header row with no pipe: prose above a delimiter line stays a paragraph', () => {
 		const doc = parse('plain prose\n| --- |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph']);

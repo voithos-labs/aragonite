@@ -1,22 +1,15 @@
 // @vitest-environment jsdom
-//
-// The caret half of how a cell writes. `normalizeRawWrite` escapes every free `|` as the bytes
-// are written, so an offset reported against just-written text lands one byte early for each
-// escape; the commit caret is mapped, while the pending cursor is passed separately and skips
-// that mapping. Only the commit half is covered here: `focusCell` is stubbed, so the "Enter stays
-// put" half is checked on exact bytes by e2e/tests/blocks/table/cell-inline-reveal.spec.ts.
+// `rawWrite` escapes every free `|` as a cell writes, so an offset counted before the escapes
+// lands one byte early per escape, and the commit caret is mapped past them. `focusCell` is
+// stubbed, so the "Enter stays put" half is covered by the `cell-inline-reveal` e2e spec.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell, settleTicks } from './mount-cell';
+import { mountCell } from './mount-cell';
+import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret offset
 // this test names sits outside the widget span and reads back unambiguously.
 const CELL = 'x $a$ yz';
-
-function press(el: HTMLElement, key: string): void {
-	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
 
 /** The source text node swapped in where the widget was. */
 function revealedSource(el: HTMLElement): Text {
@@ -31,7 +24,6 @@ let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 describe('a reveal commit in a cell puts the caret its caret in escaped space', () => {
@@ -44,18 +36,17 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 
 		// ArrowLeft at the widget's trailing edge shows its source; the edit inside it
 		// lives only in the DOM by design, since `onInput` is suppressed while it shows.
-		press(el, 'ArrowLeft');
-		await settleTicks();
+		dispatchKey(el, { key: 'ArrowLeft' });
+		await settleEditor();
 		revealedSource(el).textContent = '$a|$';
-		press(el, 'Enter');
-		await settleTicks();
+		dispatchKey(el, { key: 'Enter' });
+		await settleEditor();
 
-		// The write escaped the free `|`, so the commit caret is 7, past `$a\|$`.
-		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
-		expect(committedCaret).toBe(7);
-		// The remembered caret counts into the same bytes, so it must be the same offset. Unmapped
-		// it is 6, between the inserted `\` and the `|` it frees, inside the widget just edited.
-		expect(instance.getCursorOffset()).toBe(committedCaret);
+		// The cell hands the write 6, after `$a|$`; the write escapes the free `|`, so the caret
+		// lands at 7, past `$a\|$`, not between the inserted `\` and the `|`.
+		const [, , , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(committedCaret).toBe(6);
+		expect(instance.getCursorOffset()).toBe(7);
 	});
 
 	it('a source edit with no free pipe puts the caret where it always did', async () => {
@@ -65,15 +56,15 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 		el.focus();
 		instance.setSelection(5, 5);
 
-		press(el, 'ArrowLeft');
-		await settleTicks();
+		dispatchKey(el, { key: 'ArrowLeft' });
+		await settleEditor();
 		revealedSource(el).textContent = '$ab$';
-		press(el, 'Enter');
-		await settleTicks();
+		dispatchKey(el, { key: 'Enter' });
+		await settleEditor();
 
-		// Non-vacuity: the mapping leaves the offset alone when nothing is inserted, so
-		// the escaping cannot be a blanket shift.
-		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		// The mapping leaves the offset alone when nothing is inserted, so it is not a blanket
+		// shift.
+		const [, , , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(committedCaret).toBe(6);
 		expect(instance.getCursorOffset()).toBe(6);
 	});

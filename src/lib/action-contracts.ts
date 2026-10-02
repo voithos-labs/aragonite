@@ -5,107 +5,138 @@
 
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
+import type { LineEnding } from './core/lines';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
+import type { BodyParent } from './tree-operations/node-primitives';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { ScopedOpDescriptor } from './schema/operations';
+import type { OperationDetailMap, ScopedOpDescriptor } from './schema/operations';
+import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
+import type { CaretPosition, Landing } from './selection/primitives';
+import type { LegalWrite } from './tree-operations/content-write';
+import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
+import type { RemovalGesture } from './selection/caret-target';
 
 /**
- * Where the caret goes back to, stored with a commit's undo snapshot: `path` is a
- * document-absolute `DocPath` and must resolve in the tree before the mutation; `'skip'`
- * joins the entry the caller already pushed. Built by the block-list factories
+ * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
+ * `DocPath` and must resolve in the tree before the mutation. Built by the block-list factories
  * (`block-edit-scope.ts`) or the `path-math` helpers, never assembled at a call site.
  */
-export type CommitSnapshotArg = { path: DocPath; offset: number } | 'skip';
-
-/**
- * Who owns the undo entry: `'own'` (the default) pushes one, `'join'` means the caller
- * already pushed the entry covering this composite operation and this must not add one.
- */
-export type UndoEntryMode = 'own' | 'join';
+export type CommitSnapshotArg = { path: DocPath; offset: number };
 
 /**
  * Opt-in for structural commits that may legitimately do nothing. The commit then throws
  * away the snapshot it took first: no undo entry, no edit event, nothing written to state
- * (`afterTick` still runs, since placing the caret is a view concern). Not for content or
- * metadata commits, whose `noop` `StructuralChange` means "structure held, bytes changed".
+ * (its landing still runs, since a refused merge still crosses the boundary the key pressed at).
+ * Not for content or metadata commits, whose `noop` `StructuralChange` means "structure held,
+ * bytes changed".
  */
 export type DiscardIfNoop = boolean;
 
 /**
- * The callback that runs after the tick, where a commit puts its caret. Awaited, so a caret
- * that must first scroll an unmounted target into view (VR-12) can be written here; that
- * scroll is bounded (VR-5), so awaiting cannot hang. Returning nothing opts out of the wait.
+ * Where the caret goes after a commit, read after the tick so it sees the tree the commit left.
+ * It returns a value and places nothing; the commit puts the caret there through the editor's
+ * caret landing (`selection/caret-landing.ts`), and null leaves the caret where it is.
  */
-export type CommitAfterTick = () => void | Promise<void>;
+export type CommitLanding = () => Landing | null;
+
+/** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
+ *  undo or a document swap came in since the commit. */
+export interface HeldLanding {
+	place(): Promise<void>;
+}
+
+/**
+ * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
+ * region, read after the caret lands and only when bytes landed. That region hears nothing else, so a
+ * refused, failed or discarded commit says nothing there.
+ */
+export type CommitAnnouncement = () => string;
+
+/**
+ * A content write in flight, resolving to whether bytes landed. `admitted` is known the moment the
+ * call returns: false means the write was turned away before it touched anything (reading mode, or
+ * a list with no text of its own to write). Only an admitted write has a caret: the landing offset
+ * in the bytes as stored, with `storedOffset` mapping any other offset the same way.
+ */
+export type ContentWrite = Promise<boolean> & (RefusedContentWrite | AdmittedContentWrite);
+
+export interface RefusedContentWrite {
+	readonly admitted: false;
+}
+
+export interface AdmittedContentWrite {
+	readonly admitted: true;
+	readonly caret: number;
+	storedOffset(offset: number): number;
+	/** False when the write places the caret itself (a new kind, a merge, a changed container),
+	 *  so the block must not put its own caret back. */
+	readonly keepsCaret: boolean;
+}
+
+/** Where the caret goes after an edit to one block, relative to it: `path` walks its children
+ *  (`[]` is the block itself) and `offset` is a byte there or an edge value (`CURSOR_END`). */
+export interface BlockCaret {
+	path: number[];
+	offset: number;
+}
 
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
+/** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
+ *  that writes nothing resolves false. */
 export interface BlockEditActions {
-	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
+	splitBlock(blockIndex: number, offset: number): Promise<boolean>;
 	/**
 	 * Focus the block after `blockIndex` in this list, creating an empty paragraph when it is
 	 * the last child. If the next block is not mounted the caret stays put, key consumed.
 	 */
-	descendToBody(blockIndex: number): void | Promise<void>;
-	/**
-	 * @internal Create a paragraph holding `text` at a boundary of this list, caret after
-	 * the text. `boundaryIndex === children.length` appends. How the between-blocks caret
-	 * inserts (`selection/gap-caret.ts`).
-	 */
-	insertParagraph(boundaryIndex: number, text: string): void | Promise<void>;
-	mergeWithPrevious(blockIndex: number): void | Promise<void>;
-	mergeWithNext(blockIndex: number): void | Promise<void>;
-	deleteBlock(blockIndex: number): void | Promise<void>;
-	/**
-	 * `preEditOffset` is the caret position the undo snapshot records; `postEditFocusOffset` is where
-	 * the caret lands when a kind change remounts the block (typing `# ` on a paragraph),
-	 * defaulting to `preEditOffset`.
-	 */
+	descendToBody(blockIndex: number): Promise<boolean>;
+	/** @internal Create a paragraph holding `text` at a boundary of this list, caret after the
+	 *  text; `boundaryIndex === children.length` appends. */
+	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
+	mergeWithPrevious(blockIndex: number): Promise<boolean>;
+	mergeWithNext(blockIndex: number): Promise<boolean>;
+	/** Remove the block; the caret lands once, on the side `gesture` points
+	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
+	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
+	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
+	 *  returns to `preEditOffset`, where the edit began; `caret` maps `postEditFocusOffset`. */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
-		preEditOffset?: number,
+		mode: WriteMode,
+		preEditOffset: number,
 		postEditFocusOffset?: number
-	): void | Promise<void>;
-	/**
-	 * Where a caret at `offset` ends up once this list has committed `text`: the result of a
-	 * container's `bodyWrite` rewrite, so a block whose committed bytes differ from its DOM
-	 * puts the caret on the bytes. Returns `offset` unchanged when nothing is rewritten.
-	 */
-	mapCommittedOffset?(text: string, offset: number): number;
-	/**
-	 * Change block metadata without touching raw: for state held as metadata (task
-	 * checkboxes), not for metadata derived from raw like a heading's level (use
-	 * `updateBlockContent`). The patch is shallow-merged; an empty patch does nothing.
-	 */
+	): ContentWrite;
+	/** Write the space that finishes the container's marker in front of the block (`>abc` becomes
+	 *  `> abc`) as one write of the container's line; false where its kind or bytes take none. */
+	completeMarker(blockIndex: number): Promise<boolean>;
+	/** Replace the block with the structure an on-type completer makes of its line (a typed `$$`),
+	 *  with `caret` where the typing left it; false when no completer takes the line. */
+	completeLineOnType(blockIndex: number, caret: number): Promise<boolean>;
+	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no
+	 *  parse gives back is dropped at the next re-read; a heading's level goes through the text. */
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
-	): void | Promise<void>;
-	/**
-	 * Replace the block at `blockIndex` with zero or more new blocks.
-	 * `replacement.length === 0` is the same as `deleteBlock`. `focus.path` addresses a caret
-	 * position inside the replacement's own structure; `snapshotOffset` is where the caret was,
-	 * for the undo entry, and defaults to where it ends up.
-	 */
+		options?: { caret?: BlockCaret }
+	): Promise<boolean>;
+	/** Replace the block with zero or more blocks (none is `deleteBlock`). `focus.path` addresses a
+	 *  caret inside the replacement; `snapshotOffset` is the undo entry's caret. */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
-	): void | Promise<void>;
+		focus: { replacementIndex: number; offset: number; path?: number[] } | undefined,
+		options: { snapshotOffset: number }
+	): Promise<boolean>;
 }
 
 export interface MoveFocusOptions {
-	/**
-	 * When false, a move past the true document end no-ops instead of appending a trailing
-	 * paragraph; only the root append is suppressed, sibling moves and upward delegation
-	 * are unaffected. Defaults to true (Enter/split rely on the append).
-	 */
+	/** False stops a move past the document end from appending a trailing paragraph; sibling moves
+	 *  and upward delegation are unaffected. Defaults to true, which Enter's split relies on. */
 	append?: boolean;
 	/** @internal Set by a move that leaves a between-blocks caret, so the boundary it just
 	 *  left cannot capture it again. */
@@ -118,15 +149,12 @@ export interface FocusActions {
 		position: FocusPosition,
 		options?: MoveFocusOptions
 	): void | Promise<void>;
-	/** Mount a top-level block that is not rendered yet before placing a caret in it; see
-	 *  `EditorActionsDeps.revealPath`. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
-	/**
-	 * @internal Put the caret at a between-blocks boundary that allows one, reporting whether
-	 * it did. Required, not optional: a container that fails to forward the call makes every
-	 * such caret below it silently vanish.
-	 */
+	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
+	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
+	/** @internal An arrow move ended on the block at `path`: one focused whole comes into view.
+	 *  Forwarded to the root like `tryGapStop`. */
+	followArrival(path: number[]): void;
 }
 
 export interface HistoryActions {
@@ -143,6 +171,13 @@ export interface ContainerScope {
 	node: CstNode;
 	children: CstNode[];
 	sharing: SharingState;
+	/** The document's line ending, which every line the mutation writes takes. */
+	lineEnding: LineEnding;
+	/** `children` as the body the tree operations write; at the document root it has no owner. */
+	readonly body: BodyParent;
+	/** Rebuilds `node`'s raw as the commit does, for a node the commit won't rebuild whose bytes
+	 *  the mutation reads before it returns; never the scope, which the commit rebuilds once. */
+	rebuild(node: CstNode): void;
 }
 
 // ── Multi-scope commit ──────────────────────────────────────────────────────
@@ -174,13 +209,14 @@ export interface CommitMultiScopeArgs<
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
+	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
+	landing?: CommitLanding;
+	/** How far the landing moves the viewport; `'into-view'` when absent. */
+	reveal?: RevealPolicy;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
-	/**
-	 * Caret positions each list's fix-up keeps up to date, parallel to `scopes`: a container
-	 * that collapses moves the bytes under a position chosen before the fix-up ran. Written
-	 * in place, so `afterTick` reads the updated position off the object it passed in.
-	 */
+	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
+	 *  container moves the bytes under them; the landing reads them back off the same objects. */
 	trackCaret?: readonly (TrackedPosition | undefined)[];
 }
 
@@ -188,10 +224,14 @@ export interface CommitStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
-	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
+	landing?: CommitLanding;
+	reveal?: RevealPolicy;
+	announce?: CommitAnnouncement;
+	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the document's fix-up updates in place; the landing reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 export interface CommitContainerStructuralArgs {
@@ -208,8 +248,12 @@ export interface CommitContainerStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
+	landing?: CommitLanding;
+	reveal?: RevealPolicy;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the container's fix-up updates in place; the landing reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 /**
@@ -220,89 +264,151 @@ export interface CommitContainerStructuralArgs {
 export interface CommitController {
 	/** The editor's structural-sharing counters, for copy-before-write outside a commit. */
 	sharing: SharingState;
-	pushUndoSnapshot(blockIndex: number, offset: number): void;
-	/** A snapshot whose fallback, when there is no caret, is a deep leaf path (a search match
-	 *  nested in a list item). */
-	pushUndoSnapshotPath(path: number[], offset: number): void;
 	/** Debounced typing snapshot; `leafPath` is the edited leaf's document-absolute path. */
 	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/** Start the batch's pause timer, once the keystroke's own edit is done. Paired with
 	 *  every `pushUndoSnapshotDebounced`, or the batch never ends on a pause. */
 	armUndoPause(): void;
-	commitStructural(args: CommitStructuralArgs): Promise<void>;
-	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
+	/** Each commit resolves to whether bytes landed: false when declined, rolled back or a no-op
+	 *  it discarded. */
+	commitStructural(args: CommitStructuralArgs): Promise<boolean>;
+	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<boolean>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
-	): Promise<void>;
-	/**
-	 * Expose the document root as a `MultiScopeTarget`, so a `commitMultiScope` caller can
-	 * include changes at the document level alongside containers (a cross-block delete whose
-	 * common ancestor is the root).
-	 */
+	): Promise<boolean>;
+	/** The document root as a `MultiScopeTarget`, so a multi-scope commit can include root-level
+	 *  changes (a cross-block delete whose common ancestor is the root). */
 	getDocScope(): MultiScopeTarget;
-	/** Flush the pending keystroke batch (emit its `input` event and clear the debounce
-	 *  timer) before an undo or redo, so the batch's bytes aren't lost. */
+	/** End the keystroke batch and its pause timer, so the next keystroke opens its own undo
+	 *  entry. */
 	flushDebouncedCheckpoint(): void;
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
 	isolateUndoEntry(write: () => void): void;
+	/** Make every write made while `run` is pending one undo entry, restoring the selection the step
+	 *  opened with (`seed` when unfocused). Ends when `run` settles or at the author's next input. */
+	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
+	/** Called on the author's own input: every later write opens its own entry, even while a
+	 *  step's run is still pending. */
+	endUndoStep(): void;
+	/** Runs `run` with each commit's caret kept rather than put down, and resolves to `run`'s
+	 *  result and the last caret kept, so a gesture of several commits places one. */
+	holdLandings<T>(run: () => Promise<T>): Promise<[result: T, landing: HeldLanding | null]>;
+	/** The next typing write joins the last commit's entry while it is the newest, until
+	 *  `endContinuedBurst`: a composition's text joins the removal its start made. */
+	continueTypingBurst(): void;
+	/** Ends what `continueTypingBurst` armed, written to or not; called at compositionend. */
+	endContinuedBurst(): void;
+	/** Whether a gesture may write now: false in reading mode, or for a document a `source` swap
+	 *  replaced. A reading-mode refusal names `op` in a dev warning; a null `op` is refused quietly. */
+	admitsGesture(op: string | null): boolean;
 }
 
+/** What a container reaches the editor root for, forwarded unchanged through nested containers.
+ *  A keystroke runs `typeInLeaf`, then a commit or `writeLeafInPlace` (`leaf-write.ts`). */
 export interface ContainerEditActions {
-	/**
-	 * Push a debounced undo snapshot for routine text input. `leafPath` is the edited
-	 * leaf's document-absolute path; `batchKey` (its stable block id) breaks the batch on
-	 * focus moves between sibling leaves.
-	 */
-	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
-	/** The checkpoint's other half: start the pause timer once the keystroke's edit is done. */
-	armDebouncedPause(): void;
-	/**
-	 * Tell the view about a raw change made outside the commit call, forwarded unchanged
-	 * through nested containers. It rebuilds no raw itself: a writer outside a commit
-	 * rebuilds through `withUnsharedSpine`, which works on its own copies.
-	 */
-	nudgeReactivity(): void;
-	/**
-	 * Copy-before-write wrapper for writes outside a commit (routine typing): copies the
-	 * ancestor chain from the document root to `absPath`, calls `write` with that chain
-	 * (outermost first) and the counter for copying anything off it, then rebuilds
-	 * innermost-first. The caller still pushes its own checkpoint and notifies the view. True
-	 * means the rebuild changed a container's kind (typing out `> [!TIP]`), remounting the
-	 * edited leaf, so the caller replaces the caret; `write` returns its own change to report.
-	 */
-	withUnsharedSpine(
-		absPath: number[],
-		write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
-	): boolean;
-	/**
-	 * The preferred way to change a container's structure: copy the ancestor chain, snapshot,
-	 * write to state, emit the edit event, run the post-tick callback. `mutate` receives the
-	 * copied container with its working children attached; write through it, never a capture.
-	 */
-	commitContainer(args: CommitContainerStructuralArgs): Promise<void>;
+	/** The document's line ending, which every line a write below the root creates takes. */
+	lineEnding(): LineEnding;
+	/** Change a container's structure as one undo entry. `mutate` receives the copied container
+	 *  with its working children attached; write through it, never through a captured node. */
+	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
+	/** Push the typing burst's undo entry for the leaf at `leafPath`, then run `work` joined to
+	 *  it; `batchKey` is the leaf's id, so a move to a sibling leaf starts a new burst. */
+	typeInLeaf<T>(
+		leafPath: DocPath,
+		preEditOffset: number,
+		batchKey: string,
+		work: () => Promise<T>
+	): Promise<T>;
+	/** The keystroke's write outside a commit, for a write that keeps the leaf's kind. */
+	writeLeafInPlace(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	/** Put the caret at a document position through the editor's caret landing, for an edit that
+	 *  moves the caret without a commit. */
+	land(pos: CaretPosition): Promise<LandingOutcome>;
+	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
+	survivorAfterRemoval(removedPath: DocPath, gesture: RemovalGesture): CaretPosition | null;
 }
+
+export type InPlaceResult =
+	| { readonly wrote: false }
+	| {
+			readonly wrote: true;
+			/** Where the caret goes when the write took it out of the leaf's element (a merge, an
+			 *  ancestor that changed kind or collapsed); null when the leaf's element keeps it. */
+			readonly relanding: Relanding | null;
+	  };
+
+/** A caret to put back after a write, and the blocks the write left where it wrote: focus already
+ *  outside them means a blur committed the write, and the caret stays where it went. */
+export interface Relanding {
+	readonly caret: CaretPosition;
+	readonly window: { readonly list: DocPath; readonly at: number; readonly count: number };
+}
+
+/** What a commit writing new text into one leaf resolves to. */
+export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
+
+/** `caret` is where the caret goes after the write and its list's fix-up, and `window` the
+ *  written block's replacement run; a collapsed ancestor places the caret itself afterwards. */
+export interface LeafWriteLanded extends Relanding {
+	readonly wrote: true;
+	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
+	readonly replaced: boolean;
+}
+
+/** A leaf write by document path: `caret` is an offset into the text as written, `snapshotOffset`
+ *  one into the leaf's current bytes, where undo puts the caret back when nothing is focused. */
+export interface LeafTextOptions {
+	caret: number;
+	snapshotOffset: number;
+	/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
+	landing?: (landed: LeafWriteLanded) => Landing | null;
+}
+
+// ── Replace ─────────────────────────────────────────────────────────────────
+
+/** Which replacement block the caret lands in, at `offset` (`CURSOR_END` for its end) or at
+ *  `path` below it. */
+export interface ReplaceFocus {
+	replacementIndex: number;
+	offset: number;
+	path?: number[];
+}
+
+export interface ReplaceOptions {
+	/** Where undo puts the caret back when nothing is focused: where the gesture began. */
+	snapshotOffset: number;
+	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
+	trailingBlank?: boolean;
+	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	source?: ReplaceSource;
+}
+
+export type ReplaceSource = Extract<
+	OperationDetailMap['replaceBlock'],
+	{ source: unknown }
+>['source'];
 
 // ── List context ───────────────────────────────────────────────────────────
 
+/** A list's item edits; each resolves to whether bytes landed. */
 export interface ListContext {
-	insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void>;
-	exitListAtItem(itemIndex: number): Promise<void>;
-	indentItem(itemIndex: number): Promise<void>;
-	unindentItem(itemIndex: number): Promise<void>;
+	insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<boolean>;
+	exitListAtItem(itemIndex: number): Promise<boolean>;
+	indentItem(itemIndex: number): Promise<boolean>;
+	unindentItem(itemIndex: number): Promise<boolean>;
 	/**
 	 * Split the item mid-content: first half stays, second half moves into a
 	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
-	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
-	/** Promote a nested list item to the parent list's level. Called on the parent list's
-	 *  context. `nestedListNode` says which list, as a live-tree reference; writes go through
-	 *  the commit. */
+	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<boolean>;
+	/** Promote a nested list item to this parent list's level; `nestedListNode` is a live-tree
+	 *  reference, and writes go through the commit. */
 	promoteNestedItem(
 		parentItemIndex: number,
 		nestedListNode: NodeView,
 		nestedItemIndex: number
-	): Promise<void>;
+	): Promise<boolean>;
 	/** Returns this list's index in its enclosing list (for nested-list promotion). */
 	getContainingItemIndex(): number;
 }
@@ -312,7 +418,10 @@ export interface ListContext {
 export type CellPosition = 'start' | 'end' | number;
 
 export interface TableContext {
+	/** A key's move to another cell; the cell comes into view as any arrow arrival does. */
 	focusCell(rowIdx: number, colIdx: number, position: CellPosition): void;
+	/** Scroll the grid sideways so the cell's column is inside the table's own box. */
+	revealColumn(rowIdx: number, colIdx: number): void;
 
 	getStickyColumn(): number | null;
 	setStickyColumn(colIdx: number): void;

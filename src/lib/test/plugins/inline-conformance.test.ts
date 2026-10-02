@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-/**
- * Enrollment: every bundled inline handler runs the published conformance kit. A handler
- * shipping in this repo is the kit's first consumer, so a cell no bundled handler can pass
- * is a cell that has not been paid for.
- *
- * The kit's own failure demonstrations live in `inline-conformance-red.test.ts`.
- */
+// Every bundled inline handler runs the published conformance kit as its first consumer, so a
+// cell no bundled handler can pass has not earned its runtime. The kit's failing cases live in
+// `inline-conformance-red.test.ts`.
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '$lib';
@@ -13,17 +9,12 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { INLINE_PRIORITIES } from '$lib/core/inline/scan/plugin-syntax';
 import { declaredPluginInlineKind } from '$lib/plugin';
-import { resetPluginPlatformForTests, runInlineKindConformance } from '$lib/testing';
+import { runInlineKindConformance } from '$lib/testing';
 import type { InlineConformanceProfile } from '$lib/testing';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
 import { latexPlugin } from '$lib/plugins/latex';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-
-// The renderer is a required option and the kit never renders math, so a do-nothing stub
-// satisfies it without pulling a math library into the suite.
-const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +
@@ -98,10 +89,9 @@ const mathRung: InlineConformanceProfile = {
 
 describe('every bundled inline syntax handler passes the conformance kit', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		// Emoji before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
 		activateDirectiveGrammar();
 	});
 
@@ -110,8 +100,8 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 		['emoji', emojiRung],
 		['directive text', directiveTextRung],
 		['inline math', mathRung]
-	])('%s', (_name, profile) => {
-		const report = runInlineKindConformance(profile);
+	])('%s', async (_name, profile) => {
+		const report = await runInlineKindConformance(profile);
 		expect(report.cells.map((c) => c.cell)).toEqual([
 			'claims',
 			'roundTrip',
@@ -128,33 +118,32 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 // run without jsdom, would otherwise pass as a quiet `boundary`.
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
 		activateDirectiveGrammar();
 	});
 
-	const cellOf = (profile: InlineConformanceProfile, cell: string) =>
-		runInlineKindConformance(profile).cells.find((c) => c.cell === cell)!;
+	const cellOf = async (profile: InlineConformanceProfile, cell: string) =>
+		(await runInlineKindConformance(profile)).cells.find((c) => c.cell === cell)!;
 
-	it('drives the offset walk for an inline syntax handler that builds its own widget', () => {
-		const cell = cellOf(emojiRung, 'widget');
+	it('drives the offset walk for an inline syntax handler that builds its own widget', async () => {
+		const cell = await cellOf(emojiRung, 'widget');
 		expect(cell.status).toBe('asserted');
 		expect(cell.detail).toContain('offset-walk length');
 	});
 
 	// The wrapper span for a `component` kind belongs to the editor, so that half does not
 	// run and the cell has to say so: reporting `asserted` over skipped work hides it.
-	it('reports the widget half of a `component` widget as a boundary', () => {
-		const cell = cellOf(footnoteRung, 'widget');
+	it('reports the widget half of a `component` widget as a boundary', async () => {
+		const cell = await cellOf(footnoteRung, 'widget');
 		expect(cell.status).toBe('boundary');
 		expect(cell.detail).toContain('render layer');
 	});
 
-	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', () => {
-		expect(cellOf(emojiRung, 'editingPolicy').detail).toContain('whole-delete');
+	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', async () => {
+		expect((await cellOf(emojiRung, 'editingPolicy')).detail).toContain('whole-delete');
 	});
 
-	it('excuses imageClaim only where no fixture creates a built-in', () => {
-		expect(cellOf(mathRung, 'imageClaim').status).toBe('exempt');
+	it('excuses imageClaim only where no fixture creates a built-in', async () => {
+		expect((await cellOf(mathRung, 'imageClaim')).status).toBe('exempt');
 	});
 });

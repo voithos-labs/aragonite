@@ -7,7 +7,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity, PinnedOffset } from '../../../cursor/edge-affinity';
-import { constructContentRange, inlineDescendants, parseInline } from '../../../core/inline';
+import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -19,6 +19,8 @@ import {
 	getInlineConstructPolicy,
 	type InlineConstructPolicy
 } from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
+import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
@@ -29,29 +31,37 @@ export interface EdgeSeat {
 	kind: AnyInlineKind;
 }
 
-/**
- * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
- * construct marker run, the kind declares no policy, or no candidate earns the write. Refusing is
- * the honest fallback: the byte then lands at the caret, which is what the browser writes anyway.
- */
+/** Where `typed` belongs when the caret sits at `caretOffset`, or null to let it land at the caret.
+ *  `reading` must be the one `inlines` was read with, or a reference link reads as brackets. */
 export function resolveEdgeSeat(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	raw: string,
 	screen: VisibilityContext,
-	typed: string
+	typed: string,
+	reading: Reading
 ): EdgeSeat | null {
-	const runs = markerRuns(inlines, raw, screen);
+	const { grammar } = reading;
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
 	const content = contentBounds(inlines);
-	const before = shown(raw, content.start, content.end);
+	// What the user sees, asked of the renderer (G4.33), in the content reading: this only adds
+	// bytes, so no reading of it can license dropping one.
+	const shown = (bytes: string, end: number): string =>
+		renderedText(
+			readInline(bytes, content.start, end, reading.resolver, grammar),
+			bytes,
+			CONTENT_VISIBILITY,
+			{ grammar }
+		);
+	const before = shown(raw, content.end);
 	const holds = (offset: number): boolean => {
 		const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
-		const after = shown(candidate, content.start, content.end + typed.length);
+		const after = shown(candidate, content.end + typed.length);
 		return insertsExactly(before, after, typed);
 	};
 	for (const offset of candidateOffsets(run, policy.edgeAffinity, affinity, caretOffset, runs)) {
@@ -66,22 +76,20 @@ export function resolveEdgeSeat(
 	return null;
 }
 
-/**
- * The bytes an IME composition's commit should have written. The `insertCompositionText`
- * beforeinput event is not cancelable, so the keystroke cannot be intercepted; the composed run
- * is moved once instead, on the commit that lands it. Null leaves the reading as it is.
- */
+/** The bytes an IME composition's commit should have written. `insertCompositionText` cannot be
+ *  cancelled, so the composed run is moved once, on the commit that lands it. */
 export function relocateComposedRun(
 	before: string,
 	after: string,
 	composedAt: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	reading: Reading
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, reading);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -99,20 +107,16 @@ export function plainInsertionAt(before: string, after: string, at: number): str
 	return after.slice(at, at + length);
 }
 
-/**
- * Every raw offset the caret's screen position allows, and empty where no marker run touches the
- * caret. Hidden runs that abut name the same position, so a whole stretch of them is one position
- * and each boundary in it is allowed; an offset inside a run's own bytes sits inside some
- * construct's delimiters, where no byte belongs. A caret strictly inside a run is one of those,
- * so the result can leave out the very caret it was asked about.
- */
+/** Every raw offset the caret's screen position allows: each boundary in a stretch of abutting
+ *  hidden runs, never an offset inside a run's bytes, which may exclude the caret itself. */
 export function seatOffsetsAt(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): readonly number[] {
-	const runs = markerRuns(inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return [];
 	const offsets = screenPositionOffsets(run, runs);
@@ -121,19 +125,19 @@ export function seatOffsetsAt(
 		: offsets;
 }
 
-/**
- * The offsets a plain arrow press stops at: every boundary of the caret's screen position that a
- * typed byte could actually be written at, ascending, so no press lands on one the resolver
- * would refuse. Fewer than two means the position offers no choice and the arrow just moves.
- */
+/** The offsets a plain arrow press stops at, ascending: each boundary of the caret's position a
+ *  typed byte can be written at. Fewer than two means there is no choice, so the arrow moves. */
 export function edgeStops(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	reading: Reading
 ): number[] {
-	return seatOffsetsAt(caretOffset, inlines, raw, screen)
-		.filter((seat) => typingOffset(caretOffset, inlines, { offset: seat }, raw, screen) === seat)
+	const typedAt = (offset: number) =>
+		typingOffset(caretOffset, inlines, { offset }, raw, screen, reading);
+	return seatOffsetsAt(caretOffset, inlines, raw, screen, reading.grammar)
+		.filter((offset) => typedAt(offset) === offset)
 		.sort((a, b) => a - b);
 }
 
@@ -143,33 +147,31 @@ export function typingOffset(
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	reading: Reading
 ): number {
-	return (
-		resolveEdgeSeat(caretOffset, inlines, affinity, raw, screen, PROBE_BYTE)?.offset ?? caretOffset
-	);
+	const edge = resolveEdgeSeat(caretOffset, inlines, affinity, raw, screen, PROBE_BYTE, reading);
+	return edge?.offset ?? caretOffset;
 }
 
-/**
- * The typing offset a plain arrow press moves to without moving the caret, or null when the press
- * should move the caret as usual (live-mode.md § 4.2): one stop in the press's direction from the one
- * the next byte would take now, so crossing each hidden edge is one press.
- */
+/** The stop a plain arrow press moves the typing offset to, one past the current one in its
+ *  direction, or null when the press moves the caret as usual (live-mode.md § 4.2). */
 export function edgeStep(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	raw: string,
 	screen: VisibilityContext,
+	reading: Reading,
 	direction: 'backward' | 'forward'
 ): number | null {
-	const stops = edgeStops(caretOffset, inlines, raw, screen);
+	const stops = edgeStops(caretOffset, inlines, raw, screen, reading);
 	if (stops.length < 2) return null;
-	const current = typingOffset(caretOffset, inlines, affinity, raw, screen);
+	const current = typingOffset(caretOffset, inlines, affinity, raw, screen, reading);
 	const ahead =
 		direction === 'forward'
-			? stops.filter((seat) => seat > current)
-			: stops.filter((seat) => seat < current).reverse();
+			? stops.filter((offset) => offset > current)
+			: stops.filter((offset) => offset < current).reverse();
 	return ahead[0] ?? null;
 }
 
@@ -201,13 +203,8 @@ function offsetForSide(run: MarkerRun, side: Side): number {
 const otherEnd = (run: MarkerRun, side: Side): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
-/**
- * The offsets to try, best first: a pinned offset the position still holds, the side the policy
- * names, then the run's other end (the split rebalancer's "keep the space outside" rule: a byte
- * the inner side destroys is one the outer side keeps). Then the literal caret offset, checked
- * like any other, since a parse it changes is no reason to stop looking. The rest of the screen
- * position ends the list, nearest the policy's side first, for a caret whose construct has none.
- */
+/** The offsets to try, best first: a pin the position still holds, the policy's side, the run's
+ *  other end, the caret, then the rest of the position, nearest the policy's side first. */
 function candidateOffsets(
 	run: MarkerRun,
 	edgeAffinity: InlineConstructPolicy['edgeAffinity'],
@@ -215,10 +212,8 @@ function candidateOffsets(
 	caretOffset: number,
 	runs: readonly MarkerRun[]
 ): number[] {
-	// `never-extend` resolves like the end of a line: past the construct's delimiters, which is
-	// the run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// side the caret arrived from, defaulting to the near side, as Google Docs does
-	// (live-mode.md § 4.2).
+	// `never-extend` lands past the construct's delimiters; a symmetric pair follows the side the
+	// caret arrived from, else the near side (`docs/design/live-mode.md` § 4.2).
 	const position = screenPositionOffsets(run, runs);
 	// A pin is the side an edge step chose, so it outranks the policy: the step offered only
 	// offsets this resolver accepts (`edgeStops`). One the position no longer holds is stale.
@@ -242,10 +237,8 @@ function candidateOffsets(
 	return edgeAffinity === 'never-extend' ? offsets.filter((o) => outsideSpan(run, o)) : offsets;
 }
 
-/** Whether `offset` lies outside the run's own construct. A `never-extend` row allows nothing
- *  inside: half a URL is not a URL, half an escape is a literal backslash, and a destination the
- *  mode never draws is one the render cannot check. Stated over the construct's whole span rather
- *  than its run's inner end, since the screen position reaches inside through a neighbour's run. */
+/** Whether `offset` lies outside the run's whole construct, which is all a `never-extend` row
+ *  allows: half a URL is not a URL, and half an escape is a literal backslash. */
 const outsideSpan = (run: MarkerRun, offset: number): boolean =>
 	offset <= run.span.start || offset >= run.span.end;
 
@@ -281,20 +274,16 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 	return { start: inlines[0].start, end: inlines[inlines.length - 1].end };
 }
 
-/** What the user sees, asked of the code that draws it (G4.33). The content reading, not the
- *  block's own: this module only adds bytes, so no reading of it can license dropping one. */
-const shown = (raw: string, start: number, end: number): string =>
-	renderedText(parseInline(raw, start, end), raw, CONTENT_VISIBILITY);
-
 /** Every construct marker run, in pre-order. */
 function markerRuns(
 	inlines: readonly InlineNode[],
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): MarkerRun[] {
 	const runs: MarkerRun[] = [];
 	for (const node of inlineDescendants(inlines)) {
-		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
+		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
 		const span = { start: node.start, end: node.end };
 		if (node.start < content.start) {
@@ -307,32 +296,26 @@ function markerRuns(
 	return runs;
 }
 
-/**
- * The run `offset` sits in, its own boundaries included: the last in pre-order, so the innermost
- * construct at a shared boundary wins. Inside the run counts too, not only its two ends, because
- * a doubled code fence is a run a caret can be handed the middle of.
- */
+/** The run `offset` sits in, boundaries and interior included (a caret can be handed the middle of
+ *  a doubled code fence); the last in pre-order, so the innermost construct wins. */
 const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 	runs.reduce<MarkerRun | null>(
 		(found, run) => (offset >= run.start && offset <= run.end ? run : found),
 		null
 	);
 
-/**
- * What a construct with no children draws, as a range in the block's own bytes: the outer bounds
- * of its visible runs, one continuous stretch for such a construct. That continuity is what the
- * two marker runs below are carved out of, held by
- * `test/core/inline/painted-contiguity.property`. Asked of the render rather than worked out per
- * kind, since only the render knows which bytes a construct shows (G4.33), and read in the
- * block's own mode: where markers are drawn, nothing is hidden and nothing needs moving.
- */
+/** What a childless construct draws, as the outer bounds of its visible runs in the block's own
+ *  mode, asked of the render (G4.33); `painted-contiguity.property` holds it contiguous. */
 function paintedRange(
 	node: InlineNode,
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	grammar: GrammarView
 ): ContentRange | null {
 	if (node.kind === 'text') return null;
-	const painted = visibleRuns([node], raw, screen).filter((run) => run.visible && run.text !== '');
+	const painted = visibleRuns([node], raw, screen, { grammar }).filter(
+		(run) => run.visible && run.text !== ''
+	);
 	if (painted.length === 0) return null;
 	return { start: painted[0].start, end: painted[painted.length - 1].end };
 }

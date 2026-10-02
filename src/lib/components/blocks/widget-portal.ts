@@ -8,8 +8,9 @@
 import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
-import type { PresentationMode } from '../../presentation-mode';
+import { inlineReaderFor } from '../../core/inline';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
+import type { Reading } from '../../schema/reading';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkPoolBracket } from '../../invariants/inline-transitions';
@@ -24,12 +25,8 @@ export interface WidgetPoolAdapter<H> {
 }
 
 export interface WidgetPool {
-	/**
-	 * Adopt the oldest un-adopted live instance for the key, marking it adopted this
-	 * pass, otherwise build a new one. Only during a render pass: every request sits inside a
-	 * beginPass/sweep bracket. Key-only lookup cannot distinguish byte-identical
-	 * duplicates, so an out-of-pass caller holding a specific element must restore it.
-	 */
+	/** Adopts the oldest unadopted instance for the key, else builds one; call only inside a
+	 *  beginPass/sweep bracket. Identical sources share a key, so a caller holding one restores it. */
 	acquire(kind: AnyInlineKind, inline: InlineNode, source: string): HTMLElement | null;
 	/** Open a rebuild pass: un-adopt every instance so this pass re-earns them. */
 	beginPass(): void;
@@ -128,35 +125,30 @@ interface PortalHandle {
 	instance: Record<string, unknown>;
 }
 
-/** The live channels a mounted widget reads beside its frozen `{ inline, source }`
- *  snapshot. Every member is optional so a bare harness can mount without a shell. */
+/** The live channels a mounted widget reads beside its frozen `{ inline, source }` snapshot. All
+ *  required, so no widget falls back to a value the editor does not hold. */
 export interface SvelteWidgetPoolDeps {
-	/** A widget component's synchronous mount throw goes here (the editor's `error`
-	 *  channel). Absent leaves the caller falling back to the raw span silently. */
-	reportError?: (error: unknown) => void;
-	getPresentationMode?: () => PresentationMode;
-	/** The editor's theme name, beside the mode, for a widget whose body is drawn with
-	 *  its own colours, which CSS cannot reach, rather than styled by CSS. */
-	getTheme?: () => string;
-	getDocument?: () => DocumentView | undefined;
-	getContentVersion?: () => number;
-	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the
-	 *  document. Absent in a bare harness. */
-	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	/** A widget component's synchronous mount throw goes here (the editor's `error` channel). */
+	reportError: (error: unknown) => void;
+	/** The editor's theme name, for a widget that draws its own colors where CSS cannot reach. */
+	getTheme: () => string;
+	getDocument: () => DocumentView | undefined;
+	getContentVersion: () => number;
+	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the document. */
+	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
+	/** How the editor reads its bytes: a widget kind whose plugin it left out mounts nothing, and a
+	 *  mounted widget reads the mode and parses inline content through it. */
+	reading: Reading;
 }
 
-/**
- * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported and surfaced as
- * null so the caller falls back to the raw span. The getters sit alongside the frozen
- * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
- * outlives a mode flip or an edit elsewhere that a frozen value would not.
- */
-export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
-	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion, navigateTo } =
-		deps;
+/** A mount throw is reported and returns null, so the caller falls back to the raw span. The
+ *  getters are live props beside the frozen snapshot, since a pooled instance outlives a mode switch. */
+export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
+	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
+	const { grammar } = reading;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
-			const component = getInlineWidgetComponent(kind);
+			const component = getInlineWidgetComponent(kind, grammar);
 			if (!component) return null;
 			const wrapper = document.createElement('span');
 			wrapper.dataset.inlineWidget = '';
@@ -169,16 +161,20 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetP
 					props: {
 						inline,
 						source,
-						getPresentationMode,
+						getPresentationMode: reading.mode,
 						getTheme,
 						getDocument,
 						getContentVersion,
-						navigateTo
+						navigateTo,
+						// A getter, so a pooled widget's reader changes with the document's definitions.
+						get computeInlineContent() {
+							return inlineReaderFor(reading);
+						}
 					}
 				});
 				return { wrapper, instance };
 			} catch (error) {
-				reportError?.(error);
+				reportError(error);
 				return null;
 			}
 		},

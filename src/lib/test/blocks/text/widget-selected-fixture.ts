@@ -1,35 +1,44 @@
 import { parse } from '$lib/core/parser';
+import { recordingWrite, type RecordedWrite } from '$lib/test/harness/editor-actions';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
 } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
+import type { BlockEditActions } from '$lib/action-contracts';
+import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
 
-export interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+/** A recorded write less its mode. */
+export type Commit = Omit<RecordedWrite, 'mode'>;
 
 /** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
  *  selected. Dependencies this path must not reach are proxy traps, so widening it fails loudly. */
 export function harness(
 	source: string,
 	sourceStart: number,
-	linkRef?: LinkReferenceResolverRef,
+	reading: Reading = fixtureReading(),
 	extra: Partial<WidgetInteractionDeps> = {}
 ) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const carets: (number | null)[] = [];
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');
 	};
+	const blockEdit = {
+		updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+			commits.push({ index, raw, before, after })
+		),
+		completeLineOnType: async () => false
+	} as unknown as BlockEditActions;
 	const deps = {
 		get node() {
 			return node;
@@ -41,23 +50,30 @@ export function harness(
 			return [0];
 		},
 		getEl: () => null,
-		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,
 		cursor: new Proxy({}, { get: trap }),
 		widgetSelection,
-		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-				commits.push({ index, raw, before, after });
-			}
-		},
+		blockEdit,
+		// A selected widget's key names its own undo caret, so the recorded one is never read.
+		writeText: createSurfaceWrite({
+			getNode: () => node,
+			getIndex: () => 0,
+			getPath: () => [0],
+			blockEdit,
+			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+			getPreEditOffset: trap,
+			requestCaret: (at) => void carets.push(at)
+		}),
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,
-		setPendingCursor: trap,
-		get linkRef() {
-			return linkRef;
+		setPendingCursor: (offset: number | null) => void carets.push(offset),
+		grammar: defaultGrammarView,
+		get reading() {
+			return reading;
 		},
+		storedAs: () => topLevelStore(node, reading),
 		...extra
 	} as unknown as WidgetInteractionDeps;
 
-	return { interaction: createWidgetInteraction(deps), commits, widgetSelection };
+	return { interaction: createWidgetInteraction(deps), commits, carets, widgetSelection };
 }

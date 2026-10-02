@@ -1,6 +1,7 @@
 // The mounted table grid as the selection code reads it: a data-block-path wrapper, a
-// role="table" grid, data-table-row-idx rows, role="cell" cells. With `box`, the wrapper
-// reports it and each row's cells tile it left-to-right; callers attach `host` themselves.
+// role="table" grid, data-table-row-idx rows, row 0 as role="columnheader" cells and the rest as
+// role="cell". With `box`, the wrapper reports it and the cells tile it: rows top to bottom,
+// columns left to right. Callers attach `host` themselves.
 
 export interface TableGridBox {
 	left: number;
@@ -39,6 +40,7 @@ export function mountTableGrid({
 	host.appendChild(grid);
 
 	const cellWidth = box ? (box.right - box.left) / cols : 0;
+	const rowHeight = box ? (box.bottom - box.top) / rows : 0;
 	const cells: HTMLElement[][] = [];
 	for (let r = 0; r < rows; r++) {
 		const rowEl = document.createElement('div');
@@ -47,12 +49,13 @@ export function mountTableGrid({
 		const rowCells: HTMLElement[] = [];
 		for (let c = 0; c < cols; c++) {
 			const cellEl = document.createElement('div');
-			cellEl.setAttribute('role', 'cell');
+			cellEl.setAttribute('role', r === 0 ? 'columnheader' : 'cell');
 			if (editableCells) cellEl.setAttribute('contenteditable', 'true');
 			if (box) {
 				const left = box.left + c * cellWidth;
+				const top = box.top + r * rowHeight;
 				cellEl.getBoundingClientRect = () =>
-					({ left, right: left + cellWidth, top: box.top, bottom: box.bottom }) as DOMRect;
+					({ left, right: left + cellWidth, top, bottom: top + rowHeight }) as DOMRect;
 			}
 			rowEl.appendChild(cellEl);
 			rowCells.push(cellEl);

@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The shared keydown's boundary detection: Shift+Arrow reads the focus offset, not the anchor, so
-// a forward selection whose anchor sits mid-block still crosses once the focus reaches the edge.
-// The cross-block extenders are spied on to observe the decision without DOM geometry.
+// Shift+Arrow boundary detection reads the focus offset, not the anchor, so a forward selection
+// anchored mid-block still crosses once the focus reaches the edge.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
@@ -16,8 +15,9 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import { createStickyColumnState } from '../../cursor/sticky-column';
-import { createEdgeAffinityState } from '../../cursor/edge-affinity';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { commandContext } from '$lib/test/support/command-context';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -28,16 +28,16 @@ function makeCtx(over: {
 	textLen: number;
 }): SharedKeydownContext {
 	const doc = parse('a\n\nb\n');
-	// Cast the members this fixture genuinely does not stand up, never the whole context: a
-	// blanket cast is what let a new required reader ship unanswered here.
+	// Cast only the members this fixture does not stand up, never the whole context, so a new
+	// required reader fails to type-check here.
 	return {
 		// No plugins stood up here, so every installed one is active.
-		activePlugins: undefined,
+		commands: commandContext(),
+		reading: fixtureReading(),
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,
 		// A detached element reads as no presentation root, so the bounds never walk it.
-		getAmbientLength: () => 0,
 		getTextLen: () => over.textLen,
 		getMyPath: () => [1],
 		getIndex: () => 1,
@@ -48,12 +48,11 @@ function makeCtx(over: {
 		selection: {
 			resetSelectAllCount: () => {}
 		} as unknown as SharedKeydownContext['selection'],
-		stickyColumn: createStickyColumnState(),
-		edgeAffinity: createEdgeAffinityState(),
+		caretMemory: createCaretMemory(),
 		history: {} as SharedKeydownContext['history'],
 		focus: {} as SharedKeydownContext['focus'],
 		getDoc: () => doc,
-		getBlockElByPath: () => null
+		scrollOwner: { place: () => ({ scroll: async () => true }) }
 	};
 }
 

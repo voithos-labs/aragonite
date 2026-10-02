@@ -30,8 +30,8 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals('$$\nnew\n$$\n\ntail\n');
 	});
 
-	// The confirmed swallow: with the rendered view holding focus the block had no keydown handler
-	// at all, so Mod+Z reached neither the block nor the editor root.
+	// With the rendered view holding focus, only the block's own keydown handler lets Mod+Z reach the
+	// undo stack.
 	test('Mod+Z reaches the stack while the folded view holds focus', async ({ page }) => {
 		await editor.render.click();
 		await expect(editor.source).toBeFocused();
@@ -46,12 +46,8 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
-	// The reproduction from #161. The block forms as the second `$` lands, with the caret in its
-	// open source. That draft is uncommitted: Mod+Z steps back through it one typing burst at a
-	// time, the document's own granularity, and the key after the last one brings the paragraph
-	// back rather than pushing draft bytes into the document the undo just restored. Exact text
-	// rather than `toHaveText`, which collapses whitespace, since a stray newline in the draft is
-	// one more entry of its own.
+	// Mod+Z in a just-formed block's open source steps back one typing burst at a time, then restores
+	// the paragraph without leaking draft bytes; exact text, since `toHaveText` collapses whitespace.
 	test('undo from inside a just-created reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {

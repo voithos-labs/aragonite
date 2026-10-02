@@ -10,14 +10,16 @@ import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merg
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
 import type { CstNode } from '$lib/core/nodes';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /**
- * Mirrors the commitContainer path: M1 takes a children-copy and returns the outer-scope
- * delete implicitly, so the childIds are applied here the way the commit primitive does.
+ * The merge deletes the item from its children copy only, so the helper applies the same
+ * delete to `childIds` the way the container commit does.
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();
-	mergeListItemIntoPrevious(list, children, currentIndex, undefined, undefined, undefined);
+	mergeListItemIntoPrevious(list, children, currentIndex, createSharingState(), fixtureReading());
 	const refs: undefined[] = new Array(list.children!.length).fill(undefined);
 	applyStructuralChangeToIdsRefs(
 		{ op: 'delete', at: currentIndex, count: 1 },

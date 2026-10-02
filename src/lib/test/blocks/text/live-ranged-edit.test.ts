@@ -1,47 +1,31 @@
 // @vitest-environment jsdom
-//
 // Every destructive gesture a prose block can receive, at the point that decides whether it
-// reaches the join rules: the caret-edge branch declines a chorded key, so it arrives as
-// `beforeinput` at a collapsed caret whose target range is the whole word.
-// Miss-analysis: the join rules' own suite drives ranges directly and this layer had no test at
-// all, so both checks that fail open (a null selection, a three-entry input-type list) were unseen.
+// reaches the join rules: a chorded key arrives as `beforeinput` at a collapsed caret whose
+// target range is the whole word.
+// Miss-analysis: this layer had no test, so its two checks that fail open went unseen.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy';
-import type { EditorServices } from '$lib/editor-keys';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
-import { mountCell, type MountedCell } from '../table/mount-cell';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
-
-/** The async beforeinput chain resolves after the dispatch returns. */
-const settle = () => new Promise((r) => setTimeout(r));
+import { mountCell, noIslands, type MountedCell } from '../table/mount-cell';
+import { settleEditor } from '$lib/test/harness/settle';
+import { mountBlock } from '../../harness/mount-block';
 
 // `**bold** tail`: the run is [0,2) and [6,8), the word `bold` is [2,6).
 const BOLD = '**bold** tail\n';
 
 function mountText(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(TextEditableBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit,
-			doc: { doc: () => doc },
+	const { instance, target, blockEdit } = mountBlock(TextEditableBlock, {
+		source,
+		overrides: {
 			policies: { presentationMode: () => 'live' },
 			services: { decorations: noIslands }
-		})
+		}
 	});
-	flushSync();
 	return { instance, el: target.querySelector('.text-editable-block') as HTMLElement, blockEdit };
 }
 
@@ -49,7 +33,7 @@ function seat(el: HTMLElement, start: number, end: number): void {
 	el.focus();
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
-	sel?.addRange(createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
+	sel?.addRange(createRangeAtDomTextOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
 }
 
 /** A key the browser reports a target range for, which is what a word or line delete is, whether
@@ -69,7 +53,7 @@ async function press(
 		...init
 	});
 	if (target) {
-		const range = createRangeFromOffsets(
+		const range = createRangeAtDomTextOffsets(
 			el,
 			asDomTextOffset(target.start),
 			asDomTextOffset(target.end)
@@ -77,7 +61,7 @@ async function press(
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [range] });
 	}
 	el.dispatchEvent(e);
-	await settle();
+	await settleEditor();
 	return e;
 }
 
@@ -126,7 +110,7 @@ describe('a destructive chord at a collapsed caret reaches the join', () => {
 		expect(committed(mounted.blockEdit)).toEqual(['Xail\n']);
 	});
 
-	// The payload is part of what the cleanup checks (GH #165): `**brave**` strands nothing, so it
+	// The payload is part of what the cleanup checks: `**brave**` strands nothing, so it
 	// refuses and the replacement stays inside the run the user saw.
 	it('leaves a replacement that fills the run to the browser', async () => {
 		mounted = mountText(BOLD);
@@ -172,9 +156,8 @@ describe('what the branch leaves to the browser', () => {
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// Paste and composition have their own handling; taking one here writes the block twice, once
-	// from this branch and once from the composition's own commit over the same range. The delete
-	// half of the composition family is what an insert-only list misses.
+	// Paste and composition have their own handling, so taking one here writes the block twice;
+	// the composition's delete types are what an insert-only list misses.
 	it.each([
 		'insertFromPaste',
 		'insertCompositionText',

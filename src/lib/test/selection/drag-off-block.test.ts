@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
 // A drag whose pointer leaves every block: one move per frame keeps only the latest position, so
-// a burst ending in the margin is the whole frame's move. Miss-analysis: the drag suite counted
-// listeners and asserted where the release puts the caret, never drove a move through it, so the
-// branch deciding whether a gesture opens a range at all had no test at any layer, and the
-// Chromium e2e lane paces one move per frame, the one shape that never reproduces it.
+// a burst ending in the margin is the whole frame's move.
+// Miss-analysis: no test drove a move off every block, and Chromium e2e paces one move per frame.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '$lib/selection/drag-pointer';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';

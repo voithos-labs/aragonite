@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The copy and cut branches for a selected widget in createTextClipboard: a selected inline
-// widget (an image, a `<br>`) copies its own raw slice through `e.clipboardData.setData`, and
-// cut also splices that slice out as one undoable commit. A real parse resolved through
-// `getInlineContent`, a captured ClipboardEvent stand-in, and the real widget-selection state,
-// with no branch on `kind === 'image'`.
+// The clipboard branches of `createTextClipboard` for a selected inline widget (an image, a
+// `<br>`): copy writes the widget's own raw slice, cut and paste replace it as one undoable write.
+// Driven with a real parse and the real widget-selection state, never a branch on kind.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -13,8 +11,13 @@ import {
 	type TextClipboardDeps
 } from '$lib/components/blocks/text/text-clipboard';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { stubCaretMemory } from '$lib/testing/headless-actions';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -37,14 +40,21 @@ interface HarnessOptions {
 	/** Paste asks the cross-block handler before the widget branch; every other path leaves
 	 *  the trap in place, which is what proves it never fell through. */
 	crossBlockDeclines?: boolean;
+	/** Where the caret was when the widget was selected; its start unless given. */
+	preSelectOffset?: number;
 }
 
 function harness(source: string, sourceStart: number, options: HarnessOptions = {}) {
-	const node: CstNode = parse(source).children[0];
+	const doc = parse(source);
+	const node: CstNode = doc.children[0];
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	if (options.selectWidget !== false) {
-		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+		widgetSelection.select({
+			paragraphPath: [0],
+			sourceStart,
+			preSelectOffset: options.preSelectOffset ?? sourceStart
+		});
 	}
 
 	const trap = new Proxy(
@@ -69,23 +79,24 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
+		caretMemory: stubCaretMemory(),
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
-				void commits.push({ index, raw, before, after })
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+				commits.push({ index, raw, before, after })
+			)
 		},
 		pasteCoordinator: trap,
-		getDoc: () => {
-			throw new Error('unexpected getDoc access');
-		},
+		getDoc: () => doc,
+		activePlugins: everyInstalledPlugin,
 		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
-		get linkRef() {
-			return undefined;
-		}
+		grammar: defaultGrammarView,
+		get reading() {
+			return fixtureReading();
+		},
+		storedAs: () => topLevelStore(node)
 	} as unknown as TextClipboardDeps;
 
 	return { handlers: createTextClipboard(deps), commits, widgetSelection };
@@ -136,9 +147,23 @@ describe('createTextClipboard: selected-widget cut', () => {
 	});
 });
 
-// What the editor root hands back: the browser dispatches at `<body>` when the paragraph holds
-// no text position. Forwarding to the same handlers a caret-side event reaches is what brings
-// the reading-mode check and the sticky-column reset along with it.
+// Miss-analysis: the widget's paste moved onto the paste dispatch and no test read the undo caret
+// it handed over, so the paste's end took the place of the offset the widget was selected from.
+describe('createTextClipboard: selected-widget paste', () => {
+	it('records the offset the widget was selected from as the undo caret', async () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, {
+			crossBlockDeclines: true,
+			preSelectOffset: 13
+		});
+		const e = capturingEvent();
+		e.clipboardData.setData('text/plain', 'PASTED');
+		await handlers.onPaste(e as never);
+		expect(commits[0]).toEqual({ index: 0, raw: 'leadPASTED\n', before: 13, after: 10 });
+	});
+});
+
+// The browser dispatches at `<body>` when the paragraph holds no text position, so the editor
+// root forwards to the same handlers, reading-mode check and sticky-column reset included.
 describe('createTextClipboard: claimRootClipboard', () => {
 	it('routes each clipboard type to the branch the caret route reaches', async () => {
 		const copy = harness('lead![cat](x)\n', 4);
@@ -192,13 +217,13 @@ describe('createTextClipboard: claimRootClipboard', () => {
 	});
 });
 
-// Hiding a source whose commit changes the block's kind takes the structural path, whose
-// completion is a promise; cut and paste must both wait, or they splice bytes still being
-// replaced.
+// Hiding a source whose commit changes the block's kind completes on a promise, so cut and paste
+// must wait for it or splice bytes still being replaced.
 function foldSettleHarness() {
-	const node: CstNode = parse('lead![cat](x)\n').children[0];
+	const doc = parse('lead![cat](x)\n');
+	const node: CstNode = doc.children[0];
 	const order: string[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
 
 	let releaseWrite!: () => void;
@@ -219,11 +244,11 @@ function foldSettleHarness() {
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
-		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
+		caretMemory: stubCaretMemory(),
+		blockEdit: { updateBlockContent: recordingWrite(() => order.push('seam-commit')) },
 		pasteCoordinator: {},
-		getDoc: () => null,
+		getDoc: () => doc,
+		activePlugins: everyInstalledPlugin,
 		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => false,
@@ -231,9 +256,11 @@ function foldSettleHarness() {
 			caret: 4,
 			settled: writeGate.then(() => void order.push('fold-write'))
 		}),
-		get linkRef() {
-			return undefined;
-		}
+		grammar: defaultGrammarView,
+		get reading() {
+			return fixtureReading();
+		},
+		storedAs: () => topLevelStore(node)
 	} as unknown as TextClipboardDeps;
 
 	return { handlers: createTextClipboard(deps), order, releaseWrite };

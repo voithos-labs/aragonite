@@ -1,17 +1,16 @@
 /**
- * A hidden construct edge is an arrow stop of its own (live-mode.md § 4.2). The caret after
- * `code` in `` `code` `` stands for two raw offsets, inside the closer and past it; a plain
- * ArrowRight or ArrowLeft there moves which one the caret means and leaves it on its pixel, and
- * the next press moves the caret. Without the stop, a construct ending its line could only be
- * left with End or its typed closer: the arrow walked straight out of the block. Both offsets
- * share a pixel, so each construct the next byte would join carries `EDGE_HELD_CLASS` instead.
+ * A hidden construct edge is an arrow stop of its own (live-mode.md § 4.2): after `code` in
+ * `` `code` `` a plain arrow first moves which offset the caret means, inside the closer or past
+ * it, and only the next press moves the caret. Both offsets share a pixel, so each construct the
+ * next byte would join carries `EDGE_HELD_CLASS`.
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
+import type { CaretMemory } from '../../../cursor/caret-memory';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import { edgeStep, edgeStops, typingOffset } from './edge-seat';
 
 /** On a construct's content element while the caret sits at its hidden edge, inside it. */
@@ -26,7 +25,9 @@ export interface EdgeStepDeps {
 	getCaret: () => number | null;
 	/** Reading mode takes no bytes, so which side a byte would land on means nothing there. */
 	isReading: () => boolean;
-	edgeAffinity: EdgeAffinityState;
+	/** The reading `getInlines` was read with, so a reference link reads as one. */
+	reading: Reading;
+	caretMemory: Pick<CaretMemory, 'side' | 'pin'>;
 }
 
 export interface EdgeStep {
@@ -47,7 +48,13 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		if (!el || deps.isReading() || !revealsNoMarkers(el)) return null;
 		const caret = deps.getCaret();
 		if (caret === null) return null;
-		const stops = edgeStops(caret, deps.getInlines(), deps.getRaw(), screenVisibilityOf(el));
+		const stops = edgeStops(
+			caret,
+			deps.getInlines(),
+			deps.getRaw(),
+			screenVisibilityOf(el),
+			deps.reading
+		);
 		return stops.length < 2 ? null : { el, caret, stops };
 	}
 
@@ -63,13 +70,14 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		const target = edgeStep(
 			at.caret,
 			deps.getInlines(),
-			deps.edgeAffinity.get(),
+			deps.caretMemory.side(),
 			deps.getRaw(),
 			screenVisibilityOf(at.el),
+			deps.reading,
 			direction
 		);
 		if (target === null) return false;
-		deps.edgeAffinity.pin(target);
+		deps.caretMemory.pin(target);
 		show();
 		return true;
 	}
@@ -81,13 +89,8 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		held = next;
 	}
 
-	/**
-	 * The content elements the next byte would land inside, among the constructs whose content
-	 * starts or ends at this position. Read off the tree, not the DOM, since a DOM position at a
-	 * hidden run's edge maps to either of its offsets; the DOM only names the element, found
-	 * through the construct tags on its marker spans (`tagConstructMarkers`). The renderer draws
-	 * a construct as its opener, a content element and its closer, siblings in that order.
-	 */
+	/** The content elements, at this position, the next byte would land inside: decided on the
+	 *  tree, then found by the construct tags on the opener, whose next sibling is the content. */
 	function heldElements(): Element[] {
 		const at = edge();
 		if (!at) return [];
@@ -95,9 +98,10 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		const typing = typingOffset(
 			at.caret,
 			inlines,
-			deps.edgeAffinity.get(),
+			deps.caretMemory.side(),
 			deps.getRaw(),
-			screenVisibilityOf(at.el)
+			screenVisibilityOf(at.el),
+			deps.reading
 		);
 		const lo = at.stops[0];
 		const hi = at.stops[at.stops.length - 1];

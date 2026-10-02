@@ -3,11 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { spacerCount } from './vr-helpers';
 
 /**
- * VR-12, for where the caret lands after a structural paste. It lands at the end of the pasted
- * run, at an index that grows with how many items were on the clipboard rather than with where
- * the caret was, so once that run passes what the container keeps mounted the target is
- * unmounted and looking it up straight away cannot mount it. Focus is checked by typing, never
- * by reading the source: `getSource()` reads the same whatever the caret did.
+ * Where the caret lands after a structural paste (VR-12): at the end of the pasted run, an index
+ * that grows with the clipboard, so a long run lands it past the mounted window, where an
+ * immediate lookup cannot mount it. Focus is checked by typing, since `getSource()` reads the same
+ * whatever the caret did.
  */
 
 // About 600 items puts the container past the 4000px at which windowing starts.
@@ -49,8 +48,8 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		await editor.loadContent(LONG_LIST);
 		await editor.waitForRenderFlush();
 
-		// Proves something: without windowing inside the container the target is always
-		// mounted and this test could not see VR-12 at all.
+		// Without windowing inside the container the target is always mounted and the test proves
+		// nothing.
 		expect(
 			await spacerCount(page, '.list-block >'),
 			'container windowing is not active: the fixture no longer clears the watermark'

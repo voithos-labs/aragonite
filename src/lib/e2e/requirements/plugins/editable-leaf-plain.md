@@ -20,6 +20,10 @@ plugin leaf behaves like a built-in text block. The seed is `Before` / `%% memo 
   the memo's end leaves for the next block; ArrowDown and ArrowUp cross it as well
 - A selection swept from the block above, through the memo, into the block below becomes a
   cross-block selection covering all three
+- A character typed over a selection that runs from the block above into the memo replaces the
+  whole selection, the way it does in a text block, rather than landing in the memo alone.
+  Miss-analysis: GH #529, each built-in block ran the shared typing step itself, and the memo
+  never did, so a range ending in it was only ever swept, never typed over.
 
 ## Clipboard
 

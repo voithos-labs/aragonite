@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // What the decoration code answers about an inline widget it can see will never render. That
 // answer belongs where the source runs and nowhere later: only there are the decorations held
 // beside the document they came from, so only there does "cannot render" mean the author
@@ -63,7 +62,7 @@ describe('non-prose widget dev-warn', () => {
 		const engine = makeMixedEngine();
 		const handle = engine.addSource({
 			name: 'w',
-			provide: () => [widget([1], 0), replace([1], 0, 1)] // two islands, same non-prose kind
+			provide: () => [widget([1], 0), replace([1], 0, 1)] // two inline widgets, same non-prose kind
 		});
 		expect(takeDevWarns()).toHaveLength(1);
 		handle.invalidate();
@@ -72,9 +71,7 @@ describe('non-prose widget dev-warn', () => {
 	});
 });
 
-// Miss-analysis: the render pass owned the out-of-range answer, and no test paired a source
-// with the document it read, so a decoration one edit out of date looked exactly like one the
-// author placed wrong, and the author was blamed for a re-run the editor had deferred.
+// Miss-analysis: no test paired a source with its document, so staleness read as author error.
 describe('out-of-range widget dev-warn', () => {
 	// 'one\n' and 'two\n': content length 3 apiece.
 	const doc = parse('one\n\ntwo\n');

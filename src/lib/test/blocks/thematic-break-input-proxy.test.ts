@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// Regression pin for #144: a printable that arrives as `beforeinput` rather than a plain keydown
-// such as an AltGr production or an IME commit, was dropped whole at a whole-block-focused kind,
-// focused element was a bare `tabindex=0` div with no editing host under it.
-//
-// Miss-analysis: `whole-block-keys.test.ts` pinned every branch of the keydown tail, and the tail
-// is the whole insertion, and no test asked whether the other input path existed at all.
+// A printable that arrives as `beforeinput` with no keydown behind it (an AltGr production, an
+// IME commit) reaches a whole-block-focused kind through the editing host under its focus.
+// Miss-analysis: every test went through keydown; none sent a bare `beforeinput` (GH #144).
 import { describe, it, expect, afterEach } from 'vitest';
 import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-break';
 
@@ -88,13 +84,12 @@ describe('thematic break: the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(false);
 	});
 
-	it('reading mode takes the keystroke and writes no byte', () => {
+	// The write itself is refused at the commit (`whole-block-input-proxy.test.ts`).
+	it('reading mode makes the host inert and still takes the keystroke', () => {
 		mounted = mountBreak('reading');
 		mounted.instance.parkCaret(0);
 
 		expect(mounted.host.getAttribute('contenteditable')).toBe('false');
-		beforeInput(mounted.host, '€');
-
-		expect(mounted.blockEdit.insertParagraph).not.toHaveBeenCalled();
+		expect(beforeInput(mounted.host, '€').defaultPrevented).toBe(true);
 	});
 });

@@ -6,8 +6,9 @@ text clamps it to the body end: the fence stays byte-intact, the body gains a bl
 line, and the caret stays with the content, the same result Enter at that body edge
 already produces. A splice before or inside the opener corrupts the raw (a phantom
 fence rendered from a leading `\n`); one inside the closer breaks the closer apart
-and leaves an unclosed fence. With a selection, Enter replaces it on the selection's
-body span, like every other ranged edit in this block (`fence-ranged-edit.md`);
+and leaves an unclosed fence. With a selection, Enter replaces only the part of it
+inside the body, in every mode, the way ranged edits do where the fence lines are hidden
+(`fence-ranged-edit.md`);
 that branch is pinned in `src/lib/test/blocks/code/code-fence-ranged-edit.test.ts`.
 
 ## Happy paths

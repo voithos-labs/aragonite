@@ -17,9 +17,8 @@ function opWindowErrors(page: Page): { clear: () => void; collected: () => strin
 	return { clear: () => (errors = []), collected: () => errors };
 }
 
-// Drag is the real gesture; geometry can vary, so fall back to a shift-click at the same focus
-// offset. Both endpoints keep prose, so the leftover on the focus side must merge rather than
-// fusing into the block beside it, as `4after` would.
+// A drag, with a shift-click fallback at the same offset where geometry varies. Both endpoints keep
+// prose, so the focus side's leftover must merge rather than fuse into the next block (`4after`).
 async function selectAcrossAtomic(editor: EditorPage): Promise<void> {
 	await editor.dragFromTo([0], 7, [2], 6);
 	if (await editor.bridge.isCrossBlockActive()) return;
@@ -86,9 +85,8 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 	}
 });
 
-// `roundTrip` catches a corrupted serializer; `parseConverged` checks the live tree against a
-// reparse. A delete that leaves a stale grid or a split separator shows up in the second where the
-// byte check sees nothing.
+// `roundTrip` catches a corrupted serializer; `parseConverged` catches a stale grid or a split
+// separator, which the byte check cannot see.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
 	expect(await roundTripStable(editor.page)).toBe(true);

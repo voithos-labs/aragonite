@@ -38,8 +38,8 @@ test('a host-scroll entry windows its blocks against the ancestor scrollport', a
 	expect(await entry(page, 'a').locator('.vr-spacer').count()).toBeGreaterThan(0);
 	expect(pageErrors).toEqual([]);
 
-	// One implementation, two scroll containers: the same source in an editor that scrolls
-	// itself mounts about as many blocks. Mounting all 200 here is how this mode used to be.
+	// The same source in an editor that scrolls itself mounts about as many blocks, so this one must
+	// not mount all 200.
 	const source = await flowSource(page, 'a');
 	const selfMode = new EditorPage(page);
 	await selfMode.goto();
@@ -161,10 +161,8 @@ test('scrollTo past a clipping host edge resolves false, nothing can reveal the 
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
-	// The clipping edge is the case, not distance: the target sits past the pane's bottom edge
-	// but well inside the window's viewport, so measuring against the window alone calls it
-	// visible. The block just above that edge must still read `true`, or "always false inside a
-	// clipping pane" would pass for the wrong reason.
+	// The target sits past the pane's bottom edge but inside the window's viewport; the block just
+	// above that edge must read `true`, so `false` everywhere fails.
 	const geometry = await page.evaluate(() => {
 		const pane = document.querySelector('[data-testid="entry-clipped"]')!.getBoundingClientRect();
 		const below = (window as any).__flow.blockRect('clipped', [5]) as { top: number };
@@ -214,7 +212,7 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
-	// The entry starts below the fold; scroll it into reach before focusing a block.
+	// The entry starts below the viewport; scroll it into reach before focusing a block.
 	await scrollHostTo(page, 1100);
 	await entry(page, 'a').locator('[contenteditable]').first().click();
 	await page.keyboard.press('ControlOrMeta+f');
@@ -261,8 +259,8 @@ test('nested scopes in a host-scroll entry window their children and stay error-
 	expect(items).toBeGreaterThan(100);
 	expect(rows).toBeGreaterThan(100);
 
-	// Into view first: an editor below the fold overlaps the viewport by nothing and correctly
-	// mounts almost no blocks (VR-11), which would pass the count for the wrong reason.
+	// Into view first: an editor below the viewport correctly mounts almost no blocks (VR-11), which
+	// would pass the count for the wrong reason.
 	await nested.scrollIntoViewIfNeeded();
 	await settleFrames(page);
 

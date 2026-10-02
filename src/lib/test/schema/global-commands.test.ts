@@ -1,26 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
+import { dispatchKeyCommand, runCommandById } from '$lib/schema/block-commands';
 import {
 	getCommand,
 	resolveBinding,
 	resolveGlobalBinding,
 	isDefaultGlobalChord,
+	runGlobalChord,
 	pluginGlobalBinding,
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests,
 	type GlobalCommandContext
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
+import { commandContext } from '../support/command-context';
 
 const editor = {
 	editorId: 'e',
@@ -32,33 +27,28 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
 	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
+	getPresentationMode: () => 'source',
+	onCommandError: () => {},
 	...over
-});
-
-beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
 });
 
 describe('registerGlobalCommand', () => {
 	it('creates, registers, and the handler receives the per-instance EditorContext', () => {
 		let got: EditorContext | undefined;
 		const id = registerGlobalCommand('demo.stats', (e) => ((got = e), true));
-		expect(getCommand(id)!(ctx())).toBe(true);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx())).toBe(true);
 		expect(got).toBe(editor);
 	});
 
 	it('declines (false) when the dispatch site supplies no pluginEditor', () => {
 		const id = registerGlobalCommand('demo.lone', () => true);
-		expect(getCommand(id)!(ctx({ pluginEditor: undefined }))).toBe(false);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx({ pluginEditor: undefined }))).toBe(false);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
 	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
 	// context here. That is inactive by design, so it must not use up the key-does-nothing warning.
 	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
-		__resetInstalledPluginsForTests();
 		let ran = false;
 		let id!: ReturnType<typeof registerGlobalCommand>;
 		installPlugins([
@@ -69,18 +59,33 @@ describe('registerGlobalCommand', () => {
 				}
 			})
 		]);
-		expect(getCommand(id)!(ctx({ pluginEditor: () => undefined }))).toBe(false);
+		expect(getCommand(id, everyInstalledPlugin)!(ctx({ pluginEditor: () => undefined }))).toBe(
+			false
+		);
 		expect(ran).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('contains a handler throw and reports it through the injected sink', () => {
+	// Miss-analysis: the throw test registered outside any plugin, so its expected plugin was
+	// always undefined.
+	it('contains a handler throw and reports it as the plugin that registered it', () => {
+		const boom = new Error('boom');
 		const reports: unknown[] = [];
-		const id = registerGlobalCommand('demo.boom', () => {
-			throw new Error('boom');
-		});
-		expect(getCommand(id)!(ctx({ onCommandError: (r) => reports.push(r) }))).toBe(true);
-		expect(reports).toHaveLength(1);
+		let id!: ReturnType<typeof registerGlobalCommand>;
+		installPlugins([
+			definePlugin({
+				name: 'reporter',
+				setup() {
+					id = registerGlobalCommand('reporter.boom', () => {
+						throw boom;
+					});
+				}
+			})
+		]);
+		expect(
+			getCommand(id, everyInstalledPlugin)!(ctx({ onCommandError: (r) => reports.push(r) }))
+		).toBe(true);
+		expect(reports).toEqual([{ command: id, plugin: 'reporter', error: boom }]);
 	});
 
 	it('chord registers into the plugin-global level; built-in chords are unstealable', () => {
@@ -112,6 +117,11 @@ describe('registerGlobalCommand', () => {
 		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
+	it('binds a chord declared out of modifier order under its normal form', () => {
+		registerGlobalCommand('demo.order', () => true, { chord: 'Shift+Mod+j' });
+		expect(pluginGlobalBinding('Mod+Shift+J', everyInstalledPlugin)?.chord).toBe('Mod+Shift+J');
+	});
+
 	it('a chord collision leaves no partial state: the name can still be created afterward', () => {
 		expect(() => registerGlobalCommand('demo.retry', () => true, { chord: 'Mod+Z' })).toThrow();
 		expect(() =>
@@ -123,6 +133,41 @@ describe('registerGlobalCommand', () => {
 		registerGlobalCommand('demo.overridable', () => true, { chord: 'Mod+Shift+8' });
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+8', command: null }]);
 		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides, everyInstalledPlugin)).toBeNull();
+	});
+});
+
+// Miss-analysis: every handler test ignored the argument, so no dispatch site had to pass one on.
+describe('a global command handler receives the dispatch argument', () => {
+	const dispatchContext = commandContext({ pluginEditor: () => editor });
+
+	function recordingCommand(chord?: string) {
+		const received: unknown[] = [];
+		const id = registerGlobalCommand('demo.withArg', (_editor, arg) => (received.push(arg), true), {
+			chord
+		});
+		return { id, received };
+	}
+
+	it('through runCommand(id, arg)', () => {
+		const { id, received } = recordingCommand();
+		expect(runCommandById(id, 'table', null, dispatchContext)).toBe(true);
+		expect(received).toEqual(['table']);
+	});
+
+	it('through a chord binding that carries an argument, at a block and at the root', () => {
+		const { id, received } = recordingCommand();
+		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+9', command: id, arg: 3 }]);
+		const target = { kind: 'paragraph' as const, runCommand: () => false };
+		const rebound = { ...dispatchContext, keybindingOverrides: () => overrides };
+		expect(dispatchKeyCommand('Mod+Shift+9', target, rebound)).toBe(true);
+		expect(runGlobalChord('Mod+Shift+9', rebound)).toBe(true);
+		expect(received).toEqual([3, 3]);
+	});
+
+	it('as undefined from a chord with no argument', () => {
+		const { received } = recordingCommand('Mod+Shift+9');
+		runGlobalChord('Mod+Shift+9', dispatchContext);
+		expect(received).toEqual([undefined]);
 	});
 });
 
@@ -169,10 +214,6 @@ describe('chorded global command survives dev re-eval', () => {
 // Recording the owner is what separates a plugin reusing its own name from a collision between
 // plugins, and the owner is what the collision message names.
 describe('registerGlobalCommand owner attribution', () => {
-	afterEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	it('names the owning plugin when a second plugin re-creates the same command', () => {
 		installPlugins([
 			definePlugin({

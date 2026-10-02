@@ -8,18 +8,16 @@
 import { tick } from 'svelte';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
-import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
-import { CONSTRUCT_REVEAL_CLASS, domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../cursor/widget-offset';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
 	traceRevealFold
 } from '../../../debug/interaction-trace';
+import type { Reading } from '../../../schema/reading';
 
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
@@ -47,10 +45,8 @@ interface ChainEntry {
 
 export interface ConstructRevealDeps {
 	get node(): NodeView;
-	get linkRef(): LinkReferenceResolverRef | undefined;
+	get reading(): Reading;
 	getEl: () => HTMLElement | null;
-	getAmbientLength: () => number;
-	getPresentationMode: () => PresentationMode;
 	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
 	 *  text keeps its layout. */
 	isCrossBlock: () => boolean;
@@ -60,14 +56,11 @@ export interface ConstructReveal {
 	/** Work out the caret's chain again and set the marker classes to match. Pass `force`
 	 *  after a rebuild: new spans carry no class even when the chain is unchanged. */
 	update(force?: boolean): void;
-	/** A synchronous backstop on keydown that only shows markers, never hides them: Chromium
-	 *  runs input events ahead of normal tasks, so fast arrow keys outrun the `selectionchange`
-	 *  update and would step against markers still hidden. Shows the caret's chain plus
-	 *  `delta`'s (0 for neither). */
+	/** Show (never hide) the caret's chain plus `delta`'s on keydown: fast arrow keys outrun the
+	 *  `selectionchange` update and would step against markers still hidden. */
 	prepareStep(delta: -1 | 0 | 1): void;
-	/** Keydown wiring for `prepareStep`. It holds the key names so the component carries no
-	 *  destructive-key literals, which the G4.12 scan reads as an interceptor; nothing here
-	 *  calls `preventDefault` or consumes an event. */
+	/** Keydown wiring for `prepareStep`, holding the key names so the component carries no
+	 *  destructive-key literals for the interceptor scan to flag (G4.12). Consumes no event. */
 	prepareForKeydown(e: KeyboardEvent): void;
 }
 
@@ -86,17 +79,14 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	/** Caret raw offset while the mode is on and the caret sits in this block. */
 	function caretOffset(): number | null {
 		const el = deps.getEl();
-		if (!el || deps.getPresentationMode() !== 'preview-inline') return null;
+		if (!el || deps.reading.mode() !== 'preview-inline') return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
-		return toClampedRawOffset(
-			domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset),
-			deps.getAmbientLength()
-		);
+		return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
 	}
 
 	function inlines(): InlineNode[] {
-		return resolvedInlineContent(deps.node, deps.linkRef);
+		return resolvedInlineContent(deps.node, deps.reading);
 	}
 
 	const toEntry = (n: InlineNode): ChainEntry => ({ kind: n.kind, start: n.start, end: n.end });
@@ -184,7 +174,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 				if (!chain.some((c) => c.start === n.start && c.end === n.end)) chain.push(toEntry(n));
 			}
 		}
-		// This only shows markers: hiding them again is the selection handler's job.
+		// `prepareStep` only shows markers; hiding them is the selection handler's job.
 		if (chain.length === 0) return;
 		const key = chainKey(chain);
 		if (key === appliedKey) return;

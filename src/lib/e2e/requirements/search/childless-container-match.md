@@ -24,6 +24,10 @@ the plugins harness, since only plugin kinds produce childless opaque containers
 - A query matching the fence's info string (`mermaid` → `js`) is declined for the container and
   applied to the prose: the fence keeps its opener and its kind, the declined match survives the
   rescan (count re-reads 1 / 1), and `replacedCount` reports 1.
+- A regex replace whose match runs from the last diagram line through the closing fence
+  (`B`, the line break and the three backticks, replaced with `C`) rewrites the diagram source
+  and the closing fence comes back: the block below (`Tail`) stays a paragraph of its own instead
+  of being swallowed into the diagram.
 
 ## Miss-analysis
 
@@ -31,3 +35,6 @@ the plugins harness, since only plugin kinds produce childless opaque containers
   ("the match is found and navigable, only its highlight is missing") and no test queried
   text that lived only inside a childless container's raw: the gap in the scan was invisible to
   every leaf-based search spec. This file pins the container-raw query directly.
+- The lost closing fence (#387) shipped because every mermaid write test went through the
+  diagram's own code editor, and no replace query reached past the diagram source into the fence
+  bytes, the one write path that hands the kind a truncated raw.

@@ -4,9 +4,9 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
-// G2.5: the inline tree tiles the content range, which cursor mapping depends on. not
-// leaf-exhaustive: a wrapped node's markers live in the edge gaps its children leave, and
-// the renderer pulls them from exactly there. Only the top level has no edge gap.
+// The inline tree tiles the content range, which cursor mapping depends on (G2.5). The tiling is
+// not leaf-exhaustive: a wrapped node's markers live in the edge gaps its children leave, where
+// the renderer reads them. Only the top level has no edge gap.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -78,8 +78,8 @@ describe('G2.5 inline-tree offset partition', () => {
 	});
 });
 
-// A link destination terminating inside a code span ends the link mid-span, leaving
-// overlapping top-level siblings: unreachable until destinations could hold backticks.
+// A link destination ending inside a code span ends the link mid-span, which would leave
+// overlapping top-level siblings.
 describe('G2.5 pinned counterexamples', () => {
 	const cases = ['[a](u`)`)', '![a](u`)`)'];
 

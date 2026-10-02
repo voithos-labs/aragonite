@@ -10,8 +10,8 @@ still holds it may drop it.
 Both cut across callers, so neither is reachable from a spec with one caller, and both
 bite after the scroll's own settle resolves, which is what `plugins/toc-navigation`
 and `search/reveal-past-undecoded-images` (the mount and scroll together) cannot
-see. The ownership rules themselves are unit-pinned in `test/cursor/reveal-anchor`
-and `test/cursor/editor-rects`; this file covers what the user sees.
+see. The ownership rules themselves are unit-pinned in `test/cursor/scroll-owner-placement`
+and `test/cursor/scroll-owner`; this file covers what the user sees.
 
 ## Happy paths
 
@@ -43,9 +43,10 @@ and `test/cursor/editor-rects`; this file covers what the user sees.
   release: every re-assertion between the navigation resolving and that read
   happens after scroll events the correction itself fired, so a hold that released
   on `scroll` strands the target there.
-- Changes inside the target's own container reach the hold too: a nested list's
-  subtotal report upward consults it before writing, so growth above the target
-  within its container re-asserts the target rather than displacing it.
+- Changes inside the target's own container reach the hold too: the container's
+  box grows, the root list measures it like any block and consults the hold as
+  it corrects, so growth above the target within its container re-asserts the
+  target rather than displacing it.
 - The hold gives up entirely once a mounted container has windowed its target out:
   the user scrolled past it, and the container's own top is a different block, so
   re-asserting would teleport them back. A container windowed out at the top level
@@ -55,3 +56,4 @@ and `test/cursor/editor-rects`; this file covers what the user sees.
 ## Error cases
 
 - No page errors surface during the reveal, the race, or the late decode.
+- No ResizeObserver loop error reaches `window.onerror` when a height correction mounts another block. Miss-analysis: the shared fixture relayed only thrown page errors until it also relayed `window.onerror`, so this loop error went unseen.

@@ -1,19 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { describeConvergence } from '../harness/parse-converged';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
-// Miss-analysis (emptied-middle-block collapse): the blank-line rule made every splice derive
-// its separator, and the delete branch was pinned while the merge branch was not, so the merge
-// kept the emptied block's line and left bytes that reload one block wider. The rule is
-// kind-agnostic, so the pin is the family: a successor that is not a paragraph (a footnote
-// definition, a link reference definition, an html block) must collapse identically.
+// Backspace on an emptied middle block collapses its line on the merge route as on the delete
+// route, whatever kind of block follows it.
+// Miss-analysis: the delete route was tested and the merge route was not.
 
 /** Backspace on an emptied middle block: `above`, one blank block, then `tail`. */
 const sourceWith = (tail: string) => `above\n\n\n${tail}`;
@@ -38,16 +37,13 @@ function collapsed(tail: string, op: (doc: Document) => void): Document {
 
 describe('an emptied middle block takes its own blank line with it', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerFootnoteDefinition();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {
 			const doc = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, undefined);
+				mergeIntoPrevDeepLeaf(d, 1, createSharingState(), fixtureReading());
 			});
 
 			expect(serialize(doc)).toBe(`above\n\n${tail}`);
@@ -57,17 +53,18 @@ describe('an emptied middle block takes its own blank line with it', () => {
 
 		it('deletes to the same shape the merge reaches', () => {
 			const merged = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, undefined);
+				mergeIntoPrevDeepLeaf(d, 1, createSharingState(), fixtureReading());
 			});
-			const deleted = collapsed(tail, (d) => deleteNode(d, 1));
+			const deleted = collapsed(tail, (d) =>
+				deleteNode(d, 1, defaultGrammarView, createSharingState())
+			);
 
 			expect(serialize(deleted)).toBe(serialize(merged));
 			expect(describeConvergence(deleted)).toBeNull();
 		});
 	});
 
-	// Non-vacuity: the shape this replaced kept the emptied block's line, and the reload check
-	// above is what tells the two apart; the bytes alone round-trip either way (G2.1).
+	// The leftover-blank shape round-trips its bytes, so only the reload check catches it (G2.1).
 	it('rejects the leftover-blank shape the collapse used to leave', () => {
 		const doc = parse('above\n\n[^a]: note\n');
 		doc.children[1].leadingTrivia = '\n\n';

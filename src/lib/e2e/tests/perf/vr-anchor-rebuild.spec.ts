@@ -3,12 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { editorScrollHeight, progressiveScrollTo, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Measured heights must survive a structural rebuild. List items and table rows are not block
-// hosts, so their measured size reaches the height table only as part of their parent's total;
-// unless that total is stored by id, an edit that changes the count sends every surviving
-// sibling back to an estimate and the spacer collapses. Both fixtures are uneven on purpose:
-// where the estimate already matches the measurement, going back to it changes nothing and the
-// bug cannot be seen.
+// Measured heights must survive a structural rebuild. List items and table rows reach the height
+// table only through their parent's total, so unless that total is stored by id, a count change
+// sends every sibling back to an estimate and the spacer collapses. Both fixtures are uneven, since
+// where the estimate matches the measurement the loss cannot be seen.
 
 /** Returns only once the tree really grew: windowing mounts part of it, so the DOM count
  *  cannot be trusted. */
@@ -76,9 +74,8 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	await waitForChildCount(editor, itemCount + 1);
 	await editor.waitForRenderFlush();
 
-	// The main signal: a rebuild that loses the measurements sends every item above the window
-	// back to an estimate and collapses the spacer by thousands of pixels, where one added item
-	// should move it by one item's height.
+	// A rebuild that loses the measurements collapses the spacer by thousands of pixels, where one
+	// added item should move it by one item's height.
 	expect(Math.abs((await editorScrollHeight(page)) - scrollHeightBefore)).toBeLessThan(500);
 
 	// A second signal: the reference block, above the edit, must not jump.
@@ -133,7 +130,7 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 	const scrollHeightBefore = await editorScrollHeight(page);
 
 	// Ctrl+Enter inserts a row, which is what makes TableBlock rebuild.
-	await page.locator(`[data-table-row-idx="${view.editIdx}"] [role="cell"]`).first().click();
+	await page.locator(`[data-table-row-idx="${view.editIdx}"] .table-cell`).first().click();
 	await page.keyboard.press('ControlOrMeta+Enter');
 	await waitForChildCount(editor, rowCount + 1);
 	await editor.waitForRenderFlush();

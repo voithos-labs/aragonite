@@ -9,11 +9,10 @@ export interface OperationDetailMap {
 	merge: { direction: 'prev' | 'next' };
 	reorder: { from: number; to: number };
 	delete: { crossBlock?: true; table?: 'whole' } | undefined;
-	input: { byteLength: number };
-	/** `crossBlock` marks a write that also covered the range's other blocks: `path` names one
-	 *  block, as every operation does, and `length` is that block's. `delete` reads the same way. An
-	 *  endpoint carrying a cell index names its table, whose own bytes no write holds, so `length`
-	 *  is the table's length before the write; a full path to a cell names it like any block. */
+	/** A write into one block that kept its kind (a keystroke, mostly); read the block for its text. */
+	input: undefined;
+	/** `crossBlock` marks a write that also covered the range's other blocks. `length` is the named
+	 *  block's, or for an endpoint carrying a cell index, its table's length before the write. */
 	updateContent: { length: number; crossBlock?: true };
 	replaceBlock:
 		| { count: number }

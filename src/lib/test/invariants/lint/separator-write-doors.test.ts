@@ -1,9 +1,8 @@
 /**
  * Every splice recomputes its blank-line separators through the one shared function, so no module
  * writes a sibling's `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure is
- * silent: byte round-trip stays green while the document reloads to a different block count. It
- * compares sets of names with a reason for each exemption, so the next splice site fails the
- * moment it is written rather than at the next review.
+ * silent: byte round-trip stays green while the document reloads to a different block count, so
+ * each exemption states a reason and the next splice site fails the moment it is written.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,9 +10,9 @@ import {
 	balancedBlock,
 	collectEditorSources,
 	readEditorFile,
-	stripComments,
 	type SourceFile
 } from './scan-source';
+import { probeFile } from './file-rule';
 
 /**
  * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
@@ -28,12 +27,10 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/node-primitives.ts': 'the same carry, for a replacement built elsewhere',
 	'src/lib/tree-operations/reorder.ts':
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
-	'src/lib/tree-operations/blockquote.ts':
-		'head normalization inside a built subtree: a body head separates from nothing',
 	'src/lib/tree-operations/container-lift.ts':
-		'same head normalization, plus the line that stood between the two lifted halves inside the container moving out with them',
+		'head normalization inside a built subtree (a body head separates from nothing), plus the line that stood between the two lifted halves inside the container moving out with them',
 	'src/lib/tree-operations/list/list-builders.ts':
-		'same head normalization, per assembled half and per split-built trailing half',
+		'head normalization inside a built subtree, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/item-partition.ts':
@@ -45,7 +42,9 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',
-	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half'
+	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half',
+	'src/lib/tree-operations/chain-rebuild.ts':
+		'a node whose bytes read as several blocks carries its line onto the first of them'
 };
 
 /** Files that may name one of those functions directly rather than the shared one. */
@@ -66,12 +65,11 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
 
-const writesTrivia = (file: SourceFile): boolean =>
-	/\.leadingTrivia\s*\+?=(?!=)/.test(stripComments(file.text));
+const writesTrivia = (file: SourceFile): boolean => /\.leadingTrivia\s*\+?=(?!=)/.test(file.code);
 
 const namesHandSettle = (file: SourceFile): boolean =>
 	/(?<![\w'"])(clearRedundantSeparator|dropDoubledSeparator|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSeparatorOnBlank|settleSublistSeparator)\b/.test(
-		stripComments(file.text)
+		file.code
 	);
 
 function census(
@@ -101,7 +99,7 @@ describe('separator-write entry-point census', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the blank-line matcher sees both write forms and skips creates, reads and comments', () => {
-		const probe = (text: string) => writesTrivia({ relPath: 'x', text, code: '' });
+		const probe = (text: string) => writesTrivia(probeFile({ relPath: 'x', code: text }));
 		expect(probe("node.leadingTrivia = '';")).toBe(true);
 		expect(probe('children[i].leadingTrivia += lineEnding;')).toBe(true);
 		expect(probe("{ kind: 'paragraph', leadingTrivia: '', raw }")).toBe(false);
@@ -110,18 +108,17 @@ describe('separator-write entry-point census', () => {
 	});
 
 	it('the hand-settle matcher sees a call and an import, and skips prose', () => {
-		const probe = (text: string) => namesHandSettle({ relPath: 'x', text, code: '' });
+		const probe = (text: string) => namesHandSettle(probeFile({ relPath: 'x', code: text }));
 		expect(probe('restoreSeparatorOnFill(parent, i + 1, sharing);')).toBe(true);
 		expect(probe("import { dropDoubledSeparator } from '../tree-operations';")).toBe(true);
 		expect(probe('// dropDoubledSeparator is the run-level twin')).toBe(false);
 	});
 
 	it('an undeclared file writing leadingTrivia fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/tree-operations/rogue.ts',
-			text: "children[at].leadingTrivia = '\\n';",
-			code: ''
-		};
+			code: "children[at].leadingTrivia = '\\n';"
+		});
 		const writers = [...sources, rogue].filter(writesTrivia).map((f) => f.relPath);
 		expect(writers.sort()).not.toEqual(Object.keys(TRIVIA_WRITERS).sort());
 	});
@@ -129,19 +126,16 @@ describe('separator-write entry-point census', () => {
 
 // ── The span drop, inside those functions’ own file ───────────────────────
 
-/**
- * One of these functions rewrites bytes the owner's child spans describe, so it drops those spans
- * (`schema/child-spans.ts`). The lists above fix which files may write a separator; this one fixes
- * which functions may, and every one of them has to drop the spans. The next such function fails
- * this the moment it is written rather than waiting for a test case to reach it.
- */
+/** A function writing a separator rewrites bytes the owner's child spans describe, so it must drop
+ *  those spans (`schema/child-spans.ts`); the lists above fix the files, this one the functions. */
 const DOORS_FILE = 'tree-operations/settle.ts';
 
-/** The files that took over node-ops’ other separator writes, held to the same rule. */
+/** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
 	'tree-operations/node-ops.ts',
 	'tree-operations/content-write.ts',
-	'tree-operations/node-primitives.ts'
+	'tree-operations/node-primitives.ts',
+	'tree-operations/chain-rebuild.ts'
 ];
 
 /** Every `function name(` body in `code`, braces balanced. */
@@ -165,20 +159,9 @@ describe('every separator entry point retires the child spans it invalidates', (
 		.flatMap((file) => functionBodies(readEditorFile(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/**
-	 * Each of these functions by name: every one drops the spans first, before its own checks. A
-	 * drop that has slid below an early return stops happening on the paths that take it.
-	 */
-	const DOORS = [
-		'clearRedundantSeparator',
-		'dropDoubledSeparator',
-		'restoreSeparatorOnFill',
-		'restoreSeparatorAfterBlank',
-		'settleSeparatorOnBlank',
-		'releaseWrapPeel',
-		'materializeTailSuffix',
-		'handDownVacatedSeparator'
-	];
+	/** The two writers in the shared file, each of which drops the spans first, since a drop below
+	 *  an early return is skipped on the paths that take it. */
+	const DOORS = ['writeSeparator', 'writeWrapSlot'];
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
@@ -195,33 +178,29 @@ describe('every separator entry point retires the child spans it invalidates', (
 	});
 
 	it('found the entry points (not vacuous)', () => {
-		expect(doors.map((fn) => fn.name).sort()).toEqual(
-			expect.arrayContaining([
-				'clearRedundantSeparator',
-				'dropDoubledSeparator',
-				'mintSeparator',
-				'settleSeparatorOnBlank'
-			])
-		);
+		expect(doors.map((fn) => fn.name).sort()).toEqual(expect.arrayContaining(DOORS));
 	});
 
-	/**
-	 * Writers that account for the spans some other way, each with its reason. Two are reached only
-	 * from functions that drop the spans before dispatching; the rest write the line of a node they
-	 * are creating, or write one inside a splice that changes the child count, which refuses the
-	 * next region rewrite.
-	 */
+	/** Writers that account for the spans some other way, each with its reason: the node is new,
+	 *  or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
-		mintSeparator: 'reached only from the three doors that retire first',
-		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',
-		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
-		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
-		reclassifyContainer: 'carries the line onto the replacement, byte for byte',
+		installReplacement: 'carries the line onto the replacement, byte for byte',
+		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
+
+	// A second writer in the shared file could write a shared node or skip the span drop, which the
+	// one writer does for every fix-up.
+	it('the shared file writes an existing node’s separator through its two writers alone', () => {
+		const writers = functionBodies(readEditorFile(DOORS_FILE).code)
+			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
+			.map((fn) => fn.name)
+			.filter((name) => !(name in ANSWERED_ELSEWHERE));
+		expect(writers.sort()).toEqual([...DOORS].sort());
+	});
 
 	it('each one calls the retire, or is answered for elsewhere', () => {
 		const missing = doors

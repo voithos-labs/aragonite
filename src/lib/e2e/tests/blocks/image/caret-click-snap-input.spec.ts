@@ -58,10 +58,8 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src.startsWith('- !')).toBe(true);
 	});
 
-	// Chromium often keeps the live caret at the element-level position the snap installed, where
-	// Playwright drops it: `getRaw()` returns the image's end offset but `startContainer` is the
-	// paragraph element, where Chromium silently drops printable keys. The intercept must fire
-	// even when `liveCursor` is not null.
+	// Chromium often keeps the snap's element-level caret on the paragraph element and drops
+	// printable keys there, so the intercept must fire even when `liveCursor` is not null.
 	test('typing inserts after image even when caret is preserved at element-level', async ({
 		page
 	}) => {
@@ -100,9 +98,8 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src).toContain(')z');
 	});
 
-	// With the caret at the image's end offset between `contenteditable=false` neighbors, Chromium
-	// drops printable keys silently (neither `beforeinput` nor `input` fires), so keydown routes the
-	// character through the CST. `keyboard.press`, not `insertText`: this needs a keydown.
+	// Between `contenteditable=false` neighbours Chromium drops printable keys silently, so keydown
+	// routes the character through the CST; `keyboard.press`, since `insertText` fires no keydown.
 	test('typing after click-snap to image.end inserts the character into the source', async ({
 		page
 	}) => {
@@ -159,9 +156,8 @@ test.describe('typing and paste after click-snap', () => {
 		const ib = await img.boundingBox();
 		if (!ib) throw new Error('image missing');
 		await page.mouse.click(ib.x + ib.width + 20, ib.y + ib.height / 2);
-		// Drop the live range before the paste handler reads it: this imitates Chromium's event-loop
-		// yield, where an element-level caret past a widget the caret cannot enter goes to
-		// `rangeCount` 0. The handler must recover it from the snap target.
+		// Drops the live range the way Chromium's event-loop yield does past a widget the caret
+		// cannot enter, so the paste handler must recover the caret from the snap target.
 		await page.evaluate(() => {
 			window.getSelection()?.removeAllRanges();
 			const dt = new DataTransfer();

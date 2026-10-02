@@ -5,9 +5,9 @@ viewport to it. On a document with unsized, still-decoding images above the
 target, those images reserve height while unmounted and collapse to about zero
 once they mount: the document shrinks under the scroll, and with nothing holding
 the target in place the browser clamps the viewport off it and strands it.
-`scrollTo` holds the target itself in place, at the `block` placement it was asked
-for, so the target is re-asserted on every measure pass after the mount, and
-resolves its boolean only once the position stops moving. A `true` therefore means
+`scrollTo` holds the target itself in place, at the spot its `block` placement put
+it, so every measure pass after the mount puts it back there, and it resolves its
+boolean only once a pass goes by with no height change. A `true` therefore means
 genuinely in view at the requested position.
 
 ## Happy paths
@@ -25,5 +25,5 @@ genuinely in view at the requested position.
 
 ## User interactions
 
-- The target is held in place only until the position stops moving: a target
-  scrolled to past undecoded images stays in view without a follow-up gesture.
+- The target stays in view past undecoded images without a follow-up gesture: the
+  hold does the work, not a second scroll.

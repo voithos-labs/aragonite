@@ -1,20 +1,15 @@
 // @vitest-environment jsdom
-//
 // The `updateContent` a cross-block toggle emits, at the two shapes a grid start endpoint takes.
 // `detail.length` is a public field a host reads and the op is evaluated before the write, so
 // which block `path` names decides whether the length is the pre- or the post-write one.
-//
-// Miss-analysis: the grid branch changed this field with no test on the emitted op at all; every
-// toggle case read the plan, one layer below the event a host subscribes to.
-import { afterEach, describe, expect, it } from 'vitest';
+// Miss-analysis: every toggle case read the plan, one layer below the op a host subscribes to.
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { gridOf, registerPluginGrid } from './plugin-grid-kind';
 import { makeKeydownEnv, press } from './keydown-env';
-
-afterEach(() => __resetSchemaRegistriesForTests());
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // `head` first in both fixtures: the dispatch context's focused block is [0], and a container
 // there never reaches the toggle.
@@ -64,5 +59,7 @@ describe('the updateContent a toggle emits for a grid start endpoint', () => {
 		const update = lastUpdate(events);
 		expect(update.path).toEqual([1, 0, 1]);
 		expect(update.detail.length).toBe('**b**'.length);
+		// The test grid registers no opener, so its bytes read back as a paragraph.
+		allowDevWarns(['invariant:reads-back']);
 	});
 });

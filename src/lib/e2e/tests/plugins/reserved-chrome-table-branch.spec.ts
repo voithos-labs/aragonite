@@ -8,6 +8,7 @@ import {
 	dragBetweenPoints,
 	stateConsistencyViolations
 } from './reserved-chrome-helpers';
+import { pointAtRaw } from '../../text-runs';
 
 /**
  * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
@@ -38,7 +39,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
 
 	async function cellCenter(page: Page, nth: number): Promise<{ x: number; y: number }> {
-		const box = await page.locator('[role="cell"]').nth(nth).boundingBox();
+		const box = await page.locator('.table-cell').nth(nth).boundingBox();
 		if (!box) throw new Error(`Gate 6: cell ${nth} has no bounding box`);
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	}
@@ -57,10 +58,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Drop in header cell "a": snapping to whole rows covers row 0, so the table behaves as
-		// the table path says, with the header removed and "1|2" promoted, while the title in
-		// between must be emptied in place. Removing that node lets the rebuild move the table up
-		// into the opener line.
+		// Dropping in header cell "a" snaps to row 0, promoting "1|2", while the title between is
+		// emptied in place; removing it would pull the table into the opener line.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -79,10 +78,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// Undo at the child level: the emptying went through a copy made before the write (G1.9),
-		// so the title node itself is restored, where getSource alone cannot see a corrupted
-		// child. Poll the children in the CST, not the bytes, so the reads below wait for the
-		// tree to rebuild.
+		// The emptying went through a copy made before the write (G1.9), so undo restores the title
+		// node itself; polling the CST children, not the bytes, waits for the rebuild.
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
@@ -98,8 +95,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Starting in the title of the same container: reparsing the endpoint used to replace the
-		// title with a paragraph, losing its kind, where the boundary truncates by writing raw.
+		// Starting in the title of the same container: the boundary truncates by writing raw, so the
+		// title keeps its kind rather than reparsing as a paragraph.
 		await editor.dragFromTo([1, 0], 3, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -132,7 +129,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
-			await editor.pointForOffset([1, 0], 3)
+			await pointAtRaw(editor.page, [1, 0], 3)
 		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -178,13 +175,12 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
-		// Body cell "1" to the container's last byte, the end of "Body": the whole subtree is
-		// covered from outside, so the container goes as one, never leaving an empty leftover
-		// with the title removed.
+		// The whole subtree is covered from outside, so the container goes as one, never leaving an
+		// empty leftover with the title removed.
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
-			await editor.pointForOffset([1, 1], 4)
+			await pointAtRaw(editor.page, [1, 1], 4)
 		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');

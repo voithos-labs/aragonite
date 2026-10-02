@@ -1,27 +1,21 @@
 // @vitest-environment jsdom
-// Miss-analysis: the depth pins stopped at the renderer and the offset walk
-// (`inline-render-nesting.test.ts`) and never followed their output one call further, so every
-// walk over a rendered fragment or a parsed inline tree recursed per level, unpinned.
-import { afterEach, describe, expect, it } from 'vitest';
+// Miss-analysis: the depth pins stopped at the renderer and the offset walk, never the walks after.
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
 import { parse, MAX_NESTING_DEPTH } from '../../core/parser';
 import { inlineDescendants, parseInline } from '../../core/inline';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver';
 import { CONTENT_VISIBILITY, visibleRuns, renderedText } from '../../core/inline/visibility';
-import {
-	__resetInlineSyntaxForTests,
-	registerInlineSyntax
-} from '../../core/inline/scan/plugin-syntax';
-
-afterEach(() => __resetInlineSyntaxForTests());
+import { registerInlineSyntax } from '../../core/inline/scan/plugin-syntax';
+import { renderOptions } from '../harness/fixture-grammar';
 
 // Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
 // against a recursive walk.
 const MODEL_DEPTH = 32_000;
-// jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
-// environment, not the walk, caps the one pin that renders. The margin is thin (a recursive
-// version overflows a few thousand levels below this), so a roomier stack greens the pin.
+// jsdom's insert bookkeeping is superlinear in tree depth, so jsdom, not the walk, caps the pin
+// that renders; a recursive walk overflows only a few thousand levels below it.
 const RENDER_DEPTH = 8_000;
 
 /**
@@ -72,10 +66,9 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		}));
 		const trailing: InlineNode = { kind: 'image', start: raw.length, end: raw.length, url: 'u' };
 
-		expect(flattenInlineWidgets([...nodes, trailing], raw).map((n) => n.start)).toEqual([
-			2 * MODEL_DEPTH,
-			raw.length
-		]);
+		expect(
+			flattenInlineWidgets([...nodes, trailing], raw, defaultGrammarView).map((n) => n.start)
+		).toEqual([2 * MODEL_DEPTH, raw.length]);
 	});
 
 	// A recognizer may build any tree, so a plugin handler's claim record inherits the depth its
@@ -113,18 +106,18 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 	it('reads the visible text as the fold of its runs', () => {
 		const raw = '**ab**';
 		const { nodes } = nestedStrong(1, textLeaf);
-		const visible = visibleRuns(nodes, raw, CONTENT_VISIBILITY)
+		const visible = visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions())
 			.filter((run) => run.visible)
 			.map((run) => run.text)
 			.join('');
 
 		expect(visible).toBe('ab');
-		expect(renderedText(nodes, raw, CONTENT_VISIBILITY)).toBe(visible);
+		expect(renderedText(nodes, raw, CONTENT_VISIBILITY, renderOptions())).toBe(visible);
 	});
 
 	it('tiles the rendered source in order past the recursion ceiling', () => {
 		const { nodes, raw } = nestedStrong(RENDER_DEPTH, textLeaf);
-		const runs = visibleRuns(nodes, raw, CONTENT_VISIBILITY);
+		const runs = visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions());
 
 		expect(runs[0].start).toBe(0);
 		expect(runs[runs.length - 1].end).toBe(raw.length);

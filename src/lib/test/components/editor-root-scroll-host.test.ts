@@ -2,9 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createScrollHostResolution } from '$lib/components/editor-root-scroll-host';
 
-// Miss-analysis: host-mode resolution was pinned only by e2e over a real scroller, so nothing
-// named the caching (a scroller swapped after the first read is not seen) or the self-mode
-// answers.
+// Miss-analysis: scroll-host resolution was tested only by e2e, never its caching or self mode.
 
 beforeEach(() => {
 	document.body.replaceChildren();
@@ -20,7 +18,7 @@ function mountUnderScroller() {
 }
 
 describe('editor-root scroll host', () => {
-	it('self mode: the root is the host, nothing clips, and one scrollport is created', () => {
+	it('self mode: the root is the host and nothing clips', () => {
 		const { root } = mountUnderScroller();
 		const r = createScrollHostResolution({
 			get editorEl() {
@@ -30,7 +28,6 @@ describe('editor-root scroll host', () => {
 		});
 		expect(r.getScrollHost()).toBe(root);
 		expect(r.getClipBounds()).toEqual([]);
-		expect(r.getScrollport()).toBe(r.getScrollport());
 	});
 
 	it('answers null before the root mounts, then resolves once it has', () => {
@@ -42,11 +39,9 @@ describe('editor-root scroll host', () => {
 			hostScroll: true
 		});
 		expect(r.getScrollHost()).toBeNull();
-		expect(r.getScrollport()).toBeNull();
 		const mounted = mountUnderScroller();
 		mount.root = mounted.root;
 		expect(r.getScrollHost()).toBe(mounted.scroller);
-		expect(r.getScrollport()).not.toBeNull();
 	});
 
 	it('host mode: the nearest scrollable ancestor is the host and the clip bound', () => {

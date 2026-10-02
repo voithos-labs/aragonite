@@ -21,7 +21,7 @@ test.describe('selection: keyboard: edge cases', () => {
 	// on it reads a selection nothing paints as no selection at all.
 	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
 		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
-		await editor.page.locator('[role="cell"]').last().click();
+		await editor.page.locator('.table-cell').last().click();
 		await editor.page.keyboard.press('End');
 		await editor.waitForRenderFlush();
 
@@ -29,7 +29,7 @@ test.describe('selection: keyboard: edge cases', () => {
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 
-		// One character, not the whole cell: a stored pair would route this press into the
+		// One character, not the whole cell: a stored pair would send this keypress into the
 		// rectangular delete, which clears every covered cell at once and paints nothing.
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('| cc | wxy |');
@@ -63,9 +63,8 @@ test.describe('selection: keyboard: edge cases', () => {
 	});
 
 	test('empty document: double Ctrl+A then typed char replaces the empty block without crashing', async () => {
-		// Asserted through a typed character, not through `getSource()` being unchanged: Ctrl+A
-		// changes nothing, so that would pass trivially. A break in the double-press escalation
-		// or in type-replace crashes, adds blocks, or loses the character.
+		// Checked through a typed character, since Ctrl+A alone leaves `getSource()` unchanged; a
+		// broken double-press or type-replace crashes, adds blocks or loses the character.
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 

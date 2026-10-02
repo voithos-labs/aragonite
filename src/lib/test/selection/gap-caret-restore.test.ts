@@ -1,35 +1,38 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { restoreGapCaret } from '$lib/selection/selection-restore';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
-// check sees the un-normalized point.
-afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
+import type { GapCaretRestoreDeps } from '$lib/selection/selection-restore';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { stubBlockComponent } from '$lib/testing/headless-actions';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
-// lands in, and the block it sits against is mounted before the caret is placed.
+// lands in, and the block it sits against is mounted and brought into view before the caret.
 
 const DOC = '| a |\n| - |\n\n```\nx\n```\n\n> para\n>\n> ```\n> y\n> ```\n';
 
-function harness(overrides: Partial<SelectionRestoreDeps> = {}) {
+function harness(overrides: Partial<GapCaretRestoreDeps> = {}) {
 	const doc = parse(DOC);
 	const revealed: number[][] = [];
+	const inView: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
-	const deps: SelectionRestoreDeps = {
+	const deps: GapCaretRestoreDeps = {
 		getDoc: () => doc,
 		selectionState,
-		getBlockElByPath: () => null,
-		revealTarget: async (path) => {
+		caretMemory: createCaretMemory(),
+		mount: async (path) => {
 			revealed.push(path);
-			return true;
+			return stubBlockComponent();
+		},
+		reveal: async (path) => {
+			// Before the caret, so the gap it lands at renders in view.
+			expect(selectionState.gapCaret).toBeNull();
+			inView.push(path);
 		},
 		...overrides
 	};
-	return { doc, deps, revealed, selectionState };
+	return { doc, deps, revealed, inView, selectionState };
 }
 
 describe('restoreGapCaret', () => {
@@ -41,6 +44,20 @@ describe('restoreGapCaret', () => {
 		expect(outcome).toBe('applied');
 		expect(h.selectionState.gapCaret).toEqual({ parentPath: [], index: 1 });
 		expect(h.revealed).toEqual([[1]]);
+		expect(h.inView).toEqual([[1]]);
+	});
+
+	// A restored gap caret is placed, not arrived at by a key, like any restored caret.
+	it('forgets the pending marks and the side a key recorded', async () => {
+		const memory = createCaretMemory();
+		memory.noteKey({ key: 'End' }, null);
+		memory.pendingMarks.toggle('strong');
+		const h = harness({ caretMemory: memory });
+
+		await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
+
+		expect(memory.side()).toBeNull();
+		expect(memory.pendingMarks.get()).toBeNull();
 	});
 
 	// At the end of the child list there is no block at the index, so the block before it is
@@ -85,7 +102,7 @@ describe('restoreGapCaret', () => {
 
 	// The mount is best effort; the caret is still placed, as it is for an endpoint pair.
 	it('reports unplaced but still puts the caret when the reveal misses', async () => {
-		const h = harness({ revealTarget: async () => false });
+		const h = harness({ mount: async () => null });
 
 		const outcome = await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
 

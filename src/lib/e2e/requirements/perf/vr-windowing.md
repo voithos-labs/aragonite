@@ -16,6 +16,7 @@ The bound holds for flat docs and for a single giant blockquote / list / table c
 
 - Every mounted-set ceiling carries a coverage floor: the mounted boxes' span reaches both edges of the scroll container, in every block list the ceiling is asserted in. A ceiling alone is satisfied by mounting nothing, so without the floor a window that leaves the user looking at bare spacer reads green.
 - Spacers are present only when windowing is active; the small-doc path emits none.
+- Small-to-large swap: replacing a one-block document with the multi-thousand-block one mounts at most the final window plus six blocks (its overscan, which the first measure pass may shift the band by) during the swap, and the load returns. Miss-analysis: the spec loaded after the one-block swap but counted only the settled DOM, which hid every block mounting and unmounting in one flush until the extra memory crashed the renderer.
 - Windowed spacers carry a placeholder background (VR-8 skeleton): a spacer's computed background is a non-transparent placeholder tint (the editor.css `--vr-spacer-bg` token) rather than reading as an empty gap; removing the rule or the token drops the alpha to 0 and fails the check.
 
 ## Recursive container windowing (Phase 3 / Phase 4)

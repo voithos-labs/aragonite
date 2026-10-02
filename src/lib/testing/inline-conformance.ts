@@ -1,9 +1,8 @@
 /**
  * The conformance kit for an inline syntax handler (`InlineRung`), published at
- * `@voithos-labs/aragonite/testing` alongside `runKindConformance` and the container kit. It
- * reads the live registry, so it works across `resetPluginPlatformForTests()` cycles. The four
- * cells a profile declares are required, not optional, because byte round-trip cannot see any of
- * them, and where the kit can disprove an exemption it does. Failures throw a plain `Error`.
+ * `@voithos-labs/aragonite/testing`. It reads the live registry, so it works across
+ * `resetPluginPlatformForTests()` cycles. The four cells a profile declares are required because
+ * byte round-trip sees none of them, and the kit disproves an exemption where it can.
  */
 
 import {
@@ -35,11 +34,15 @@ import {
 import { containerDomTextLength } from '../cursor/widget-offset';
 import {
 	assert,
-	assertExemptionDocumented,
 	assertIs,
 	fail,
-	type ConformanceCoverage
+	runCells,
+	type CellOutcome,
+	type CellReport,
+	type ConformanceCoverage,
+	type KitCell
 } from './conformance-core';
+import { defaultGrammarView } from '../schema/block-openers';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -79,78 +82,68 @@ export type InlineConformanceCell =
 	| 'imageClaim'
 	| 'registration';
 
-export interface InlineCellReport {
-	cell: InlineConformanceCell;
-	status: 'asserted' | 'exempt' | 'boundary';
-	/** Why a cell was excused, or which mechanism an asserted cell drove. */
-	detail?: string;
-}
-
 export interface InlineConformanceReport {
 	trigger: string;
 	prefix: string;
-	cells: InlineCellReport[];
+	cells: CellReport<InlineConformanceCell>[];
 }
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-/**
- * A detail line for a cell that ran, or an explicit status. A check that skipped its work says
- * `boundary`: reporting `asserted` where nothing ran is the silent skip these statuses exist to
- * refuse.
- */
-type CellOutcome = string | { status: 'asserted' | 'boundary'; detail: string };
+interface InlineRun {
+	profile: InlineConformanceProfile;
+	prefix: string;
+	rung: InlineRung;
+}
+
+const INLINE_CELLS: readonly KitCell<InlineConformanceCell, InlineRun>[] = [
+	{ cell: 'claims', run: ({ profile, rung }) => checkClaimsItsFixtures(profile, rung) },
+	{ cell: 'roundTrip', run: ({ profile, rung }) => checkRoundTrip(profile, rung) },
+	{
+		cell: 'overlapDecline',
+		coverage: ({ profile }) => profile.overlapDecline,
+		run: ({ profile, rung }) => checkOverlapDecline(profile, rung),
+		falsify: ({ profile }) => refuseExcusedOverlap(profile)
+	},
+	{
+		cell: 'widget',
+		coverage: ({ profile }) => profile.widget,
+		run: ({ profile, rung }) => checkWidgetAtomicity(profile, rung),
+		falsify: ({ profile, rung }) => refuseExcusedWidget(profile, rung)
+	},
+	{
+		cell: 'editingPolicy',
+		coverage: ({ profile }) => profile.editingPolicy,
+		run: ({ profile, rung }) => checkEditingPolicy(profile, rung),
+		falsify: ({ profile }) => refuseExcusedEditingPolicy(profile)
+	},
+	{
+		cell: 'imageClaim',
+		coverage: ({ profile }) => profile.imageClaim,
+		run: ({ profile, rung }) => checkImageClaimStamp(profile, rung),
+		falsify: ({ profile, rung }) => refuseExcusedImageClaim(profile, rung)
+	},
+	{
+		cell: 'registration',
+		run: ({ profile, prefix, rung }) => checkRegistrationHygiene(profile, prefix, rung)
+	}
+];
 
 /**
- * Runs every conformance cell for the registered handler the profile names. Returns the coverage
- * report, or throws an `Error` naming every failed cell.
+ * Runs every conformance cell for the registered handler the profile names. Resolves with the
+ * coverage report, or throws an `Error` naming every failed cell.
  */
-export function runInlineKindConformance(
+export async function runInlineKindConformance(
 	profile: InlineConformanceProfile
-): InlineConformanceReport {
+): Promise<InlineConformanceReport> {
 	const prefix = profile.prefix ?? profile.trigger;
 	validateProfile(profile, prefix);
-
 	const rung = locateRung(profile, prefix);
-	const cells: InlineCellReport[] = [];
-	const failures: string[] = [];
-
-	const runCell = (
-		cell: InlineConformanceCell,
-		coverage: ConformanceCoverage,
-		assertion: () => CellOutcome
-	) => {
-		try {
-			if (coverage.mode === 'assert') {
-				const outcome = assertion();
-				cells.push(
-					typeof outcome === 'string'
-						? { cell, status: 'asserted', detail: outcome }
-						: { cell, ...outcome }
-				);
-			} else {
-				assertExemptionDocumented(coverage, `${prefix} ${cell}`);
-				falsifyExcuse(cell, profile, rung);
-				cells.push({ cell, status: coverage.mode, detail: coverage.reason });
-			}
-		} catch (error) {
-			failures.push(`${cell}: ${(error as Error).message}`);
-		}
-	};
-
-	runCell('claims', { mode: 'assert' }, () => checkClaimsItsFixtures(profile, rung));
-	runCell('roundTrip', { mode: 'assert' }, () => checkRoundTrip(profile, rung));
-	runCell('overlapDecline', profile.overlapDecline, () => checkOverlapDecline(profile, rung));
-	runCell('widget', profile.widget, () => checkWidgetAtomicity(profile, rung));
-	runCell('editingPolicy', profile.editingPolicy, () => checkEditingPolicy(profile, rung));
-	runCell('imageClaim', profile.imageClaim, () => checkImageClaimStamp(profile, rung));
-	runCell('registration', { mode: 'assert' }, () =>
-		checkRegistrationHygiene(profile, prefix, rung)
+	const cells = await runCells(
+		INLINE_CELLS,
+		{ profile, prefix, rung },
+		{ subject: prefix, heading: `inline conformance failed for rung "${prefix}"` }
 	);
-
-	if (failures.length > 0) {
-		fail(`inline conformance failed for rung "${prefix}":\n  - ${failures.join('\n  - ')}`);
-	}
 	return { trigger: profile.trigger, prefix, cells };
 }
 
@@ -214,11 +207,8 @@ function locateRung(profile: InlineConformanceProfile, prefix: string): InlineRu
 
 // ── Claim resolution ─────────────────────────────────────────────────────────
 
-/**
- * Every node this handler produced from `source`, in document order. Ownership is read two ways,
- * because a handler's own kind carries no mark by design: either the declared kind, or the claim
- * the scan marks on a built-in kind produced over the handler's bytes.
- */
+/** Every node this handler produced from `source`, in document order: its declared kind (which
+ *  carries no mark), or a built-in node the scan marked with the handler's `syntaxClaim`. */
 function mintedNodes(
 	source: string,
 	profile: InlineConformanceProfile,
@@ -251,6 +241,26 @@ function claimsIn(
 			`the kit would enroll the rung without exercising it`
 	);
 	return minted;
+}
+
+/** The claims of `kind` across every fixture, failing when there is none, so a cell about the kind
+ *  never reports `asserted` over only the built-in nodes the handler claimed. */
+function claimsOfKind(
+	profile: InlineConformanceProfile,
+	rung: InlineRung,
+	kind: AnyInlineKind
+): { fixture: string; node: InlineNode }[] {
+	const claims = profile.fixtures.flatMap((fixture) =>
+		claimsIn(fixture, profile, rung)
+			.filter((node) => node.kind === kind)
+			.map((node) => ({ fixture, node }))
+	);
+	assert(
+		claims.length > 0,
+		`no fixture mints a "${kind}" node — the "${rung.prefix}" rung's claims are all built-ins ` +
+			`it stamps, which the imageClaim cell covers`
+	);
+	return claims;
 }
 
 // ── claims ───────────────────────────────────────────────────────────────────
@@ -295,11 +305,8 @@ function interleavings(fixture: string, trigger: string): string[] {
 	];
 }
 
-/**
- * How far into `fixture` its own opener ends. Cutting a scan range there leaves the last
- * consultation on a prefix whose closer is out of range, which is what a heading's excluded `#`
- * run does to any construct straddling it.
- */
+/** How far into `fixture` its own opener ends; a scan range cut there strands a prefix whose
+ *  closer is out of range, as a heading's excluded `#` run does. */
 function openerWidth(fixture: string, prefix: string): number {
 	const at = fixture.indexOf(prefix);
 	return at < 0 ? prefix.length : at + prefix.length;
@@ -317,10 +324,8 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 			);
 			assertScanTiles(source, source.length);
 
-			// Scan ranges that stop short of the raw (a heading's excluded `#` run, a table
-			// cell's `|`): the tail is real grammar, so a terminator search written without
-			// an `end` bound reaches into it. Two cut points because where the boundary falls
-			// relative to a construct is the variable.
+			// A scan range short of the raw (a heading's excluded `#` run) catches a terminator
+			// search with no `end` bound; two cut points vary where the boundary falls.
 			assertScanTiles(source + fixture, source.length);
 			assertScanTiles(source + fixture, source.length + openerWidth(fixture, rung.prefix));
 			count++;
@@ -329,12 +334,8 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 	return `${count} source(s) round-trip byte-for-byte and tile their scan range`;
 }
 
-/**
- * `serialize(parse(s))` works from the raw bytes and never sees a handler at all, so what a
- * handler can break is the scanner's contract: the nodes cover `[0, end)` with no gap or overlap,
- * and their slices reassemble the scanned bytes. An overrun past `end` never reaches here,
- * because the dispatch throws on it (`scan/index.ts`).
- */
+/** Round-trip never sees a handler, so check the scanner's contract: the nodes tile `[0, end)`
+ *  with no gap or overlap and their slices reassemble the bytes. */
 function assertScanTiles(raw: string, end: number): void {
 	const nodes = parseInline(raw, 0, end);
 	let cursor = 0;
@@ -356,11 +357,8 @@ function assertScanTiles(raw: string, end: number): void {
 
 // ── overlapDecline ───────────────────────────────────────────────────────────
 
-/**
- * At every position the scan would consult this handler, the recognizer returns null. Declining
- * leaves the scan state untouched, so declining everywhere is what guarantees the built-in
- * construct sees byte-identical input.
- */
+/** At every position the scan would consult this handler the recognizer returns null, so the
+ *  built-in construct sees byte-identical input. */
 function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const fixtures = profile.overlapFixtures ?? [];
 	let consulted = 0;
@@ -369,7 +367,7 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineRung
 		for (let pos = 0; pos < source.length; pos++) {
 			if (!source.startsWith(rung.prefix, pos)) continue;
 			positions++;
-			const claimed = rung.recognizer(source, pos, source.length);
+			const claimed = rung.recognizer(source, pos, source.length, defaultGrammarView);
 			if (claimed !== null) {
 				fail(
 					`the "${rung.prefix}" rung swallowed the overlap in ${JSON.stringify(source)} at ` +
@@ -418,18 +416,17 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 			'kinds renders through the built-in widget and declares this cell exempt'
 	);
 
-	for (const fixture of profile.fixtures) {
-		for (const node of claimsIn(fixture, profile, rung)) {
-			assert(
-				isInlineWidget(node, fixture),
-				`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
-			);
-			assertSelfDelimiting(fixture, node, kind);
-		}
+	const claims = claimsOfKind(profile, rung, kind);
+	for (const { fixture, node } of claims) {
+		assert(
+			isInlineWidget(node, fixture, defaultGrammarView),
+			`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
+		);
+		assertSelfDelimiting(fixture, node, kind);
 	}
 
 	// Both early exits report boundary, not asserted: the inline-widget contract did not run.
-	if (getInlineWidgetComponent(kind) !== undefined) {
+	if (getInlineWidgetComponent(kind, defaultGrammarView) !== undefined) {
 		return {
 			status: 'boundary',
 			detail:
@@ -441,20 +438,13 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed: ${NO_DOM}` };
 	}
 
-	for (const fixture of profile.fixtures) {
-		for (const node of claimsIn(fixture, profile, rung)) {
-			assertIslandContract(fixture, node, kind);
-		}
-		assertWalkLengthIsRawLength(fixture);
-	}
+	for (const { fixture, node } of claims) assertIslandContract(fixture, node, kind);
+	for (const fixture of profile.fixtures) assertWalkLengthIsRawLength(fixture);
 	return 'recognition, self-delimiting claim, island contract, and offset-walk length';
 }
 
-/**
- * The claimed bytes have to stand alone: `data-source-*` hands exactly this slice to the clipboard
- * and to a source view, and a slice that only forms in its original context pastes back as broken
- * prose while the document it came from round-trips perfectly.
- */
+/** The claimed bytes must re-form on their own: `data-source-*` hands exactly this slice to the
+ *  clipboard and a source view, where a context-dependent slice pastes back broken. */
 function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
 	const slice = fixture.slice(node.start, node.end);
 	const alone = parseInline(slice, 0, slice.length);
@@ -467,7 +457,7 @@ function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInline
 }
 
 function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
-	const island = buildCoreInlineWidget(node, fixture);
+	const island = buildCoreInlineWidget(node, fixture, undefined, defaultGrammarView);
 	assert(island !== null, `the "${kind}" widget builds an island from ${JSON.stringify(fixture)}`);
 	assert(
 		island.hasAttribute('data-inline-widget'),
@@ -490,14 +480,15 @@ function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInline
 	);
 }
 
-/**
- * The DOM-to-offset traversal counts a widget as its source span, never as what it renders: an
- * emoji showing one glyph for seven raw bytes still counts seven. Every caret offset in the block
- * depends on this, and nothing in the bytes shows when it is wrong.
- */
+/** The DOM-to-offset traversal counts a widget as its source span, not what it renders (seven
+ *  bytes for one emoji glyph); every caret offset in the block depends on it. */
 function assertWalkLengthIsRawLength(fixture: string): void {
 	const container = document.createElement('div');
-	container.appendChild(renderInlineNodes(parseInline(fixture, 0, fixture.length), fixture));
+	container.appendChild(
+		renderInlineNodes(parseInline(fixture, 0, fixture.length), fixture, {
+			grammar: defaultGrammarView
+		})
+	);
 	assertIs(
 		Number(containerDomTextLength(container)),
 		fixture.length,
@@ -514,7 +505,7 @@ function assertWalkLengthIsRawLength(fixture: string): void {
 function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const kind = profile.kind;
 	assert(kind !== undefined, 'the editingPolicy cell asserts but the profile names no kind');
-	const policy = getInlineWidgetEditing(kind);
+	const policy = getInlineWidgetEditing(kind, defaultGrammarView);
 	assert(
 		policy !== undefined,
 		`"${kind}" declares no editing policy — register one, or declare this cell exempt if the ` +
@@ -530,17 +521,15 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 	assertPolicyVocabulary(policy, kind);
 
 	if (policy.deleteGranularity === 'atomic') {
-		for (const fixture of profile.fixtures) {
-			// One keypress deletes one widget, so each claim is removed on its own.
-			for (const node of claimsIn(fixture, profile, rung)) {
-				const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
-				assertIs(
-					serialize(parse(excised)),
-					excised,
-					`the one-press whole-delete of the claim at ${node.start} in ` +
-						`${JSON.stringify(fixture)} leaves bytes that round-trip`
-				);
-			}
+		// One keypress deletes one widget, so each claim is removed on its own.
+		for (const { fixture, node } of claimsOfKind(profile, rung, kind)) {
+			const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
+			assertIs(
+				serialize(parse(excised)),
+				excised,
+				`the one-press whole-delete of the claim at ${node.start} in ` +
+					`${JSON.stringify(fixture)} leaves bytes that round-trip`
+			);
 		}
 		return 'policy vocabulary + atomic whole-delete leaves round-tripping bytes';
 	}
@@ -577,12 +566,8 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 
 // ── imageClaim ───────────────────────────────────────────────────────────────
 
-/**
- * A handler that produces a built-in kind borrows the editor's model for bytes of its own, and
- * the editor writes that model back out as built-in grammar, so without `rewriteImage` a resize
- * turns `![[cat.png|300]]` into GFM. The document round-trips the whole time; it is just a
- * different document.
- */
+/** A handler producing a built-in kind borrows the editor's model for its own bytes, so without
+ *  `rewriteImage` a resize writes `![[cat.png|300]]` back as GFM, which still round-trips. */
 function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRung): string {
 	let stamped = 0;
 	for (const fixture of profile.fixtures) {
@@ -617,11 +602,8 @@ function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRun
 	return `${stamped} built-in node(s) stamped, rewriteImage reproduces its own input`;
 }
 
-/**
- * The hook has to re-emit the node it was handed, unedited. The commit drops a byte-identical
- * result without warning, so a hook that cannot reproduce its own input shows up as an edit that
- * silently does nothing.
- */
+/** The hook must re-emit the node it was handed unedited; the commit drops a byte-identical
+ *  result, so a hook that cannot reproduce its input shows up as an edit that does nothing. */
 function assertRewriteReproducesSource(fixture: string, node: InlineNode, rung: InlineRung): void {
 	assert(
 		rung.rewriteImage !== undefined,
@@ -687,50 +669,47 @@ function checkRegistrationHygiene(
 }
 
 // ── Falsifiable excuses ──────────────────────────────────────────────────────
+// Where the kit can check an excuse, it does: a reason is a claim about the handler, not a waiver.
 
-/**
- * Where the kit can check an excuse, it does: a reason is a claim about the handler, not a
- * waiver, so a profile that excuses a cell with something to test fails.
- */
-function falsifyExcuse(
-	cell: InlineConformanceCell,
-	profile: InlineConformanceProfile,
-	rung: InlineRung
-): void {
-	if (cell === 'overlapDecline' && (profile.overlapFixtures?.length ?? 0) > 0) {
+function refuseExcusedOverlap(profile: InlineConformanceProfile): void {
+	if ((profile.overlapFixtures?.length ?? 0) === 0) return;
+	fail(
+		'the profile supplies overlapFixtures but declares overlapDecline excused — the fixtures ' +
+			'say the overlap exists, so assert the cell'
+	);
+}
+
+function refuseExcusedWidget(profile: InlineConformanceProfile, rung: InlineRung): void {
+	if (profile.kind === undefined) return;
+	const claimed = profile.fixtures
+		.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
+		.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, defaultGrammarView));
+	if (claimed) {
 		fail(
-			'the profile supplies overlapFixtures but declares overlapDecline excused — the fixtures ' +
-				'say the overlap exists, so assert the cell'
+			`"${profile.kind}" is a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
+				`the widget cell has something to bite on and cannot be excused`
 		);
 	}
-	if (cell === 'widget' && profile.kind !== undefined) {
-		const claimed = profile.fixtures
-			.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
-			.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f));
-		if (claimed) {
-			fail(
-				`"${profile.kind}" IS a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
-					`the widget cell has something to bite on and cannot be excused`
-			);
-		}
+}
+
+function refuseExcusedEditingPolicy(profile: InlineConformanceProfile): void {
+	if (profile.kind === undefined) return;
+	const policy = getInlineWidgetEditing(profile.kind, defaultGrammarView);
+	if (policy && Object.keys(policy).length > 0) {
+		fail(
+			`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`
+		);
 	}
-	if (cell === 'editingPolicy' && profile.kind !== undefined) {
-		const policy = getInlineWidgetEditing(profile.kind);
-		if (policy && Object.keys(policy).length > 0) {
-			fail(
-				`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`
-			);
-		}
-	}
-	if (cell === 'imageClaim') {
-		const stamped = profile.fixtures
-			.flatMap((f) => mintedNodes(f, profile, rung))
-			.find((n) => n.syntaxClaim?.prefix === rung.prefix);
-		if (stamped) {
-			fail(
-				`a fixture mints a stamped built-in "${stamped.kind}", so the imageClaim cell has ` +
-					`something to bite on and cannot be excused`
-			);
-		}
+}
+
+function refuseExcusedImageClaim(profile: InlineConformanceProfile, rung: InlineRung): void {
+	const stamped = profile.fixtures
+		.flatMap((f) => mintedNodes(f, profile, rung))
+		.find((n) => n.syntaxClaim?.prefix === rung.prefix);
+	if (stamped) {
+		fail(
+			`a fixture mints a stamped built-in "${stamped.kind}", so the imageClaim cell has ` +
+				`something to bite on and cannot be excused`
+		);
 	}
 }

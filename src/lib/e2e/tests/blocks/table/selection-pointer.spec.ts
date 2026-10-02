@@ -37,9 +37,9 @@ test.describe('table block: pointer selection', () => {
 	test('shift+click cell A → cell B enters cross-block selection on the table', async ({
 		page
 	}) => {
-		await page.locator('[role="cell"]').nth(0).click();
+		await page.locator('.table-cell').nth(0).click();
 		await page
-			.locator('[role="cell"]')
+			.locator('.table-cell')
 			.nth(8)
 			.click({ modifiers: ['Shift'] });
 		await editor.waitForCrossBlock(true);
@@ -49,7 +49,7 @@ test.describe('table block: pointer selection', () => {
 	});
 
 	test('drag intra-cell paints native selection (no cross-block overlay)', async ({ page }) => {
-		const cell = page.locator('[role="cell"]').nth(4);
+		const cell = page.locator('.table-cell').nth(4);
 		const box = await cell.boundingBox();
 		if (!box) throw new Error('missing cell box');
 		const sx = box.x + 4;
@@ -66,8 +66,8 @@ test.describe('table block: pointer selection', () => {
 	});
 
 	test('drag cell A → cell B → back to A collapses selection', async ({ page }) => {
-		const a = page.locator('[role="cell"]').nth(0);
-		const b = page.locator('[role="cell"]').nth(8);
+		const a = page.locator('.table-cell').nth(0);
+		const b = page.locator('.table-cell').nth(8);
 		const aBox = await a.boundingBox();
 		const bBox = await b.boundingBox();
 		if (!aBox || !bBox) throw new Error('missing boxes');
@@ -91,7 +91,7 @@ test.describe('table block: pointer selection', () => {
 	test('drag from cell out into paragraph below enters cross-block', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n');
 		const [cellBox, paraBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(0),
+			page.locator('.table-cell').nth(0),
 			page.getByText('After.')
 		);
 		await dragBetweenBoxes(page, cellBox, paraBox);
@@ -101,16 +101,15 @@ test.describe('table block: pointer selection', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
-	// A table endpoint from a pointer drag must carry `cellCoordinate: true` so the collapse routes
-	// to the deep `[table, row, col]` cell, matching the keyboard path; without it the collapse
-	// lands on the table wrapper at a meaningless offset and the typed character misses the cell.
+	// A drag's table endpoint must carry `cellCoordinate: true` so the collapse lands in the deep
+	// `[table, row, col]` cell, not on the table wrapper where the typed character misses.
 	test('collapsing a pointer-dragged table selection lands the caret in the deep cell (F3)', async ({
 		page
 	}) => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
-			page.locator('[role="cell"]').last() // last body cell "fff"
+			page.locator('.table-cell').last() // last body cell "fff"
 		);
 		// Anchor near the paragraph's start rather than its center, so the drag spans the whole text.
 		await dragBetweenBoxes(
@@ -125,7 +124,7 @@ test.describe('table block: pointer selection', () => {
 		await editor.typeText('DEEP_MARK');
 		await editor.bridge.waitForSourceContains('DEEP_MARK');
 
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		expect(await cells.last().textContent()).toContain('DEEP_MARK');
 	});
 
@@ -133,7 +132,7 @@ test.describe('table block: pointer selection', () => {
 		await editor.loadContent('Before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
-			page.locator('[role="cell"]').last()
+			page.locator('.table-cell').last()
 		);
 		// Anchor near the paragraph's start rather than its center, so the drag spans the whole text.
 		await dragBetweenBoxes(
@@ -151,36 +150,34 @@ test.describe('table block: pointer selection', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_MULTICHAR);
-		// The windowing case only covers the giant table; this is the same collapse on a grid
-		// that is not windowed, where the cell-coordinate branch corrects a caret sitting at a
-		// meaningless offset.
+		// The same collapse on a grid that is not windowed, where the cell-coordinate branch
+		// corrects a caret at a meaningless offset.
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
-		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.locator('.table-cell').nth(3).click(); // first body cell "aaa"
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowRight'); // collapse to the end (last cell)
-		// The collapse is async; settle before typing so the marker is a plain caret
-		// insert, not a type-replace over the still-active cross-block range.
+		// The collapse is async, so this waits for it before typing, or the marker replaces the
+		// still-active cross-block range.
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('END_MARK');
 		await editor.bridge.waitForSourceContains('END_MARK');
 
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		expect(await cells.last().textContent()).toContain('END_MARK');
 		expect(await cells.nth(4).textContent()).not.toContain('END_MARK');
 	});
 
-	// `TableCellBlock` runs the cross-block dispatch before `cellKeydownPlan`: the other order lets
-	// a key the plan takes (ArrowLeft at 0, ArrowUp, ArrowDown) leave an active cross-block
-	// selection uncollapsed, and the next keystroke replaces the whole table body.
+	// `TableCellBlock` runs the cross-block dispatch before `cellKeydownPlan`, or a key the plan
+	// takes leaves the range uncollapsed and the next keystroke replaces the table body.
 	test('Ctrl+Shift+End then ArrowLeft collapses to start without wiping the table body', async ({
 		page
 	}) => {
 		await editor.loadContent(TABLE_MULTICHAR);
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
-		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.locator('.table-cell').nth(3).click(); // first body cell "aaa"
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowLeft'); // collapse to the start (anchor cell)
@@ -190,7 +187,7 @@ test.describe('table block: pointer selection', () => {
 
 		const source = await editor.bridge.getSource();
 		expect(source, `middle row wiped:\n${source}`).toContain('| eee |');
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		expect(await cells.nth(3).textContent()).toContain('LEFT_MARK');
 	});
 
@@ -200,7 +197,7 @@ test.describe('table block: pointer selection', () => {
 		await editor.loadContent(TABLE_MULTICHAR);
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
-		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.locator('.table-cell').nth(3).click(); // first body cell "aaa"
 		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowDown'); // collapse to the end (last cell)
@@ -210,17 +207,16 @@ test.describe('table block: pointer selection', () => {
 
 		const source = await editor.bridge.getSource();
 		expect(source, `middle row wiped:\n${source}`).toContain('| eee |');
-		const cells = page.locator('[role="cell"]');
+		const cells = page.locator('.table-cell');
 		expect(await cells.last().textContent()).toContain('DOWN_MARK');
 	});
 
-	// The stepped Ctrl+A (cell → document) must survive the cross-block-first dispatch: stage 2
-	// sets isCrossBlock, so a third press routes into the cross-block handler and must still
-	// leave the whole document selected.
+	// The stepped Ctrl+A must survive the cross-block-first dispatch: its third keypress routes
+	// into the cross-block handler and must keep the whole document selected.
 	test('repeated Ctrl+A presses in a cell select the whole document', async ({ page }) => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
 
-		await page.locator('[role="cell"]').nth(3).click();
+		await page.locator('.table-cell').nth(3).click();
 		await page.keyboard.press('ControlOrMeta+a'); // stage 1: cell
 		await page.keyboard.press('ControlOrMeta+a'); // stage 2: whole document (enters cross-block)
 		await page.keyboard.press('ControlOrMeta+a'); // a third press changes nothing

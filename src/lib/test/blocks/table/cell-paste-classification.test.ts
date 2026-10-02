@@ -2,18 +2,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '$lib/test/harness/editor-actions';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
-// A cell holds text, never blocks, so whatever a copy wrapped around its text, such as a blank
-// line at either end, must not decide the route: those blocks are just whitespace, and reading
-// them as content sends an ordinary text paste down the path that breaks the table.
+// A cell holds text, never blocks, so blank lines a copy wrapped around the text must not decide
+// the route: read as content, they send a plain text paste down the path that breaks the table.
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -24,12 +24,11 @@ async function pasteIntoCell(clipboard: string) {
 
 	await pasteDispatch(
 		{ pastedText: clipboard, targetPath: [0, 1, 0], offset: 0 },
-		{
+		pasteContext({
 			doc: deps.doc,
 			blockEdit,
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-			undoEntry: 'own'
-		}
+			controller: createPasteCoordinator(deps, createUndoController(deps))
+		})
 	);
 	return {
 		doc: deps.doc,
@@ -39,14 +38,19 @@ async function pasteIntoCell(clipboard: string) {
 
 describe('a clipboard pasted into a table cell', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		registerPasteSurface(tableCellPasteSurface);
+		ensurePasteSurface(tableCellPasteSurface);
 	});
 
 	it('flattens text wrapped in blank lines into the cell', async () => {
 		const { doc, updateBlockContent } = await pasteIntoCell('  \nhello\nworld\n  ');
 
-		expect(updateBlockContent).toHaveBeenCalledWith(0, 'hello world1', expect.any(Number));
+		expect(updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'hello world1',
+			'literal',
+			expect.any(Number),
+			expect.any(Number)
+		);
 		expect(doc.children.map((c) => c.kind)).toEqual(['table']);
 	});
 

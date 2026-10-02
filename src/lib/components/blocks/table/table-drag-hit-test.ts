@@ -4,6 +4,7 @@
  */
 
 import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
+import { rowMajorCellIndex } from '../../../cursor/coordinate-spaces';
 
 export function tableDragHitTest(
 	blockEl: HTMLElement,
@@ -21,5 +22,5 @@ export function tableDragHitTest(
 	const columnCount = rowCellEls(firstRow).length;
 	if (columnCount === 0) return null;
 
-	return cell.rowIdx * columnCount + cell.colIdx;
+	return rowMajorCellIndex(cell.rowIdx, cell.colIdx, columnCount);
 }

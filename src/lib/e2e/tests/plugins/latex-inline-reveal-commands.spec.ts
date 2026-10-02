@@ -4,12 +4,11 @@ import { PluginsPage, capturedErrors } from './helpers';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
- * Commit first: a block command fired while an inline source is open must run against the
- * committed bytes. An open source holds the block's live bytes in DOM the CST has never seen, so
- * every command, all of which read `node.raw`, would otherwise splice the bytes from before it
- * opened. Every case that asserts a command has a sibling proving the keys that are not commands
- * did not change. Enter's own rule is in `latex-inline-reveal-enter.spec.ts`. The two cases at the
- * bottom use other kinds, which is the point: the rule is the editor's, not latex's.
+ * A block command fired while an inline source is open must run against the committed bytes: the
+ * open source holds live bytes the CST has never seen, and every command reads `node.raw`. Each
+ * command case has a sibling proving non-command keys changed nothing; Enter's rule is in
+ * `latex-inline-reveal-enter.spec.ts`. The last two cases use other kinds: the rule is the
+ * editor's.
  */
 
 test.describe('block commands against a revealed inline source', () => {
@@ -43,9 +42,8 @@ test.describe('block commands against a revealed inline source', () => {
 		await editor.loadContent('above\n\n$x^2$\n');
 		await editor.revealFromTrailingEdge(1);
 
-		// Step inside and type: the source still parses as math, so nothing about the construct
-		// is broken and only the CST is behind. This is the case that rules out "commit when the
-		// edit breaks the construct" as the rule.
+		// The source still parses as math, so the construct is intact and only the CST is behind:
+		// commit first holds even when the edit breaks nothing.
 		await page.keyboard.press('ArrowLeft');
 		await page.keyboard.type('q');
 		await expect(editor.getBlock(1)).toHaveText('$x^2q$');
@@ -75,9 +73,8 @@ test.describe('block commands against a revealed inline source', () => {
 	test('ArrowRight leaves a block whose edited reveal sits at its end', async ({ page }) => {
 		await editor.loadContent('$x^2$\n\nbelow\n');
 		await editor.revealFromTrailingEdge(0);
-		// Delete the closing `$`: the live bytes are now shorter than node.raw, so any edge check
-		// measured against the stale raw reads the caret as mid-block, a trap where the caret can
-		// never leave rightward and the source never closes.
+		// With the closing `$` deleted the live bytes are shorter than node.raw, so an edge check
+		// against the stale raw would read the caret as mid-block and never let it leave rightward.
 		await editor.backspaceRevealed(0, ['$x^2']);
 
 		await page.keyboard.press('ArrowRight');
@@ -97,9 +94,8 @@ test.describe('block commands against a revealed inline source', () => {
 		await page.keyboard.type('q');
 		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
 
-		// A selection inside the open source does not count as leaving it, so it is still open
-		// when the chord fires. This is also where the caret write on commit could collapse the
-		// range out from under the toggle.
+		// A selection inside the open source does not leave it, so it is still open when the chord
+		// fires, where the caret write on commit could collapse the range under the toggle.
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('ControlOrMeta+b');
@@ -135,9 +131,8 @@ test.describe('block commands against a revealed inline source', () => {
 	});
 });
 
-// The commit happens in the block's command dispatch, which cannot know which widget kind opened.
-// These two cases prove it: the other two kinds declaring `revealSource: true`, footnote
-// references and inline directive text, take the same merge with no code of their own.
+// The commit happens in the block's command dispatch, which cannot know which widget opened: the
+// other two `revealSource: true` kinds take the same merge with no code of their own.
 test.describe('the fold boundary is core, not latex-local', () => {
 	/** Open the widget that is block 1's whole content by Backspacing at its trailing edge, delete
 	 *  its bytes one keypress at a time, then merge into block 0. */
@@ -168,9 +163,8 @@ test.describe('the fold boundary is core, not latex-local', () => {
 
 		await emptyThenMerge(editor, ref, ['[^a', '[^', '[', '']);
 		await editor.bridge.waitForBlockCount(2);
-		// The emptied block takes its own blank line with it, the ordinary result of merging an
-		// emptied middle block, which happens with no widget in the document at all. What this
-		// pins is that `[^a]` is gone from the merged bytes rather than brought back.
+		// The emptied block takes its blank line with it, as any emptied middle block does; what
+		// matters is that `[^a]` is gone from the merged bytes rather than brought back.
 		const merged = await editor.bridge.getSource();
 		expect(merged).toBe('above\n\n[^a]: note\n');
 		expect(await capturedErrors(page)).toEqual([]);

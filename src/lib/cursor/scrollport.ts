@@ -1,12 +1,12 @@
 /**
- * The scroll container windowing measures and writes, as one shape whatever owns the scroll:
- * the editor root under `scrollMode="self"`, the ancestor `userScrollportFor` resolves (or the
- * page viewport) under `"host"`. One implementation reads this; the mode only picks the target.
+ * The scroll container windowing measures, as one shape whatever owns the scroll: the editor root
+ * under `scrollMode="self"`, the ancestor `userScrollportFor` resolves (or the page viewport) under
+ * `"host"`. Everything outside `cursor/scroll-owner.ts` holds the read-only `ScrollportReader`.
  * See `docs/design/virtual-rendering.md`.
  */
 import type { UserScrollport } from './scroll-ancestors';
 
-export interface Scrollport {
+export interface ScrollportReader {
 	/** Client-coordinate top of the visible box; 0 when the page viewport is the scroll container.
 	 *  Paired with a block's own client rect, it maps that block into the container's content space. */
 	viewportTop(): number;
@@ -14,11 +14,15 @@ export interface Scrollport {
 	/** Width available to content, for the height estimator's line-wrap estimates. */
 	contentWidth(): number;
 	scrollTop(): number;
+	/** Fires on user and programmatic scrolls alike; returns the unsubscribe. */
+	subscribe(onScroll: () => void): () => void;
+}
+
+/** The writable scroll container, which only the scroll owner holds. */
+export interface Scrollport extends ScrollportReader {
 	setScrollTop(value: number): void;
 	/** Move by `delta`. The only relative write: see {@link withRelativeScroll}. */
 	scrollBy(delta: number): void;
-	/** Fires on user and programmatic scrolls alike; returns the unsubscribe. */
-	subscribe(onScroll: () => void): () => void;
 }
 
 export function createScrollport(target: UserScrollport): Scrollport {
@@ -27,12 +31,8 @@ export function createScrollport(target: UserScrollport): Scrollport {
 	);
 }
 
-/**
- * Adds the relative write every scroll correction goes through. A scroller snaps a fractional
- * write to a whole device pixel and reports the snapped value back, so a run of corrections (a
- * mode switch fires one per re-measured block) would drop that fraction every time and slide the
- * user's content by the sum. The refused fraction is kept for the next call instead.
- */
+/** Adds the relative write every scroll correction goes through. The container snaps a fractional
+ *  write to a device pixel, so the refused fraction is kept, or a run of corrections would drift. */
 export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollport {
 	let carried = 0;
 	let written: number | null = null;
@@ -75,10 +75,8 @@ function elementScrollport(el: HTMLElement): Omit<Scrollport, 'scrollBy'> {
 	};
 }
 
-/** The page's own viewport. Measuring and writing use different elements on purpose, the same
- *  split `selection/autoscroll.ts` makes: the viewport is the visible box, whereas
- *  `document.scrollingElement`, whose box is the whole multi-thousand-pixel document, is the only
- *  thing that moves. */
+/** The page's own viewport, measured through the visible viewport but written through
+ *  `document.scrollingElement`, the only thing that moves (as `selection/autoscroll.ts` does). */
 function pageScrollport(): Omit<Scrollport, 'scrollBy'> {
 	const scroller = () => document.scrollingElement;
 	return {

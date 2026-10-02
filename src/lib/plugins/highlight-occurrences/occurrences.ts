@@ -6,17 +6,16 @@
  */
 
 import {
+	blockNodeAt,
 	isProseKind,
+	walkBlocks,
 	type DocumentView,
 	type EditorSelection,
-	type MarkDecoration,
-	type NodeView
+	type MarkDecoration
 } from '$lib/plugin';
+import { WORD_CHAR } from './word-char';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
-
-// Astral-plane text falls outside "word" here, which is honest enough for a reference plugin.
-const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 export interface WordSpan {
 	word: string;
@@ -57,8 +56,8 @@ export function wordAt(text: string, offset: number): WordSpan | null {
  *  endpoint), or the caret sits on a character that cannot start a word. */
 export function anchorWord(doc: DocumentView, selection: EditorSelection | null): string | null {
 	if (!selection) return null;
-	const leaf = leafAt(doc, selection.focus.path);
-	if (!leaf || !isProseKind(leaf.kind)) return null;
+	const leaf = blockNodeAt(doc, selection.focus.path);
+	if (!leaf || leaf.children || !isProseKind(leaf.kind)) return null;
 	const span = wordAt(leaf.raw, selection.focus.offset);
 	return span ? span.word : null;
 }
@@ -69,8 +68,8 @@ export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): Oc
 	const index: OccurrenceIndex = new Map();
 	const tokens: TokenCache = new Map();
 	let tokenizedLeaves = 0;
-	forEachLeaf(doc.children, [], (node, path) => {
-		if (!isProseKind(node.kind)) return;
+	walkBlocks(doc, (node, path) => {
+		if (node.children || !isProseKind(node.kind)) return;
 		let spans = tokens.get(node.raw) ?? cached?.get(node.raw);
 		if (!spans) {
 			spans = [...tokenizeWords(node.raw)];
@@ -94,30 +93,6 @@ export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): Oc
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
-
-function leafAt(doc: DocumentView, path: number[]): NodeView | null {
-	let children: readonly NodeView[] | undefined = doc.children;
-	let node: NodeView | null = null;
-	for (const index of path) {
-		node = children?.[index] ?? null;
-		if (!node) return null;
-		children = node.children;
-	}
-	return node && !node.children ? node : null;
-}
-
-function forEachLeaf(
-	children: readonly NodeView[],
-	path: number[],
-	visit: (node: NodeView, path: number[]) => void
-): void {
-	for (let i = 0; i < children.length; i++) {
-		const node = children[i];
-		const childPath = [...path, i];
-		if (node.children) forEachLeaf(node.children, childPath, visit);
-		else visit(node, childPath);
-	}
-}
 
 function* tokenizeWords(text: string): Generator<WordSpan> {
 	let i = 0;

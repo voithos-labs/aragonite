@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Placing a gap caret: what the placement writes, and what it ends on the way in.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
@@ -35,18 +34,12 @@ describe('tryGapStop', () => {
 		expect(scope.selection.gapCaret).toBeNull();
 	});
 
-	// Reading mode has no caret to place, so the move keeps its old landing.
+	// Reading mode has no caret to place, so the move goes where it would without a gap caret.
 	it('never stops in reading mode', () => {
 		const scope = makeScope('reading');
 
 		expect(tryGapStop(scope, [], 2)).toBe(false);
 		expect(scope.selection.gapCaret).toBeNull();
-	});
-
-	it('stops on an unwired presentation mode', () => {
-		const selection = createSelectionState({ getDoc: () => DOC });
-
-		expect(tryGapStop({ selection, getDoc: () => DOC }, [], 2)).toBe(true);
 	});
 });
 

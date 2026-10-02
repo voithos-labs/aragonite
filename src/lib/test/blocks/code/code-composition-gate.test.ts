@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
-//
-// CodeBlock's insertLineBreak composition gate, driven through the mounted component's real
-// listeners (the branch lives in the component, not an extracted helper): an IME emitting
-// insertLineBreak mid-composition must not sync the CST; the same event after
-// compositionend splices its newline.
+// CodeBlock's `insertLineBreak` check during composition, driven through the mounted component's
+// real listeners since the branch lives in the component: mid-composition the event must not sync
+// the CST, and after `compositionend` it splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mountCode, type MountedCode } from './mount-code';
-
-// Async handlers finish after the dispatch returns; one macrotask drains the
-// await chain (handleSharedBeforeInput) before the branch under test runs.
-const settle = () => new Promise((r) => setTimeout(r));
+import { settleEditor } from '$lib/test/harness/settle';
 
 function lineBreak(): InputEvent {
 	return new InputEvent('beforeinput', {
@@ -34,7 +29,7 @@ describe('CodeBlock: insertLineBreak composition gate', () => {
 		const { el, blockEdit } = mounted;
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		el.dispatchEvent(lineBreak());
-		await settle();
+		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
@@ -46,7 +41,7 @@ describe('CodeBlock: insertLineBreak composition gate', () => {
 		vi.mocked(blockEdit.updateBlockContent).mockClear(); // drop the commit from the end
 
 		el.dispatchEvent(lineBreak());
-		await settle();
+		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledTimes(1);
 		const [, newText] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];

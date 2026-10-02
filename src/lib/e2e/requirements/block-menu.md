@@ -25,6 +25,16 @@ step aside.
     menu is tested
 - a right-click on a code block opens `Block actions`; its Remove row deletes the block and the
   neighbours close up
+- type in a code block, then pick Replace with clipboard before the typing pauses: one Ctrl+Z
+  takes back the replace alone and leaves the typed character
+  - Miss-analysis: the menu tests picked rows on an untouched document, and the unit tests built
+    the menu's wiring themselves, so the editor's own wiring of the row into the typing burst had
+    no test
+- Replace with clipboard writes the document's own line ending whatever the clipboard holds: a
+  CRLF clipboard into an LF document lands LF, and an LF clipboard into a CRLF document lands CRLF
+  - Miss-analysis: the replace tests all ran on LF documents with LF clipboards, and the paste
+    tests that do mix endings never go through the menu row, which skipped the normalizing step
+    every paste route takes
 - ArrowUp from the first row wraps to the last selectable row; ArrowDown wraps back
 
 ## User interactions

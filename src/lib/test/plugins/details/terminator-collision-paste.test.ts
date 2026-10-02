@@ -1,40 +1,31 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit
+	makeStubBlockEdit,
+	pasteContext
 } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// Miss-analysis: every terminator-collision suite drove the per-block byte writes (typing,
-// split, cross-block delete); paste builds its nodes before any of them, and no test drove
-// pasteDispatch or the paste splice into a bodyWrite container (GH #40).
+// Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).
 
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerDetailsKind();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 });
 
 function mountDoc(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createPasteCoordinator(
-		createUndoController(harness.deps),
-		harness.deps.revealPath
-	);
+	const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 	const container = harness.deps.doc.children[0];
 	if (container.children) {
 		registerBlockListState(
@@ -50,7 +41,7 @@ type Mounted = ReturnType<typeof mountDoc>;
 async function paste(h: Mounted, pastedText: string, targetPath: number[], offset: number) {
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		{ doc: h.doc, blockEdit: makeStubBlockEdit(), controller: h.controller }
+		pasteContext({ doc: h.doc, blockEdit: makeStubBlockEdit(), controller: h.controller })
 	);
 }
 
@@ -62,7 +53,7 @@ describe('details terminator escape at the paste door', () => {
 
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(serialize(h.doc)).toContain('&lt;/details>');
-		expect(checkOpaqueStaleRaw(h.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	// The target's own bytes are what get stranded, not the clipboard's: a paste splits at
@@ -75,7 +66,7 @@ describe('details terminator escape at the paste door', () => {
 
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(serialize(h.doc)).toContain('&lt;/details>');
-		expect(checkOpaqueStaleRaw(h.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	// A balanced pair is legal markup the container's depth scan already handles; escaping
@@ -91,9 +82,8 @@ describe('details terminator escape at the paste door', () => {
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 	});
 
-	// The recognizer never sees an indented close, so the container survives in aragonite
-	// either way, but a browser closes the element on it, and paste is the only way such
-	// spellings can arrive (GH #40).
+	// The recognizer never sees an indented close, so the container survives here, but a browser
+	// closes the element on it, and paste is the only way such spellings arrive.
 	it('escapes a passthrough-only spelling arriving by paste', async () => {
 		const h = mountDoc(OPEN_DETAILS);
 
@@ -115,16 +105,12 @@ describe('details terminator escape at the paste door', () => {
 	it('the splice sink escapes an htmlBlock terminator and re-derives its kind', async () => {
 		const h = mountDoc(OPEN_DETAILS);
 
-		await replaceBlockAtParent({
-			doc: h.doc,
-			blockPath: [0, 1],
-			replacement: [{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
-			controller: h.controller,
-			undoEntry: 'join',
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await h.controller.replaceBlock(
+			[0, 1],
+			[{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
+		);
 
 		const child = h.doc.children[0].children?.[1];
 		expect(child?.raw).toBe('&lt;/details>\n');

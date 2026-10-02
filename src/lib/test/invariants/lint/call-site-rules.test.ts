@@ -1,15 +1,11 @@
 /**
  * Per-call rules over the shipped source: each row names the callees whose every call must
- * satisfy a predicate on its argument text, most often that a required key or a trailing
- * argument was threaded rather than answered `undefined`. The scan is `call-site-rule.ts`.
+ * satisfy a predicate on its argument text. The scan is `call-site-rule.ts`.
  */
 
-import { callArguments, collectEditorSources, lastArgument } from './scan-source';
+import { callArguments, collectEditorSources } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
-import { except, notUnder } from './file-rule';
-
-/** The published container-conformance kit has no registry view to source a grammar or a mode from. */
-const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
+import { notUnder, type Probe } from './file-rule';
 
 // ── G4.1 createBlockListState ────────────────────────────────────────────────
 
@@ -20,33 +16,10 @@ function isFunctionArgument(arg: string): boolean {
 	return /(?:^|\.)get[A-Z]\w*$/.test(arg);
 }
 
-// ── The live-mode thread ─────────────────────────────────────────────────────
+// ── G4.100 a block's own line ending ─────────────────────────────────────────
 
-/** Byte-moving sinks whose trailing arguments are the mode and the resolver, by the names their
- *  callers import them under. */
-const MODE_TRAILING_CALLS = [
-	'splitNode',
-	'performSplit',
-	'mergeWithNext',
-	'performMergeNext',
-	'mergeIntoPrevDeepLeaf',
-	'rangeDelete'
-];
-
-/** Bundle factories whose deps object carries the mode and the resolver down to those sinks. */
-const MODE_BEARING_FACTORIES = ['createStandardNestedActions', 'createListContext'];
-
-/** Both axes ride the same crossings: a rewrite told the mode but not the resolver parses a
- *  reference form as brackets and declines, which is a marker leak wearing a decline's clothes. */
-const THREADED_AXES = ['getPresentationMode', 'linkRef'];
-
-/** The mode rides second to last, the resolver last: only the mode's `undefined` is a skipped
- *  thread, since a harness with no definitions has no resolver to give. */
-const modeArgument = (args: string): string => callArguments(args).at(-2) ?? '';
-
-const threadsAxis = (args: string, axis: string): boolean =>
-	new RegExp(`\\b${axis}\\s*[,:}]`).test(args) &&
-	!new RegExp(`\\b${axis}\\s*:\\s*undefined\\b`).test(args);
+const ROGUE_BLOCK = 'src/lib/components/blocks/x/rogue.ts';
+const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
 // ── The rules ────────────────────────────────────────────────────────────────
 
@@ -70,110 +43,12 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
-		id: 'every container composing a nested-actions bundle threads the instance grammar',
-		population: except(CONFORMANCE_KIT),
-		calls: ['createStandardNestedActions'],
-		holds: (args) => /\bgrammar\s*:/.test(args),
-		reason:
-			'a container reparsing child content without the instance grammar reads a disabled kind’s syntax',
-		// Four built-in containers wire it directly, plus the plugin container factory.
-		atLeastCallers: 5,
-		hits: ['const b = createStandardNestedActions(state, { scope, stickyColumn, parent });'],
-		misses: [
-			'createStandardNestedActions(state, { scope, grammar: registryView.grammar, parent }, ovr(x))',
-			'export function createStandardNestedActions(state, deps) {}\n' +
-				'// createStandardNestedActions(state, { no grammar }) would be wrong'
-		]
-	},
-	{
-		id: 'every ancestry rebuild and leaf byte write resolves through the instance grammar',
-		population: except(CONFORMANCE_KIT),
-		calls: ['rebuildUnsharedChain', 'rebuildUnsharedAncestry', 'writeOwnRaw'],
-		holds: (args) => lastArgument(args) !== 'undefined',
-		reason:
-			'the grammar parameter is required-nullable, so the type stops an omission but not a caller answering undefined because threading was inconvenient',
-		// Routine typing, the commit sequence, the metadata refresh, paste, cross-block
-		// type-replace and the four range-delete modules.
-		atLeastCallers: 8,
-		hits: [
-			'rebuildUnsharedChain(doc, chain, sharing, undefined);',
-			'out.push(...rebuildUnsharedChain(doc, chain, sharing, folds, undefined));'
-		],
-		misses: [
-			'rebuildUnsharedChain(doc, chain, sharing, ctx.grammar);\n' +
-				'rebuildUnsharedAncestry(doc, path, sharing, viewOf(deps, undefined));',
-			'export function rebuildUnsharedChain(root, chain, sharing, grammar) {}\n' +
-				'// rebuildUnsharedAncestry(doc, path, sharing, undefined) would be wrong'
-		]
-	},
-	{
-		id: 'every paste route threads the instance grammar',
-		calls: ['pasteDispatch', 'replaceBlockAtParent'],
-		// Both spellings an argument object has: an explicit `grammar:` and the shorthand.
-		holds: (args) => /\bgrammar\s*[:,}]/.test(args),
-		reason:
-			'pasted bytes, or the bodyWrite reparse of them, read an unlisted plugin’s syntax without the instance grammar (#267)',
-		// Four clipboard routes and three splice sites.
-		atLeastCallers: 7,
-		hits: [
-			'await pasteDispatch({ pastedText, targetPath }, { doc, blockEdit, controller });',
-			'await replaceBlockAtParent({ doc, blockPath, replacement, controller });',
-			'pasteDispatch(input, { ...ctx, seam });'
-		],
-		misses: [
-			'pasteDispatch(input, { doc, blockEdit, controller, grammar })',
-			'replaceBlockAtParent({ doc, controller, grammar: input.grammar })',
-			'export async function pasteDispatch(input, ctx) {}\n' +
-				'export async function replaceBlockAtParent(args) {}\n' +
-				'// pasteDispatch(input, { no grammar }) would be wrong'
-		]
-	},
-	{
-		id: 'every byte-moving sink is told which presentation mode the bytes move in',
-		population: except(CONFORMANCE_KIT),
-		calls: MODE_TRAILING_CALLS,
-		holds: (args) => modeArgument(args) !== 'undefined',
-		reason:
-			'split rebalancing and join cleanup run in live mode alone; a caller answering undefined ships byte-literal edits with delimiters on screen',
-		// The shared block-edit core, the list mid-item split, the cross-block delete, node-ops.
-		atLeastCallers: 4,
-		hits: [
-			'splitNode(parent, i, offset, undefined, linkRef);\nmergeWithNext(parent, i, undefined, ref);'
-		],
-		misses: [
-			'splitNode(parent, i, offset, mode, undefined);\nperformSplit(p, i, o, deps.getPresentationMode?.());\n' +
-				'rangeDelete(doc, s, e, sharing, grammar, ctx.getPresentationMode?.(), undefined);',
-			'export function splitNode(parent, blockIndex, offset, presentationMode, undefined) {}\n' +
-				'// performSplit(p, i, o, undefined, undefined) would be wrong'
-		]
-	},
-	{
-		id: 'every mode-bearing bundle threads a real getter on both axes',
-		population: except(CONFORMANCE_KIT),
-		calls: MODE_BEARING_FACTORIES,
-		holds: (args) => THREADED_AXES.every((axis) => threadsAxis(args, axis)),
-		reason:
-			'a bundle that omits getPresentationMode or linkRef, or answers either with undefined, hands its sinks a mode-less edit',
-		// Four built-in containers, the plugin container factory, the list context.
-		atLeastCallers: 5,
-		hits: [
-			'createStandardNestedActions(state, { scope, stickyColumn, parent });',
-			'createListContext({ scope, controller, getPresentationMode: undefined, linkRef });'
-		],
-		misses: [
-			'createStandardNestedActions(state, { scope, getPresentationMode, linkRef, parent });\n' +
-				'createListContext({ scope, getPresentationMode: policies.presentationMode, linkRef });'
-		]
-	},
-	{
 		id: 'G4.27 every parse() call outside the parser declares its scope',
-		// The consumer example writes the documented default (whole-document parses); the rule is
-		// about internal reparse sites, so it binds the library and the plugin-route author stand-in.
+		// The consumer example writes the documented default (a whole-document parse); the rule
+		// binds the library's own reparse sites and the reference plugins under the routes.
 		population: notUnder('examples/consumer/src/', 'src/lib/core/parser.ts', 'src/lib/testing/'),
 		calls: ['parse'],
 		holds: (args) => args.includes('scope:'),
-		/** Each call allowed to stay silent, keyed `relPath:line`, with why. */
-		allowed: {},
 		reason:
 			"every parse() call outside core/parser.ts passes an explicit scope: { scope: 'fragment' } for one block's bytes, { scope: 'document' } for whole source; silence reads as document (#52)",
 		hits: ['const d = parse(raw);', "parse(')');\nparse(x, { scope: 'fragment' });"],
@@ -185,6 +60,75 @@ const RULES: CallSiteRule[] = [
 			'parse(unclosed(")"), { scope: \'fragment\' })',
 			'parseInline(raw); JSON.parse(raw); doc.parse(raw); reparse(raw);',
 			'export function parse(source: string): Document {'
+		]
+	},
+	{
+		id: 'G4.100 a block’s own trailing line ending is added only by the surface write',
+		population: (file) =>
+			file.relPath.startsWith('src/lib/components/blocks/') &&
+			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+		calls: ['trailingLineEnding', 'ownTrailingLineEnding'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/editable-surface.ts :: lineEnding':
+				'the getter for the ending a typed line break takes: its own, else the document’s',
+			'src/lib/components/blocks/text/text-keydown.ts :: insertHardBreak':
+				'a hard break at the content’s end reuses the block’s trailing ending as its own line’s, until the pending break takes that branch',
+			'src/lib/components/blocks/code/code-paste-surface.ts :: onInlinePaste':
+				'a paste’s own write, which moves onto the surface write with the other clipboard edits',
+			'src/lib/components/blocks/code/code-context-actions.ts :: run':
+				'a second new-text ending, beside the typed line break’s: the dissolve action’s prose replaces the fence, so it takes the document’s ending (the two share one home under #648)',
+			'src/lib/components/blocks/code/code-fence-exit.ts :: computeFenceExit':
+				'reads the body’s last line ending to put the closer after it, writing no block’s trailing ending',
+			'src/lib/components/blocks/code/code-renderer.ts :: fenceBodyAsDrawn':
+				'a render read of the body’s last line ending'
+		},
+		reason:
+			'a write to a block’s own text goes through `surface-write.ts` (`writeText`, or `withOwnEnding` for a route not on it yet), which keeps the block’s own ending: a last line saved without one keeps none',
+		hits: [
+			at(ROGUE_BLOCK, 'const raw = text + trailingLineEnding(node.raw, documentLineEnding(doc));'),
+			at(ROGUE_BLOCK, 'const raw = text + ownTrailingLineEnding(node.raw);')
+		],
+		misses: [
+			at(ROGUE_BLOCK, 'const raw = withOwnEnding(node, text);'),
+			at(ROGUE_BLOCK, 'const display = trimTrailingLineEnding(node.raw);'),
+			at(ROGUE_BLOCK, '// text + trailingLineEnding(node.raw) was the old append'),
+			at('src/lib/tree-operations/rogue.ts', 'const raw = text + ownTrailingLineEnding(node.raw);')
+		]
+	},
+	{
+		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
+		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
+		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/code/CodeBlock.svelte :: codeNewline':
+				'Enter types a new line, and an electric indent two',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: onBeforeInput':
+				'a soft break (Shift+Enter, or a line break with no key) types a new line',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
+				'the line break a key types over a selection',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: completeBareFence':
+				'Enter on a bare fence adds its body and closing lines',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: closeUnclosedFenceAndDescend':
+				'Enter past an unclosed fence adds the closing line and the paragraph below',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
+				'Shift+Enter types a new line',
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
+				'Shift+Enter beside a widget types a new line',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: handleDelimiterAutoPair':
+				'asks whether a completion is planned, and writes nothing'
+		},
+		reason:
+			'the getter gives a new line an ending, the document’s where the block has none; a write to the block’s own text keeps the ending it has (`withOwnEnding`), so the getter inside one adds a break a last line saved without one never had',
+		hits: [
+			at(ROGUE_BLOCK, 'const raw = display + editableSurface.lineEnding();'),
+			at(ROGUE_BLOCK, 'openLine(text, deps.lineEnding());')
+		],
+		misses: [
+			at(ROGUE_BLOCK, 'const ending = parent.containerEdit.lineEnding();'),
+			at(ROGUE_BLOCK, 'const raw = withOwnEnding(node, display);'),
+			at('src/lib/editor-actions/rogue.ts', 'const raw = display + editableSurface.lineEnding();')
 		]
 	}
 ];

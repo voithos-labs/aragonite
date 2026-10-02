@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { setPluginMetadata } from '$lib/core/nodes';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor, isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_LEAF,
@@ -13,8 +12,6 @@ import {
 } from '$lib/core/directive/kinds';
 
 describe('registerDirectiveKinds', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
 	it('registers the generic container and leaf fallback kinds', () => {
 		registerDirectiveKinds();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);
@@ -32,10 +29,8 @@ describe('registerDirectiveKinds', () => {
 // a non-prose kind.
 describe('directiveLeaf render descriptor', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const leaf = () => getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
 
@@ -70,10 +65,8 @@ describe('directiveLeaf render descriptor', () => {
 // the captured metadata and children after a structural edit) can prove the capture.
 describe('rebuildDirectiveContainerRaw', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const build = (
 		meta: DirectiveContainerMetadata,

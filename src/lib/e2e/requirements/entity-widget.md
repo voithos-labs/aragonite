@@ -29,8 +29,16 @@ delete scenario below is what proves that policy value is honored rather than ig
   single keypress (the markers are never shown, no select step); one undo restores it exactly
 - select across the entity and copy: the clipboard holds the raw bytes (`&copy;`),
   never the decoded glyph
+- live: Backspace on `&copy;` when it's all a bold word holds (`x **&copy;** y`)
+  takes the now empty `**` pair with it, like deleting the last letter would, so the
+  source reads `x  y` and no stray stars show up
 
 ## Edge cases
 
 - `&nbsp;` (decodes to U+00A0, whitespace): keeps its literal-source span rather than
   becoming a widget, since an invisible non-editable widget would be a caret trap
+
+## Miss-analysis
+
+The one-keypress delete was only ever pinned with the entity out in plain text, so its
+literal splice never had a bold marker next to it to strand.

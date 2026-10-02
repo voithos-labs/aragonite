@@ -1,4 +1,6 @@
-import { DEV } from 'esm-env';
+/** One editor's decoration sources, their merged results, and the per-path lookups the
+ *  overlays and inline widgets read. A source never runs inside a commit. */
+import { isDevChecks } from '../env';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
@@ -36,9 +38,8 @@ export interface DecorationEngineDeps {
 export type DecorationEngine = {
 	addSource(source: DecorationSource): DecorationSourceHandle; // dup name throws
 	readonly sourceCount: number;
-	/** Bump the edit counter, then re-run every source's `provide`. `handle.invalidate()`
-	 *  re-runs one source without the bump, which is what lets a memoized source tell "the
-	 *  document changed" from "my own state changed". */
+	/** Re-runs every source after bumping the edit counter. `handle.invalidate()` skips the bump,
+	 *  so a memoized source can tell a document change from a change in its own state. */
 	notifyEdit(): void;
 	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
@@ -47,9 +48,8 @@ export type DecorationEngine = {
 };
 
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// Non-reactive registry state, lined up with `results` by index. A handle closes over the
-	// source object, not its index, so disposing one never leaves another pointing at the wrong
-	// entry.
+	// Lined up with `results` by index. A handle closes over the source object, not its index,
+	// so disposing one never leaves another pointing at the wrong entry.
 	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
 	const warnedUnrenderableIslands = new Set<string>();
@@ -82,12 +82,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	/**
-	 * Why the render path will apply nothing for this inline widget, or null when it will. The
-	 * answer belongs here and nowhere later: only this pass holds the decorations beside the
-	 * document they came from, so only here does an unrenderable one mean the author placed it
-	 * wrong rather than the document having changed since.
-	 */
+	/** Why the render path will apply nothing for this inline widget, or null when it will.
+	 *  Asked here because only this pass sees the decoration beside the document it came from. */
 	function islandDefect(
 		dec: WidgetDecoration | ReplaceDecoration,
 		node: NodeView
@@ -112,7 +108,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
-		if (!DEV) return;
+		if (!isDevChecks()) return;
 		const doc = deps.getDoc();
 		for (const dec of decs) {
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;

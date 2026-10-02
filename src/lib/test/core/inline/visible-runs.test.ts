@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
 // The run list's spans, which the concatenated text cannot check: `renderedText` is the same
 // string whatever offsets the runs claim, and `edge-seat.ts` is the one reader that acts on them.
-// Miss-analysis: the visible span was recovered by searching the construct's raw for its visible
-// text, so a self-similar shape matched at the wrong place; the search's only caller had no test
-// naming an offset, and the property test over `edge-seat.ts` excludes that shape by interval.
+// Miss-analysis: no test named an offset for a self-similar shape, where a raw search misfinds.
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, visibleRuns } from '$lib/core/inline/visibility';
 import type { InlineNode } from '$lib/core/nodes';
+import { renderOptions } from '../../harness/fixture-grammar';
 
 const painted = (nodes: readonly InlineNode[], raw: string) =>
-	visibleRuns(nodes, raw, CONTENT_VISIBILITY)
+	visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions())
 		.filter((run) => run.visible && run.text !== '')
 		.map((run) => [run.start, run.end, run.text]);
 

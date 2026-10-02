@@ -1,3 +1,4 @@
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
@@ -13,17 +14,18 @@ import {
 	resetPerfInstruments
 } from '../../perf/instruments';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The measurement edits a node an undo snapshot shares by writing raw directly rather than
 // through a commit, which is what the shared-node check reports.
 afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 
-// `inlineComputeCount` has one caller in production, `computeInlineContent`, so it counts
-// exactly how often the inline tree is built: an eager parse reintroduced anywhere bumps it
-// where these checks expect zero.
+// Only `computeInlineContent` bumps `inlineComputeCount`, so an eager inline parse reintroduced
+// anywhere shows up where these checks expect zero.
 
+/** A paragraph a blank line below the one before it, so the write asks no join. */
 function para(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
+	return { kind: 'paragraph', leadingTrivia: '\n', raw };
 }
 
 beforeEach(() => {
@@ -38,33 +40,32 @@ describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n');
-		// The content-update path block-parses kind/metadata/children but must not
-		// build the inline tree. An eager double-parse here is the regression.
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView, createSharingState());
+		// The content-update path parses the block but must not build its inline tree.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 
-		computeInlineContent(parent.children[1]);
+		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 	});
 
 	it('an off-render accessor read computes on demand, not eagerly', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n');
-		computeInlineContent(parent.children[1]);
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView, createSharingState());
+		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 
 		// A different block, never read, adds exactly one compute when something finally reads it,
 		// which proves nothing filled the whole document in advance.
-		getInlineContent(parent.children[2]);
+		getInlineContent(parent.children[2], undefined, undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(2);
 	});
 });
@@ -78,7 +79,7 @@ describe('lazy inline: undo restore does no inline work', () => {
 		const controller = createUndoController(deps);
 		const history = createHistoryActions(deps, controller);
 
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		deps.doc.children[0].raw = 'edited\n';
 
 		resetPerfInstruments();

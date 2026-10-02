@@ -69,8 +69,8 @@ assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 **Incident.** A value read does two things at once: it snapshots the value at effect-run time,
 and it registers the state as a dependency of that effect (an effect: Svelte's re-run-on-change
 block). The original re-init effect did both, so every mutation anywhere re-ran it and wiped
-unrelated work. The same trap lives inside `afterTick` callbacks: read `deps.node` live when the
-callback runs, because a capture taken before the commit is stale by construction. A
+unrelated work. The same trap lives inside a commit's `landing`: read
+`deps.node` live when it runs, because a capture taken before the commit is stale by construction. A
 delete-last-item caret loss shipped exactly that way and survived until the audit.
 
 **Guard:** G4.1 scans every `createBlockListState` call site (the factory every block list's
@@ -165,9 +165,11 @@ assertInvariant('commit-path-dialect', () =>
 ## DOM to raw offset translation has one home
 
 The DOM ↔ raw translation (raw: a node's verbatim source bytes, markers included) lives in
-`src/lib/cursor/widget-offset.ts`, plus the ambient helpers that wrap it for the marker a container
-lends its first child. Offset arithmetic duplicated anywhere else agrees with the shared walk right
-up until it doesn't.
+`src/lib/cursor/widget-offset.ts`. It reads the length of the marker a container lends its first
+child straight off the DOM, turns a DOM position back into raw with `rawOffsetAt`, and writes the
+selection from raw offsets: `placeCaretAtRaw` for a caret (which has to say whether it clamps),
+`selectRawRange` and friends for a range. Offset math done anywhere else agrees with it right up until it
+doesn't (a second walk once counted a widget by its text instead of its bytes).
 
 **Incident.** Every offset bug in the audit traced to arithmetic done outside it.
 
@@ -185,8 +187,10 @@ const crossed: RawOffset = dom;
 ```
 
 The conversions that are allowed are named functions in `src/lib/cursor/coordinate-spaces.ts`
-(`toRawOffset`, `toDomTextOffset`, and friends), one per direction. **Spec:**
-`docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
+(`toRawOffset`, `toDomTextOffset`, and friends), one per direction. And a source scan (G4.36)
+fails any native selection write outside `widget-offset.ts`, apart from a few declared files that
+select nodes they already hold.
+**Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
 
@@ -207,14 +211,24 @@ registration replaces with a console note instead of throwing (a `registry` diag
 [`warnings.md`](warnings.md)'s terms); production and test keep the throw, so the contract is
 unchanged everywhere it's observed.
 
-The same no-unregister rule reaches the public API. A plugin author's suite can't re-install
-between cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
-`resetPluginPlatformForTests()`, and every new registration reachable from the public plugin
-surface must wire its reset into it, or the next author hits the duplicate throw on their second
-`beforeEach`.
+The same no-unregister rule reaches the public API. A plugin author's suite can't re-install between
+cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
+`resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public registries
+(block context actions, code languages) were never on it: a suite resetting in `beforeEach` saw one
+more copy of its context-menu row per case, and kept the first case's grammar for the rest. Now
+every registry is built in `src/lib/schema/plugin-registry.ts`, which signs the store up for the
+reset as it builds it, so there's no list to forget. The same store knows which plugin each entry
+belongs to: whoever registered it, unless it's keyed by a kind some plugin declared, in which case
+that plugin. It only lets an entry through to an editor that lists that plugin. What the store can't
+reach is a copy kept outside it: highlight.js holds its own table of grammars, and the first cut of
+this fix left the first case's grammar there after the reset had cleared the registry. So that copy
+now checks itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
 
-**Guard:** the registry coherence family (G1.2, G1.10, G1.17, G1.18) sweeps the live registry in
-the registration-check flush at editor mount, one guard call per check (trimmed):
+**Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `buildRegistry`, the one
+function behind every registry constructor, and `src/lib/test/plugins/testing-barrel.test.ts` reads
+the plugin barrel's own exports, so a new public `register*` or `declare*` without a probe fails the
+suite. The registry coherence family (G1.2, G1.10, G1.17, G1.18) sweeps the live registry in the
+registration-check flush at editor mount, one guard call per check (trimmed):
 
 ```ts
 // src/lib/schema/registration-checks.ts :: flushPendingRegistrationChecks
@@ -224,5 +238,6 @@ report('registry-completeness', () =>
 report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 ```
 
-**Spec:** the `src/lib/schema/register-once.ts` header and `docs/design/plugin-contract.md`.
+**Spec:** the `src/lib/schema/register-once.ts`, `src/lib/schema/plugin-registry.ts` and
+`src/lib/schema/registry-reset.ts` headers, and `docs/design/plugin-contract.md`.
 ([rule 4](rules.md#the-five-rules))

@@ -2,15 +2,17 @@
 import { describe, it, expect } from 'vitest';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+import { serialize } from '$lib/core/serializer';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
 
 /**
- * Mirror of the shell's own `edit` subscriber (`Editor.svelte`): rebuild the link-reference map
- * whenever the gate says a commit could have changed the definition set, reading the live
- * post-commit document. Replaying the collected events afterwards would not reproduce the shell.
+ * Mirrors the shell's `edit` subscriber (`Editor.svelte`): rebuilds the link-reference map whenever
+ * the gate says a commit could have changed the definitions, from the live post-commit document.
  */
 function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceResolver {
 	let resolve = buildLinkReferenceMap(env.doc.children).resolve;
@@ -53,7 +55,7 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		// delete+input and leave a single merged block.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
-		const handlers = makeHandlers(env, [0], { getCursorOffset: () => 5 });
+		const handlers = makeHandlers(env, [0]);
 		await handlers.handleBeforeInput(makeBeforeInputEvent('X'));
 
 		expect(env.doc.children).toHaveLength(1);
@@ -75,6 +77,18 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		const snapshot = stacks.undo[0].snapshot;
 		const snapshotSource = snapshot.children.map((c) => (c as CstNode).raw).join('');
 		expect(snapshotSource).toBe(before);
+	});
+
+	// Miss-analysis: the env's document write was a no-op, and no test here pressed undo.
+	it('undo after the typed character restores the document the range covered', async () => {
+		const env = makeEnv('alpha\n\nbeta\n');
+		selectAcross(env.selectionState, [0], [1]);
+		await makeHandlers(env, [0]).handleBeforeInput(makeBeforeInputEvent('Z'));
+		expect(serialize(env.deps.doc)).not.toBe('alpha\n\nbeta\n');
+
+		await createHistoryActions(env.deps, env.controller).requestUndo();
+
+		expect(serialize(env.deps.doc)).toBe('alpha\n\nbeta\n');
 	});
 });
 
@@ -111,8 +125,8 @@ describe('cross-block typed character: kind re-derivation at offset 0', () => {
 	});
 });
 
-// A commit that re-derives the kind must declare an op the link-reference gate treats as kind-unstable:
-// under `input` the gate read the post-commit kind and kept serving a destroyed definition.
+// A commit that re-derives the kind must declare an op the link-reference gate treats as
+// kind-unstable, or the gate reads the post-commit kind and keeps serving a destroyed definition.
 describe('cross-block typed character: link-reference resolver freshness', () => {
 	it('a type-replace that destroys a definition stops the resolver serving it', async () => {
 		const env = makeEnv('[label]: /a\n\n[ref]: /b\n\nSee [ref] and [label].\n');
@@ -132,17 +146,16 @@ describe('cross-block typed character: link-reference resolver freshness', () =>
 		expect(resolver()('ref')).toBeUndefined();
 		expect(resolver()('label')).toBeUndefined();
 
-		// The detail is computed before the commit, but a kind change creates a fresh node by
-		// reparsing, so the length contract needs checking on this branch too, not only on the
-		// kind-stable one above.
+		// The detail is computed before the commit, but a kind change reparses into a fresh node,
+		// so the length contract needs checking on this branch as well as the kind-stable one.
 		const update = editEvents.at(-1) as Extract<EditEvent, { op: 'updateContent' }>;
 		expect(update.op).toBe('updateContent');
 		expect(update.detail.length).toBe(survivor.raw.length);
 	});
 
 	it('a type-replace that creates a definition makes the resolver serve it', async () => {
-		// The other direction of the same decision: the post-commit kind is
-		// `linkReferenceDefinition`, which is why this case survived the bug.
+		// The other direction of the same decision, where the post-commit kind is
+		// `linkReferenceDefinition`.
 		const env = makeEnv('drop me\n\nlabel]: /a\n');
 		const resolver = trackLrdResolver(env);
 		expect(resolver()('label')).toBeUndefined();
@@ -153,5 +166,20 @@ describe('cross-block typed character: link-reference resolver freshness', () =>
 
 		expect((env.doc.children[0] as CstNode).kind).toBe('linkReferenceDefinition');
 		expect(resolver()('label')).toEqual({ url: '/a' });
+	});
+});
+
+// No beforeinput fires in reading mode; forced, the typed character's own reading-mode check stops it.
+// Miss-analysis: the dispatch's check stood in front of that one, so neither was ever tested alone.
+describe('cross-block typed character forced in reading mode', () => {
+	it('consumes the key and writes nothing', async () => {
+		const env = makeEnv('hello\n\nworld\n', fixtureReading({}, 'reading'));
+		selectAcross(env.selectionState, [0], [1]);
+		const event = makeBeforeInputEvent('X');
+
+		expect(await makeHandlers(env, [0]).handleBeforeInput(event)).toBe(true);
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(serialize(env.doc)).toBe('hello\n\nworld\n');
 	});
 });

@@ -42,9 +42,8 @@ test.describe('math fence editing edges (live)', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	// Twelve real steps take the range out of the body, past the closing fence line and into the
-	// paragraph below. The truncation drops that line, so the block would reopen and swallow the
-	// document; its closer comes back instead, as a fenced code block's does.
+	// Twelve real steps take the range past the closing fence line into the paragraph below; the
+	// truncation drops that line, so the closer comes back, as a fenced code block's does.
 	test('a range that runs out of the body keeps the closing fence line', async ({ page }) => {
 		await editor.revealFromBefore();
 		await page.keyboard.press('Home');

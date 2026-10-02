@@ -16,9 +16,11 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the dev-mode
-// stale-raw check reads them as stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
+// them as stale, and the one-block check reads their childless list items as emptied.
+afterEach(() =>
+	allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block', 'invariant:reads-back'])
+);
 
 /** `serialize()` reads only top-level raws, so it cannot see an inner container
  *  whose bytes the rebuild rewrote before the throw. */
@@ -36,19 +38,22 @@ afterEach(() => {
 	augmentBuiltin('list', { container: { rebuildRaw: originalListRebuild } });
 });
 
-function throwListRebuildAfter(okCalls: number): void {
-	let seen = 0;
+/** The top-level list is the last node the chain rebuild reaches, so every level below it has
+ *  written its bytes when its rebuild throws. */
+function throwOnTopLevelListRebuild(deps: EditorActionsDeps): void {
 	augmentBuiltin('list', {
 		container: {
 			rebuildRaw: (node: CstNode) => {
-				if (seen++ < okCalls) {
-					originalListRebuild(node);
-					return;
-				}
-				throw new Error('plugin rebuildRaw blew up');
+				if (node === deps.doc.children[0]) throw new Error('plugin rebuildRaw blew up');
+				originalListRebuild(node);
 			}
 		}
 	});
+}
+
+/** An undo step left open, so each later commit joins the first one's entry. */
+function holdOneStep(controller: UndoController): void {
+	void controller.undoStep({ path: asDocPath([0]), offset: 0 }, () => new Promise(() => {}));
 }
 
 /** Outer list whose first item holds a nested list: two scopes, two chain depths. */
@@ -79,6 +84,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 
 		// Copy the whole ancestor chain at the current snapshot generation, so the second
 		// commit's copy before write does nothing and its rebuild writes in place.
+		holdOneStep(controller);
 		await controller.commitMultiScope({
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -90,14 +96,13 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 
 		const rawsBefore = collectRaws(deps.doc.children);
 
-		// Chains sort deepest-first, so the outer list is reached twice — the throw
-		// lands on the third rebuild, after two writes.
-		throwListRebuildAfter(2);
+		// The inner list and the item holding it write their bytes before the outer list throws.
+		throwOnTopLevelListRebuild(deps);
 
 		await expect(
 			controller.commitMultiScope({
 				scopes: scopes(),
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([, innerScope]) => {
 					innerScope.children.push(makeListItem('  - z\n'));
 					return [{ op: 'noop' }, { op: 'insert', at: 2, count: 1 }];
@@ -113,6 +118,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 	it('restores overlapping scopes whose chains include a node the mutation detached', async () => {
 		const { deps, controller, scopes } = nestedListHarness();
 		const parentItemState = makeBlockListState(() => deps.doc.children[0].children![0]);
+		holdOneStep(controller);
 
 		await controller.commitMultiScope({
 			scopes: scopes(),
@@ -126,8 +132,8 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 		const rawsBefore = collectRaws(deps.doc.children);
 		const treeBefore = serialize(deps.doc);
 
-		// Three chains reach the outer list; the throw lands on the third, after two wrote.
-		throwListRebuildAfter(2);
+		// Three chains reach the outer list, and the item they share writes before it throws.
+		throwOnTopLevelListRebuild(deps);
 
 		const [outer, inner] = scopes();
 		await expect(
@@ -141,7 +147,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 						path: [0, 0]
 					}
 				],
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([outerScope, innerScope, parentItemScope]) => {
 					// Emptying then splicing out the nested list detaches the inner scope's own
 					// chain tail while two other scopes still hold it in theirs.
@@ -162,9 +168,8 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 		expect(serialize(deps.doc)).toBe(treeBefore);
 	});
 
-	// The trailing blank line the document keeps in its suffix is state of its own: the fix-up
-	// at the end consumes it through live accessors while the children it belonged to are still
-	// an uninstalled copy, so a throw that restores the tree without it leaves the line gone.
+	// The document's trailing blank line lives in its suffix, which the final fix-up consumes while
+	// the new children are still an uninstalled copy, so a rollback must restore the suffix too.
 	it('restores the document suffix a throwing commit had already spent', async () => {
 		const { deps } = makeEditorActionsDeps(parse('alpha\n\n'));
 		const controller = createUndoController(deps);

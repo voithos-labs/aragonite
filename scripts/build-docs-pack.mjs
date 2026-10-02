@@ -1,11 +1,7 @@
-// Two documentation gates, both run on every invocation. With a <dir> argument the pack
-// is also written there (the directory is cleared first — see the refusal below).
-// Gate 1: the public docs pack (docs/guide/, subfolders included) leaves the repo as one tree, so
-// every relative pointer must land on a file the pack carries — a doc, or an asset beside it — and
-// a `#fragment` on one must name a heading that doc still has.
-// Gate 2: the rest of the corpus (README, CONTRIBUTING, docs/) must have every relative link
-// resolve to a real file or directory.
-import { execSync } from 'node:child_process';
+// Two documentation checks, run on every invocation; with a <dir> argument the pack is also
+// written there, into a cleared directory. Gate 1: every relative link inside the public pack
+// (docs/guide/) lands on a file the pack carries, and every `#fragment` outside code names a heading
+// that doc still has. Gate 2: every relative link in README, CONTRIBUTING and docs/ resolves.
 import {
 	copyFileSync,
 	existsSync,
@@ -18,6 +14,7 @@ import {
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { anchorsOf } from './check-codebase-map.mjs';
+import { corpusFiles } from './doc-corpus.mjs';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -72,78 +69,6 @@ function isExternal(target) {
 	);
 }
 
-const anchorIndex = new Map();
-function anchorsIn(name) {
-	if (!anchorIndex.has(name)) {
-		anchorIndex.set(name, anchorsOf(readFileSync(join(SOURCE_DIR, name), 'utf8')));
-	}
-	return anchorIndex.get(name);
-}
-
-const deadPointers = [];
-const deadAnchors = [];
-for (const name of packNames) {
-	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
-	const rawTargets = [
-		...[...text.matchAll(INLINE_TARGET)].map((m) => m[1]),
-		...[...text.matchAll(REFERENCE_TARGET)].map((m) => m[1])
-	];
-	for (const raw of rawTargets) {
-		const target = normalizeTarget(raw);
-		if (isExternal(target)) continue; // off-pack URL
-		// A `..` that climbs out of the pack can never land on a listed file; an empty target is
-		// this doc's own anchor.
-		const doc = target === '' ? name : posix.normalize(posix.join(posix.dirname(name), target));
-		if (!packFiles.includes(doc)) {
-			deadPointers.push(`${name}: ${raw.trim()}`);
-			continue;
-		}
-		const fragment = targetFragment(raw);
-		if (fragment === '' || !doc.endsWith('.md')) continue;
-		if (!anchorsIn(doc).has(fragment)) deadAnchors.push(`${name}: ${raw.trim()}`);
-	}
-}
-if (deadPointers.length > 0) {
-	console.error('docs-pack: dead pointers (every target must name a file the pack ships):');
-	for (const hit of deadPointers) console.error(`  ${hit}`);
-	process.exit(1);
-}
-if (deadAnchors.length > 0) {
-	console.error('docs-pack: dangling anchors (every #fragment must name a heading its doc has):');
-	for (const hit of deadAnchors) console.error(`  ${hit}`);
-	process.exit(1);
-}
-
-// ── Gate 2: corpus link resolution ──────────────────────────────────────
-
-const LINK_ROOTS = ['README.md', 'CONTRIBUTING.md', 'docs'];
-const EXCLUDED_DIR = 'docs/superpowers'; // gitignored working area, not part of the shipped corpus
-
-// A target legitimately unresolvable on disk that the checks below can't
-// distinguish from a dead one. Each entry carries a reason; empty is healthy.
-const LINK_ALLOWLIST = new Set();
-
-// A gitignored doc (the owner's private roadmap and runbook) sits on disk beside the corpus
-// but ships nowhere, so a dead pointer inside one is not the repo's to gate.
-const IGNORED_FILES = new Set(
-	execSync('git ls-files --others --ignored --exclude-standard -- ' + LINK_ROOTS.join(' '), {
-		encoding: 'utf8'
-	})
-		.split('\n')
-		.filter(Boolean)
-);
-
-function corpusMarkdownFiles(path, out) {
-	if (path.split('\\').join('/') === EXCLUDED_DIR) return out;
-	for (const entry of readdirSync(path, { withFileTypes: true })) {
-		const child = join(path, entry.name);
-		if (entry.isDirectory()) corpusMarkdownFiles(child, out);
-		else if (entry.name.endsWith('.md') && !IGNORED_FILES.has(child.split('\\').join('/')))
-			out.push(child);
-	}
-	return out;
-}
-
 // A markdown link written inside code never navigates, so blank fenced and inline code before
 // scanning. Inline spans go per line, so one unbalanced backtick can't desync the rest.
 const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
@@ -166,15 +91,64 @@ function stripCode(text) {
 		.join('\n');
 }
 
-const corpusFiles = [];
-for (const root of LINK_ROOTS) {
-	if (!existsSync(root)) continue;
-	if (root.endsWith('.md')) corpusFiles.push(root);
-	else corpusMarkdownFiles(root, corpusFiles);
+const anchorIndex = new Map();
+function anchorsIn(name) {
+	if (!anchorIndex.has(name)) {
+		anchorIndex.set(name, anchorsOf(readFileSync(join(SOURCE_DIR, name), 'utf8')));
+	}
+	return anchorIndex.get(name);
 }
 
+const deadPointers = [];
+const deadAnchors = [];
+for (const name of packNames) {
+	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
+	const targetsIn = (source) => [
+		...[...source.matchAll(INLINE_TARGET)].map((m) => m[1]),
+		...[...source.matchAll(REFERENCE_TARGET)].map((m) => m[1])
+	];
+	// A link shown inside code is an example: its file must still ship, but its anchor may be made up.
+	const proseTargets = targetsIn(stripCode(text));
+	for (const raw of targetsIn(text)) {
+		const target = normalizeTarget(raw);
+		if (isExternal(target)) continue; // off-pack URL
+		// A `..` that climbs out of the pack can never land on a listed file; an empty target is
+		// this doc's own anchor.
+		const doc = target === '' ? name : posix.normalize(posix.join(posix.dirname(name), target));
+		if (!packFiles.includes(doc)) {
+			deadPointers.push(`${name}: ${raw.trim()}`);
+			continue;
+		}
+		const shownInCode = !proseTargets.includes(raw);
+		if (!shownInCode) proseTargets.splice(proseTargets.indexOf(raw), 1);
+		const fragment = targetFragment(raw);
+		if (fragment === '' || shownInCode || !doc.endsWith('.md')) continue;
+		if (!anchorsIn(doc).has(fragment)) deadAnchors.push(`${name}: ${raw.trim()}`);
+	}
+}
+if (deadPointers.length > 0) {
+	console.error('docs-pack: dead pointers (every target must name a file the pack ships):');
+	for (const hit of deadPointers) console.error(`  ${hit}`);
+	process.exit(1);
+}
+if (deadAnchors.length > 0) {
+	console.error('docs-pack: dangling anchors (every #fragment must name a heading its doc has):');
+	for (const hit of deadAnchors) console.error(`  ${hit}`);
+	process.exit(1);
+}
+
+// ── Gate 2: corpus link resolution ──────────────────────────────────────
+
+const LINK_ROOTS = ['README.md', 'CONTRIBUTING.md', 'docs'];
+
+// A target legitimately unresolvable on disk that the checks below can't
+// distinguish from a dead one. Each entry carries a reason; empty is healthy.
+const LINK_ALLOWLIST = new Set();
+
+const corpus = corpusFiles(LINK_ROOTS, ['.md']);
+
 const deadLinks = [];
-for (const file of corpusFiles) {
+for (const file of corpus) {
 	const rel = file.split('\\').join('/');
 	const text = stripCode(readFileSync(file, 'utf8'));
 	const rawTargets = [...text.matchAll(INLINE_TARGET)].map((m) => m[1]);
@@ -206,7 +180,7 @@ if (target?.startsWith('-')) {
 }
 if (!target) {
 	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
-	console.log(`docs-links: ${corpusFiles.length} corpus docs, every relative link resolves`);
+	console.log(`docs-links: ${corpus.length} corpus docs, every relative link resolves`);
 	process.exit(0);
 }
 

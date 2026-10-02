@@ -4,18 +4,20 @@ import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
+import { renderOptions } from '../../harness/fixture-grammar';
 
-// A selection taking another construct whole, so no span of the pressed mark starts at its own
-// edge: the markers a wrap writes merge with a same-family run (`*ab*` in `**` re-reads as
-// emphasis around strong), and a link's own delimiters sit at both edges of the text they enclose.
-// Either way the toggle is about the content those delimiters hold. Miss-analysis: the read was
-// only ever asked about selections whose edges were content or its own delimiters, so every shape
-// with a foreign construct's bytes at both edges answered false and the toggle disowned its write.
+// A selection taking another construct whole: the toggle acts on the content its delimiters hold.
+// Miss-analysis: no case put a foreign construct's bytes at both edges of the selection.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 
 const screenOf = (display: string) =>
-	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
+	renderedText(
+		parseInline(display, 0, display.length),
+		display,
+		CONTENT_VISIBILITY,
+		renderOptions()
+	);
 
 describe.each(MODES)('a selection taking another construct whole (%s)', (mode) => {
 	// The `_ab_` row is the contrast: the same shape spelled so the runs cannot merge, which the

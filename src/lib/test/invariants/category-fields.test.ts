@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { checkCategoryFields } from '../../invariants/node-shape';
@@ -13,7 +13,7 @@ function leaf(source: string): CstNode {
 
 // The only kinds that legally carry a non-empty `innerPrefix` are wrapped containers, and every
 // one of them ships as a plugin.
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
@@ -46,10 +46,8 @@ describe('checkCategoryFields (G1.5)', () => {
 		expect(checkCategoryFields(bq)).toBeNull();
 	});
 
-	// A blockquote and a list item open their body on the container's own first line, so no parse
-	// can strip a blank into `innerPrefix`, and a filled field is bytes nobody typed.
-	// Miss-analysis: the field-legality check read the container/leaf split only, so a field legal
-	// for the category but impossible for the kind had no check at all.
+	// A blockquote or list item body starts on its own first line, so an `innerPrefix` is untyped.
+	// Miss-analysis: the field check read only the container/leaf split, never what a kind allows.
 	it.each([
 		['blockquote', () => leaf('> quoted\n')],
 		['listItem', () => leaf('- item\n').children![0]]

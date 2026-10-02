@@ -2,7 +2,7 @@
 
 Acceptance criteria for the built-in LaTeX extension that can each be proved false, each mapped
 to the design spec's Goal-2 axis id. A2's memoization and A5's adapter proof have unit tests
-(`math-renderer.test.ts`); the axes that need a browser, including A2's pin on editing one
+(`math-renderer.test.ts`, `renderer.test.ts`); the axes that need a browser, including A2's pin on editing one
 equation of many and re-rendering, live in `latex-acceptance.spec.ts`.
 
 ## A1, reveal transition (flagship): no view-jump, no caret loss

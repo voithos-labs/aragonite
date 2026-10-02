@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Each format command needs a handler on this block: an id with none does nothing, and the chord
 // falls through to the browser's own contenteditable bold. The handler also passes the content
 // range in, since a toggle over a heading must reach `getContentRange`, not the whole raw.
@@ -48,6 +47,6 @@ describe('format command branches on a prose block', () => {
 		mounted.instance.setSelection(0, 7);
 		expect(mounted.instance.runCommand(id as CommandId)).toBe(true);
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 3);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 'literal', 0, 3);
 	});
 });

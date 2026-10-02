@@ -11,7 +11,10 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 	let editor: EditorPage;
 
 	const insert = (md: string): Promise<boolean> =>
-		editor.page.evaluate((text) => (window as any).__test.insertMarkdown(text) as boolean, md);
+		editor.page.evaluate(
+			(text) => (window as any).__test.insertMarkdown(text) as Promise<boolean>,
+			md
+		);
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -66,9 +69,8 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		expect(source.match(/^- .*$/gm)).toEqual(['- alpha', '- x', '- y', '- beta']);
 	});
 
-	// The one-undo rule holds for the structural strategy too, not just the cross-block
-	// replace: a splice that pushed the delete and the insert separately would leave a
-	// half-reverted document here, since one press has to restore the whole insertion.
+	// The one-undo rule holds for the structural strategy too: a splice that pushed the delete and
+	// the insert separately would leave a half-reverted document after one undo.
 	test('a structural insertion is one undo entry', async () => {
 		await editor.loadContent('before\n\nafter\n');
 		const before = await editor.bridge.getSource();
@@ -98,9 +100,8 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// A widget-only paragraph holds no native selection, so the browser dispatches its clipboard
-	// events at `<body>`. The block still holds DOM focus, which is what the call resolves from,
-	// so it must reach the same widget-replace branch a paste takes.
+	// A widget-only paragraph holds no native selection, so the browser sends clipboard events to
+	// `<body>`; the block still holds DOM focus, so the call must reach the paste's widget branch.
 	test('a selected inline widget is replaced, as pasting over it does', async () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
 		await editor.page.locator('[data-image-widget]').click();
@@ -112,12 +113,10 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 
-	// Miss-analysis: the cell registers its editable element through `publishRefSlot` rather
-	// than instance exports, and no case here drove that channel; the census (G4.38) only
-	// reads the export side.
+	// Miss-analysis: no case drove a cell's `publishRefSlot`, and G4.38 reads only instance exports.
 	test('a focused table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent(TABLE);
-		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.locator('.table-cell').nth(3).click();
 		await editor.page.keyboard.press('End');
 
 		expect(await insert('ZZ')).toBe(true);

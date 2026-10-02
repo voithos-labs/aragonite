@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { makeRng } from '../../simulation/rng';
-import { assertCoreOracles } from '../../simulation/invariants';
+import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // Every live-editing gesture, run once over a document shaped to reach it, so coverage never
@@ -39,33 +39,32 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		const g = new Gestures(ctx, makeRng(5));
 
 		await g.flipPresentationMode('live');
-		await assertCoreOracles(ctx, 'after-live-flip');
+		await assertCheckpoint(ctx, 'after-live-flip');
 
 		for (const format of ['strong', 'strikethrough', 'inlineCode'] as const) {
 			await g.liveToggleFormat(PROSE, 'prose', format);
-			await assertCoreOracles(ctx, `after-toggle-${format}`);
+			await assertCheckpoint(ctx, `after-toggle-${format}`);
 		}
 
 		await g.liveEdgeBackspace(PROSE, 'cell division');
-		await assertCoreOracles(ctx, 'after-edge-backspace');
+		await assertCheckpoint(ctx, 'after-edge-backspace');
 
 		await g.liveDemoteHeading(HEADING);
-		await assertCoreOracles(ctx, 'after-demote');
+		await assertCheckpoint(ctx, 'after-demote');
 
 		await g.liveSplitInsideConstruct(PROSE, 'cell division');
-		await assertCoreOracles(ctx, 'after-split');
+		await assertCheckpoint(ctx, 'after-split');
 
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
-		await assertCoreOracles(ctx, 'after-card-commit');
+		await assertCheckpoint(ctx, 'after-card-commit');
 
 		// Every gesture here is built to leave the bytes as they were, so the document ends as
 		// it started, which is the one check they are all answerable to.
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});
 
-	// Typing an opener is the one live rule that creates a block's markers rather than editing
-	// behind them, so the expected answer is what checks it here: every byte after the new block
-	// is predicted keystroke by keystroke, and creating it is the only resync allowed.
+	// Typing an opener creates a block's markers rather than editing behind them, so every byte after
+	// the new block is predicted keystroke by keystroke, and creating it is the only resync allowed.
 	test('a typed block opener creates its chrome and predicts the content behind it', async ({
 		page
 	}) => {
@@ -77,13 +76,13 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		const g = new Gestures(ctx, makeRng(11));
 
 		await g.liveTypeHeadingOpener(PROSE, 'Recap');
-		await assertCoreOracles(ctx, 'after-heading-opener');
+		await assertCheckpoint(ctx, 'after-heading-opener');
 
 		await g.liveTypeFenceOpener(PROSE, 'js');
-		await assertCoreOracles(ctx, 'after-fence-opener');
+		await assertCheckpoint(ctx, 'after-fence-opener');
 
 		await g.liveTypeTableOpener(PROSE, ['phase', 'result']);
-		await assertCoreOracles(ctx, 'after-table-opener');
+		await assertCheckpoint(ctx, 'after-table-opener');
 
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});

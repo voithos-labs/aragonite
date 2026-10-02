@@ -112,9 +112,8 @@ test.describe('runCommand: the semantic command entry point', () => {
 		await editor.bridge.waitForSourceContains('Hello ****world');
 	});
 
-	// Live mode shows no delimiters, so an empty pair would be invisible clutter: the mark waits
-	// and the next typed text uses it (live-mode.md § 4.3). Either way the command reports that
-	// it handled the click, since a toolbar button must not be told the click missed.
+	// Live mode shows no delimiters, so the mark waits for the next typed text instead of writing an
+	// invisible pair; either way the command reports the click handled, for the toolbar's sake.
 	test('a collapsed caret in live mode pends the mark instead of writing a pair', async () => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('Hello world\n');
@@ -132,7 +131,7 @@ test.describe('runCommand: the semantic command entry point', () => {
 
 	test('a table cell takes the entry point through its published ref slot', async () => {
 		await editor.loadContent('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
-		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.locator('.table-cell').nth(3).click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+ArrowRight');
 
@@ -140,9 +139,8 @@ test.describe('runCommand: the semantic command entry point', () => {
 		await editor.bridge.waitForSourceContains('| **2** |');
 	});
 
-	// The `runCommand` half of #127: the shortcut never reaches here, since the cross-block
-	// keydown handler takes it, so only a call by command id reaches that handler rather than a
-	// single-block one that would use the focused block's own offsets.
+	// The keyboard shortcut never reaches here, since the cross-block keydown handler takes it, so
+	// only a call by command id reaches that handler instead of a single-block one.
 	test('a cross-block range routes the toggle to the branch, in one undo entry', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
@@ -174,10 +172,8 @@ test.describe('runCommand: the semantic command entry point', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// The third selection mode: a caret in a gap focuses a hidden host, not a block, so the call
-	// finds no editable element and every block-local command declines. Nested on purpose: a gap
-	// at the root resolves to no path anyway, and only this one sits inside a container the
-	// lookup would find.
+	// A caret in a gap focuses a hidden host, not a block, so every block-local command declines.
+	// Nested, since a gap at the root resolves to no path anyway.
 	test('a gap caret declines every block-local id and keeps the gap', async () => {
 		const quotedFence = 'para\n\n> quoted\n>\n> ```\n> code\n> ```\n';
 		const atQuoteEnd = { parentPath: [1], index: 2 };

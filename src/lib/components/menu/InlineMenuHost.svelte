@@ -3,18 +3,22 @@
 	import { INLINE_MENU_LABEL } from '../../a11y-strings';
 	import type { EditorEvents } from '../../editor-events';
 	import type { InlineMenuState } from '../../inline-menu/inline-menu-state.svelte';
+	import MenuIcon from './MenuIcon.svelte';
+	import type { MenuPresence } from './menu-presence.svelte';
 	import { eventToChord } from '../../schema/keybindings';
 
-	// Mounted unconditionally by Editor: the key claim and the anchoring must observe the session
+	// Mounted unconditionally by Editor: the key handling and the anchoring must observe the session
 	// opening, so the open/closed `{#if}` lives here rather than at the mount site.
 	let {
 		menu,
 		events,
 		getEditorEl,
-		measureRange
+		measureRange,
+		menuPresence
 	}: {
 		menu: InlineMenuState;
 		events: EditorEvents;
+		menuPresence: MenuPresence;
 		getEditorEl: () => HTMLElement | null;
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
 	} = $props();
@@ -52,8 +56,8 @@
 		void view?.end;
 		void view?.items;
 		place();
-		// An `edit` publishes the bytes before the leaf has re-rendered them; the rects are the
-		// new ones a tick later.
+		// The `edit` event fires before the leaf re-renders the bytes; the rects are current a
+		// tick later.
 		const unsubscribe = events.on('edit', () => void tick().then(place));
 		window.addEventListener('scroll', place, true);
 		window.addEventListener('resize', place);
@@ -86,9 +90,8 @@
 		return () => root.removeEventListener('keydown', onKeyDown, true);
 	});
 
-	// The baseline the first bytes in a leaf are read against, taken just before they land.
-	// Every input route fires beforeinput (a keystroke, an IME commit, a paste, a script's
-	// insertText), including the ones no caret move precedes.
+	// The baseline a leaf's first bytes are read against, taken on beforeinput, which every input
+	// route fires, including the ones no caret move precedes.
 	$effect(() => {
 		const root = getEditorEl();
 		if (!root) return;
@@ -124,6 +127,7 @@
 		id={menu.listboxId}
 		class="md-menu inline-menu"
 		role="listbox"
+		{@attach menuPresence.track(() => menu.close(), { edits: true })}
 		tabindex="-1"
 		aria-label={INLINE_MENU_LABEL}
 		data-inline-menu={view.source.name}
@@ -147,6 +151,7 @@
 				{#if Row}
 					<Row {item} active={i === view.activeIndex} query={view.query} />
 				{:else}
+					{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
 					<span class="inline-menu-label">{item.label}</span>
 					{#if item.detail}<span class="inline-menu-detail">{item.detail}</span>{/if}
 				{/if}
@@ -181,6 +186,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-ui-muted, #93938d);
 	}
 </style>

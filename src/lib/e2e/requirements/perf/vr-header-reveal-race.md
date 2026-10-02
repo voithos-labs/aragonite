@@ -1,19 +1,18 @@
 # Feature: A header resize colliding with a reveal in flight
 
-Two writers of one `scrollTop`. The block held for a scroll-into-view re-asserts an absolute
-position derived from the list's live offset within the scroll content, a measurement that
-already includes the header's current height. The header slot's resize observer adds a
-relative delta. Applied to a consistent state each produces the same number; applied
-one after the other for the same resize, the delta lands on a position that already
-accounts for it.
+Two ways to answer one header resize. The block held for a scroll-into-view goes back to an
+absolute position, worked out from the list's live offset within the scroll content (which
+already counts the header's current height) and the spot the scroll left the block at. The
+header slot's plain correction adds a relative delta instead. Applied one after the other for
+the same resize, the delta lands on a position that already accounts for it.
 
-Where that block is being held in place it is the only writer: the header observer
-asks, and skips its delta when the answer is yes. It asks rather than re-placing,
-because a request the hold is not serving still wants the compensation.
+So while a block is held, the header's resize goes through the root list's own correction and
+puts the held block back where it landed; a resize arriving after the block was already put
+back writes the same position again. With nothing held, the header adds its delta.
 
 Fixture: `/test/editor?header=on` (80px ↔ 240px), windowed deep enough that the scroll
-runs its mount-and-settle loop for real, plus a case below the windowing threshold where
-windowing is inactive and no measure pass ever re-asserts.
+mounts and settles for real, plus a case below the windowing threshold where windowing is
+inactive and no measure pass ever puts the held block back.
 
 ## Happy paths
 
@@ -34,13 +33,12 @@ windowing is inactive and no measure pass ever re-asserts.
   only when that slide happens to mount something. Before the fix this recorded a single
   violation, `{ wrote: 1632, offBy: -160 }`, against a hold that had just written 1472.
 - The other side of the rule, on a document windowing never turned on for: a `'nearest'`
-  scroll to a block that is already in view scrolls nothing and still holds its request, so
-  the position the hold would place it at (the top) is not where the block is. A header resize
-  there must compensate, keeping the user's place, rather than re-place the target. Windowing
-  hides this distinction, because a windowed document re-asserts on every measure pass and the
-  target is already at that position whenever the header resizes; with windowing inactive
-  nothing re-asserts, so the resize would be the only thing left that could re-place it.
-  Answering the resize by re-placing moved the user ~263px.
+  scroll to a block that is already in view scrolls nothing and holds the block right where it
+  sits, mid-viewport. A header resize there must keep the user's place. Windowing hides this,
+  because a windowed document puts the held block back on every measure pass; with windowing
+  inactive nothing does, so the resize is the only write. When a held `'nearest'` block went
+  back to the viewport's top instead of where it landed, answering the resize moved the user
+  ~263px.
 
 ## Error cases
 

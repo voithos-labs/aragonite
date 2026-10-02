@@ -1,16 +1,19 @@
 /**
- * G4.22: inside one `test()` body, a settle predicate must describe the state after the
- * operation, something no `loadContent` document earlier in that body already satisfies. A
- * predicate already true returns on its first poll and waits for nothing, so a gesture that
- * silently does nothing passes it. A green run proves less than it looks: only a literal
- * `loadContent` argument counts, checking stops at the first predicate that could tell the
- * two states apart, and function predicates are out of scope.
+ * Inside one `test()` body, a settle predicate (a wait on the source) must describe the state
+ * after the gesture, not one a `loadContent` document earlier in that body already satisfies: a
+ * predicate already true waits for nothing, so a gesture that does nothing passes (G4.22). Only a
+ * literal `loadContent` argument counts, checking stops at the first predicate that could tell
+ * the two states apart, and function predicates are out of scope.
  */
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import {
+	collectFiles,
+	regexLiteralAt,
+	readSource,
+	stringLiteralAt
+} from '../../test/invariants/lint/scan-source';
 
-const SPEC_DIR = path.resolve('src/lib/e2e/tests');
+const SPEC_DIR = 'src/lib/e2e/tests';
 
 // ── Source model ────────────────────────────────────────────────────────
 
@@ -21,86 +24,14 @@ interface SettleSite {
 	argument: string;
 }
 
-/** Whole-line comments only: a general `//` strip would blank the rest of any line holding
- *  an `https://` inside a spec fixture's markdown. */
-function stripCommentLines(text: string): string {
-	return text
-		.split('\n')
-		.map((line) => {
-			const trimmed = line.trimStart();
-			const isComment =
-				trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*');
-			return isComment ? '' : line;
-		})
-		.join('\n');
-}
-
-/** Read a JS string or template literal at `i`. Interpolation makes it opaque. */
-function readStringLiteral(text: string, i: number): { value: string; end: number } | null {
-	const quote = text[i];
-	if (quote !== "'" && quote !== '"' && quote !== '`') return null;
-	let value = '';
-	let j = i + 1;
-	while (j < text.length) {
-		const ch = text[j];
-		if (ch === '\\') {
-			const next = text[j + 1];
-			const escapes: Record<string, string> = { n: '\n', t: '\t', r: '\r' };
-			value += escapes[next] ?? next;
-			j += 2;
-			continue;
-		}
-		if (ch === quote) return { value, end: j + 1 };
-		if (quote === '`' && ch === '$' && text[j + 1] === '{') return null;
-		value += ch;
-		j++;
-	}
-	return null;
-}
-
-/** Read a regex literal at `i`, returning the live RegExp. */
-function readRegexLiteral(text: string, i: number): { value: RegExp; end: number } | null {
-	if (text[i] !== '/') return null;
-	let source = '';
-	let j = i + 1;
-	let inClass = false;
-	while (j < text.length) {
-		const ch = text[j];
-		if (ch === '\\') {
-			source += ch + text[j + 1];
-			j += 2;
-			continue;
-		}
-		if (ch === '\n') return null;
-		if (ch === '[') inClass = true;
-		else if (ch === ']') inClass = false;
-		else if (ch === '/' && !inClass) {
-			let flags = '';
-			let k = j + 1;
-			while (k < text.length && /[a-z]/.test(text[k])) flags += text[k++];
-			try {
-				return { value: new RegExp(source, flags), end: k };
-			} catch {
-				return null;
-			}
-		}
-		source += ch;
-		j++;
-	}
-	return null;
-}
-
-/**
- * A fixture built by concatenation is skipped rather than cut down to its first piece: a
- * partial value would clear predicates a later piece satisfies, under-reporting the very
- * thing this scan exists to find.
- */
+/** Skips a fixture built by concatenation: its first piece alone would clear predicates a later
+ *  piece satisfies, hiding the waits this scan looks for. */
 function collectStringConstants(code: string): Map<string, string> {
 	const constants = new Map<string, string>();
 	const declaration = /(?:^|\n)\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*/g;
 	let match: RegExpExecArray | null;
 	while ((match = declaration.exec(code)) !== null) {
-		const literal = readStringLiteral(code, match.index + match[0].length);
+		const literal = stringLiteralAt(code, match.index + match[0].length);
 		if (literal && !isConcatenated(code, literal.end)) constants.set(match[1], literal.value);
 	}
 	return constants;
@@ -121,12 +52,12 @@ function readArgument(
 ): { text: string; string?: string; regex?: RegExp } | undefined {
 	let i = openParen + 1;
 	while (i < code.length && /\s/.test(code[i])) i++;
-	const asString = readStringLiteral(code, i);
+	const asString = stringLiteralAt(code, i);
 	if (asString) {
 		if (isConcatenated(code, asString.end)) return undefined;
 		return { text: JSON.stringify(asString.value), string: asString.value };
 	}
-	const asRegex = readRegexLiteral(code, i);
+	const asRegex = regexLiteralAt(code, i);
 	if (asRegex) return { text: String(asRegex.value), regex: asRegex.value };
 	const identifier = /^[A-Za-z_$][\w$]*/.exec(code.slice(i));
 	if (identifier && constants.has(identifier[0])) {
@@ -169,8 +100,8 @@ const SETTLE_CALLS = [
 	'waitForSourceEquals'
 ] as const;
 
-// Waits this scan cannot evaluate but which still mark a change: after one, the loaded
-// document no longer describes the live state.
+// Waits this scan cannot evaluate but which still mark a change, after which the loaded document
+// stops describing the live state.
 const OPAQUE_SETTLES = [
 	'waitForSourceWith',
 	'waitForSource',
@@ -180,10 +111,8 @@ const OPAQUE_SETTLES = [
 	'waitForCrossBlock'
 ] as const;
 
-/**
- * `NotContains` reads the other way round: it waits for nothing when no loaded document ever
- * held the forbidden text, so its disappearance could never be seen.
- */
+/** `NotContains` reads the other way round: it waits for nothing when no loaded document ever
+ *  held the forbidden text. */
 export function isVacuous(
 	call: string,
 	argument: { string?: string; regex?: RegExp },
@@ -207,28 +136,12 @@ export function isVacuous(
 	}
 }
 
-function specPaths(): string[] {
-	const found: string[] = [];
-	function walk(dir: string): void {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			const full = path.join(dir, entry.name);
-			if (entry.isDirectory()) walk(full);
-			else if (entry.name.endsWith('.spec.ts')) found.push(full);
-		}
-	}
-	walk(SPEC_DIR);
-	return found.sort();
-}
-
 /** Every settle call in the tree, split into the ones that wait for nothing and the rest. */
 function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 	const vacuous: SettleSite[] = [];
 	let total = 0;
-	const repoRoot = path.resolve('.');
-
-	for (const file of specPaths()) {
-		const code = stripCommentLines(readFileSync(file, 'utf8'));
-		const spec = path.relative(repoRoot, file).split(path.sep).join('/');
+	for (const spec of collectFiles(SPEC_DIR, { extensions: ['.spec.ts'] })) {
+		const { code } = readSource(spec);
 		const constants = collectStringConstants(code);
 		const segments = splitSegments(code);
 		let ambient: string[] | null = [];
@@ -259,16 +172,13 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 			let stateIsKnown = true;
 			for (const event of events) {
-				// A wait this scan cannot evaluate (a function predicate, a DOM-count or
-				// cross-block wait) still saw a change, so the loaded document stops
-				// describing the live state from there on.
 				if (event.kind === 'opaque') {
 					stateIsKnown = false;
 					continue;
 				}
 				const argument = readArgument(body, event.index, constants);
 				if (event.kind === 'load') {
-					// A load replaces the document; keeping the old one too would let a stale
+					// A load replaces the document; keeping the replaced one would let a stale
 					// fixture clear a predicate that the live document would not.
 					loaded = argument?.string === undefined ? null : [argument.string];
 					stateIsKnown = true;

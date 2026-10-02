@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's toggle branch. A chord at a collapsed caret in live mode writes no
-// bytes; it leaves a mark pending, and the first printable key after it carries that mark into
-// the CST as one commit. This is where the promise is spent: the pure rewrite is covered in
-// pending-mark-insert.test.ts, and this holds that the branch takes the key, spends the marks
-// exactly once, and outranks the arrival side the rules below would have read.
+// The caret-edge dispatch's toggle branch: a chord at a collapsed caret in live mode leaves a mark
+// pending, and the first printable key carries it into the CST as one commit. The pure rewrite is
+// `pending-mark-insert.test.ts`; this suite holds that the branch takes the key, spends the marks
+// once, and outranks the arrival side.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { makePendingMarks, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '$lib/core/serializer';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { takeDevWarns } from '../../support/warn-gate';
 import {
 	at,
 	installEdgeDispatchCleanup,
@@ -22,23 +24,19 @@ import {
 } from './edge-policy-fixture';
 
 interface Harness extends EdgeDispatchHarness {
-	marks: PendingMarksState;
+	marks: PendingMarks;
 }
 
 function mount(
 	source: string,
 	pending: InlineMarkKind[],
-	{
-		affinity = null,
-		isReading = false
-	}: { affinity?: EdgeAffinity | null; isReading?: boolean } = {}
+	{ affinity = null }: { affinity?: EdgeAffinity | null } = {}
 ): Harness {
 	const node = parse(source).children[0];
 	const el = mountSurface(trimTrailingLineEnding(node.raw), 'live');
 	const marks = makePendingMarks(...pending);
 	return {
 		...makeEdgeDispatch(node, el, {
-			isReading: () => isReading,
 			getEdgeAffinity: () => affinity,
 			pendingMarks: marks
 		}),
@@ -130,16 +128,27 @@ describe('the toggle caret position claims only a plain byte at a collapsed care
 		expect(h.handleKeydown(key('X'), null)).toBe(false);
 	});
 
-	it('declines in reading mode, which commits nothing', () => {
-		const h = mount('hi\n', ['strong'], { isReading: true });
-		expect(h.handleKeydown(key('X'), at(2))).toBe(false);
-		expect(h.edits).toHaveLength(0);
+	// Miss-analysis: only the arm's own reading-mode check was tested, never the write's refusal.
+	it('forced in reading mode, where no mark can be pending, writes nothing and warns', async () => {
+		const top = makeTopHarness('hi\n', { reading: fixtureReading({}, 'reading') });
+		const node = top.deps.doc.children[0];
+		const el = mountSurface('hi', 'live');
+		const { handleKeydown } = makeEdgeDispatch(node, el, {
+			isReading: () => true,
+			pendingMarks: makePendingMarks('strong'),
+			blockEdit: top.actions
+		});
+
+		expect(handleKeydown(key('X'), at(2))).toBe(true);
+		await Promise.resolve();
+
+		expect(serialize(top.deps.doc)).toBe('hi\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });
 
-// A construct the press empties is unwrapped, so the caret ends up inside nothing and the mark the
-// user had on would be lost. Handing it back keeps the chord's meaning: the next byte is still
-// italic, and the next chord still turns it off.
+// A construct the key empties is unwrapped, so its mark is handed back: the next byte keeps the
+// format, and the next chord still turns it off.
 describe('a press that empties a construct hands its mark back', () => {
 	it('leaves the emptied construct’s mark pending for the next byte', () => {
 		const h = mount('plain*x*\n', []);

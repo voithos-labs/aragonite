@@ -5,9 +5,9 @@ import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invarian
 import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
-// G1.24: the closure-vs-descriptor cross-checks a compiler can't reach. The
-// fixture-parses-to-kind rule is a separate sweep (closure-fixtures.test.ts) because a
-// `parse` import here would close a schema → core/parser → schema cycle.
+// The closure-vs-descriptor cross-checks a compiler can't reach (G1.24). Whether each fixture
+// parses to its kind is swept in `closure-fixtures.test.ts`, because a `parse` import in the
+// registration checks would close a schema → core/parser → schema cycle.
 
 const entry = (over: Partial<ClosureCoherenceEntry>): ClosureCoherenceEntry => ({
 	kind: 'k' as AnyBlockKind,

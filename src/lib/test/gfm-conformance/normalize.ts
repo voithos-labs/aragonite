@@ -72,9 +72,8 @@ function mapAragonite(node: InlineNode, raw: string): NormalNode {
 				children: [{ kind: 'text', text: autolinkLabel(node, raw) }]
 			};
 		case 'image':
-			// Our side compares images by flattened alt string while the reference
-			// keeps structured children — the image-alt-structure deliberate class
-			// rests on this asymmetry; do not restructure without re-adjudicating it.
+			// Ours flattens an image's alt to a string while the reference keeps its children;
+			// the image-alt-structure divergence class rests on that asymmetry.
 			return {
 				kind: 'image',
 				url: node.url,
@@ -107,12 +106,8 @@ function isAngleAutolink(node: InlineNode, raw: string): boolean {
 
 // ── Aragonite-only reconciliations ───────────────────────────────────────────
 
-/**
- * Fold our byte-preserving form to the spec-semantic one the reference AST already
- * carries (§6.1, §6.8); folding its side too would double-strip. Runs after the text merge.
- * Blind spot: one-sided folding can mask our own wrong bytes that fold to the right
- * string, so offset errors are caught by the scan suites and the total-coverage property.
- */
+/** Runs after the text merge. Folding our side alone can hide wrong bytes that fold right, so
+ *  offset errors are left to the scan suites and the total-coverage property. */
 function foldToSpecSemantics(nodes: NormalNode[]): NormalNode[] {
 	return nodes.map((node) => {
 		const folded = node.children ? { ...node, children: foldToSpecSemantics(node.children) } : node;

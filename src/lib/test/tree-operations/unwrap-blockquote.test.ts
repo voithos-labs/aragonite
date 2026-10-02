@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { unwrapFirstChildFromQuote } from '../../tree-operations';
+import { liftFirstChild, plainQuote } from '../../tree-operations';
+import { defaultGrammarView } from '../../schema/block-openers';
 import type { CstNode } from '../../core/nodes';
 
 // Blockquote coverage for lifting the first child out of a quote-shaped container. The
 // GitHub-alert branch is pinned against a real parsed alert in
 // `plugins/admonitions/github-alert-unwrap`.
 
-describe('unwrapFirstChildFromQuote', () => {
+describe('liftFirstChild with a plain quote remainder', () => {
 	function parseBlockquote(src: string): CstNode {
 		const doc = parse(src);
 		const bq = doc.children[0];
@@ -22,7 +23,7 @@ describe('unwrapFirstChildFromQuote', () => {
 		const bq = parseBlockquote('> Hello world\n');
 		const snapshot = JSON.stringify(bq);
 
-		const result = unwrapFirstChildFromQuote(bq);
+		const result = liftFirstChild(bq, plainQuote(defaultGrammarView));
 
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('paragraph');
@@ -33,7 +34,7 @@ describe('unwrapFirstChildFromQuote', () => {
 	it('multi-paragraph blockquote returns lifted paragraph + shrunk blockquote', () => {
 		const bq = parseBlockquote('> First\n>\n> Second\n');
 
-		const result = unwrapFirstChildFromQuote(bq);
+		const result = liftFirstChild(bq, plainQuote(defaultGrammarView));
 
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
@@ -48,17 +49,28 @@ describe('unwrapFirstChildFromQuote', () => {
 	it('blockquote whose first child is itself a blockquote lifts the inner blockquote', () => {
 		const bq = parseBlockquote('> > Deep\n');
 
-		const result = unwrapFirstChildFromQuote(bq);
+		const result = liftFirstChild(bq, plainQuote(defaultGrammarView));
 
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('blockquote');
 		expect(result[0].raw ?? '').toContain('Deep');
 	});
 
+	// Miss-analysis: every remainder here started with a paragraph, so none showed the remainder's
+	// depth copied from the quote while its own first line held one more `>`.
+	it('a remainder that opens on a nested quote takes the depth its first line reads as', () => {
+		const bq = parseBlockquote('> a\n> > b\n');
+
+		const [, remainder] = liftFirstChild(bq, plainQuote(defaultGrammarView));
+
+		expect(remainder.raw).toBe('> > b\n');
+		expect(remainder.metadata).toEqual(parse(remainder.raw).children[0].metadata);
+	});
+
 	it('blockquote whose first child is a list lifts the list', () => {
 		const bq = parseBlockquote('> - Item\n');
 
-		const result = unwrapFirstChildFromQuote(bq);
+		const result = liftFirstChild(bq, plainQuote(defaultGrammarView));
 
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('list');
@@ -68,7 +80,7 @@ describe('unwrapFirstChildFromQuote', () => {
 		const bq = parseBlockquote('> First\n>\n> Second\n');
 		const before = serialize({ children: [bq], prefix: '', suffix: '' });
 
-		unwrapFirstChildFromQuote(bq);
+		liftFirstChild(bq, plainQuote(defaultGrammarView));
 
 		expect(serialize({ children: [bq], prefix: '', suffix: '' })).toBe(before);
 	});

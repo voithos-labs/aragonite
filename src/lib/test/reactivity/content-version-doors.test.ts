@@ -1,10 +1,6 @@
-// The content version is the memo key every whole-document computation hangs on, so anything
-// that changes the document's bytes without announcing it silently serves stale answers. One
-// case per writer (G4.52): the commit, the two typing writers outside a commit, and undo.
-//
-// Miss-analysis: the suite this replaces drove five direct `$state` writes and never a real
-// writer, so it proved which state the computation reads and nothing about who reaches it.
-// Every write the editor actually makes arrives through one of the paths below.
+// The content version is the memo key every whole-document computation hangs on, so a writer
+// that changes the bytes without announcing it serves stale answers. One case per writer (G4.52).
+// Miss-analysis: the earlier suite wrote `$state` directly and never drove a real writer.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -36,7 +32,7 @@ describe('content version: every byte-writing entry point announces its write', 
 	it('the top-level routine-typing write announces a keystroke that changes no structure', async () => {
 		const editor = topLevelEditor('one\n');
 		const before = editor.contentVersion();
-		await editor.blockEdit.updateBlockContent(0, 'onex\n', 3, 4);
+		await editor.blockEdit.updateBlockContent(0, 'onex\n', 'authored', 3, 4);
 		expect(editor.doc.children[0].raw).toBe('onex\n');
 		expect(editor.contentVersion()).not.toBe(before);
 	});
@@ -44,14 +40,14 @@ describe('content version: every byte-writing entry point announces its write', 
 	it('the nested out-of-commit sequence write announces a keystroke inside a container', async () => {
 		const harness = makeNestedHarness('> quoted\n', { index: 0 });
 		const before = harness.contentVersion();
-		await harness.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 6, 7);
+		await harness.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 6, 7);
 		expect(harness.getNode().children?.[0].raw).toBe('quotedx\n');
 		expect(harness.contentVersion()).not.toBe(before);
 	});
 
 	it('the history restore announces the tree it swapped in, both directions', async () => {
 		const editor = topLevelEditor('one\n\ntwo\n');
-		await editor.blockEdit.deleteBlock(1);
+		await editor.blockEdit.deleteBlock(1, 'keyless');
 		const afterEdit = editor.contentVersion();
 		await editor.history.requestUndo();
 		expect(editor.doc.children.length).toBe(2);

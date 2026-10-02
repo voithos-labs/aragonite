@@ -66,6 +66,11 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 - pressing Enter with the URL unchanged writes nothing and adds no undo entry
 - an edit landing elsewhere in the document while the card is open re-anchors it rather than
   stranding it: the card addresses its link by path plus construct start, never by element
+- that re-anchoring follows each key typed, not the typing pause: with the page clock stopped, the
+  card still moves down as the link does
+- an undo or a redo of that typing puts the card back at its distance from the link: an undo
+  announces itself before its document renders, so the card measures a tick after any edit
+  (miss-analysis: every re-anchor row typed forward, and none undid what it typed)
 - an edit that moves the start of the card's own construct closes it, and it stays closed through
   the `Mod+Z` that puts those bytes back: a card left holding a target it no longer renders would
   come back with the draft it had before
@@ -73,6 +78,10 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
   piece of the editor's own UI saves its own caret position, so closing the bar lands the caret
   where the user left it rather than at the link
 - leaving live mode closes the card, since every other mode paints the destination already
+- in a document taller than the editor, a commit on a link mid-viewport leaves its line where it
+  was, even when an image below it finishes loading afterwards. Miss-analysis: every card test ran
+  in a document that fit on screen, so none saw the commit's landing pull its line to the
+  viewport's top on the next height change
 
 ## User interactions
 

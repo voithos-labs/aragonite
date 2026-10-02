@@ -1,26 +1,40 @@
 /**
  * One `EditorContext` per editor and plugin: the object `onEditor` callbacks, global-command
  * handlers and `BlockCommandContext.editor` all receive. `document` is a getter so every read is
- * live (rules.md: getters, not values).
+ * live (`docs/contributing/rules.md` § The five rules), and `options` is the plugin's defaults
+ * merged with this editor's entry.
  */
 import type { DocumentView } from '../core/node-views';
+import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
-import type { PluginActivation } from './plugin-activation';
+import { insertCatalogue } from './insert-catalogue';
+import type { Reading } from './reading';
+import type { Draft, DraftSpec } from './drafts';
+import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
+	installedPlugin,
 	installedPluginNames,
 	onEditorCallbacks,
+	resolvePluginOptions,
 	type EditorContext,
 	type EditorEventSubscriptions
 } from './plugin-install';
+
+type ErrorReport = { plugin: string; error: unknown };
 
 export interface EditorPluginContexts {
 	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
 	 *  name returns the editor's base context, the one kinds no plugin owns use, never filtered. */
 	get(pluginName: string): EditorContext | undefined;
-	attachAll(onError: (report: { plugin: string; error: unknown }) => void): void;
+	/** Also receives any options error reported before it was called. */
+	attachAll(onError: (report: ErrorReport) => void): void;
+	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
+	 *  sources; undefined outside one. */
+	attaching(): EditorContext | undefined;
 	dispose(): void;
 }
 
@@ -33,20 +47,46 @@ export function createEditorPluginContexts(deps: {
 	editorId: string;
 	getDoc: () => DocumentView;
 	events: EditorEventSubscriptions;
+	/** The entry's options as the host wrote them, before the merge. */
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;
 	rects: EditorRects;
 	inlineMenus: InlineMenuRegistry;
+	getDocumentGeneration: () => number;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
 	activation: PluginActivation;
+	/** The instance's own entry points; the context only delegates. */
+	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
+	runCommand: (commandId: string, arg?: unknown) => boolean;
+	openDraft: (spec: DraftSpec) => Draft;
+	/** How the editor reads its bytes, which every plugin inline read follows. */
+	reading: Reading;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
-	let onDisposeError: (report: { plugin: string; error: unknown }) => void = () => {};
+	// A block reads its options while it renders, which is before `attachAll` sets a handler.
+	const early: ErrorReport[] = [];
+	let report: (r: ErrorReport) => void = (r) => void early.push(r);
+	let attaching: EditorContext | undefined;
+
+	function optionsFor(pluginName: string): unknown {
+		const plugin = installedPlugin(pluginName) ?? {};
+		try {
+			return resolvePluginOptions(plugin, deps.optionsFor(pluginName));
+		} catch (cause) {
+			const message = cause instanceof Error ? cause.message : String(cause);
+			const error = new Error(
+				`plugin '${pluginName}': options rejected, running on its defaults: ${message}`,
+				{ cause }
+			);
+			report({ plugin: pluginName, error });
+			return resolvePluginOptions(plugin, undefined);
+		}
+	}
 
 	function get(pluginName: string): EditorContext | undefined {
-		if (pluginName !== '' && !deps.activation.isActive(pluginName)) return undefined;
+		if (pluginName !== '' && !resolvesIn(deps.activation, pluginName)) return undefined;
 		let ctx = contexts.get(pluginName);
 		if (!ctx) {
 			ctx = {
@@ -54,11 +94,23 @@ export function createEditorPluginContexts(deps: {
 				get document() {
 					return deps.getDoc();
 				},
+				get documentGeneration() {
+					return deps.getDocumentGeneration();
+				},
 				events: deps.events,
-				options: deps.optionsFor(pluginName),
+				options: optionsFor(pluginName),
 				decorations: deps.decorations,
 				rects: deps.rects,
 				inlineMenus: deps.inlineMenus,
+				get insertCatalogue() {
+					return insertCatalogue(deps.activation);
+				},
+				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
+				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
+				openDraft: (spec) => deps.openDraft(spec),
+				get computeInlineContent() {
+					return inlineReaderFor(deps.reading);
+				},
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},
@@ -73,16 +125,21 @@ export function createEditorPluginContexts(deps: {
 
 	return {
 		get,
+		attaching: () => attaching,
 		attachAll(onError) {
-			onDisposeError = onError;
+			report = onError;
+			for (const r of early.splice(0)) onError(r);
 			for (const plugin of installedPluginNames()) {
-				if (!deps.activation.isActive(plugin)) continue;
+				if (!resolvesIn(deps.activation, plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
+					attaching = get(plugin)!;
 					try {
-						const dispose = cb(get(plugin)!);
+						const dispose = cb(attaching);
 						if (typeof dispose === 'function') disposers.push({ plugin, dispose });
 					} catch (error) {
 						onError({ plugin, error });
+					} finally {
+						attaching = undefined;
 					}
 				}
 			}
@@ -92,7 +149,7 @@ export function createEditorPluginContexts(deps: {
 				try {
 					d.dispose();
 				} catch (error) {
-					onDisposeError({ plugin: d.plugin, error });
+					report({ plugin: d.plugin, error });
 				}
 			}
 		}

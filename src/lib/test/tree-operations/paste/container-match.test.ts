@@ -4,31 +4,31 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/container-match';
 import { parse } from '../../../core/parser';
 import {
-	makeRunningPasteController,
+	makePasteCommit,
 	makeStubBlockEdit,
-	registerStubBlockListState
+	registerStubBlockListState,
+	pasteContext
 } from '../../harness/editor-actions';
 
 describe('container-matching paste: empty-target newline-termination (A1)', () => {
 	it('pasting a list without a trailing newline into a non-last empty item keeps the following sibling separate', async () => {
-		const doc = parse('- a\n- keep\n');
-		const list = doc.children[0];
-		// An emptied first item stands in for a post-cross-block-delete stub.
-		list.children![0].children![0].raw = '';
-		registerStubBlockListState(list);
+		const { doc, controller } = makePasteCommit('- a\n- keep\n');
+		// An emptied first item stands in for the stub a cross-block delete leaves.
+		doc.children[0].children![0].children![0].raw = '';
+		registerStubBlockListState(doc.children[0]);
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y', targetPath: [0, 0, 0], offset: 0 },
-			{
+			pasteContext({
 				doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeRunningPasteController(),
-				undoEntry: 'join'
-			}
+				controller,
+				crossBlock: true
+			})
 		);
 
 		// An un-terminated last pasted item mashes into the following sibling on one line.
-		expect(list.raw).toBe('- x\n- y\n- keep\n');
+		expect(doc.children[0].raw).toBe('- x\n- y\n- keep\n');
 	});
 });
 
@@ -43,8 +43,8 @@ describe('findContainerMatchingUnwrap: blockquote non-empty target (no wholesale
 
 		const unwrap = findContainerMatchingUnwrap(doc, [0, 0], 'hello'.length, clipboard, false);
 
-		// A non-empty paragraph must not classify as an empty stub, and crossBlockContext=false
-		// keeps the merge-first branch from firing, so the router defers to structural paste.
+		// A non-empty paragraph is no empty stub, and with no cross-block context the merge branch
+		// can't fire, so the router falls through to structural paste.
 		expect(unwrap).toBeNull();
 	});
 
@@ -62,11 +62,8 @@ describe('findContainerMatchingUnwrap: blockquote non-empty target (no wholesale
 	});
 });
 
-// The merge slices a display offset out of the target leaf and reattaches the residue to the
-// clipboard's last item, so both ends must be one paragraph. An item carrying more declines the
-// whole unwrap and the paste falls through to the routes that splice whole blocks.
-// Miss-analysis: the finder's paragraph check had pins for empty and non-empty targets but none
-// for a clipboard item whose shape the merge cannot address.
+// The merge joins the residue to the clipboard's last item, so first and last must be paragraphs.
+// Miss-analysis: the finder's paragraph check was tested on targets only, never on clipboard items.
 describe('findContainerMatchingUnwrap: the merge branch’s paragraph gate', () => {
 	const target = () => parse('- hello\n');
 
