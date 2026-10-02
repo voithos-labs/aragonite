@@ -95,7 +95,8 @@ export function makeEdgeAffinity(): EdgeAffinityState {
 		reset: vi.fn(),
 		note: vi.fn(),
 		noteTyping: vi.fn(),
-		noteExtreme: vi.fn()
+		noteExtreme: vi.fn(),
+		pin: vi.fn()
 	};
 }
 

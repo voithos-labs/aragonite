@@ -50,7 +50,11 @@
 	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import {
+		handleEdgeStep,
+		handleSharedKeydown,
+		handleSharedBeforeInput
+	} from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
@@ -88,6 +92,7 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
+	import { createEdgeStep, type EdgeStep } from '../text/edge-step';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -211,6 +216,25 @@
 		getAmbientLength: () => 0
 	});
 
+	// A hidden construct edge takes an arrow press of its own, and shows which side the caret means.
+	// Built on first use: a large document mounts many blocks the caret never reaches, and the
+	// windowing budget is per block.
+	let edgeStep: EdgeStep | null = null;
+	const edgeStepHere = (): EdgeStep =>
+		(edgeStep ??= createEdgeStep({
+			getEl: () => el ?? null,
+			getRaw: () => node.raw,
+			getInlines: () => resolvedInlineContent(node, linkRef),
+			getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+			isReading: () => readOnly,
+			edgeAffinity
+		}));
+	/** Refresh the ring; a block the caret is not in only clears what it drew. */
+	function showEdge(): void {
+		if (el?.contains(window.getSelection()?.focusNode ?? null)) edgeStepHere().show();
+		else edgeStep?.show();
+	}
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		// The shared wiring's `blockEdit` is the parent's; this cell writes through its
@@ -239,6 +263,7 @@
 		getPresentationMode,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
+		stepEdge: (e) => edgeStepHere().step(e),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through
@@ -568,6 +593,7 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
+			showEdge();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -651,6 +677,10 @@
 		// ArrowLeft-at-0 move tests modifiers: either would eat the column reorder at a cell's
 		// left edge. It is also the only point a consumer's `keybindings` override reaches.
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+
+		// Ahead of the plan, which reads an arrow at the cell's edge as a move to the next cell:
+		// a construct closing the cell has a hidden edge to cross first.
+		if (handleEdgeStep(e, sharedCtx)) return;
 
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
@@ -1108,6 +1138,7 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
+	onkeyup={showEdge}
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

@@ -116,7 +116,10 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
 				resolveLinkUrl: deps.resolveLinkUrl,
-				buildPortalWidget
+				buildPortalWidget,
+				// Live mode only: a cell shows no construct's markers in preview-inline, and a tagged
+				// marker there would read as one waiting to be shown (`widget-offset.ts`).
+				tagConstructMarkers: deps.presentationMode === 'live'
 			})
 		);
 		// A prefix length of 0: a cell has no marker, so decoration offsets are raw offsets.

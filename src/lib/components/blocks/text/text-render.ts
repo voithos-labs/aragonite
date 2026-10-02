@@ -7,7 +7,11 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
+import {
+	hidesMarkers,
+	tagsConstructMarkers,
+	type PresentationMode
+} from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
@@ -167,9 +171,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
-				// Data attributes only, for the code that shows construct markers; set in this
-				// mode alone so the other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.presentationMode === 'preview-inline',
+				tagConstructMarkers: tagsConstructMarkers(deps.presentationMode),
 				pendingBreakSeat: hidesMarkers(deps.presentationMode)
 			})
 		);

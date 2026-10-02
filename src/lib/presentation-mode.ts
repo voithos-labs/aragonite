@@ -50,6 +50,16 @@ export function paintsFocusedMarkers(mode: PresentationMode): boolean {
 }
 
 /**
+ * The modes whose inline render tags each construct's marker spans with its raw range: preview-
+ * inline shows a construct's markers by those tags, and live mode marks the construct a caret at
+ * a hidden edge is inside (`components/blocks/text/edge-step.ts`). Attributes only; every other
+ * mode's DOM stays byte-identical.
+ */
+export function tagsConstructMarkers(mode: PresentationMode): boolean {
+	return mode === 'preview-inline' || mode === 'live';
+}
+
+/**
  * The read-only check every dispatch path keys off. The parameter is a plain function type
  * so `schema/` and `selection/` need no `editor-keys` import; an `undefined` getter (a test
  * double, an editor not wired up) means not reading mode.

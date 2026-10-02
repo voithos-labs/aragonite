@@ -40,7 +40,8 @@ export function stubEdgeAffinity(): EdgeAffinityState {
 		reset: () => {},
 		note: () => {},
 		noteTyping: () => {},
-		noteExtreme: () => {}
+		noteExtreme: () => {},
+		pin: () => {}
 	};
 }
 

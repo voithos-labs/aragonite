@@ -55,7 +55,9 @@ test.describe('live mode: the caret never reports from inside a hidden run', () 
 	});
 
 	// `Some **bold** text`: strong is [5,13), `bold` is [7,11). From raw 14 (before `t`) one
-	// keypress crosses the space and the whole closing `**`, stopping on `bold`'s last byte.
+	// keypress crosses the space and the whole closing `**`, stopping on `bold`'s last byte. The
+	// next press is the hidden edge's own stop (`edge-step.ts`): the caret stays put and only the
+	// side it means moves inside, so the one after it moves into `bold`.
 	test('ArrowLeft crosses a whole hidden run in one press, stopping at the content edge', async ({
 		page
 	}) => {
@@ -63,17 +65,19 @@ test.describe('live mode: the caret never reports from inside a hidden run', () 
 		await press(ep, page, 'End');
 		expect(await press(ep, page, 'ArrowLeft', 4)).toBe(14);
 		expect(await press(ep, page, 'ArrowLeft')).toBe(11);
+		expect(await press(ep, page, 'ArrowLeft')).toBe(11);
 		expect(await press(ep, page, 'ArrowLeft')).toBe(10);
 	});
 
 	// 6 and 12 are inside the marker runs; 7 and 13 are their far sides, which the canonical read
-	// never picks either. Stepping right must still reach the block end.
+	// never picks either. Stepping right must still reach the block end, with one extra press at
+	// each hidden edge for its own stop.
 	test('a rightward walk skips both marker runs whole and reaches the block end', async ({
 		page
 	}) => {
 		await ep.clickBlock(BOLD_MID);
 		const seen = [await press(ep, page, 'Home')];
-		for (let i = 0; i < 14; i++) seen.push(await press(ep, page, 'ArrowRight'));
+		for (let i = 0; i < 16; i++) seen.push(await press(ep, page, 'ArrowRight'));
 		expect(seen.filter((o) => [6, 7, 12, 13].includes(o))).toEqual([]);
 		expect(seen).toContain(18);
 	});

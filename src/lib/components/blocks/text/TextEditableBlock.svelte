@@ -47,6 +47,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch, keepsBlockKind } from './edge-policy-dispatch';
+	import { createEdgeStep, type EdgeStep } from './edge-step';
 	import { hidesStructuralSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { applyDelimiterAutoPair } from './delimiter-autopair';
@@ -230,6 +231,25 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
+	// A hidden construct edge takes an arrow press of its own, and shows which side the caret means.
+	// Built on first use: a large document mounts many blocks the caret never reaches, and the
+	// windowing budget is per block.
+	let edgeStep: EdgeStep | null = null;
+	const edgeStepHere = (): EdgeStep =>
+		(edgeStep ??= createEdgeStep({
+			getEl: () => el ?? null,
+			getRaw: () => node.raw,
+			getInlines: () => resolvedInlineContent(node, linkRef),
+			getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+			isReading: () => readOnly,
+			edgeAffinity
+		}));
+	/** Refresh the ring; a block the caret is not in only clears what it drew. */
+	function showEdge(): void {
+		if (el?.contains(window.getSelection()?.focusNode ?? null)) edgeStepHere().show();
+		else edgeStep?.show();
+	}
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -259,6 +279,7 @@
 		getPresentationMode: () => presentationMode,
 		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
 		getTextLen: () => liveDisplayLength(),
+		stepEdge: (e) => edgeStepHere().step(e),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
@@ -712,7 +733,9 @@
 		// inside a construct whose markers are shown hides them for one frame per keystroke.
 		// Untracked, because the caret's chain must never join this effect's dependencies.
 		untrack(() => {
-			if (!composing) constructReveal.update(true);
+			if (composing) return;
+			constructReveal.update(true);
+			showEdge();
 		});
 		markKeystrokeSettle();
 	});
@@ -768,6 +791,7 @@
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
+			showEdge();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -1088,6 +1112,7 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
+	onkeyup={showEdge}
 	onbeforeinput={onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}

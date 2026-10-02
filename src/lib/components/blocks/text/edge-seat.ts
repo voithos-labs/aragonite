@@ -6,7 +6,7 @@
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import type { EdgeAffinity, PinnedOffset } from '../../../cursor/edge-affinity';
 import { constructContentRange, inlineDescendants, parseInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -121,6 +121,62 @@ export function seatOffsetsAt(
 		: offsets;
 }
 
+/**
+ * The offsets a plain arrow press stops at: every boundary of the caret's screen position that a
+ * typed byte could actually be written at, ascending, so no press lands on one the resolver
+ * would refuse. Fewer than two means the position offers no choice and the arrow just moves.
+ */
+export function edgeStops(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	raw: string,
+	screen: VisibilityContext
+): number[] {
+	return seatOffsetsAt(caretOffset, inlines, raw, screen)
+		.filter((seat) => typingOffset(caretOffset, inlines, { offset: seat }, raw, screen) === seat)
+		.sort((a, b) => a - b);
+}
+
+/** The raw offset the next byte would be written at under `affinity`. */
+export function typingOffset(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext
+): number {
+	return (
+		resolveEdgeSeat(caretOffset, inlines, affinity, raw, screen, PROBE_BYTE)?.offset ?? caretOffset
+	);
+}
+
+/**
+ * The typing offset a plain arrow press moves to without moving the caret, or null when the press
+ * should move the caret as usual (live-mode.md § 4.2): one stop in the press's direction from the one
+ * the next byte would take now, so crossing each hidden edge is one press.
+ */
+export function edgeStep(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext,
+	direction: 'backward' | 'forward'
+): number | null {
+	const stops = edgeStops(caretOffset, inlines, raw, screen);
+	if (stops.length < 2) return null;
+	const current = typingOffset(caretOffset, inlines, affinity, raw, screen);
+	const ahead =
+		direction === 'forward'
+			? stops.filter((seat) => seat > current)
+			: stops.filter((seat) => seat < current).reverse();
+	return ahead[0] ?? null;
+}
+
+/** A byte stands in for whatever the user types next: a letter, which pairs with nothing, so the
+ *  render's verdict is about the offset and not about the byte. */
+const PROBE_BYTE = 'a';
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 interface MarkerRun {
@@ -133,22 +189,24 @@ interface MarkerRun {
 	span: ContentRange;
 }
 
-function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
+/** An arrival side, the pinned case set aside: a pin is an offset, not a side. */
+type Side = Exclude<EdgeAffinity, PinnedOffset>;
+
+function offsetForSide(run: MarkerRun, side: Side): number {
 	if (side === 'near') return run.start;
 	if (side === 'far') return run.end;
 	return run.leading ? run.start : run.end;
 }
 
-const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
+const otherEnd = (run: MarkerRun, side: Side): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
 /**
- * The offsets to try, best first: the side the policy names, then the run's other end, which is
- * the split rebalancer's "keep the space outside" rule in these terms, since a byte the run's
- * inner side destroys is one its outer side keeps. Then the literal caret offset, checked like
- * any other candidate, because a parse it changes is no reason to stop looking. The rest of the
- * screen position ends the list, nearest the policy's side first, for a caret whose own
- * construct has no answer.
+ * The offsets to try, best first: a pinned offset the position still holds, the side the policy
+ * names, then the run's other end (the split rebalancer's "keep the space outside" rule: a byte
+ * the inner side destroys is one the outer side keeps). Then the literal caret offset, checked
+ * like any other, since a parse it changes is no reason to stop looking. The rest of the screen
+ * position ends the list, nearest the policy's side first, for a caret whose construct has none.
  */
 function candidateOffsets(
 	run: MarkerRun,
@@ -161,10 +219,23 @@ function candidateOffsets(
 	// the run's near side at an opener and its far side at a closer. A symmetric pair follows the
 	// side the caret arrived from, defaulting to the near side, as Google Docs does
 	// (live-mode.md § 4.2).
-	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
+	const position = screenPositionOffsets(run, runs);
+	// A pin is the side an edge step chose, so it outranks the policy: the step offered only
+	// offsets this resolver accepts (`edgeStops`). One the position no longer holds is stale.
+	const pinned =
+		typeof affinity === 'object' && affinity !== null && position.includes(affinity.offset)
+			? affinity.offset
+			: null;
+	const recorded = typeof affinity === 'string' ? affinity : null;
+	const side: Side = edgeAffinity === 'never-extend' ? 'outside' : (recorded ?? 'near');
 	const preferred = offsetForSide(run, side);
-	const ranked = [preferred, otherEnd(run, side), caretOffset];
-	const rest = screenPositionOffsets(run, runs)
+	const ranked = [
+		...(pinned === null ? [] : [pinned]),
+		preferred,
+		otherEnd(run, side),
+		caretOffset
+	];
+	const rest = position
 		.filter((offset) => !ranked.includes(offset))
 		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
 	const offsets = [...new Set([...ranked, ...rest])];

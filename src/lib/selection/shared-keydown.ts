@@ -43,6 +43,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	/** The plugins this instance activated; without it the suppression below swallows a
 	 *  chord another editor's plugin owns. `undefined` means every installed plugin. */
 	activePlugins: PluginActivation | undefined;
+	/** A plain horizontal arrow at a hidden construct edge: true when the press moved which side
+	 *  of the edge the caret means instead of moving the caret (live-mode.md § 4.2). */
+	stepEdge?(e: KeyboardEvent): boolean;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -63,6 +66,9 @@ export async function handleSharedKeydown(
 	if (!isCtrlA && !isBareModifier) {
 		ctx.selection.resetSelectAllCount();
 	}
+
+	// Before the cross-block dispatch, whose `note` would record the press as a step.
+	if (handleEdgeStep(e, ctx)) return true;
 
 	if (await ctx.crossBlock.handleKeyDown(e)) return true;
 
@@ -166,6 +172,22 @@ export async function handleSharedKeydown(
 	}
 
 	return false;
+}
+
+/**
+ * A plain horizontal arrow at a hidden construct edge moves which side of the edge the caret
+ * means, not the caret (live-mode.md § 4.2). It runs ahead of anything that records the press as
+ * a step or reads it as a move out of the block: the step needs the side the caret means now,
+ * and a claimed press moves nothing, so a sticky column survives it. A range held across blocks
+ * never stops at a hidden edge. True when the press was claimed; the event is cancelled.
+ */
+export function handleEdgeStep(
+	e: KeyboardEvent,
+	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
+): boolean {
+	if (ctx.selection.isCrossBlock || !ctx.stepEdge?.(e)) return false;
+	e.preventDefault();
+	return true;
 }
 
 // ── Block bounds ───────────────────────────────────────────────────────────

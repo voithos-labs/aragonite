@@ -82,12 +82,17 @@ test.describe('single-block paste over a construct edge', () => {
 const CELL_DOC = '| Some **bold** text | y |\n| --- | --- |\n| a | b |\n\nX\n';
 
 test.describe('table-cell paste over a construct edge', () => {
-	/** The selection the prose row uses, one level down: inside `**bold**`, then past its closer. */
-	async function selectAcrossTheCellCloser(ep: EditorPage, page: Page): Promise<void> {
+	/** The selection the prose row uses, one level down: inside `**bold**`, then past its closer.
+	 *  Live mode spends one more press at the hidden opener, which is an arrow stop of its own. */
+	async function selectAcrossTheCellCloser(
+		ep: EditorPage,
+		page: Page,
+		stepsIn: number
+	): Promise<void> {
 		await page.getByRole('cell').first().click();
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
-		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
+		for (let i = 0; i < stepsIn; i++) await page.keyboard.press('ArrowRight');
 		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
 		await ep.waitForRenderFlush();
 	}
@@ -99,7 +104,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await ep.waitForRenderFlush();
 
 		await copyPayload(ep, page);
-		await selectAcrossTheCellCloser(ep, page);
+		await selectAcrossTheCellCloser(ep, page, 7);
 
 		await ep.paste();
 		await ep.bridge.waitForSourceNotContains('**bold**');
@@ -116,7 +121,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await ep.waitForRenderFlush();
 
 		await copyPayload(ep, page);
-		await selectAcrossTheCellCloser(ep, page);
+		await selectAcrossTheCellCloser(ep, page, 6);
 
 		await ep.paste();
 		await ep.bridge.waitForSourceNotContains('**bold** text');
