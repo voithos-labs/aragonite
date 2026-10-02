@@ -17,7 +17,7 @@ export interface PerfSnapshot {
 	containerReparseBytes: number;
 	/** Reads of a rebuilt container's first line alone, to re-derive its kind or metadata. */
 	openerLineReads: number;
-	/** Lines a quote or list item rebuild wrote, or read from its previous bytes. */
+	/** Lines a quote or list item rebuild read through its line syntax, each reading counted. */
 	stripLinesRead: number;
 	parseCount: number;
 	parseMsTotal: number;

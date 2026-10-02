@@ -7,7 +7,7 @@
 import type { CstNode } from '../nodes';
 import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
-import { INNER_LINE, opensOuterBlock, type LineCodec, type LinePlace } from '../strip-lines';
+import { FIRST_LINE, INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
 import {
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
@@ -56,8 +56,6 @@ export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: 
 	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 
-const FIRST_LINE: LinePlace = { first: true, trailingBlank: false };
-
 /** What a list item's lines are written under, all of it read off the item's first line. */
 export interface ItemLineShape {
 	/** The up to three spaces before the marker. */
@@ -81,6 +79,7 @@ export function readItemShape(line: string): ItemLineShape | null {
 export function listItemLines(shape: ItemLineShape): LineCodec {
 	const column = shape.indent.length + shape.marker.length;
 	const opener = shape.indent + shape.marker + (shape.taskMarker ?? '');
+	const pad = ' '.repeat(column);
 	return {
 		read(line, place) {
 			if (place.first) {
@@ -93,7 +92,9 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 			}
 			const text = stripIndentColumns(line, column);
 			if (indentColumns(line) >= column) {
-				const prefix = line.endsWith(text) ? line.slice(0, line.length - text.length) : null;
+				const cut = line.length - text.length;
+				// Compared as a slice: V8's `endsWith` steps through the text a character at a time.
+				const prefix = cut >= 0 && line.slice(cut) === text ? line.slice(0, cut) : null;
 				return { text, prefix, lazy: false };
 			}
 			// Below the content column a blank line still separates, but can't end the body.
@@ -103,7 +104,18 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 		},
 		write(text, place) {
 			if (place.first) return opener + text;
-			return text === '' && !place.trailingBlank ? '' : ' '.repeat(column) + text;
+			return text === '' && !place.trailingBlank ? '' : pad + text;
+		},
+		spells(line, text, place) {
+			// The opening line is read for its marker, which the text after it can change.
+			if (place.first) return false;
+			if (text === '' && !place.trailingBlank) return line === '';
+			return (
+				line.length === column + text.length &&
+				line.startsWith(pad) &&
+				line.slice(column) === text &&
+				!(column % 4 !== 0 && leadingTab(text))
+			);
 		},
 		// The parser asks the opening line with its task marker still on it.
 		continuesLazily: (above, line, aboveFirst) =>
@@ -111,6 +123,13 @@ export function listItemLines(shape: ItemLineShape): LineCodec {
 			wouldKeepParagraphOpen(line) &&
 			!opensOuterBlock(line)
 	};
+}
+
+/** Whether a tab sits in `text`'s leading whitespace, which a read at a column off the tab stops
+ *  rewrites as spaces. */
+function leadingTab(text: string): boolean {
+	for (let i = 0; text[i] === ' ' || text[i] === '\t'; i++) if (text[i] === '\t') return true;
+	return false;
 }
 
 /** CommonMark §5.2: a marker interrupts a paragraph only as a bullet or at `1`, with a non-empty
