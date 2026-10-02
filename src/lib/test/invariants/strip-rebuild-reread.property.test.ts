@@ -154,7 +154,10 @@ function rebuildBoth(source: string, rounds: Round[]): void {
  *  whatever its previous bytes held. */
 function expectItemsOpenAsTheirMetadata(nodes: readonly CstNode[]): void {
 	for (const [node] of nodesOf(nodes)) {
-		if (node.kind !== 'listItem' || !/^[a-z]/i.test(node.children?.[0]?.raw ?? '')) continue;
+		const opening = node.children?.[0];
+		// The first child's separator lines sit on the item's opening line too.
+		const text = opening ? opening.leadingTrivia + opening.raw : '';
+		if (node.kind !== 'listItem' || !/^[a-z]/i.test(text)) continue;
 		const meta = metadataOf(node, 'listItem');
 		const shape = readItemShape(firstDisplayLine(node.raw).text);
 		expect([shape?.marker, shape?.taskMarker]).toEqual([meta.marker, meta.taskMarker ?? null]);
@@ -210,6 +213,13 @@ describe('a strip rebuild keeps matched lines without reading them again', () =>
 					{ pick: 10, edit: 'lineAdded' as const }
 				]
 			]
+		},
+		{
+			// Miss-analysis: the marker check read the first child's raw alone, and 400 runs on the
+			// fixed seed never drew an opening child with separator lines in front of it.
+			name: 'an item whose first child goes, leaving the next one’s separator on its opening line',
+			source: '* ---\n \t \r\n\n  \n',
+			rounds: [[{ pick: 4, edit: 'typed' as const }], [{ pick: 0, edit: 'childRemoved' as const }]]
 		}
 	])('writes what reading every previous line writes: $name', ({ source, rounds }) => {
 		rebuildBoth(source, rounds);

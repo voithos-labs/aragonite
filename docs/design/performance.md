@@ -134,7 +134,7 @@ containerRawBytes(tables.children) / docByteLength(tables); // 1.96; the ceiling
 perfSnapshot().stripLinesRead / linesInTheChain; // 0.05; the ceiling is 0.06
 ```
 
-The third one is there because a quote or list item rebuild reads its own previous bytes, so the lines you didn't touch keep their spelling. A line already in the container's own spelling (`> ` and then the text, say) gets matched without being read at all, so on that fixture only the list items' opening lines are. A rebuild that starts reading every line again is the kind of slowdown a report-only timing row lets through without a word.
+The third one is there because a quote or list item rebuild reads its own previous bytes, so the lines you didn't touch keep their spelling. A line already in the container's own spelling (`> ` and then the text, say) gets matched without being read at all, so on that fixture only the list items' opening lines get read. A rebuild that starts reading every line again is the kind of slowdown a report-only timing row lets through without a word.
 
 The gated set, precisely (17 rows): flat-prose, nested-containers, reference-heavy, table-heavy and many-small-blocks at 1MB; flat-prose, many-small-blocks, reference-heavy and the three giant-single containers at 10MB; the container-interior rows (list and blockquote at 1MB, list at 10MB); two live-mode 1MB rows (flat-prose, nested-containers) ceilinged at their source twins; and the structural-edit row on flat-prose at 10MB. `single-giant-paragraph` is the one shape gated nowhere, being the axis. Ceiling and baseline bumps are deliberate decisions with a changelog note, never a reflexive edit to make a red run go away.
 
