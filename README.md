@@ -6,6 +6,11 @@ This project is an effort (perhaps in vain) to create a markdown editor that is 
 
 Note that aragonite is a work in progress [^3]. It's written in typescript and svelte [^4] [^5] [^6] [^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.
 
+*What does it look like?* Amazing of course:
+
+<img width="1072" height="914" alt="image" src="https://github.com/user-attachments/assets/db24b7b2-49eb-4b98-a5a0-281f40eca51f" />
+
+
 For those of you who don't want to sit through a monologue, here's how to use the editor:
 
 ## Embed
