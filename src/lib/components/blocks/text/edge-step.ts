@@ -45,7 +45,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	function edge(): { el: HTMLElement; caret: number; stops: number[] } | null {
 		const el = deps.getEl();
 		// Where markers paint, the delimiter is a byte on screen and the arrow already steps it.
-		if (!el || deps.isReading() || !revealsNoMarkers(el)) return null;
+		if (!el || deps.isReading() || !revealsNoMarkers(el) || !document.hasFocus()) return null;
 		const caret = deps.getCaret();
 		if (caret === null) return null;
 		const stops = edgeStops(

@@ -971,6 +971,14 @@
 		armSnapTarget(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();
+		syncCaretChrome();
+	}
+
+	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
+	 *  window keeps the selection but fires no `selectionchange`. */
+	function syncCaretChrome(): void {
+		constructReveal.update();
+		showEdge();
 	}
 
 	function demoteEmptyHeadingOnBlur(): void {
@@ -1073,6 +1081,7 @@
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}
+	onfocus={syncCaretChrome}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
@@ -1124,14 +1133,6 @@
 		opacity: var(--syntax-marker-dim, 0.65);
 		font-weight: normal;
 		font-style: normal;
-	}
-
-	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-code, ui-monospace, monospace);
-		font-size: 0.9em;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border-radius: 3px;
-		padding: 1px 4px;
 	}
 
 	.text-editable-block :global(.md-autolink) {

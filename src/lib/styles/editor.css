@@ -481,6 +481,66 @@
 	color: var(--syntax-code, currentColor);
 }
 
+/* Inline code is a chip. Its backticks show, in compartments at either end, only in source mode
+   and for the code span the caret is in (`construct-reveal.ts`); the content's sides divide them.
+   Lines are inset shadows with no side padding: a selection paints only the content box. */
+:where(.editor) :is(.inline-code-content, .md-code-fence) {
+	--code-edge: var(--md-inline-code-border);
+	font-family: var(--font-code, ui-monospace, monospace);
+	font-size: 0.9em;
+	background: var(--md-inline-code-bg);
+	border-radius: 4px;
+	padding: 2px 0;
+	box-shadow: inset 0 0 0 1px var(--code-edge);
+}
+
+:where(.editor) .inline-code-content {
+	padding-inline: 1px;
+}
+
+/* With its backticks hidden the content is the whole chip, so it takes the chip's own room. */
+:where(.editor)[data-presentation] .inline-code-content {
+	padding-inline: 4px;
+}
+
+:where(.editor):not([data-presentation='reading'])
+	.md-code-fence.md-construct-reveal
+	+ .inline-code-content {
+	padding-inline: 1px;
+}
+
+:where(.editor) .md-code-fence {
+	color: var(--color-ui-muted, #93938d);
+}
+
+:where(.editor) .md-code-fence:has(+ .inline-code-content) {
+	border-radius: 4px 0 0 4px;
+	box-shadow:
+		inset 1px 0 0 var(--code-edge),
+		inset 0 1px 0 var(--code-edge),
+		inset 0 -1px 0 var(--code-edge);
+}
+
+:where(.editor) .inline-code-content + .md-code-fence {
+	border-radius: 0 4px 4px 0;
+	box-shadow:
+		inset -1px 0 0 var(--code-edge),
+		inset 0 1px 0 var(--code-edge),
+		inset 0 -1px 0 var(--code-edge);
+}
+
+:where(.editor):not([data-presentation]) .md-code-fence + .inline-code-content,
+:where(.editor):not([data-presentation='reading'])
+	.md-code-fence.md-construct-reveal
+	+ .inline-code-content {
+	border-radius: 0;
+}
+
+:where(.editor)[data-presentation] .md-code-fence:not(.md-construct-reveal),
+:where(.editor)[data-presentation='reading'] .md-code-fence {
+	display: none;
+}
+
 /* An inline widget's source shown for editing (`$x$`) takes the inline-code tint so it reads as
    one span, but keeps the prose typeface so the line does not reflow. */
 ::highlight(md-inline-reveal) {

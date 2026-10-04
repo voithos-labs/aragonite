@@ -79,10 +79,19 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	/** Caret raw offset while the mode is on and the caret sits in this block. */
 	function caretOffset(): number | null {
 		const el = deps.getEl();
-		if (!el || deps.reading.mode() !== 'preview-inline') return null;
+		// A window that lost focus keeps its selection, but nobody is editing there any more.
+		if (!el || !revealMode() || !document.hasFocus()) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
 		return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
+	}
+
+	/** Preview-inline shows every construct's markers at the caret; live shows only inline code's
+	 *  backticks, the one marker live mode paints while editing. */
+	function revealMode(): 'all' | 'code-fences' | null {
+		const mode = deps.reading.mode();
+		if (mode === 'preview-inline') return 'all';
+		return mode === 'live' ? 'code-fences' : null;
 	}
 
 	function inlines(): InlineNode[] {
@@ -112,8 +121,9 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		const next: Element[] = [];
 		if (el) {
 			for (const node of chain) {
+				const only = revealMode() === 'code-fences' ? '.md-code-fence' : '';
 				const spans = el.querySelectorAll(
-					`[data-construct-start="${node.start}"][data-construct-end="${node.end}"]`
+					`${only}[data-construct-start="${node.start}"][data-construct-end="${node.end}"]`
 				);
 				for (const span of spans) {
 					span.classList.add(CONSTRUCT_REVEAL_CLASS);

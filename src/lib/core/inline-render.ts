@@ -50,12 +50,16 @@ export interface RenderInlineOptions {
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
-function markerSpan(text: string): HTMLSpanElement {
+function markerSpan(text: string, className = 'md-marker'): HTMLSpanElement {
 	const span = document.createElement('span');
-	span.className = 'md-marker';
+	span.className = className;
 	span.textContent = text;
 	return span;
 }
+
+/** An inline code span's backticks: painted inside the code chip in every editing mode, so the
+ *  caret steps over them like any byte (`visibility.ts`, the `code-fence` family). */
+const codeFenceSpan = (text: string): HTMLSpanElement => markerSpan(text, 'md-code-fence');
 
 /**
  * A hard break's marker, wrapped in the element the stylesheet draws a return glyph on where the
@@ -111,14 +115,14 @@ function renderInlineCode(
 	const contentStart = node.start + fence;
 	const contentEnd = node.end - fence;
 
-	frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, contentStart)), node, opts));
+	frag.appendChild(tagConstruct(codeFenceSpan(raw.slice(node.start, contentStart)), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
 	code.textContent = raw.slice(contentStart, contentEnd);
 	frag.appendChild(code);
 
-	frag.appendChild(tagConstruct(markerSpan(raw.slice(contentEnd, node.end)), node, opts));
+	frag.appendChild(tagConstruct(codeFenceSpan(raw.slice(contentEnd, node.end)), node, opts));
 	return frag;
 }
 

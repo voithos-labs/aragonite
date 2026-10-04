@@ -25,7 +25,7 @@ interface ProbeCase {
 }
 
 /** One case per stylesheet branch the check mirrors, in both host-focus states. */
-const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label'].flatMap((family) => [
+const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label', 'md-code-fence'].flatMap((family) => [
 	{ name: family, family, focusedHost: false },
 	{ name: `${family} (focused host)`, family, focusedHost: true },
 	{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },

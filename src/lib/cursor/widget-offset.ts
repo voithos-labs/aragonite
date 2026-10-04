@@ -502,12 +502,18 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 	return mode !== null && hidesDelimitersAtCaret(mode);
 }
 
+/** A code span's backticks the caret's own span shows (`construct-reveal.ts`). */
+const REVEALED_CODE_FENCE = `.md-code-fence.${CONSTRUCT_REVEAL_CLASS}`;
+
 /** How this container's bytes read on screen, its mode plus its content-empty attribute, so a text
  *  rewrite needs no marker knowledge of its own. An unmounted block reads as source. */
 export function screenVisibilityOf(container: ParentNode | null): VisibilityContext {
 	return screenVisibility(
 		container === null ? 'source' : (markerHidingMode(container) ?? 'source'),
-		{ chromePaints: container instanceof Element && chromeStampPaints(container) }
+		{
+			chromePaints: container instanceof Element && chromeStampPaints(container),
+			revealsCodeFence: container?.querySelector(REVEALED_CODE_FENCE) != null
+		}
 	);
 }
 
@@ -707,6 +713,9 @@ function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean
 	// reveal branches below depend on per-span DOM state that only this side can see.
 	if (family === null || !familyHidesText(family, screenVisibility(mode, { chromePaints })))
 		return false;
+	// Inline code backticks show for the caret's own code span in every editing mode.
+	if (family === 'code-fence')
+		return mode === 'reading' || !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;

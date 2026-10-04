@@ -282,14 +282,21 @@ function markerRuns(
 	grammar: GrammarView
 ): MarkerRun[] {
 	const runs: MarkerRun[] = [];
+	// A delimiter the mode paints (an inline code fence while editing) is a byte the caret steps
+	// over like any other, so only the runs the render leaves off screen count.
+	const painted = visibleRuns(inlines, raw, screen, { grammar }).filter(
+		(run) => run.visible && run.text !== ''
+	);
+	const hidden = (start: number, end: number) =>
+		!painted.some((run) => run.start < end && start < run.end);
 	for (const node of inlineDescendants(inlines)) {
 		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
 		const span = { start: node.start, end: node.end };
-		if (node.start < content.start) {
+		if (node.start < content.start && hidden(node.start, content.start)) {
 			runs.push({ start: node.start, end: content.start, leading: true, kind: node.kind, span });
 		}
-		if (content.end < node.end) {
+		if (content.end < node.end && hidden(content.end, node.end)) {
 			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind, span });
 		}
 	}
