@@ -735,13 +735,13 @@ and a focus that moved it (one without `preventScroll`) fails here. Predicate
 `invariants/landing-focus-scroll.ts :: checkLandingFocusScrollsNothing` · run by
 `selection/caret-landing.ts` · `test/selection/caret-landing.test.ts`; G4.91 is the source half.
 
-**G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An image selected
-whole lives in the same selection state as the range and the gap caret, and the state's clears end
-it. So once a block's `focus`, a range put down inside one block (a first Mod+A, a block's
-`setSelection`) or a restore has placed its caret or range, no widget should still be selected:
-one that is would look selected while the keys go to the caret, and the browser's own caret would
-get dropped under it. In a dev build `placeCaret`, `selectInBlock` and `applySelectionToDom` check
-it inside their batch, before anyone hears about the placement. Predicate
+**G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An inline widget
+selected whole (an image, say) lives in the same selection state as the range and the gap caret,
+and the state's clears end it. So once a block's `focus`, a range put down inside one block (a
+first Mod+A, a block's `setSelection`) or a restore has placed its caret or range, no widget should
+still be selected: one that is would look selected while the keys go to the caret, and the
+browser's own caret would get dropped under it. In a dev build `placeCaret`, `selectInBlock` and
+`applySelectionToDom` check it inside their batch, before anyone hears about the placement. Predicate
 `invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
 `selection/caret-doors.ts` and `selection/native-bridge.ts` ·
 `test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
@@ -863,7 +863,7 @@ declared, so the property also runs with the bundled plugins' inline kinds regis
 `inline-total-coverage.property.test.ts`.
 
 **G2.12 · Caret placement ends the editor's selection.** A caret placement ends every selection the editor owns
-(a cross-block range, a gap caret, an image selected whole), unless it's an extend. The
+(a cross-block range, a gap caret, an inline widget selected whole), unless it's an extend. The
 programmatic side is one route: `BlockComponent.focus` is built over each surface's park primitive
 and ends them itself, and the table in `test/selection/selection-claim-table.test.ts` runs every
 writer over each of the three. The scan carries the three parts that can't be
@@ -2009,13 +2009,15 @@ tree's one pick and its one distance, and the header slot, which sits above ever
 moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
-image selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
+inline widget selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
 `selectWidgetWhole`), which clear the browser's own range in the same batch, and a selected widget
 is held only in `selection/selection-state.svelte.ts`, whose one private writer ends the range and
 the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or
 `.selectWidget(` call anywhere else fails, and so does a `$state` cell typed as a `WidgetTarget`
 outside the store, since a second store is how the image once stayed selected under an undo's
-caret. `lint/file-rules.test.ts`, with G1.46 as the runtime half.
+caret. Every reader of the selected widget asks the store too (`widget`, `widgetIn`, `widgetRange`),
+so no view over it is left to keep in step. `lint/file-rules.test.ts`, with G1.46 as the runtime
+half.
 
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
