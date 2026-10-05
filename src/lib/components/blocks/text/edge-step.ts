@@ -11,7 +11,7 @@ import { constructContentRange, inlineDescendants } from '../../../core/inline';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
-import { edgeStep, edgeStops, typingOffset } from './edge-seat';
+import { edgeStep, edgeStops, seatOffsetsAt, typingOffset } from './edge-seat';
 
 /** On a construct's content element while the caret sits at its hidden edge, inside it. */
 export const EDGE_HELD_CLASS = 'md-edge-held';
@@ -33,6 +33,9 @@ export interface EdgeStepDeps {
 export interface EdgeStep {
 	/** The `stepEdge` a surface hands its shared keydown. */
 	step(e: KeyboardEvent): boolean;
+	/** Whether a marker run the screen hides touches `caret`, where a typed closer moves only the
+	 *  side the caret means. */
+	hiddenRunAt(caret: number): boolean;
 	/** Mark the constructs the next byte would join again; cheap where no edge is touched. Call
 	 *  it after anything that can move the caret or its side: a selection change, a key, a render. */
 	show(): void;
@@ -41,11 +44,27 @@ export interface EdgeStep {
 export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	let held: Element[] = [];
 
+	/** The block's element where its screen hides markers at the caret: elsewhere every delimiter
+	 *  is a byte on screen, which the arrow and a typed closer already step over. */
+	function hidingEl(): HTMLElement | null {
+		const el = deps.getEl();
+		return el && !deps.isReading() && revealsNoMarkers(el) ? el : null;
+	}
+
+	function hiddenRunAt(caret: number): boolean {
+		const el = hidingEl();
+		if (!el) return false;
+		const screen = screenVisibilityOf(el);
+		return (
+			seatOffsetsAt(caret, deps.getInlines(), deps.getRaw(), screen, deps.reading.grammar).length >
+			0
+		);
+	}
+
 	/** The caret's position and the block's reading of it, where a hidden edge has a choice. */
 	function edge(): { el: HTMLElement; caret: number; stops: number[] } | null {
-		const el = deps.getEl();
-		// Where markers paint, the delimiter is a byte on screen and the arrow already steps it.
-		if (!el || deps.isReading() || !revealsNoMarkers(el) || !document.hasFocus()) return null;
+		const el = hidingEl();
+		if (!el || !document.hasFocus()) return null;
 		const caret = deps.getCaret();
 		if (caret === null) return null;
 		const stops = edgeStops(
@@ -128,5 +147,5 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		return found;
 	}
 
-	return { step, show };
+	return { step, hiddenRunAt, show };
 }

@@ -48,7 +48,6 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createEdgeStep, type EdgeStep } from './edge-step';
-	import { seatOffsetsAt } from './edge-seat';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -904,15 +903,7 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
-			hiddenRunAt: (caret) =>
-				!!el &&
-				seatOffsetsAt(
-					caret,
-					resolvedInlineContent(node, reading),
-					node.raw,
-					screenVisibilityOf(el),
-					grammar
-				).length > 0,
+			hiddenRunAt: (caret) => edgeStepHere().hiddenRunAt(caret),
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
