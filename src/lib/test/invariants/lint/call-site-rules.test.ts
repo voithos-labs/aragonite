@@ -149,10 +149,8 @@ const RULES: CallSiteRule[] = [
 				'the line break a key types over a selection',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: bareFenceCompletion':
 				'a bare fence gets its body and closing lines, on Enter or as the caret arrives',
-			'src/lib/components/blocks/editable-leaf.ts :: revealSource':
-				'a bare plugin source shown gets the lines a caret can sit in',
-			'src/lib/components/blocks/editable-leaf.ts :: spliceSourceText':
-				'a plugin source an edit emptied gets the lines a caret can sit in',
+			'src/lib/components/blocks/editable-leaf.ts :: reshapeSource':
+				'a plugin source shown or edited gets the lines its kind adds, a bare one a body line',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: closeUnclosedFenceAndDescend':
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':

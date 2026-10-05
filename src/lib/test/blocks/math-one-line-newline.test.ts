@@ -18,8 +18,8 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '../../harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '../../harness/settle';
+} from '../harness/mount-editor.svelte';
+import { pressKey, settleEditor } from '../harness/settle';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for every row: installing a second is refused with a warning.

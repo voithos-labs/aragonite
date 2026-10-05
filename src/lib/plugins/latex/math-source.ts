@@ -11,30 +11,16 @@ import {
 	isBlankText,
 	renderFencedSource,
 	sliceFencedSource,
-	type FencedSource
+	type LineEnding
 } from '$lib/plugin';
+import { readMathSource, reshapeMathSource, type MathEdit, type MathSource } from './math-shape';
 
-const FENCE = '$$';
-
-const unsliced = (text: string): FencedSource => ({ opener: '', body: text, closer: '' });
-
-/** Both block forms are an opener line, a body and a closer line. GitHub's ```math reads as a code
- *  fence does; the `$$` form closes on a line that is exactly `$$`, or on line 0 itself. */
-function sliceMathSource(text: string): FencedSource {
-	if (!text.startsWith(FENCE)) return sliceFencedSource(text) ?? unsliced(text);
-	const firstBreak = text.indexOf('\n');
-	if (firstBreak === -1) {
-		return text.length >= 4 && text.endsWith(FENCE)
-			? { opener: FENCE, body: text.slice(2, -2), closer: FENCE }
-			: unsliced(text);
-	}
-	if (displayLines(text)[0].text !== FENCE) return unsliced(text);
-	const opener = text.slice(0, firstBreak + 1);
-	const rest = text.slice(opener.length);
-	const lastBreak = rest.lastIndexOf('\n');
-	const lastLine = rest.slice(lastBreak + 1);
-	if (lastLine !== FENCE) return { opener, body: rest, closer: '' };
-	return { opener, body: rest.slice(0, lastBreak + 1), closer: lastLine };
+/** Both block forms as an opener, a body and a closer: the `$$` form as `math-shape.ts` reads it,
+ *  GitHub's ```math as a code fence reads. */
+function sliceMathSource(text: string): MathSource {
+	const dollars = readMathSource(text);
+	if (dollars) return dollars;
+	return { ...(sliceFencedSource(text) ?? { opener: '', body: text, closer: '' }), after: '' };
 }
 
 /**
@@ -47,24 +33,36 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 	return { start, end: start + fenceBodyAsDrawn(source).length };
 }
 
+/** The edited source in the shape the block keeps: a one-line form a line break went into becomes
+ *  the multi-line form, and a source with no body line gains one. Null leaves the edit as it is. */
+export function reshapeMathEdit(
+	text: string,
+	caret: number,
+	lineEnding: LineEnding
+): MathEdit | null {
+	const reshaped = reshapeMathSource(text, caret);
+	return completeBareMathSource(reshaped?.text ?? text, lineEnding) ?? reshaped;
+}
+
 /** A block with no body line (`$$$$`, `$$\n$$`) has no caret position once the fence lines hide,
  *  so it gains one empty body line with the caret on it, ended like the opener line. */
-export function completeBareMathSource(
-	text: string,
-	lineEnding: string
-): { text: string; caret: number } | null {
-	const { opener, body, closer } = sliceMathSource(text);
+function completeBareMathSource(text: string, lineEnding: LineEnding): MathEdit | null {
+	const { opener, body, closer, after } = sliceMathSource(text);
 	if (!opener || !closer) return null;
 	if (body.includes('\n') || !isBlankText(body)) return null;
 	const [openerLine] = displayLines(opener);
 	// A one-line `$$$$` has no ending of its own to repeat, so it takes the block's.
 	const ending = openerLine.ending || lineEnding;
 	return {
-		text: openerLine.text + ending + ending + closer,
+		text: openerLine.text + ending + ending + closer + after,
 		caret: openerLine.text.length + ending.length
 	};
 }
 
+/** What follows the closer is outside the block, so it paints as plain text. */
 export function renderMathSource(text: string): DocumentFragment {
-	return renderFencedSource(sliceMathSource(text), (body) => highlightCode(body, 'latex'));
+	const source = sliceMathSource(text);
+	const frag = renderFencedSource(source, (body) => highlightCode(body, 'latex'));
+	if (source.after) frag.append(source.after);
+	return frag;
 }

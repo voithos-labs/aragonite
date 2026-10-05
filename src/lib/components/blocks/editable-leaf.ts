@@ -41,7 +41,7 @@ import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { isBlankText, trimTrailingLineEnding } from '../../core/lines';
+import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
@@ -93,9 +93,13 @@ interface LeafDepsBase {
 	/** The source text after each edit the leaf applies itself, for a live preview: the CST sees
 	 *  a render-primary edit only on blur, and a cancelled `beforeinput` fires no `input`. */
 	onSourceEdit?(text: string): void;
-	/** Completes a markers-only source (a `$$$$`) to one a caret can sit in, on show and after an
-	 *  edit that empties it; a line with no ending to copy takes `lineEnding`. Null leaves it. */
-	completeBareSource?(text: string, lineEnding: string): { text: string; caret: number } | null;
+	/** The source as the kind keeps it, asked on show and after every edit, with the caret carried
+	 *  (a markers-only `$$$$` gains a body line); an added line takes `lineEnding`. Null keeps it. */
+	reshapeSource?(
+		text: string,
+		caret: number,
+		lineEnding: LineEnding
+	): { text: string; caret: number } | null;
 }
 
 /**
@@ -312,16 +316,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	});
 
-	// Every open goes through here, so a markers-only source is completed however it was opened.
+	// A line the kind adds takes the block's ending, else the document's.
+	function reshapeSource(text: string, caret: number) {
+		return deps.reshapeSource?.(text, caret, editableSurface.lineEnding()) ?? null;
+	}
+
+	// Every open goes through here, so the kind reshapes its source however it was opened.
 	async function revealSource(atSourceOffset = 0): Promise<void> {
 		await revealKernel.reveal(atSourceOffset);
 		const el = deps.getEl();
-		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
-		const completed = deps.completeBareSource(el.textContent ?? '', editableSurface.lineEnding());
-		if (!completed) return;
-		paintSource(el, completed.text);
-		deps.onSourceEdit?.(completed.text);
-		setCaret(completed.caret);
+		if (!el || !isRevealed() || isReading()) return;
+		const reshaped = reshapeSource(el.textContent ?? '', atSourceOffset);
+		if (!reshaped) return;
+		paintSource(el, reshaped.text);
+		deps.onSourceEdit?.(reshaped.text);
+		setCaret(reshaped.caret);
 	}
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
@@ -425,8 +434,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (!el || !deps.renderSource || composing) return;
 		const offset = backend.getRaw();
-		paintSource(el, el.textContent ?? '');
-		if (offset !== null) setCaret(offset);
+		const text = el.textContent ?? '';
+		// A native edit (an IME commit) reaches the kind's reshape like the leaf's own edits do.
+		const reshaped = offset === null ? null : reshapeSource(text, offset);
+		paintSource(el, reshaped?.text ?? text);
+		if (offset !== null) setCaret(reshaped?.caret ?? offset);
 	}
 
 	function syncSource(): void {
@@ -512,13 +524,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const keystroke = end - start <= 1 && insert.length <= 1 && insert !== '\n';
 		if (deps.renderSource) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
-		// Emptying the body leaves the same markers-only source a bare block arrives as, so this
-		// edit applies the same completion that showing the source does.
-		const completed = deps.completeBareSource?.(spliced, editableSurface.lineEnding()) ?? null;
-		const next = completed?.text ?? spliced;
+		// Every edit gets the reshape showing the source does: an emptied body is the same bare
+		// source a new block arrives as.
+		const reshaped = reshapeSource(spliced, start + insert.length);
+		const next = reshaped?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
-		setCaret(completed?.caret ?? start + insert.length);
+		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();
