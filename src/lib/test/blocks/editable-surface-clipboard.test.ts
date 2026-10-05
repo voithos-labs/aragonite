@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 // The step order `createClipboardHandlers` keeps for the four editable blocks: the reading
-// check, the cross-block copy and cut, hiding a shown source, and `preventDefault` on a paste
-// before any await. Per-block parts (widget slice, rect payload, cell escaping) are covered by
-// each block's own suite.
+// check, the arms in order, a cut's payload before the hide, and `preventDefault` on a paste
+// before any await. Per-block parts (widget slice, cell escaping) are covered by each block's suite.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
+	type ClipboardArm,
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 
@@ -36,6 +36,19 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
+/** An arm that logs its copy and removal; `takes: false` stands in for a selection not its own. */
+function arm(log: string[], name: string, takes = true): ClipboardArm<string> {
+	return {
+		copy(e) {
+			log.push(`${name}.copy`);
+			if (!takes) return null;
+			e.clipboardData?.setData('text/plain', name);
+			return { held: name };
+		},
+		remove: (held) => void log.push(`${name}.remove:${held}`)
+	};
+}
+
 /** Every dependency logs its call; each test overrides only what it exercises. A collapsed
  *  selection skips the cross-block copy and cut, so the in-block steps need no document. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
@@ -51,68 +64,62 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 			performCrossBlockCut: async () => void log.push('cross-delete')
 		} as never,
 		isReadOnly: () => false,
-		caret: { getEl: () => null, getCursorOffset: () => null, focus: () => {} },
+		caret: {
+			getEl: () => null,
+			getCursorOffset: () => null,
+			focus: () => {},
+			recordPreEditOffset: () => void log.push('record'),
+			getPreEditOffset: () => 0
+		},
 		events: { on: () => () => {}, emit: () => {} },
 		onPasteImage: undefined,
-		cutTail: (e) => {
-			log.push('cutTail');
-			e.clipboardData?.setData('text/plain', 'CUT');
-		},
+		rangeArm: arm(log, 'range'),
 		pasteTail: (text) => void log.push(`pasteTail:${text}`),
 		...over
 	};
 }
 
 describe('clipboard skeleton: copy order', () => {
-	it('non-reading, non-cross-block copy runs reset then the intra-block tail', () => {
+	it('resets, prevents, then writes the range arm’s payload', () => {
 		const log: string[] = [];
 		const rec = recorder();
-		const copyTail = (e: ClipboardEvent) => {
-			e.preventDefault();
-			log.push('copyTail');
-		};
-		createClipboardHandlers(deps(log, { copyTail })).onCopy(rec.e);
-		expect(log).toEqual(['forget', 'copyTail']);
+		createClipboardHandlers(deps(log)).onCopy(rec.e);
+		expect(log).toEqual(['forget', 'range.copy']);
 		expect(rec.prevented).toBe(true);
+		expect(rec.written()).toBe('range');
 	});
 
-	it('reading mode prevents and writes the visible selection, skipping every branch', () => {
+	it('reading mode prevents and writes the visible selection, skipping every arm', () => {
 		const log: string[] = [];
 		const rec = recorder();
-		let tailRan = false;
-		createClipboardHandlers(
-			deps(log, { isReadOnly: () => true, copyTail: () => void (tailRan = true) })
-		).onCopy(rec.e);
+		createClipboardHandlers(deps(log, { isReadOnly: () => true })).onCopy(rec.e);
 		expect(log).toEqual(['forget']);
-		expect(tailRan).toBe(false);
 		expect(rec.prevented).toBe(true);
 		expect(rec.written()).toBe(''); // jsdom's empty selection
 	});
 
-	it('a copy pre-hook that claims the event skips the cross-block write and the tail', () => {
+	it('a selection arm that takes the copy skips the range arm', () => {
 		const log: string[] = [];
 		const rec = recorder();
-		let tailRan = false;
-		createClipboardHandlers(
-			deps(log, {
-				copyPreHook: (e) => {
-					e.preventDefault();
-					log.push('copyPreHook');
-					return true;
-				},
-				copyTail: () => void (tailRan = true)
-			})
-		).onCopy(rec.e);
-		expect(log).toEqual(['forget', 'copyPreHook']);
-		expect(tailRan).toBe(false);
+		createClipboardHandlers(deps(log, { selectionArms: [arm(log, 'widget')] })).onCopy(rec.e);
+		expect(log).toEqual(['forget', 'widget.copy']);
+		expect(rec.written()).toBe('widget');
+	});
+
+	it('a copy no arm takes writes the visible selection', () => {
+		const log: string[] = [];
+		const rec = recorder();
+		createClipboardHandlers(deps(log, { rangeArm: arm(log, 'range', false) })).onCopy(rec.e);
+		expect(log).toEqual(['forget', 'range.copy']);
+		expect(rec.written()).toBe('');
 	});
 });
 
 describe('clipboard skeleton: cut order', () => {
-	it('folds the reveal before writing, prevents up front', async () => {
+	it('records undo’s caret and writes the payload before the hide, then removes', async () => {
 		const log: string[] = [];
 		const rec = recorder();
-		await createClipboardHandlers(
+		const cut = createClipboardHandlers(
 			deps(log, {
 				foldReveal: () => {
 					log.push('fold');
@@ -120,46 +127,46 @@ describe('clipboard skeleton: cut order', () => {
 				}
 			})
 		).onCut(rec.e);
-		expect(log).toEqual(['forget', 'fold', 'cutTail']);
+		// What a scripted cut can read: everything the dispatch ran before its first await.
+		expect(log).toEqual(['forget', 'record', 'range.copy', 'fold']);
+		expect(rec.written()).toBe('range');
+		await cut;
+		expect(log).toEqual(['forget', 'record', 'range.copy', 'fold', 'range.remove:range']);
 		expect(rec.prevented).toBe(true);
 	});
 
-	it('reading mode degrades cut to copy: no fold, no cut tail, no cross-block delete', async () => {
+	it('reading mode degrades cut to copy: no record, no hide, no removal', async () => {
 		const log: string[] = [];
 		const rec = recorder();
 		let folded = false;
-		let cutRan = false;
 		await createClipboardHandlers(
 			deps(log, {
 				isReadOnly: () => true,
 				foldReveal: () => {
 					folded = true;
 					return { caret: 1, settled: Promise.resolve() };
-				},
-				cutTail: () => void (cutRan = true)
+				}
 			})
 		).onCut(rec.e);
 		expect(folded).toBe(false);
-		expect(cutRan).toBe(false);
-		expect(log).toEqual(['forget', 'forget']); // outer cut + inner copy
+		expect(log).toEqual(['forget']);
 		expect(rec.prevented).toBe(true);
 	});
 
-	it('a cut pre-hook that claims the event skips the intra-block tail', async () => {
+	it('a selection arm that takes the cut removes its own selection, not the range', async () => {
 		const log: string[] = [];
 		const rec = recorder();
-		let cutRan = false;
-		await createClipboardHandlers(
-			deps(log, {
-				cutPreHook: async () => {
-					log.push('cutPreHook');
-					return true;
-				},
-				cutTail: () => void (cutRan = true)
-			})
-		).onCut(rec.e);
-		expect(log).toEqual(['forget', 'cutPreHook']);
-		expect(cutRan).toBe(false);
+		await createClipboardHandlers(deps(log, { selectionArms: [arm(log, 'widget')] })).onCut(rec.e);
+		expect(log).toEqual(['forget', 'record', 'widget.copy', 'widget.remove:widget']);
+	});
+
+	it('a cut no arm takes writes nothing and removes nothing', async () => {
+		const log: string[] = [];
+		const rec = recorder();
+		await createClipboardHandlers(deps(log, { rangeArm: arm(log, 'range', false) })).onCut(rec.e);
+		expect(log).toEqual(['forget', 'record', 'range.copy']);
+		expect(rec.written()).toBeNull();
+		expect(rec.prevented).toBe(true);
 	});
 });
 

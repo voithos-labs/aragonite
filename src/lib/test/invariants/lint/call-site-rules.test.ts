@@ -114,9 +114,9 @@ const RULES: CallSiteRule[] = [
 				'a command, moving with the other commands',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
 				'the cell menu’s cut, moving with the other clipboard edits',
-			'src/lib/components/blocks/text/text-clipboard.ts :: cutPreHook':
+			'src/lib/components/blocks/text/text-clipboard.ts :: removeWidget':
 				'a cut of a selected widget, moving with the other clipboard edits',
-			'src/lib/components/blocks/text/text-clipboard.ts :: cutTail':
+			'src/lib/components/blocks/text/text-clipboard.ts :: removeRange':
 				'a cut in a text block, moving with the other clipboard edits',
 			'src/lib/components/blocks/text/widget-interaction.ts :: commitReveal':
 				'an inline widget’s shown source, moving with the fold that closes it'

@@ -10,7 +10,8 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { writeCrossBlockCut } from '$lib/selection/cross-block/clipboard';
+import { crossBlockClipboardArm } from '$lib/selection/cross-block/clipboard';
+import { runClipboardCut } from '$lib/components/blocks/editable-surface';
 import {
 	makeEnv,
 	makeHandlers,
@@ -83,11 +84,12 @@ async function applyGesture(
 			preventDefault: () => {},
 			clipboardData: { setData: (_type: string, value: string) => (copied = value) }
 		} as unknown as ClipboardEvent;
-		await writeCrossBlockCut(event, {
+		const arm = crossBlockClipboardArm({
 			selection: env.selectionState,
 			getDoc: () => env.doc,
 			crossBlock: handlers
 		});
+		await runClipboardCut(event, [arm]);
 	}
 	return { doc: env.doc as unknown as CstNode, copied };
 }

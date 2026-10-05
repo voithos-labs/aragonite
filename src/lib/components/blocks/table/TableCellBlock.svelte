@@ -877,27 +877,10 @@
 		onPasteImage,
 		foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 		pastePreHook: pasteGridHere,
-		// While a source is shown the DOM holds an edit `node.raw` has not seen; copy never
-		// writes, so it slices the live DOM text rather than hiding it first.
-		copyTail: (e) => {
-			if (!el) return;
-			const offsets = cursor.getRawSelection();
-			if (!offsets || offsets.start === offsets.end) return;
-			e.preventDefault();
-			const display = widgetInteraction.isRevealing()
-				? readCellText()
-				: trimTrailingLineEnding(node.raw);
-			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-		},
-		// The write has to be synchronous, since `clipboardData` closes after the event, and
-		// the truncation goes through the CST: the browser's own cut leaves a stale undo anchor.
-		cutTail: (e) => {
-			if (!el) return;
-			const offsets = cursor.getRawSelection();
-			if (!offsets || offsets.start === offsets.end) return;
-			const display = trimTrailingLineEnding(node.raw);
-			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-			deleteCellRange(offsets.start, offsets.end);
+		rangeArm: {
+			copy: copyCellRange,
+			remove: (range: { start: number; end: number }) =>
+				deleteCellRange(range.start, range.end, editableSurface.caret.getPreEditOffset())
 		},
 		pasteTail: async (pastedText) => {
 			if (!el) return;
@@ -908,14 +891,27 @@
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
 
+	// While a source is shown the DOM holds an edit `node.raw` has not seen; copy never writes, so
+	// it slices the live DOM text rather than hiding it first.
+	function copyCellRange(e: ClipboardEvent): { held: { start: number; end: number } } | null {
+		if (!el) return null;
+		const range = cursor.getRawSelection();
+		if (!range || range.start === range.end) return null;
+		const display = widgetInteraction.isRevealing()
+			? readCellText()
+			: trimTrailingLineEnding(node.raw);
+		e.clipboardData?.setData('text/plain', display.slice(range.start, range.end));
+		return { held: range };
+	}
+
 	// ── Shared edit helpers (event handlers and the right-click menu) ────────
 
 	// Through the join rules, since in live mode the delete can strand delimiter runs the user
-	// never saw (live-mode.md § 4.5).
-	function deleteCellRange(start: number, end: number): void {
+	// never saw (live-mode.md § 4.5). The menu's cut records no caret, so undo's defaults to `start`.
+	function deleteCellRange(start: number, end: number, undoCaret = start): void {
 		const cut = replaceRangeInLeaf(node, { start, end }, '', storedAs());
 		const display = trimTrailingLineEnding(cut.raw);
-		const write = blockEdit.updateBlockContent(index, display, 'literal', start, cut.caret);
+		const write = blockEdit.updateBlockContent(index, display, 'literal', undoCaret, cut.caret);
 		if (write.admitted) parkCursor(write.caret);
 	}
 
@@ -942,9 +938,6 @@
 	}
 
 	// ── Right-click menu clipboard (no ClipboardEvent) ──────────────────────
-	//
-	// Cut copies then deletes: `onCut` writes the clipboard after an await, which a scripted
-	// `execCommand('cut')` has already closed.
 
 	function getSelectionOffsets(): { start: number; end: number } | null {
 		const range = cursor.getRawSelection();

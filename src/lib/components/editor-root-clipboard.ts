@@ -12,11 +12,8 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { createImagePasteArm } from './paste-image-arm';
-import {
-	writeCrossBlockCopy,
-	writeCrossBlockCut,
-	type CrossBlockClipboardDeps
-} from '../selection/cross-block/clipboard';
+import { runClipboardCut, takeCopy } from './blocks/editable-surface';
+import { crossBlockClipboardArm } from '../selection/cross-block/clipboard';
 
 export interface EditorRootClipboardDeps {
 	selection: SelectionState;
@@ -41,11 +38,13 @@ export interface EditorRootClipboard {
 type RootClipboardTarget = { arm: 'widget'; block: BlockComponent } | { arm: 'cross-block' };
 
 export function createEditorRootClipboard(deps: EditorRootClipboardDeps): EditorRootClipboard {
-	const crossDeps: CrossBlockClipboardDeps = {
-		selection: deps.selection,
-		getDoc: deps.getDoc,
-		crossBlock: deps.crossBlock
-	};
+	const crossBlockArms = [
+		crossBlockClipboardArm({
+			selection: deps.selection,
+			getDoc: deps.getDoc,
+			crossBlock: deps.crossBlock
+		})
+	];
 	const imageArm = createImagePasteArm({
 		onPasteImage: deps.onPasteImage,
 		events: deps.events,
@@ -75,13 +74,13 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			const target = targetOf(event, root);
 			if (!target) return;
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
-			else writeCrossBlockCopy(event, crossDeps);
+			else if (takeCopy(event, crossBlockArms)) event.preventDefault();
 		},
 		handleCut(event, root) {
 			const target = targetOf(event, root);
 			if (!target) return;
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
-			else void writeCrossBlockCut(event, crossDeps);
+			else void runClipboardCut(event, crossBlockArms);
 		},
 		handlePaste(event, root) {
 			const target = targetOf(event, root);

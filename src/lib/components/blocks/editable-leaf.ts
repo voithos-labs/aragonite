@@ -32,7 +32,8 @@ import {
 	CONTENT_EMPTY_ATTR,
 	chromeFreeText,
 	clampToLandableRaw,
-	holdsOnlyMarkerChrome
+	holdsOnlyMarkerChrome,
+	type RawRange
 } from '../../cursor/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
@@ -538,8 +539,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
 
-	// The leaf's DOM text is its raw, so copy writes the visible selection and cut and paste
-	// splice verbatim; the commit's reparse splits the block where the grammar demands.
+	// The leaf's DOM text is its raw, so copy writes a slice of it, hidden fence lines included, and
+	// cut and paste splice verbatim; the commit's reparse splits the block where the grammar demands.
+	function copyRange(e: ClipboardEvent): { held: RawRange } | null {
+		const el = deps.getEl();
+		const range = el ? backend.getRawSelection() : null;
+		if (!el || !range || range.start === range.end) return null;
+		e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(range.start, range.end));
+		return { held: range };
+	}
+
+	function removeRange(range: RawRange): void {
+		const el = deps.getEl();
+		if (el) spliceSourceText(el, range.start, range.end, '');
+	}
+
 	const clipboard = createClipboardHandlers({
 		caretMemory,
 		selection,
@@ -549,14 +563,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		cutTail: editableSurface.command((e: ClipboardEvent) => {
-			const el = deps.getEl();
-			if (!el) return;
-			const sel = backend.getRawSelection();
-			if (!sel || sel.start === sel.end) return;
-			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
-			spliceSourceText(el, sel.start, sel.end, '');
-		}),
+		rangeArm: { copy: copyRange, remove: removeRange },
 		pasteTail: editableSurface.command((pastedText: string) => {
 			const el = deps.getEl();
 			if (!el) return;

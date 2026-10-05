@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { writeCrossBlockCopy, writeCrossBlockCut } from '$lib/selection/cross-block/clipboard';
+import { crossBlockClipboardArm } from '$lib/selection/cross-block/clipboard';
+import { runClipboardCut } from '$lib/components/blocks/editable-surface';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
@@ -14,61 +15,57 @@ function makeDeps(selection: SelectionState, deleteSpy = vi.fn(async () => {})) 
 	return { selection, getDoc: () => doc, crossBlock };
 }
 
-function makeCopyEvent(): {
-	event: ClipboardEvent;
-	written: Map<string, string>;
-	preventSpy: ReturnType<typeof vi.fn>;
-} {
+function makeCopyEvent(): { event: ClipboardEvent; written: Map<string, string> } {
 	const written = new Map<string, string>();
-	const preventSpy = vi.fn();
 	const event = {
-		preventDefault: preventSpy,
+		preventDefault: () => {},
 		clipboardData: { setData: (type: string, value: string) => written.set(type, value) }
 	} as unknown as ClipboardEvent;
-	return { event, written, preventSpy };
+	return { event, written };
 }
 
-describe('cross-block clipboard prologue', () => {
-	it('copy is a no-op fall-through when the selection is not cross-block', () => {
-		const deps = makeDeps(createSelectionState());
-		const { event, written, preventSpy } = makeCopyEvent();
+function crossBlockSelection(): SelectionState {
+	const selection = createSelectionState();
+	selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
+	return selection;
+}
 
-		// The false return is what keeps each block's own single-block path alive: a plain
-		// single-cell table copy must not call preventDefault.
-		expect(writeCrossBlockCopy(event, deps)).toBe(false);
-		expect(preventSpy).not.toHaveBeenCalled();
+describe('the cross-block clipboard arm', () => {
+	it('declines a selection inside one block, writing nothing', () => {
+		const arm = crossBlockClipboardArm(makeDeps(createSelectionState()));
+		const { event, written } = makeCopyEvent();
+
+		// The null is what lets the block's own range arm take the copy next.
+		expect(arm.copy(event)).toBeNull();
 		expect(written.size).toBe(0);
 	});
 
-	it('copy claims the event and writes collected text when cross-block', () => {
-		const selection = createSelectionState();
-		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
-		const deps = makeDeps(selection);
-		const { event, written, preventSpy } = makeCopyEvent();
+	it('copies the collected text of a range across blocks', () => {
+		const arm = crossBlockClipboardArm(makeDeps(crossBlockSelection()));
+		const { event, written } = makeCopyEvent();
 
-		expect(writeCrossBlockCopy(event, deps)).toBe(true);
-		expect(preventSpy).toHaveBeenCalledOnce();
+		expect(arm.copy(event)).not.toBeNull();
 		expect(written.get('text/plain')).toContain('hello');
 	});
 
-	it('cut does not trigger the range delete when the selection is not cross-block', async () => {
+	it('a cut outside a range across blocks deletes nothing', async () => {
 		const deleteSpy = vi.fn(async () => {});
-		const deps = makeDeps(createSelectionState(), deleteSpy);
-		const { event } = makeCopyEvent();
+		const arm = crossBlockClipboardArm(makeDeps(createSelectionState(), deleteSpy));
 
-		expect(await writeCrossBlockCut(event, deps)).toBe(false);
+		await runClipboardCut(makeCopyEvent().event, [arm]);
 		expect(deleteSpy).not.toHaveBeenCalled();
 	});
 
-	it('cut writes text then performs the cross-block delete when cross-block', async () => {
-		const selection = createSelectionState();
-		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
-		const deleteSpy = vi.fn(async () => {});
-		const deps = makeDeps(selection, deleteSpy);
+	it('a cut writes the text before the range delete starts', async () => {
 		const { event, written } = makeCopyEvent();
+		const deleteSpy = vi.fn(async () => {
+			expect(written.get('text/plain')).toContain('hello');
+		});
+		const arm = crossBlockClipboardArm(makeDeps(crossBlockSelection(), deleteSpy));
 
-		expect(await writeCrossBlockCut(event, deps)).toBe(true);
+		const cut = runClipboardCut(event, [arm]);
 		expect(written.get('text/plain')).toContain('hello');
+		await cut;
 		expect(deleteSpy).toHaveBeenCalledOnce();
 	});
 });

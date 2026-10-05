@@ -77,6 +77,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
+		caret: { recordPreEditOffset: () => {}, getPreEditOffset: () => 0 },
 		selection,
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		caretMemory: stubCaretMemory(),
@@ -251,6 +252,7 @@ function foldSettleHarness() {
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
+		caret: { recordPreEditOffset: () => {}, getPreEditOffset: () => 0 },
 		selection,
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),
