@@ -6,8 +6,9 @@
  */
 
 import type { CommitLanding } from '../../action-contracts';
-import { metadataOf } from '../../core/nodes';
+import { metadataOf, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
+import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { ensureUnsharedChild } from '../unshare';
 import { trackChildIds } from '../structural-change';
@@ -110,7 +111,7 @@ export function nestListItem(
 }
 
 /** Lifts item `nestedItemIdx` of `nestedList`, a sublist of `outer`'s item `parentItemIdx`, to just
- *  after that item; what the move empties goes. `landing` gets the lifted item's index in `outer`. */
+ *  after that item, its later siblings now its own children; `landing` gets its index in `outer`. */
 export function liftNestedItem(
 	commits: ItemMoveCommits,
 	outer: MultiScopeTarget,
@@ -161,7 +162,10 @@ export function liftNestedItem(
 			// The promoted item is moved and written (marker normalization, renumbering), so copy it
 			// before it leaves the nested list.
 			const item = ensureUnsharedChild(nestedScope.node, nestedItemIdx, sharing);
-			spliceChildren(nestedScope.node, nestedItemIdx, 1, []);
+			const later = nestedScope.children.slice(nestedItemIdx + 1);
+			spliceChildren(nestedScope.node, nestedItemIdx, 1 + later.length, []);
+			const ordered = metadataOf(nestedScope.node, 'list').ordered;
+			adoptAsLastChildren(item, later, ordered, sharing, outerScope.rebuild);
 			normalizeItemMarkerToList(item, outerScope.node);
 			spliceChildren(outerScope.node, promotedAt, 0, [item]);
 
@@ -192,4 +196,38 @@ export function liftNestedItem(
 		},
 		landing: () => landing(promotedAt)
 	});
+}
+
+/** The siblings after a lifted item become its last children, so nothing reads out of order: in
+ *  its last child when that's a sublist of the same kind, else in a new one after everything. */
+function adoptAsLastChildren(
+	item: CstNode,
+	later: CstNode[],
+	ordered: boolean,
+	sharing: SharingState,
+	rebuild: (node: CstNode) => void
+): void {
+	if (later.length === 0 || !item.children) return;
+	const last = item.children.length - 1;
+	const tail = item.children[last];
+	const joins = tail?.kind === 'list' && metadataOf(tail, 'list').ordered === ordered;
+	if (joins) {
+		const list = ensureUnsharedChild(item, last, sharing);
+		const first = list.children!.length;
+		spliceChildren(list, first, 0, later);
+		for (let i = first; i < list.children!.length; i++) {
+			normalizeItemMarkerToList(ensureUnsharedChild(list, i, sharing), list);
+		}
+	} else {
+		const shell = buildListShell(ordered, later);
+		sharing.stamp(shell);
+		spliceChildren(item, item.children.length, 0, [shell]);
+	}
+	// Write, then read back (tree-operations/unshare.ts) before the writes below.
+	const at = item.children.length - 1;
+	const list = item.children[at];
+	renumberOrderedList(list, 0, sharing);
+	rebuild(list);
+	settleSublistSeparator(item.children, at);
+	rebuild(item);
 }
