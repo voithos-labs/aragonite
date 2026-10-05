@@ -72,16 +72,17 @@ export function reshapeMathSource(text: string, caret: number): MathEdit | null 
 	return ending ? onOwnLines(source.body, caret, ending) : null;
 }
 
-/** A source made legal as bytes: reshaped, its dropped closer put back, and rid of a lone fence line
- *  past the block. Lines a literal write brought under an unclosed one-liner stay their own. */
+/** A source made legal as bytes: reshaped, closed, and rid of a lone fence line past the block. A
+ *  literal write's lines stay their own blocks unless the last one is exactly `$$`. */
 export function legalMathSource(
 	text: string,
 	caret: number,
 	write: { authored: boolean; closerEnding: LineEnding }
 ): MathEdit {
+	const joined = !write.authored && broughtLines(text);
+	if (joined) return withoutStrandedFence(closedOnLineZero(text, caret));
 	const reshaped = reshapeMathSource(text, caret) ?? { text, caret };
-	const closed = withCloser(reshaped, write);
-	return withoutStrandedFence(closed);
+	return withoutStrandedFence(withCloser(reshaped, write.closerEnding));
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
@@ -110,24 +111,36 @@ function onOwnLines(body: string, caret: number, ending: LineEnding): MathEdit {
 	return { text: BLOCK_FENCE + ending + body + ending + BLOCK_FENCE, caret: caret + shift };
 }
 
-function withCloser(
-	{ text, caret }: MathEdit,
-	write: { authored: boolean; closerEnding: LineEnding }
-): MathEdit {
-	const source = readMathSource(text);
-	if (!source || source.closer) return { text, caret };
+/** Line 0 opens `$$` but isn't a whole block or a fence line, and the last line isn't the closer. */
+function broughtLines(text: string): boolean {
 	const lines = displayLines(text);
-	// The closer line goes in after every written byte, so no offset moves.
-	if (isMathFenceLine(lines[0].text)) {
-		return { text: text + write.closerEnding + BLOCK_FENCE, caret };
-	}
-	if (lines.length === 1) return { text: text + BLOCK_FENCE, caret };
-	if (write.authored) return onOwnLines(source.body, caret, lines[0].ending as LineEnding);
-	const lineEnd = lines[0].text.length;
+	const [first] = lines;
+	return (
+		lines.length > 1 &&
+		first.text.startsWith(BLOCK_FENCE) &&
+		!opensMathBlock(first.text) &&
+		!isMathFenceLine(lines[lines.length - 1].text)
+	);
+}
+
+function closedOnLineZero(text: string, caret: number): MathEdit {
+	const lineEnd = displayLines(text)[0].text.length;
 	return {
 		text: text.slice(0, lineEnd) + BLOCK_FENCE + text.slice(lineEnd),
 		caret: caret > lineEnd ? caret + BLOCK_FENCE.length : caret
 	};
+}
+
+/** An unclosed source with its closer back; the one-liner a typed line break opened up gets its
+ *  closer on a line of its own. */
+function withCloser({ text, caret }: MathEdit, closerEnding: LineEnding): MathEdit {
+	const source = readMathSource(text);
+	if (!source || source.closer) return { text, caret };
+	const lines = displayLines(text);
+	// The closer line goes in after every written byte, so no offset moves.
+	if (isMathFenceLine(lines[0].text)) return { text: text + closerEnding + BLOCK_FENCE, caret };
+	if (lines.length === 1) return { text: text + BLOCK_FENCE, caret };
+	return onOwnLines(source.body, caret, lines[0].ending as LineEnding);
 }
 
 /** Drops the fence line past the block that no later one pairs with: as text, it would open a
