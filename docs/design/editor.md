@@ -121,14 +121,14 @@ if (write.admitted && write.keepsCaret) requestCaret(write.caret); // 6, unless 
 await write; // true once the bytes are in
 ```
 
-A block's own editable element doesn't call it by hand for typing, though. The input commit and the keys a text block or cell types for you (the auto-pair's partner, a byte placed at a hidden run, a Tab) go through one call, `src/lib/components/blocks/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it does the rest:
+A block's own editable element doesn't call it by hand for typing, though. The input commit, the keys a text block or cell types for you (the auto-pair's partner, a byte placed at a hidden run, a Tab), every write the code block makes to its own text and a plugin source's commit go through one call, `src/lib/components/blocks/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it does the rest:
 
 - undo's caret is the one recorded when the key or input arrived
 - the block keeps the line ending it had, so a last line saved without one stays that way
 - the caret goes back only when `keepsCaret` says so
 - a typed write gets the kind cue and the on-type completion (a lone `$$`), and nothing else does
 
-A few writes aren't on it yet (the format toggle, Shift+Enter, the code block's own keys, a shown source's commit). They still call `updateBlockContent` themselves, and they keep the block's line ending through `withOwnEnding` from the same file.
+A few writes aren't on it yet (the format toggle and the text block's other commands, Shift+Enter, a cut inside a text block or a cell, an inline widget's shown source). They still call `updateBlockContent` themselves, and they keep the block's line ending through `withOwnEnding` from the same file.
 
 § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
 
