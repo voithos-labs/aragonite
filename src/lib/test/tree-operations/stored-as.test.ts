@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
+import { storedAsAt, storedAsIn } from '$lib/tree-operations/stored-as';
 import { readThroughItemMarker } from '$lib/tree-operations/list/task-paragraph';
 import { fixtureGrammar, fixtureReading } from '../harness/fixture-grammar';
 
@@ -29,6 +29,14 @@ describe('what a position stores', () => {
 	it('a top-level or quoted slot reads its bytes as a fragment', () => {
 		expect(kinds(storeAt('a\n', [0]).readSlot(' b\n'))).toEqual([['paragraph', ' b\n']]);
 		expect(kinds(storeAt('> a\n', [0, 0]).readSlot('# b\n'))).toEqual([['heading', '# b\n']]);
+	});
+
+	// A split's second half lands in a slot no block holds yet, past the holder's last child.
+	it('a slot past the last child stores and reads a new block there', () => {
+		const store = storedAsIn(parse('a\n'), 1, fixtureReading());
+		expect(store.surface).toBe('block');
+		expect(store.stored('**b**\n')).toBe('**b**\n');
+		expect(kinds(store.readSlot('# b\n'))).toEqual([['heading', '# b\n']]);
 	});
 
 	it('a list item’s first slot reads through its marker; a later slot as a fragment', () => {

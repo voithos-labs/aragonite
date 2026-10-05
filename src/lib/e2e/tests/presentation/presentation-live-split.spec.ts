@@ -237,6 +237,27 @@ test.describe('live mode: a reference form splits like any other link', () => {
 	});
 });
 
+// A list item's first line sits behind its bullet, so the space the reopened half starts with
+// joins the new item's bullet, as a reload reads it.
+test.describe('live mode: a cut through a construct in a list item', () => {
+	test('the new item takes the wider bullet its bytes read as', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '- **bo ld**\n');
+		await clickWordSettled(ep, page, 'ld');
+		await landAt(ep, page, 4);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceEquals('- **bo**\n-  **ld**\n');
+
+		expect(await ep.parseConverged()).toBe(true);
+		const marker = await page.evaluate(
+			() => (window as any).__test.getDocument().children[0].children[1].metadata.marker
+		);
+		expect(marker).toBe('-  ');
+		const items = ep.editorContainer.locator('.list-item-content');
+		await expect(items.nth(1).locator('strong')).toHaveText('ld', { useInnerText: true });
+	});
+});
+
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
 test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('Enter inside a bold word splits the pair open', async ({ page }) => {

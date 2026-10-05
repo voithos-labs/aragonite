@@ -8,6 +8,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // Hand-built list fixtures read as stale to the dev-mode stale-raw check, and a first half
 // that parses to several blocks is one of the split shapes under test.
@@ -62,6 +63,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(newItem.children).toHaveLength(3);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
+		expect(describeConvergence(deps.doc)).toBeNull();
 		allowSplitReadBack();
 	});
 
@@ -114,6 +116,8 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(liveItem().children!.map((c) => c.raw)).toEqual(['x\n', '    a\n', '\n']);
 		expect(itemState.innerBlockIds).toHaveLength(3);
 
+		// The new item's first block sits on its marker line, where four spaces widen the marker.
+		expect(describeConvergence(deps.doc)).toBeNull();
 		const newItem = liveList().children![1];
 		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
 		allowSplitReadBack();

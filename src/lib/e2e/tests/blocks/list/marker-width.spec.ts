@@ -74,6 +74,17 @@ test.describe('a space left at an item’s content start', () => {
 		expect(items).toBe(2);
 	});
 
+	test('Enter after the first word gives the new item the wider bullet', async ({ page }) => {
+		await editor.loadContent('- a b\n');
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('- a\n-  b\n');
+
+		expect(await editor.parseConverged()).toBe(true);
+		expect(await metadataAt(page, [0, 1])).toMatchObject({ marker: '-  ' });
+	});
+
 	test('undo gives back the loaded bytes and their reading', async ({ page }) => {
 		await editor.loadContent('- a b\n\n  c\n');
 		await editor.focusBlockAtPath([0, 0, 0], 1);
