@@ -15,6 +15,11 @@ describe('G1.61 a list move keeps the order its text reads in', () => {
 		expect(checkListMoveKeepsOrder(before, textOf('1. a\n2. b\n   1. c\n'))).toBeNull();
 	});
 
+	it('passes a merge, which joins two lines of text into one', () => {
+		const before = textOf('- a\n  - x\n- b\n  - y\n');
+		expect(checkListMoveKeepsOrder(before, textOf('- a\n  - xb\n  - y\n'))).toBeNull();
+	});
+
 	it('fails a lift that leaves a sibling above the item it followed', () => {
 		const before = textOf('- a\n  - b\n  - c\n');
 		expect(checkListMoveKeepsOrder(before, textOf('- a\n  - c\n- b\n'))?.message).toContain(
