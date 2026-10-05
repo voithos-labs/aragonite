@@ -57,10 +57,6 @@ function markerSpan(text: string, className = 'md-marker'): HTMLSpanElement {
 	return span;
 }
 
-/** An inline code span's backticks: painted inside the code chip in every editing mode, so the
- *  caret steps over them like any byte (`visibility.ts`, the `code-fence` family). */
-const codeFenceSpan = (text: string): HTMLSpanElement => markerSpan(text, 'md-code-fence');
-
 /**
  * A hard break's marker, wrapped in the element the stylesheet draws a return glyph on where the
  * marker's bytes do not show: the wrapper holds no text, so every offset and copy reads the bytes.
@@ -115,14 +111,16 @@ function renderInlineCode(
 	const contentStart = node.start + fence;
 	const contentEnd = node.end - fence;
 
-	frag.appendChild(tagConstruct(codeFenceSpan(raw.slice(node.start, contentStart)), node, opts));
+	// The backticks are their own family: the caret's own code span shows them (`visibility.ts`).
+	const backticks = (text: string) => markerSpan(text, 'md-code-fence');
+	frag.appendChild(tagConstruct(backticks(raw.slice(node.start, contentStart)), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
 	code.textContent = raw.slice(contentStart, contentEnd);
 	frag.appendChild(code);
 
-	frag.appendChild(tagConstruct(codeFenceSpan(raw.slice(contentEnd, node.end)), node, opts));
+	frag.appendChild(tagConstruct(backticks(raw.slice(contentEnd, node.end)), node, opts));
 	return frag;
 }
 

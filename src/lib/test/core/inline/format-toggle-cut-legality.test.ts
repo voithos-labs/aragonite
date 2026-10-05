@@ -59,7 +59,7 @@ describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', 
 			mode
 		});
 		expect(wrote).toBe('***em*** z');
-		expect(selected).toBe('**em**');
+		expect(selected).toBe(mode === 'live' ? 'em' : '**em**');
 		expect(activeAfter).toBe(true);
 	});
 });

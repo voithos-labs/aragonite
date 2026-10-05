@@ -67,7 +67,7 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 	});
 
 	// The selection carries the run it wrote, which is what makes the second toggle a strip rather
-	// than a second wrap.
+	// than a second wrap; live mode selects only what shows, its markers being hidden.
 	it.each(MARK_FORMATS)('leaves the run it wrote selected (%s)', (format) => {
 		const m = markersOf(format);
 		const edit = {
@@ -77,6 +77,7 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 			reading: fixtureReading({}, mode)
 		};
 		const result = toggleInlineFormat(edit, format);
-		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(`${m}word${m}`);
+		const shown = mode === 'live' ? 'word' : `${m}word${m}`;
+		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(shown);
 	});
 });

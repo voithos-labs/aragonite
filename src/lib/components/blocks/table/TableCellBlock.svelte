@@ -84,6 +84,7 @@
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
 	import { createEdgeStep, type EdgeStep } from '../text/edge-step';
+	import { seatOffsetsAt } from '../text/edge-seat';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -778,6 +779,15 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			hiddenRunAt: (caret) =>
+				!!el &&
+				seatOffsetsAt(
+					caret,
+					resolvedInlineContent(node, reading),
+					node.raw,
+					screenVisibilityOf(el),
+					grammar
+				).length > 0,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,

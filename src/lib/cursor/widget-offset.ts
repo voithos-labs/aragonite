@@ -502,6 +502,15 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 	return mode !== null && hidesDelimitersAtCaret(mode);
 }
 
+/** Where the inside of a code span opening the block begins: past its backticks, which show once
+ *  the caret is in the span, so raw 0 would type before them. 0 for any other start. */
+export function codeOpenerEnd(container: HTMLElement): number {
+	const first = container.querySelector('[data-construct-start]');
+	if (!first || markerFamilyOf(first) !== 'code-fence') return 0;
+	if (domTextOffsetAtNode(container, first, 0) !== markerPrefixLength(container)) return 0;
+	return first.textContent?.length ?? 0;
+}
+
 /** A code span's backticks the caret's own span shows (`construct-reveal.ts`). */
 const REVEALED_CODE_FENCE = `.md-code-fence.${CONSTRUCT_REVEAL_CLASS}`;
 

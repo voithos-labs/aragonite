@@ -481,17 +481,15 @@
 	color: var(--syntax-code, currentColor);
 }
 
-/* Inline code is a chip. Its backticks show, in compartments at either end, only in source mode
-   and for the code span the caret is in (`construct-reveal.ts`); the content's sides divide them.
-   Lines are inset shadows with no side padding: a selection paints only the content box. */
+/* Inline code is a chip; its backticks show at either end only in source mode and for the span the
+   caret is in (`construct-reveal.ts`). Lines are inset shadows: a selection paints no padding. */
 :where(.editor) :is(.inline-code-content, .md-code-fence) {
-	--code-edge: var(--md-inline-code-border);
 	font-family: var(--font-code, ui-monospace, monospace);
 	font-size: 0.9em;
 	background: var(--md-inline-code-bg);
 	border-radius: 4px;
 	padding: 2px 0;
-	box-shadow: inset 0 0 0 1px var(--code-edge);
+	box-shadow: inset 0 0 0 1px var(--md-inline-code-border);
 }
 
 :where(.editor) .inline-code-content {
@@ -516,17 +514,17 @@
 :where(.editor) .md-code-fence:has(+ .inline-code-content) {
 	border-radius: 4px 0 0 4px;
 	box-shadow:
-		inset 1px 0 0 var(--code-edge),
-		inset 0 1px 0 var(--code-edge),
-		inset 0 -1px 0 var(--code-edge);
+		inset 1px 0 0 var(--md-inline-code-border),
+		inset 0 1px 0 var(--md-inline-code-border),
+		inset 0 -1px 0 var(--md-inline-code-border);
 }
 
 :where(.editor) .inline-code-content + .md-code-fence {
 	border-radius: 0 4px 4px 0;
 	box-shadow:
-		inset -1px 0 0 var(--code-edge),
-		inset 0 1px 0 var(--code-edge),
-		inset 0 -1px 0 var(--code-edge);
+		inset -1px 0 0 var(--md-inline-code-border),
+		inset 0 1px 0 var(--md-inline-code-border),
+		inset 0 -1px 0 var(--md-inline-code-border);
 }
 
 :where(.editor):not([data-presentation]) .md-code-fence + .inline-code-content,

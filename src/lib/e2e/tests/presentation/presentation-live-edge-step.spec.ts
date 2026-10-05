@@ -57,6 +57,18 @@ test.describe('live mode: a construct that ends its line', () => {
 		await page.keyboard.type(')');
 		await ep.bridge.waitForSourceContains('`scheduled)`');
 	});
+});
+
+// Bold's markers stay hidden, so its line-ending edge is a stop of its own; inline code's
+// backticks show for the caret's span, and the caret steps over them like any byte.
+test.describe('live mode: a hidden-marker construct that ends its line', () => {
+	const DOC = '- [ ] possibly via **scheduled**\n\nplain';
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterPresentationMode(page, 'live', DOC);
+		await clickEnd(ep, page, 'scheduled');
+	});
 
 	test('Shift+ArrowRight never stops at a hidden edge', async ({ page }) => {
 		const start = await focusPath(ep);
@@ -66,11 +78,11 @@ test.describe('live mode: a construct that ends its line', () => {
 	});
 
 	test('the ring shows inside, and goes with the step out', async ({ page }) => {
-		await expect.poll(() => held(page)).toEqual(['code']);
+		await expect.poll(() => held(page)).toEqual(['strong']);
 		await keys(ep, page, 'ArrowRight');
 		await expect.poll(() => held(page)).toEqual([]);
 		await keys(ep, page, 'ArrowLeft');
-		await expect.poll(() => held(page)).toEqual(['code']);
+		await expect.poll(() => held(page)).toEqual(['strong']);
 	});
 });
 
