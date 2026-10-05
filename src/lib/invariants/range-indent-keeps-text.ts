@@ -1,35 +1,25 @@
 /**
- * G1.58: Tab and Shift+Tab over a range move list items and shift code lines, and remove no text.
- * The check compares every leaf's bytes, whitespace aside, across the top-level blocks the range
- * spans, so a marker renumbered or a line indented passes and a lost word does not.
+ * G1.58: an indent key over a range moves list items and shifts code lines, and removes or reorders
+ * no text. The check reads every leaf across the top-level blocks the range spans, in order.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { InvariantViolation } from '../assert';
+import { leafTexts, sameTexts } from './leaf-text';
 
-/** Each leaf's text less its whitespace, sorted, so a lifted item read in a new place still counts. */
 export function leafText(doc: DocumentView, tops: readonly [number, number]): string[] {
-	const texts: string[] = [];
-	const walk = (node: NodeView) => {
-		if (!node.children?.length) return void texts.push(node.raw.replace(/\s+/g, ''));
-		node.children.forEach(walk);
-	};
-	for (let i = tops[0]; i <= tops[1]; i++) {
-		const top = doc.children[i];
-		if (top) walk(top);
-	}
-	return texts.sort();
+	const spanned: NodeView[] = doc.children.slice(tops[0], tops[1] + 1);
+	return leafTexts(spanned);
 }
 
 export function checkIndentKeepsText(
 	before: readonly string[],
 	after: readonly string[]
 ): InvariantViolation | null {
-	const same = before.length === after.length && before.every((text, i) => text === after[i]);
-	return same
+	return sameTexts(before, after)
 		? null
 		: {
 				code: 'range-indent-keeps-text',
-				message: `an indent over a range changed the text it holds (${before.length} leaves before, ${after.length} after)`
+				message: `an indent over a range changed the text it holds, or its order (${before.length} leaves before, ${after.length} after)`
 			};
 }

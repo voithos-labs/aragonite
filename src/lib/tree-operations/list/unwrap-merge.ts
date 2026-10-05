@@ -3,33 +3,33 @@
  * before it. Both keep each block's absolute indent and the ordered-marker sequence.
  */
 
-import type { CstNode, ListMetadata } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import { firstDisplayLine, ownTrailingLineEnding, trailingLineEnding } from '../../core/lines';
+import { canInterruptParagraph } from '../../core/parsers/list';
 import { joinIntoLeaf } from '../node-ops';
-import { createSharingState, type SharingState } from '../sharing';
-import { cloneMetadata, cloneNode } from '../clone';
+import type { SharingState } from '../sharing';
+import { cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
-import { partitionItemChildren } from './item-partition';
+import { orderedBaseOf, renumberOrderedList } from './ordered-markers';
+import { itemPiecesInOrder, type ItemPiece } from './item-partition';
+import { assembleListHalf } from './list-builders';
+import { keepingListOrder } from '../../invariants/list-move-keeps-order';
 import { ensureUnsharedChild, ensureUnsharedNode } from '../unshare';
-import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
- * Unwrap a list's first item without mutating the input: the item's other children lifted out,
- * then the rest of the list with the promoted sub-list items first.
+ * Unwrap a list's first item without mutating the input: its children in the order they read, then
+ * the rest of the list, which joins the sublist items when they come last.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
-
-	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
 	const firstItem = list.children[0];
 	if (!firstItem.children || firstItem.children.length === 0) {
@@ -44,38 +44,45 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		return [clonedList];
 	}
 
-	const { promotedItems, liftedBlocks } = partitionItemChildren(firstItem.children, parentOrdered);
+	return keepingListOrder(
+		() => [list],
+		() => unwrapInOrder(list, firstItem),
+		(blocks) => blocks
+	);
+}
 
-	const restItems = list.children.slice(1).map(cloneNode);
-	const remainingItems = [...promotedItems, ...restItems];
+function unwrapInOrder(list: NodeView, firstItem: NodeView): CstNode[] {
+	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
+	const pieces = itemPiecesInOrder(firstItem.children!, parentOrdered);
+	// The list's later items join the sublist items when those come last.
+	const last = pieces.at(-1);
+	const tail: ItemPiece = last && 'items' in last ? last : { items: [], leadingTrivia: '' };
+	for (const item of list.children!.slice(1)) tail.items.push(cloneNode(item));
+	if (tail !== last && tail.items.length > 0) pieces.push(tail);
 
-	if (remainingItems.length === 0) {
-		return liftedBlocks;
+	// The list's starting number runs on across every list the unwrap leaves.
+	let number = orderedBaseOf(firstItem);
+	const blocks: CstNode[] = [];
+	for (const piece of pieces) {
+		if ('block' in piece) {
+			blocks.push(piece.block);
+			continue;
+		}
+		const half = assembleListHalf(list, piece.items, number);
+		number += piece.items.length;
+		half.leadingTrivia = lineAboveList(blocks.at(-1), half, piece.leadingTrivia);
+		blocks.push(half);
 	}
+	return blocks;
+}
 
-	remainingItems[0].leadingTrivia = '';
-
-	const remainingList: CstNode = {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: '',
-		metadata: list.metadata
-			? (cloneMetadata(list.metadata) as ListMetadata)
-			: { ordered: parentOrdered },
-		children: remainingItems,
-		childIds: assignIds(remainingItems),
-		innerPrefix: list.innerPrefix ?? '',
-		innerSuffix: list.innerSuffix ?? ''
-	};
-
-	// Preserve the original list's starting number. The items are clones no undo entry holds, so a
-	// fresh sharing state copies none of them.
-	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem), createSharingState());
-
-	rebuildListRaw(remainingList);
-
-	liftedBlocks.push(remainingList);
-	return liftedBlocks;
+/** The line above a list the unwrap leaves: the one its sublist had, or under a paragraph a blank
+ *  one when the list's first line can't interrupt the paragraph (CommonMark § 5.2). */
+function lineAboveList(above: CstNode | undefined, list: CstNode, own: string): string {
+	if (!above || own !== '' || above.kind !== 'paragraph') return above ? own : '';
+	return canInterruptParagraph(firstDisplayLine(list.raw).text)
+		? ''
+		: ownTrailingLineEnding(above.raw);
 }
 
 /** The merge target's path; null when no prose leaf is reachable. */

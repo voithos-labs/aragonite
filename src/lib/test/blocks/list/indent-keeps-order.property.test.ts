@@ -13,6 +13,7 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
 import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 beforeAll(installLayoutStubs);
 
@@ -60,8 +61,8 @@ const arbDoc = fc.record({
 	quoted: fc.boolean()
 });
 
-/** Markdown for the drawn shape, with at most one empty item, and that one nested; the order it
- *  reads in comes from the parse, not from here. */
+/** Markdown for the drawn shape, with at most one empty item: nested, holding nothing, and never
+ *  first in its list, where it can't interrupt the line above. The order comes from the parse. */
 function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): string {
 	let next = 0;
 	let emptyDrawn = false;
@@ -70,7 +71,7 @@ function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): str
 		list.items.forEach((item, i) => {
 			if (i > 0 && list.loose) lines.push('');
 			const marker = list.ordered ? `${i + 1}. ` : '- ';
-			const empty = item.empty && indent !== '' && !emptyDrawn;
+			const empty = item.empty && indent !== '' && i > 0 && !emptyDrawn && !item.sublist;
 			emptyDrawn ||= empty;
 			lines.push(`${indent}${marker}${empty ? '' : `i${next++}`}`);
 			const inner = indent + ' '.repeat(marker.length);
@@ -94,14 +95,19 @@ function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): str
 /** Every text in document order; an empty item reads as `E`, so where it moved still counts. */
 function readOrder(doc: Document): string[] {
 	const order: string[] = [];
-	const walk = (node: CstNode, parent: CstNode | null) => {
-		if (node.children) return node.children.forEach((child) => walk(child, node));
-		const tokens = node.raw.match(/[ip]\d+/g);
-		if (tokens) order.push(...tokens);
-		else if (parent?.kind === 'listItem' && node.raw.trim() === '') order.push('E');
+	const walk = (node: CstNode) => {
+		if (node.kind === 'listItem' && isEmptyItem(node)) order.push('E');
+		if (node.children) return node.children.forEach(walk);
+		order.push(...(node.raw.match(/[ip]\d+/g) ?? []));
 	};
-	doc.children.forEach((child) => walk(child as CstNode, null));
+	doc.children.forEach((child) => walk(child as CstNode));
 	return order;
+}
+
+/** An item with no text of its own, whether it parsed with an empty paragraph or none. */
+function isEmptyItem(item: CstNode): boolean {
+	const first = item.children?.[0];
+	return !first || (first.kind === 'paragraph' && first.raw.trim() === '');
 }
 
 interface Found {
@@ -109,6 +115,8 @@ interface Found {
 	offset: number;
 	/** How many list items hold it. */
 	depth: number;
+	/** Whether it opens the first item of its list. */
+	opensList: boolean;
 }
 
 /** Where `token` starts, in the paragraph that holds it. */
@@ -121,12 +129,13 @@ function find(doc: Document, token: string): Found | null {
 			node.children.forEach((child, i) => walk(child, [...path, i], depth, node));
 			return;
 		}
+		const opensList = parent?.kind === 'listItem' && path.at(-1) === 0 && path.at(-2) === 0;
 		if (token === 'E') {
 			if (parent?.kind === 'listItem' && node.raw.trim() === '') {
-				found = { path, offset: 0, depth: items };
+				found = { path, offset: 0, depth: items, opensList };
 			}
 		} else if (node.raw.match(/[ip]\d+/g)?.includes(token)) {
-			found = { path, offset: node.raw.indexOf(token), depth: items };
+			found = { path, offset: node.raw.indexOf(token), depth: items, opensList };
 		}
 	};
 	doc.children.forEach((child, i) => walk(child as CstNode, [i], 0, null));
@@ -175,8 +184,8 @@ async function press(editor: MountedEditor<Seam>, step: Press, order: string[]):
 	} else if (step.kind === 'backspace') {
 		focusToken = items[step.at % items.length];
 		anchor = focus = find(doc, focusToken);
-		// Mid-paragraph, Backspace deletes a character instead of moving an item.
-		if (anchor?.offset !== 0) return;
+		// Only at the start of a list's first item does Backspace move it: a lift, or the unwrap.
+		if (anchor?.offset !== 0 || !anchor.opensList) return;
 		key = { key: 'Backspace' };
 	} else {
 		focusToken = 'E';
@@ -205,6 +214,8 @@ describe('the keys that move list items keep the order the text reads in', () =>
 				fc.array(arbPress, { minLength: 1, maxLength: 5 }),
 				async (shape, presses) => {
 					await mounted?.destroy();
+					// What the last run's teardown warned about is not this run's.
+					takeDevWarns();
 					const editor = mountEditor<Seam>({ source: render(shape) });
 					mounted = editor;
 					const first = readOrder(editor.instance.__test.getDocument());
@@ -214,6 +225,8 @@ describe('the keys that move list items keep the order the text reads in', () =>
 						// Backspace in an empty item may delete it, which takes its `E` with it.
 						const expected = now.includes('E') ? first : first.filter((t) => t !== 'E');
 						expect(now).toEqual(expected);
+						// A move that reads back as another tree is a broken move too.
+						expect(takeDevWarns().map((w) => `${w.tag}: ${w.message}`)).toEqual([]);
 					}
 				}
 			),

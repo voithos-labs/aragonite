@@ -47,8 +47,8 @@ const PINNED: Record<string, Pin> = {
 		why: 'the commit’s own chain rebuild, and the scope’s `rebuild` it hands the mutation'
 	},
 	'src/lib/tree-operations/list/item-moves.ts': {
-		calls: { '.rebuild': 1 },
-		why: 'a Tab’s new sublist sits below the commit’s chain, which never rebuilds it, and the blank-line rule reads its bytes before the commit returns'
+		calls: { '.rebuild': 2 },
+		why: 'a Tab’s new sublist and a lifted item that took the blocks after it sit below the commit’s chain, which never rebuilds them, and the blank-line rule reads their bytes before the commit returns'
 	},
 	'src/lib/editor-actions/leaf-write.ts': {
 		calls: { rebuildUnsharedChain: 1 },
@@ -132,8 +132,8 @@ const PINNED: Record<string, Pin> = {
 		why: 'a trial item, read back once and dropped'
 	},
 	'src/lib/tree-operations/list/unwrap-merge.ts': {
-		calls: { rebuildListRaw: 3, rebuildAncestryRaw: 1 },
-		why: 'an unwrap builds new list shells, and an item merge rebuilds the target item and a sublist below the list the commit rebuilds'
+		calls: { rebuildListRaw: 2, rebuildAncestryRaw: 1 },
+		why: 'an unwrap of an empty first item rebuilds the shrunk list, and an item merge rebuilds the target item and a sublist below the list the commit rebuilds'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
 		calls: { rebuildAncestryRaw: 1 },

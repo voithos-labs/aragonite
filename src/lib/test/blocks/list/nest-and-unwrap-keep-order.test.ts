@@ -27,13 +27,21 @@ describe('Backspace at the first item of a list keeps the order its children rea
 		mounted = mountEditor({ source: '- a\n  - x\n\n  more\n- b\n' });
 		await pressKeyAt(mounted, [0, 0, 0], 0, { key: 'Backspace' });
 
-		expect(mounted.source()).toBe('a\n- x\n\nmore\n\n- b\n');
+		expect(mounted.source()).toBe('a\n- x\n\nmore\n- b\n');
 	});
 
 	it('two paragraphs of the item stay two paragraphs', async () => {
 		mounted = mountEditor({ source: '- a\n\n  more\n- b\n' });
 		await pressKeyAt(mounted, [0, 0, 0], 0, { key: 'Backspace' });
 
-		expect(mounted.source()).toBe('a\n\nmore\n\n- b\n');
+		expect(mounted.source()).toBe('a\n\nmore\n- b\n');
+	});
+
+	// An ordered list can interrupt a paragraph only when it starts at 1.
+	it('a list that starts past 1 gets a blank line under the paragraph', async () => {
+		mounted = mountEditor({ source: '3. a\n   1. x\n4. b\n' });
+		await pressKeyAt(mounted, [0, 0, 0], 0, { key: 'Backspace' });
+
+		expect(mounted.source()).toBe('a\n\n3. x\n4. b\n');
 	});
 });
