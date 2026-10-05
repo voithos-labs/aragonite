@@ -4,7 +4,7 @@ Backspace at offset 0 of a non-empty first item lifts the item's paragraph out o
 
 ## U1 unwrap
 
-- Backspace at start of non-empty first item (top-level): the item's paragraph becomes a plain paragraph before the list; matching-type nested sub-list items promote to the shrunk parent list level (renumbered for ordered lists); mismatched-type nested sub-lists become separate blocks between the lifted paragraph and the shrunk list. If removing the first item empties the list, the list is deleted. Cursor lands at offset 0 of the lifted paragraph. No auto-merge with the block above the list.
+- Backspace at start of non-empty first item (top-level): the item's paragraph becomes a plain paragraph before the list, and the rest of the item follows it in the order it read. Matching-type nested sub-list items promote to the shrunk parent list level (renumbered for ordered lists); mismatched-type nested sub-lists and any later paragraph become blocks of their own where they stood, a paragraph keeping the blank line above it so two never join. If removing the first item empties the list, the list is deleted. Cursor lands at offset 0 of the lifted paragraph. No auto-merge with the block above the list.
 
 - Backspace with the caret at raw offset 0 dispatches U1 through the rendered list marker: the `contenteditable="false"` marker span translates the DOM offset to raw 0, so a single-item list unwraps byte-exactly (`- Solo` → `Solo`) and the caret lands at the start of the lifted paragraph.
 

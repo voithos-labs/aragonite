@@ -10,7 +10,7 @@ import { devWarn } from '../dev-warn';
 import { devReplacesRegistration } from './register-once';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { eventToChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
@@ -396,6 +396,29 @@ export function commandForKey(
 			? resolveGlobalBinding(chord, overrides, ctx.activation)
 			: resolveBinding(chord, kind, overrides, ctx.activation);
 	return binding?.command ?? null;
+}
+
+/** Every chord any keymap here binds to one of `commands`, overrides and every kind's included,
+ *  read on each call so a rebinding is never missed; a disabled chord may still be in it. */
+export function chordsBoundTo(
+	commands: ReadonlySet<AnyCommandId>,
+	ctx: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): Set<string> {
+	const chords = new Set<string>();
+	const take = (binding: KeyBinding | 'disabled', chord: string) => {
+		if (binding !== 'disabled' && commands.has(binding.command)) chords.add(chord);
+	};
+	const takeEach = (bindings: readonly KeyBinding[]) => {
+		for (const binding of bindings) take(binding, binding.chord);
+	};
+	for (const kind of getAllRegisteredKinds()) takeEach(kindKeymap(kind));
+	takeEach(GLOBAL_KEYMAP);
+	takeEach(pluginGlobalBindings(ctx.activation));
+	// An override map is keyed by its normalized chord.
+	const overrides = ctx.keybindingOverrides();
+	overrides?.global.forEach(take);
+	overrides?.byKind.forEach((scoped) => scoped.forEach(take));
+	return chords;
 }
 
 /**

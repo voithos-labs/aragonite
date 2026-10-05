@@ -1,6 +1,6 @@
 /**
  * The one replace every destructive gesture over a live range goes through: Backspace, Delete, cut,
- * typing, an IME composition, paste, and Enter, Tab or Mod+digit. It removes what the range covers
+ * typing, an IME composition, paste, and Enter or Mod+digit. It removes what the range covers
  * in one commit picked by the kind of gesture and that coverage, puts the insertion where the
  * removal left the caret, and lands one caret, all as one undo entry
  * (`docs/design/editor.md` § Cross-block selection).

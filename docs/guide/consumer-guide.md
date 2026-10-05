@@ -784,6 +784,7 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Check / uncheck a task item         | `Mod+Enter`                                                                     |
 | Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                             |
 | Insert a tab in prose               | `Tab`                                                                           |
+| Indent / outdent a selection        | `Tab` / `Shift+Tab` (its list items and code lines)                             |
 | Undo                                | `Mod+Z`                                                                         |
 | Redo                                | `Mod+Y` or `Mod+Shift+Z`                                                        |
 | **Block reorder**                   |                                                                                 |

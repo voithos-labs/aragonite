@@ -1,7 +1,6 @@
 // A key over a cross-block selection must delete the range first, then run its block-level
 // behavior at the collapsed caret, not fall through to the originating block's `onKeyDown`.
-// The format toggles are the exception: they mark each block's span in place and the selection
-// survives.
+// The format toggles and Tab are the exceptions: neither deletes, and the selection survives.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { dragBetweenCells } from '../blocks/table/helpers';
@@ -94,20 +93,18 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 	});
 
-	test('Tab in a plain paragraph selection collapses cross-block and inserts a literal tab', async () => {
+	// Tab over a selection indents list items and code lines, and two paragraphs hold neither.
+	test('Tab over a plain paragraph selection deletes nothing and keeps the range', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Tab');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('\t');
+		await editor.pressDeclined('Tab');
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('\t');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
 	});
 
 	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
@@ -183,7 +180,7 @@ test.describe('a command key over a whole table, row or column', () => {
 		return editor.bridge.getSource();
 	}
 
-	for (const key of ['Enter', 'Tab', 'ControlOrMeta+2']) {
+	for (const key of ['Enter', 'ControlOrMeta+2']) {
 		for (const [coverage, select] of COVERAGES) {
 			test(`${key} over ${coverage} ends as Backspace then ${key}, one undo`, async () => {
 				const expected = await pressOver(select, ['Backspace', key]);
@@ -196,6 +193,20 @@ test.describe('a command key over a whole table, row or column', () => {
 			});
 		}
 	}
+
+	// A table holds nothing Tab indents, so Tab over it is not a delete.
+	for (const [coverage, select] of COVERAGES) {
+		test(`Tab over ${coverage} changes nothing`, async () => {
+			await editor.goto();
+			await editor.loadContent(SOURCE);
+			await select(editor);
+			await editor.waitForCrossBlock(true);
+
+			await editor.pressDeclined('Tab');
+
+			expect(await editor.bridge.getSource()).toBe(SOURCE);
+		});
+	}
 });
 
 // Miss-analysis: every range here fit on one screen, so no test saw a key that writes in place
@@ -203,10 +214,7 @@ test.describe('a command key over a whole table, row or column', () => {
 test.describe('a command key over a range longer than the screen', () => {
 	const LONG = Array.from({ length: 160 }, (_, i) => `para number ${i}`).join('\n\n') + '\n';
 	// What each key writes in place at the caret, so the check waits on the key's own write.
-	const WRITES = [
-		['Tab', 'para\t'],
-		['Shift+Enter', 'para\\']
-	] as const;
+	const WRITES = [['Shift+Enter', 'para\\']] as const;
 
 	for (const [key, written] of WRITES) {
 		test(`${key} leaves the caret's block in view`, async ({ page }) => {

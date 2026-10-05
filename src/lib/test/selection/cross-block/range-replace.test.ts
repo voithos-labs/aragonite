@@ -16,6 +16,7 @@ import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 
 type Gesture = 'Backspace' | 'cut' | 'type' | 'paste' | 'compose' | 'Enter' | 'Tab';
+type Removal = Exclude<Gesture, 'Tab'>;
 
 interface Shape {
 	source: string;
@@ -63,16 +64,15 @@ const GRID_CLEARED = '|  |  | c |\n| --- | --- | --- |\n|  |  | 3 |\n| 4 | 5 | 6
 const TABLE_CLEARED = 'lead\n\n|  |  |\n| --- | --- |\n|  |  |\n\ntail\n';
 
 // Backspace, cut and command keys remove a whole table, row or column; typing and paste replace a
-// table and clear a row's cells; a composition only clears. Tab is declined, landing as Backspace.
-const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
+// table and clear a row's cells; a composition only clears.
+const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 	'plain prose': {
 		Backspace: ['alma\n', [[0], 2]],
 		cut: ['alma\n', [[0], 2]],
 		type: ['alxma\n', [[0], 3]],
 		paste: ['alPma\n', [[0], 3]],
 		compose: ['alma\n', null],
-		Enter: ['al\n\nma\n', [[0], 2], [[1], CURSOR_EXACT_START]],
-		Tab: ['alma\n', [[0], 2]]
+		Enter: ['al\n\nma\n', [[0], 2], [[1], CURSOR_EXACT_START]]
 	},
 	'a rule held whole': {
 		Backspace: [GONE, [[0], 4]],
@@ -80,8 +80,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
 		compose: [GONE, null],
-		Enter: [GONE, [[0], 4]],
-		Tab: [GONE, [[0], 4]]
+		Enter: [GONE, [[0], 4]]
 	},
 	'a whole table': {
 		Backspace: [GONE, [[0], 4]],
@@ -89,8 +88,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
 		compose: [TABLE_CLEARED, null],
-		Enter: [GONE, [[0], 4]],
-		Tab: [GONE, [[0], 4]]
+		Enter: [GONE, [[0], 4]]
 	},
 	'a whole row': {
 		Backspace: [ROW_GONE, [[0, 1, 0], 0]],
@@ -98,8 +96,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: [rowWith('x'), [[0, 1, 0], 1]],
 		paste: [rowWith('P'), [[0, 1, 0], 1]],
 		compose: [ROW_CLEARED, null],
-		Enter: [ROW_GONE, [[0, 1, 0], 0]],
-		Tab: [ROW_GONE, [[0, 1, 0], 0]]
+		Enter: [ROW_GONE, [[0, 1, 0], 0]]
 	},
 	'a whole column': {
 		Backspace: [COLUMN_GONE, [[0, 0, 1], 0]],
@@ -107,8 +104,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: [columnWith('x'), [[0, 0, 1], 1]],
 		paste: [columnWith('P'), [[0, 0, 1], 1]],
 		compose: [COLUMN_CLEARED, null],
-		Enter: [COLUMN_GONE, [[0, 0, 1], 0]],
-		Tab: [COLUMN_GONE, [[0, 0, 1], 0]]
+		Enter: [COLUMN_GONE, [[0, 0, 1], 0]]
 	},
 	'a cell rectangle': {
 		Backspace: [GRID_CLEARED, [[0, 0, 0], 0]],
@@ -116,8 +112,7 @@ const OUTCOMES: Record<string, Record<Gesture, Outcome>> = {
 		type: [gridWith('x'), [[0, 0, 0], 1]],
 		paste: [gridWith('P'), [[0, 0, 0], 1]],
 		compose: [GRID_CLEARED, null],
-		Enter: [GRID_CLEARED, [[0, 0, 0], 0]],
-		Tab: [GRID_CLEARED, [[0, 0, 0], 0]]
+		Enter: [GRID_CLEARED, [[0, 0, 0], 0]]
 	}
 };
 
@@ -164,6 +159,19 @@ describe('a destructive gesture over a live range', () => {
 				expect(landedAt(env)).toEqual([lands, commandLands].filter(Boolean));
 			});
 		}
+	}
+});
+
+// Tab indents what a range holds, and none of these holds a list item or a code line.
+describe('Tab over a range with nothing to indent', () => {
+	for (const [shapeName, shape] of Object.entries(SHAPES)) {
+		it(`over ${shapeName}: no write, no undo entry, no landing`, async () => {
+			const env = await perform('Tab', shape);
+
+			expect(serialize(env.doc)).toBe(shape.source);
+			expect(env.deps.undoManager.getStacks().undo).toHaveLength(0);
+			expect(landedAt(env)).toEqual([]);
+		});
 	}
 });
 

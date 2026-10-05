@@ -38,8 +38,6 @@ const RULES: FileRule[] = [
 		allowed: {
 			'src/lib/tree-operations/list/list-builders.ts':
 				'a list shell, whose bytes are its items’ own, and a list item built from metadata alone',
-			'src/lib/tree-operations/list/unwrap-merge.ts':
-				'the list shell left after an unwrap, whose bytes are its items’ own',
 			'src/lib/tree-operations/list/task-paragraph.ts':
 				'a trial item, written in the container’s own spelling and dropped',
 			'src/lib/tree-operations/sub-table-copy.ts':

@@ -151,7 +151,7 @@ async function listItemCascadeMiddle(
 				deps.reading
 			);
 			mergePoint = result?.mergePoint ?? null;
-			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };
+			return result?.change ?? { op: 'noop' };
 		},
 		op: {
 			kind: 'merge',

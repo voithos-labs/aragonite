@@ -268,7 +268,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const { caretMemory, selection, scrollOwner, commands, drafts } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
 
 	const getEditor = (): EditorContext | undefined =>
@@ -416,7 +416,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
 		// met the global chords there, and running it here would fire it twice.
 		if (ownsFocus && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;
-		if (dispatchContainerChord(e, ownsFocus ? wholeBlockTarget : kindTarget, commands)) return;
+		const target = ownsFocus ? wholeBlockTarget : kindTarget;
+		const range = ownsFocus ? null : { selection, getDoc };
+		if (dispatchContainerChord(e, target, commands, range)) return;
 		if (ownsFocus) handleWholeBlockKeydown(e);
 	};
 

@@ -265,6 +265,8 @@ Three families of seam run these checks:
 | G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | —       |
 | G1.54 | A commit's mutation leaves the tree's own top-level array as it found it                   | A·N     |
 | G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
+| G1.58 | An indent key over a range keeps every word it holds, in order                             | A·N     |
+| G1.61 | A list move keeps the order its text reads in                                              | A·N     |
 
 ### The entries
 
@@ -792,6 +794,24 @@ an open defect. Predicate
 `invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 
+**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab,
+Shift+Tab or a rebound indent key over a range moves list items and shifts code lines, and nothing
+else. After each press, dev reads every leaf's text in document order, whitespace aside, across the
+top-level blocks the range spans, and compares it with what was there before the press. A renumbered
+marker or an added tab passes. A lost word fails, and so does one that now reads in a new place.
+Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
+`selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
+
+**G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
+Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
+unwrap of a list's first item and its merge of a middle item move blocks between levels, never past
+each other. Each one reads the leaf text of the list it rewrites, in order and whitespace aside,
+before and after the move, and dev warns when the two differ. A merge rewrites the two lines it
+joins (a live-mode join can drop markers), so its check reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
+run by `tree-operations/list/item-moves.ts` and `tree-operations/list/unwrap-merge.ts` ·
+`test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
+presses the moves over loose, ordered, quoted and side-by-side lists.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1121,9 +1141,10 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
 | G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
-| G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
+| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step   | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
 | G4.111 | A block's editable element writes its own text only through the surface write             | L       |
+| G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
 | G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 
@@ -2133,7 +2154,8 @@ typing, an IME composition, paste and a command key over a cross-block range all
 covers and keeps the gesture one undo entry with one caret landing. A route that called `rangeDelete`,
 `removeHeldWhole` or `commitGridLineDelete` itself, or opened its own `undoStep` under
 `selection/cross-block/`, would skip the pick, the entry or the landing, so the scan allows those
-calls in the range replace only (the range delete's own files aside). `lint/file-rules.test.ts`.
+calls in the range replace only (the range delete's own files aside). Tab and Shift+Tab remove nothing,
+so the range indent (`selection/cross-block/range-indent.ts`) opens its own step. `lint/file-rules.test.ts`.
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
@@ -2159,6 +2181,18 @@ back. A block that calls `updateBlockContent` itself has to pick its own undo ca
 that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
 it's called on, under `components/` or `selection/` outside the surface write,
 except the few commands and clipboard edits still to move, each listed by function.
+
+**G4.112 · An indent key over a range has one route.** Over a range Tab, Shift+Tab and any key bound to
+an indent command indent: every list item the range reaches into nests or lifts once, through
+`selection/cross-block/range-indent.ts :: indentRange`. Three rows hold it. The two item moves
+(`tree-operations/list/item-moves.ts :: nestListItem`, `liftNestedItem`) are called from a caret's own
+Tab in `editor-actions/list-context.ts` and from the range indent only, so a range's items can't move
+one way and a caret's another. A key resolves to a command only at a short list of declared places,
+and a container's chords go through
+`editor-actions/container-block-component.ts :: dispatchContainerChord`, which leaves a key a live
+range owns to the range; a list item running its own Tab there would move itself a second time. And a command insertion for the range replace is built
+in `selection/cross-block/keydown.ts` only, whose candidate test leaves Tab out, so no route removes a
+range for Tab. `lint/file-rules.test.ts`.
 
 **G4.113 · One reading of a math block's shape.** A `$$` source is an opener, a body and a
 closer, and the parser's line tests, the block's write rule and the painter that draws its source
