@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Every key that lifts a nested item out of its sublist keeps the document's order: the item's
-// later siblings become its own children instead of staying behind under the old parent.
+// Every key that lifts a nested item out of its sublist keeps the document's order, since the
+// item's later siblings become its own last children.
 // Miss-analysis: every lift fixture lifted the last item of its sublist, or checked the lifted
 // line with a regex, so none read the order of the items left after it.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
