@@ -45,6 +45,18 @@ const MERGES: [shape: string, source: string, at: number[], merged: string][] = 
 	]
 ];
 
+describe('a merge whose lines would read outside the list', () => {
+	// `a`'s text starts four columns in, so `more` would read as a paragraph after the list.
+	it('declines: the bytes stay and the caret moves to the end of the item above', async () => {
+		const source = '-   a\n- b\n\n  more\n';
+		mounted = mountEditor<Seam>({ source });
+		await pressKeyAt(mounted, [0, 1, 0], 0, { key: 'Backspace' });
+
+		expect(mounted.source()).toBe(source);
+		expect(mounted.instance.getSelection()?.focus).toEqual({ path: [0, 0, 0], offset: 1 });
+	});
+});
+
 describe('Backspace at a middle item rewrites only its marker line', () => {
 	for (const [shape, source, at, merged] of MERGES) {
 		it(`an item holding ${shape} leaves those lines where they stand`, async () => {
