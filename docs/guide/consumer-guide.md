@@ -464,7 +464,7 @@ events.on('error', (err) => err);
 | `'reading'`          | Rendered, no markers, no caret                                   | no       |
 | `'preview-block'`    | Rendered, except the block holding the caret shows its source    | yes      |
 | `'preview-inline'`   | Rendered, except the construct under the caret shows its markers | yes      |
-| `'live'`             | Rendered, markers hidden even under the caret (bar inline code)  | yes      |
+| `'live'`             | Rendered, markers never shown                                    | yes      |
 
 **`'source'`** is what you get by default: every Markdown marker renders, dimmed, and everything is editable.
 
@@ -487,12 +487,11 @@ events.on('error', (err) => err);
 - Where two constructs meet at one boundary (`**a***b*`) both reveal and a keystroke inserts between them. Walking left into a construct's opening markers reaches them, and `Home` lands at the first visible position, just inside.
 - A focused list item keeps its bullet or number as rendered chrome here (`preview-block` shows it as source), and escapes (`\`) and hard line breaks reveal whenever their block is focused, not by caret proximity.
 
-**`'live'`** is the rendered end that's still fully editable. Where `preview-inline` reveals the construct under the caret, live reveals next to nothing: `**bold**` renders as bold whether the caret is inside it or not, a heading with a word behind it shows no `## `, and a link shows its text with the destination out of sight. Everything a source-mode caret can do still works: typing, selection, `Enter`, `Backspace`, undo, search and replace, tables, drag handles, plugins. A few things do stay on screen, or show up for a moment:
+**`'live'`** is the rendered end that's still fully editable. Where `preview-inline` reveals the construct under the caret, live reveals nothing: `**bold**` renders as bold whether the caret is inside it or not, a heading with a word behind it shows no `## `, and a link shows its text with the destination out of sight. Everything a source-mode caret can do still works: typing, selection, `Enter`, `Backspace`, undo, search and replace, tables, drag handles, plugins. A few things do stay on screen, or show up for a moment:
 
 - A construct with no content (a bare `# `, an empty fence) keeps its markers dimmed so the block stays visible and editable, and the first character of content folds them away.
 - A keystroke that turns its block into another kind (a tab that makes a code block, `# ` that makes a heading) names the new kind at the block's corner for a moment, and a screen reader hears it once. The preview modes do the same.
 - A hard line break whose backslash or trailing spaces don't show draws a dimmed `↵` where they are.
-- A code span shows its backticks while the caret's inside it, so you can see which side of them you're typing on.
 
 Three things behave differently from what the screen might suggest:
 

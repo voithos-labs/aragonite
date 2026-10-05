@@ -2,7 +2,7 @@
 
 A loaded-ops session that drives live mode's own editing rules through the
 gesture layer. Live is the only mode that hides every content-backed marker
-without revealing it (a code span's backticks aside), so each rule rewrites bytes the user cannot see. That
+without revealing it, so each rule rewrites bytes the user cannot see. That
 makes the source the only thing that can check them, and makes a silent
 divergence invisible on screen by construction. Every gesture enters live
 through the header toggle (a real click), drives one rule with real keys, and

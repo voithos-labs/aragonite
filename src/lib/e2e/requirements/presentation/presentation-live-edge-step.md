@@ -4,16 +4,15 @@ Live mode hides a construct's markers, so the caret right after `bold` in `**bol
 two raw offsets: inside the closing `**` and past it. Typing picks one by how the caret arrived
 (`presentation-live-typing-affinity.md`). A plain ArrowLeft or ArrowRight at such an edge moves
 that pick one boundary per press before it moves the caret (`edge-step.ts`), and the construct
-the next byte would join wears a faint ring (`md-edge-held`). A code span is the one construct
-that shows its markers at the caret, so in prose the arrow steps over its backticks like any
-other byte; a table cell keeps them hidden, so there the edge step does the work. Driven on
+the next byte would join wears a faint ring (`md-edge-held`). A code span's backticks are
+hidden markers like any other, in prose and in table cells. Driven on
 `/test/editor` via `?presentationMode=live` with real clicks and keys; each scenario checks the
 source, and the ring by its class.
 
 ## Happy paths
 
 - a code span ending a task item: a click at its end then `)` types inside; one ArrowRight
-  steps over the closing backtick, and `)` lands past it in the same block
+  moves past the hidden closing backtick, and `)` lands past it in the same block
 - a second ArrowRight leaves the block, landing at the next block's start
 - ArrowLeft after that ArrowRight steps back inside: the byte lands before the backtick again
 - the same holds mid-line: one ArrowRight types past the closer, the second moves the caret past

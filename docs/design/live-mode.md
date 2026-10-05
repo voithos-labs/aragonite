@@ -1,6 +1,6 @@
 # Live Mode
 
-`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and the caret walking into a construct doesn't bring them back (that's preview-inline's trick), with one exception: a code span shows its backticks while the caret's inside it. The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § 4), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
+`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and nothing brings one back, not even the caret walking into the construct (that's preview-inline's trick). The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § 4), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
 
 A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and those numbers never move. Jump by section:
 
@@ -132,7 +132,7 @@ A byte typed where a marker run sits is placed by the edge resolver (`components
   - `**bold**` ending a line: one ArrowRight and the next byte lands past the `**`, still on that line, and the second press moves on to the next block. `***both***` takes a press per run, since inside both, inside the emphasis alone and outside are three typing offsets.
   - Shift extends a range, and Ctrl, Alt and Meta jump a word or the whole line, so none of them stops here. A `never-extend` construct offers only its outside, so a link costs no extra press.
   - Both offsets sit on one pixel, so the side shows another way: each construct the next byte would join wears `md-edge-held`, a faint ring (`--md-edge-held-ring`).
-  - A code span shows its backticks while the caret's inside it, so in prose its edge isn't hidden and the arrow just steps over the backtick. A table cell doesn't show them, so there the edge step does the work.
+  - A code span's backticks stay hidden like every other marker, in prose and in table cells, so its edge takes the same extra press and wears the same ring.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
 - An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and the marks captured at `compositionstart` (`composition-seat.ts`).
 - A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` handler every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer.
