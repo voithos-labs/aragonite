@@ -9,6 +9,7 @@ import type { InlineNode } from '../nodes';
 import { renderInlineNodes, type RenderInlineOptions } from '../inline-render';
 import { widgetSourceRange } from './inline-widgets';
 import { type PresentationMode } from '../../presentation-mode';
+import { recordScreenRead } from '../../perf/instruments';
 
 // ── The families ─────────────────────────────────────────────────────────────
 
@@ -22,10 +23,11 @@ const FAMILY_CLASS: Record<MarkerFamily, string> = {
 	'ref-label': 'md-ref-label'
 };
 
+/** Every family's class, so a scan of the source names each family the day it is added. */
+export const MARKER_FAMILY_CLASSES: readonly string[] = Object.values(FAMILY_CLASS);
+
 /** Every family at once, for a caller reading spans back out of a rendered fragment. */
-export const MARKER_FAMILY_SELECTOR = Object.values(FAMILY_CLASS)
-	.map((cls) => `.${cls}`)
-	.join(', ');
+export const MARKER_FAMILY_SELECTOR = MARKER_FAMILY_CLASSES.map((cls) => `.${cls}`).join(', ');
 
 /**
  * Whether `el` is a container's leading marker prefix (`> `, `- `): the read-only marker span a
@@ -45,6 +47,19 @@ export function markerFamilyOf(el: Element): MarkerFamily | null {
 	if (classes.contains(FAMILY_CLASS['fence-line'])) return 'fence-line';
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
 	return null;
+}
+
+/** The spans `mode` shows for the constructs at the caret (`construct-reveal.ts`), as one
+ *  selector, or null where the caret shows none: only preview-inline reveals by the caret. */
+export function caretShownSelector(mode: PresentationMode): string | null {
+	return mode === 'preview-inline' ? MARKER_FAMILY_SELECTOR : null;
+}
+
+/** How preview-inline shows a `family` span in the focused block: with the focus, by the reveal
+ *  class alone, or by the class where its construct is tagged and with the focus where not (a cell). */
+export function previewInlineReveal(family: MarkerFamily): 'focus' | 'class' | 'tag' {
+	if (family === 'fence-line') return 'focus';
+	return family === 'ref-label' ? 'class' : 'tag';
 }
 
 /** Whether the content-empty override in `styles/editor.css` shows `family`. A reference label
@@ -120,6 +135,7 @@ export function visibleRuns(
 	ctx: VisibilityContext,
 	opts: RenderInlineOptions
 ): VisibleRun[] {
+	recordScreenRead();
 	const runs: VisibleRun[] = [];
 	for (const node of nodes) {
 		collectRuns(renderInlineNodes([node], raw, opts), node.start, ctx, runs);

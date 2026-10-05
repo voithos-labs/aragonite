@@ -49,6 +49,9 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		await g.liveEdgeBackspace(PROSE, 'cell division');
 		await assertCheckpoint(ctx, 'after-edge-backspace');
 
+		await g.liveEdgeStep(PROSE, 'cell division', '**');
+		await assertCheckpoint(ctx, 'after-edge-step');
+
 		await g.liveDemoteHeading(HEADING);
 		await assertCheckpoint(ctx, 'after-demote');
 

@@ -125,6 +125,8 @@ Each entry carries its reason in the file, and the order is the contract (G4.12)
 
 If no candidate passes, it declines and the browser's own placement stands, which is the honest fallback, since that's where the byte was going anyway.
 
+The arrows get a say too. Where the position offers more than one typing offset, a plain ArrowLeft or ArrowRight moves that choice instead of the caret (`src/lib/components/blocks/text/edge-step.ts`, asked before the arrow gets to move the caret, a table cell's move to the next cell included). The caret memory records the exact offset it picked, and the resolver tries that one first.
+
 ## 7. Leaving the block
 
 `src/lib/cursor/sticky-column.ts` :: `classifyStickyKey`. The caret leaves the block with an Up or Down arrow. Within one block the browser remembers your column across vertical moves; across blocks it doesn't (each block is its own contenteditable), so the editor does. The rule is decided from the key alone:

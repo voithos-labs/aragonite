@@ -128,6 +128,11 @@ A byte typed where a marker run sits is placed by the edge resolver (`components
 - A `never-extend` kind (link, autolink, image, escape, hard break) places the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
 - A `symmetric-pair` kind follows how the caret arrived (the caret memory in `cursor/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
 - A caret placed at an end rather than stepped there (Home, End, a range across blocks collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it, since the caret took no step. A selection inside one block collapsed by an arrow is a step, and records that arrow's side.
+- Crossing a hidden edge takes an arrow press of its own (`components/blocks/text/edge-step.ts`). Where the caret's spot offers more than one offset a byte could land at, a plain ArrowLeft or ArrowRight moves the typing offset one boundary that way and leaves the caret where it is. Only once there's no boundary left that way does the press move the caret. It's the two-press boundary Notion and Slack give inline code, applied to every symmetric pair.
+  - `**bold**` ending a line: one ArrowRight and the next byte lands past the `**`, still on that line, and the second press moves on to the next block. `***both***` takes a press per run, since inside both, inside the emphasis alone and outside are three typing offsets.
+  - Shift extends a range, and Ctrl, Alt and Meta jump a word or the whole line, so none of them stops here. A `never-extend` construct offers only its outside, so a link costs no extra press.
+  - Both offsets sit on one pixel, so the side shows another way: each construct the next byte would join wears `md-edge-held`, a faint ring (`--md-edge-held-ring`).
+  - A code span's backticks stay hidden like every other marker, in prose and in table cells, so its edge takes the same extra press and wears the same ring.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
 - An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and the marks captured at `compositionstart` (`composition-seat.ts`).
 - A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` handler every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer.
@@ -148,6 +153,10 @@ resolveEdgeSeat(11, inlines, 'far', raw, live, 'X', reading); // { offset: 13, k
 resolveEdgeSeat(11, inlines, 'near', raw, live, 'X', reading); // null: inside, which is where native typing lands anyway
 resolveEdgeSeat(11, inlines, null, raw, live, 'X', reading); // null: nothing on record, so the near side wins
 
+// at `bold|` arrived from inside, a plain ArrowRight moves the typing offset, not the caret
+edgeStep(11, inlines, 'near', raw, live, reading, 'forward'); // 13: the byte now lands past the `**`
+edgeStep(11, inlines, { offset: 13 }, raw, live, reading, 'forward'); // null: nothing further, the caret moves
+
 // a link never extends, whatever the arrival
 const link = 'see [here](https://x.example) now';
 resolveEdgeSeat(9, parseInline(link, 0, link.length), 'near', link, live, 'X', reading); // { offset: 29, kind: 'link' }
@@ -155,10 +164,11 @@ resolveEdgeSeat(9, parseInline(link, 0, link.length), 'near', link, live, 'X', r
 
 What the resolver chooses from is the caret's screen position, not one construct's run. A hidden run's hidden neighbours name the same position, so a byte the construct's own edge would break can still land at the boundary of the run beside it. The candidates are tried in order, and a later one is asked only when the painter refuses the ones before it:
 
-1. the side the kind's policy names,
-2. the same run's other end,
-3. the byte-literal write,
-4. the neighbouring boundaries nearest the policy's side.
+1. the offset an arrow press chose, while the position still holds it,
+2. the side the kind's policy names,
+3. the same run's other end,
+4. the byte-literal write,
+5. the neighbouring boundaries nearest the policy's side.
 
 The byte-literal write is verified like every other candidate rather than ending the list, so a parse it rebinds is no reason to stop looking. Where it holds, native typing already lands it and the resolver stands down (that's the `null` above). The resolver never picks an offset inside a run's own bytes, and a `never-extend` construct admits none inside its own bytes at all, whichever run of the position would have offered it. A byte lands inside a run only through the fallback, when the caret was already handed an offset there and nothing else survives.
 

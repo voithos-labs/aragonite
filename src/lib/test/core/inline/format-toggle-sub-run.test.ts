@@ -22,7 +22,7 @@ describe.each(MODES)('a selection cutting into its own delimiter run (%s)', (mod
 		const { active, wrote, selected, activeAfter } = at('**bold**', 1, 7, 'emphasis', mode);
 		expect(active).toBe(false);
 		expect(wrote).toBe('***bold***');
-		expect(selected).toBe('**bold**');
+		expect(selected).toBe(mode === 'live' ? 'bold' : '**bold**');
 		expect(activeAfter).toBe(true);
 	});
 

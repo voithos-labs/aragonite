@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
+import { CURSOR_END, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import {
 	displayLength,
@@ -297,7 +297,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				},
 				// The primitive's index, not `i + 1`: a first half that parses to several blocks
 				// pushes the second half further down.
-				landing: () => (split ? scope.at(split.secondHalfIndex, [], CURSOR_EXACT_START) : null),
+				landing: () => (split ? scope.at(split.secondHalfIndex, [], split.landingOffset) : null),
 				// A single-line block (a title row) splits to nothing, so discard rather than
 				// push a dead undo entry on a rebound Enter.
 				discardIfNoop: true

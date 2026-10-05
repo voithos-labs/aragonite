@@ -5,7 +5,7 @@
 // over a grid beside Backspace's.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { CURSOR_EXACT_START } from '$lib/block-component';
+import { CURSOR_START } from '$lib/block-component';
 import { cellPoint, type SelectionEndpoint } from '$lib/selection/primitives';
 import { registerPasteTransform } from '$lib/tree-operations/paste/paste-transforms';
 import { makeTableStateAt, stubBlockComponent } from '../../harness/editor-actions';
@@ -72,7 +72,7 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		type: ['alxma\n', [[0], 3]],
 		paste: ['alPma\n', [[0], 3]],
 		compose: ['alma\n', null],
-		Enter: ['al\n\nma\n', [[0], 2], [[1], CURSOR_EXACT_START]]
+		Enter: ['al\n\nma\n', [[0], 2], [[1], CURSOR_START]]
 	},
 	'a rule held whole': {
 		Backspace: [GONE, [[0], 4]],

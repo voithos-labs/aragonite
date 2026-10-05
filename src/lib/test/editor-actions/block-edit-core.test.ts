@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CstNode } from '$lib/core/nodes';
-import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
@@ -36,7 +36,8 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(children[1].raw).toBe('hello\n');
 		expect(commits[0].op.kind).toBe('split');
 		expect(commits[0].op.detail).toEqual({ at: 0 });
-		expect(content.calls).toEqual([CURSOR_EXACT_START]);
+		// The split reopened nothing, so the caret lands as any structural landing does.
+		expect(content.calls).toEqual([CURSOR_START]);
 	});
 
 	// Miss-analysis (GH #98): the one split caret test had a first half that parsed to one block.
@@ -50,7 +51,7 @@ describe('block-edit core: shared structural decisions', () => {
 		});
 		await createBlockEditCore(scope).split(0, 7);
 		expect(children.map((c) => c.raw)).toEqual(['    a\n', '\n', '    b\n']);
-		expect(secondHalf.calls).toEqual([CURSOR_EXACT_START]);
+		expect(secondHalf.calls).toEqual([CURSOR_START]);
 		expect(firstHalfTail.calls).toEqual([]);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});

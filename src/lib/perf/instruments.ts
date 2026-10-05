@@ -27,6 +27,8 @@ export interface PerfSnapshot {
 	inlineComputeCount: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
+	/** Renders of inline content read back for what the screen shows: what a hidden edge costs. */
+	screenReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -63,6 +65,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseBytes: 0,
 		inlineComputeCount: 0,
 		formatCoverageReads: 0,
+		screenReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -152,6 +155,11 @@ export function recordInlineCompute(): void {
 export function recordFormatCoverageRead(): void {
 	if (!enabled) return;
 	counters.formatCoverageReads++;
+}
+
+export function recordScreenRead(): void {
+	if (!enabled) return;
+	counters.screenReads++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

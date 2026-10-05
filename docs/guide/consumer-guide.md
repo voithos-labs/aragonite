@@ -502,9 +502,10 @@ Three things behave differently from what the screen might suggest:
 <details>
 <summary>How live mode edits behind markers you can't see</summary>
 
-Hiding every marker means one screen position can mean two raw offsets wherever a construct's delimiters sit. Live answers that with five rules, each applied in one place so it holds for every gesture:
+Hiding every marker means one screen position can mean two raw offsets wherever a construct's delimiters sit. Live answers that with six rules, each applied in one place so it holds for every gesture:
 
 - **A character typed at a hidden edge follows how the caret got there.** Arriving from outside a construct types outside it; walking into it types inside. A construct that never grows at its edges (a link) always takes the outside. A delimiter you type closes itself (`*`, `**`, `` ` ``, `~~`, and a plugin's `$`), typing the closer over its twin steps past it, and the next character after a closer you typed lands outside the construct.
+- **An arrow crosses a hidden edge in a press of its own.** At the end of `**bold**`, the first `→` moves where the next character goes, from inside the bold to past it, and the second moves the caret. A faint ring (`--md-edge-held-ring`) marks the construct the next character would join, since the caret itself doesn't move. Shift, Ctrl, Alt and Cmd arrows skip the stop, and a link, which always takes the outside, costs no extra press.
 - **A caret placed at an extreme lands outside.** `Home`, `End`, and collapsing a selection put the caret past the delimiters, not between them. Placing a caret isn't a step, so the direction of the key that placed it doesn't decide the side.
 - **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one stranded delimiter in each half, and a split link carries its destination into both halves. Where no balanced rewrite shows what the screen showed (a code span whose reopened backticks would collide with its own, say), the split falls back to a plain byte cut.
 - **A join cleans up after itself.** `Backspace`, `Delete`, a range delete, typing over a selection, and a paste all go through the same code: a delimiter run the cut orphaned goes with the cut instead of appearing on screen, and a closer meeting an opener around nothing is dropped. Every candidate cleanup is checked against what the two sides showed, and the byte-literal join stands when it can't be.
@@ -740,6 +741,8 @@ The editor supplies these host-family surfaces itself, in both modes, because a 
 **Every `--color-*` token has a light and a dark default** (the base block is dark, `data-editor-theme='light'` overrides it), so a read resolves in either mode. The font and radius tokens are the exceptions: mode-independent, declared once.
 
 **`--color-selection` is a base three tints derive from.** The selection overlay, the search-match tint, and the block-reorder highlight are translucent tints of it at fixed alphas, so naming the one base moves all three and keeps their relative weights. Declaring an individual tint at `.editor` still wins over the derivation, if you want one of them somewhere else.
+
+**Inline code** reads three editor-owned tokens, overridden at `.editor` like the rest: `--syntax-code` _(the code text, which defaults to the text around it)_, `--md-inline-code-bg` _(the chip's fill)_ and `--md-inline-code-border` _(its outline, transparent until you give it a color)_. The fill and the outline each have a light and a dark default.
 
 **The radii are partial by design.** The two tokens cover the corners a host theme has an opinion about: its controls and its elevated surfaces. Editor chrome whose corner is neither (a hairline focus ring, a scrollbar thumb, an inline-code pill) keeps a literal value, so declaring the tokens rounds what you'd expect a theme to round and leaves the rest alone.
 

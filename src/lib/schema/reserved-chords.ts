@@ -187,6 +187,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
 	},
 	{
+		file: 'cursor/edge-affinity.ts',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'],
+		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a hidden construct edge, so the modifier reads there are a refusal.'
+	},
+	{
 		file: 'cursor/caret-memory.ts',
 		chords: [],
 		keys: [],

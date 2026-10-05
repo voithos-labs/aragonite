@@ -186,6 +186,9 @@ export interface EditableSurfaceDeps {
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
 	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
+	/** A surface that hides inline markers crosses each hidden edge in a press of its own
+	 *  (`text/edge-step.ts`); absent where no inline construct renders. */
+	stepEdge?: SharedKeydownContext['stepEdge'];
 
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
@@ -291,6 +294,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
+		stepEdge: deps.stepEdge,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,

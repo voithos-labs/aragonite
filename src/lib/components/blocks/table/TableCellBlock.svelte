@@ -49,7 +49,7 @@
 	} from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
-	import { handleSharedKeydown } from '../../../selection/shared-keydown';
+	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
@@ -85,6 +85,7 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
+	import { createEdgeStep } from '../text/edge-step';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -190,6 +191,16 @@
 		getEl: () => el ?? null
 	});
 
+	const edgeStep = createEdgeStep({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		isReading: () => readOnly,
+		reading,
+		caretMemory
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -206,6 +217,7 @@
 		ownPairs,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
+		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		handleKeydown: onKeyDown,
@@ -538,6 +550,7 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
+			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -621,6 +634,10 @@
 			afterSourceCommit
 		};
 		if (wiring.dispatchChord(e, target)) return;
+
+		// Ahead of the plan, which reads an arrow at the cell's edge as a move to the next cell:
+		// a construct closing the cell has a hidden edge to cross first.
+		if (handleEdgeStep(e, sharedCtx)) return;
 
 		const plan = cellKeydownPlan(e, cellPlanState(caretBeforeKey));
 
@@ -753,6 +770,7 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			hiddenRunAt: edgeStep.hiddenRunAt,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
@@ -1011,6 +1029,7 @@
 
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
+		edgeStep.sync();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -1020,6 +1039,9 @@
 			widgetInteraction.commitRevealOnBlur();
 		}
 		tableContext.notifyCellBlurred();
+		// The ring follows focus too: a click out of the window keeps the selection but fires no
+		// `selectionchange`.
+		edgeStep.sync();
 	}
 </script>
 
@@ -1034,6 +1056,7 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
+	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

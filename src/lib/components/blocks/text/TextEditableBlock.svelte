@@ -47,6 +47,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createEdgeStep } from './edge-step';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -213,6 +214,18 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
+	const edgeStep = createEdgeStep({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		isReading: () => readOnly,
+		reading,
+		caretMemory
+	});
+	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
+	let caretHasEntered = false;
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -229,6 +242,7 @@
 		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
+		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		inputPrelude: () => {
@@ -671,7 +685,11 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			if (!composing) constructReveal.update(true);
+			// Both read the selection, which forces a layout: never in a block the caret has not
+			// been in, since a fling mounts many.
+			if (composing || !caretHasEntered) return;
+			constructReveal.update(true);
+			edgeStep.refresh();
 		});
 		markKeystrokeSettle();
 	});
@@ -725,6 +743,7 @@
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
+			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -878,6 +897,7 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			hiddenRunAt: edgeStep.hiddenRunAt,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
@@ -944,6 +964,19 @@
 		armSnapTarget(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();
+		syncCaretChrome();
+	}
+
+	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
+	 *  window keeps the selection but fires no `selectionchange`. */
+	function syncCaretChrome(): void {
+		constructReveal.update();
+		edgeStep.sync();
+	}
+
+	function onFocus(): void {
+		caretHasEntered = true;
+		syncCaretChrome();
 	}
 
 	function demoteEmptyHeadingOnBlur(): void {
@@ -1038,6 +1071,7 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
+	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
@@ -1045,6 +1079,7 @@
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}
+	onfocus={onFocus}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
@@ -1096,14 +1131,6 @@
 		opacity: var(--syntax-marker-dim, 0.65);
 		font-weight: normal;
 		font-style: normal;
-	}
-
-	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-code, ui-monospace, monospace);
-		font-size: 0.9em;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border-radius: 3px;
-		padding: 1px 4px;
 	}
 
 	.text-editable-block :global(.md-autolink) {

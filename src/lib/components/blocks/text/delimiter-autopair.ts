@@ -168,6 +168,8 @@ export interface AutoPairSurface {
 	setCaret(offset: number): void;
 	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
 	seatOutside(): void;
+	/** Whether a marker run the screen paints nothing for touches `caret`. */
+	hiddenRunAt(caret: number): boolean;
 	/** One CST write plus the caret it leaves behind; the block picks the undo caret. */
 	write(text: string, caretAfter: number): void;
 	/** Whether a step-over leaves the line one an on-type completer takes (`$$`); only a content
@@ -214,7 +216,9 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
-			if (edit.overConstruct && surface.reading.hidesDelimitersAtCaret()) surface.seatOutside();
+			// A hidden closer shares the caret's pixel, so only the arrival side moves; a shown one is
+			// passed like any byte.
+			if (edit.overConstruct && surface.hiddenRunAt(caret)) surface.seatOutside();
 			else if (surface.completesLine?.(edit.caret)) surface.write(text, edit.caret);
 			else surface.setCaret(edit.caret);
 			return true;

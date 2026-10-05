@@ -5,6 +5,7 @@
  * rule under the same G-number. The scan is `file-rule.ts`.
  */
 
+import { MARKER_FAMILY_CLASSES } from '$lib/core/inline/visibility';
 import { collectEditorSources, type SourceFile } from './scan-source';
 import {
 	describeFileRules,
@@ -133,23 +134,36 @@ const CLASSIFICATION_HOMES: Record<string, string> = {
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
  *  or content-empty attributes, a marker class tested by selector, or a call to the rule itself. */
-const CLASSIFICATION_RE =
-	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)|(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(/;
+const HIDING_SELECTORS = [
+	...MARKER_FAMILY_CLASSES,
+	'md-construct-reveal',
+	'data-construct-',
+	'data-presentation',
+	'data-focused',
+	'data-content-empty'
+];
+const QUOTE = '[\'"`]';
+const CLASSIFICATION_RE = new RegExp(
+	[
+		String.raw`(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*` +
+			`${QUOTE}[^'"\`]*(?:${HIDING_SELECTORS.join('|')})`,
+		String.raw`(?:get|has)Attribute\s*\(\s*` +
+			`${QUOTE}data-(?:presentation|construct-|focused|content-empty)`,
+		String.raw`(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(`
+	].join('|')
+);
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
-		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer'
+		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
+	'src/lib/components/blocks/text/edge-step.ts':
+		'reads the construct tags only to find the content element a typed byte would join; whether markers hide is `revealsNoMarkers`, asked of the home'
 };
 
-const MARKER_CLASSES = [
-	'md-marker',
-	'md-fence-line',
-	'md-ref-label',
-	'md-construct-reveal',
-	'directive-marker'
-];
+// Read off the families themselves, so a new one is scanned the day it is added.
+const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/cursor/widget-offset.ts': 'the classification home',
@@ -213,8 +227,6 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',
 	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
-	'src/lib/cursor/widget-offset.ts':
-		'identifies the marker-prefix widget, whose contenteditable="false" marker is no family of the rule',
 	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
@@ -547,7 +559,7 @@ const MANIFESTS: ManifestRule[] = [
 	{
 		id: 'G4.33 every file naming an inline marker family is declared with what it does with it',
 		population: (file) => !file.relPath.endsWith('.svelte'),
-		matches: /['"][^'"]*md-(marker|ref-label)/,
+		matches: new RegExp(`${QUOTE}[^'"\`]*(?:${MARKER_FAMILY_CLASSES.join('|')})`),
 		declared: MARKER_FAMILY_NAMERS,
 		reason:
 			'a file started naming marker classes: route the drop question through `visibility.ts`, or declare what it does instead',

@@ -37,6 +37,7 @@ function surfaceOver(
 		foldReveal: () => null,
 		setCaret: (offset) => recorded.carets.push(offset),
 		seatOutside: () => recorded.outside++,
+		hiddenRunAt: () => false,
 		write: (next, after) => recorded.writes.push([next, after]),
 		keepsKind,
 		reading: fixtureReading(),

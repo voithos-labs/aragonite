@@ -17,6 +17,7 @@ import {
 	familyPaintsAlone,
 	isMarkerPrefixSpan,
 	markerFamilyOf,
+	previewInlineReveal,
 	screenVisibility,
 	type MarkerFamily,
 	type VisibilityContext
@@ -710,11 +711,11 @@ function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
-	// preview-inline's reveal rule is scoped to `.md-marker`, so a reference label reveals by
-	// class alone; fence lines are whole-block markers and reveal with block focus.
-	if (el.classList.contains('md-fence-line')) return false;
-	if (el.classList.contains('md-ref-label')) return !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
-	return el.hasAttribute('data-construct-start') && !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	const revealed = el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	const reveal = previewInlineReveal(family);
+	if (reveal === 'focus') return false;
+	if (reveal === 'class') return !revealed;
+	return el.hasAttribute('data-construct-start') && !revealed;
 }
 
 function snapOutOfRun(
