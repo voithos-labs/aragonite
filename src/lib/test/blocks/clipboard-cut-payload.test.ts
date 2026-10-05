@@ -15,6 +15,9 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { dispatchKey } from '$lib/test/harness/settle';
 import { newestEntryCaret } from '../support/undo-entry';
+import { definePluginBlock, registerBlockOpener } from '$lib/plugin';
+import { testLeaf } from '$lib/test/harness/test-kinds';
+import PlainLeafBlock from '../plugins/fixtures/PlainLeafBlock.svelte';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
@@ -64,8 +67,6 @@ interface CutRoute {
 	name: string;
 	source: string;
 	mode?: 'source' | 'live';
-	/** The selection sits in a source shown over a widget, which the cut hides before it deletes. */
-	shownSource?: true;
 	/** Puts the selection and returns the element the events go to. */
 	select(editor: Editor): Promise<HTMLElement>;
 	payload: string;
@@ -95,7 +96,6 @@ const ROUTES: CutRoute[] = [
 		name: 'a range inside a shown inline source in a paragraph',
 		source: '$x$ b\n',
 		mode: 'live',
-		shownSource: true,
 		async select(editor) {
 			editor.instance.__test.getBlockComponent([0])?.enterEdgeWidget?.('start');
 			await editor.settle();
@@ -123,7 +123,6 @@ const ROUTES: CutRoute[] = [
 	{
 		name: 'a range inside a shown inline source in a table cell',
 		source: '| h |\n| --- |\n| a $x$ |\n',
-		shownSource: true,
 		async select(editor) {
 			const el = cell(editor, 1);
 			placeCaret(el, 5);
@@ -224,6 +223,8 @@ async function mountRoute(route: CutRoute): Promise<{ editor: Editor; target: HT
 	return { editor, target: await route.select(editor) };
 }
 
+// On the shown-source rows, `left` also pins that the delete takes the range the user selected,
+// not the caret the hide leaves.
 describe('a cut writes the copy’s payload during its event, then deletes it', () => {
 	for (const route of ROUTES) {
 		it(route.name, async () => {
@@ -240,22 +241,27 @@ describe('a cut writes the copy’s payload during its event, then deletes it', 
 	}
 });
 
-// The hide commits the shown source and places its own caret; the delete must not read that one.
-describe('a cut over a shown source deletes the range the user selected', () => {
-	for (const route of ROUTES.filter((r) => r.shownSource)) {
-		it(route.name, async () => {
-			const { editor, target } = await mountRoute(route);
-
-			dispatchClipboard(target, 'cut');
-			await editor.settle();
-
-			expect(route.after(editor)).toBe(route.left);
+/** A plain-mode editable leaf whose block is one `@@ ` line; it commits each edit as it lands. */
+const plainLeaf = definePluginBlock({
+	name: 'cut-plain-leaf',
+	kind: 'cut-plain-leaf',
+	component: PlainLeafBlock,
+	register: () => {
+		const kind = testLeaf('cut-plain-leaf');
+		registerBlockOpener(kind, {
+			priority: 25,
+			interruptsParagraph: false,
+			tryOpen: (ctx) =>
+				ctx.line.text.startsWith('@@ ')
+					? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
+					: null
 		});
 	}
 });
 
 // A menu's Cut fires no key, so the caret the last key recorded must not stand in for the cut's.
-describe('a cut’s undo caret is where its range starts, after a key at another caret', () => {
+// A selected widget is the exception below: its caret sat outside the text.
+describe('a range cut’s undo caret is the range start, after a key at another caret', () => {
 	const IN_BLOCK: {
 		name: string;
 		source: string;
@@ -277,11 +283,18 @@ describe('a cut’s undo caret is where its range starts, after a key at another
 			surface: (e) => surfaceAt(e, [0]),
 			path: [0],
 			at: 5
+		},
+		{
+			name: 'a plain plugin leaf',
+			source: '@@ abcd\n',
+			surface: (e) => surfaceAt(e, [0]),
+			path: [0],
+			at: 3
 		}
 	];
 	for (const { name, source, surface, path, at } of IN_BLOCK) {
 		it(name, async () => {
-			const editor: Editor = mountEditor({ source });
+			const editor: Editor = mountEditor({ source, plugins: [plainLeaf] });
 			await editor.settle();
 			const el = surface(editor);
 			placeCaret(el, at + 2);
@@ -294,4 +307,24 @@ describe('a cut’s undo caret is where its range starts, after a key at another
 			expect(newestEntryCaret(editor)).toEqual({ path, offset: at });
 		});
 	}
+});
+
+describe('a selected widget’s cut puts undo’s caret where it was before the widget was selected', () => {
+	it('an image, at the editor root', async () => {
+		const editor: Editor = mountEditor({ source: '![a](x.png) b\n' });
+		await editor.settle();
+		surfaceAt(editor, [0]).focus();
+		editorRoot(editor).dispatchEvent(
+			new CustomEvent('image-widget-select', {
+				detail: { paragraphPath: [0], sourceStart: 0, preSelectOffset: 11 }
+			})
+		);
+		await editor.settle();
+
+		dispatchClipboard(editorRoot(editor), 'cut');
+		await editor.settle();
+
+		expect(editor.source()).toBe(' b\n');
+		expect(newestEntryCaret(editor)).toEqual({ path: [0], offset: 11 });
+	});
 });

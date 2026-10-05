@@ -730,8 +730,8 @@
 		void crossBlock.handlePointerDown(e);
 	}
 
-	// Copy is verbatim; where the fence lines are hidden the delete clamps, so the clipboard keeps
-	// the fence characters selected while only the body half is removed.
+	// Copy writes what the browser shows, which leaves out hidden fence lines; the removal clamps to
+	// the body there, so a cut takes what its copy wrote.
 	function copySelection(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		const range = el ? backend.getRawSelection() : null;
 		if (!range) return null;
