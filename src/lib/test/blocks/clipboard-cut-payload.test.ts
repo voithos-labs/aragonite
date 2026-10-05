@@ -14,6 +14,7 @@ import {
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
 import { dispatchKey } from '$lib/test/harness/settle';
+import { newestEntryCaret } from '../support/undo-entry';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
@@ -233,7 +234,7 @@ describe('a cut writes the copy’s payload during its event, then deletes it', 
 			await editor.settle();
 
 			expect(copied).toBe(route.payload);
-			expect(cut, 'the cut’s payload was not on the event when its dispatch returned').toBe(copied);
+			expect(cut, 'the cut’s payload as its dispatch returned is not the copy’s').toBe(copied);
 			expect(route.after(editor)).toBe(route.left);
 		});
 	}
@@ -249,6 +250,48 @@ describe('a cut over a shown source deletes the range the user selected', () => 
 			await editor.settle();
 
 			expect(route.after(editor)).toBe(route.left);
+		});
+	}
+});
+
+// A menu's Cut fires no key, so the caret the last key recorded must not stand in for the cut's.
+describe('a cut’s undo caret is where its range starts, after a key at another caret', () => {
+	const IN_BLOCK: {
+		name: string;
+		source: string;
+		surface: (editor: Editor) => HTMLElement;
+		path: number[];
+		at: number;
+	}[] = [
+		{ name: 'a paragraph', source: 'abcd\n', surface: (e) => surfaceAt(e, [0]), path: [0], at: 1 },
+		{
+			name: 'a table cell',
+			source: '| h |\n| --- |\n| abcd |\n',
+			surface: (e) => cell(e, 1),
+			path: [0, 1, 0],
+			at: 1
+		},
+		{
+			name: 'a code block',
+			source: '```\nabcd\n```\n',
+			surface: (e) => surfaceAt(e, [0]),
+			path: [0],
+			at: 5
+		}
+	];
+	for (const { name, source, surface, path, at } of IN_BLOCK) {
+		it(name, async () => {
+			const editor: Editor = mountEditor({ source });
+			await editor.settle();
+			const el = surface(editor);
+			placeCaret(el, at + 2);
+			dispatchKey(el, { key: 'Shift' });
+			selectRange(el, at, at + 2);
+
+			dispatchClipboard(el, 'cut');
+			await editor.settle();
+
+			expect(newestEntryCaret(editor)).toEqual({ path, offset: at });
 		});
 	}
 });
