@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
@@ -130,5 +131,71 @@ test.describe('selection: overlay: edge cases', () => {
 		await expect(
 			editor.page.locator("[data-block-path='[1]'] [data-block-path] .selection-overlay")
 		).toHaveCount(0);
+	});
+});
+
+interface Box {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+}
+
+/** Every painted selection rect on the page, in viewport pixels. */
+async function paintedRects(page: Page): Promise<Box[]> {
+	return page.locator('.selection-overlay').evaluateAll((els) =>
+		els.map((el) => {
+			const r = el.getBoundingClientRect();
+			return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+		})
+	);
+}
+
+/** Pairs of painted rects that share pixels, where the wash would show twice as dark. */
+function doubledPaint(rects: Box[]): [Box, Box][] {
+	const pairs: [Box, Box][] = [];
+	for (let i = 0; i < rects.length; i++) {
+		for (let j = i + 1; j < rects.length; j++) {
+			const a = rects[i];
+			const b = rects[j];
+			const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+			const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+			if (w > 0.5 && h > 0.5) pairs.push([a, b]);
+		}
+	}
+	return pairs;
+}
+
+test.describe('selection: overlay: one paint per block', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	// [1] a paragraph, [2] a list of four items.
+	const PROBE = 'intro\n\nAgreed work\n- alpha\n- beta\n- gamma\n- delta\n\nLoose ends\n';
+
+	test('a range from a block’s start to a block’s end boxes both ends, nothing twice', async ({
+		page
+	}) => {
+		await editor.loadContent(PROBE);
+		await editor.focusBlockStart(1);
+		await editor.shiftClickBlock([2, 3, 0], 5);
+		await editor.waitForCrossBlock(true);
+		expect(await editor.bridge.getSelectionPaths()).toEqual({
+			anchor: { path: [1], offset: 0 },
+			focus: { path: [2, 3, 0], offset: 5 }
+		});
+
+		await expect(page.locator("[data-block-path='[1]'] > .selection-overlay-middle")).toHaveCount(
+			1
+		);
+		await expect(page.locator("[data-block-path='[2]'] > .selection-overlay-middle")).toHaveCount(
+			1
+		);
+		await expect(page.locator("[data-block-path='[2]'] .selection-overlay")).toHaveCount(1);
+		expect(doubledPaint(await paintedRects(page))).toEqual([]);
 	});
 });

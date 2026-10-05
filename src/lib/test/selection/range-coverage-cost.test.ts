@@ -68,9 +68,11 @@ function counted(run: () => void): number {
 	return calls.count;
 }
 
-function coverageOf(items: number): { doc: Document; coverage: RangeCoverage } {
+/** The same list selected from one character into the first item to one character into the last,
+ *  so every item between is its own covered root and the list itself isn't covered. */
+function midTextCoverageOf(items: number): RangeCoverage {
 	const { doc, start, end } = wholeListSelection(items);
-	return { doc, coverage: rangeCoverage(doc, coverRange(doc, start, end)) };
+	return rangeCoverage(doc, coverRange(doc, { ...start, offset: 1 }, { ...end, offset: 1 }));
 }
 
 describe('a range over a long list costs in proportion to what it covers', () => {
@@ -122,10 +124,11 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 		expect(cost(large)).toBeLessThanOrEqual(GROWTH_CEILING * cost(small));
 	});
 
-	// Each mounted block's overlay asks both once per paint.
+	// Miss-analysis: the row's range covered the whole list, one covered root at any size, so a
+	// lookup scanning every root (each mounted overlay asks once per paint) cost the same at N and 4N.
 	it('places a block in the range without reading every covered root', () => {
-		const small = coverageOf(N).coverage;
-		const large = coverageOf(4 * N).coverage;
+		const small = midTextCoverageOf(N);
+		const large = midTextCoverageOf(4 * N);
 		const cost = (coverage: RangeCoverage, items: number) => {
 			const item = [0, items - 2];
 			return counted(() => {
@@ -134,7 +137,8 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 			});
 		};
 
-		expect(classifyBlockForSelection([0, N - 2], small)).toBe('middle');
+		expect(small.coveredWhole).toHaveLength(N - 2);
+		expect(classifyBlockForSelection([0, N - 2], small)).toBe('whole');
 		expect(blockPaintsWholeBox([0, N - 2], small, null)).toBe(true);
 		expect(cost(large, 4 * N)).toBeLessThanOrEqual(cost(small, N) + 2);
 	});

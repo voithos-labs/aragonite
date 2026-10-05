@@ -840,8 +840,9 @@ jsdom. `textcontent-spine.property.test.ts`.
 
 **G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly
 one subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's block, and the
-overlay's class for every block is the one that coverage gives it. `walkBetween` visits the blocks
-in order. `selection-partition.property.test.ts`.
+overlay's class for every block is the one that coverage gives it: a subtree the range covers end
+to end paints one box, an endpoint's block included, and nothing under a box paints.
+`walkBetween` visits the blocks in order. `selection-partition.property.test.ts`.
 
 **G2.8 · Structural alignment.** Split and merge round-trip, and the id, ref and children arrays
 stay aligned, in all scopes. `structural-id-ref-alignment.test.ts`.
@@ -1124,6 +1125,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
 | G4.111 | A block's editable element writes its own text only through the surface write             | L       |
 | G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
+| G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 
 ### The entries
 
@@ -2165,6 +2167,18 @@ one-line `$$x^2$$` with a line break in it is where copies disagree: the screen,
 reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$`
 anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `indexOf`,
 `lastIndexOf`, `includes` or equality against the fence, or a regex spelling it `\$\$`.
+
+**G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one
+box, paints its selected text, or paints nothing is decided by
+`src/lib/selection/primitives.ts` :: `classifyBlockForSelection` (and `blockPaintsWholeBox`, which
+asks it), from the one coverage. A painter that read the coverage itself would keep its own idea
+of which block the range covers whole, and the end blocks would paint one shape while the blocks
+between paint another. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or
+an end table's cell run anywhere outside `src/lib/selection/`: a call to `rootHolding` or
+`coveredRootHolding`, a dotted read of `wholeRoots`, `coveredWhole`, `startEdge`, `endEdge`,
+`startCells` or `endCells`, or an object pattern naming one of those fields, whether it's
+destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
+(`coverage['wholeRoots']`) gets past it.
 
 ## Accessibility
 

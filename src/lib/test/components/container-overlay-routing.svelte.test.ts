@@ -89,10 +89,11 @@ describe('a container the range holds whole paints one box', () => {
 
 // Miss-analysis: every case above mounts through BlockHost, never a container without one.
 describe('a list item the range holds whole paints its own box', () => {
-	/** Items 0 and 3 hold the endpoints, so items 1 and 2 are the ones held whole. */
+	/** Items 0 and 3 hold the endpoints, each covered only in part, so items 1 and 2 are the ones
+	 *  held whole. */
 	function rangeAcrossFourItems() {
 		const selection = createSelectionState();
-		selection.enterCrossBlock({ path: [1, 0, 0], offset: 1 }, { path: [1, 3, 0], offset: 1 });
+		selection.enterCrossBlock({ path: [1, 0, 0], offset: 1 }, { path: [1, 3, 0], offset: 0 });
 		return selection;
 	}
 
