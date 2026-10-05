@@ -1,10 +1,10 @@
 # Feature: Tab and Shift+Tab over a selection
 
-Over a selection that spans blocks, Tab and Shift+Tab are indentation keys. Every list item the
-selection reaches into nests one level (Tab) or lifts one level (Shift+Tab), the code lines it
-covers get a tab added or taken off, and prose and tables stay exactly as they are. Nothing is ever
-deleted. The selection stays put afterwards, so you can keep pressing, and each press is one undo
-entry.
+Over a selection that spans blocks, Tab and Shift+Tab are indentation keys, and so is any key a
+consumer binds to an indent command. Every list item the selection reaches into nests one level
+(Tab) or lifts one level (Shift+Tab), the code lines it covers indent or dedent, and prose and
+tables stay exactly as they are. Nothing is ever deleted. The selection stays put afterwards, so
+you can keep pressing, and each press is one undo entry.
 
 An item that can't move stays where it is while the rest still move: the first item of a list has
 nothing above it to nest under, and a top-level item has nowhere to lift to (it doesn't turn into a
@@ -27,6 +27,11 @@ keys that do delete.
     selection inside a nested list moved only the item holding the caret
 
 ## Edge cases
+
+- with the list indent rebound to Ctrl+] (the `keybindings` prop), Ctrl+] over two sibling items
+  nests both, exactly like Tab, and the selection stays
+  - Miss-analysis: every test here pressed the literal Tab, while each block reads a key by its
+    binding, so nothing saw a rebound key move only the item holding the caret
 
 - Tab over a selection from the middle of a code block down into the paragraph below adds a tab to
   each code line the selection covers, and the paragraph is left alone

@@ -8,11 +8,17 @@ How Shift+Tab promotes a nested list item to the parent list level, including ma
 - Shift+Tab on a top-level item does nothing
 - The promoted item is inserted after the parent item in the parent list
 - The items after it in its sublist come along as its own children, after any it already had,
-  so the document still reads in the same order: `- alpha` / `  - beta` / `  - gamma`, Shift+Tab
-  on `beta`, gives `- alpha` / `- beta` / `  - gamma`. Enter in an empty nested item and
-  Backspace at the start of a sublist lift an item the same way
+  so nothing reads in a new place: `- alpha` / `  - beta` / `  - gamma`, Shift+Tab on `beta`,
+  gives `- alpha` / `- beta` / `  - gamma`
   - Miss-analysis: every promote fixture lifted the last item of its sublist or checked the lifted
     line with a regex, so nothing read the order of the items after it, which ended up above it.
+- Backspace at the start of `beta` lifts it the same way, and so does Enter in an empty nested
+  item, which carries the items below it
+- In live mode, Shift+Tab on `beta` in a loose nested list (a blank line between the items) keeps
+  the order too: `gamma` comes along, even though the parser gives each loose item a sublist of
+  its own, so it sits after `beta`'s sublist rather than in it
+  - Miss-analysis: every lift fixture was a tight list, where the later items share the lifted
+    item's sublist, so no test lifted an item whose later sibling lived in a sublist of its own.
 - If the nested list becomes empty after promotion, it is removed, and so is the parent item if
   that list was all it held (`- - a`, Shift+Tab on `a`, gives `- a`, the caret at its start)
   - Miss-analysis: every promote fixture gave the parent item a line of text above its sublist,

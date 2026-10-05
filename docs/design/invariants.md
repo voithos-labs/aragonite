@@ -265,7 +265,8 @@ Three families of seam run these checks:
 | G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | —       |
 | G1.54 | A commit's mutation leaves the tree's own top-level array as it found it                   | A·N     |
 | G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
-| G1.58 | Tab over a range keeps every word it holds                                                 | A·N     |
+| G1.58 | An indent key over a range keeps every word it holds, in order                             | A·N     |
+| G1.61 | A list move keeps the order its text reads in                                              | A·N     |
 
 ### The entries
 
@@ -793,12 +794,22 @@ an open defect. Predicate
 `invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 
-**G1.58 · Tab over a range keeps every word** (`range-indent-keeps-text`). Tab and Shift+Tab over a range
-move list items and shift code lines, and nothing else. After each press, dev compares every leaf's
-text, whitespace aside, across the top-level blocks the range spans, against what was there before
-the press. A renumbered marker or an added tab passes, and so does an item read in a new place; a lost
-word doesn't. Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
+**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab,
+Shift+Tab or a rebound indent key over a range moves list items and shifts code lines, and nothing
+else. After each press, dev reads every leaf's text in document order, whitespace aside, across the
+top-level blocks the range spans, and compares it with what was there before the press. A renumbered
+marker or an added tab passes. A lost word fails, and so does one that now reads in a new place.
+Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
 `selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
+
+**G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
+Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab) and Backspace's
+unwrap of a list's first item move blocks between levels, never past each other. Each one reads the
+leaf text of the list it rewrites, in order and whitespace aside, before and after the move, and dev
+warns when the two differ. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
+run by `tree-operations/list/item-moves.ts` and `tree-operations/list/unwrap-merge.ts` ·
+`test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
+presses the moves over loose, ordered, quoted and side-by-side lists.
 
 ## Group 2: property and regression tested
 
@@ -1130,7 +1141,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
 | G4.108 | Only the range replace removes a range; only it and the range indent open its undo step   | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
-| G4.112 | Tab over a range reaches list items through one route and never removes the range         | L       |
+| G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
 
 ### The entries
 
@@ -2153,15 +2164,17 @@ container's `raw`. Built with an empty `raw`, its first rebuild respells every l
 under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
 genuinely new containers, each with its reason.
 
-**G4.112 · Tab over a range has one route.** Over a range Tab and Shift+Tab indent: every list item it
-reaches into nests or lifts once, through `selection/cross-block/range-indent.ts :: indentRange`. Three
-rows hold it. The two item moves (`tree-operations/list/item-moves.ts :: nestListItem`,
-`liftNestedItem`) are called from a caret's own Tab in `editor-actions/list-context.ts` and from the
-range indent only, so a range's items can't move one way and a caret's another. A container resolves
-its own chords through `editor-actions/container-block-component.ts :: dispatchContainerChord` only,
-which leaves a key a live range owns to the range; a list item that ran its own Tab there moved itself
-a second time. And a command insertion for the range replace is built in `selection/cross-block/keydown.ts`
-only, whose candidate test leaves Tab out, so no route removes a range for Tab. `lint/file-rules.test.ts`.
+**G4.112 · An indent key over a range has one route.** Over a range Tab, Shift+Tab and any key bound to
+an indent command indent: every list item the range reaches into nests or lifts once, through
+`selection/cross-block/range-indent.ts :: indentRange`. Three rows hold it. The two item moves
+(`tree-operations/list/item-moves.ts :: nestListItem`, `liftNestedItem`) are called from a caret's own
+Tab in `editor-actions/list-context.ts` and from the range indent only, so a range's items can't move
+one way and a caret's another. A key resolves to a command only at a short list of declared places,
+and a container's chords go through
+`editor-actions/container-block-component.ts :: dispatchContainerChord`, which leaves a key a live
+range owns to the range; a list item running its own Tab there would move itself a second time. And a command insertion for the range replace is built
+in `selection/cross-block/keydown.ts` only, whose candidate test leaves Tab out, so no route removes a
+range for Tab. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

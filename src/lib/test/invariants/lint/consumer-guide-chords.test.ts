@@ -155,6 +155,11 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	// The typed closer the row's prose names is no chord, so only Enter resolves here.
 	'Leave a code block': { kind: 'fencedCode', commands: ['code.newline'] },
 	'Insert a tab in prose': { kind: 'paragraph', commands: ['block.insertTab'] },
+	// Over a selection each block answers by its own binding; a list item's is the row's target.
+	'Indent / outdent a selection': {
+		kind: 'listItem',
+		commands: ['list.indent', 'list.unindent']
+	},
 	Undo: { kind: 'paragraph', commands: ['history.undo'] },
 	Redo: { kind: 'paragraph', commands: ['history.redo'] },
 	'Move block up / down': { kind: 'paragraph', commands: ['block.moveUp', 'block.moveDown'] },
