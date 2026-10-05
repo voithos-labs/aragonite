@@ -8,7 +8,6 @@ import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
-import type { SelectedWidgetHandle } from '../primitives';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
@@ -55,12 +54,6 @@ export interface CrossBlockDispatchContext {
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
-
-	/** An image selected whole, which a shift-press grows its range from. */
-	selectedWidget: SelectedWidgetHandle;
-
-	/** Svelte's `tick()`, awaited after mutations so the DOM has updated. */
-	afterReactivity: () => Promise<void>;
 }
 
 /** What the block handling a press knows about it that the shared pointer handler cannot read. */

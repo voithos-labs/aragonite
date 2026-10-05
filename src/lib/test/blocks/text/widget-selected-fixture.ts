@@ -4,7 +4,7 @@ import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
 } from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
@@ -27,8 +27,8 @@ export function harness(
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
 	const carets: (number | null)[] = [];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
-	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	const selection = createSelectionState();
+	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');
@@ -52,7 +52,7 @@ export function harness(
 		getEl: () => null,
 		getEditorContentWidth: () => 800,
 		cursor: new Proxy({}, { get: trap }),
-		widgetSelection,
+		selection,
 		blockEdit,
 		// A selected widget's key names its own undo caret, so the recorded one is never read.
 		writeText: createSurfaceWrite({
@@ -75,5 +75,5 @@ export function harness(
 		...extra
 	} as unknown as WidgetInteractionDeps;
 
-	return { interaction: createWidgetInteraction(deps), commits, carets, widgetSelection };
+	return { interaction: createWidgetInteraction(deps), commits, carets, selection };
 }

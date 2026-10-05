@@ -17,7 +17,7 @@ import {
 	createTextClipboard,
 	type TextClipboardDeps
 } from '$lib/components/blocks/text/text-clipboard';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -109,8 +109,8 @@ function clipboardEvent(text: string) {
 function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 	const { deps: actions } = makeEditorActionsDeps(source, { reading: LIVE });
 	const blockEdit = makeStubBlockEdit();
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
-	widgetSelection.select({ paragraphPath: [0], sourceStart: start, preSelectOffset: start });
+	const selection = createSelectionState();
+	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: start, preSelectOffset: start });
 	const deps = {
 		get node() {
 			return actions.doc.children[0] as CstNode;
@@ -118,14 +118,13 @@ function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 		index: 0,
 		myPath: [0],
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		selection: { isCrossBlock: false, anchor: null, focus: null },
+		selection,
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),
 		blockEdit,
 		pasteCoordinator: createPasteCoordinator(actions, createUndoController(actions)),
 		activePlugins: everyInstalledPlugin,
 		getDoc: () => actions.doc,
-		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => false,
 		foldRevealBeforeMutation: () => null,

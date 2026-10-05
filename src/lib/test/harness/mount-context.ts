@@ -19,7 +19,6 @@ import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/
 import type { Document } from '$lib/core/nodes';
 import type { DocumentView } from '$lib/core/node-views';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { createDraftRegistry } from '$lib/components/draft-registry';
@@ -75,9 +74,6 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],
-		// Real: every keydown on an editable block asks it what is selected.
-		widgetSelection: createWidgetSelectionState(selection),
-		selectedWidget: { range: () => null, clear: () => {} },
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
 		linkCard: createLinkCardState({

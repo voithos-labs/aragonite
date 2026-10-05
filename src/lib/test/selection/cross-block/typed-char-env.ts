@@ -50,7 +50,6 @@ export function makeHandlers(
 		getBlockElByPath: () => null,
 		caretLanding: env.deps.caretLanding,
 		getEditorRoot: () => null,
-		selectedWidget: { range: () => null, clear: () => {} },
 		getScrollHost: () => null,
 		scrollOwner: { place: () => ({ scroll: async () => true }) },
 		getEditorLifetime: () => null,
@@ -62,8 +61,7 @@ export function makeHandlers(
 		commands: commandContext({ isCrossBlockRange: () => env.selectionState.isCrossBlock }),
 		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
-		events: env.events,
-		afterReactivity: async () => {}
+		events: env.events
 	});
 }
 

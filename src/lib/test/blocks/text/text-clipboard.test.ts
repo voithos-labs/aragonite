@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The clipboard branches of `createTextClipboard` for a selected inline widget (an image, a
 // `<br>`): copy writes the widget's own raw slice, cut and paste replace it as one undoable write.
-// Driven with a real parse and the real widget-selection state, never a branch on kind.
+// Driven with a real parse and the real selection state, never a branch on kind.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
@@ -10,7 +10,7 @@ import {
 	createTextClipboard,
 	type TextClipboardDeps
 } from '$lib/components/blocks/text/text-clipboard';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
@@ -48,9 +48,9 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	const doc = parse(source);
 	const node: CstNode = doc.children[0];
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
+	const selection = createSelectionState();
 	if (options.selectWidget !== false) {
-		widgetSelection.select({
+		selectWidgetWhole(selection, {
 			paragraphPath: [0],
 			sourceStart,
 			preSelectOffset: options.preSelectOffset ?? sourceStart
@@ -77,7 +77,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		selection: { isCrossBlock: false, anchor: null, focus: null },
+		selection,
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		caretMemory: stubCaretMemory(),
 		blockEdit: {
@@ -88,10 +88,10 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		pasteCoordinator: trap,
 		getDoc: () => doc,
 		activePlugins: everyInstalledPlugin,
-		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
+		isRevealing: () => false,
 		grammar: defaultGrammarView,
 		get reading() {
 			return fixtureReading();
@@ -99,17 +99,17 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		storedAs: () => topLevelStore(node)
 	} as unknown as TextClipboardDeps;
 
-	return { handlers: createTextClipboard(deps), commits, widgetSelection };
+	return { handlers: createTextClipboard(deps), commits, selection };
 }
 
 describe('createTextClipboard: selected-widget copy', () => {
 	it('copies the widget raw slice and leaves the document and selection untouched', () => {
-		const { handlers, commits, widgetSelection } = harness('lead![cat](x)\n', 4);
+		const { handlers, commits, selection } = harness('lead![cat](x)\n', 4);
 		const e = capturingEvent();
 		handlers.onCopy(e as never);
 		expect(e.payload()).toBe('![cat](x)');
 		expect(commits).toEqual([]);
-		expect(widgetSelection.getSelected()).not.toBeNull();
+		expect(selection.widget).not.toBeNull();
 	});
 
 	it('copies a widget at offset 0', () => {
@@ -125,17 +125,26 @@ describe('createTextClipboard: selected-widget copy', () => {
 		handlers.onCopy(e as never);
 		expect(e.payload()).toBe('<br>');
 	});
+
+	// Miss-analysis: every copy case held its widget at the top level, so the lookup skipping a
+	// link's children never met the image a link wraps, which the keys find and select.
+	it('copies an image nested in a link', () => {
+		const { handlers } = harness('a [![cat](x)](y)\n', 3);
+		const e = capturingEvent();
+		handlers.onCopy(e as never);
+		expect(e.payload()).toBe('![cat](x)');
+	});
 });
 
 describe('createTextClipboard: selected-widget cut', () => {
 	it('copies the slice, splices it out as one commit, and clears the selection', async () => {
-		const { handlers, commits, widgetSelection } = harness('lead![cat](x)\n', 4);
+		const { handlers, commits, selection } = harness('lead![cat](x)\n', 4);
 		const e = capturingEvent();
 		await handlers.onCut(e as never);
 		expect(e.payload()).toBe('![cat](x)');
 		expect(commits).toHaveLength(1);
 		expect(commits[0]).toEqual({ index: 0, raw: 'lead\n', before: 4, after: 4 });
-		expect(widgetSelection.getSelected()).toBeNull();
+		expect(selection.widget).toBeNull();
 	});
 
 	it('cuts a widget at offset 0', async () => {
@@ -223,8 +232,8 @@ function foldSettleHarness() {
 	const doc = parse('lead![cat](x)\n');
 	const node: CstNode = doc.children[0];
 	const order: string[] = [];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
-	widgetSelection.select({ paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
+	const selection = createSelectionState();
+	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
 
 	let releaseWrite!: () => void;
 	const writeGate = new Promise<void>((resolve) => {
@@ -242,14 +251,13 @@ function foldSettleHarness() {
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		selection: { isCrossBlock: false, anchor: null, focus: null },
+		selection,
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),
 		blockEdit: { updateBlockContent: recordingWrite(() => order.push('seam-commit')) },
 		pasteCoordinator: {},
 		getDoc: () => doc,
 		activePlugins: everyInstalledPlugin,
-		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => false,
 		foldRevealBeforeMutation: () => ({

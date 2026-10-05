@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createEditorRootClipboard } from '$lib/components/editor-root-clipboard';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { registerEditor, __resetActiveEditorForTests } from '$lib/active-editor';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
@@ -17,8 +18,8 @@ interface HarnessOptions {
 	/** What the cross-block handling answers; false stands in for a selection that
 	 *  collapsed while a host import was still running. */
 	crossBlockClaims?: boolean;
-	/** Stands in for the block owning a selected inline widget. */
-	widgetBlock?: BlockComponent | null;
+	/** Stands in for the block owning an inline widget, selected whole in block 0. */
+	widgetBlock?: BlockComponent;
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -28,6 +29,9 @@ function harness(options: HarnessOptions = {}) {
 	registerEditor(root);
 
 	const selection = createSelectionState();
+	if (options.widgetBlock) {
+		selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+	}
 	const doc = parse('hello\n\nworld\n');
 	const pasted: (string | undefined)[] = [];
 	const deleted = vi.fn(async () => {});
@@ -53,7 +57,7 @@ function harness(options: HarnessOptions = {}) {
 		crossBlock,
 		onPasteImage: options.onPasteImage,
 		events,
-		getSelectedWidgetBlock: () => options.widgetBlock ?? null
+		getBlockComponent: (path) => (path[0] === 0 ? (options.widgetBlock ?? null) : null)
 	});
 
 	function fire(
@@ -202,17 +206,6 @@ describe('editor-root clipboard routing', () => {
 			h.fire('copy', document.body, { prevented: true });
 
 			expect(seen).toEqual([]);
-		});
-
-		// The editor never shows both states at once, so the widget is the final answer. The block
-		// here writes nothing, so any write is the range's.
-		it('never falls through to the cross-block branch, even with a range live', () => {
-			const { block, seen } = widgetBlock();
-			const h = harness({ widgetBlock: block });
-			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-
-			expect(h.fire('copy', document.body).written.size).toBe(0);
-			expect(seen).toEqual(['copy']);
 		});
 	});
 

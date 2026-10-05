@@ -64,7 +64,7 @@ The probe, for the curious:
 
 `src/lib/selection/caret-doors.ts` :: `placeCaret`. Every caret the editor places (as opposed to the browser) goes through one of two verbs:
 
-- `focus` ends whatever the editor had selected (a live range, a gap caret, an image selected whole), then places the caret. It also announces where it put it, so a `selectionChange` subscriber hears the arrival before anything can be typed there (`editor.md` § 12).
+- `focus` ends whatever the editor had selected (a live range, a gap caret, a widget selected whole), then places the caret. It also announces where it put it, so a `selectionChange` subscriber hears the arrival before anything can be typed there (`editor.md` § 12).
 - `parkCaret` only places. It's reserved for the selection-extend paths, where the range has to stay live while an endpoint moves, and its callers are an allowlist.
 
 Most edits' carets come through here too. The commit hands its position to `src/lib/selection/caret-landing.ts`, which mounts the block, calls its `focus`, and scrolls it into view if it's off screen (a few routes still place their own, listed in `editor.md` § 11). A stored selection (undo, `setSelection`, a collapsing range) comes back through the same file's `restore`, at its exact bytes rather than through `focus`, and the moving end of a Shift+Arrow range through its `park`.
@@ -74,7 +74,7 @@ Below the verbs:
 - The placement itself is `src/lib/components/blocks/editable-surface.ts` :: `parkCaret`. It focuses the element without scrolling the page, runs the block's own landing rule if it has one (a code block keeps a caret arriving from outside off its fence lines), and resolves the `CURSOR_START` and `CURSOR_END` codes.
 - Then `src/lib/cursor/widget-offset.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit.
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `caret-doors.ts`, which ends what the editor had selected the way `focus` does.
-- The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an image selected whole. Each ends the others the way `focus` does, and a scan (G4.94) fails any other file that writes either.
+- The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a scan (G4.94) fails any other file that writes either.
 - A guard (G4.36) fails any native selection write outside `widget-offset.ts`, apart from a declared few files that select nodes they already hold. So a third way in fails a test rather than a user.
 
 ## 4. The snap
@@ -95,7 +95,7 @@ For the second, `src/lib/cursor/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` 
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second click of a double-click is a word selection, `src/lib/selection/multi-click.ts`, not a caret). The third click of a run belongs to the block's own selection, or to the widget when the editor already holds it selected whole; a source the first click showed is hidden there like any other, and the range the third click painted comes back over the rebuilt block.
 
-The same click also moves a caret that landed inside the container's marker prefix (the `- ` in front of a list item) back into the content. And while an image is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`editor.md` § 10).
+The same click also moves a caret that landed inside the container's marker prefix (the `- ` in front of a list item) back into the content. And while a widget is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`editor.md` § 10).
 
 That's the caret placed. Now the keyboard.
 

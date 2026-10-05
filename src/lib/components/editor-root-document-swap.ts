@@ -17,7 +17,6 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
 import type { EditorEvents } from '../editor-events';
-import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
 import type { DraftRegistry } from './draft-registry';
 import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
@@ -64,7 +63,6 @@ export interface DocumentSwapDeps {
 	/** Every open menu acts on a block or bytes of the outgoing document. Closed before the
 	 *  blocks unmount, which a menu may react to. */
 	menus: Pick<MenuPresence, 'closeAll'>;
-	widgetSelection: Pick<WidgetSelectionState, 'clear'>;
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
 	adoptLinkReferences(resolver: LinkReferenceResolver, signature: string): void;
@@ -108,7 +106,6 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		deps.undoManager.clear();
 		deps.caretMemory.forget();
 		deps.menus.closeAll('document-swap');
-		deps.widgetSelection.clear();
 		// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
 		// would keep the outgoing document's selection. Batched, so a real range emits once.
 		deps.selection.batch(() => {

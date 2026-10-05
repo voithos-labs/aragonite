@@ -169,6 +169,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift locks the aspect ratio during a pointer drag.'
 	},
 	{
+		file: 'components/image/image-press.ts',
+		chords: [],
+		keys: [],
+		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
+	},
+	{
 		file: 'components/image/image-widget-editing.ts',
 		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowLeft', 'ArrowRight'],
@@ -179,12 +185,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [],
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
-	},
-	{
-		file: 'components/image/widget-selection-state.svelte.ts',
-		chords: [],
-		keys: [],
-		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
 	},
 	{
 		file: 'cursor/caret-memory.ts',

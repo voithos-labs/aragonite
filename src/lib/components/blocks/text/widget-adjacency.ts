@@ -1,13 +1,17 @@
 /**
- * Pure adjacency queries over a prose block's inline content and raw source: which
- * live widget a caret offset touches, the leading/trailing edge widgets, and whether
- * an offset has only whitespace to one side.
+ * Pure queries over a prose block's inline content and raw source: which live widget a caret
+ * offset touches, which one a selected widget names, the leading/trailing edge widgets, and
+ * whether an offset has only whitespace to one side.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import type { DocumentView, NodeView } from '../../../core/node-views';
 import { isBlankText } from '../../../core/lines';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
+import { resolvedInlineContent, type InlineReading } from '../../../core/inline/inline-cache';
+import { blockNodeAt } from '../../../tree-operations/node-primitives';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { WidgetTarget } from '../../../selection/primitives';
 
 export interface WidgetRange {
 	start: number;
@@ -45,18 +49,36 @@ export function widgetAtCursor(
 	return trailingMatch ?? leadingMatch;
 }
 
-export function findWidgetNodeByStart(
+/** The widget of any kind starting at `sourceStart` in `node`, nested ones included, as the block
+ *  renders it. Every reader of a selected widget resolves it here. */
+export function widgetNodeIn(
+	node: NodeView,
 	sourceStart: number,
-	inlineContent: ReadonlyArray<InlineNode> | undefined,
-	raw: string,
-	grammar: GrammarView
+	reading: InlineReading
+): InlineNode | null {
+	const inlines = resolvedInlineContent(node, reading);
+	const widgets = flattenInlineWidgets(inlines, node.raw, reading.grammar);
+	return widgets.find((widget) => widget.start === sourceStart) ?? null;
+}
+
+/** The span of {@link widgetNodeIn}'s widget. */
+export function widgetSpanIn(
+	node: NodeView,
+	sourceStart: number,
+	reading: InlineReading
 ): WidgetRange | null {
-	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
-		if (inline.start === sourceStart) {
-			return { start: inline.start, end: inline.end };
-		}
-	}
-	return null;
+	const widget = widgetNodeIn(node, sourceStart, reading);
+	return widget && { start: widget.start, end: widget.end };
+}
+
+/** The live span of the widget `target` names in `doc`, or null once none starts at its byte. */
+export function widgetSpanAt(
+	doc: DocumentView,
+	target: WidgetTarget,
+	reading: InlineReading
+): WidgetRange | null {
+	const block = blockNodeAt(doc, target.paragraphPath);
+	return block && widgetSpanIn(block, target.sourceStart, reading);
 }
 
 /** First widget reachable from the leading edge, skipping blank text; null once any

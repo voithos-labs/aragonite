@@ -5,7 +5,6 @@
  * offsets; state that changes is passed as functions, never as captured values.
  */
 
-import { tick } from 'svelte';
 import type {
 	BlockEditActions,
 	ContentWrite,
@@ -31,7 +30,6 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import type { SelectedWidgetHandle } from '../../selection/primitives';
 import { placeCaret, selectInBlock } from '../../selection/caret-doors';
 import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { CursorBackend } from '../../cursor/surface-backend';
@@ -178,8 +176,6 @@ export interface EditableSurfaceDeps {
 	activePlugins: PluginActivation;
 	/** This editor's events, for the cross-block clipboard's error reports. */
 	events: EditorEvents;
-	/** The image selected whole, passed to the shift-press that grows a range from it. */
-	selectedWidget: SelectedWidgetHandle;
 	/** Names a new block kind a typed write made, in the modes that hide markers. */
 	kindCue: KindCue;
 	/** A prose block's view of the pair the auto-pair wrote; omitted where nothing pairs. */
@@ -282,9 +278,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
-		events: deps.events,
-		selectedWidget: deps.selectedWidget,
-		afterReactivity: () => tick()
+		events: deps.events
 	});
 
 	const sharedCtx: SharedKeydownContext = {

@@ -9,8 +9,9 @@ import { tick } from 'svelte';
 import type { BlockEditActions, ContentWrite, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { SurfaceBackend } from '../../../cursor/surface-backend';
+import { selectWidgetWhole } from '../../../selection/caret-doors';
+import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	flattenInlineWidgets,
@@ -43,12 +44,12 @@ import {
 	surfaceHoldsRange
 } from './click-snap-guard';
 import {
-	findWidgetNodeByStart,
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
 	rawHasNoTextAfter,
-	widgetElByStart
+	widgetElByStart,
+	widgetNodeIn
 } from './widget-adjacency';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
@@ -64,7 +65,7 @@ export interface WidgetInteractionDeps {
 	getEl: () => HTMLElement | null;
 	getEditorContentWidth: () => number;
 	cursor: SurfaceBackend;
-	widgetSelection: WidgetSelectionState;
+	selection: SelectionState;
 	blockEdit: BlockEditActions;
 	/** The block's one write to its own text, for a key over a selected widget. */
 	writeText: (write: TextWrite) => ContentWrite;
@@ -199,7 +200,7 @@ function unwashRevealedSource(node: Text): void {
 /** What {@link replaceSelectedWidget} reads. */
 export interface WidgetReplaceDeps {
 	get node(): NodeView;
-	widgetSelection: WidgetSelectionState;
+	selection: Pick<SelectionState, 'clearWidget'>;
 	/** Where the block's bytes are stored, read when the widget is replaced. */
 	storedAs: () => StoredAs;
 }
@@ -214,7 +215,7 @@ export async function replaceSelectedWidget(
 ): Promise<void> {
 	// The write asks for its caret before its render, so the caret and the bytes land in one flush.
 	const written = write(replaceRangeInLeaf(deps.node, widget, text, deps.storedAs()));
-	deps.widgetSelection.clear();
+	deps.selection.clearWidget();
 	await written;
 	// The render that places the caret, so a caller awaiting the insert finds the caret there.
 	await tick();
@@ -355,7 +356,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				if (cause === 'mode-change' && revealState) commitReveal('blur');
 			}
 		});
-		deps.widgetSelection.clear();
+		deps.selection.clearWidget();
 		deps.setRevealing(true);
 		try {
 			await kernel.reveal(atSourceOffset);
@@ -671,50 +672,42 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return isVerticallyTransparentNode(deps.node, deps.reading.grammar);
 	}
 
+	// A caret written inside this block rather than through the caret placement entry point:
+	// Home and End move on from this edge, so announcing it would report a caret that never stays.
+	function leaveWidget(offset: number): void {
+		deps.cursor.setRaw(asRawOffset(offset), { clamp: 'reachable' });
+		deps.selection.clearWidget();
+	}
+
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
 		const node = deps.node;
-		const selectedWidget = deps.widgetSelection.getSelected();
+		const selectedWidget = deps.selection.widgetIn(deps.myPath);
 		if (selectedWidget === null) return false;
+		const widget = widgetNodeIn(node, selectedWidget.sourceStart, deps.reading);
+		if (widget === null) return false;
 
-		const widget = findWidgetNodeByStart(
-			selectedWidget.sourceStart,
-			inlinesOf(node),
-			node.raw,
-			deps.reading.grammar
-		);
-		const widgetIsHere =
-			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
-		if (!widgetIsHere) return false;
-
-		// The kind's editing policy takes its own keys first. Flattened so the nested image
-		// of `[![alt][ref]][repo]` is the widget resolved.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.reading.grammar).find(
-			(n) => n.start === widget.start
-		);
-		if (inline) {
-			const policy = widgetEditing(inline.kind);
-			const consumed = policy?.onSelectedKey?.(e, {
-				node,
-				inline,
-				widgetStart: widget.start,
-				widgetEnd: widget.end,
-				index: deps.index,
-				preSelectOffset: selectedWidget.preSelectOffset,
-				editorContentWidth: deps.getEditorContentWidth(),
-				presentationMode: deps.reading.mode(),
-				// The widget stays selected through its own key, so the write leaves the caret alone.
-				updateContent: (newRaw, caretBefore, caretAfter) =>
-					void deps.writeText({
-						...rangeWrite({ raw: newRaw, caret: caretAfter }),
-						intent: 'typed',
-						mode: 'authored',
-						source: 'widget-key',
-						sessionAnchor: caretBefore,
-						leavesCaret: true
-					})
-			});
-			if (consumed) return true;
-		}
+		// The kind's editing policy takes its own keys first.
+		const consumed = widgetEditing(widget.kind)?.onSelectedKey?.(e, {
+			node,
+			inline: widget,
+			widgetStart: widget.start,
+			widgetEnd: widget.end,
+			index: deps.index,
+			preSelectOffset: selectedWidget.preSelectOffset,
+			editorContentWidth: deps.getEditorContentWidth(),
+			presentationMode: deps.reading.mode(),
+			// The widget stays selected through its own key, so the write leaves the caret alone.
+			updateContent: (newRaw, caretBefore, caretAfter) =>
+				void deps.writeText({
+					...rangeWrite({ raw: newRaw, caret: caretAfter }),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'widget-key',
+					sessionAnchor: caretBefore,
+					leavesCaret: true
+				})
+		});
+		if (consumed) return true;
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
 		// selecting cleared the browser range, so a later handler would read offset 0.
 		if (hasModifier(e)) {
@@ -735,11 +728,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				? rawHasNoTextBefore(node.raw, widget.start)
 				: rawHasNoTextAfter(node.raw, widget.end);
 			if (blankSide) {
-				deps.widgetSelection.clear();
+				// Ended first: the move can find no block to land in.
+				deps.selection.clearWidget();
 				await deps.focusActions.moveFocus(deps.index + (left ? -1 : 1), left ? 'end' : 'start');
 			} else {
-				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end), { clamp: 'reachable' });
-				deps.widgetSelection.clear();
+				leaveWidget(left ? widget.start : widget.end);
 			}
 			return true;
 		}
@@ -747,10 +740,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// read: put one at the edge the key leaves from and decline, so the move runs from there.
 		const moveEdge = e.shiftKey ? null : caretMoveEdge(e.key);
 		if (moveEdge) {
-			deps.cursor.setRaw(asRawOffset(moveEdge === 'start' ? widget.start : widget.end), {
-				clamp: 'reachable'
-			});
-			deps.widgetSelection.clear();
+			leaveWidget(moveEdge === 'start' ? widget.start : widget.end);
 			return false;
 		}
 		// Reading mode still consumes the key, since a selected widget owns its keys, but writes
@@ -774,8 +764,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			deps.cursor.setRaw(asRawOffset(widget.end), { clamp: 'reachable' });
-			deps.widgetSelection.clear();
+			leaveWidget(widget.end);
 			return true;
 		}
 		if (isPlainTypingKey(e)) {
@@ -814,7 +803,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
 			void startReveal(widget, enteredOffset, atSourceOffset);
 		} else {
-			deps.widgetSelection.select({
+			selectWidgetWhole(deps.selection, {
 				paragraphPath: deps.myPath,
 				sourceStart: widget.start,
 				preSelectOffset: enteredOffset

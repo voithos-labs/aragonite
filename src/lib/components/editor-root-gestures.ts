@@ -18,7 +18,6 @@ import { claimsPointerGesture } from '../selection/pointer-gesture';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { widgetSourceRange } from '../core/inline/inline-widgets';
-import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
 import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
@@ -39,8 +38,6 @@ export interface RootGesturesDeps {
 	linkCard: Pick<LinkCardState, 'open'>;
 	/** Read at the gesture: every branch below checks the mode in force then. */
 	reading: Reading;
-	/** Which inline widget is selected whole, so the click order can leave a run on it alone. */
-	widgetSelection: Pick<WidgetSelectionState, 'isSelected'>;
 }
 
 export interface RootGestures {
@@ -77,7 +74,9 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			target instanceof Element ? target.closest('[data-inline-widget][data-source-start]') : null;
 		const source = el && widgetSourceRange(el);
 		const path = el && findSurfacePathForElement(el);
-		return source !== null && path != null && deps.widgetSelection.isSelected(path, source.start);
+		return (
+			source !== null && path != null && deps.selection.widgetIn(path)?.sourceStart === source.start
+		);
 	}
 
 	function dragStartsHere(root: HTMLElement, target: EventTarget | null): boolean {

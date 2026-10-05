@@ -13,7 +13,7 @@ import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { CstNode, Document, ImageFields } from '../../core/nodes';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
-import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { createSelectionState } from '../../selection/selection-state.svelte';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 export interface CommitterHarness {
@@ -32,7 +32,7 @@ export function committerFor(raw: string): CommitterHarness {
 	const committer = createImageEditCommitter({
 		getDoc: () => doc,
 		getEditorEl: () => null,
-		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
+		selection: createSelectionState(),
 		inlineRange: makeInlineRange(() => doc, controller),
 		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents,
 		reading: fixtureReading()

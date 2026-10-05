@@ -74,6 +74,8 @@ export interface SelectionState {
 	widgetRange(): SelectedWidgetRange | null;
 	/** The caret a selected widget stands for: the edge of its span it was entered from. */
 	widgetCaret(): SelectionPoint | null;
+	/** The selected widget when it sits in the block at `path`, or null. */
+	widgetIn(path: readonly number[]): WidgetTarget | null;
 
 	// Every mutator below is silent when it changes nothing: a reset that clears what is
 	// already clear must not make a subscriber re-read an unmoved selection.
@@ -92,6 +94,8 @@ export interface SelectionState {
 	/** Moves a selected widget by `delta` bytes when it sits in `path` at or past `editEnd`: an
 	 *  edit to another widget earlier in the block moved its bytes, not its identity. Silent. */
 	followWidgetEdit(path: readonly number[], editEnd: number, delta: number): void;
+	/** Ends a selected widget as `clear` does; with none selected, ends nothing else. */
+	clearWidget(): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
 
@@ -235,6 +239,11 @@ class SelectionStateImpl implements SelectionState {
 		const fromStart = widget.preSelectOffset === widget.sourceStart;
 		const offset = live ? (fromStart ? live.start : live.end) : widget.preSelectOffset;
 		return { path: widget.paragraphPath.slice(), offset };
+	}
+
+	widgetIn(path: readonly number[]): WidgetTarget | null {
+		const widget = this.#widget;
+		return widget && pathsEqual(widget.paragraphPath, path) ? copyWidget(widget) : null;
 	}
 
 	get isCustomRendered(): boolean {
@@ -413,6 +422,10 @@ class SelectionStateImpl implements SelectionState {
 				preSelectOffset: widget.preSelectOffset + delta
 			}
 		});
+	}
+
+	clearWidget(): void {
+		if (this.#widget !== null) this.clear();
 	}
 
 	incrementSelectAllCount(): void {

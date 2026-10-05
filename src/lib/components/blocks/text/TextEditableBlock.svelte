@@ -139,7 +139,6 @@
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
 		autoPairs,
-		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
 		decorations: decorationEngine,
@@ -258,7 +257,7 @@
 		getEl: () => el ?? null,
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
-		widgetSelection,
+		selection,
 		blockEdit,
 		writeText,
 		focusActions,
@@ -300,7 +299,6 @@
 		pasteCoordinator,
 		activePlugins,
 		getDoc,
-		widgetSelection,
 		events: editorEvents,
 		onPasteImage,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),

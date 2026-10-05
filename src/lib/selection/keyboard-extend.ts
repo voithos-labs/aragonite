@@ -1,7 +1,7 @@
 /** Cross-block keyboard extension and collapse: `SelectionState` writes plus the native caret. */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectedWidgetHandle, SelectedWidgetRange, SelectionPoint } from './primitives';
+import type { SelectedWidgetRange, SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
@@ -220,7 +220,7 @@ export function selectWholeDocument(
 
 // ── Shift+Click ────────────────────────────────────────────────────────────
 
-/** Shift+click on a block: extends the range, grows one from an image selected whole, or enters
+/** Shift+click on a block: extends the range, grows one from a widget selected whole, or enters
  *  cross-block mode from the last caret. False for a same-block click, left to the browser. */
 export function handleShiftClick(
 	selection: SelectionState,
@@ -229,13 +229,12 @@ export function handleShiftClick(
 	clickedX: number,
 	clickedY: number,
 	previouslyFocusedBlockEl: HTMLElement | null,
-	previouslyFocusedBlockPath: number[] | null,
-	selectedWidget: SelectedWidgetHandle
+	previouslyFocusedBlockPath: number[] | null
 ): boolean {
-	// While an image is selected whole there is no caret to grow from, so the image is the
-	// anchor; the click ends that selection either way, as a range and it never coexist.
-	const widget = selectedWidget.range();
-	if (widget) selectedWidget.clear();
+	// While a widget is selected whole there is no caret to grow from, so the widget is the
+	// anchor, its span read before the click ends that selection.
+	const widget = selection.widgetRange();
+	selection.clearWidget();
 	const clickOffset = offsetFromViewportPoint(clickedBlockEl, clickedX, clickedY);
 	if (clickOffset === null) return false;
 	const focusPoint: SelectionPoint = { path: clickedBlockPath.slice(), offset: clickOffset };

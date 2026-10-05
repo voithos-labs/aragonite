@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createDocumentSwap, initDocument } from '$lib/components/editor-root-document-swap';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
@@ -55,7 +56,6 @@ describe('the swap commit sequence', () => {
 			undoManager: { clear: step('undo') },
 			caretMemory: { forget: step('caret') },
 			menus: { closeAll: (cause) => void order.push(`menus:${cause}`) },
-			widgetSelection: { clear: step('widget') },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
 				links = { resolver, signature };
@@ -88,7 +88,6 @@ describe('the swap commit sequence', () => {
 			'undo',
 			'caret',
 			'menus:document-swap',
-			'widget',
 			'announce',
 			'links',
 			'sourceSwap'
@@ -104,6 +103,15 @@ describe('the swap commit sequence', () => {
 		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.links()!.resolver('x')?.url).toBe('https://x.example');
+	});
+
+	it('drops a selected widget in the same announcement', () => {
+		const h = harness();
+		selectWidgetWhole(h.selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+		h.order.length = 0;
+		h.swap.swapTo('# B\n');
+		expect(h.selection.widget).toBeNull();
+		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
 	});
 
 	it('runs no step for the text the editor already holds', () => {

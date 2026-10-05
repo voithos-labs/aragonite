@@ -26,8 +26,8 @@ export interface EditorRootClipboardDeps {
 	 *  blocks do; `undefined` means no hook. */
 	onPasteImage: PasteImageHook | undefined;
 	events: EditorEvents;
-	/** The block owning the selected inline widget, or null when none is selected. */
-	getSelectedWidgetBlock(): BlockComponent | null;
+	/** The mounted block at `path`, which takes a selected widget's clipboard events. */
+	getBlockComponent(path: number[]): BlockComponent | null;
 }
 
 export interface EditorRootClipboard {
@@ -59,12 +59,13 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		return (target === null || target === root.ownerDocument.body) && claimsBodyChord(root);
 	}
 
-	/** A block marks an event it handled with `defaultPrevented`. The two states cannot coexist,
-	 *  so their order does not matter. */
+	/** A block marks an event it handled with `defaultPrevented`. The selection state holds a
+	 *  widget or a range, never both, so their order does not matter. */
 	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
 		if (event.defaultPrevented) return null;
 		if (!landedNowhere(root, event.target)) return null;
-		const block = deps.getSelectedWidgetBlock();
+		const widget = deps.selection.widget;
+		const block = widget && deps.getBlockComponent(widget.paragraphPath);
 		if (block) return { arm: 'widget', block };
 		return deps.selection.isCrossBlock ? { arm: 'cross-block' } : null;
 	}
