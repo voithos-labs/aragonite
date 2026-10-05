@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// A line break typed into an editable block takes the document's ending (G4.20): each gesture runs
-// on an LF document and its CRLF mirror, through the mounted block's real key and input handlers.
+// A line break typed or completed in an editable block takes the document's ending (G4.20): each
+// gesture runs on an LF document and its CRLF mirror, through the mounted block's real handlers.
 // Miss-analysis: GH #637, the mirror check ran pure functions only, so no row ever typed a break
 // into a plugin leaf's source, the one surface that spliced a bare LF.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
@@ -45,12 +45,13 @@ async function mathSourceAfter(editor: MountedEditor<Seam>, after: string): Prom
 	return el!;
 }
 
-/** A `beforeinput` whose target range is the caret, as the browser sends a typed break. */
-function typedBreak(el: HTMLElement, inputType: string): void {
-	const at = asDomTextOffset(createSurfaceBackend({ getEl: () => el }).getRaw() ?? 0);
-	const caret = createRangeAtDomTextOffsets(el, at, at);
+/** A `beforeinput` as the browser sends it: its target range is the caret, or the `back`
+ *  characters before it for a delete. */
+function inputAtCaret(el: HTMLElement, inputType: string, back = 0): void {
+	const at = createSurfaceBackend({ getEl: () => el }).getRaw() ?? 0;
+	const target = createRangeAtDomTextOffsets(el, asDomTextOffset(at - back), asDomTextOffset(at));
 	const e = new InputEvent('beforeinput', { inputType, bubbles: true, cancelable: true });
-	Object.defineProperty(e, 'getTargetRanges', { value: () => [caret] });
+	Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 	el.dispatchEvent(e);
 }
 
@@ -84,8 +85,34 @@ const BREAKS: TypedBreak[] = [
 		math: true,
 		type: async (editor) => {
 			const el = await mathSourceAfter(editor, 'x');
-			typedBreak(el, 'insertLineBreak');
+			inputAtCaret(el, 'insertLineBreak');
 			await blurMath(el);
+		}
+	},
+	{
+		name: 'the completion of a math source a delete emptied',
+		source: '$$x$$\n',
+		math: true,
+		type: async (editor) => {
+			const el = await mathSourceAfter(editor, 'x');
+			inputAtCaret(el, 'deleteContentBackward', 1);
+			await blurMath(el);
+		}
+	},
+	{
+		name: 'the completion of a bare math source as it shows',
+		source: '$$$$\n',
+		math: true,
+		type: async (editor) => {
+			await blurMath(await mathSourceAfter(editor, '$$'));
+		}
+	},
+	{
+		name: 'the completion of a bare code fence as the caret arrives',
+		source: '```\n```\n',
+		type: async (editor) => {
+			placeCaret(surfaceAt(editor, [0]), 3);
+			await settleEditor();
 		}
 	},
 	{
@@ -103,7 +130,7 @@ const BREAKS: TypedBreak[] = [
 		type: async (editor) => {
 			const el = surfaceAt(editor, [0]);
 			placeCaret(el, (el.textContent ?? '').indexOf('x') + 1);
-			typedBreak(el, 'insertLineBreak');
+			inputAtCaret(el, 'insertLineBreak');
 			await settleEditor();
 		}
 	}

@@ -101,7 +101,7 @@ const RULES: CallSiteRule[] = [
 		population: (file) =>
 			['src/lib/components/', 'src/lib/selection/'].some((dir) => file.relPath.startsWith(dir)) &&
 			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
-		calls: ['blockEdit.updateBlockContent', 'deps.blockEdit.updateBlockContent'],
+		calls: ['.updateBlockContent'],
 		holds: () => false,
 		allowed: {
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: toggleFormat':
@@ -123,7 +123,10 @@ const RULES: CallSiteRule[] = [
 		},
 		reason:
 			'`surface-write.ts :: writeText` records the caret from before the gesture as undo’s, keeps the block’s line ending and puts the caret back; a direct write picks its own undo caret',
-		hits: [at(ROGUE_BLOCK, 'void blockEdit.updateBlockContent(index, raw, mode, after, after);')],
+		hits: [
+			at(ROGUE_BLOCK, 'void blockEdit.updateBlockContent(index, raw, mode, after, after);'),
+			at(ROGUE_BLOCK, 'void wiring.deps.blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+		],
 		misses: [
 			at(
 				ROGUE_BLOCK,
@@ -144,8 +147,12 @@ const RULES: CallSiteRule[] = [
 				'a soft break (Shift+Enter, or a line break with no key) types a new line',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
 				'the line break a key types over a selection',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: completeBareFence':
-				'Enter on a bare fence adds its body and closing lines',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: bareFenceCompletion':
+				'a bare fence gets its body and closing lines, on Enter or as the caret arrives',
+			'src/lib/components/blocks/editable-leaf.ts :: revealSource':
+				'a bare plugin source shown gets the lines a caret can sit in',
+			'src/lib/components/blocks/editable-leaf.ts :: spliceSourceText':
+				'a plugin source an edit emptied gets the lines a caret can sit in',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: closeUnclosedFenceAndDescend':
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':

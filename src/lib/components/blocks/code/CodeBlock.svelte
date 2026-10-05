@@ -244,17 +244,25 @@
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(async () => {
 			if (!isStillCode()) return;
-			await completeOnArrival();
+			const completion = bareFenceCompletion();
+			if (completion) await completeOnArrival(completion);
 			if (offerLanguage) autoOpenLanguage = true;
 		});
 	}
 
 	// No key brought the caret here, so the completion records it the way a command does.
-	const completeOnArrival = editableSurface.command(() => completeBareFence('repair'));
+	const completeOnArrival = editableSurface.command((completion: BareFenceCompletion) =>
+		writeCode(completion.text, completion.caretAfter, 'complete-fence', 'repair')
+	);
+
+	interface BareFenceCompletion {
+		text: string;
+		caretAfter: number;
+	}
 
 	/** A fence with no body line has nowhere for a caret, so it is written as opener, one empty
 	 *  body line and closer, with the caret on that line. Null when the fence has a body. */
-	function completeBareFence(intent: WriteIntent): ContentWrite | null {
+	function bareFenceCompletion(): BareFenceCompletion | null {
 		if (!el) return null;
 		const meta = metadataOf(node, 'fencedCode');
 		const slice = sliceFencedCode(node);
@@ -263,13 +271,14 @@
 		if (!meta.closed) {
 			if (!isBlankText(slice.body)) return null;
 			const closer = meta.fenceMarker.repeat(meta.fenceLength);
-			const completed = text + ending + ending + closer;
-			return writeCode(completed, text.length + ending.length, 'complete-fence', intent);
+			return { text: text + ending + ending + closer, caretAfter: text.length + ending.length };
 		}
 		if (slice.body !== '') return null;
 		const openerLength = slice.openerLine.length;
-		const completed = text.slice(0, openerLength) + ending + text.slice(openerLength);
-		return writeCode(completed, openerLength, 'complete-fence', intent);
+		return {
+			text: text.slice(0, openerLength) + ending + text.slice(openerLength),
+			caretAfter: openerLength
+		};
 	}
 
 	async function copyBody(): Promise<boolean> {
@@ -595,7 +604,9 @@
 
 		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
 		// where it happens there; the marker-hiding modes did it as the caret arrived.
-		if (completeBareFence('typed')) {
+		const completion = bareFenceCompletion();
+		if (completion) {
+			void writeCode(completion.text, completion.caretAfter, 'complete-fence');
 			if (infoString === '' && !readOnly && !languageOffered) {
 				languageOffered = true;
 				void tick().then(() => {

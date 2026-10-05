@@ -16,7 +16,7 @@ import {
 	surfaceAt,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
+import { dispatchKey, pressKey, settleEditor } from '$lib/test/harness/settle';
 import { newestEntryCaret } from '../../support/undo-entry';
 
 beforeAll(() => {
@@ -123,10 +123,13 @@ const ROUTES: AnchorRoute[] = [
 		gesture: (el) => beforeInput(el, 'deleteContentBackward')
 	},
 	{
-		name: 'a cut from the hidden opener',
+		name: 'a cut from the hidden opener, after a key at another caret',
 		mode: 'live',
 		source: '```\nab\n```\n',
 		place: (el) => {
+			// A cut from a menu fires no key, so the last key's caret must not stand in for its own.
+			placeCaret(el, 5);
+			dispatchKey(el, { key: 'Shift' });
 			selectFromOpener(el, 6);
 			return 0;
 		},

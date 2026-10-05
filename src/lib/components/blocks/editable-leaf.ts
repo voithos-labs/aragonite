@@ -93,9 +93,9 @@ interface LeafDepsBase {
 	/** The source text after each edit the leaf applies itself, for a live preview: the CST sees
 	 *  a render-primary edit only on blur, and a cancelled `beforeinput` fires no `input`. */
 	onSourceEdit?(text: string): void;
-	/** Completes a markers-only source (a `$$$$` with no body line) to one a caret can sit in,
-	 *  applied on show and after any edit that empties it; null leaves the bytes alone. */
-	completeBareSource?(text: string): { text: string; caret: number } | null;
+	/** Completes a markers-only source (a `$$$$`) to one a caret can sit in, on show and after an
+	 *  edit that empties it, ending each line it adds with `lineEnding`; null leaves it alone. */
+	completeBareSource?(text: string, lineEnding: string): { text: string; caret: number } | null;
 }
 
 /**
@@ -317,7 +317,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		await revealKernel.reveal(atSourceOffset);
 		const el = deps.getEl();
 		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
-		const completed = deps.completeBareSource(el.textContent ?? '');
+		const completed = deps.completeBareSource(el.textContent ?? '', editableSurface.lineEnding());
 		if (!completed) return;
 		paintSource(el, completed.text);
 		deps.onSourceEdit?.(completed.text);
@@ -514,7 +514,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// Emptying the body leaves the same markers-only source a bare block arrives as, so this
 		// edit applies the same completion that showing the source does.
-		const completed = deps.completeBareSource?.(spliced) ?? null;
+		const completed = deps.completeBareSource?.(spliced, editableSurface.lineEnding()) ?? null;
 		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
