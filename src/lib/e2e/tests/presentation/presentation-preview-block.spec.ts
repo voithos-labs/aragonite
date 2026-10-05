@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { textRunCenter } from '../../text-runs';
+import { textRunCenter, textRunEnd } from '../../text-runs';
+import { enterPresentationMode } from './helpers';
 
 // Block-granular live preview: every block hides its markers except the focused one,
 // CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
@@ -139,4 +140,27 @@ test.describe('preview-block: caret + traversal', () => {
 		await expect(headingMarker).toBeHidden();
 		await expect(paraMarker).toBeVisible();
 	});
+});
+
+// A code span's backticks are markers like any other here, so the focused block paints them and an
+// arrow steps over each one.
+test.describe('preview-block: a code span in the focused block', () => {
+	for (const [name, lefts, presses, typed] of [
+		['ArrowRight at its end types past the closing backtick', 0, ['ArrowRight'], 'a `code`Y b'],
+		['ArrowLeft at its start types before the opening backtick', 4, ['ArrowLeft'], 'a Y`code` b']
+	] as const) {
+		test(name, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'preview-block', 'a `code` b\n\ntail');
+			const end = await textRunEnd(page, 'code');
+			await page.mouse.click(end.x, end.y);
+			await ep.waitForRenderFlush();
+			await expect(ep.getBlock(0).locator('.md-code-fence').first()).toBeVisible();
+			for (const key of [...Array<string>(lefts).fill('ArrowLeft'), ...presses]) {
+				await page.keyboard.press(key);
+				await ep.waitForRenderFlush();
+			}
+			await page.keyboard.type('Y');
+			await ep.bridge.waitForSourceContains(typed);
+		});
+	}
 });

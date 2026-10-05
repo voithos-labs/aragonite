@@ -28,6 +28,7 @@ const CODE = 4;
 
 const CHORD = {
 	strong: 'ControlOrMeta+b',
+	emphasis: 'ControlOrMeta+i',
 	strikethrough: 'ControlOrMeta+Shift+X',
 	inlineCode: 'ControlOrMeta+e'
 } as const;
@@ -134,6 +135,48 @@ test.describe('live mode: a toggle over a selection writes its bytes at once', (
 		await page.keyboard.press(CHORD.strong);
 		await ep.bridge.waitForSourceContains('## **Heading**');
 	});
+});
+
+// The DOM reads a range ending on a hidden run back as any boundary of that run, so each chord
+// must read the selection the last one left the way the user sees it.
+test.describe('live mode: chords chained on one selection', () => {
+	for (const [name, block, from, formats, states] of [
+		[
+			'bold, italic, then each back off',
+			PLAIN,
+			6,
+			['strong', 'emphasis', 'strong', 'emphasis'],
+			['plain **words** here', 'plain ***words*** here', 'plain *words* here', 'plain words here']
+		],
+		[
+			'bold, strikethrough, then each back off',
+			PLAIN,
+			6,
+			['strong', 'strikethrough', 'strong', 'strikethrough'],
+			[
+				'plain **words** here',
+				'plain ~~**words**~~ here',
+				'plain ~~words~~ here',
+				'plain words here'
+			]
+		],
+		[
+			'italic inside a bold run, then back off',
+			BOLD,
+			10,
+			['emphasis', 'emphasis'],
+			['**already *bold*** tail', '**already bold** tail']
+		]
+	] as const) {
+		test(name, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'live', DOC);
+			await selectFrom(ep, page, block, from, block === PLAIN ? 5 : 4);
+			for (const [i, format] of formats.entries()) {
+				await page.keyboard.press(CHORD[format]);
+				await ep.bridge.waitForSourceContains(states[i]);
+			}
+		});
+	}
 });
 
 test.describe('live mode: the toggle is its own undo entry', () => {
