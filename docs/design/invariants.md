@@ -2015,9 +2015,8 @@ is held only in `selection/selection-state.svelte.ts`, whose one private writer 
 the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or
 `.selectWidget(` call anywhere else fails, and so does a `$state` cell typed as a `WidgetTarget`
 outside the store, since a second store is how the image once stayed selected under an undo's
-caret. Every reader of the selected widget asks the store too (`widget`, `widgetIn`, `widgetRange`),
-so no view over it is left to keep in step. `lint/file-rules.test.ts`, with G1.46 as the runtime
-half.
+caret. Every reader of the selected widget asks the store too (`widget`, `widgetIn`, `widgetRange`).
+`lint/file-rules.test.ts`, with G1.46 as the runtime half.
 
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
