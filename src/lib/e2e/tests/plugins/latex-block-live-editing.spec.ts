@@ -97,6 +97,21 @@ test.describe('block math editing edges (live)', () => {
 		await expect(editor.source).toHaveCount(0);
 		await editor.bridge.waitForSourceEquals(`Before\n\n$$\nX${BODY}\n$$\n\nAfter\n`);
 	});
+
+	// Select-all inside the source reaches the hidden fence lines, which a cut removes with the body.
+	test('Ctrl+A then Ctrl+C copies what Ctrl+X cuts, the hidden fence lines included', async ({
+		page
+	}) => {
+		await editor.seedClipboard('');
+		await enterFromAbove(page);
+		await page.keyboard.press('ControlOrMeta+a');
+
+		await page.keyboard.press('ControlOrMeta+c');
+		await expect.poll(() => editor.readClipboard()).toBe(`$$\n${BODY}\n$$`);
+		await page.keyboard.press('ControlOrMeta+x');
+		await expect.poll(() => editor.sourceText()).toBe('');
+		expect(await editor.readClipboard()).toBe(`$$\n${BODY}\n$$`);
+	});
 });
 
 // A one-line `$$x^2$$` keeps its closer on the body's line, so a range through the body reaches
