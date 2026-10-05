@@ -1,8 +1,8 @@
 /**
- * What shows an inline construct's markers in preview-inline mode: they stay hidden by CSS until
- * the caret enters the construct's `[start, end]`, bounds included, and then the whole enclosing
- * chain shows. Showing them only toggles a class on `data-construct-*` spans, so the DOM text
- * never changes and raw offsets survive it (the preview-inline-affinity e2e requirement).
+ * What shows the markers of the constructs at the caret, those whose `[start, end]` holds it,
+ * bounds included: every marker in preview-inline, a code span's backticks in live mode
+ * (`caretShowsFamily`). Showing them only toggles a class on `data-construct-*` spans, so the DOM
+ * text never changes and raw offsets survive it (the preview-inline-affinity e2e requirement).
  */
 
 import { tick } from 'svelte';
@@ -12,6 +12,8 @@ import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../cursor/widget-offset';
+import { caretShowsFamily, markerFamilyOf } from '../../../core/inline/visibility';
+import { tagsConstructMarkers } from '../../../presentation-mode';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
@@ -80,18 +82,10 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	function caretOffset(): number | null {
 		const el = deps.getEl();
 		// A window that lost focus keeps its selection, but nobody is editing there any more.
-		if (!el || !revealMode() || !document.hasFocus()) return null;
+		if (!el || !tagsConstructMarkers(deps.reading.mode()) || !document.hasFocus()) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
 		return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
-	}
-
-	/** Preview-inline shows every construct's markers at the caret; live shows only inline code's
-	 *  backticks, the one marker live mode paints while editing. */
-	function revealMode(): 'all' | 'code-fences' | null {
-		const mode = deps.reading.mode();
-		if (mode === 'preview-inline') return 'all';
-		return mode === 'live' ? 'code-fences' : null;
 	}
 
 	function inlines(): InlineNode[] {
@@ -120,12 +114,14 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		const el = deps.getEl();
 		const next: Element[] = [];
 		if (el) {
+			const mode = deps.reading.mode();
 			for (const node of chain) {
-				const only = revealMode() === 'code-fences' ? '.md-code-fence' : '';
 				const spans = el.querySelectorAll(
-					`${only}[data-construct-start="${node.start}"][data-construct-end="${node.end}"]`
+					`[data-construct-start="${node.start}"][data-construct-end="${node.end}"]`
 				);
 				for (const span of spans) {
+					const family = markerFamilyOf(span);
+					if (family === null || !caretShowsFamily(mode, family)) continue;
 					span.classList.add(CONSTRUCT_REVEAL_CLASS);
 					next.push(span);
 				}

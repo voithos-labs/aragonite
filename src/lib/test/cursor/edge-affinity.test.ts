@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { classifyArrivalKey, type EdgeAffinityAction } from '../../cursor/edge-affinity';
+import {
+	classifyArrivalKey,
+	edgeStepDirection,
+	type EdgeAffinityAction
+} from '../../cursor/edge-affinity';
 
 // The arrival table decides which of two offsets sharing one pixel a caret means. A single step
 // stops on the side of the run it came from; the ends of a line answer `outside` both ways.
@@ -52,4 +56,29 @@ describe('classifyArrivalKey', () => {
 		expect(classifyArrivalKey('ArrowUp', true)).toBe('far');
 		expect(classifyArrivalKey('ArrowLeft', false)).toBe('far');
 	});
+});
+
+// Only a plain arrow crosses a hidden edge one boundary at a time; every chord moves by more.
+describe('edgeStepDirection', () => {
+	const plain = {
+		shiftKey: false,
+		ctrlKey: false,
+		altKey: false,
+		metaKey: false,
+		isComposing: false
+	};
+
+	it('steps on a plain horizontal arrow alone', () => {
+		expect(edgeStepDirection({ ...plain, key: 'ArrowRight' })).toBe('forward');
+		expect(edgeStepDirection({ ...plain, key: 'ArrowLeft' })).toBe('backward');
+		expect(edgeStepDirection({ ...plain, key: 'ArrowDown' })).toBeNull();
+		expect(edgeStepDirection({ ...plain, key: 'a' })).toBeNull();
+	});
+
+	it.each(['shiftKey', 'ctrlKey', 'altKey', 'metaKey', 'isComposing'] as const)(
+		'never steps with %s held',
+		(flag) => {
+			expect(edgeStepDirection({ ...plain, key: 'ArrowRight', [flag]: true })).toBeNull();
+		}
+	);
 });

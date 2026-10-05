@@ -9,6 +9,7 @@ import type { InlineNode } from '../nodes';
 import { renderInlineNodes, type RenderInlineOptions } from '../inline-render';
 import { widgetSourceRange } from './inline-widgets';
 import { type PresentationMode } from '../../presentation-mode';
+import { recordScreenRead } from '../../perf/instruments';
 
 // ── The families ─────────────────────────────────────────────────────────────
 
@@ -49,6 +50,12 @@ export function markerFamilyOf(el: Element): MarkerFamily | null {
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
 	if (classes.contains(FAMILY_CLASS['code-fence'])) return 'code-fence';
 	return null;
+}
+
+/** Whether `mode` shows a `family` span of a construct the caret is in (`construct-reveal.ts`):
+ *  preview-inline shows every family there, live mode only a code span's backticks. */
+export function caretShowsFamily(mode: PresentationMode, family: MarkerFamily): boolean {
+	return mode === 'preview-inline' || (mode === 'live' && family === 'code-fence');
 }
 
 /** Whether the content-empty override in `styles/editor.css` shows `family`. A reference label
@@ -140,6 +147,7 @@ export function visibleRuns(
 	ctx: VisibilityContext,
 	opts: RenderInlineOptions
 ): VisibleRun[] {
+	recordScreenRead();
 	const runs: VisibleRun[] = [];
 	for (const node of nodes) {
 		collectRuns(renderInlineNodes([node], raw, opts), node.start, ctx, runs);

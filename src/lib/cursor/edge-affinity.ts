@@ -25,6 +25,16 @@ export interface PinnedOffset {
 	readonly offset: number;
 }
 
+/** Which way a key steps across a hidden edge (`edge-step.ts`): only a plain ArrowLeft or
+ *  ArrowRight, since Shift extends a range, Ctrl and Alt jump a word and Meta jumps the line. */
+export function edgeStepDirection(
+	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey' | 'isComposing'>
+): 'backward' | 'forward' | null {
+	if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return null;
+	if (e.key === 'ArrowRight') return 'forward';
+	return e.key === 'ArrowLeft' ? 'backward' : null;
+}
+
 /** What a keydown does to the affinity. */
 export type EdgeAffinityAction = ArrivalSide | 'preserve' | 'reset';
 

@@ -83,7 +83,7 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
-	import { createEdgeStep, type EdgeStep } from '../text/edge-step';
+	import { createEdgeStep } from '../text/edge-step';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -189,24 +189,15 @@
 		getEl: () => el ?? null
 	});
 
-	// A hidden construct edge's arrow stop and ring, built on first use: a large document mounts
-	// many blocks the caret never reaches, and the windowing budget is per block.
-	let edgeStep: EdgeStep | null = null;
-	const edgeStepHere = (): EdgeStep =>
-		(edgeStep ??= createEdgeStep({
-			getEl: () => el ?? null,
-			getRaw: () => node.raw,
-			getInlines: () => resolvedInlineContent(node, reading),
-			getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
-			isReading: () => readOnly,
-			reading,
-			caretMemory
-		}));
-	/** Refresh the ring; a block the caret is not in only clears what it drew. */
-	function showEdge(): void {
-		if (el?.contains(window.getSelection()?.focusNode ?? null)) edgeStepHere().show();
-		else edgeStep?.show();
-	}
+	const edgeStep = createEdgeStep({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		isReading: () => readOnly,
+		reading,
+		caretMemory
+	});
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
@@ -224,7 +215,7 @@
 		ownPairs,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
-		stepEdge: (e) => edgeStepHere().step(e),
+		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		handleKeydown: onKeyDown,
@@ -557,7 +548,7 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
-			showEdge();
+			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -777,7 +768,7 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
-			hiddenRunAt: (caret) => edgeStepHere().hiddenRunAt(caret),
+			hiddenRunAt: edgeStep.hiddenRunAt,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
@@ -1043,6 +1034,7 @@
 
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
+		edgeStep.sync();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -1052,6 +1044,9 @@
 			widgetInteraction.commitRevealOnBlur();
 		}
 		tableContext.notifyCellBlurred();
+		// The ring follows focus too: a click out of the window keeps the selection but fires no
+		// `selectionchange`.
+		edgeStep.sync();
 	}
 </script>
 
@@ -1066,7 +1061,7 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={showEdge}
+	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

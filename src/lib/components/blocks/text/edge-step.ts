@@ -1,13 +1,14 @@
 /**
- * A hidden construct edge is an arrow stop of its own (live-mode.md § 4.2): after `code` in
- * `` `code` `` a plain arrow first moves which offset the caret means, inside the closer or past
- * it, and only the next press moves the caret. Both offsets share a pixel, so each construct the
- * next byte would join carries `EDGE_HELD_CLASS`.
+ * A hidden construct edge is an arrow stop of its own (live-mode.md § 4.2): after `bold` in
+ * `**bold**` a plain arrow first moves which offset the caret means, inside the closer or past it,
+ * and only the next press moves the caret. Both offsets share a pixel, so each construct the next
+ * byte would join carries `EDGE_HELD_CLASS`.
  */
 
 import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../cursor/caret-memory';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
+import { classifyArrivalKey, edgeStepDirection } from '../../../cursor/edge-affinity';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
@@ -36,9 +37,11 @@ export interface EdgeStep {
 	/** Whether a marker run the screen hides touches `caret`, where a typed closer moves only the
 	 *  side the caret means. */
 	hiddenRunAt(caret: number): boolean;
-	/** Mark the constructs the next byte would join again; cheap where no edge is touched. Call
-	 *  it after anything that can move the caret or its side: a selection change, a key, a render. */
-	show(): void;
+	/** Marks the constructs the next byte would join, after the caret, its side or the focus moved;
+	 *  a block the caret is not in only clears what it marked. */
+	sync(): void;
+	/** `sync` after a key that can move the side without moving the caret, Home at a line start. */
+	afterKey(e: KeyboardEvent): void;
 }
 
 export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
@@ -55,10 +58,14 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		const el = hidingEl();
 		if (!el) return false;
 		const screen = screenVisibilityOf(el);
-		return (
-			seatOffsetsAt(caret, deps.getInlines(), deps.getRaw(), screen, deps.reading.grammar).length >
-			0
+		const offsets = seatOffsetsAt(
+			caret,
+			deps.getInlines(),
+			deps.getRaw(),
+			screen,
+			deps.reading.grammar
 		);
+		return offsets.length > 0;
 	}
 
 	/** The caret's position and the block's reading of it, where a hidden edge has a choice. */
@@ -78,12 +85,8 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	}
 
 	function step(e: KeyboardEvent): boolean {
-		const direction =
-			e.key === 'ArrowRight' ? 'forward' : e.key === 'ArrowLeft' ? 'backward' : null;
+		const direction = edgeStepDirection(e);
 		if (direction === null) return false;
-		// Shift extends a range, Ctrl/Alt jump a word, Meta jumps the line: each moves by more than
-		// one boundary, so none of them stops at a hidden edge.
-		if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return false;
 		const at = edge();
 		if (!at) return false;
 		const target = edgeStep(
@@ -97,12 +100,17 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		);
 		if (target === null) return false;
 		deps.caretMemory.pin(target);
-		show();
+		mark(heldElements());
 		return true;
 	}
 
-	function show(): void {
-		const next = heldElements();
+	function sync(): void {
+		const el = deps.getEl();
+		if (el?.contains(window.getSelection()?.focusNode ?? null)) mark(heldElements());
+		else if (held.length > 0) mark([]);
+	}
+
+	function mark(next: Element[]): void {
 		for (const node of held) if (!next.includes(node)) node.classList.remove(EDGE_HELD_CLASS);
 		for (const node of next) node.classList.add(EDGE_HELD_CLASS);
 		held = next;
@@ -147,5 +155,13 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		return found;
 	}
 
-	return { step, hiddenRunAt, show };
+	return {
+		step,
+		hiddenRunAt,
+		sync,
+		afterKey: (e) => {
+			// Meta only picks which side an arrow means, so the key alone says whether one moved.
+			if (classifyArrivalKey(e.key) !== 'preserve') sync();
+		}
+	};
 }

@@ -47,7 +47,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
-	import { createEdgeStep, type EdgeStep } from './edge-step';
+	import { createEdgeStep } from './edge-step';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -214,24 +214,17 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
-	// A hidden construct edge's arrow stop and ring, built on first use: a large document mounts
-	// many blocks the caret never reaches, and the windowing budget is per block.
-	let edgeStep: EdgeStep | null = null;
-	const edgeStepHere = (): EdgeStep =>
-		(edgeStep ??= createEdgeStep({
-			getEl: () => el ?? null,
-			getRaw: () => node.raw,
-			getInlines: () => resolvedInlineContent(node, reading),
-			getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
-			isReading: () => readOnly,
-			reading,
-			caretMemory
-		}));
-	/** Refresh the ring; a block the caret is not in only clears what it drew. */
-	function showEdge(): void {
-		if (el?.contains(window.getSelection()?.focusNode ?? null)) edgeStepHere().show();
-		else edgeStep?.show();
-	}
+	const edgeStep = createEdgeStep({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		isReading: () => readOnly,
+		reading,
+		caretMemory
+	});
+	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
+	let caretHasEntered = false;
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
@@ -249,7 +242,7 @@
 		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
-		stepEdge: (e) => edgeStepHere().step(e),
+		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		inputPrelude: () => {
@@ -692,10 +685,11 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			if (composing) return;
+			// Both read the selection, which forces a layout: never in a block the caret has not
+			// been in, since a fling mounts many.
+			if (composing || !caretHasEntered) return;
 			constructReveal.update(true);
-			// Never a selection read here: it forces a layout, once per block a fling mounts.
-			edgeStep?.show();
+			edgeStep.sync();
 		});
 		markKeystrokeSettle();
 	});
@@ -749,7 +743,7 @@
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
-			showEdge();
+			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -903,7 +897,7 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
-			hiddenRunAt: (caret) => edgeStepHere().hiddenRunAt(caret),
+			hiddenRunAt: edgeStep.hiddenRunAt,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
@@ -977,7 +971,12 @@
 	 *  window keeps the selection but fires no `selectionchange`. */
 	function syncCaretChrome(): void {
 		constructReveal.update();
-		showEdge();
+		edgeStep.sync();
+	}
+
+	function onFocus(): void {
+		caretHasEntered = true;
+		syncCaretChrome();
 	}
 
 	function demoteEmptyHeadingOnBlur(): void {
@@ -1072,7 +1071,7 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={showEdge}
+	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
@@ -1080,7 +1079,7 @@
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}
-	onfocus={syncCaretChrome}
+	onfocus={onFocus}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>

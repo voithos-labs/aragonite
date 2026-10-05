@@ -2,7 +2,7 @@
 // A plain horizontal arrow at a hidden construct edge moves the typing offset, not the caret, one boundary
 // per press (live-mode.md § 4.2). Pure over the inline tree like `edge-seat.test.ts`; the key
 // wiring and the ring are covered by `presentation-live-edge-step.spec.ts`.
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	typingOffset,
 	resolveEdgeSeat,
@@ -13,6 +13,12 @@ import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '$lib/perf/instruments';
 
 const LIVE = screenVisibility('live', { chromePaints: false });
 
@@ -109,5 +115,26 @@ describe('a pinned seat', () => {
 	// the resolver falls back to its default, the near side.
 	it('reads as no record at a position that does not hold it', () => {
 		expect(typingOffset(5, tree(BOLD), { offset: 13 }, BOLD, LIVE, fixtureReading())).toBe(5);
+	});
+});
+
+// Every typed byte asks for its edge, so the block is rendered only where a hidden run is touched.
+// Miss-analysis: only the ship-time perf gate bounded what the typing path renders.
+describe('what the edge reads off the render', () => {
+	beforeEach(() => {
+		resetPerfInstruments();
+		enablePerfInstruments();
+	});
+	afterEach(() => disablePerfInstruments());
+
+	it('reads nothing for a caret away from every construct edge', () => {
+		expect(resolveEdgeSeat(2, tree(BOLD), null, BOLD, LIVE, 'x', fixtureReading())).toBeNull();
+		expect(edgeStops(2, tree(BOLD), BOLD, LIVE, fixtureReading())).toEqual([]);
+		expect(perfSnapshot().screenReads).toBe(0);
+	});
+
+	it('reads the render at a hidden edge', () => {
+		expect(edgeStops(11, tree(BOLD), BOLD, LIVE, fixtureReading())).toEqual([11, 13]);
+		expect(perfSnapshot().screenReads).toBeGreaterThan(0);
 	});
 });

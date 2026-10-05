@@ -155,7 +155,7 @@ const CLASSIFICATION_RE = new RegExp(
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
-		'the reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
+		'the reveal writer: it stamps the class the classification reads, on the families `caretShowsFamily` names',
 	'src/lib/invariants/marker-css-parity.ts':
 		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
 	'src/lib/components/blocks/text/edge-step.ts':
@@ -167,8 +167,6 @@ const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'direct
 
 const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/cursor/widget-offset.ts': 'the classification home',
-	'src/lib/components/blocks/text/construct-reveal.ts':
-		"the reveal writer: live mode shows only a code span's backticks, picked out by their class",
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
@@ -232,8 +230,6 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/cursor/widget-offset.ts':
 		"finds the caret's code span showing its backticks, the one reveal a container's reading carries",
 	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
-	'src/lib/components/blocks/text/construct-reveal.ts':
-		"the reveal writer: live mode shows only a code span's backticks, picked out by their class",
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates the fence marker spans, for every kind that holds its own fence',

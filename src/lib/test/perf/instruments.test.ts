@@ -21,6 +21,7 @@ import {
 	recordIslandRebuild,
 	recordParse,
 	recordRebuildDepth,
+	recordScreenRead,
 	recordSnapshotClone,
 	resetPerfInstruments,
 	setUndoGauge
@@ -41,6 +42,7 @@ const EMPTY: PerfSnapshot = {
 	parseBytes: 0,
 	inlineComputeCount: 0,
 	formatCoverageReads: 0,
+	screenReads: 0,
 	undoLiveBytes: 0,
 	undoEntryCount: 0,
 	blockRenderCount: 0,
@@ -61,6 +63,7 @@ function recordOneOfEach(): void {
 	recordParse(1.5, 10, 40);
 	recordInlineCompute();
 	recordFormatCoverageRead();
+	recordScreenRead();
 	setUndoGauge(1000, 2);
 	recordBlockRender(2);
 	recordDecorationRun();

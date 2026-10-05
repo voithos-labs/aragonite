@@ -28,12 +28,6 @@ export interface HardcodedChordSite {
 
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
-		file: 'components/blocks/text/edge-step.ts',
-		chords: [],
-		keys: ['ArrowLeft', 'ArrowRight'],
-		note: 'Only a plain arrow crosses a hidden construct edge; the modifier read is a refusal, leaving every chorded arrow to its own branch.'
-	},
-	{
 		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],
@@ -191,6 +185,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [],
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
+	},
+	{
+		file: 'cursor/edge-affinity.ts',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'],
+		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a hidden construct edge, so the modifier reads there are a refusal.'
 	},
 	{
 		file: 'cursor/caret-memory.ts',

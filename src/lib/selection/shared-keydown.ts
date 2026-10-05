@@ -182,10 +182,18 @@ export function handleEdgeStep(
 	e: KeyboardEvent,
 	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
 ): boolean {
-	if (ctx.selection.isCrossBlock || !ctx.stepEdge?.(e)) return false;
-	e.preventDefault();
-	return true;
+	if (ctx.selection.isCrossBlock || !ctx.stepEdge) return false;
+	let stepped = edgeStepByEvent.get(e);
+	if (stepped === undefined) {
+		stepped = ctx.stepEdge(e);
+		edgeStepByEvent.set(e, stepped);
+	}
+	if (stepped) e.preventDefault();
+	return stepped;
 }
+
+// A table cell asks ahead of its navigation plan as well as here, so each event is read once.
+const edgeStepByEvent = new WeakMap<KeyboardEvent, boolean>();
 
 // ── Block bounds ───────────────────────────────────────────────────────────
 
