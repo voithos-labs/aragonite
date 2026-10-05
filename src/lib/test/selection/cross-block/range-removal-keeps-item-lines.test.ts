@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A range removal that ends inside a later list item rewrites only the lines it joins: the lines
 // under that item keep their bytes, as Backspace at the item's start leaves them.
-// Known red, owned by T18 slice 5: today the removal keeps the end item as an item and rewrites
-// the first line under it (`    - i4` becomes `  - - i4`), so the ruled rows are expected to fail.
+// The ruled rows are expected to fail until the removal follows that rule: it keeps the end item
+// as an item and rewrites the first line under it (`    - i4` becomes `  - - i4`).
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import {
 	installLayoutStubs,
@@ -23,7 +23,7 @@ const SOURCE = '- i0\n  - i1\n    - i2\n  - i3\n    - i4\n\n    p5\n';
 const I2 = [0, 0, 1, 0, 1, 0, 0];
 const I3 = [0, 0, 1, 1, 0];
 
-// Each removal with the bytes the list-move rule gives and the bytes it leaves today.
+// Each removal with the bytes the list-move rule gives and the bytes the removal leaves.
 const REMOVALS: [name: string, from: number, to: number, ruled: string, today: string][] = [
 	[
 		'from the middle of i2 to the middle of i3',
