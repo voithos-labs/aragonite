@@ -1122,6 +1122,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
 | G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
+| G4.111 | A block's editable element writes its own text only through the surface write             | L       |
 
 ### The entries
 
@@ -1286,7 +1287,10 @@ outside `core/lines.ts` (it would leave a CRLF line's `\r` on the text a line ma
 `updateBlockContent` content argument ending in a newline literal; and no write to a node's `raw`
 creating one, with the legitimately literal writes allowlisted by reason and count. An outcome
 check runs each gesture over an LF fixture and its CRLF mirror, unterminated last lines included,
-and requires the two results to mirror each other. `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` (the outcome check).
+and requires the two results to mirror each other, and a mounted twin does the same for a line
+break typed or completed in a code block or a plugin's source, through the blocks' real handlers.
+`lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` and
+`crlf-typed-break-mirror.test.ts` (the outcome checks).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM
 serializer is named in code only inside the seam module, and exactly the documented write paths name
@@ -2097,20 +2101,22 @@ wrote it. That rule lives in `components/blocks/surface-write.ts` (`writeText`, 
 `withOwnEnding` for the routes not on it yet).
 
 New text is the other half. It takes the block's own ending, else the document's, and it picks
-that in two places today: a typed line break reads the getter `editable-surface.ts :: lineEnding`, and the
+that in two places today: a line break a block types or completes (a bare fence, a bare math
+source) reads the getter `editable-surface.ts :: lineEnding`, and the
 code block's dissolve action (`code-context-actions.ts :: run`) picks it for the prose it writes
 over the fence. #648 tracks giving those two one home. `lint/call-site-rules.test.ts` holds both
 halves under `components/blocks/`, allowlisted by function. It fails a call to
 `trailingLineEnding` or `ownTrailingLineEnding` outside the surface write and those two places,
 except the reads that write no ending and two routes still to move. And it fails a read of the
-getter anywhere but a typed line break or a check that writes nothing, so `display +
+getter anywhere but a typed or completed line break or a check that writes nothing, so `display +
 editableSurface.lineEnding()` inside a write of the block's own text goes red.
 
 **G4.101 · A typed write asks for itself.** The kind cue and the on-type completer answer typing,
 never a command, a paste or the editor's own repair. Only `surface-write.ts :: writeText` asks
 them, for a write with the `typed` intent, so a key the block writes itself (the auto-pair's
 partner, a byte placed beside a hidden run) gets both, and a command gets neither. `lint/file-rules.test.ts` fails an
-`afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else.
+`afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else,
+and `blocks/surface-write-intent.test.ts` runs a write of each intent and checks which ones ask.
 
 **G4.106 · A reload in a spec really reloads.** A `source` write equal to the text the editor holds
 is no change (G1.52 has the text it's compared with), so `loadContent(await getSource())` reparses
@@ -2142,6 +2148,14 @@ container's `raw`. Built with an empty `raw`, its first rebuild respells every l
 `lint/fresh-container-bytes.test.ts` fails an object literal holding both `raw: ''` and `children`
 under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
 genuinely new containers, each with its reason.
+
+**G4.111 · One write for a block's own text.** When a block's editable element changes its own
+text, it calls `components/blocks/surface-write.ts :: writeText`, which gives undo the caret from
+before the key (not wherever the edit left it), keeps the block's line ending, and puts the caret
+back. A block that calls `updateBlockContent` itself has to pick its own undo caret, and
+that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
+it's called on, under `components/` or `selection/` outside the surface write,
+except the few commands and clipboard edits still to move, each listed by function.
 
 ## Accessibility
 

@@ -42,7 +42,6 @@ import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding } from '../../core/lines';
-import { withOwnEnding } from './surface-write';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
@@ -94,9 +93,9 @@ interface LeafDepsBase {
 	/** The source text after each edit the leaf applies itself, for a live preview: the CST sees
 	 *  a render-primary edit only on blur, and a cancelled `beforeinput` fires no `input`. */
 	onSourceEdit?(text: string): void;
-	/** Completes a markers-only source (a `$$$$` with no body line) to one a caret can sit in,
-	 *  applied on show and after any edit that empties it; null leaves the bytes alone. */
-	completeBareSource?(text: string): { text: string; caret: number } | null;
+	/** Completes a markers-only source (a `$$$$`) to one a caret can sit in, on show and after an
+	 *  edit that empties it; a line with no ending to copy takes `lineEnding`. Null leaves it. */
+	completeBareSource?(text: string, lineEnding: string): { text: string; caret: number } | null;
 }
 
 /**
@@ -318,7 +317,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		await revealKernel.reveal(atSourceOffset);
 		const el = deps.getEl();
 		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
-		const completed = deps.completeBareSource(el.textContent ?? '');
+		const completed = deps.completeBareSource(el.textContent ?? '', editableSurface.lineEnding());
 		if (!completed) return;
 		paintSource(el, completed.text);
 		deps.onSourceEdit?.(completed.text);
@@ -330,13 +329,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
 	function commitSource(edited: string): Promise<boolean> {
-		return blockEdit.updateBlockContent(
-			deps.getIndex(),
-			withOwnEnding(deps.getNode(), edited),
-			'authored',
-			editableSurface.getPreEditOffset(),
-			edited.length
-		);
+		return editableSurface.writeText({
+			text: edited,
+			caretAfter: edited.length,
+			intent: 'command',
+			mode: 'authored',
+			source: 'source-commit'
+		});
 	}
 
 	// A blur during a cross-block range is a drag leaving this source; it hides a frame later, once
@@ -515,7 +514,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// Emptying the body leaves the same markers-only source a bare block arrives as, so this
 		// edit applies the same completion that showing the source does.
-		const completed = deps.completeBareSource?.(spliced) ?? null;
+		const completed = deps.completeBareSource?.(spliced, editableSurface.lineEnding()) ?? null;
 		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
@@ -617,7 +616,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				await blockEdit.splitBlock(deps.getIndex(), offset);
 				return;
 			}
-			spliceSourceText(el, offset, offset, '\n');
+			spliceSourceText(el, offset, offset, editableSurface.lineEnding());
 		}
 	}
 
@@ -634,7 +633,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				break;
 			case 'insertLineBreak':
 			case 'insertParagraph':
-				insert = '\n';
+				insert = editableSurface.lineEnding();
 				break;
 			case 'deleteContentBackward':
 			case 'deleteContentForward':

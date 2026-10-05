@@ -19,7 +19,7 @@ describe('completeBareMathSource rebuilds from the block’s own delimiters', ()
 	];
 	for (const [label, source, text, caret] of completes) {
 		it(`completes ${label}`, () => {
-			expect(completeBareMathSource(source)).toEqual({ text, caret });
+			expect(completeBareMathSource(source, '\n')).toEqual({ text, caret });
 		});
 	}
 
@@ -36,22 +36,30 @@ describe('completeBareMathSource rebuilds from the block’s own delimiters', ()
 	];
 	for (const source of leftAlone) {
 		it(`leaves ${JSON.stringify(source)} alone`, () => {
-			expect(completeBareMathSource(source)).toBeNull();
+			expect(completeBareMathSource(source, '\n')).toBeNull();
 		});
 	}
 });
 
-// Miss-analysis: every math fixture was LF, so no case saw the opener line read with its `\r`.
+// Miss-analysis: every math fixture was LF, so no case saw the opener line read with its `\r`,
+// and none completed a one-line `$$$$`, which has no ending of its own, in a CRLF file.
 describe('math sources on CRLF keep their line endings', () => {
 	const completes: Array<[source: string, text: string, caret: number]> = [
 		['```math\r\n```', '```math\r\n\r\n```', 9],
-		['$$\r\n$$', '$$\r\n\r\n$$', 4]
+		['$$\r\n$$', '$$\r\n\r\n$$', 4],
+		['$$$$', '$$\r\n\r\n$$', 4]
 	];
 	for (const [source, text, caret] of completes) {
 		it(`completes ${JSON.stringify(source)} on CRLF`, () => {
-			expect(completeBareMathSource(source)).toEqual({ text, caret });
+			expect(completeBareMathSource(source, '\r\n')).toEqual({ text, caret });
 		});
 	}
+
+	// Miss-analysis: every completion row handed the opener's own ending, so none could tell it
+	// apart from the one the document gives a line with none.
+	it('keeps an opener’s own LF in a CRLF file', () => {
+		expect(completeBareMathSource('$$\n$$', '\r\n')).toEqual({ text: '$$\n\n$$', caret: 3 });
+	});
 
 	it('reads a CRLF $$ block as a fence around its body', () => {
 		const source = '$$\r\nx^2\r\n$$';

@@ -706,12 +706,11 @@ export function rawAssignments(
 
 // ── Call arguments ───────────────────────────────────────────────────────────
 
-/**
- * A call to `name`. A spread (`...name(`) counts as one, since a result spread into an array is
- * still a call site; a property access (`x.name(`) does not, unless `name` spells it (`x.name`).
- */
+// A call to `name`, a spread (`...name(`) included. A property access (`x.name(`) counts only when
+// `name` spells it (`x.name`) or starts with the dot (`.name`, the call on any receiver).
 function callSiteRegex(name: string): RegExp {
 	const literal = name.replace(/[.$]/g, '\\$&');
+	if (name.startsWith('.')) return new RegExp(`${literal}\\s*\\(`, 'g');
 	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${literal}\\s*\\(`, 'g');
 }
 

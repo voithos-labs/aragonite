@@ -48,14 +48,17 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 }
 
 /** A block with no body line (`$$$$`, `$$\n$$`) has no caret position once the fence lines hide,
- *  so it gains one empty body line with the caret on it. */
-export function completeBareMathSource(text: string): { text: string; caret: number } | null {
+ *  so it gains one empty body line with the caret on it, ended like the opener line. */
+export function completeBareMathSource(
+	text: string,
+	lineEnding: string
+): { text: string; caret: number } | null {
 	const { opener, body, closer } = sliceMathSource(text);
 	if (!opener || !closer) return null;
 	if (body.includes('\n') || !isBlankText(body)) return null;
-	// A one-line `$$$$` has no ending of its own to repeat.
 	const [openerLine] = displayLines(opener);
-	const ending = openerLine.ending || '\n';
+	// A one-line `$$$$` has no ending of its own to repeat, so it takes the block's.
+	const ending = openerLine.ending || lineEnding;
 	return {
 		text: openerLine.text + ending + ending + closer,
 		caret: openerLine.text.length + ending.length

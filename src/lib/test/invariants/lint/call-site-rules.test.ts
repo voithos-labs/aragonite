@@ -97,6 +97,45 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
+		id: 'G4.111 an editable element writes its own text through the surface write',
+		population: (file) =>
+			['src/lib/components/', 'src/lib/selection/'].some((dir) => file.relPath.startsWith(dir)) &&
+			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+		calls: ['.updateBlockContent'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: toggleFormat':
+				'a command, which moves once commands take their own undo entry through the surface write',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: perform':
+				'the demote and heading cycle commands, moving with the other commands',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
+				'Shift+Enter, whose break at the content’s end moves with the pending break',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: toggleFormat':
+				'a command, moving with the other commands',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
+				'the cell menu’s cut, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/text-clipboard.ts :: cutPreHook':
+				'a cut of a selected widget, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/text-clipboard.ts :: cutTail':
+				'a cut in a text block, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/widget-interaction.ts :: commitReveal':
+				'an inline widget’s shown source, moving with the fold that closes it'
+		},
+		reason:
+			'`surface-write.ts :: writeText` records the caret from before the gesture as undo’s, keeps the block’s line ending and puts the caret back; a direct write picks its own undo caret',
+		hits: [
+			at(ROGUE_BLOCK, 'void blockEdit.updateBlockContent(index, raw, mode, after, after);'),
+			at(ROGUE_BLOCK, 'void wiring.deps.blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+		],
+		misses: [
+			at(
+				ROGUE_BLOCK,
+				'void editableSurface.writeText({ text, caretAfter, intent, mode, source });'
+			),
+			at('src/lib/editor-actions/rogue.ts', 'blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+		]
+	},
+	{
 		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
 		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
@@ -108,14 +147,22 @@ const RULES: CallSiteRule[] = [
 				'a soft break (Shift+Enter, or a line break with no key) types a new line',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
 				'the line break a key types over a selection',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: completeBareFence':
-				'Enter on a bare fence adds its body and closing lines',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: bareFenceCompletion':
+				'a bare fence gets its body and closing lines, on Enter or as the caret arrives',
+			'src/lib/components/blocks/editable-leaf.ts :: revealSource':
+				'a bare plugin source shown gets the lines a caret can sit in',
+			'src/lib/components/blocks/editable-leaf.ts :: spliceSourceText':
+				'a plugin source an edit emptied gets the lines a caret can sit in',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: closeUnclosedFenceAndDescend':
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
 				'Shift+Enter types a new line',
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
 				'Shift+Enter beside a widget types a new line',
+			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
+				'Enter in a multi-line plugin source types a new line',
+			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':
+				'a line break with no key in a painted plugin source types a new line',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: handleDelimiterAutoPair':
 				'asks whether a completion is planned, and writes nothing'
 		},

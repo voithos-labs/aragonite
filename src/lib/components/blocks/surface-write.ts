@@ -15,8 +15,9 @@ import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines'
 import { withStoredCaret } from '../../editor-actions/stored-caret';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
- *  `repair` is the editor's own fix-up, with no key behind it. */
-export type WriteIntent = 'typed' | 'repair';
+ *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
+ *  the editor's own fix-up with no key behind it, neither of which does either. */
+export type WriteIntent = 'typed' | 'command' | 'repair';
 
 export interface TextWrite {
 	/** The block's displayed text after the edit, without its trailing line ending. */
@@ -27,10 +28,11 @@ export interface TextWrite {
 	mode: WriteMode;
 	/** The gesture, for the interaction trace. */
 	source: string;
-	/** Undo's caret for a key over a selected widget, where the browser holds no caret; every
-	 *  other write takes the caret recorded when the input began. */
+	/** Undo's caret while the caret is outside the block's text (a selected widget, the code
+	 *  block's language field); every other write takes the one recorded as the input began. */
 	sessionAnchor?: number;
-	/** Leave the caret alone: a widget's own key edits it and keeps it selected. */
+	/** Leave the caret alone: a widget's own key keeps the widget selected, and a key that leaves
+	 *  the block puts the caret in the next one. */
 	leavesCaret?: true;
 }
 
