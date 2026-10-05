@@ -250,3 +250,25 @@ test.describe('source mode: the same gesture stays byte-literal', () => {
 		await ep.bridge.waitForSourceContains('Some **bo\n\nld** text');
 	});
 });
+
+// A split that cuts no construct reopens nothing, so its landing is a structural one like Home's:
+// the caret means outside the construct the second half opens with, in every mode that hides it.
+test.describe('Enter just before a construct leaves the caret outside it', () => {
+	for (const mode of ['live', 'preview-inline'] as const) {
+		for (const [what, doc, word, typed] of [
+			['a code span', 'ab `code` z', 'code', 'Y`code` z'],
+			['a bold run', 'ab **bold** z', 'bold', 'Y**bold** z'],
+			['a code span in a list item', '- ab `code` z', 'code', '- Y`code` z']
+		] as const) {
+			test(`${mode}, ${what}: the next byte lands before it`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, doc);
+				await clickWordSettled(ep, page, word);
+				await landAt(ep, page, 3);
+				await page.keyboard.press('Enter');
+				await ep.waitForRenderFlush();
+				await page.keyboard.type('Y');
+				await ep.bridge.waitForSourceContains(typed);
+			});
+		}
+	}
+});

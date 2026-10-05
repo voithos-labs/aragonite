@@ -57,6 +57,11 @@ identical on screen.
   identically on screen and parse back, where the literal `**a **` would print its stars
 - source mode is unaffected: the same gesture over the same bytes splits byte-literally, because
   there the delimiters are painted and the user aimed at them
+- Enter just before a construct (a code span, a bold run, a code span opening a list item's text)
+  cuts no construct, so nothing reopens and the landing is structural: the next byte lands before
+  the construct in live and in preview-inline (``Y`code` z``, `Y**bold** z`). Miss-analysis:
+  every landing row split inside a construct, where typing continues inside the reopened one, so
+  no row asked where a split that reopened nothing puts the next byte
 
 ## User interactions
 

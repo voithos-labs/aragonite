@@ -38,6 +38,13 @@ source, and the ring by its class.
 - at the end of `***both***` the ring goes from both constructs, to the emphasis alone, to none,
   one press at a time
 
+## A code span's backticks
+
+- live never shows a code span's backticks, in prose or in a table cell: with the caret at the
+  span's end they stay hidden, and the ring marks the code instead. Miss-analysis: the reveal
+  that showed them was code-only, and every code-span row checked bytes, which the edge step
+  lands the same way over hidden backticks, so nothing pinned which cue live gives
+
 ## User interactions
 
 - Real keyboard and real clicks only: the edge step is decided in the keydown, and the pixel

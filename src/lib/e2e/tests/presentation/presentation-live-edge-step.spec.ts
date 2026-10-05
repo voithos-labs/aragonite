@@ -189,3 +189,31 @@ test.describe('live mode: a table cell', () => {
 		await ep.bridge.waitForSourceContains('| a `cee`X | z |');
 	});
 });
+
+// Live keeps a code span's backticks hidden like every other marker: the edge step and the ring
+// are the cue at its edge, in prose and in a cell alike.
+test.describe("live mode: a code span's backticks stay hidden", () => {
+	/** The computed display of the spans either side of each code element. */
+	const backticks = (page: Page) =>
+		page.evaluate(() =>
+			[...document.querySelectorAll('code.inline-code-content')].flatMap((code) =>
+				[code.previousElementSibling, code.nextElementSibling].map((el) =>
+					el ? getComputedStyle(el).display : 'missing'
+				)
+			)
+		);
+
+	for (const [place, doc, word] of [
+		['prose', 'a `code` b\n\ntail', 'code'],
+		['a table cell', '| h | h2 |\n| - | - |\n| a `cee` | z |', 'cee']
+	] as const) {
+		test(`${place}: with the caret at the span's end, the ring marks it instead`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', doc);
+			await clickEnd(ep, page, word);
+			await expect.poll(() => backticks(page)).toEqual(['none', 'none']);
+			await expect.poll(() => held(page)).toEqual(['code']);
+		});
+	}
+});
