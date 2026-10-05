@@ -111,6 +111,54 @@ describe('blockPaintsWholeBox', () => {
 	});
 });
 
+// Miss-analysis: every box row put the range's ends strictly outside the boxed block, so none
+// asked how an end block the range covers to its last byte paints.
+describe('an end block the range covers whole', () => {
+	// [1] a paragraph, [2] a list of four items, each item's text at [2, i, 0].
+	const PROBE = 'intro\n\nAgreed work\n- alpha\n- beta\n- gamma\n- delta\n\nLoose ends\n';
+	const UNDER_LIST = [
+		[2, 0],
+		[2, 1],
+		[2, 2],
+		[2, 3],
+		[2, 3, 0]
+	];
+
+	it('paints one box per block the range covers, and nothing under the list’s box', () => {
+		const s = sel({ path: [1], offset: 0 }, { path: [2, 3, 0], offset: 5 }, PROBE);
+		expect(blockPaintsWholeBox([1], s, null)).toBe(true);
+		expect(blockPaintsWholeBox([2], s, null)).toBe(true);
+		for (const inside of UNDER_LIST) {
+			expect(blockPaintsWholeBox(inside, s, null)).toBe(false);
+			expect(classifyBlockForSelection(inside, s)).toBe('outside');
+		}
+	});
+
+	it('keeps a mid-text end on its text, with the items between boxed', () => {
+		const s = sel({ path: [1], offset: 3 }, { path: [2, 3, 0], offset: 2 }, PROBE);
+		expect(classifyBlockForSelection([1], s)).toBe('start');
+		expect(classifyBlockForSelection([2], s)).toBe('outside');
+		expect(classifyBlockForSelection([2, 3, 0], s)).toBe('end');
+		for (const item of [
+			[2, 0],
+			[2, 1],
+			[2, 2]
+		]) {
+			expect(blockPaintsWholeBox(item, s, null)).toBe(true);
+		}
+		expect(blockPaintsWholeBox([1], s, null)).toBe(false);
+	});
+
+	// The snap takes the end to its row's last cell, which still leaves a row of the table out.
+	it('keeps a table end on its cells, the paragraph before it boxed', () => {
+		const table = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+		const s = sel({ path: [0], offset: 0 }, cellPoint([1], 2), table);
+		expect(blockPaintsWholeBox([0], s, null)).toBe(true);
+		expect(blockPaintsWholeBox([1], s, null)).toBe(false);
+		expect(classifyBlockForSelection([1], s)).toBe('end');
+	});
+});
+
 // Miss-analysis: the overlay rows all used ranges over open blocks, so none asked how a closed
 // details the range takes whole is painted.
 describe('a closed details the range takes whole', () => {
