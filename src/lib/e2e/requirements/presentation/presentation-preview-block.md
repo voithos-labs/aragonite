@@ -32,11 +32,6 @@ shows its own marker prefix as source while sibling items stay rendered.
   rendered bullet (the `::before` bullet is suppressed, so there is no doubled
   `- •`) while a sibling item keeps its rendered bullet
 - a block mounting into view is unfocused, so it mounts with markers hidden
-- a code span's backticks are markers like any other: the focused block paints them, so
-  ArrowRight at the end of `` `code` `` types past the closing backtick and ArrowLeft at its start
-  types before the opener. Miss-analysis: inline code got its own marker family for live mode,
-  and no preview-block scenario held a code span, so nothing saw that family skip the focused
-  block's reveal
 
 ## User interactions
 
