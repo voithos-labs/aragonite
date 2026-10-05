@@ -689,7 +689,7 @@
 			// been in, since a fling mounts many.
 			if (composing || !caretHasEntered) return;
 			constructReveal.update(true);
-			edgeStep.sync();
+			edgeStep.refresh();
 		});
 		markKeystrokeSettle();
 	});

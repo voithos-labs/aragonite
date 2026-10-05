@@ -40,12 +40,17 @@ export interface EdgeStep {
 	/** Marks the constructs the next byte would join, after the caret, its side or the focus moved;
 	 *  a block the caret is not in only clears what it marked. */
 	sync(): void;
+	/** `sync` after a render, which leaves fresh spans unmarked; a block that marked nothing waits
+	 *  for the selection change that follows. */
+	refresh(): void;
 	/** `sync` after a key that can move the side without moving the caret, Home at a line start. */
 	afterKey(e: KeyboardEvent): void;
 }
 
 export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	let held: Element[] = [];
+	// A key whose caret move already fired a selection change needs no second look on keyup.
+	let keySinceSync = false;
 
 	/** The block's element where its screen hides markers at the caret: elsewhere every delimiter
 	 *  is a byte on screen, which the arrow and a typed closer already step over. */
@@ -70,8 +75,8 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 
 	/** The caret's position and the block's reading of it, where a hidden edge has a choice. */
 	function edge(): { el: HTMLElement; caret: number; stops: number[] } | null {
-		const el = hidingEl();
-		if (!el || !document.hasFocus()) return null;
+		const el = edgeHost();
+		if (!el) return null;
 		const caret = deps.getCaret();
 		if (caret === null) return null;
 		const stops = edgeStops(
@@ -85,6 +90,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	}
 
 	function step(e: KeyboardEvent): boolean {
+		keySinceSync = true;
 		const direction = edgeStepDirection(e);
 		if (direction === null) return false;
 		const at = edge();
@@ -100,14 +106,23 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		);
 		if (target === null) return false;
 		deps.caretMemory.pin(target);
-		mark(heldElements());
+		mark(heldElements(at));
+		keySinceSync = false;
 		return true;
 	}
 
 	function sync(): void {
-		const el = deps.getEl();
-		if (el?.contains(window.getSelection()?.focusNode ?? null)) mark(heldElements());
+		keySinceSync = false;
+		if (edgeHost()) mark(heldElements(edge()));
 		else if (held.length > 0) mark([]);
+	}
+
+	/** The block while it has the focus, hides markers at the caret and holds a construct: the one
+	 *  block an edge can concern, found without reading the selection, since every block asks. */
+	function edgeHost(): HTMLElement | null {
+		const el = hidingEl();
+		if (!el || !el.contains(document.activeElement) || !document.hasFocus()) return null;
+		return deps.getInlines().some((node) => node.kind !== 'text') ? el : null;
 	}
 
 	function mark(next: Element[]): void {
@@ -118,8 +133,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 
 	/** The content elements, at this position, the next byte would land inside: decided on the
 	 *  tree, then found by the construct tags on the opener, whose next sibling is the content. */
-	function heldElements(): Element[] {
-		const at = edge();
+	function heldElements(at: ReturnType<typeof edge>): Element[] {
 		if (!at) return [];
 		const inlines = deps.getInlines();
 		const typing = typingOffset(
@@ -159,9 +173,12 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		step,
 		hiddenRunAt,
 		sync,
+		refresh: () => {
+			if (held.length > 0) sync();
+		},
 		afterKey: (e) => {
 			// Meta only picks which side an arrow means, so the key alone says whether one moved.
-			if (classifyArrivalKey(e.key) !== 'preserve') sync();
+			if (keySinceSync && classifyArrivalKey(e.key) !== 'preserve') sync();
 		}
 	};
 }

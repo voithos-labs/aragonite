@@ -12,8 +12,11 @@ import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../cursor/widget-offset';
-import { caretShowsFamily, markerFamilyOf } from '../../../core/inline/visibility';
-import { tagsConstructMarkers } from '../../../presentation-mode';
+import {
+	caretShownSelector,
+	caretShowsFamily,
+	markerFamilyOf
+} from '../../../core/inline/visibility';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
@@ -81,8 +84,10 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	/** Caret raw offset while the mode is on and the caret sits in this block. */
 	function caretOffset(): number | null {
 		const el = deps.getEl();
-		// A window that lost focus keeps its selection, but nobody is editing there any more.
-		if (!el || !tagsConstructMarkers(deps.reading.mode()) || !document.hasFocus()) return null;
+		const shown = caretShownSelector(deps.reading.mode());
+		// Asked on every key and render, so a block with nothing to show never reads the selection;
+		// a window that lost focus keeps its selection, but nobody is editing there any more.
+		if (!el || shown === null || !el.querySelector(shown) || !document.hasFocus()) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
 		return rawOffsetAt(el, sel.focusNode, sel.focusOffset);

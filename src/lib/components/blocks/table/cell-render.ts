@@ -117,8 +117,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 				resolveLinkUrl: deps.resolveLinkUrl,
 				buildPortalWidget,
 				grammar: deps.reading.grammar,
-				// Live mode only: a cell shows no construct's markers in preview-inline, and a tagged
-				// marker there would read as one waiting to be shown (`widget-offset.ts`).
+				// Live mode only: a cell has no per-construct reveal, so in preview-inline its markers
+				// show with the cell's focus, which only an untagged marker does (`widget-offset.ts`).
 				tagConstructMarkers: deps.reading.mode() === 'live'
 			})
 		);

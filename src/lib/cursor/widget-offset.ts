@@ -17,6 +17,7 @@ import {
 	familyPaintsAlone,
 	isMarkerPrefixSpan,
 	markerFamilyOf,
+	previewInlineReveal,
 	screenVisibility,
 	type MarkerFamily,
 	type VisibilityContext
@@ -728,10 +729,9 @@ function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
-	// preview-inline's reveal rule is scoped to `.md-marker`, so a reference label and a code span's
-	// backticks reveal by class alone; fence lines are whole-block markers and reveal with focus.
-	if (family === 'fence-line') return false;
-	if (family === 'ref-label' || family === 'code-fence') return !revealed;
+	const reveal = previewInlineReveal(family);
+	if (reveal === 'focus') return false;
+	if (reveal === 'class') return !revealed;
 	return el.hasAttribute('data-construct-start') && !revealed;
 }
 

@@ -955,7 +955,7 @@
    `construct-reveal.ts` marks the constructs at the caret; unmarked markers show on block focus. */
 :where(.editor)[data-presentation='preview-inline']
 	.block-host[data-focused]
-	.md-marker:not([contenteditable='false']):not([data-construct-start]) {
+	:is(.md-marker:not([contenteditable='false']), .md-code-fence):not([data-construct-start]) {
 	display: inline;
 }
 :where(.editor)[data-presentation='preview-inline']

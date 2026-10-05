@@ -30,16 +30,16 @@ const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label', 'md-co
 		{ name: family, family, focusedHost: false },
 		{ name: `${family} (focused host)`, family, focusedHost: true },
 		{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
-		...(family === 'md-marker'
+		...(family === 'md-marker' || family === 'md-code-fence'
 			? [
 					{
-						name: 'stamped construct marker (focused host)',
+						name: `stamped ${family} (focused host)`,
 						family,
 						focusedHost: true,
 						attrs: { 'data-construct-start': '' }
 					},
 					{
-						name: 'revealed construct marker (focused host)',
+						name: `revealed ${family} (focused host)`,
 						family,
 						focusedHost: true,
 						attrs: { 'data-construct-start': '' },

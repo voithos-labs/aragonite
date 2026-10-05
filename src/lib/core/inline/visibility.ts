@@ -58,6 +58,28 @@ export function caretShowsFamily(mode: PresentationMode, family: MarkerFamily): 
 	return mode === 'preview-inline' || (mode === 'live' && family === 'code-fence');
 }
 
+const shownSelectors = new Map<PresentationMode, string | null>();
+
+/** Every span `mode` shows at the caret, as one selector, or null where the caret shows none: a
+ *  block holding none of them has nothing the caret could reveal. */
+export function caretShownSelector(mode: PresentationMode): string | null {
+	if (!shownSelectors.has(mode)) {
+		const families = (Object.keys(FAMILY_CLASS) as MarkerFamily[]).filter((family) =>
+			caretShowsFamily(mode, family)
+		);
+		const selector = families.map((family) => `.${FAMILY_CLASS[family]}`).join(', ');
+		shownSelectors.set(mode, selector === '' ? null : selector);
+	}
+	return shownSelectors.get(mode) ?? null;
+}
+
+/** How preview-inline shows a `family` span in the focused block: with the focus, by the reveal
+ *  class alone, or by the class where its construct is tagged and with the focus where not (a cell). */
+export function previewInlineReveal(family: MarkerFamily): 'focus' | 'class' | 'tag' {
+	if (family === 'fence-line') return 'focus';
+	return family === 'ref-label' ? 'class' : 'tag';
+}
+
 /** Whether the content-empty override in `styles/editor.css` shows `family`. A reference label
  *  is lookup metadata, not a marker the caret types against, so it stays hidden. */
 export function familyPaintsAlone(family: MarkerFamily): boolean {
