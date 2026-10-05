@@ -42,7 +42,6 @@ export type SharedSurfaceDeps = Pick<
 	| 'pasteCoordinator'
 	| 'activePlugins'
 	| 'events'
-	| 'selectedWidget'
 	| 'kindCue'
 	| 'reading'
 	| 'commands'
@@ -70,7 +69,6 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		activePlugins,
 		events,
 		commands,
-		selectedWidget,
 		scrollOwner,
 		kindCue
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -100,7 +98,6 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		pasteCoordinator,
 		activePlugins,
 		events,
-		selectedWidget,
 		kindCue,
 		reading,
 		commands

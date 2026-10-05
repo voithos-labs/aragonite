@@ -121,8 +121,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			crossBlockCommands,
 			onCommandError
 		}),
-		activePlugins: everyInstalledPlugin,
-		afterReactivity: async () => {}
+		activePlugins: everyInstalledPlugin
 	} as unknown as CrossBlockDispatchContext;
 
 	return {

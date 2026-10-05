@@ -137,7 +137,6 @@
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
 		autoPairs,
-		widgetSelection,
 		linkCard,
 		rects,
 		decorations: decorationEngine,
@@ -242,7 +241,7 @@
 		getEl: () => el ?? null,
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
-		widgetSelection,
+		selection,
 		blockEdit,
 		writeText,
 		focusActions,

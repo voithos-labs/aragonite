@@ -5,7 +5,7 @@
 // caret edge over a decoration widget.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
@@ -116,11 +116,11 @@ describe('a CST widget outranks a decoration widget at the same caret edge', () 
 		const el = mountSurface([document.createTextNode('a![c]('), decorationIsland(6, image.end)]);
 		window.getSelection()?.removeAllRanges();
 
-		const widgetSelection = createWidgetSelectionState(createSelectionState());
+		const selection = createSelectionState();
 		const h = makeEdgeDispatch(node, el, {
 			hasIslands: () => true,
 			enterWidget: (widget, fromTrailingEdge) =>
-				widgetSelection.select({
+				selectWidgetWhole(selection, {
 					paragraphPath: [0],
 					sourceStart: widget.start,
 					preSelectOffset: fromTrailingEdge ? widget.end : widget.start
@@ -128,7 +128,7 @@ describe('a CST widget outranks a decoration widget at the same caret edge', () 
 		});
 
 		expect(h.handleKeydown(key('Backspace'), asRawOffset(image.end))).toBe(true);
-		expect(widgetSelection.getSelected()).toMatchObject({ sourceStart: image.start });
+		expect(selection.widget).toMatchObject({ sourceStart: image.start });
 		// The decoration's select-whole never ran: no browser range wraps it, and no edit fired.
 		expect(h.edits).toHaveLength(0);
 		expect(window.getSelection()!.rangeCount).toBe(0);

@@ -97,8 +97,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		reading: fixtureReading(
 			{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
 			mode
-		),
-		widgetSelection: { isSelected: () => false }
+		)
 	});
 	teardowns.push(gestures.install(root));
 

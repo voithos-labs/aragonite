@@ -7,7 +7,7 @@ import { createImageEditCommitter } from '../../components/image/image-edit-comm
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
-import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';
@@ -15,42 +15,43 @@ import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { Document } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-describe('a selected image whose bytes an edit moves', () => {
-	function selectedAt(raw: string, sourceStart: number) {
-		let doc: Document = parse(raw);
-		const widgetSelection = createWidgetSelectionState(createSelectionState());
-		const committer = createImageEditCommitter({
-			getDoc: () => doc,
-			getEditorEl: () => null,
-			widgetSelection,
-			inlineRange: makeInlineRange(() => doc, makeStubController()),
-			events: createEditorEvents(),
-			reading: fixtureReading()
-		});
-		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: 0 });
-		const editTo = (next: string) => {
-			doc = parse(next);
-			committer.clearStaleSelection();
-		};
-		const firstImageFields = () =>
-			imageFieldsFromInline(
-				getInlineContent(doc.children[0] as CstNode, undefined, undefined, defaultGrammarView).find(
-					(node) => node.kind === 'image'
-				)!
-			);
-		return { widgetSelection, committer, editTo, firstImageFields };
-	}
+/** The widget starting at `sourceStart` in block 0 of `raw`, selected, and an edit to it. */
+function selectedAt(raw: string, sourceStart: number) {
+	let doc: Document = parse(raw);
+	const selection = createSelectionState();
+	const committer = createImageEditCommitter({
+		getDoc: () => doc,
+		getEditorEl: () => null,
+		selection,
+		inlineRange: makeInlineRange(() => doc, makeStubController()),
+		events: createEditorEvents(),
+		reading: fixtureReading()
+	});
+	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: 0 });
+	const editTo = (next: string) => {
+		doc = parse(next);
+		committer.clearStaleSelection();
+	};
+	const firstImageFields = () =>
+		imageFieldsFromInline(
+			getInlineContent(doc.children[0] as CstNode, undefined, undefined, defaultGrammarView).find(
+				(node) => node.kind === 'image'
+			)!
+		);
+	return { selection, committer, editTo, firstImageFields };
+}
 
+describe('a selected image whose bytes an edit moves', () => {
 	it('is deselected when the edit leaves no image at its start byte', () => {
 		const s = selectedAt('abcxyz ![c](a.png) tail\n', 7);
 		s.editTo('abc ![c](a.png) tail\n');
-		expect(s.widgetSelection.getSelected()).toBeNull();
+		expect(s.selection.widget).toBeNull();
 	});
 
 	it("stays selected through the image's own rewrite, which keeps its start byte", () => {
 		const s = selectedAt('abc ![c](a.png) tail\n', 4);
 		s.editTo('abc ![a new alt](a.png) tail\n');
-		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(4);
+		expect(s.selection.widget?.sourceStart).toBe(4);
 	});
 
 	// Miss-analysis: no case wrote an image in front of the selected one, as the popover does.
@@ -61,7 +62,7 @@ describe('a selected image whose bytes an edit moves', () => {
 		s.editTo('![a longer](a.png) ![b](a.png)\n');
 		await tick();
 
-		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(19);
+		expect(s.selection.widget?.sourceStart).toBe(19);
 	});
 });
 
@@ -72,21 +73,8 @@ describe('a selected widget of another kind', () => {
 		['stays selected through an edit that keeps it', 'before<br>after more\n', 6],
 		['is deselected once the edit removes it', 'before after\n', null]
 	])('a `<br>` %s', (_, next, expected) => {
-		let doc: Document = parse('before<br>after\n');
-		const widgetSelection = createWidgetSelectionState(createSelectionState());
-		const committer = createImageEditCommitter({
-			getDoc: () => doc,
-			getEditorEl: () => null,
-			widgetSelection,
-			inlineRange: makeInlineRange(() => doc, makeStubController()),
-			events: createEditorEvents(),
-			reading: fixtureReading()
-		});
-		widgetSelection.select({ paragraphPath: [0], sourceStart: 6, preSelectOffset: 6 });
-
-		doc = parse(next);
-		committer.clearStaleSelection();
-
-		expect(widgetSelection.getSelected()?.sourceStart ?? null).toBe(expected);
+		const s = selectedAt('before<br>after\n', 6);
+		s.editTo(next);
+		expect(s.selection.widget?.sourceStart ?? null).toBe(expected);
 	});
 });

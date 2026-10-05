@@ -1,13 +1,17 @@
 /**
- * Pure adjacency queries over a prose block's inline content and raw source: which
- * live widget a caret offset touches, the leading/trailing edge widgets, and whether
- * an offset has only whitespace to one side.
+ * Pure queries over a prose block's inline content and raw source: which live widget a caret
+ * offset touches, which one a selected widget names, the leading/trailing edge widgets, and
+ * whether an offset has only whitespace to one side.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import type { DocumentView, NodeView } from '../../../core/node-views';
 import { isBlankText } from '../../../core/lines';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
+import { resolvedInlineContent, type InlineReading } from '../../../core/inline/inline-cache';
+import { blockNodeAt } from '../../../tree-operations/node-primitives';
 import type { GrammarView } from '../../../schema/block-openers';
+import type { WidgetTarget } from '../../../selection/primitives';
 
 export interface WidgetRange {
 	start: number;
@@ -57,6 +61,31 @@ export function findWidgetNodeByStart(
 		}
 	}
 	return null;
+}
+
+/** The span of the widget of any kind starting at `sourceStart` in `node`, as the block renders
+ *  it. Every reader of a selected widget's bytes resolves them here. */
+export function widgetSpanIn(
+	node: NodeView,
+	sourceStart: number,
+	reading: InlineReading
+): WidgetRange | null {
+	return findWidgetNodeByStart(
+		sourceStart,
+		resolvedInlineContent(node, reading),
+		node.raw,
+		reading.grammar
+	);
+}
+
+/** The live span of the widget `target` names in `doc`, or null once none starts at its byte. */
+export function widgetSpanAt(
+	doc: DocumentView,
+	target: WidgetTarget,
+	reading: InlineReading
+): WidgetRange | null {
+	const block = blockNodeAt(doc, target.paragraphPath);
+	return block && widgetSpanIn(block, target.sourceStart, reading);
 }
 
 /** First widget reachable from the leading edge, skipping blank text; null once any

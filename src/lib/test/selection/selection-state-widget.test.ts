@@ -99,4 +99,35 @@ describe('SelectionState: a widget selected whole', () => {
 		expect(selection.widgetRange()).toBeNull();
 		expect(selection.widgetCaret()).toEqual({ path: [0, 1], offset: 25 });
 	});
+
+	it('names the widget only to the block it sits in', () => {
+		const { selection } = recording();
+		expect(selection.widgetIn([0, 1])).toBeNull();
+
+		selection.selectWidget(IMAGE);
+		expect(selection.widgetIn([0, 1])).toEqual(IMAGE);
+		for (const path of [[0, 2], [0], [0, 1, 0]]) expect(selection.widgetIn(path)).toBeNull();
+	});
+
+	it('clearWidget ends the widget silently', () => {
+		const h = recording();
+		h.selection.selectWidget(IMAGE);
+		const before = h.notified();
+
+		h.selection.clearWidget();
+
+		expect(h.selection.widget).toBeNull();
+		expect(h.notified()).toBe(before);
+	});
+
+	// The image's own clears run on every press and edit, so with no widget selected they must not
+	// end a range the user is making.
+	it('clearWidget leaves a live range alone when no widget is selected', () => {
+		const { selection } = recording();
+		selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [2], offset: 2 });
+
+		selection.clearWidget();
+
+		expect(selection.isCrossBlock).toBe(true);
+	});
 });

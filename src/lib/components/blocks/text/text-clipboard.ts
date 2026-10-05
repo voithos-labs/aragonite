@@ -7,15 +7,12 @@ import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { DocumentGetter, PasteImageHook } from '../../../editor-keys';
 import type { EditorEvents } from '../../../editor-events';
-import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CaretMemory } from '../../../cursor/caret-memory';
-import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
@@ -25,6 +22,7 @@ import {
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
+import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 
@@ -46,7 +44,6 @@ export interface TextClipboardDeps {
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
-	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
 	/** Reading mode: cut becomes copy, paste does nothing. The events still fire
 	 *  on a non-editable element, so the check lives in the handlers. */
@@ -81,19 +78,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 
 	// Null unless a widget on this block is selected and still present in the parsed
 	// inline content. Shared by copy, cut, and paste over a widget.
-	function selectedWidgetOnThisBlock(): {
-		inline: ReturnType<typeof resolvedInlineContent>[number];
-		preSelectOffset: number;
-	} | null {
-		const selected = deps.widgetSelection.getSelected();
-		if (selected === null || !deps.widgetSelection.isSelected(deps.myPath, selected.sourceStart)) {
-			return null;
-		}
-		const inline = resolvedInlineContent(deps.node, deps.reading).find(
-			(n) =>
-				isInlineWidget(n, deps.node.raw, deps.reading.grammar) && n.start === selected.sourceStart
-		);
-		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
+	function selectedWidgetOnThisBlock(): { inline: WidgetRange; preSelectOffset: number } | null {
+		const selected = deps.selection.widgetIn(deps.myPath);
+		const inline = selected && widgetSpanIn(deps.node, selected.sourceStart, deps.reading);
+		return selected && inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
 
 	const handlers = createClipboardHandlers({
@@ -177,7 +165,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		pasteTail: async (pastedText, foldedCaret) => {
 			// A selected widget is the selection a paste replaces, through the same route as any.
 			const widget = selectedWidgetOnThisBlock();
-			if (widget !== null) deps.widgetSelection.clear();
+			if (widget !== null) deps.selection.clearWidget();
 			// Once the widget's source is hidden again the caret sits on its element-level edge,
 			// where `getRaw` can read null; the committed caret is the right offset.
 			const offset = deps.cursor.getRaw() ?? foldedCaret ?? 0;

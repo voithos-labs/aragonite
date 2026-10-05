@@ -50,9 +50,7 @@
 	import { createDraftRegistry } from './draft-registry';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import type { EditorSelection } from '../selection/primitives';
-	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
-	import { imageAtTarget } from './image/image-edit-commit';
-	import type { SelectedWidgetHandle } from '../selection/primitives';
+	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
@@ -282,8 +280,8 @@
 			else selectionAnnouncer.announce();
 		},
 		getDoc: () => doc,
-		// Read off the live document, since an image's own commits move its end byte.
-		widgetSpan: (target) => imageAtTarget(doc, target, reading)
+		// Read off the live document, since a widget's own commits move its end byte.
+		widgetSpan: (target) => widgetSpanAt(doc, target, reading)
 	});
 	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
 	const coverage = $derived.by(() => {
@@ -291,11 +289,6 @@
 		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
 		return rangeCoverage(doc, coverRange(doc, anchor, focus));
 	});
-	const widgetSelection = createWidgetSelectionState(selectionState);
-	const selectedWidget: SelectedWidgetHandle = {
-		range: () => selectionState.widgetRange(),
-		clear: widgetSelection.clear
-	};
 
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
@@ -388,7 +381,6 @@
 		menus: menuPresence,
 		stamps,
 		drafts,
-		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
 		// refreshes regardless.
@@ -749,8 +741,6 @@
 		caretMemory,
 		autoPairs,
 		scrollOwner,
-		widgetSelection,
-		selectedWidget,
 		linkCard,
 		inlineMenuCombobox: inlineMenu.comboboxFor,
 		controller,
@@ -841,8 +831,7 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		reading,
-		widgetSelection
+		reading
 	});
 	$effect(() => {
 		if (!editorEl) return;
@@ -966,9 +955,7 @@
 		commands,
 		pasteCoordinator,
 		activePlugins,
-		events,
-		selectedWidget,
-		afterReactivity: () => tick()
+		events
 	});
 
 	// Every handler checks for this instance: the document listener sees every editor's keys,
@@ -1010,10 +997,7 @@
 			return onPasteImage;
 		},
 		events,
-		getSelectedWidgetBlock: () => {
-			const selected = selectionState.widget;
-			return selected ? getBlockComponent(selected.paragraphPath) : null;
-		}
+		getBlockComponent
 	});
 
 	$effect(() => {
@@ -1369,13 +1353,11 @@
 		/>
 	{/if}
 	<ImageOverlayHost
-		{widgetSelection}
 		{inlineRange}
 		{events}
 		{getDoc}
 		getContentVersion={contentVersion.read}
 		getEditorEl={() => editorEl ?? null}
-		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		lifetime={lifetimeController.signal}
 		{menuPresence}
 	/>

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
@@ -52,8 +52,12 @@ function fixture() {
 	const node: CstNode = parse(SOURCE).children[0];
 	const log: string[] = [];
 	let finishWrite = () => {};
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
-	widgetSelection.select({ paragraphPath: [0], sourceStart: WIDGET.start, preSelectOffset: 2 });
+	const selection = createSelectionState();
+	selectWidgetWhole(selection, {
+		paragraphPath: [0],
+		sourceStart: WIDGET.start,
+		preSelectOffset: 2
+	});
 	const deps = {
 		get node() {
 			return node;
@@ -83,7 +87,7 @@ function fixture() {
 				return withStoredCaret(done, after);
 			}
 		} as unknown as BlockEditActions,
-		widgetSelection,
+		selection,
 		storedAs: () => topLevelStore(node)
 	};
 	const write = keyWrite(
@@ -92,16 +96,16 @@ function fixture() {
 		(at) => void log.push(`caret ${at}`),
 		2
 	);
-	return { deps, write, log, widgetSelection, finish: () => finishWrite() };
+	return { deps, write, log, selection, finish: () => finishWrite() };
 }
 
 describe('replacing a selected widget', () => {
 	it('sets the caret after the text before the write lands, and resolves after it', async () => {
-		const { deps, write, log, widgetSelection, finish } = fixture();
+		const { deps, write, log, selection, finish } = fixture();
 
 		const replaced = replaceSelectedWidget(deps, WIDGET, 'XY', write);
 		expect(log).toEqual(['write leadXY tail 2->6', 'caret 6']);
-		expect(widgetSelection.getSelected()).toBeNull();
+		expect(selection.widget).toBeNull();
 
 		finish();
 		await replaced;
@@ -113,13 +117,13 @@ describe('replacing a selected widget', () => {
 		const row = mountBodyRow('| a | b |\n| - | - |\n| x<br>y | z |\n');
 		const cell = () => row.deps.doc.children[0].children![1].children![0];
 		const parked: (number | null)[] = [];
-		const widgetSelection = createWidgetSelectionState(createSelectionState());
-		widgetSelection.select({ paragraphPath: [0, 1, 0], sourceStart: 1, preSelectOffset: 1 });
+		const selection = createSelectionState();
+		selectWidgetWhole(selection, { paragraphPath: [0, 1, 0], sourceStart: 1, preSelectOffset: 1 });
 		const deps = {
 			get node() {
 				return cell();
 			},
-			widgetSelection,
+			selection,
 			storedAs: () => storedAsAt(row.deps.doc, [0, 1, 0], fixtureReading())
 		};
 		const write = keyWrite(cell, row.blockEdit, (at) => void parked.push(at), 1);

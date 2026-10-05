@@ -12,26 +12,18 @@ import {
 	imageFieldsFromInline,
 	sameImageFields
 } from '../../core/inline/image-source-bytes';
-import type { WidgetSelectionState } from './widget-selection-state.svelte';
+import { selectWidgetWhole } from '../../selection/caret-doors';
 import type { WidgetTarget } from '../../selection/primitives';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { Reading } from '../../schema/reading';
+import { widgetSpanAt } from '../blocks/text/widget-adjacency';
 
 // ── Public API ──────────────────────────────────────────────────────────
-
-/** The image `target` names in `doc`, or null once no image starts at its bytes. */
-export function imageAtTarget(
-	doc: Document,
-	target: WidgetTarget,
-	reading: Reading
-): InlineNode | null {
-	const paragraph = blockNodeAt(doc, target.paragraphPath);
-	return paragraph ? findImageInParagraph(paragraph, target.sourceStart, reading) : null;
-}
 
 export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
-	widgetSelection: WidgetSelectionState;
+	selection: SelectionState;
 	/** The editor's inline range write, which every popover edit goes through. */
 	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
@@ -58,14 +50,14 @@ export interface ImageEditCommitter {
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
-	/** Clears the widget selection once no image starts at its bytes; commits to this image or
-	 *  to one before it keep it selected. */
+	/** Ends a selected widget once no widget starts at its bytes; commits to this image or to one
+	 *  before it keep it selected. */
 	clearStaleSelection(): void;
 	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
-	const { getDoc, getEditorEl, widgetSelection, inlineRange, events } = deps;
+	const { getDoc, getEditorEl, selection, inlineRange, events } = deps;
 
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
@@ -79,15 +71,17 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		) as HTMLElement | null;
 	}
 
-	const imageAt = (target: WidgetTarget): InlineNode | null =>
-		imageAtTarget(getDoc(), target, deps.reading);
+	const imageAt = (target: WidgetTarget): InlineNode | null => {
+		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
+		return paragraph ? findImageInParagraph(paragraph, target.sourceStart, deps.reading) : null;
+	};
 
 	// The bytes the last popover write moved, applied by the next stale check: the write runs as
 	// the popover unmounts, where a read of the selection still returns the one before the click.
 	let lastShift: { paragraphPath: number[]; editEnd: number; delta: number } | null = null;
 
 	function getSelectedImageFields(): SelectedImageFields | null {
-		const sel = widgetSelection.getSelected();
+		const sel = selection.widget;
 		const image = sel && imageAt(sel);
 		if (!sel || !image) return null;
 		return { image, widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart) };
@@ -150,7 +144,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function commitImageResize(newWidth: number, newHeight: number | undefined): void {
-		const sel = widgetSelection.getSelected();
+		const sel = selection.widget;
 		if (!sel) return;
 		const ctx = getSelectedImageFields();
 		if (!ctx) return;
@@ -176,7 +170,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function removeImage(target: WidgetTarget): void {
 		const image = imageAt(target);
 		if (!image) return;
-		widgetSelection.clear();
+		selection.clearWidget();
 		void inlineRange.commitInlineRange(
 			target.paragraphPath,
 			image.start,
@@ -187,7 +181,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function dismissImagePopover(): void {
-		widgetSelection.clear();
+		selection.clearWidget();
 	}
 
 	function getEditorContentWidth(): number {
@@ -197,7 +191,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function attachWidgetSelectListener(): () => void {
 		const root = getEditorEl();
 		if (!root) return () => {};
-		const handler = (e: Event) => widgetSelection.select((e as CustomEvent).detail as WidgetTarget);
+		const handler = (e: Event) =>
+			selectWidgetWhole(selection, (e as CustomEvent).detail as WidgetTarget);
 		root.addEventListener('image-widget-select', handler);
 		return () => root.removeEventListener('image-widget-select', handler);
 	}
@@ -212,14 +207,14 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		// The overlay finds the widget by the bytes its element names, so the move waits for the
 		// block to render the write.
 		void tick().then(() => {
-			widgetSelection.followEdit(shift.paragraphPath, shift.editEnd, shift.delta);
+			selection.followWidgetEdit(shift.paragraphPath, shift.editEnd, shift.delta);
 			dropSelectionIfStale();
 		});
 	}
 
 	function dropSelectionIfStale(): void {
-		const sel = widgetSelection.getSelected();
-		if (sel && !imageAt(sel)) widgetSelection.clear();
+		const sel = selection.widget;
+		if (sel && !widgetSpanAt(getDoc(), sel, deps.reading)) selection.clearWidget();
 	}
 
 	function syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void {

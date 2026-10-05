@@ -5,7 +5,7 @@ import { tick } from 'svelte';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
-import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
@@ -31,16 +31,16 @@ function probeKind(name: string, rule: (raw: string, node: { raw: string }) => s
 function secondImageSelected(kind: string) {
 	let doc: Document = parse('![a](a.png) ![b](a.png)\n');
 	(doc.children[0] as CstNode).kind = kind as CstNode['kind'];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
+	const selection = createSelectionState();
 	const committer = createImageEditCommitter({
 		getDoc: () => doc,
 		getEditorEl: () => null,
-		widgetSelection,
+		selection,
 		inlineRange: makeInlineRange(() => doc, makeStubController()),
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	widgetSelection.select({ paragraphPath: [0], sourceStart: 12, preSelectOffset: 0 });
+	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 12, preSelectOffset: 0 });
 	const first = getInlineContent(
 		doc.children[0] as CstNode,
 		undefined,
@@ -58,7 +58,7 @@ function secondImageSelected(kind: string) {
 		(doc.children[0] as CstNode).kind = kind as CstNode['kind'];
 		committer.clearStaleSelection();
 	};
-	return { widgetSelection, changeTo };
+	return { selection, changeTo };
 }
 
 describe('the popover follow after a kind rewrites the bytes it was given', () => {
@@ -69,7 +69,7 @@ describe('the popover follow after a kind rewrites the bytes it was given', () =
 		s.changeTo('![a longer!](a.png) ![b](a.png)\n');
 		await tick();
 
-		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(20);
+		expect(s.selection.widget?.sourceStart).toBe(20);
 	});
 
 	it('arms nothing when the kind refuses the write', async () => {
@@ -80,6 +80,6 @@ describe('the popover follow after a kind rewrites the bytes it was given', () =
 		s.changeTo('![a](a.png) ![b](a.png)\n');
 		await tick();
 
-		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(12);
+		expect(s.selection.widget?.sourceStart).toBe(12);
 	});
 });
