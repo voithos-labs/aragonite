@@ -1840,8 +1840,39 @@ const REF_FOCUS: FileRule = {
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };
 
+// ── G4.113 one reading of a `$$` math block's shape ────────────────────────
+
+const MATH_SHAPE_HOME = 'src/lib/plugins/latex/math-shape.ts';
+const ROGUE_MATH_READER = 'src/lib/plugins/latex/rogue.ts';
+const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
+
+const MATH_SHAPE: FileRule = {
+	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
+	population: under('src/lib/plugins/latex/'),
+	matches: new RegExp(
+		String.raw`(?:startsWith|endsWith)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==`
+	),
+	allowed: {
+		[MATH_SHAPE_HOME]:
+			'reads opener, body and closer for the parser, the write rule and the painter'
+	},
+	reaches: [MATH_SHAPE_HOME],
+	reason:
+		'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: read it through `math-shape.ts`',
+	hits: [
+		at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
+		at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
+		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);')
+	],
+	misses: [
+		at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+		at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
+		at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+	]
+};
+
 const SOURCES = collectEditorSources();
-describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS], SOURCES);
+describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE], SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
