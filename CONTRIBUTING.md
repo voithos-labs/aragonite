@@ -172,13 +172,12 @@ Merging needs one code-owner approval. Review is root-cause first, and it'll ask
 
 ## Filing an issue
 
-Bugs (aka defect), features (proposal) and tasks go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of three forms (Defect, Proposal, Task). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it's a defect.
+Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of two forms (Bug, Feature request). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it's a bug.
 
 Note,
 
-1. Fill the form in honestly: what's wrong, how to reproduce it, where it seems to live.
-2. Task is the form for work the codebase owes itself (a coverage gap, a refactor, a doc job, etc.); it asks for an edit site and an acceptance signal instead of a repro.
-3. Yes, I see the open count. The issues, in this repo, partly acts as a to-watch ledger; `severity: watch` tracks observed signals with no confirmed defect, those and `severity: minor` stay open - i believe knowing of their existence is relatively more improtant than recklessly tidying them away.
+1. Fill the form in honestly: what you saw, how to make it happen, and which version, browser and mode.
+2. Yes, I see the open count. The issues, in this repo, partly acts as a to-watch ledger; `severity: watch` tracks observed signals with no confirmed defect, those and `severity: minor` stay open - i believe knowing of their existence is relatively more improtant than recklessly tidying them away.
 
 ## The paperwork
 
