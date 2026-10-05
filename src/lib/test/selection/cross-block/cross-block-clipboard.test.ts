@@ -35,7 +35,7 @@ describe('the cross-block clipboard arm', () => {
 		const arm = crossBlockClipboardArm(makeDeps(createSelectionState()));
 		const { event, written } = makeCopyEvent();
 
-		// The null is what lets the block's own range arm take the copy next.
+		// The null is what lets the block's own range take the copy next.
 		expect(arm.copy(event)).toBeNull();
 		expect(written.size).toBe(0);
 	});

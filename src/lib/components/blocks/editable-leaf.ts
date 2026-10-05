@@ -24,6 +24,7 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
+	type ClipboardCopy,
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
@@ -541,7 +542,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// The leaf's DOM text is its raw, so copy writes a slice of it, hidden fence lines included, and
 	// cut and paste splice verbatim; the commit's reparse splits the block where the grammar demands.
-	function copyRange(e: ClipboardEvent): { held: RawRange } | null {
+	function copyRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		const el = deps.getEl();
 		const range = el ? backend.getRawSelection() : null;
 		if (!el || !range || range.start === range.end) return null;

@@ -541,13 +541,16 @@ export interface RevealFold {
  */
 export interface ClipboardArm<Held = unknown> {
 	/** Writes the payload to `e.clipboardData` and returns what the removal needs; null when the
-	 *  selection isn't this arm's. Synchronous: a scripted cut's data closes as its dispatch ends. */
-	copy(e: ClipboardEvent): { held: Held } | null;
+	 *  selection isn't its kind. Synchronous: a scripted cut's data closes as its dispatch ends. */
+	copy(e: ClipboardEvent): ClipboardCopy<Held>;
 	/** Deletes what `copy` wrote, from what it read. Runs after a shown source is hidden. */
 	remove(held: Held): void | Promise<void>;
 }
 
-/** Writes the payload of the first arm the selection belongs to; null when none takes it. */
+/** What a `ClipboardArm`'s copy hands its removal, or null for a selection of another kind. */
+export type ClipboardCopy<Held> = { held: Held } | null;
+
+/** Writes the payload of the first `ClipboardArm` that takes the selection; null when none does. */
 export function takeCopy(
 	e: ClipboardEvent,
 	arms: readonly ClipboardArm[]
@@ -561,7 +564,7 @@ export function takeCopy(
 
 /**
  * Every cut, from a block or the editor root: the copy's payload goes on the event before the
- * first await, then a shown source hides and the arm deletes what it copied.
+ * first await, then a shown source hides and the removal deletes what the copy read.
  */
 export async function runClipboardCut(
 	e: ClipboardEvent,
@@ -637,7 +640,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	});
 
 	// Reading mode copies what the user sees, which is the browser's selection string with the
-	// CSS-hidden markers dropped, not a slice of the raw; so does a copy no arm takes.
+	// CSS-hidden markers dropped, not a slice of the raw; so does a copy no `ClipboardArm` takes.
 	const writeVisibleSelection = (e: ClipboardEvent): void => {
 		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 	};

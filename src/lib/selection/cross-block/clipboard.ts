@@ -1,7 +1,7 @@
 /**
- * The clipboard arm for a range across blocks, a cell rectangle included, shared by every editable
- * block and the editor root: its copy writes the range's text, and its removal is the one a range
- * delete runs.
+ * Copy and cut for a range across blocks, a cell rectangle included, as one `ClipboardArm` every
+ * editable block and the editor root share: its copy writes the range's text, and its removal is
+ * the one a range delete runs.
  */
 
 import type { DocumentGetter } from '../../editor-keys';

@@ -22,7 +22,8 @@
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
-		editableSurfaceAttributes
+		editableSurfaceAttributes,
+		type ClipboardCopy
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
@@ -731,14 +732,14 @@
 
 	// Copy is verbatim; where the fence lines are hidden the delete clamps, so the clipboard keeps
 	// the fence characters selected while only the body half is removed.
-	function copySelection(e: ClipboardEvent): { held: { start: number; end: number } } | null {
+	function copySelection(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		const range = el ? backend.getRawSelection() : null;
 		if (!range) return null;
 		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 		return { held: range };
 	}
 
-	function removeSelection(range: { start: number; end: number }): void {
+	function removeSelection(range: RawRange): void {
 		const edit = fenceLinesEditable
 			? computeRangedEdit(getDisplayText(), range, '')
 			: computeFenceRangedEdit(node, range, '');

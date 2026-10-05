@@ -39,7 +39,8 @@
 		containerDomTextLength,
 		landableDomTextBounds,
 		screenVisibilityOf,
-		rawSelectionFocus
+		rawSelectionFocus,
+		type RawRange
 	} from '../../../cursor/widget-offset';
 	import {
 		asRawOffset,
@@ -52,7 +53,8 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore
+		consumePendingRestore,
+		type ClipboardCopy
 	} from '../editable-surface';
 	import { rangeWrite } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
@@ -879,7 +881,7 @@
 		pastePreHook: pasteGridHere,
 		rangeArm: {
 			copy: copyCellRange,
-			remove: (range: { start: number; end: number }) =>
+			remove: (range: RawRange) =>
 				deleteCellRange(range.start, range.end, editableSurface.caret.getPreEditOffset())
 		},
 		pasteTail: async (pastedText) => {
@@ -893,7 +895,7 @@
 
 	// While a source is shown the DOM holds an edit `node.raw` has not seen; copy never writes, so
 	// it slices the live DOM text rather than hiding it first.
-	function copyCellRange(e: ClipboardEvent): { held: { start: number; end: number } } | null {
+	function copyCellRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		if (!el) return null;
 		const range = cursor.getRawSelection();
 		if (!range || range.start === range.end) return null;

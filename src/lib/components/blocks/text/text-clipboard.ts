@@ -16,6 +16,7 @@ import type { CaretMemory } from '../../../cursor/caret-memory';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
+	type ClipboardCopy,
 	type ClipboardHandlers,
 	type RevealFold
 } from '../editable-surface';
@@ -86,7 +87,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	}
 
 	// Copy never mutates, so the widget stays selected.
-	function copyWidget(e: ClipboardEvent): { held: SelectedWidget } | null {
+	function copyWidget(e: ClipboardEvent): ClipboardCopy<SelectedWidget> {
 		const widget = selectedWidgetOnThisBlock();
 		if (widget === null) return null;
 		e.clipboardData?.setData(
@@ -114,7 +115,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 
 	// A selection over a construct whose source is showing covers uncommitted DOM, so slice the
 	// live text rather than the stale `node.raw`; the copy must not hide it, because that writes.
-	function copyRange(e: ClipboardEvent): { held: RawRange } | null {
+	function copyRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		const range = deps.cursor.getRawSelection();
 		if (!range || range.start === range.end) return null;
 		const text = deps.isRevealing() ? deps.readRevealedText() : deps.node.raw;

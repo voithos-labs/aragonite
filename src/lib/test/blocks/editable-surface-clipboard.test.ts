@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The step order `createClipboardHandlers` keeps for the four editable blocks: the reading
-// check, the arms in order, a cut's payload before the hide, and `preventDefault` on a paste
+// check, each `ClipboardArm` in order, a cut's payload before the hide, and `preventDefault` on a paste
 // before any await. Per-block parts (widget slice, cell escaping) are covered by each block's suite.
 import { describe, it, expect } from 'vitest';
 import {
@@ -36,7 +36,7 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
-/** An arm that logs its copy and removal; `takes: false` stands in for a selection not its own. */
+/** A `ClipboardArm` that logs its copy and removal; `takes: false` stands in for another kind. */
 function arm(log: string[], name: string, takes = true): ClipboardArm<string> {
 	return {
 		copy(e) {

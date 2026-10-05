@@ -136,6 +136,43 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
+		id: 'G4.115 a clipboard payload is written only by a copy',
+		population: (file) =>
+			['src/lib/components/', 'src/lib/selection/', 'src/lib/plugins/'].some((dir) =>
+				file.relPath.startsWith(dir)
+			),
+		calls: ['.setData'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/editable-surface.ts :: writeVisibleSelection':
+				'reading mode, and a copy no arm takes, write what the browser shows',
+			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
+				'the text block’s copy of a selected widget',
+			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
+				'the text block’s copy of its own range',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: copyCellRange':
+				'the cell’s copy of its own range',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: copySelection':
+				'the code block’s copy of its own range',
+			'src/lib/components/blocks/editable-leaf.ts :: copyRange':
+				'a plugin leaf’s copy of its own range',
+			'src/lib/selection/cross-block/clipboard.ts :: copyCrossBlock':
+				'the copy of a range across blocks, a cell rectangle included',
+			'src/lib/components/menu/clipboard-actions.ts :: pasteTextInto':
+				'the data a menu’s paste event carries in, not a copy’s payload'
+		},
+		reason:
+			'a payload is written by a `ClipboardArm`’s `copy` (`editable-surface.ts`), which a cut reuses before anything awaits; written anywhere else, a cut’s payload can differ from the copy’s, or land after a scripted cut’s data has closed',
+		hits: [
+			at(ROGUE_BLOCK, "e.clipboardData?.setData('text/plain', text);"),
+			at('src/lib/selection/rogue.ts', "event.clipboardData!.setData('text/html', html);")
+		],
+		misses: [
+			at(ROGUE_BLOCK, "const text = e.clipboardData?.getData('text/plain');"),
+			at('src/lib/editor-actions/rogue.ts', "e.clipboardData?.setData('text/plain', text);")
+		]
+	},
+	{
 		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
 		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],

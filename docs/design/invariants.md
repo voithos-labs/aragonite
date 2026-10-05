@@ -1147,6 +1147,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
 | G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
+| G4.115 | A clipboard payload is written only by a copy                                             | L       |
 
 ### The entries
 
@@ -2213,6 +2214,17 @@ an end table's cell run anywhere outside `src/lib/selection/`: a call to `rootHo
 `startCells` or `endCells`, or an object pattern naming one of those fields, whether it's
 destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
 (`coverage['wholeRoots']`) gets past it.
+
+**G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy (its own
+range, a selected widget, a range across blocks) is one `ClipboardArm` in
+`components/blocks/editable-surface.ts`: its `copy` writes the payload and reads what its `remove`
+deletes. `runClipboardCut` runs that same copy before anything waits, then the removal, so a cut
+can't write different bytes from a copy, and a menu's Cut still lands (it's a scripted cut, and
+the browser closes its clipboard data the moment the event's handlers return). The type's shape
+holds most of it: there's no cut payload to write, and an `async` copy doesn't type-check.
+`lint/call-site-rules.test.ts` holds the rest. It fails a `.setData(` call under `components/`,
+`selection/` or `plugins/` outside those copy functions, the reading-mode copy and the menu's paste
+event, each listed by function.
 
 ## Accessibility
 
