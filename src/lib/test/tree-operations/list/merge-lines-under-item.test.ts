@@ -29,7 +29,7 @@ function mergeAndConverge(src: string, currentIndex: number): { doc: Document; s
 // An absorbed trailing paragraph keeps its blank-line separator, or it lazily continues into the
 // joined text on reload; a promoted sublist item needs none, since a marker line starts an item.
 
-describe('relocateRemainingChildren (via mergeListItemIntoPrevious)', () => {
+describe('the lines under a merged item (mergeListItemIntoPrevious)', () => {
 	it('depth-0 target: trailing paragraph absorbed into the target item stays a separate paragraph', () => {
 		const { doc, source } = mergeAndConverge('- A\n- B\n\n  extra\n', 1);
 
@@ -47,10 +47,11 @@ describe('relocateRemainingChildren (via mergeListItemIntoPrevious)', () => {
 		expect(serialize(parse(source))).toBe(source);
 	});
 
-	it('depth-≥1 target: non-list child absorbed into the target item keeps the separator', () => {
+	// The line under the merged item keeps its indent, so it reads as A's, after A's sublist.
+	it('depth-≥1 target: a paragraph under the merged item stays where its line reads', () => {
 		const { doc, source } = mergeAndConverge('- A\n  - B\n- C\n\n  extra\n', 1);
 
-		expect(source).toBe('- A\n  - BC\n\n    extra\n');
+		expect(source).toBe('- A\n  - BC\n\n  extra\n');
 		expectParseConverged(doc);
 		expect(serialize(parse(source))).toBe(source);
 	});

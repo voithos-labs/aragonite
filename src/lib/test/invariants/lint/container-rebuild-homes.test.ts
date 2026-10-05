@@ -132,8 +132,8 @@ const PINNED: Record<string, Pin> = {
 		why: 'a trial item, read back once and dropped'
 	},
 	'src/lib/tree-operations/list/unwrap-merge.ts': {
-		calls: { rebuildListRaw: 2, rebuildAncestryRaw: 1 },
-		why: 'an unwrap of an empty first item rebuilds the shrunk list, and an item merge rebuilds the target item and a sublist below the list the commit rebuilds'
+		calls: { rebuildListRaw: 1 },
+		why: 'an unwrap of an empty first item rebuilds the shrunk list, a clone no commit chain holds'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
 		calls: { rebuildAncestryRaw: 1 },

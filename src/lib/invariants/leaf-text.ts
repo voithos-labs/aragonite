@@ -14,6 +14,26 @@ export function leafTexts(nodes: readonly NodeView[]): string[] {
 	return texts;
 }
 
+/** The leaf text before `from` and after `to`, each run together, with both nodes and everything
+ *  between them left out; with either one missing, the whole text and nothing. */
+export function leafTextAround(
+	nodes: readonly NodeView[],
+	from: NodeView | null,
+	to: NodeView | null
+): [before: string, after: string] {
+	if (!from || !to) return [leafTexts(nodes).join(''), ''];
+	const texts: [string, string] = ['', ''];
+	let side: 0 | 'between' | 1 = 0;
+	const walk = (node: NodeView) => {
+		if (node === from) side = 'between';
+		if (node === to) return void (side = 1);
+		if (node.children) return node.children.forEach(walk);
+		if (side !== 'between') texts[side] += node.raw.replace(/\s+/g, '');
+	};
+	nodes.forEach(walk);
+	return texts;
+}
+
 export function sameTexts(before: readonly string[], after: readonly string[]): boolean {
 	return before.length === after.length && before.every((text, i) => text === after[i]);
 }

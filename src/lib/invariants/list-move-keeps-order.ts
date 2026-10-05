@@ -4,10 +4,9 @@
  * it rewrites, the list that holds both ends of the move.
  */
 
-import type { NodeView } from '../core/node-views';
 import { assertInvariant, type InvariantViolation } from '../assert';
 import { isDevChecks } from '../env';
-import { leafTexts, sameTexts } from './leaf-text';
+import { sameTexts } from './leaf-text';
 
 export function checkListMoveKeepsOrder(
 	before: readonly string[],
@@ -23,18 +22,16 @@ export function checkListMoveKeepsOrder(
 }
 
 /** Runs `move`, and in a dev build checks that what `after` reads once it's done is the text
- *  `before` read, in the same order; by default both read the same region. */
+ *  `before` read, in the same order; by default both read the same way. */
 export function keepingListOrder<T>(
-	before: () => readonly NodeView[],
+	before: () => readonly string[],
 	move: () => T,
-	after: (result: T) => readonly NodeView[] = () => before()
+	after: (result: T) => readonly string[] = () => before()
 ): T {
-	const texts = isDevChecks() ? leafTexts(before()) : null;
+	const texts = isDevChecks() ? before() : null;
 	const result = move();
 	if (texts) {
-		assertInvariant('list-move-keeps-order', () =>
-			checkListMoveKeepsOrder(texts, leafTexts(after(result)))
-		);
+		assertInvariant('list-move-keeps-order', () => checkListMoveKeepsOrder(texts, after(result)));
 	}
 	return result;
 }

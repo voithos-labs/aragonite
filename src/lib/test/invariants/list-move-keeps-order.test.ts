@@ -2,7 +2,7 @@
 // G1.61: the check passes a list move that keeps the text in order and fails one that reorders it.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { leafTexts } from '$lib/invariants/leaf-text';
+import { leafTextAround, leafTexts } from '$lib/invariants/leaf-text';
 import { checkListMoveKeepsOrder, keepingListOrder } from '$lib/invariants/list-move-keeps-order';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
@@ -15,9 +15,12 @@ describe('G1.61 a list move keeps the order its text reads in', () => {
 		expect(checkListMoveKeepsOrder(before, textOf('1. a\n2. b\n   1. c\n'))).toBeNull();
 	});
 
-	it('passes a merge, which joins two lines of text into one', () => {
-		const before = textOf('- a\n  - x\n- b\n  - y\n');
-		expect(checkListMoveKeepsOrder(before, textOf('- a\n  - xb\n  - y\n'))).toBeNull();
+	it('reads a merge by the text around the two lines it joins', () => {
+		const [list] = parse('- a\n  - x\n- b\n  - y\n').children;
+		const x = list.children![0].children![1].children![0].children![0];
+		const b = list.children![1].children![0];
+		expect(leafTextAround([list], x, b)).toEqual(['a', 'y']);
+		expect(leafTextAround([list], null, b)).toEqual(['axby', '']);
 	});
 
 	it('fails a lift that leaves a sibling above the item it followed', () => {
@@ -30,7 +33,7 @@ describe('G1.61 a list move keeps the order its text reads in', () => {
 	it('warns once when the move it wraps reorders the region', () => {
 		const [list] = parse('- a\n- b\n').children;
 		keepingListOrder(
-			() => [list],
+			() => leafTexts([list]),
 			() => list.children!.reverse()
 		);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:list-move-keeps-order']);

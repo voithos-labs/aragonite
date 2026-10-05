@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// The keys that move list items between levels never change the order the text reads in.
+// The keys that move list items (Tab, Shift+Tab, Backspace at an item's start, Enter in an empty
+// nested item) never change the order the text reads in.
 // Miss-analysis: the property drew one tight bullet list, so no loose list, ordered list,
 // paragraph after a sublist, second list or quoted list ever met a move.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
@@ -61,8 +62,8 @@ const arbDoc = fc.record({
 	quoted: fc.boolean()
 });
 
-/** Markdown for the drawn shape, with at most one empty item: nested, holding nothing, and never
- *  first in its list, where it can't interrupt the line above. The order comes from the parse. */
+/** Markdown for the drawn shape, with at most one empty item, and that one nested, where Enter
+ *  lifts it rather than leaving the list. The order comes from the parse, not from here. */
 function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): string {
 	let next = 0;
 	let emptyDrawn = false;
@@ -71,7 +72,13 @@ function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): str
 		list.items.forEach((item, i) => {
 			if (i > 0 && list.loose) lines.push('');
 			const marker = list.ordered ? `${i + 1}. ` : '- ';
-			const empty = item.empty && indent !== '' && i > 0 && !emptyDrawn && !item.sublist;
+			// Never first in its list: the line above reads it as its own text, and lifting the
+			// sublist under it leaves the list's bytes stale (a known bug).
+			const opensList = i === 0;
+			// Never holding a sublist: it parses as one item with that sublist's first, and moving it
+			// leaves the list's bytes stale (a known bug).
+			const holds = item.sublist !== null;
+			const empty = item.empty && indent !== '' && !opensList && !holds && !emptyDrawn;
 			emptyDrawn ||= empty;
 			lines.push(`${indent}${marker}${empty ? '' : `i${next++}`}`);
 			const inner = indent + ' '.repeat(marker.length);
@@ -115,8 +122,6 @@ interface Found {
 	offset: number;
 	/** How many list items hold it. */
 	depth: number;
-	/** Whether it opens the first item of its list. */
-	opensList: boolean;
 }
 
 /** Where `token` starts, in the paragraph that holds it. */
@@ -129,13 +134,12 @@ function find(doc: Document, token: string): Found | null {
 			node.children.forEach((child, i) => walk(child, [...path, i], depth, node));
 			return;
 		}
-		const opensList = parent?.kind === 'listItem' && path.at(-1) === 0 && path.at(-2) === 0;
 		if (token === 'E') {
 			if (parent?.kind === 'listItem' && node.raw.trim() === '') {
-				found = { path, offset: 0, depth: items, opensList };
+				found = { path, offset: 0, depth: items };
 			}
 		} else if (node.raw.match(/[ip]\d+/g)?.includes(token)) {
-			found = { path, offset: node.raw.indexOf(token), depth: items, opensList };
+			found = { path, offset: node.raw.indexOf(token), depth: items };
 		}
 	};
 	doc.children.forEach((child, i) => walk(child as CstNode, [i], 0, null));
@@ -184,8 +188,8 @@ async function press(editor: MountedEditor<Seam>, step: Press, order: string[]):
 	} else if (step.kind === 'backspace') {
 		focusToken = items[step.at % items.length];
 		anchor = focus = find(doc, focusToken);
-		// Only at the start of a list's first item does Backspace move it: a lift, or the unwrap.
-		if (anchor?.offset !== 0 || !anchor.opensList) return;
+		// Mid-paragraph, Backspace deletes a character instead of moving an item.
+		if (anchor?.offset !== 0) return;
 		key = { key: 'Backspace' };
 	} else {
 		focusToken = 'E';
