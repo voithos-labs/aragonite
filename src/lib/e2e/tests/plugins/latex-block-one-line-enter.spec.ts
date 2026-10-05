@@ -39,7 +39,7 @@ test.describe('Enter in a one-line math block', () => {
 	}
 
 	// Backspace in an empty paragraph under a math block keeps the paragraph and moves the caret to
-	// the end of the formula, which is where Enter used to double the closer.
+	// the end of the formula, so the Enter after it lands at the end of a one-line form's body.
 	test('Backspace from the emptied paragraph below, then Enter, keeps one block', async ({
 		page
 	}) => {
