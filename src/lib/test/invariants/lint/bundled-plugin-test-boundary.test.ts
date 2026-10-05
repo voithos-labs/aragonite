@@ -186,10 +186,19 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'no published grammar for either read'
 	},
 	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
-		specifiers: ['$lib/tree-operations/node-primitives'],
+		specifiers: ['$lib/tree-operations/node-primitives', '$lib/schema/block-kind-descriptor'],
 		reason:
 			'a kind declares rawWrite but nothing published applies one, so an author cannot ' +
-			'check what their rule makes of bytes a tree operation wrote'
+			'check what their rule makes of bytes a tree operation wrote, nor read the rule back'
+	},
+	'src/lib/test/plugins/latex/math-shape.property.test.ts': {
+		specifiers: [
+			'$lib/tree-operations/content-write',
+			'$lib/test/invariants/arbitraries/property-seed'
+		],
+		reason:
+			'nothing published applies a rawWrite the way a leaf commit does (an authored write), and ' +
+			'the fixed property seed is the suite’s own helper, with no published counterpart'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
 		specifiers: ['$lib/cursor/widget-offset'],

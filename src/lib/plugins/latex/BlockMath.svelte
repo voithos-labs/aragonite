@@ -22,7 +22,7 @@
 	};
 	import { mathSlot } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
-	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
+	import { mathBodySpan, renderMathSource, reshapeMathEdit } from './math-source';
 	import type { MathBlockLayout } from './math-layout';
 	import type { LatexEditorOptions } from './register';
 
@@ -51,7 +51,7 @@
 			draft = null;
 		},
 		renderSource: renderMathSource,
-		completeBareSource: completeBareMathSource,
+		reshapeSource: reshapeMathEdit,
 		onSourceEdit: (text) => {
 			draft = text;
 		}

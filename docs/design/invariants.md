@@ -1123,6 +1123,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
 | G4.111 | A block's editable element writes its own text only through the surface write             | L       |
+| G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
 
 ### The entries
 
@@ -2156,6 +2157,14 @@ back. A block that calls `updateBlockContent` itself has to pick its own undo ca
 that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
 it's called on, under `components/` or `selection/` outside the surface write,
 except the few commands and clipboard edits still to move, each listed by function.
+
+**G4.113 · One reading of a math block's shape.** A `$$` source is an opener, a body and a
+closer, and the parser's line tests, the block's write rule and the painter that draws its source
+all read that split from `src/lib/plugins/latex/math-shape.ts`. A second copy drifts, and the
+one-line `$$x^2$$` with a line break in it is where copies disagree: the screen, the bytes and a
+reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$`
+anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `indexOf`,
+`lastIndexOf`, `includes` or equality against the fence, or a regex spelling it `\$\$`.
 
 ## Accessibility
 

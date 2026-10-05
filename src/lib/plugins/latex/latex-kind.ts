@@ -22,8 +22,6 @@ import {
 	scanFence,
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
-	displayLines,
-	joinDisplayLines,
 	ownTrailingLineEnding,
 	trailingLineEnding,
 	trimWhitespace,
@@ -37,6 +35,14 @@ import {
 import MathInline from './MathInline.svelte';
 import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
+import {
+	awaitsMathCloser,
+	isMathFenceLine,
+	isOneLineMath,
+	legalMathSource,
+	opensMathBlock,
+	readMathSource
+} from './math-shape';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -161,65 +167,31 @@ function mathCaretAtPoint(
 export function mathDisplaySource(source: string): string {
 	const fence = fenceAnatomy(source);
 	if (fence) return trimWhitespace(source.slice(fence.bodyStart, fence.closerStart));
-	let inner = source;
-	if (inner.startsWith('$$')) inner = inner.slice(2);
-	if (inner.endsWith('$$')) inner = inner.slice(0, -2);
-	return trimWhitespace(inner);
+	return trimWhitespace(readMathSource(source)?.body ?? source);
 }
 
 // ── Writing a block's own bytes ────────────────────────────────────────────────
 
-/** The ending a restored closer line takes: the block's own, else the document's. */
-const closerEnding = (ctx: WriteContext) => trailingLineEnding(ctx.node.raw, ctx.lineEnding);
-
-/** The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
- *  block does; a first line that does not open the block is left alone. */
-function normalizeMathBlockRaw(raw: string, ctx: WriteContext): string {
+/** The `$$` kind's write rule, read off `math-shape.ts` like the painter and the parser: a closer a
+ *  truncating write dropped comes back, as for a fenced code block. */
+function writeMathBlock(raw: string, offset: number, ctx: WriteContext) {
 	const display = trimTrailingLineEnding(raw);
-	const lines = displayLines(display);
-	const { text } = lines[0];
-	if (!text.startsWith(BLOCK_FENCE)) return raw;
-	if (text === BLOCK_FENCE) {
-		if (lines.slice(1).some((line) => line.text === BLOCK_FENCE)) return raw;
-		return display + closerEnding(ctx) + BLOCK_FENCE + ownTrailingLineEnding(raw);
-	}
-	if (isBlockMathOpener(text)) return raw;
-	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
-	lines[0] = { ...lines[0], text: text + BLOCK_FENCE };
-	return joinDisplayLines(lines) + ownTrailingLineEnding(raw);
+	const tail = ownTrailingLineEnding(raw);
+	const written = legalMathSource(display, Math.min(offset, display.length), {
+		authored: ctx.mode === 'authored',
+		// The block's own ending, else the document's.
+		closerEnding: trailingLineEnding(ctx.node.raw, ctx.lineEnding)
+	});
+	const intoTail = Math.min(Math.max(offset - display.length, 0), tail.length);
+	return { raw: written.text + tail, offset: written.caret + intoTail };
 }
 
 const mathBlockWrite: WriteRule = {
-	normalize: normalizeMathBlockRaw,
-	// A restored closer line goes after every written byte; only the one-line form's closer lands
-	// mid-write, at the end of line 0.
-	mapOffset: (raw, offset) => {
-		const { text } = displayLines(raw)[0];
-		const closesLineZero =
-			text.startsWith(BLOCK_FENCE) && text !== BLOCK_FENCE && !isBlockMathOpener(text);
-		return closesLineZero && offset > text.length ? offset + BLOCK_FENCE.length : offset;
-	}
+	normalize: (raw, ctx) => writeMathBlock(raw, 0, ctx).raw,
+	mapOffset: (raw, offset, ctx) => writeMathBlock(raw, offset, ctx).offset
 };
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
-
-const BLOCK_FENCE = '$$';
-
-/** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
- *  became a paragraph, and a closer typed below still makes it math. */
-function awaitsBlockFenceCloser(raw: string): boolean {
-	if (!raw.startsWith(BLOCK_FENCE)) return false;
-	const [opener, ...rest] = displayLines(raw);
-	return opener.text === BLOCK_FENCE && !rest.some((line) => line.text === BLOCK_FENCE);
-}
-
-/** The length ≥ 4 test keeps the open/close pair disjoint; anything else `$$`-prefixed
- *  (`$$ x` with no same-line close) is not an opener and falls to a paragraph. */
-function isBlockMathOpener(text: string): boolean {
-	if (!text.startsWith(BLOCK_FENCE)) return false;
-	if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) return true;
-	return text === BLOCK_FENCE;
-}
 
 export function registerMathBlock(): void {
 	const mathBlock = declarePluginKind(MATH_BLOCK);
@@ -263,22 +235,20 @@ export function registerMathBlock(): void {
 	registerBlockOpener(mathBlock, {
 		// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
-		interruptsParagraph: isBlockMathOpener,
-		readingNotFinal: awaitsBlockFenceCloser,
+		interruptsParagraph: opensMathBlock,
+		readingNotFinal: awaitsMathCloser,
 		tryOpen(ctx) {
 			const text = ctx.line.text;
-			if (!text.startsWith(BLOCK_FENCE)) return null;
-
-			if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) {
+			if (isOneLineMath(text)) {
 				return {
 					node: { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
 					consumed: 1
 				};
 			}
-			if (text !== BLOCK_FENCE) return null;
+			if (!isMathFenceLine(text)) return null;
 
 			let i = ctx.index + 1;
-			while (i < ctx.end && ctx.lines[i].text !== BLOCK_FENCE) i++;
+			while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;
 			if (i >= ctx.end) return null; // unterminated fence declines to paragraph
 
 			const raw = ctx.lines
