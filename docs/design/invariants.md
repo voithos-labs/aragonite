@@ -803,10 +803,11 @@ Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run
 `selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
-Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab) and Backspace's
-unwrap of a list's first item move blocks between levels, never past each other. Each one reads the
-leaf text of the list it rewrites, in order and whitespace aside, before and after the move, and dev
-warns when the two differ. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
+Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
+unwrap of a list's first item and its merge of a middle item move blocks between levels, never past
+each other. Each one reads the leaf text of the list it rewrites, in order and whitespace aside,
+before and after the move, and dev warns when the two differ. A merge rewrites the two lines it
+joins (a live-mode join can drop markers), so its check reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
 run by `tree-operations/list/item-moves.ts` and `tree-operations/list/unwrap-merge.ts` ·
 `test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
 presses the moves over loose, ordered, quoted and side-by-side lists.
