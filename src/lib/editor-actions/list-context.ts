@@ -30,7 +30,7 @@ import {
 	type ItemMoveCommits
 } from '../tree-operations/list/item-moves';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode } from '../reactivity/state-registry';
 import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {
@@ -73,9 +73,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		offset
 	});
 
+	// A caret's own key moves items in containers that are mounted, so a missing state is a bug.
 	const itemMoves: ItemMoveCommits = {
 		commitMultiScope: (args) => deps.controller.commitMultiScope(args),
-		resolveState: getStateForNode
+		resolveState: expectStateForNode
 	};
 	const ownScope = (): MultiScopeTarget => ({
 		node: deps.scope.node,

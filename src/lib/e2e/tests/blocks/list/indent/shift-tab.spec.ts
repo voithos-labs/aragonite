@@ -61,9 +61,7 @@ test.describe('list Shift+Tab', () => {
 		await page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Shift+Tab');
-		await expect.poll(() => live.bridge.getSource()).not.toBe(source);
-		const lifted = await live.bridge.getSource();
-		expect(lifted.match(/alpha|beta|gamma|delta/g)).toEqual(['alpha', 'beta', 'gamma', 'delta']);
+		await live.bridge.waitForSourceEquals('- alpha\n- beta\n\n  - gamma\n\n- delta\n');
 	});
 
 	test('Shift+Tab on top-level item is no-op', async () => {

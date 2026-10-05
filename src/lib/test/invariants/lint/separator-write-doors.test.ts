@@ -62,7 +62,8 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
 	'src/lib/editor-actions/block-edit-core.ts':
 		'the gap-caret paragraph is a block of its own on both sides, which a splice window cannot say',
-	'src/lib/tree-operations/list/item-moves.ts': 'the nesting mint writes the sublist it just built',
+	'src/lib/tree-operations/list/item-moves.ts':
+		'the nesting move settles the sublist it creates, and a lift the blocks it carries in',
 	'src/lib/selection/range-delete.ts':
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
