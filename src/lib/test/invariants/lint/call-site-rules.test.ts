@@ -137,15 +137,11 @@ const RULES: CallSiteRule[] = [
 	},
 	{
 		id: 'G4.115 a clipboard payload is written only by a copy',
-		population: (file) =>
-			['src/lib/components/', 'src/lib/selection/', 'src/lib/plugins/'].some((dir) =>
-				file.relPath.startsWith(dir)
-			),
 		calls: ['.setData'],
 		holds: () => false,
 		allowed: {
 			'src/lib/components/blocks/editable-surface.ts :: writeVisibleSelection':
-				'reading mode, and a copy no arm takes, write what the browser shows',
+				'the visible-selection copy: reading mode, and a copy no `ClipboardArm` takes',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
 				'the text block’s copy of a selected widget',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
@@ -162,14 +158,15 @@ const RULES: CallSiteRule[] = [
 				'the data a menu’s paste event carries in, not a copy’s payload'
 		},
 		reason:
-			'a payload is written by a `ClipboardArm`’s `copy` (`editable-surface.ts`), which a cut reuses before anything awaits; written anywhere else, a cut’s payload can differ from the copy’s, or land after a scripted cut’s data has closed',
+			'a payload is written by a `ClipboardArm`’s `copy`, which a cut reuses before anything awaits; written anywhere else, a cut’s payload can differ from the copy’s, or land after a scripted cut’s data has closed',
 		hits: [
 			at(ROGUE_BLOCK, "e.clipboardData?.setData('text/plain', text);"),
-			at('src/lib/selection/rogue.ts', "event.clipboardData!.setData('text/html', html);")
+			at('src/lib/selection/rogue.ts', "event.clipboardData!.setData('text/html', html);"),
+			at('src/lib/editor-actions/rogue.ts', "e.clipboardData?.setData('text/plain', raw);")
 		],
 		misses: [
 			at(ROGUE_BLOCK, "const text = e.clipboardData?.getData('text/plain');"),
-			at('src/lib/editor-actions/rogue.ts', "e.clipboardData?.setData('text/plain', text);")
+			at(ROGUE_BLOCK, "// e.clipboardData?.setData('text/plain', text) was the old cut")
 		]
 	},
 	{

@@ -2216,15 +2216,17 @@ destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
 (`coverage['wholeRoots']`) gets past it.
 
 **G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy (its own
-range, a selected widget, a range across blocks) is one `ClipboardArm` in
-`components/blocks/editable-surface.ts`: its `copy` writes the payload and reads what its `remove`
-deletes. `runClipboardCut` runs that same copy before anything waits, then the removal, so a cut
-can't write different bytes from a copy, and a menu's Cut still lands (it's a scripted cut, and
-the browser closes its clipboard data the moment the event's handlers return). The type's shape
-holds most of it: there's no cut payload to write, and an `async` copy doesn't type-check.
-`lint/call-site-rules.test.ts` holds the rest. It fails a `.setData(` call under `components/`,
-`selection/` or `plugins/` outside those copy functions, the reading-mode copy and the menu's paste
-event, each listed by function.
+range, a selected widget, a range across blocks, a cell rectangle riding the last) has one
+`ClipboardArm`, written where that selection lives: in each block's clipboard code, and in
+`selection/cross-block/clipboard.ts` for a range across blocks. Only the type and the cut step are
+shared (`components/blocks/editable-surface.ts`). Its `copy` writes the payload and reads what
+its `remove` deletes. `runClipboardCut` runs that same copy before anything waits, then the removal,
+so a cut can't write different bytes from a copy, and a menu's Cut still lands (it's a scripted
+cut, and the browser closes its clipboard data the moment the event's handlers return). The type's
+shape holds most of it: there's no cut payload to write, and an `async` copy doesn't type-check.
+`lint/call-site-rules.test.ts` holds the rest. It fails a `.setData(` call in any production file
+outside those copy functions, the visible-selection copy and the menu's paste event, each
+listed by function.
 
 ## Accessibility
 
