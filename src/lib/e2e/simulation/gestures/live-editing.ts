@@ -1,5 +1,5 @@
 import { actThenResync, settleTypedSource, type SimContext } from '../invariants';
-import { textRunCenter } from '../../text-runs';
+import { textRunCenter, textRunEnd } from '../../text-runs';
 
 /**
  * Live-mode editing gestures. Each switches into live mode through the header toggle, drives one
@@ -103,6 +103,43 @@ export async function liveEdgeBackspace(
 			);
 		}
 		await undoOnceTo(ctx, before, 'live edge Backspace');
+	});
+}
+
+/** A plain ArrowRight at the end of a construct's text moves where the next byte goes, past the
+ *  hidden `closer`, and leaves the caret on its pixel; the byte typed next lands outside. */
+export async function liveEdgeStep(
+	ctx: SimContext,
+	blockIndex: number,
+	content: string,
+	closer: string
+): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor } = ctx;
+		const before = await editor.bridge.getSource();
+		// A click records no arrival, so the caret at the text's end means inside the construct.
+		const end = await textRunEnd(page, content);
+		await page.mouse.click(end.x, end.y);
+		await editor.waitForRenderFlush();
+		const at = await caretOffset(ctx);
+		await page.keyboard.press('ArrowRight');
+		await editor.waitForRenderFlush();
+		if ((await caretOffset(ctx)) !== at) {
+			throw new Error(`[${ctx.label}] the edge step moved the caret off ${at}`);
+		}
+
+		await editor.typeSlowly('Q');
+		const outside = `${content}${closer}Q`;
+		try {
+			await editor.bridge.waitForSourceContains(outside);
+		} catch {
+			throw new Error(
+				`[${ctx.label}] the byte after an edge step did not land outside the construct.\n` +
+					`EXPECTED block ${blockIndex} to contain: ${JSON.stringify(outside)}\n` +
+					`ACTUAL: ${JSON.stringify(await blockRaw(ctx, blockIndex))}`
+			);
+		}
+		await undoOnceTo(ctx, before, 'live edge step');
 	});
 }
 

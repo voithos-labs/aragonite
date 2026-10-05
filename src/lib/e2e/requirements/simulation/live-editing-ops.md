@@ -2,7 +2,7 @@
 
 A loaded-ops session that drives live mode's own editing rules through the
 gesture layer. Live is the only mode that hides every content-backed marker
-without revealing it, so each rule rewrites bytes the user cannot see. That
+without revealing it (a code span's backticks aside), so each rule rewrites bytes the user cannot see. That
 makes the source the only thing that can check them, and makes a silent
 divergence invisible on screen by construction. Every gesture enters live
 through the header toggle (a real click), drives one rule with real keys, and
@@ -20,6 +20,9 @@ round-trip and nested-state checks run over every step.
   `~~` and a backtick pair on the same terms
 - `Backspace` at a construct's trailing content edge takes the last content
   character and leaves the delimiter pair standing
+- a plain `ArrowRight` at the end of a bold construct's text leaves the caret
+  where it is and moves the next byte past the hidden `**`, so the `Q` typed
+  after it lands outside the construct, and one undo takes it back
 - `Backspace` at a heading's content start demotes the heading to a paragraph
   rather than merging it, and one undo puts the prefix back
 - `Enter` inside a bold construct leaves both halves balanced: the split closes
