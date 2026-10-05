@@ -9,7 +9,10 @@
 ## Edge cases
 
 - Overlay has pointer-events: none so clicks pass through
-- A start or end block the range covers only in part paints rects over its selected text
+- A start or end block the range covers only in part paints its selected part out to the block's
+  edges, not hugging the text: the start from its point to the right edge plus everything below
+  it, the end everything above it plus the left edge up to its point (the rows under One paint per
+  block check this for each kind of block)
 - A container the range holds whole (blockquote, list) paints one box over everything it renders, its own markers included; its children paint none, so nothing is drawn twice
 - A list item the range holds whole paints its own box over its marker and its content, though it renders no block host of its own; a nested sub-list under such an item paints no second box
   - Miss-analysis: every overlay test ran over blocks a block host wraps, so an item, the one container that renders none, was the case no test could reach
@@ -29,6 +32,13 @@
   - Miss-analysis: every box test put the range's ends strictly outside the boxed blocks, so no
     test asked how an end block the range covers to its last character paints, and nothing
     compared the ends' paint with the paint of the blocks between
+
+- A range whose ends sit mid-text paints the start block from its point to the block's right edge
+  and every line below it, and the end block over every line above it and from its left edge to
+  its point, so the ends meet the full boxes of the blocks between. That holds for a heading, a
+  paragraph, a list item, a quote line and a code block, in source mode and in live mode
+  - Miss-analysis: the endpoint rects were only ever checked for being there and for staying inside
+    their block, so nothing compared the ends' paint with the boxes of the blocks between
 
 ## Error / degenerate cases
 

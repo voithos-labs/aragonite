@@ -199,3 +199,86 @@ test.describe('selection: overlay: one paint per block', () => {
 		expect(doubledPaint(await paintedRects(page))).toEqual([]);
 	});
 });
+
+/** An endpoint block's painted rects in its own box's pixels, with the box's size. */
+async function endpointPaint(
+	page: Page,
+	path: number[]
+): Promise<{ rects: Box[]; width: number; height: number }> {
+	return page.evaluate((key) => {
+		const host = document.querySelector(`[data-block-path='${key}']`);
+		if (!host) throw new Error(`no block at ${key}`);
+		const box = host.getBoundingClientRect();
+		const rects = [...host.querySelectorAll(':scope > .selection-overlay-endpoint')].map((el) => {
+			const r = el.getBoundingClientRect();
+			return {
+				left: r.left - box.left,
+				top: r.top - box.top,
+				right: r.right - box.left,
+				bottom: r.bottom - box.top
+			};
+		});
+		rects.sort((a, b) => a.top - b.top);
+		return { rects, width: box.width, height: box.height };
+	}, JSON.stringify(path));
+}
+
+test.describe('selection: overlay: mid-text ends reach the line edges', () => {
+	// [0] a heading, [1] a paragraph, [2] a list, [3] a quote of two lines, [4] a code block.
+	const KINDS = [
+		'## Heading with some words',
+		'',
+		'A paragraph with a few words in it',
+		'',
+		'- first item',
+		'- second item',
+		'',
+		'> quote line one',
+		'>',
+		'> quote line two',
+		'',
+		'```js',
+		'const a = 1;',
+		'const b = 2;',
+		'```',
+		''
+	].join('\n');
+
+	const RANGES: [string, number[], number, number[], number][] = [
+		['a heading to a paragraph', [0], 6, [1], 12],
+		['a paragraph to a list item', [1], 12, [2, 1, 0], 4],
+		['a list item to a quote line', [2, 0, 0], 3, [3, 1], 6],
+		['a quote line to a code block', [3, 0], 6, [4], 12]
+	];
+
+	for (const mode of ['source', 'live']) {
+		for (const [name, startPath, startOffset, endPath, endOffset] of RANGES) {
+			test(`${mode}: ${name}`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(KINDS);
+				await editor.focusBlockAtPath(startPath, startOffset);
+				await editor.shiftClickBlock(endPath, endOffset);
+				await editor.waitForCrossBlock(true);
+
+				// The start runs from its point, mid-line, to the right edge, and every line below it.
+				const start = await endpointPaint(page, startPath);
+				expect(start.rects.length).toBeGreaterThan(0);
+				expect(start.rects[0].left).toBeGreaterThan(1);
+				for (const rect of start.rects) expect(rect.right).toBeGreaterThanOrEqual(start.width - 1);
+				expect(start.rects.at(-1)!.bottom).toBeGreaterThanOrEqual(start.height - 1);
+
+				// The end takes every line above it, then runs from the left edge to its point.
+				const end = await endpointPaint(page, endPath);
+				expect(end.rects.length).toBeGreaterThan(0);
+				const last = end.rects.at(-1)!;
+				expect(last.left).toBeLessThanOrEqual(1);
+				expect(last.right).toBeLessThan(end.width - 1);
+				expect(end.rects[0].top).toBeLessThanOrEqual(1);
+
+				expect(doubledPaint(await paintedRects(page))).toEqual([]);
+			});
+		}
+	}
+});
