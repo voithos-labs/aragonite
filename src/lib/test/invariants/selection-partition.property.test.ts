@@ -55,7 +55,7 @@ describe('G2.7 selection partition', () => {
 					const root = coverage.coveredRootHolding(path);
 					const expected = root
 						? pathsEqual(root, path)
-							? 'middle'
+							? 'whole'
 							: 'outside'
 						: coverage.startEdge && pathsEqual(path, start.path)
 							? 'start'
@@ -66,7 +66,7 @@ describe('G2.7 selection partition', () => {
 					if (cls !== expected) throw new Error(`${path} classified ${cls}, expected ${expected}`);
 					// One box per covered subtree, and nothing painted under it.
 					const box = blockPaintsWholeBox(path, coverage, null);
-					if (box !== (cls === 'middle')) throw new Error(`${path} classified ${cls}, box ${box}`);
+					if (box !== (cls === 'whole')) throw new Error(`${path} classified ${cls}, box ${box}`);
 					if (cls === 'outside') continue;
 					for (let depth = 1; depth < path.length; depth++) {
 						const above = path.slice(0, depth);

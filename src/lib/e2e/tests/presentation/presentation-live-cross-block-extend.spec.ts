@@ -59,6 +59,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 	test('the paint stays inside the block that ends in a hidden run', async ({ page }) => {
 		await clickBlockSettled(ep, ENDS_BOLD);
 		await page.keyboard.press('Home');
+		// One character in, so the range covers the block only in part and measures its text.
+		await page.keyboard.press('ArrowRight');
 		await extendTo(ep, page, 'ArrowDown', [PLAIN], 0);
 
 		const rects = await endpointRects(page, ENDS_BOLD);

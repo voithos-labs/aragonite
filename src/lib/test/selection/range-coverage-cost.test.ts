@@ -134,8 +134,8 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 			});
 		};
 
-		expect(classifyBlockForSelection([0, N - 2], small)).toBe('middle');
-		expect(blockPaintsWholeBox([0, N - 2], small, null)).toBe(true);
+		expect(classifyBlockForSelection([0, N - 2], small)).toBe('outside');
+		expect(blockPaintsWholeBox([0], small, null)).toBe(true);
 		expect(cost(large, 4 * N)).toBeLessThanOrEqual(cost(small, N) + 2);
 	});
 });

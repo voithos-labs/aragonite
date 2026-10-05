@@ -153,10 +153,10 @@ export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 
 // ── Overlay classification ─────────────────────────────────────────────────
 
-export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
+export type BlockSelectionClass = 'outside' | 'start' | 'whole' | 'end' | 'single-block';
 
-/** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
- *  browser, and a subtree the range holds whole is 'middle' with nothing inside it painting. */
+/** Where a block stands in a range, which decides how it paints: a subtree the range covers end to
+ *  end is 'whole' even when it holds an endpoint, and nothing inside it paints. */
 export function classifyBlockForSelection(
 	path: readonly number[],
 	coverage: RangeCoverage
@@ -165,8 +165,8 @@ export function classifyBlockForSelection(
 	if (pathsEqual(start.path, end.path)) {
 		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	const root = coverage.rootHolding(path);
-	if (root) return pathsEqual(root, path) ? 'middle' : 'outside';
+	const root = coverage.coveredRootHolding(path);
+	if (root) return pathsEqual(root, path) ? 'whole' : 'outside';
 	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
 	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
@@ -180,10 +180,7 @@ export function blockPaintsWholeBox(
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const { start, end } = coverage.range;
-	if (pathsEqual(start.path, end.path)) return false;
-	const root = coverage.rootHolding(path);
-	return root !== null && pathsEqual(root, path);
+	return classifyBlockForSelection(path, coverage) === 'whole';
 }
 
 /** The end-exclusive offsets an endpoint block measures its highlight between: a kept table

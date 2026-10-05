@@ -1878,8 +1878,32 @@ const MATH_SHAPE: FileRule = {
 	]
 };
 
+// ── G4.114 one paint decision for a block under a range ─────────────────────
+
+const ROGUE_PAINTER = 'src/lib/components/RoguePaint.svelte';
+
+const RANGE_PAINT: FileRule = {
+	id: 'G4.114 how a block paints under a range is decided in the selection model only',
+	population: notUnder('src/lib/selection/'),
+	matches:
+		/\.(?:coveredRootHolding|rootHolding)\s*\(|\.(?:wholeRoots|coveredWhole|startEdge|endEdge)\b/,
+	reaches: ['src/lib/components/SelectionOverlay.svelte'],
+	reason:
+		'a painter that reads the coverage itself keeps its own copy of which block a range covers whole, and the end blocks paint one shape while the blocks between paint another: ask `classifyBlockForSelection` or `blockPaintsWholeBox`',
+	hits: [
+		at(ROGUE_PAINTER, 'const boxed = coverage.rootHolding(path) !== null;'),
+		at(ROGUE_PAINTER, 'if (coverage.coveredRootHolding(path)) return;'),
+		at(ROGUE_PAINTER, 'const roots = live.wholeRoots;'),
+		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;')
+	],
+	misses: [
+		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, coverage, null);'),
+		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;')
+	]
+};
+
 const SOURCES = collectEditorSources();
-describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE], SOURCES);
+describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE, RANGE_PAINT], SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);

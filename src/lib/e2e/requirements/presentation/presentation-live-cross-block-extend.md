@@ -12,9 +12,10 @@ overlay's own rects.
 
 ## Happy paths
 
-- extending forward out of a block that ends in `**bold**` reaches the next
-  block, and the endpoint rects painted in the first block have real width and
-  height and stay inside the block's box
+- extending forward from one character into a block that ends in `**bold**`
+  (so the range covers it only in part) reaches the next block, and the endpoint
+  rects painted in the first block have real width and height and stay inside
+  the block's box
 - extending backward into such a block stops at its content end: the offset the
   bridge reports is the last one the caret can reach, not the raw length inside
   the run

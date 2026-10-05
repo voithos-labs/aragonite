@@ -43,16 +43,16 @@ describe('classifyBlockForSelection', () => {
 
 	it('classifies middle blocks', () => {
 		const s = sel({ path: [1], offset: 0 }, { path: [4], offset: 0 });
-		expect(classifyBlockForSelection([2], s)).toBe('middle');
-		expect(classifyBlockForSelection([3], s)).toBe('middle');
+		expect(classifyBlockForSelection([2], s)).toBe('whole');
+		expect(classifyBlockForSelection([3], s)).toBe('whole');
 	});
 
 	it('handles reverse selections via normalization', () => {
-		const s = sel({ path: [4], offset: 0 }, { path: [1], offset: 0 });
+		const s = sel({ path: [4], offset: 1 }, { path: [1], offset: 1 });
 		expect(classifyBlockForSelection([1], s)).toBe('start');
 		expect(classifyBlockForSelection([4], s)).toBe('end');
-		expect(classifyBlockForSelection([2], s)).toBe('middle');
-		expect(classifyBlockForSelection([3], s)).toBe('middle');
+		expect(classifyBlockForSelection([2], s)).toBe('whole');
+		expect(classifyBlockForSelection([3], s)).toBe('whole');
 	});
 
 	it('returns single-block when start.path === end.path', () => {
@@ -61,17 +61,17 @@ describe('classifyBlockForSelection', () => {
 	});
 
 	it('handles cross-container nested paths', () => {
-		const s = sel({ path: [0, 0], offset: 0 }, { path: [2, 1], offset: 0 }, QUOTES);
+		const s = sel({ path: [0, 0], offset: 1 }, { path: [2, 1], offset: 0 }, QUOTES);
 		expect(classifyBlockForSelection([0, 0], s)).toBe('start');
 		expect(classifyBlockForSelection([2, 1], s)).toBe('end');
-		expect(classifyBlockForSelection([0, 1], s)).toBe('middle');
-		expect(classifyBlockForSelection([1], s)).toBe('middle');
-		expect(classifyBlockForSelection([2, 0], s)).toBe('middle');
+		expect(classifyBlockForSelection([0, 1], s)).toBe('whole');
+		expect(classifyBlockForSelection([1], s)).toBe('whole');
+		expect(classifyBlockForSelection([2, 0], s)).toBe('whole');
 	});
 
 	it('paints a rule held whole at the start as part of the quote it empties', () => {
 		const s = sel({ path: [0, 0], offset: 0 }, { path: [1], offset: 2 }, '> ---\n\npara\n');
-		expect(classifyBlockForSelection([0], s)).toBe('middle');
+		expect(classifyBlockForSelection([0], s)).toBe('whole');
 		expect(classifyBlockForSelection([0, 0], s)).toBe('outside');
 		expect(classifyBlockForSelection([1], s)).toBe('end');
 	});
@@ -79,8 +79,8 @@ describe('classifyBlockForSelection', () => {
 
 // Miss-analysis: GH #321; overlay cases pinned the class, none asked which block paints the box.
 describe('blockPaintsWholeBox', () => {
-	it('paints a leaf the range holds whole, and nothing outside the range', () => {
-		const s = sel({ path: [1], offset: 0 }, { path: [4], offset: 0 });
+	it('paints a leaf the range holds whole, and no block it only partly covers', () => {
+		const s = sel({ path: [1], offset: 1 }, { path: [4], offset: 0 });
 		expect(blockPaintsWholeBox([2], s, null)).toBe(true);
 		expect(blockPaintsWholeBox([0], s, null)).toBe(false);
 		expect(blockPaintsWholeBox([9], s, null)).toBe(false);
@@ -175,7 +175,7 @@ describe('a closed details the range takes whole', () => {
 		const d = doc();
 		const range = rangeCoverage(d, coverRange(d, anchor, focus));
 		expect(blockPaintsWholeBox([1], range, null)).toBe(true);
-		expect(classifyBlockForSelection([1], range)).toBe('middle');
+		expect(classifyBlockForSelection([1], range)).toBe('whole');
 		for (const inside of [
 			[1, 0],
 			[1, 1]

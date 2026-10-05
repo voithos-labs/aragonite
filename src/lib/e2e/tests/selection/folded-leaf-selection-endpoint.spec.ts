@@ -4,11 +4,11 @@ import { PluginsPage } from '../plugins/helpers';
 /**
  * A render-primary leaf with its source hidden, as the range's start endpoint, paints its own
  * full-block box: the block-level mirror of the childless-container case in
- * `plugins/mermaid-selection-overlay`. `measurePartialRects` covers the rendered box, so
- * endpoint rects paint where there is no source text node to measure.
+ * `plugins/mermaid-selection-overlay`. The sweep covers it whole, so it gets the box the blocks
+ * between the ends get, though it has no source text node to measure.
  */
 
-const MATH_BLOCK_ENDPOINT = "[data-block-path='[1]'] > .selection-overlay-endpoint";
+const MATH_BLOCK_BOX = "[data-block-path='[1]'] > .selection-overlay-middle";
 
 test.describe('cross-block selection endpoint: folded render-primary leaf', () => {
 	let editor: PluginsPage;
@@ -20,19 +20,17 @@ test.describe('cross-block selection endpoint: folded render-primary leaf', () =
 		await expect(page.locator('.math-block-render .katex')).toHaveCount(1);
 	});
 
-	test('an upward sweep ending on the folded math block paints its endpoint box', async ({
-		page
-	}) => {
+	test('an upward sweep ending on the folded math block paints its own box', async ({ page }) => {
 		await editor.focusBlockEnd(2);
 		await page.keyboard.press('Shift+ArrowUp');
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);
 
-		// The leaf offers `measurePartialRects`, so as the range's start endpoint it paints
-		// its own full box (endpoint rects, not the middle overlay).
-		const endpoint = page.locator(MATH_BLOCK_ENDPOINT);
-		await expect.poll(() => endpoint.count()).toBeGreaterThan(0);
-		const box = await endpoint.first().boundingBox();
+		expect((await editor.bridge.getSelectionPaths())?.focus).toEqual({ path: [1], offset: 0 });
+		const painted = page.locator(MATH_BLOCK_BOX);
+		await expect(painted).toHaveCount(1);
+		await expect(page.locator("[data-block-path='[1]'] > .selection-overlay")).toHaveCount(1);
+		const box = await painted.boundingBox();
 		expect(box!.width).toBeGreaterThan(0);
 		expect(box!.height).toBeGreaterThan(0);
 	});
