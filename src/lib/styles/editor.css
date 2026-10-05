@@ -481,9 +481,14 @@
 	color: var(--syntax-code, currentColor);
 }
 
-/* Inline code is a chip, its backticks drawn as the chip's two ends wherever they show. The lines
-   are inset shadows, since a selection paints no padding. */
-:where(.editor) :is(.inline-code-content, .md-code-fence) {
+/* Inline code is a chip, its backticks (the markers either side of it) drawn as the chip's two
+   ends wherever they show. The lines are inset shadows, since a selection paints no padding. */
+:where(.editor)
+	:is(
+		.inline-code-content,
+		.md-marker:has(+ .inline-code-content),
+		.inline-code-content + .md-marker
+	) {
 	font-family: var(--font-code, ui-monospace, monospace);
 	font-size: 0.9em;
 	background: var(--md-inline-code-bg);
@@ -501,24 +506,26 @@
 	padding-inline: 4px;
 }
 
-/* Where the backticks show: source mode, the caret's own span, a focused preview-block block. */
-:where(.editor):not([data-presentation]) .md-code-fence + .inline-code-content,
-:where(.editor):not([data-presentation='reading'])
-	.md-code-fence.md-construct-reveal
-	+ .inline-code-content,
+/* Where the backticks show, as the marker rules below show them: source mode, a focused
+   preview-block block, and preview-inline's revealed or untagged markers in a focused block. */
+:where(.editor):not([data-presentation]) .md-marker + .inline-code-content,
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
-	.md-code-fence
+	.md-marker
+	+ .inline-code-content,
+:where(.editor)[data-presentation='preview-inline']
+	.block-host[data-focused]
+	:is(.md-marker.md-construct-reveal, .md-marker:not([data-construct-start]))
 	+ .inline-code-content {
 	padding-inline: 1px;
 	border-radius: 0;
 }
 
-:where(.editor) .md-code-fence {
+:where(.editor) :is(.md-marker:has(+ .inline-code-content), .inline-code-content + .md-marker) {
 	color: var(--color-ui-muted, #93938d);
 }
 
-:where(.editor) .md-code-fence:has(+ .inline-code-content) {
+:where(.editor) .md-marker:has(+ .inline-code-content) {
 	border-radius: 4px 0 0 4px;
 	box-shadow:
 		inset 1px 0 0 var(--md-inline-code-border),
@@ -526,7 +533,7 @@
 		inset 0 -1px 0 var(--md-inline-code-border);
 }
 
-:where(.editor) .inline-code-content + .md-code-fence {
+:where(.editor) .inline-code-content + .md-marker {
 	border-radius: 0 4px 4px 0;
 	box-shadow:
 		inset -1px 0 0 var(--md-inline-code-border),
@@ -649,19 +656,7 @@
 		[data-presentation^='preview-'],
 		[data-presentation='live']
 	)
-	:is(
-		.md-marker:not([contenteditable='false']),
-		.md-fence-line,
-		.md-ref-label,
-		.directive-marker,
-		.md-code-fence:not(.md-construct-reveal)
-	) {
-	display: none;
-}
-
-/* .md-code-fence: an inline code span's backticks, which the caret's own span shows
-   (`construct-reveal.ts`) in every mode but reading. */
-:where(.editor)[data-presentation='reading'] .md-code-fence {
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label, .directive-marker) {
 	display: none;
 }
 
@@ -914,7 +909,7 @@
 /* Every inline span, so the revealed source lays out exactly as source mode does. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
-	:is(.md-marker:not([contenteditable='false']), .md-code-fence) {
+	.md-marker:not([contenteditable='false']) {
 	display: inline;
 }
 
@@ -955,7 +950,7 @@
    `construct-reveal.ts` marks the constructs at the caret; unmarked markers show on block focus. */
 :where(.editor)[data-presentation='preview-inline']
 	.block-host[data-focused]
-	:is(.md-marker:not([contenteditable='false']), .md-code-fence):not([data-construct-start]) {
+	.md-marker:not([contenteditable='false']):not([data-construct-start]) {
 	display: inline;
 }
 :where(.editor)[data-presentation='preview-inline']

@@ -41,7 +41,7 @@ describe('checkMarkerCssParity', () => {
 
 	it('reports agreement when the stylesheet hides what the predicate hides', () => {
 		installStyle(
-			'.md-marker { display: none; } .md-fence-line { display: none; } .md-ref-label { display: none; } .md-code-fence { display: none; }'
+			'.md-marker { display: none; } .md-fence-line { display: none; } .md-ref-label { display: none; }'
 		);
 		// Reading hides every family with no reveal branch, so the flat rules above are exact.
 		expect(checkMarkerCssParity(mountRoot('reading'))).toBeNull();

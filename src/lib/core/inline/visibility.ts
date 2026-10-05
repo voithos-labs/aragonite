@@ -15,14 +15,12 @@ import { recordScreenRead } from '../../perf/instruments';
 
 /** The span families a marker-hiding mode drops. `fence-line` spans are a block's own fence lines,
  *  created outside this file, and are named here because the hiding rule is one rule. */
-export type MarkerFamily = 'marker' | 'fence-line' | 'ref-label' | 'code-fence';
+export type MarkerFamily = 'marker' | 'fence-line' | 'ref-label';
 
 const FAMILY_CLASS: Record<MarkerFamily, string> = {
 	marker: 'md-marker',
 	'fence-line': 'md-fence-line',
-	'ref-label': 'md-ref-label',
-	// An inline code span's backticks, painted as the ends of the code chip where they show.
-	'code-fence': 'md-code-fence'
+	'ref-label': 'md-ref-label'
 };
 
 /** Every family's class, so a scan of the source names each family the day it is added. */
@@ -48,29 +46,13 @@ export function markerFamilyOf(el: Element): MarkerFamily | null {
 	if (classes.contains(FAMILY_CLASS.marker)) return isMarkerPrefixSpan(el) ? null : 'marker';
 	if (classes.contains(FAMILY_CLASS['fence-line'])) return 'fence-line';
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
-	if (classes.contains(FAMILY_CLASS['code-fence'])) return 'code-fence';
 	return null;
 }
 
-/** Whether `mode` shows a `family` span of a construct the caret is in (`construct-reveal.ts`):
- *  preview-inline shows every family there, live mode only a code span's backticks. */
-export function caretShowsFamily(mode: PresentationMode, family: MarkerFamily): boolean {
-	return mode === 'preview-inline' || (mode === 'live' && family === 'code-fence');
-}
-
-const shownSelectors = new Map<PresentationMode, string | null>();
-
-/** Every span `mode` shows at the caret, as one selector, or null where the caret shows none: a
- *  block holding none of them has nothing the caret could reveal. */
+/** The spans `mode` shows for the constructs at the caret (`construct-reveal.ts`), as one
+ *  selector, or null where the caret shows none: only preview-inline reveals by the caret. */
 export function caretShownSelector(mode: PresentationMode): string | null {
-	if (!shownSelectors.has(mode)) {
-		const families = (Object.keys(FAMILY_CLASS) as MarkerFamily[]).filter((family) =>
-			caretShowsFamily(mode, family)
-		);
-		const selector = families.map((family) => `.${FAMILY_CLASS[family]}`).join(', ');
-		shownSelectors.set(mode, selector === '' ? null : selector);
-	}
-	return shownSelectors.get(mode) ?? null;
+	return mode === 'preview-inline' ? MARKER_FAMILY_SELECTOR : null;
 }
 
 /** How preview-inline shows a `family` span in the focused block: with the focus, by the reveal
@@ -95,30 +77,23 @@ export interface VisibilityContext {
 	readonly hidesMarkers: boolean;
 	/** Whether the container's markers stand over no content and therefore stay visible. */
 	readonly chromePaints: boolean;
-	/** Whether inline code backticks drop too: everywhere but source mode, until the caret's own
-	 *  code span shows them (`construct-reveal.ts`); reading mode never shows them. */
-	readonly hidesCodeFences: boolean;
 }
 
 /** Reading mode ignores the content-empty condition (live-mode.md § 4.1), since it takes no
  *  keystrokes. Answers for an unrevealed container: a preview's per-span reveal is DOM state. */
 export function screenVisibility(
 	mode: PresentationMode,
-	container: { chromePaints: boolean; revealsCodeFence?: boolean }
+	container: { chromePaints: boolean }
 ): VisibilityContext {
 	switch (mode) {
 		case 'source':
-			return { hidesMarkers: false, chromePaints: false, hidesCodeFences: false };
+			return { hidesMarkers: false, chromePaints: false };
 		case 'reading':
-			return { hidesMarkers: true, chromePaints: false, hidesCodeFences: true };
+			return { hidesMarkers: true, chromePaints: false };
 		case 'live':
 		case 'preview-block':
 		case 'preview-inline':
-			return {
-				hidesMarkers: true,
-				chromePaints: container.chromePaints,
-				hidesCodeFences: !container.revealsCodeFence
-			};
+			return { hidesMarkers: true, chromePaints: container.chromePaints };
 		default: {
 			const unhandled: never = mode;
 			return unhandled;
@@ -128,23 +103,14 @@ export function screenVisibility(
 
 /** The content behind every marker family, for a rewrite's before/after comparison. Sound only
  *  behind a {@link paintsOnlyChrome} check, or it lets visible markers drop (live-mode.md § 2). */
-export const CONTENT_VISIBILITY: VisibilityContext = {
-	hidesMarkers: true,
-	chromePaints: false,
-	hidesCodeFences: true
-};
+export const CONTENT_VISIBILITY: VisibilityContext = { hidesMarkers: true, chromePaints: false };
 
 /** A container whose markers stand over no content: every family the override shows is visible. */
-const CHROME_STANDS_ALONE: VisibilityContext = {
-	hidesMarkers: true,
-	chromePaints: true,
-	hidesCodeFences: false
-};
+const CHROME_STANDS_ALONE: VisibilityContext = { hidesMarkers: true, chromePaints: true };
 
 /** Whether a `family` span shows nothing under `ctx`: the one hiding rule, before any preview
  *  reveal. */
 export function familyHidesText(family: MarkerFamily, ctx: VisibilityContext): boolean {
-	if (family === 'code-fence') return ctx.hidesCodeFences;
 	return ctx.hidesMarkers && !(ctx.chromePaints && familyPaintsAlone(family));
 }
 

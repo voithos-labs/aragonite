@@ -43,7 +43,7 @@ export function resolveEdgeSeat(
 	reading: Reading
 ): EdgeSeat | null {
 	const { grammar } = reading;
-	const runs = markerRunsAt(caretOffset, inlines, raw, screen, grammar);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
@@ -116,7 +116,7 @@ export function seatOffsetsAt(
 	screen: VisibilityContext,
 	grammar: GrammarView
 ): readonly number[] {
-	const runs = markerRunsAt(caretOffset, inlines, raw, screen, grammar);
+	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return [];
 	const offsets = screenPositionOffsets(run, runs);
@@ -274,10 +274,8 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 	return { start: inlines[0].start, end: inlines[inlines.length - 1].end };
 }
 
-/** Every construct marker run the screen hides, in pre-order; none when no run touches the
- *  caret, so a caret away from every construct edge never asks the render. */
-function markerRunsAt(
-	caretOffset: number,
+/** Every construct marker run, in pre-order. */
+function markerRuns(
 	inlines: readonly InlineNode[],
 	raw: string,
 	screen: VisibilityContext,
@@ -295,13 +293,7 @@ function markerRunsAt(
 			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind, span });
 		}
 	}
-	if (!runAt(caretOffset, runs)) return [];
-	// A delimiter the mode paints (a code span's backticks at the caret) is a byte the caret steps
-	// over like any other, so only the runs the render leaves off screen count.
-	const painted = visibleRuns(inlines, raw, screen, { grammar }).filter(
-		(run) => run.visible && run.text !== ''
-	);
-	return runs.filter((run) => !painted.some((p) => p.start < run.end && run.start < p.end));
+	return runs;
 }
 
 /** The run `offset` sits in, boundaries and interior included (a caret can be handed the middle of

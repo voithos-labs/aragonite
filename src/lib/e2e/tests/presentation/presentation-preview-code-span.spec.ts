@@ -32,7 +32,7 @@ for (const mode of ['preview-block', 'preview-inline'] as const) {
 			test(`${place}: ArrowRight at its end types past the closing backtick`, async ({ page }) => {
 				const ep = await enterPresentationMode(page, mode, doc);
 				await clickEndOfCee(ep, page);
-				await expect(page.locator('.md-code-fence').last()).toBeVisible();
+				await expect(page.locator('code.inline-code-content + .md-marker')).toBeVisible();
 				await keys(ep, page, 'ArrowRight');
 				await page.keyboard.type('X');
 				await ep.bridge.waitForSourceContains(past);

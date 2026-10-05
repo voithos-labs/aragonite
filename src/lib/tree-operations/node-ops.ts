@@ -44,7 +44,7 @@ import {
 import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
 import { cutKeepingStructure } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
@@ -58,6 +58,9 @@ import { joinLeaves } from './leaf-range';
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
+	/** Where the caret lands in the second half: inside a construct the split reopened there, so
+	 *  typing carries on in it, else at the start like any structural landing (outside). */
+	landingOffset: typeof CURSOR_EXACT_START | typeof CURSOR_START;
 }
 
 /**
@@ -85,7 +88,11 @@ export function splitNode(
 	)
 ): SplitResult {
 	const { grammar } = reading;
-	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
+	const noop: SplitResult = {
+		change: { op: 'noop' },
+		secondHalfIndex: blockIndex + 1,
+		landingOffset: CURSOR_START
+	};
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
 
 	const node = parent.children[blockIndex];
@@ -104,12 +111,14 @@ export function splitNode(
 
 	firstRaw = terminateLine(firstRaw, lineEnding);
 	secondRaw = terminateLine(secondRaw, lineEnding);
+	let reopened = false;
 
 	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
 	// user never saw; the rebalancer declines when its bytes do not parse back.
 	if (reading.hidesDelimitersAtCaret()) {
 		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, reading);
 		if (rebalanced) {
+			reopened = true;
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
 			// The rewrite verifies each half on its own, where a missing final line ending is
@@ -154,7 +163,8 @@ export function splitNode(
 		: absorbSeamReading(asBody(parent), seamLeft, seamLeft, grammar, sharing).eaten;
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
-		secondHalfIndex: blockIndex + first.nodes.length
+		secondHalfIndex: blockIndex + first.nodes.length,
+		landingOffset: reopened ? CURSOR_EXACT_START : CURSOR_START
 	};
 }
 

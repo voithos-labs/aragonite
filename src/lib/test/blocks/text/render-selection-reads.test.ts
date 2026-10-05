@@ -22,12 +22,12 @@ afterEach(async () => {
 
 const BLOCKS = 6;
 
-/** Selection reads while a live document of `BLOCKS` paragraphs mounts. */
+/** Selection reads while a preview-inline document of `BLOCKS` paragraphs mounts. */
 async function readsMounting(paragraph: string): Promise<number> {
 	const reads = vi.spyOn(window, 'getSelection');
 	const mounted = mountEditor({
 		source: Array<string>(BLOCKS).fill(paragraph).join('\n\n') + '\n',
-		presentationMode: 'live'
+		presentationMode: 'preview-inline'
 	});
 	await mounted.settle();
 	const count = reads.mock.calls.length;
@@ -37,9 +37,9 @@ async function readsMounting(paragraph: string): Promise<number> {
 }
 
 describe('a render in a block the caret never entered', () => {
-	it('reads the selection no more for code spans and bold than for plain words', async () => {
+	it('reads the selection no more for constructs than for plain words', async () => {
 		const plain = await readsMounting('plain words and plain tail');
-		const constructs = await readsMounting('plain `code` and **bold** tail');
+		const constructs = await readsMounting('plain *em* and **bold** tail');
 		expect(constructs).toBe(plain);
 	});
 });

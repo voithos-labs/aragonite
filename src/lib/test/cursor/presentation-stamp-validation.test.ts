@@ -53,17 +53,12 @@ describe('the walk over a forged mark', () => {
 	it('reads an unknown mark as the source visibility context', () => {
 		expect(screenVisibilityOf(stamp('garbage'))).toEqual({
 			hidesMarkers: false,
-			chromePaints: false,
-			hidesCodeFences: false
+			chromePaints: false
 		});
 	});
 
 	it('still reads a real mark as hiding', () => {
 		expect(revealsNoMarkers(stamp('live'))).toBe(true);
-		expect(screenVisibilityOf(stamp('live'))).toEqual({
-			hidesMarkers: true,
-			chromePaints: false,
-			hidesCodeFences: true
-		});
+		expect(screenVisibilityOf(stamp('live'))).toEqual({ hidesMarkers: true, chromePaints: false });
 	});
 });

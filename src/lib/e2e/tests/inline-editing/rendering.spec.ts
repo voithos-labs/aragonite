@@ -35,8 +35,7 @@ test.describe('inline editing, rendering', () => {
 		const block = editor.getBlock(1);
 		await expect(block.locator('code.inline-code-content')).toHaveCount(1);
 		await expect(block.locator('code.inline-code-content')).toHaveText('inline code');
-		// Backticks are their own family, which the caret's own code span shows (`visibility.ts`).
-		const markers = block.locator('.md-code-fence');
+		const markers = block.locator('.md-marker');
 		const count = await markers.count();
 		expect(count).toBeGreaterThanOrEqual(2);
 	});

@@ -51,7 +51,6 @@ import {
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
-	codeOpenerEnd,
 	rawOfWalkOffset,
 	revealsNoMarkers,
 	selectRawRange,
@@ -316,7 +315,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		el.focus({ preventScroll: true });
 		const landed = deps.clampLanding?.(offset) ?? offset;
 		if (landed === CURSOR_EXACT_START) {
-			deps.backend.setRaw(asRawOffset(codeOpenerEnd(el)), { clamp: 'exact' });
+			deps.backend.setRaw(asRawOffset(0), { clamp: 'exact' });
 			return;
 		}
 		const requested = landed === CURSOR_START ? 0 : Math.max(0, landed);

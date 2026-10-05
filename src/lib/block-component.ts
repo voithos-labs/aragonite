@@ -20,7 +20,7 @@ declare const cursorStartBrand: unique symbol;
 export type CursorStart = number & { readonly [cursorStartBrand]: true };
 
 declare const cursorExactStartBrand: unique symbol;
-/** Branded `number`: a focus offset meaning "the block's very start, unclamped". */
+/** Branded `number`: a focus offset meaning "raw byte 0 exactly, unclamped". */
 export type CursorExactStart = number & { readonly [cursorExactStartBrand]: true };
 
 declare const selectionEndBrand: unique symbol;
@@ -42,10 +42,9 @@ export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
 export const CURSOR_START = -2 as CursorStart;
 
 /**
- * "The block's very start, unclamped": raw byte 0, or just past the backticks of a code span
- * opening the block, which show once the caret is in it. A live split's continuation reopens a
- * construct there and typing has to continue inside it (live-mode.md § 4.4), which the clamp
- * would move outside; every other caller wants the clamp (G2.12).
+ * "Raw byte 0 exactly": the one position `parkCaret` does not clamp. A live split's continuation
+ * reopens a construct at byte 0 and typing has to continue inside it (live-mode.md § 4.4), which
+ * the clamp would move outside; every other caller wants the clamp (G2.12).
  */
 export const CURSOR_EXACT_START = -3 as CursorExactStart;
 

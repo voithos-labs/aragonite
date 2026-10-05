@@ -59,8 +59,7 @@ test.describe('live mode: a construct that ends its line', () => {
 	});
 });
 
-// Bold's markers stay hidden, so its line-ending edge is a stop of its own; inline code's
-// backticks show for the caret's span, and the caret steps over them like any byte.
+// The same line-ending edge on a construct whose ring the next rows check.
 test.describe('live mode: a hidden-marker construct that ends its line', () => {
 	const DOC = '- [ ] possibly via **scheduled**\n\nplain';
 	let ep: EditorPage;

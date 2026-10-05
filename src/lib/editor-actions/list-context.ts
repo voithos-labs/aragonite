@@ -5,7 +5,7 @@
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
-import { CURSOR_EXACT_START, CURSOR_START } from '../block-component';
+import { CURSOR_START } from '../block-component';
 import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
@@ -18,7 +18,7 @@ import {
 	replacePreservingFirst,
 	stampStructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
+import { splitNode as performSplit, emptyParagraph, type SplitResult } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
 import { renumberOrderedList, bumpOrderedMarker } from '../tree-operations/list/ordered-markers';
 import { buildListItem } from '../tree-operations/list/list-builders';
@@ -153,6 +153,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			if (!item.children) return false;
 
 			const itemState = expectStateForNode(item);
+			let secondHalfLanding: SplitResult['landingOffset'] = CURSOR_START;
 
 			// Both lists in one commit, so mid-item Enter is a single undo entry.
 			return deps.controller.commitMultiScope({
@@ -181,6 +182,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						fragmentReaderAt(itemScope.node, 0, deps.reading.grammar)
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
+					secondHalfLanding = split.landingOffset;
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several
 					// blocks stays with this item.
 					const cutAt = split.secondHalfIndex;
@@ -211,7 +213,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				landing: () => itemAt(itemIndex + 1, CURSOR_EXACT_START)
+				landing: () => itemAt(itemIndex + 1, secondHalfLanding)
 			});
 		},
 

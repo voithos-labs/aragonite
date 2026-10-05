@@ -216,8 +216,8 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
-			// A hidden closer shares the caret's pixel, so only the arrival side moves; a shown one (a
-			// code span's backtick) is passed like any byte.
+			// A hidden closer shares the caret's pixel, so only the arrival side moves; a shown one is
+			// passed like any byte.
 			if (edit.overConstruct && surface.hiddenRunAt(caret)) surface.seatOutside();
 			else if (surface.completesLine?.(edit.caret)) surface.write(text, edit.caret);
 			else surface.setCaret(edit.caret);

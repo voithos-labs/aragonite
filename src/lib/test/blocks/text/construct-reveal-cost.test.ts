@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A block with nothing the mode shows at the caret never reads the selection to find the caret:
-// every key and render would pay for nothing. Live shows at most a code span's backticks there.
+// every key and render would pay for nothing. Live shows nothing there at all.
 // Miss-analysis: no test counted what the reveal reads, so turning it on in live mode went unseen.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
