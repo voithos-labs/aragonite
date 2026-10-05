@@ -94,7 +94,7 @@ interface LeafDepsBase {
 	 *  a render-primary edit only on blur, and a cancelled `beforeinput` fires no `input`. */
 	onSourceEdit?(text: string): void;
 	/** Completes a markers-only source (a `$$$$`) to one a caret can sit in, on show and after an
-	 *  edit that empties it, ending each line it adds with `lineEnding`; null leaves it alone. */
+	 *  edit that empties it; a line with no ending to copy takes `lineEnding`. Null leaves it. */
 	completeBareSource?(text: string, lineEnding: string): { text: string; caret: number } | null;
 }
 
