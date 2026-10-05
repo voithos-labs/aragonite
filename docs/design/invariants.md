@@ -1288,7 +1288,7 @@ outside `core/lines.ts` (it would leave a CRLF line's `\r` on the text a line ma
 creating one, with the legitimately literal writes allowlisted by reason and count. An outcome
 check runs each gesture over an LF fixture and its CRLF mirror, unterminated last lines included,
 and requires the two results to mirror each other, and a mounted twin does the same for a line
-break typed into a code block or a plugin's source, through the real keys.
+break typed or completed in a code block or a plugin's source, through the blocks' real handlers.
 `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` and
 `crlf-typed-break-mirror.test.ts` (the outcome checks).
 
@@ -2100,20 +2100,22 @@ wrote it. That rule lives in `components/blocks/surface-write.ts` (`writeText`, 
 `withOwnEnding` for the routes not on it yet).
 
 New text is the other half. It takes the block's own ending, else the document's, and it picks
-that in two places today: a typed line break reads the getter `editable-surface.ts :: lineEnding`, and the
+that in two places today: a line break a block types or completes (a bare fence, a bare math
+source) reads the getter `editable-surface.ts :: lineEnding`, and the
 code block's dissolve action (`code-context-actions.ts :: run`) picks it for the prose it writes
 over the fence. #648 tracks giving those two one home. `lint/call-site-rules.test.ts` holds both
 halves under `components/blocks/`, allowlisted by function. It fails a call to
 `trailingLineEnding` or `ownTrailingLineEnding` outside the surface write and those two places,
 except the reads that write no ending and two routes still to move. And it fails a read of the
-getter anywhere but a typed line break or a check that writes nothing, so `display +
+getter anywhere but a typed or completed line break or a check that writes nothing, so `display +
 editableSurface.lineEnding()` inside a write of the block's own text goes red.
 
 **G4.101 · A typed write asks for itself.** The kind cue and the on-type completer answer typing,
 never a command, a paste or the editor's own repair. Only `surface-write.ts :: writeText` asks
 them, for a write with the `typed` intent, so a key the block writes itself (the auto-pair's
 partner, a byte placed beside a hidden run) gets both, and a command gets neither. `lint/file-rules.test.ts` fails an
-`afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else.
+`afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else,
+and `blocks/surface-write-intent.test.ts` runs a write of each intent and checks which ones ask.
 
 **G4.106 · A reload in a spec really reloads.** A `source` write equal to the text the editor holds
 is no change (G1.52 has the text it's compared with), so `loadContent(await getSource())` reparses
@@ -2150,8 +2152,8 @@ genuinely new containers, each with its reason.
 text, it calls `components/blocks/surface-write.ts :: writeText`, which gives undo the caret from
 before the key (not wherever the edit left it), keeps the block's line ending, and puts the caret
 back. A block that calls `updateBlockContent` itself has to pick its own undo caret, and
-that copy drifts. `lint/call-site-rules.test.ts` fails a
-`blockEdit.updateBlockContent` call under `components/` or `selection/` outside the surface write,
+that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
+it's called on, under `components/` or `selection/` outside the surface write,
 except the few commands and clipboard edits still to move, each listed by function.
 
 ## Accessibility
