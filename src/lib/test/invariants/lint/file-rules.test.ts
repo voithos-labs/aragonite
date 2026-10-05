@@ -1845,12 +1845,14 @@ const REF_FOCUS: FileRule = {
 const MATH_SHAPE_HOME = 'src/lib/plugins/latex/math-shape.ts';
 const ROGUE_MATH_READER = 'src/lib/plugins/latex/rogue.ts';
 const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
+// A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
+const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
 
 const MATH_SHAPE: FileRule = {
 	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
 	population: under('src/lib/plugins/latex/'),
 	matches: new RegExp(
-		String.raw`(?:startsWith|endsWith)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==`
+		String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}`
 	),
 	allowed: {
 		[MATH_SHAPE_HOME]:
@@ -1862,7 +1864,12 @@ const MATH_SHAPE: FileRule = {
 	hits: [
 		at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
 		at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
-		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);')
+		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
+		at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
+		at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
+		at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
+		at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
+		at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');")
 	],
 	misses: [
 		at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),

@@ -2162,9 +2162,9 @@ except the few commands and clipboard edits still to move, each listed by functi
 closer, and the parser's line tests, the block's write rule and the painter that draws its source
 all read that split from `src/lib/plugins/latex/math-shape.ts`. A second copy drifts, and the
 one-line `$$x^2$$` with a line break in it is where copies disagree: the screen, the bytes and a
-reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$` (a
-`startsWith`, `endsWith` or equality against the fence) anywhere else under
-`src/lib/plugins/latex/`.
+reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$`
+anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `indexOf`,
+`lastIndexOf`, `includes` or equality against the fence, or a regex spelling it `\$\$`.
 
 ## Accessibility
 
