@@ -37,6 +37,9 @@ export interface CaretMemory {
 	noteTyping(): void;
 	/** The caret was placed at an end rather than stepped there, so it means the outside. */
 	noteExtreme(): void;
+	/** An arrow press moved the side, not the caret (`edge-step.ts`): the next byte lands at
+	 *  `offset`. Called instead of `noteKey`, since the key took no step to classify. */
+	pin(offset: number): void;
 	/** Record a column a surface measured itself on the way out (the table, which has no caret
 	 *  of its own at the moment it leaves). Keeps a column already held. */
 	captureColumn(x: EditorX): void;
@@ -106,6 +109,7 @@ export function createCaretMemory(): CaretMemory {
 			settleSide('near');
 		},
 		noteExtreme: () => settleSide('outside'),
+		pin: (offset) => settleSide({ offset }),
 		captureColumn,
 		forget: () => {
 			dropColumn();

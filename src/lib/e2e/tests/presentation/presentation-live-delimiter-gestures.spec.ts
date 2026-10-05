@@ -149,7 +149,8 @@ test.describe('live mode: the pairs the destructive-edges rows never covered', (
 		await landAt(ep, page, 8);
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Some `co`\n\n`de` text');
-		await expect.poll(() => focusOffset(ep)).toBe(0);
+		// Past the reopened backtick, which shows while the caret is in the span.
+		await expect.poll(() => focusOffset(ep)).toBe(1);
 		await page.keyboard.type('Y');
 		await ep.bridge.waitForSourceContains('`Yde`');
 	});

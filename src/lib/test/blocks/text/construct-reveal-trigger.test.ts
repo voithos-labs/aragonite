@@ -3,7 +3,7 @@
 // the spans the render marked, hiding waits a tick (a brief cross-block state looks like the
 // caret leaving), everything freezes during a cross-block selection, and both showing and
 // hiding are recorded on the interaction trace.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
@@ -33,6 +33,8 @@ describe('createConstructReveal: trigger', () => {
 	let reveal: ConstructReveal;
 
 	beforeEach(() => {
+		// jsdom's window never has focus, and a window without it shows nobody's markers.
+		vi.spyOn(document, 'hasFocus').mockReturnValue(true);
 		node = parse(RAW).children[0];
 		crossBlock = false;
 		harness = makeRenderHarness(node, { mode: 'preview-inline' });
@@ -51,6 +53,7 @@ describe('createConstructReveal: trigger', () => {
 	});
 
 	afterEach(() => {
+		vi.restoreAllMocks();
 		el.remove();
 		window.getSelection()?.removeAllRanges();
 		disableInteractionTrace();

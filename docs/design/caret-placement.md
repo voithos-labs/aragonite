@@ -123,7 +123,7 @@ Each entry carries its reason in the file, and the order is the contract (G4.12)
 2. **How the caret arrived.** On every keydown the caret memory records whether the caret stepped in from outside, was placed at an end, or just committed a byte (`src/lib/cursor/edge-affinity.ts` reads which from the key), and it forgets all that on any caret move that isn't a key. One exception: an edit that lands the caret at a block's start or end, rather than at a byte, counts as placed at an end. So Backspace on an empty list item under `- **a**` puts the next byte after the `**`, same as at the top level.
 3. **The renderer.** A candidate offset is accepted only if what shows on screen afterwards is exactly what showed before, plus the typed byte.
 
-If no candidate passes, it declines and the browser's own placement stands, which is the honest fallback, since that's where the byte was going anyway.
+If no candidate passes, it declines and the browser's own placement stands, which is the honest fallback, since that's where the byte was going anyway. The arrows can choose too: where the position offers more than one typing offset, a plain ArrowLeft or ArrowRight moves that choice instead of the caret (`src/lib/components/blocks/text/edge-step.ts`, run by `handleSharedKeydown` ahead of every other arrow rule, a table cell's navigation plan included), and the caret memory records that exact offset, which the resolver tries first.
 
 ## 7. Leaving the block
 

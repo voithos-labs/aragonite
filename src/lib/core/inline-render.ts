@@ -50,9 +50,9 @@ export interface RenderInlineOptions {
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
-function markerSpan(text: string): HTMLSpanElement {
+function markerSpan(text: string, className = 'md-marker'): HTMLSpanElement {
 	const span = document.createElement('span');
-	span.className = 'md-marker';
+	span.className = className;
 	span.textContent = text;
 	return span;
 }
@@ -111,14 +111,16 @@ function renderInlineCode(
 	const contentStart = node.start + fence;
 	const contentEnd = node.end - fence;
 
-	frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, contentStart)), node, opts));
+	// The backticks are their own family: the caret's own code span shows them (`visibility.ts`).
+	const backticks = (text: string) => markerSpan(text, 'md-code-fence');
+	frag.appendChild(tagConstruct(backticks(raw.slice(node.start, contentStart)), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
 	code.textContent = raw.slice(contentStart, contentEnd);
 	frag.appendChild(code);
 
-	frag.appendChild(tagConstruct(markerSpan(raw.slice(contentEnd, node.end)), node, opts));
+	frag.appendChild(tagConstruct(backticks(raw.slice(contentEnd, node.end)), node, opts));
 	return frag;
 }
 

@@ -28,6 +28,12 @@ export interface HardcodedChordSite {
 
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
+		file: 'components/blocks/text/edge-step.ts',
+		chords: [],
+		keys: ['ArrowLeft', 'ArrowRight'],
+		note: 'Only a plain arrow crosses a hidden construct edge; the modifier read is a refusal, leaving every chorded arrow to its own branch.'
+	},
+	{
 		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],

@@ -68,6 +68,10 @@
 	/* One radius for a picture, the crop frame that clips it and the selection ring on the
 	   overlay above it: half the surface radius, enough to soften a photo without a card look. */
 	--md-image-radius: 4px;
+	/* Inline code reads as a chip: a fill a shade darker than the page, borderless by default; a
+	   colour here draws the outline and the dividers beside revealed backticks. */
+	--md-inline-code-bg: rgba(0, 0, 0, 0.22);
+	--md-inline-code-border: transparent;
 
 	/* Markdown syntax override points, neutral so the default rendering adds no palette of its own;
 	   most chain to a host-chrome token that holds the light and dark split. */
@@ -134,6 +138,9 @@
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	/* The light theme sets its own dim. */
 	--syntax-marker-dim: 0.65;
+	/* Ring on the construct the caret is inside at a hidden edge, where both sides share a pixel.
+	   Neutral grey, legible over the inline-code tint in either mode. */
+	--md-edge-held-ring: rgba(128, 128, 128, 0.55);
 
 	/* Menu elevation, per mode, since a shadow tuned for a near-black surface vanishes over a white
 	   one; editor-owned because a host palette names colors, not elevation. */
@@ -161,6 +168,8 @@
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
 	--color-bg-secondary: rgba(0, 0, 0, 0.035);
+	--md-inline-code-bg: rgba(0, 0, 0, 0.045);
+	--md-inline-code-border: transparent;
 	--color-bg-elevated: #f5f6f8;
 	--color-bg-muted: #eaeaea;
 	--color-text-muted: #57606a;

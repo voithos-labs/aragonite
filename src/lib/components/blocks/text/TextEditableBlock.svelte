@@ -47,6 +47,8 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createEdgeStep, type EdgeStep } from './edge-step';
+	import { seatOffsetsAt } from './edge-seat';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -213,6 +215,25 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
+	// A hidden construct edge's arrow stop and ring, built on first use: a large document mounts
+	// many blocks the caret never reaches, and the windowing budget is per block.
+	let edgeStep: EdgeStep | null = null;
+	const edgeStepHere = (): EdgeStep =>
+		(edgeStep ??= createEdgeStep({
+			getEl: () => el ?? null,
+			getRaw: () => node.raw,
+			getInlines: () => resolvedInlineContent(node, reading),
+			getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+			isReading: () => readOnly,
+			reading,
+			caretMemory
+		}));
+	/** Refresh the ring; a block the caret is not in only clears what it drew. */
+	function showEdge(): void {
+		if (el?.contains(window.getSelection()?.focusNode ?? null)) edgeStepHere().show();
+		else edgeStep?.show();
+	}
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -229,6 +250,7 @@
 		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
+		stepEdge: (e) => edgeStepHere().step(e),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		inputPrelude: () => {
@@ -671,7 +693,10 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			if (!composing) constructReveal.update(true);
+			if (composing) return;
+			constructReveal.update(true);
+			// Never a selection read here: it forces a layout, once per block a fling mounts.
+			edgeStep?.show();
 		});
 		markKeystrokeSettle();
 	});
@@ -725,6 +750,7 @@
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
+			showEdge();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -878,6 +904,15 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			hiddenRunAt: (caret) =>
+				!!el &&
+				seatOffsetsAt(
+					caret,
+					resolvedInlineContent(node, reading),
+					node.raw,
+					screenVisibilityOf(el),
+					grammar
+				).length > 0,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
@@ -944,6 +979,14 @@
 		armSnapTarget(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();
+		syncCaretChrome();
+	}
+
+	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
+	 *  window keeps the selection but fires no `selectionchange`. */
+	function syncCaretChrome(): void {
+		constructReveal.update();
+		showEdge();
 	}
 
 	function demoteEmptyHeadingOnBlur(): void {
@@ -1038,6 +1081,7 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
+	onkeyup={showEdge}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
@@ -1045,6 +1089,7 @@
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}
+	onfocus={syncCaretChrome}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
@@ -1096,14 +1141,6 @@
 		opacity: var(--syntax-marker-dim, 0.65);
 		font-weight: normal;
 		font-style: normal;
-	}
-
-	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-code, ui-monospace, monospace);
-		font-size: 0.9em;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border-radius: 3px;
-		padding: 1px 4px;
 	}
 
 	.text-editable-block :global(.md-autolink) {

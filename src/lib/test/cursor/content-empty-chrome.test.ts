@@ -107,11 +107,13 @@ describe('screenVisibilityOf: the reading a rewrite takes', () => {
 	it('reports the mode and the mark the container carries', () => {
 		expect(screenVisibilityOf(mountBlock({ mode: 'live', stamped: true }))).toEqual({
 			hidesMarkers: true,
-			chromePaints: true
+			chromePaints: true,
+			hidesCodeFences: true
 		});
 		expect(screenVisibilityOf(mountBlock({ mode: 'live' }))).toEqual({
 			hidesMarkers: true,
-			chromePaints: false
+			chromePaints: false,
+			hidesCodeFences: true
 		});
 		// The attribute exists to give the caret somewhere to sit: unfocused, a marked block hides
 		// its markers like any other, exactly as the stylesheet's `:focus-within` rule has it.
@@ -128,10 +130,15 @@ describe('screenVisibilityOf: the reading a rewrite takes', () => {
 	// An unmounted block (a composition committing before its first render) has no mode to read:
 	// source mode hides nothing, so nothing finds a hidden run to move past.
 	it('reads an unmounted surface as source', () => {
-		expect(screenVisibilityOf(null)).toEqual({ hidesMarkers: false, chromePaints: false });
+		expect(screenVisibilityOf(null)).toEqual({
+			hidesMarkers: false,
+			chromePaints: false,
+			hidesCodeFences: false
+		});
 		expect(screenVisibilityOf(mountBlock({}))).toEqual({
 			hidesMarkers: false,
-			chromePaints: false
+			chromePaints: false,
+			hidesCodeFences: false
 		});
 	});
 });

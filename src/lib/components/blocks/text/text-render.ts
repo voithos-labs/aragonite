@@ -7,7 +7,7 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import { hidesMarkers } from '../../../presentation-mode';
+import { hidesMarkers, tagsConstructMarkers } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
@@ -174,9 +174,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
 				grammar: deps.reading.grammar,
-				// Data attributes only, for the code that shows construct markers; set in this
-				// mode alone so the other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.reading.mode() === 'preview-inline',
+				tagConstructMarkers: tagsConstructMarkers(deps.reading.mode()),
 				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
 			})
 		);

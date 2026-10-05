@@ -51,6 +51,7 @@ import {
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
+	codeOpenerEnd,
 	rawOfWalkOffset,
 	revealsNoMarkers,
 	selectRawRange,
@@ -185,6 +186,9 @@ export interface EditableSurfaceDeps {
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
 	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
+	/** A surface that hides inline markers crosses each hidden edge in a press of its own
+	 *  (`text/edge-step.ts`); absent where no inline construct renders. */
+	stepEdge?: SharedKeydownContext['stepEdge'];
 
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
@@ -286,6 +290,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
+		stepEdge: deps.stepEdge,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,
@@ -311,7 +316,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		el.focus({ preventScroll: true });
 		const landed = deps.clampLanding?.(offset) ?? offset;
 		if (landed === CURSOR_EXACT_START) {
-			deps.backend.setRaw(asRawOffset(0), { clamp: 'exact' });
+			deps.backend.setRaw(asRawOffset(codeOpenerEnd(el)), { clamp: 'exact' });
 			return;
 		}
 		const requested = landed === CURSOR_START ? 0 : Math.max(0, landed);

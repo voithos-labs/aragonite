@@ -741,6 +741,8 @@ The editor supplies these host-family surfaces itself, in both modes, because a 
 
 **`--color-selection` is a base three tints derive from.** The selection overlay, the search-match tint, and the block-reorder highlight are translucent tints of it at fixed alphas, so naming the one base moves all three and keeps their relative weights. Declaring an individual tint at `.editor` still wins over the derivation, if you want one of them somewhere else.
 
+**Inline code** reads three editor-owned tokens, overridden at `.editor` like the rest: `--syntax-code` _(the code text)_, `--md-inline-code-bg` and `--md-inline-code-border` _(the chip, with a light and a dark default each)_. `--syntax-code` defaults to the surrounding text color.
+
 **The radii are partial by design.** The two tokens cover the corners a host theme has an opinion about: its controls and its elevated surfaces. Editor chrome whose corner is neither (a hairline focus ring, a scrollbar thumb, an inline-code pill) keeps a literal value, so declaring the tokens rounds what you'd expect a theme to round and leaves the rest alone.
 
 **`--editor-font-size` is the type-scale root.** Headings, code, markers, and chrome are all `em`-relative, so overriding this one token scales the whole surface. In a themed host (no opt-in class) set it on any ancestor and it inherits straight in. Under `aragonite-editor-theme` the class declares `1rem`, which shadows any value from above it, so set it at `.editor` or below the class, or bridge it through a property of your own:

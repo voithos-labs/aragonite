@@ -6,7 +6,7 @@
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import type { EdgeAffinity, PinnedOffset } from '../../../cursor/edge-affinity';
 import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -125,6 +125,60 @@ export function seatOffsetsAt(
 		: offsets;
 }
 
+/** The offsets a plain arrow press stops at, ascending: each boundary of the caret's position a
+ *  typed byte can be written at. Fewer than two means there is no choice, so the arrow moves. */
+export function edgeStops(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading
+): number[] {
+	const typedAt = (offset: number) =>
+		typingOffset(caretOffset, inlines, { offset }, raw, screen, reading);
+	return seatOffsetsAt(caretOffset, inlines, raw, screen, reading.grammar)
+		.filter((offset) => typedAt(offset) === offset)
+		.sort((a, b) => a - b);
+}
+
+/** The raw offset the next byte would be written at under `affinity`. */
+export function typingOffset(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading
+): number {
+	const edge = resolveEdgeSeat(caretOffset, inlines, affinity, raw, screen, PROBE_BYTE, reading);
+	return edge?.offset ?? caretOffset;
+}
+
+/** The stop a plain arrow press moves the typing offset to, one past the current one in its
+ *  direction, or null when the press moves the caret as usual (live-mode.md § 4.2). */
+export function edgeStep(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading,
+	direction: 'backward' | 'forward'
+): number | null {
+	const stops = edgeStops(caretOffset, inlines, raw, screen, reading);
+	if (stops.length < 2) return null;
+	const current = typingOffset(caretOffset, inlines, affinity, raw, screen, reading);
+	const ahead =
+		direction === 'forward'
+			? stops.filter((offset) => offset > current)
+			: stops.filter((offset) => offset < current).reverse();
+	return ahead[0] ?? null;
+}
+
+/** A byte stands in for whatever the user types next: a letter, which pairs with nothing, so the
+ *  render's verdict is about the offset and not about the byte. */
+const PROBE_BYTE = 'a';
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 interface MarkerRun {
@@ -137,17 +191,20 @@ interface MarkerRun {
 	span: ContentRange;
 }
 
-function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
+/** An arrival side, the pinned case set aside: a pin is an offset, not a side. */
+type Side = Exclude<EdgeAffinity, PinnedOffset>;
+
+function offsetForSide(run: MarkerRun, side: Side): number {
 	if (side === 'near') return run.start;
 	if (side === 'far') return run.end;
 	return run.leading ? run.start : run.end;
 }
 
-const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
+const otherEnd = (run: MarkerRun, side: Side): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
-/** The offsets to try, best first: the policy's side, the run's other end, the caret itself, then
- *  the rest of the screen position, nearest the policy's side first. */
+/** The offsets to try, best first: a pin the position still holds, the policy's side, the run's
+ *  other end, the caret, then the rest of the position, nearest the policy's side first. */
 function candidateOffsets(
 	run: MarkerRun,
 	edgeAffinity: InlineConstructPolicy['edgeAffinity'],
@@ -157,10 +214,23 @@ function candidateOffsets(
 ): number[] {
 	// `never-extend` lands past the construct's delimiters; a symmetric pair follows the side the
 	// caret arrived from, else the near side (`docs/design/live-mode.md` § 4.2).
-	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
+	const position = screenPositionOffsets(run, runs);
+	// A pin is the side an edge step chose, so it outranks the policy: the step offered only
+	// offsets this resolver accepts (`edgeStops`). One the position no longer holds is stale.
+	const pinned =
+		typeof affinity === 'object' && affinity !== null && position.includes(affinity.offset)
+			? affinity.offset
+			: null;
+	const recorded = typeof affinity === 'string' ? affinity : null;
+	const side: Side = edgeAffinity === 'never-extend' ? 'outside' : (recorded ?? 'near');
 	const preferred = offsetForSide(run, side);
-	const ranked = [preferred, otherEnd(run, side), caretOffset];
-	const rest = screenPositionOffsets(run, runs)
+	const ranked = [
+		...(pinned === null ? [] : [pinned]),
+		preferred,
+		otherEnd(run, side),
+		caretOffset
+	];
+	const rest = position
 		.filter((offset) => !ranked.includes(offset))
 		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
 	const offsets = [...new Set([...ranked, ...rest])];
@@ -212,14 +282,21 @@ function markerRuns(
 	grammar: GrammarView
 ): MarkerRun[] {
 	const runs: MarkerRun[] = [];
+	// A delimiter the mode paints (an inline code fence while editing) is a byte the caret steps
+	// over like any other, so only the runs the render leaves off screen count.
+	const painted = visibleRuns(inlines, raw, screen, { grammar }).filter(
+		(run) => run.visible && run.text !== ''
+	);
+	const hidden = (start: number, end: number) =>
+		!painted.some((run) => run.start < end && start < run.end);
 	for (const node of inlineDescendants(inlines)) {
 		const content = constructContentRange(node) ?? paintedRange(node, raw, screen, grammar);
 		if (!content) continue;
 		const span = { start: node.start, end: node.end };
-		if (node.start < content.start) {
+		if (node.start < content.start && hidden(node.start, content.start)) {
 			runs.push({ start: node.start, end: content.start, leading: true, kind: node.kind, span });
 		}
-		if (content.end < node.end) {
+		if (content.end < node.end && hidden(content.end, node.end)) {
 			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind, span });
 		}
 	}

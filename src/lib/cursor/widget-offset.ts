@@ -502,12 +502,27 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 	return mode !== null && hidesDelimitersAtCaret(mode);
 }
 
+/** Where the inside of a code span opening the block begins: past its backticks, which show once
+ *  the caret is in the span, so raw 0 would type before them. 0 for any other start. */
+export function codeOpenerEnd(container: HTMLElement): number {
+	const first = container.querySelector('[data-construct-start]');
+	if (!first || markerFamilyOf(first) !== 'code-fence') return 0;
+	if (domTextOffsetAtNode(container, first, 0) !== markerPrefixLength(container)) return 0;
+	return first.textContent?.length ?? 0;
+}
+
+/** A code span's backticks the caret's own span shows (`construct-reveal.ts`). */
+const REVEALED_CODE_FENCE = `.md-code-fence.${CONSTRUCT_REVEAL_CLASS}`;
+
 /** How this container's bytes read on screen, its mode plus its content-empty attribute, so a text
  *  rewrite needs no marker knowledge of its own. An unmounted block reads as source. */
 export function screenVisibilityOf(container: ParentNode | null): VisibilityContext {
 	return screenVisibility(
 		container === null ? 'source' : (markerHidingMode(container) ?? 'source'),
-		{ chromePaints: container instanceof Element && chromeStampPaints(container) }
+		{
+			chromePaints: container instanceof Element && chromeStampPaints(container),
+			revealsCodeFence: container?.querySelector(REVEALED_CODE_FENCE) != null
+		}
 	);
 }
 
@@ -707,6 +722,9 @@ function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean
 	// reveal branches below depend on per-span DOM state that only this side can see.
 	if (family === null || !familyHidesText(family, screenVisibility(mode, { chromePaints })))
 		return false;
+	// Inline code backticks show for the caret's own code span in every editing mode.
+	if (family === 'code-fence')
+		return mode === 'reading' || !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;

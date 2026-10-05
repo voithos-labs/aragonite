@@ -47,6 +47,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	commands: CommandDispatchContext;
 	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
 	reading: Reading;
+	/** A plain horizontal arrow at a hidden construct edge: true when the press moved which side
+	 *  of the edge the caret means instead of moving the caret (live-mode.md § 4.2). */
+	stepEdge?(e: KeyboardEvent): boolean;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -55,6 +58,9 @@ export async function handleSharedKeydown(
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
 	if (endsSelectAllRun(e)) ctx.selection.resetSelectAllCount();
+
+	// Before the cross-block dispatch and the caret memory, which would record the press as a step.
+	if (handleEdgeStep(e, ctx)) return true;
 
 	if (await ctx.crossBlock.handleKeyDown(e)) return true;
 
@@ -168,6 +174,17 @@ export async function handleSharedKeydown(
 	}
 
 	return false;
+}
+
+/** A plain arrow at a hidden construct edge moves the side the caret means, not the caret
+ *  (live-mode.md § 4.2). Runs ahead of everything that reads the press as a step; true if claimed. */
+export function handleEdgeStep(
+	e: KeyboardEvent,
+	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
+): boolean {
+	if (ctx.selection.isCrossBlock || !ctx.stepEdge?.(e)) return false;
+	e.preventDefault();
+	return true;
 }
 
 // ── Block bounds ───────────────────────────────────────────────────────────

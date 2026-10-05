@@ -46,6 +46,12 @@ export function hidesDelimitersAtCaret(mode: PresentationMode): boolean {
 	return !paintsFocusedMarkers(mode);
 }
 
+/** The modes whose render tags construct markers with their raw range: preview-inline reveals by
+ *  them, live mode rings the construct a hidden edge's caret is inside (`edge-step.ts`). */
+export function tagsConstructMarkers(mode: PresentationMode): boolean {
+	return mode === 'preview-inline' || mode === 'live';
+}
+
 /** The read-only check every dispatch path keys off. A plain getter type keeps `schema/` and
  *  `selection/` off `editor-keys`; the getter is required, since only the editor picks the default. */
 export function isReadingMode(getMode: () => PresentationMode): boolean {

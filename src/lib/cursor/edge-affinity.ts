@@ -10,20 +10,31 @@ import { BARE_MODIFIER_KEYS, isCharacterKey } from '../schema/keybindings';
  * Which raw offset a hidden run's one pixel names. Two answers are positional, the run's `near`
  * (earlier) or `far` (later) side in walk order, and one is relative to the construct: `outside`
  * means past the construct's delimiters whichever side that is, so it reads as the run's start
- * at an opener and its end at a closer.
+ * at an opener and its end at a closer. The fourth names the offset outright: an edge step
+ * (`edge-step.ts`) chose it, and a stretch of abutting runs has more boundaries than two sides.
  */
-export type EdgeAffinity = 'near' | 'far' | 'outside';
+export type EdgeAffinity = ArrivalSide | PinnedOffset;
+
+/** The answers a key can give: every affinity but a pinned offset, which only an edge step sets. */
+export type ArrivalSide = 'near' | 'far' | 'outside';
+
+/** One boundary of the caret's screen position, chosen by an edge step. A raw offset, so it goes
+ *  stale on any write; every write settles the side again, and a pin the position no longer
+ *  holds is ignored by the resolver. */
+export interface PinnedOffset {
+	readonly offset: number;
+}
 
 /** What a keydown does to the affinity. */
-export type EdgeAffinityAction = EdgeAffinity | 'preserve' | 'reset';
+export type EdgeAffinityAction = ArrivalSide | 'preserve' | 'reset';
 
 /** Pure on the key, so the matrix is testable without a DOM or a memory instance. */
 export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAction {
 	// macOS Cmd+Arrow jumps to the line's end, a placement rather than a step, so it takes
 	// Home/End's answer. Windows and Linux never deliver meta+arrow to the page.
 	if (metaKey && (key === 'ArrowLeft' || key === 'ArrowRight')) return 'outside';
-	// A step stops on the side of the run it came from, so one keypress never changes which construct
-	// the caret is in (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).
+	// A step stops on the side of the run it came from (`docs/design/live-mode.md` § 4.2); crossing
+	// a hidden edge is a press of its own, which moves the side and not the caret (`edge-step.ts`).
 	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'near';
 	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'far';
 	// Home and End are relative to the construct: `Home` before a construct starting the line means
