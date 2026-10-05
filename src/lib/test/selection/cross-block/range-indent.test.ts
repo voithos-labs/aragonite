@@ -119,6 +119,16 @@ describe('Tab and Shift+Tab over a range that holds list items', () => {
 		expect(mounted.source()).toBe('- a\n- b\n  - c\n  - e\n');
 	});
 
+	it('Shift+Tab over items that stop before their last sibling keeps the order', async () => {
+		const range = {
+			anchor: { path: [0, 0, 1, 0, 0], offset: 1 },
+			focus: { path: [0, 0, 1, 1, 0], offset: 2 }
+		};
+		await pressOver('- alpha\n  - beta\n  - gamma\n  - delta\n', range, SHIFT_TAB);
+
+		expect(mounted.source()).toBe('- alpha\n- beta\n- gamma\n  - delta\n');
+	});
+
 	it('a top-level item stays where it is, and its nested item still outdents', async () => {
 		const range = {
 			anchor: { path: [0, 0, 0], offset: 0 },

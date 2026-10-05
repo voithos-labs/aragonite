@@ -30,6 +30,14 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceEquals('- xa\n');
 	});
 
+	test('Shift+Tab on a nested item takes the siblings after it along as its children', async () => {
+		await editor.loadContent('- alpha\n  - beta\n  - gamma\n- delta\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n  - gamma\n- delta\n');
+	});
+
 	test('Shift+Tab on top-level item is no-op', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
