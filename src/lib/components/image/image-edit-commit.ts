@@ -1,6 +1,7 @@
+// What the image overlay writes and reads: the popover's field edits, a resize, a removal, and
+// dropping a selected widget whose bytes are gone. Every write goes through the inline range write.
+
 import { tick } from 'svelte';
-import { resolvedInlineContent } from '../../core/inline/inline-cache';
-import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
@@ -16,7 +17,7 @@ import { selectWidgetWhole } from '../../selection/caret-doors';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { Reading } from '../../schema/reading';
-import { widgetSpanAt } from '../blocks/text/widget-adjacency';
+import { widgetNodeIn, widgetSpanAt } from '../blocks/text/widget-adjacency';
 
 // ── Public API ──────────────────────────────────────────────────────────
 
@@ -286,16 +287,12 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 
 // ── Internal ────────────────────────────────────────────────────────────
 
+// The overlay and the popover edit images only; any other widget selected whole reads as none.
 function findImageInParagraph(
 	para: NodeView,
 	sourceStart: number,
 	reading: Reading
 ): InlineNode | null {
-	// Resolver-aware so a reference-style image resolves as the render path saw it,
-	// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-	const inlines = resolvedInlineContent(para, reading);
-	for (const widget of flattenInlineWidgets(inlines, para.raw, reading.grammar)) {
-		if (widget.kind === 'image' && widget.start === sourceStart) return widget;
-	}
-	return null;
+	const widget = widgetNodeIn(para, sourceStart, reading);
+	return widget?.kind === 'image' ? widget : null;
 }

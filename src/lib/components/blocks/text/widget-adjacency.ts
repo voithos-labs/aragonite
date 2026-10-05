@@ -49,33 +49,26 @@ export function widgetAtCursor(
 	return trailingMatch ?? leadingMatch;
 }
 
-export function findWidgetNodeByStart(
+/** The widget of any kind starting at `sourceStart` in `node`, nested ones included, as the block
+ *  renders it. Every reader of a selected widget resolves it here. */
+export function widgetNodeIn(
+	node: NodeView,
 	sourceStart: number,
-	inlineContent: ReadonlyArray<InlineNode> | undefined,
-	raw: string,
-	grammar: GrammarView
-): WidgetRange | null {
-	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
-		if (inline.start === sourceStart) {
-			return { start: inline.start, end: inline.end };
-		}
-	}
-	return null;
+	reading: InlineReading
+): InlineNode | null {
+	const inlines = resolvedInlineContent(node, reading);
+	const widgets = flattenInlineWidgets(inlines, node.raw, reading.grammar);
+	return widgets.find((widget) => widget.start === sourceStart) ?? null;
 }
 
-/** The span of the widget of any kind starting at `sourceStart` in `node`, as the block renders
- *  it. Every reader of a selected widget's bytes resolves them here. */
+/** The span of {@link widgetNodeIn}'s widget. */
 export function widgetSpanIn(
 	node: NodeView,
 	sourceStart: number,
 	reading: InlineReading
 ): WidgetRange | null {
-	return findWidgetNodeByStart(
-		sourceStart,
-		resolvedInlineContent(node, reading),
-		node.raw,
-		reading.grammar
-	);
+	const widget = widgetNodeIn(node, sourceStart, reading);
+	return widget && { start: widget.start, end: widget.end };
 }
 
 /** The live span of the widget `target` names in `doc`, or null once none starts at its byte. */

@@ -49,7 +49,7 @@ import {
 	rawHasNoTextBefore,
 	rawHasNoTextAfter,
 	widgetElByStart,
-	widgetSpanIn
+	widgetNodeIn
 } from './widget-adjacency';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
@@ -683,38 +683,31 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const node = deps.node;
 		const selectedWidget = deps.selection.widgetIn(deps.myPath);
 		if (selectedWidget === null) return false;
-		const widget = widgetSpanIn(node, selectedWidget.sourceStart, deps.reading);
+		const widget = widgetNodeIn(node, selectedWidget.sourceStart, deps.reading);
 		if (widget === null) return false;
 
-		// The kind's editing policy takes its own keys first. Flattened so the nested image
-		// of `[![alt][ref]][repo]` is the widget resolved.
-		const inline = flattenInlineWidgets(inlinesOf(node), node.raw, deps.reading.grammar).find(
-			(n) => n.start === widget.start
-		);
-		if (inline) {
-			const policy = widgetEditing(inline.kind);
-			const consumed = policy?.onSelectedKey?.(e, {
-				node,
-				inline,
-				widgetStart: widget.start,
-				widgetEnd: widget.end,
-				index: deps.index,
-				preSelectOffset: selectedWidget.preSelectOffset,
-				editorContentWidth: deps.getEditorContentWidth(),
-				presentationMode: deps.reading.mode(),
-				// The widget stays selected through its own key, so the write leaves the caret alone.
-				updateContent: (newRaw, caretBefore, caretAfter) =>
-					void deps.writeText({
-						...rangeWrite({ raw: newRaw, caret: caretAfter }),
-						intent: 'typed',
-						mode: 'authored',
-						source: 'widget-key',
-						sessionAnchor: caretBefore,
-						leavesCaret: true
-					})
-			});
-			if (consumed) return true;
-		}
+		// The kind's editing policy takes its own keys first.
+		const consumed = widgetEditing(widget.kind)?.onSelectedKey?.(e, {
+			node,
+			inline: widget,
+			widgetStart: widget.start,
+			widgetEnd: widget.end,
+			index: deps.index,
+			preSelectOffset: selectedWidget.preSelectOffset,
+			editorContentWidth: deps.getEditorContentWidth(),
+			presentationMode: deps.reading.mode(),
+			// The widget stays selected through its own key, so the write leaves the caret alone.
+			updateContent: (newRaw, caretBefore, caretAfter) =>
+				void deps.writeText({
+					...rangeWrite({ raw: newRaw, caret: caretAfter }),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'widget-key',
+					sessionAnchor: caretBefore,
+					leavesCaret: true
+				})
+		});
+		if (consumed) return true;
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
 		// selecting cleared the browser range, so a later handler would read offset 0.
 		if (hasModifier(e)) {

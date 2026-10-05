@@ -3,12 +3,14 @@ import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '$lib/core/nodes';
 import {
 	widgetAtCursor,
-	findWidgetNodeByStart,
+	widgetNodeIn,
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
 	rawHasNoTextAfter
 } from '$lib/components/blocks/text/widget-adjacency';
+import { parse } from '$lib/core/parser';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 function text(start: number, end: number, value: string): InlineNode {
 	return { kind: 'text', start, end, text: value };
@@ -118,16 +120,23 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 	});
 });
 
-describe('findWidgetNodeByStart', () => {
-	it('finds a live widget by its source start offset', () => {
-		expect(findWidgetNodeByStart(0, imageInlines, IMAGE_RAW, defaultGrammarView)).toEqual({
-			start: 0,
-			end: 11
-		});
+describe('widgetNodeIn', () => {
+	const at = (source: string, start: number) =>
+		widgetNodeIn(parse(source).children[0], start, fixtureReading());
+
+	it.each([
+		['an image', IMAGE_RAW, 0, { kind: 'image', start: 0, end: 11 }],
+		['a `<br>`', 'a<br>b\n', 1, { kind: 'rawHtml', start: 1, end: 5 }],
+		['an image a link wraps', '[![cat](x.png)](y)\n', 1, { kind: 'image', start: 1, end: 14 }]
+	])('finds %s by its source start', (_, source, start, expected) => {
+		expect(at(source, start)).toMatchObject(expected);
 	});
 
-	it('returns null when no widget starts at the given offset', () => {
-		expect(findWidgetNodeByStart(11, imageInlines, IMAGE_RAW, defaultGrammarView)).toBeNull();
+	it.each([
+		['the end of a widget', IMAGE_RAW, 11],
+		['the start of the link around an image', '[![cat](x.png)](y)\n', 0]
+	])('finds nothing at %s', (_, source, start) => {
+		expect(at(source, start)).toBeNull();
 	});
 });
 
@@ -146,17 +155,6 @@ describe('widget nested inside a link node', () => {
 	const nestedInlines: InlineNode[] = [
 		{ kind: 'link', start: 0, end: 20, url: 'repo-url', label: 'repo', children: [nestedImage] }
 	];
-
-	it('findWidgetNodeByStart finds the nested image by its raw start', () => {
-		expect(findWidgetNodeByStart(1, nestedInlines, NESTED_RAW, defaultGrammarView)).toEqual({
-			start: 1,
-			end: 13
-		});
-	});
-
-	it('findWidgetNodeByStart returns null for the link node start (not a widget)', () => {
-		expect(findWidgetNodeByStart(0, nestedInlines, NESTED_RAW, defaultGrammarView)).toBeNull();
-	});
 
 	it('widgetAtCursor finds the nested image at its leading edge', () => {
 		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW, undefined, defaultGrammarView)).toEqual({
