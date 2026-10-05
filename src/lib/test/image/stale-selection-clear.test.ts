@@ -64,3 +64,29 @@ describe('a selected image whose bytes an edit moves', () => {
 		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(19);
 	});
 });
+
+// Miss-analysis: every stale-drop case selected an image, so the drop asking for an image only
+// never met a selected `<br>`, which it dropped on the first edit anywhere in the document.
+describe('a selected widget of another kind', () => {
+	it.each([
+		['stays selected through an edit that keeps it', 'before<br>after more\n', 6],
+		['is deselected once the edit removes it', 'before after\n', null]
+	])('a `<br>` %s', (_, next, expected) => {
+		let doc: Document = parse('before<br>after\n');
+		const widgetSelection = createWidgetSelectionState(createSelectionState());
+		const committer = createImageEditCommitter({
+			getDoc: () => doc,
+			getEditorEl: () => null,
+			widgetSelection,
+			inlineRange: makeInlineRange(() => doc, makeStubController()),
+			events: createEditorEvents(),
+			reading: fixtureReading()
+		});
+		widgetSelection.select({ paragraphPath: [0], sourceStart: 6, preSelectOffset: 6 });
+
+		doc = parse(next);
+		committer.clearStaleSelection();
+
+		expect(widgetSelection.getSelected()?.sourceStart ?? null).toBe(expected);
+	});
+});
