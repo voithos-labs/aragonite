@@ -142,8 +142,16 @@ export function coversIndentBinding(
 const isItemMove = (command: AnyCommandId | null): command is ItemShift['command'] =>
 	command === 'list.indent' || command === 'list.unindent';
 
+/** The commands that make a key an indent key over a range. */
+export const INDENT_COMMANDS: ReadonlySet<AnyCommandId> = new Set<AnyCommandId>([
+	'list.indent',
+	'list.unindent',
+	'code.indent',
+	'code.dedent'
+]);
+
 const isIndentCommand = (command: AnyCommandId | null): boolean =>
-	isItemMove(command) || command === 'code.indent' || command === 'code.dedent';
+	command !== null && INDENT_COMMANDS.has(command);
 
 /** Each leaf the range covers with the text offsets it covers, until `visit` answers true. A grid
  *  holds nothing to indent, so it visits none. */

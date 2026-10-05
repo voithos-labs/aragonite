@@ -5,14 +5,14 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CstNode, Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { kindOfPath, replaceRange } from './range-replace';
-import { coversIndentBinding, indentRange } from './range-indent';
+import { coversIndentBinding, indentRange, INDENT_COMMANDS } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
 import { dispatchKeyCommand, type CommandDispatchContext } from '../../schema/block-commands';
-import { commandForKey } from '../../schema/commands';
+import { chordsBoundTo, commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import {
 	collapseCrossBlock,
@@ -234,8 +234,18 @@ export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 type RangeKeyRole =
 	'delete' | 'rewrite' | 'indent' | 'command' | 'extend' | 'collapse' | 'selectAll';
 
+// Each container the key bubbles through asks, and then the range's handler: one answer per event.
+const rolesByEvent = new WeakMap<KeyboardEvent, RangeKeyRole | null>();
+
 /** What the range's handler does with a key, or null when it leaves the key to the block. */
 function rangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole | null {
+	if (rolesByEvent.has(e)) return rolesByEvent.get(e)!;
+	const role = readRangeKeyRole(e, reads);
+	rolesByEvent.set(e, role);
+	return role;
+}
+
+function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole | null {
 	if (isRangeDeleteKey(e)) return 'delete';
 	// Before the command candidates: deleting the range and toggling a format at the collapsed
 	// caret would leave empty marker pairs where the text stood.
@@ -259,7 +269,11 @@ export function isRangeDeleteKey(e: KeyboardEvent): boolean {
 export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	const { anchor, focus } = reads.selection;
-	if (!anchor || !focus || !eventToChord(e)) return false;
+	const chord = eventToChord(e);
+	// The range is walked only for a chord some keymap binds to indent; any other key costs nothing.
+	if (!anchor || !focus || !chord || !chordsBoundTo(INDENT_COMMANDS, reads.commands).has(chord)) {
+		return false;
+	}
 	const doc = reads.getDoc();
 	const byKind = new Map<string, AnyCommandId | null>();
 	const commandOf = (node: CstNode) => {
