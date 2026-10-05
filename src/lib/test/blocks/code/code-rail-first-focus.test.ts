@@ -3,6 +3,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import { settleEditor } from '$lib/test/harness/settle';
 import { mountCode, type MountedCode } from './mount-code';
 
 const BARE_FENCE = '```\n```\n';
@@ -39,6 +42,31 @@ describe('a bare fence taking the caret', () => {
 		await focusFence('seat');
 
 		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', 'authored', expect.anything(), 4);
+		expect(picker()).not.toBeNull();
+	});
+
+	// Miss-analysis: every stub write resolved at once, so a picker opened on a guessed number of
+	// ticks looked the same as one opened after the completion landed.
+	it('offers the language only once the completion has landed', async () => {
+		let land: (wrote: boolean) => void = () => {};
+		const landing = new Promise<boolean>((resolve) => (land = resolve));
+		const blockEdit = makeStubBlockEdit();
+		blockEdit.updateBlockContent.mockImplementationOnce((_i, _text, _mode, _pre, caret) =>
+			withStoredCaret(landing, caret ?? 0)
+		);
+		mounted = mountCode(BARE_FENCE, {
+			blockEdit,
+			policies: { presentationMode: () => 'live' }
+		});
+		mounted.el.focus();
+		await settleEditor();
+		flushSync();
+		expect(completions()).toHaveBeenCalledOnce();
+		expect(picker()).toBeNull();
+
+		land(true);
+		await settleEditor();
+		flushSync();
 		expect(picker()).not.toBeNull();
 	});
 

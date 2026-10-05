@@ -9,6 +9,7 @@ Keyboard behavior inside a code block where it differs from a text block: the bo
 - ArrowRight at end of content moves focus to start of next block
 - vertical arrow sticky column preserved through code block: cursor at column 20 in a paragraph above a code block, after ArrowDown through the code block and into a paragraph below, still lands near column 20
 - Shift+Enter inserts a newline text node (not a `<br>`): pressing Shift+Enter inside a code block produces no `<br>` elements
+- Tab, then Ctrl+Z, puts the caret back where it was before the Tab: a character typed right after the undo lands between the same two letters, and Shift+Tab does the same (miss-analysis: the indent's undo tests counted entries and read the bytes back, and none typed after the undo, so nobody saw where the caret went)
 
 ## Copy
 
