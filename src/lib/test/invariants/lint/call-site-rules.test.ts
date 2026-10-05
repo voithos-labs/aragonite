@@ -97,6 +97,42 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
+		id: 'G4.111 an editable element writes its own text through the surface write',
+		population: (file) =>
+			['src/lib/components/', 'src/lib/selection/'].some((dir) => file.relPath.startsWith(dir)) &&
+			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+		calls: ['blockEdit.updateBlockContent', 'deps.blockEdit.updateBlockContent'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: toggleFormat':
+				'a command, which moves once commands take their own undo entry through the surface write',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: perform':
+				'the demote and heading cycle commands, moving with the other commands',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
+				'Shift+Enter, whose break at the content’s end moves with the pending break',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: toggleFormat':
+				'a command, moving with the other commands',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
+				'the cell menu’s cut, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/text-clipboard.ts :: cutPreHook':
+				'a cut of a selected widget, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/text-clipboard.ts :: cutTail':
+				'a cut in a text block, moving with the other clipboard edits',
+			'src/lib/components/blocks/text/widget-interaction.ts :: commitReveal':
+				'an inline widget’s shown source, moving with the fold that closes it'
+		},
+		reason:
+			'`surface-write.ts :: writeText` records the caret from before the gesture as undo’s, keeps the block’s line ending and puts the caret back; a direct write picks its own undo caret',
+		hits: [at(ROGUE_BLOCK, 'void blockEdit.updateBlockContent(index, raw, mode, after, after);')],
+		misses: [
+			at(
+				ROGUE_BLOCK,
+				'void editableSurface.writeText({ text, caretAfter, intent, mode, source });'
+			),
+			at('src/lib/editor-actions/rogue.ts', 'blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+		]
+	},
+	{
 		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
 		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],

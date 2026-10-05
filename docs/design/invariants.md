@@ -1122,6 +1122,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
 | G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
+| G4.111 | A block's editable element writes its own text only through the surface write             | L       |
 
 ### The entries
 
@@ -1286,7 +1287,10 @@ outside `core/lines.ts` (it would leave a CRLF line's `\r` on the text a line ma
 `updateBlockContent` content argument ending in a newline literal; and no write to a node's `raw`
 creating one, with the legitimately literal writes allowlisted by reason and count. An outcome
 check runs each gesture over an LF fixture and its CRLF mirror, unterminated last lines included,
-and requires the two results to mirror each other. `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` (the outcome check).
+and requires the two results to mirror each other, and a mounted twin does the same for a line
+break typed into a code block or a plugin's source, through the real keys.
+`lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` and
+`crlf-typed-break-mirror.test.ts` (the outcome checks).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM
 serializer is named in code only inside the seam module, and exactly the documented write paths name
@@ -2141,6 +2145,14 @@ container's `raw`. Built with an empty `raw`, its first rebuild respells every l
 `lint/fresh-container-bytes.test.ts` fails an object literal holding both `raw: ''` and `children`
 under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
 genuinely new containers, each with its reason.
+
+**G4.111 · One write for a block's own text.** When a block's editable element changes its own
+text, it calls `components/blocks/surface-write.ts :: writeText`, which gives undo the caret from
+before the key (not wherever the edit left it), keeps the block's line ending, and puts the caret
+back. A block that calls `updateBlockContent` itself has to pick its own undo caret, and
+that copy drifts. `lint/call-site-rules.test.ts` fails a
+`blockEdit.updateBlockContent` call under `components/` or `selection/` outside the surface write,
+except the few commands and clipboard edits still to move, each listed by function.
 
 ## Accessibility
 
