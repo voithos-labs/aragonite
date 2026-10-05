@@ -189,20 +189,24 @@ describe('a closed details the range takes whole', () => {
 describe('endpointMeasureSpan', () => {
 	const TABLE = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n';
 
-	it('measures a text edge from the start, or up to the end', () => {
+	it('measures a text edge from the start, or up to the end, out to its line edges', () => {
 		const s = sel({ path: [0], offset: 2 }, { path: [2], offset: 3 }, TABLE);
-		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
-		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 3 });
+		expect(endpointMeasureSpan('start', s)).toEqual({
+			from: 2,
+			to: SELECTION_END,
+			textSide: 'start'
+		});
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 3, textSide: 'end' });
 	});
 
 	// Cell 2 sits mid-row, so the snap takes the end to its row's last cell, and the run past it.
 	it('measures a kept table end through the cells the coverage hands over', () => {
 		const s = sel({ path: [0], offset: 2 }, cellPoint([1], 2), TABLE);
-		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 4 });
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 4, textSide: null });
 	});
 
 	it('measures a kept table start from the first cell of its row', () => {
 		const s = sel(cellPoint([1], 3), { path: [2], offset: 3 }, TABLE);
-		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
+		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END, textSide: null });
 	});
 });

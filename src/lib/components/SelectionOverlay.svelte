@@ -13,6 +13,7 @@
 		endpointMeasureSpan
 	} from '../selection/primitives';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
+	import { mergeRectsPerLine, reachLineEdges, type LocalRect } from '../cursor/overlay-rects';
 
 	let {
 		path,
@@ -58,40 +59,6 @@
 				(classification === 'single-block' && containerPaintsRects))
 	);
 
-	interface LocalRect {
-		left: number;
-		top: number;
-		width: number;
-		height: number;
-	}
-
-	/** Merges vertically overlapping rects, not just equal tops, so a tall inline widget beside
-	 *  text is not highlighted twice. */
-	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
-		if (rects.length <= 1) return rects;
-		const sorted = [...rects].sort((a, b) => a.top - b.top);
-		const merged: LocalRect[] = [];
-		let current = { ...sorted[0] };
-
-		for (let i = 1; i < sorted.length; i++) {
-			const r = sorted[i];
-			const overlap =
-				Math.min(current.top + current.height, r.top + r.height) - Math.max(current.top, r.top);
-			if (overlap > Math.min(current.height, r.height) * 0.5) {
-				const left = Math.min(current.left, r.left);
-				const right = Math.max(current.left + current.width, r.left + r.width);
-				const top = Math.min(current.top, r.top);
-				const bottom = Math.max(current.top + current.height, r.top + r.height);
-				current = { left, top, width: right - left, height: bottom - top };
-			} else {
-				merged.push(current);
-				current = { ...r };
-			}
-		}
-		merged.push(current);
-		return merged;
-	}
-
 	let endpointRects: LocalRect[] = $state([]);
 
 	$effect(() => {
@@ -111,10 +78,10 @@
 		function measure(): void {
 			const live = covered();
 			if (!live || !ref.measurePartialRects) return;
-			const { from, to } = endpointMeasureSpan(classification, live);
+			const { from, to, textSide } = endpointMeasureSpan(classification, live);
 			const viewportRects: DOMRect[] = ref.measurePartialRects(from, to);
 			const blockRect = el.getBoundingClientRect();
-			endpointRects = mergeRectsPerLine(
+			const lines = mergeRectsPerLine(
 				viewportRects.map((r) => ({
 					left: r.left - blockRect.left,
 					top: r.top - blockRect.top,
@@ -122,6 +89,9 @@
 					height: r.height
 				}))
 			);
+			endpointRects = textSide
+				? reachLineEdges(lines, textSide, blockRect.width, blockRect.height)
+				: lines;
 		}
 
 		const editorRoot = getEditorRoot?.() ?? null;

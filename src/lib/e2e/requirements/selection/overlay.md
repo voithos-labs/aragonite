@@ -30,6 +30,13 @@
     test asked how an end block the range covers to its last character paints, and nothing
     compared the ends' paint with the paint of the blocks between
 
+- A range whose ends sit mid-text paints the start block from its point to the block's right edge
+  and every line below it, and the end block over every line above it and from its left edge to
+  its point, so the ends meet the full boxes of the blocks between. That holds for a heading, a
+  paragraph, a list item, a quote line and a code block, in source mode and in live mode
+  - Miss-analysis: the endpoint rects were only ever checked for being there and for staying inside
+    their block, so nothing compared the ends' paint with the boxes of the blocks between
+
 ## Error / degenerate cases
 
 - Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity

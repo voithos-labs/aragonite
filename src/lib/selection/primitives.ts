@@ -183,19 +183,25 @@ export function blockPaintsWholeBox(
 	return classifyBlockForSelection(path, coverage) === 'whole';
 }
 
-/** The end-exclusive offsets an endpoint block measures its highlight between: a kept table
- *  edge's cells, or its text from the start or up to the end. */
+/** The end-exclusive offsets an endpoint block measures its highlight between, a kept table edge's
+ *  cells or its text; `textSide` is set for text, whose paint runs out to its line edges. */
 export function endpointMeasureSpan(
 	classification: BlockSelectionClass,
 	coverage: RangeCoverage
-): { from: number; to: number } {
+): { from: number; to: number; textSide: 'start' | 'end' | null } {
 	const { startEdge, endEdge, startCells, endCells } = coverage;
 	const from = classification === 'end' ? 0 : (startCells?.from ?? textOffset(startEdge, 0));
 	const to =
 		classification === 'start'
 			? SELECTION_END
 			: (endCells?.to ?? textOffset(endEdge, SELECTION_END));
-	return { from, to };
+	const textSide =
+		classification === 'start' && !startCells
+			? 'start'
+			: classification === 'end' && !endCells
+				? 'end'
+				: null;
+	return { from, to, textSide };
 }
 
 // A cell pair inside one table measures its rectangle, which reads no offset.
