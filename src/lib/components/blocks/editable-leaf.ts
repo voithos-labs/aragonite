@@ -24,9 +24,9 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
-	type ClipboardCopy,
 	type EditableSurfaceAttributes
 } from './editable-surface';
+import type { ClipboardCopy } from './clipboard-step';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {

@@ -2219,7 +2219,7 @@ destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
 range, a selected widget, a range across blocks, a cell rectangle riding the last) has one
 `ClipboardArm`, written where that selection lives: in each block's clipboard code, and in
 `selection/cross-block/clipboard.ts` for a range across blocks. Only the type and the cut step are
-shared (`components/blocks/editable-surface.ts`). Its `copy` writes the payload and reads what
+shared (`components/blocks/clipboard-step.ts`). Its `copy` writes the payload and reads what
 its `remove` deletes. `runClipboardCut` runs that same copy before anything waits, then the removal,
 so a cut can't write different bytes from a copy, and a menu's Cut still lands (it's a scripted
 cut, and the browser closes its clipboard data the moment the event's handlers return). The type's

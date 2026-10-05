@@ -16,10 +16,10 @@ import type { CaretMemory } from '../../../cursor/caret-memory';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
-	type ClipboardCopy,
 	type ClipboardHandlers,
 	type RevealFold
 } from '../editable-surface';
+import type { ClipboardCopy } from '../clipboard-step';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';

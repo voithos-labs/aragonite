@@ -49,6 +49,7 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
+import { runClipboardCut, takeCopy, type ClipboardArm } from './clipboard-step';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
@@ -534,49 +535,6 @@ export interface RevealFold {
 }
 
 // ── Clipboard ───────────────────────────────────────────────────────────────
-
-/**
- * One kind of selection a surface can copy: its copy writes the payload and reads what its
- * removal deletes, so a cut writes exactly what a copy of the same selection writes.
- */
-export interface ClipboardArm<Held = unknown> {
-	/** Writes the payload to `e.clipboardData` and returns what the removal needs; null when the
-	 *  selection isn't its kind. Synchronous: a scripted cut's data closes as its dispatch ends. */
-	copy(e: ClipboardEvent): ClipboardCopy<Held>;
-	/** Deletes what `copy` wrote, from what it read. Runs after a shown source is hidden. */
-	remove(held: Held): void | Promise<void>;
-}
-
-/** What a `ClipboardArm`'s copy hands its removal, or null for a selection of another kind. */
-export type ClipboardCopy<Held> = { held: Held } | null;
-
-/** Writes the payload of the first `ClipboardArm` that takes the selection; null when none does. */
-export function takeCopy(
-	e: ClipboardEvent,
-	arms: readonly ClipboardArm[]
-): { arm: ClipboardArm; held: unknown } | null {
-	for (const arm of arms) {
-		const taken = arm.copy(e);
-		if (taken) return { arm, held: taken.held };
-	}
-	return null;
-}
-
-/**
- * Every cut, from a block or the editor root: the copy's payload goes on the event before the
- * first await, then a shown source hides and the removal deletes what the copy read.
- */
-export async function runClipboardCut(
-	e: ClipboardEvent,
-	arms: readonly ClipboardArm[],
-	foldReveal?: () => RevealFold | null
-): Promise<void> {
-	e.preventDefault();
-	const taken = takeCopy(e, arms);
-	if (taken === null) return;
-	await foldReveal?.()?.settled;
-	await taken.arm.remove(taken.held);
-}
 
 /**
  * The copy, cut and paste steps every editable block shares, in one order no block can

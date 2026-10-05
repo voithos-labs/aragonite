@@ -5,7 +5,7 @@
  */
 
 import type { DocumentGetter } from '../../editor-keys';
-import type { ClipboardArm } from '../../components/blocks/editable-surface';
+import type { ClipboardArm } from '../../components/blocks/clipboard-step';
 import type { CrossBlockHandlers } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import { collectCrossBlockText } from '../clipboard-text';

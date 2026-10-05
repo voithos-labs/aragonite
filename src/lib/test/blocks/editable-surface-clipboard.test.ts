@@ -5,9 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
-	type ClipboardArm,
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
+import type { ClipboardArm } from '../../components/blocks/clipboard-step';
 
 interface Recorder {
 	log: string[];

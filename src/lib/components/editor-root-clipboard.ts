@@ -12,7 +12,7 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { createImagePasteArm } from './paste-image-arm';
-import { runClipboardCut, takeCopy } from './blocks/editable-surface';
+import { runClipboardCut, takeCopy } from './blocks/clipboard-step';
 import { crossBlockClipboardArm } from '../selection/cross-block/clipboard';
 
 export interface EditorRootClipboardDeps {

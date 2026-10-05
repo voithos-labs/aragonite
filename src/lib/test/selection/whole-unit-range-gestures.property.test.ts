@@ -11,7 +11,7 @@ import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { crossBlockClipboardArm } from '$lib/selection/cross-block/clipboard';
-import { runClipboardCut } from '$lib/components/blocks/editable-surface';
+import { runClipboardCut } from '$lib/components/blocks/clipboard-step';
 import {
 	makeEnv,
 	makeHandlers,

@@ -53,9 +53,9 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore,
-		type ClipboardCopy
+		consumePendingRestore
 	} from '../editable-surface';
+	import type { ClipboardCopy } from '../clipboard-step';
 	import { rangeWrite } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
