@@ -5,6 +5,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { kindOfPath, replaceRange } from './range-replace';
+import { indentRange } from './range-indent';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
@@ -103,6 +104,13 @@ async function handleCrossBlockActive(
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
 		await dispatchOverRange(ctx, e, myPath);
+		return true;
+	}
+
+	if (isIndentKey(e)) {
+		e.preventDefault();
+		if (isReadingMode(ctx.reading.mode)) return true;
+		await indentRange(ctx, e);
 		return true;
 	}
 
@@ -266,9 +274,25 @@ async function dispatchOverRange(
  *  block indices, so they dispatch after the range is removed. */
 export function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
 	return false;
+}
+
+/** Tab and Shift+Tab, which indent what the range holds and never remove it. */
+export function isIndentKey(e: KeyboardEvent): boolean {
+	return e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
+/** Every key the range's own handler runs, which a container holding the focus must leave to it:
+ *  the range's handler awaits before claiming, so the key can reach the container first. */
+export function rangeOwnsKey(e: KeyboardEvent): boolean {
+	return (
+		e.key === 'Backspace' ||
+		e.key === 'Delete' ||
+		isIndentKey(e) ||
+		isCommandCandidateKey(e) ||
+		isClaimedRewriteChord(e)
+	);
 }
 
 /** Chords the range handles itself, swallowed before the browser's bold or Ctrl+K kill-line runs.

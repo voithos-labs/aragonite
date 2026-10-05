@@ -201,7 +201,7 @@
 		// A key a nested item declined is still that item's: the task toggle must not reach the
 		// task it sits in.
 		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;
-		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands);
+		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands, selection);
 	}
 </script>
 

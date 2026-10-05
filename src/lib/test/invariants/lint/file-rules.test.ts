@@ -1798,11 +1798,13 @@ const RANGE_REPLACE: ManifestRule[] = [
 		]
 	},
 	{
-		id: 'G4.108 a gesture over a range opens its undo entry in the range replace only',
+		id: 'G4.108 a gesture over a range opens its undo entry in the range replace or indent only',
 		population: under('src/lib/selection/cross-block/'),
 		matches: /\.undoStep\s*\(/,
 		declared: {
-			[RANGE_REPLACE_HOME]: 'opens the one undo entry a destructive gesture over a range writes'
+			[RANGE_REPLACE_HOME]: 'opens the one undo entry a destructive gesture over a range writes',
+			'src/lib/selection/cross-block/range-indent.ts':
+				'opens the one undo entry Tab or Shift+Tab over a range writes, which removes nothing'
 		},
 		reason:
 			'a range gesture that opens its own undo entry writes its removal and its insertion around the range replace, so one Ctrl+Z no longer takes back the gesture: call `replaceRange`',
@@ -1810,6 +1812,59 @@ const RANGE_REPLACE: ManifestRule[] = [
 		misses: [
 			at(ROGUE_RANGE_ROUTE, 'undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>);')
 		]
+	}
+];
+
+// ── G4.112 Tab over a range indents through one route ──────────────────────
+
+const ROGUE_INDENT_ROUTE = 'src/lib/components/blocks/rogue.ts';
+const ITEM_MOVES_HOME = 'src/lib/tree-operations/list/item-moves.ts';
+
+const RANGE_INDENT: ManifestRule[] = [
+	{
+		id: 'G4.112 a list item nests or lifts through the shared item moves only',
+		matches: /(?<![\w.'])(?:nestListItem|liftNestedItem)\s*\(/,
+		declared: {
+			[ITEM_MOVES_HOME]: 'defines the two moves',
+			'src/lib/editor-actions/list-context.ts': 'one item, from a caret’s own Tab or Shift+Tab',
+			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab'
+		},
+		reason:
+			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`',
+		hits: [
+			at(ROGUE_INDENT_ROUTE, 'await nestListItem(commits, list, 1);'),
+			at(ROGUE_INDENT_ROUTE, 'void liftNestedItem(commits, outer, 0, nested, 1, grammar);')
+		],
+		misses: [
+			at(ROGUE_INDENT_ROUTE, 'await listContext.promoteNestedItem(0, nested, 1);'),
+			at(ROGUE_INDENT_ROUTE, "import { nestListItem } from './item-moves';")
+		]
+	},
+	{
+		id: 'G4.112 a container runs its own chords through the one dispatch that yields to a range',
+		population: notUnder('src/lib/schema/'),
+		matches: /(?<![\w.])dispatchKindCommand\s*\(/,
+		declared: {
+			'src/lib/editor-actions/container-block-component.ts':
+				'leaves a key a live range owns to the range, whose handler claims it only after an await'
+		},
+		reason:
+			'a container that resolves a chord itself runs Tab on its own item while the range below indents every item: call `dispatchContainerChord`',
+		hits: [at(ROGUE_INDENT_ROUTE, 'dispatchKindCommand(chord, target, commands);')],
+		misses: [at(ROGUE_INDENT_ROUTE, 'dispatchContainerChord(e, target, commands, selection);')]
+	},
+	{
+		id: 'G4.112 a command key over a range is pressed from the keydown handler only',
+		population: under('src/lib/'),
+		matches: /\{\s*kind:\s*'command',/,
+		declared: {
+			'src/lib/selection/cross-block/keydown.ts':
+				'Enter and Mod+digit, whose candidate test leaves Tab to the range indent'
+		},
+		reason:
+			'a range replace with a command insertion removes the range before the key runs, which Tab must never do: Tab over a range goes to `indentRange`',
+		hits: [at(ROGUE_INDENT_ROUTE, "await replaceRange(ctx, { kind: 'command', chord: 'Tab' });")],
+		misses: [at(ROGUE_INDENT_ROUTE, "| { kind: 'command'; chord: string };")]
 	}
 ];
 
@@ -1843,6 +1898,7 @@ const REF_FOCUS: FileRule = {
 const SOURCES = collectEditorSources();
 describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS], SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
+describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);

@@ -416,7 +416,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
 		// met the global chords there, and running it here would fire it twice.
 		if (ownsFocus && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;
-		if (dispatchContainerChord(e, ownsFocus ? wholeBlockTarget : kindTarget, commands)) return;
+		const target = ownsFocus ? wholeBlockTarget : kindTarget;
+		if (dispatchContainerChord(e, target, commands, ownsFocus ? null : selection)) return;
 		if (ownsFocus) handleWholeBlockKeydown(e);
 	};
 

@@ -46,7 +46,7 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildUnsharedChain: 1, rebuildOwnedContainer: 1 },
 		why: 'the commit’s own chain rebuild, and the scope’s `rebuild` it hands the mutation'
 	},
-	'src/lib/editor-actions/list-context.ts': {
+	'src/lib/tree-operations/list/item-moves.ts': {
 		calls: { '.rebuild': 1 },
 		why: 'a Tab’s new sublist sits below the commit’s chain, which never rebuilds it, and the blank-line rule reads its bytes before the commit returns'
 	},
