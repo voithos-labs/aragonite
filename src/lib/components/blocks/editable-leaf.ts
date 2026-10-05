@@ -42,7 +42,6 @@ import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding } from '../../core/lines';
-import { withOwnEnding } from './surface-write';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
@@ -330,13 +329,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
 	function commitSource(edited: string): Promise<boolean> {
-		return blockEdit.updateBlockContent(
-			deps.getIndex(),
-			withOwnEnding(deps.getNode(), edited),
-			'authored',
-			editableSurface.getPreEditOffset(),
-			edited.length
-		);
+		return editableSurface.writeText({
+			text: edited,
+			caretAfter: edited.length,
+			intent: 'command',
+			mode: 'authored',
+			source: 'source-commit'
+		});
 	}
 
 	// A blur during a cross-block range is a drag leaving this source; it hides a frame later, once
@@ -617,7 +616,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				await blockEdit.splitBlock(deps.getIndex(), offset);
 				return;
 			}
-			spliceSourceText(el, offset, offset, '\n');
+			spliceSourceText(el, offset, offset, editableSurface.lineEnding());
 		}
 	}
 
@@ -634,7 +633,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				break;
 			case 'insertLineBreak':
 			case 'insertParagraph':
-				insert = '\n';
+				insert = editableSurface.lineEnding();
 				break;
 			case 'deleteContentBackward':
 			case 'deleteContentForward':

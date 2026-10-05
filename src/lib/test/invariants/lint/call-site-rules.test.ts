@@ -116,6 +116,10 @@ const RULES: CallSiteRule[] = [
 				'Shift+Enter types a new line',
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
 				'Shift+Enter beside a widget types a new line',
+			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
+				'Enter in a multi-line plugin source types a new line',
+			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':
+				'a line break with no key in a painted plugin source types a new line',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: handleDelimiterAutoPair':
 				'asks whether a completion is planned, and writes nothing'
 		},
