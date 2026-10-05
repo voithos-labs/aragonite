@@ -215,8 +215,8 @@ function candidateOffsets(
 	// `never-extend` lands past the construct's delimiters; a symmetric pair follows the side the
 	// caret arrived from, else the near side (`docs/design/live-mode.md` § 4.2).
 	const position = screenPositionOffsets(run, runs);
-	// A pin is the side an edge step chose, so it outranks the policy: the step offered only
-	// offsets this resolver accepts (`edgeStops`). One the position no longer holds is stale.
+	// A pin is the offset an edge step chose among the ones this resolver accepts (`edgeStops`), so
+	// it outranks the policy while the caret's position still holds it.
 	const pinned =
 		typeof affinity === 'object' && affinity !== null && position.includes(affinity.offset)
 			? affinity.offset

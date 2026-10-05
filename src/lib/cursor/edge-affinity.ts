@@ -18,9 +18,8 @@ export type EdgeAffinity = ArrivalSide | PinnedOffset;
 /** The answers a key can give: every affinity but a pinned offset, which only an edge step sets. */
 export type ArrivalSide = 'near' | 'far' | 'outside';
 
-/** One boundary of the caret's screen position, chosen by an edge step. A raw offset, so it goes
- *  stale on any write; every write settles the side again, and a pin the position no longer
- *  holds is ignored by the resolver. */
+/** One boundary of the caret's screen position, chosen by an edge step. Every write settles the
+ *  side again, and the resolver ignores a pin the caret's position does not hold. */
 export interface PinnedOffset {
 	readonly offset: number;
 }

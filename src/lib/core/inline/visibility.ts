@@ -21,7 +21,7 @@ const FAMILY_CLASS: Record<MarkerFamily, string> = {
 	marker: 'md-marker',
 	'fence-line': 'md-fence-line',
 	'ref-label': 'md-ref-label',
-	// An inline code span's backticks, which every editing mode paints inside the code chip.
+	// An inline code span's backticks, painted as the ends of the code chip where they show.
 	'code-fence': 'md-code-fence'
 };
 

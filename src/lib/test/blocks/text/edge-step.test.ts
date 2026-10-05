@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// A plain horizontal arrow at a hidden construct edge moves the typing offset, not the caret, one boundary
-// per press (live-mode.md § 4.2). Pure over the inline tree like `edge-seat.test.ts`; the key
-// wiring and the ring are covered by `presentation-live-edge-step.spec.ts`.
+// A plain arrow at a hidden construct edge moves the typing offset, not the caret, one boundary per
+// press (live-mode.md § 4.2). The key wiring and the ring are `presentation-live-edge-step.spec.ts`.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	typingOffset,
@@ -62,15 +61,15 @@ describe('a leading edge', () => {
 	});
 });
 
-describe('the construct that ends its line, the case that had no arrow out', () => {
+describe('a construct that ends its line', () => {
 	const CODE = 'via `scheduled`';
 
-	it('offers the seat past the closing backtick', () => {
+	it('offers the offset past the closing backtick', () => {
 		expect(edgeStops(14, tree(CODE), CODE, LIVE, fixtureReading())).toEqual([14, 15]);
 		expect(step(CODE, 14, 'near', 'forward')).toBe(15);
 	});
 
-	it('writes the next byte at the seat the step chose', () => {
+	it('writes the next byte where the step put it', () => {
 		expect(
 			resolveEdgeSeat(14, tree(CODE), { offset: 15 }, CODE, LIVE, ')', fixtureReading())
 		).toEqual({
@@ -101,18 +100,17 @@ describe('where there is no choice to make', () => {
 		expect(step(LINK, 9, 'near', 'backward')).toBeNull();
 	});
 
-	it('plain text has no seats', () => {
+	it('plain text has no stops', () => {
 		expect(step(BOLD, 2, null, 'forward')).toBeNull();
 	});
 });
 
-describe('a pinned seat', () => {
+describe('a pinned offset', () => {
 	it('is where the next byte goes while the position holds it', () => {
 		expect(typingOffset(11, tree(BOLD), { offset: 13 }, BOLD, LIVE, fixtureReading())).toBe(13);
 	});
 
-	// A pin outlives nothing but a move of the caret: at another position it names nothing there and
-	// the resolver falls back to its default, the near side.
+	// Where the caret's position does not hold the pin, the resolver takes its default, the near side.
 	it('reads as no record at a position that does not hold it', () => {
 		expect(typingOffset(5, tree(BOLD), { offset: 13 }, BOLD, LIVE, fixtureReading())).toBe(5);
 	});
