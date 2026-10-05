@@ -114,9 +114,9 @@ const RULES: CallSiteRule[] = [
 				'a command, moving with the other commands',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
 				'the cell menu’s cut, moving with the other clipboard edits',
-			'src/lib/components/blocks/text/text-clipboard.ts :: cutPreHook':
+			'src/lib/components/blocks/text/text-clipboard.ts :: removeWidget':
 				'a cut of a selected widget, moving with the other clipboard edits',
-			'src/lib/components/blocks/text/text-clipboard.ts :: cutTail':
+			'src/lib/components/blocks/text/text-clipboard.ts :: removeRange':
 				'a cut in a text block, moving with the other clipboard edits',
 			'src/lib/components/blocks/text/widget-interaction.ts :: commitReveal':
 				'an inline widget’s shown source, moving with the fold that closes it'
@@ -133,6 +133,40 @@ const RULES: CallSiteRule[] = [
 				'void editableSurface.writeText({ text, caretAfter, intent, mode, source });'
 			),
 			at('src/lib/editor-actions/rogue.ts', 'blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+		]
+	},
+	{
+		id: 'G4.115 a clipboard payload is written only by a copy',
+		calls: ['.setData'],
+		holds: () => false,
+		allowed: {
+			'src/lib/components/blocks/editable-surface.ts :: writeVisibleSelection':
+				'the visible-selection copy: reading mode, and a copy no `ClipboardArm` takes',
+			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
+				'the text block’s copy of a selected widget',
+			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
+				'the text block’s copy of its own range',
+			'src/lib/components/blocks/table/TableCellBlock.svelte :: copyCellRange':
+				'the cell’s copy of its own range',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: copySelection':
+				'the code block’s copy of its own range',
+			'src/lib/components/blocks/editable-leaf.ts :: copyRange':
+				'a plugin leaf’s copy of its own range',
+			'src/lib/selection/cross-block/clipboard.ts :: copyCrossBlock':
+				'the copy of a range across blocks, a cell rectangle included',
+			'src/lib/components/menu/clipboard-actions.ts :: pasteTextInto':
+				'the data a menu’s paste event carries in, not a copy’s payload'
+		},
+		reason:
+			'a payload is written by a `ClipboardArm`’s `copy`, which a cut reuses before anything awaits; written anywhere else, a cut’s payload can differ from the copy’s, or land after a scripted cut’s data has closed',
+		hits: [
+			at(ROGUE_BLOCK, "e.clipboardData?.setData('text/plain', text);"),
+			at('src/lib/selection/rogue.ts', "event.clipboardData!.setData('text/html', html);"),
+			at('src/lib/editor-actions/rogue.ts', "e.clipboardData?.setData('text/plain', raw);")
+		],
+		misses: [
+			at(ROGUE_BLOCK, "const text = e.clipboardData?.getData('text/plain');"),
+			at(ROGUE_BLOCK, "// e.clipboardData?.setData('text/plain', text) was the old cut")
 		]
 	},
 	{

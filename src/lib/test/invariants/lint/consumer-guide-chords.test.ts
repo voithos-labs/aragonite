@@ -261,7 +261,7 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 			'Mod+X': [
 				'(e.ctrlKey || e.metaKey)',
 				"e.key === 'x'",
-				'deps.node.raw.slice(inline.start, inline.end)'
+				"replaceSelectedWidget(deps, inline, ''"
 			]
 		}
 	},

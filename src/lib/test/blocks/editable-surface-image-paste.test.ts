@@ -64,13 +64,15 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		caret: {
 			getEl: () => state.el,
 			getCursorOffset: () => state.caret,
-			focus: (offset: number) => void seated.push(offset)
+			focus: (offset: number) => void seated.push(offset),
+			recordPreEditOffset: () => {},
+			getPreEditOffset: () => 0
 		},
 		events: {
 			emit: (name: string, payload: unknown) => void (name === 'error' && errors.push(payload))
 		} as never,
 		onPasteImage: undefined,
-		cutTail: () => {},
+		rangeArm: { copy: () => null, remove: () => {} },
 		pasteTail: (text, foldedCaret) => {
 			inserted.push(text);
 			folds.push(foldedCaret);

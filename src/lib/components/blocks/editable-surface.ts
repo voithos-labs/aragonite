@@ -48,7 +48,8 @@ import {
 	createCrossBlockHandlers,
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
-import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
+import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
+import { runClipboardCut, takeCopy, type ClipboardArm } from './clipboard-step';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
@@ -244,6 +245,10 @@ export interface ClipboardCaretIO {
 	getEl: () => HTMLElement | null;
 	getCursorOffset: () => number | null;
 	focus: (offset: number) => void;
+	/** Reads the caret undo puts back after a cut; the cut calls it before hiding a shown source. */
+	recordPreEditOffset: () => void;
+	/** The caret that record read. */
+	getPreEditOffset: () => number;
 }
 
 /** The BlockComponent methods shared verbatim across every editable surface. */
@@ -482,7 +487,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		crossBlock.handleCompositionEnd();
 	}
 
-	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };
+	const caret: ClipboardCaretIO = {
+		getEl: deps.getEl,
+		getCursorOffset,
+		focus,
+		recordPreEditOffset,
+		getPreEditOffset: () => preEditOffset
+	};
 
 	// The element, not the binding: a torn-down host drops out of the document before Svelte's
 	// `bind:this` teardown nulls the reference a resuming handler still holds.
@@ -549,19 +560,13 @@ export interface ClipboardSurfaceDeps {
 	/** Hides a shown inline source before a cut or paste mutates, so the mutation runs against a
 	 *  CST that matches the DOM. Omit on a block that never shows source. */
 	foldReveal?: () => RevealFold | null;
-	/** The copy step before cross-block handling (a selected widget, a table rectangle). True when it
-	 *  wrote the payload and the handler should stop; owns its own preventDefault. */
-	copyPreHook?: (e: ClipboardEvent) => boolean;
-	/** The cut step before cross-block handling (a selected widget, a table rectangle). */
-	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
+	/** Selections tried before a range across blocks: a selected widget. */
+	selectionArms?: readonly ClipboardArm[];
+	/** The block's own range, tried last. */
+	rangeArm: ClipboardArm;
 	/** The paste step before cross-block handling, given the normalised text while a rectangle is
 	 *  readable (a grid into a table's cells). True when it consumed the paste. */
 	pastePreHook?: (text: string) => boolean | Promise<boolean>;
-	/** The intra-block copy payload; owns its preventDefault. Omit to write the
-	 *  visible selection string (code, leaf); text and the cell slice their raw. */
-	copyTail?: (e: ClipboardEvent) => void;
-	/** The intra-block cut: a synchronous clipboardData write, then the CST delete. */
-	cutTail: (e: ClipboardEvent) => void | Promise<void>;
 	/** The intra-block paste, handed the normalized text and the caret left by hiding a shown
 	 *  source. */
 	pasteTail: (pastedText: string, foldedCaret: number | null) => void | Promise<void>;
@@ -577,47 +582,41 @@ export interface ClipboardHandlers {
 }
 
 export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
-	const crossDeps = { selection: deps.selection, getDoc: deps.getDoc, crossBlock: deps.crossBlock };
+	const arms: readonly ClipboardArm[] = [
+		...(deps.selectionArms ?? []),
+		crossBlockClipboardArm({
+			selection: deps.selection,
+			getDoc: deps.getDoc,
+			crossBlock: deps.crossBlock
+		}),
+		deps.rangeArm
+	];
 	const imageArm = createImagePasteArm({
 		onPasteImage: deps.onPasteImage,
 		events: deps.events,
 		crossBlock: deps.crossBlock
 	});
 
-	// Reading mode and plain-text blocks copy what the user sees, which is the browser's
-	// selection string with the CSS-hidden markers dropped, not a slice of the raw.
+	// Reading mode copies what the user sees, which is the browser's selection string with the
+	// CSS-hidden markers dropped, not a slice of the raw; so does a copy no `ClipboardArm` takes.
 	const writeVisibleSelection = (e: ClipboardEvent): void => {
 		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 	};
 
 	function onCopy(e: ClipboardEvent): void {
 		deps.caretMemory.forget();
-		if (deps.isReadOnly()) {
-			e.preventDefault();
-			writeVisibleSelection(e);
-			return;
-		}
-		if (deps.copyPreHook?.(e)) return;
-		if (writeCrossBlockCopy(e, crossDeps)) return;
-		if (deps.copyTail) {
-			deps.copyTail(e);
-			return;
-		}
 		e.preventDefault();
-		writeVisibleSelection(e);
+		if (deps.isReadOnly() || takeCopy(e, arms) === null) writeVisibleSelection(e);
 	}
 
-	async function onCut(e: ClipboardEvent): Promise<void> {
-		deps.caretMemory.forget();
-		e.preventDefault();
+	function onCut(e: ClipboardEvent): Promise<void> {
 		if (deps.isReadOnly()) {
 			onCopy(e);
-			return;
+			return Promise.resolve();
 		}
-		await deps.foldReveal?.()?.settled;
-		if (await deps.cutPreHook?.(e)) return;
-		if (await writeCrossBlockCut(e, crossDeps)) return;
-		await deps.cutTail(e);
+		deps.caretMemory.forget();
+		deps.caret.recordPreEditOffset();
+		return runClipboardCut(e, arms, deps.foldReveal);
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {

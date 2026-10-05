@@ -24,6 +24,7 @@
 		consumePendingRestore,
 		editableSurfaceAttributes
 	} from '../editable-surface';
+	import type { ClipboardCopy } from '../clipboard-step';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
@@ -729,8 +730,22 @@
 		void crossBlock.handlePointerDown(e);
 	}
 
-	// Code has no marker prefix, so a selection of its DOM text is a slice of its raw: copy
-	// falls back to the shared visible-selection default, and cut writes that before deleting.
+	// Copy writes what the browser shows, which leaves out hidden fence lines; the removal clamps to
+	// the body there, so a cut takes what its copy wrote.
+	function copySelection(e: ClipboardEvent): ClipboardCopy<RawRange> {
+		const range = el ? backend.getRawSelection() : null;
+		if (!range) return null;
+		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+		return { held: range };
+	}
+
+	function removeSelection(range: RawRange): void {
+		const edit = fenceLinesEditable
+			? computeRangedEdit(getDisplayText(), range, '')
+			: computeFenceRangedEdit(node, range, '');
+		if (edit) void writeCode(edit.newText, edit.newCursor, 'cut', 'command');
+	}
+
 	const clipboard = createClipboardHandlers({
 		caretMemory,
 		selection,
@@ -740,18 +755,7 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		// Copy is verbatim; where the fence lines are hidden the delete clamps, so the clipboard keeps
-		// the fence characters selected while only the body half is removed.
-		cutTail: editableSurface.command((e: ClipboardEvent) => {
-			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-			if (!el) return;
-			const selOffsets = backend.getRawSelection();
-			if (!selOffsets) return;
-			const edit = fenceLinesEditable
-				? computeRangedEdit(getDisplayText(), selOffsets, '')
-				: computeFenceRangedEdit(node, selOffsets, '');
-			if (edit) void writeCode(edit.newText, edit.newCursor, 'cut', 'command');
-		}),
+		rangeArm: { copy: copySelection, remove: removeSelection },
 		pasteTail: async (pastedText) => {
 			if (!el) return;
 			// Where the fence lines are hidden, paste refuses where typing refuses: a target confined

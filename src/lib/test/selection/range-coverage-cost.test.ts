@@ -32,7 +32,7 @@ import {
 import { coverRange, rangeCoverage, type RangeCoverage } from '../../selection/range-coverage';
 import { rangeDelete } from '../../selection/range-delete';
 import {
-	writeCrossBlockCopy,
+	crossBlockClipboardArm,
 	type CrossBlockClipboardDeps
 } from '../../selection/cross-block/clipboard';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -101,7 +101,7 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 				preventDefault: () => {},
 				clipboardData: { setData: () => {} }
 			} as unknown as ClipboardEvent;
-			return counted(() => writeCrossBlockCopy(event, deps));
+			return counted(() => crossBlockClipboardArm(deps).copy(event));
 		};
 
 		expect(cost(large)).toBeLessThanOrEqual(GROWTH_CEILING * cost(small));

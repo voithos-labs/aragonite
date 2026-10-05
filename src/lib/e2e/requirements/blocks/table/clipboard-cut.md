@@ -1,9 +1,9 @@
 # Feature: Table block, clipboard cut
 
-End-to-end coverage for `Ctrl+X` (Cut) starting inside a table cell.
-It mirrors the three branches of the cell's `onCopy` (intra-cell, intra-table
-multi-cell rectangle, and cross-block) and checks that the deletion side
-of Cut goes through the same paths as Backspace/Delete.
+End-to-end coverage for `Ctrl+X` (Cut) starting inside a table cell. It covers the three
+selections a cut there can hold (a range inside one cell, a rectangle of cells, and a range
+across blocks), each cut writing what a copy of it writes, and checks that the deletion side of
+Cut goes through the same paths as Backspace/Delete.
 
 ## Happy paths
 
