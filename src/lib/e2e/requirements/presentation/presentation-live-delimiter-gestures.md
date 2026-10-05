@@ -27,6 +27,12 @@ against, since the screen cannot show which side of a hidden run a byte took.
   for the pairs the destructive-edges rows never covered: `*`, `` ` ``, `~~`
 - `Enter` inside a code span closes and reopens the span, and typing continues in the second half
 
+## The modes that paint the closer
+
+- source, preview-block and preview-inline paint the closer at the caret, so typing `**` at the end
+  of `**strong**`, or a backtick at the end of a code span, steps past the closer the user sees and
+  the next byte lands after the construct
+
 ## Table cell
 
 - a closer typed over a hidden closer in a cell steps past it, and the next byte lands outside
@@ -44,6 +50,8 @@ against, since the screen cannot show which side of a hidden run a byte took.
   re-arms the near side" put it inside.
 - Those same rows typed only letters at a hidden edge, so the keydown path writing a single
   delimiter byte before the `beforeinput` handler could pair it was never observed.
+- The step-over rows all ran in live mode, so when its test for a hidden closer changed to read the
+  block, no row ran it in a mode that paints the focused block's closers.
 - The pair that keydown path writes was never followed by a key that asks whether the pair is the
   auto-pair's own, so a write that left no record of it passed every row.
 

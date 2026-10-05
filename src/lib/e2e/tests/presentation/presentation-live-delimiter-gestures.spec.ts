@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunEnd } from '../../text-runs';
 import type { Page } from '@playwright/test';
 import {
 	clickBlockSettled,
@@ -80,6 +81,26 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 		await page.keyboard.type('`');
 		await ep.bridge.waitForSourceContains('Some **strong**`` text');
 	});
+});
+
+// Where the screen paints the closer, typing it steps past the closer the user sees.
+test.describe('every mode that paints the closer: typing it steps past it', () => {
+	for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+		for (const [word, closer, after] of [
+			['strong', '**', 'Some **strong**X text'],
+			['code', '`', 'Some `code`X text']
+		] as const) {
+			test(`${mode}, ${word}: the next byte lands after the construct`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, DOC);
+				const end = await textRunEnd(page, word);
+				await page.mouse.click(end.x, end.y);
+				await ep.waitForRenderFlush();
+				await page.keyboard.type(closer);
+				await page.keyboard.type('X');
+				await ep.bridge.waitForSourceContains(after);
+			});
+		}
+	}
 });
 
 // A backtick typed at a hidden closer is written by the keydown path, which records the pair as
