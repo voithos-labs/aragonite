@@ -25,28 +25,30 @@ interface ProbeCase {
 }
 
 /** One case per stylesheet branch the check mirrors, in both host-focus states. */
-const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label', 'md-code-fence'].flatMap((family) => [
-	{ name: family, family, focusedHost: false },
-	{ name: `${family} (focused host)`, family, focusedHost: true },
-	{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
-	...(family === 'md-marker'
-		? [
-				{
-					name: 'stamped construct marker (focused host)',
-					family,
-					focusedHost: true,
-					attrs: { 'data-construct-start': '' }
-				},
-				{
-					name: 'revealed construct marker (focused host)',
-					family,
-					focusedHost: true,
-					attrs: { 'data-construct-start': '' },
-					reveal: true
-				}
-			]
-		: [])
-]);
+const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label', 'md-code-fence'].flatMap(
+	(family) => [
+		{ name: family, family, focusedHost: false },
+		{ name: `${family} (focused host)`, family, focusedHost: true },
+		{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
+		...(family === 'md-marker'
+			? [
+					{
+						name: 'stamped construct marker (focused host)',
+						family,
+						focusedHost: true,
+						attrs: { 'data-construct-start': '' }
+					},
+					{
+						name: 'revealed construct marker (focused host)',
+						family,
+						focusedHost: true,
+						attrs: { 'data-construct-start': '' },
+						reveal: true
+					}
+				]
+			: [])
+	]
+);
 
 export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolation | null {
 	const probes = CASES.map((probe) => mountProbe(editorRoot, probe));
