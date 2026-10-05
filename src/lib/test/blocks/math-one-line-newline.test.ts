@@ -223,3 +223,49 @@ describe('Backspace up into a one-line math block, then Enter', () => {
 		expect(live).toEqual(parse(editor.source()).children.map((c) => c.kind));
 	});
 });
+
+// Miss-analysis: every join row ended its foreign lines in plain text, so none had a last line
+// ending in `$$`, which the one-line reading took for the formula's own closer.
+describe('a range delete from a one-line formula into the prose below', () => {
+	it('keeps the lines it brought along their own blocks', async () => {
+		const editor = mountEditor<Seam>({
+			source: '$$x^2$$\n\nfoo\nprice 10$$\n',
+			presentationMode: 'live',
+			plugins: [math]
+		});
+		await editor.settle();
+		await editor.instance.setSelection({
+			anchor: { path: [0], offset: 3 },
+			focus: { path: [1], offset: 1 }
+		});
+		await editor.settle();
+
+		await pressKey(document.activeElement ?? editor.target, { key: 'Backspace' });
+		await editor.settle();
+
+		expect(editor.source()).toBe('$$xoo$$\n\nprice 10$$\n');
+		const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
+		expect(live).toEqual(parse(editor.source()).children.map((c) => c.kind));
+	});
+});
+
+// Miss-analysis: every line-break row went through an edit the leaf applies itself, never one
+// the browser made (an IME commit), which only the repaint after `input` sees.
+describe('a line break the browser puts into a one-line formula itself', () => {
+	it('repaints as the multi-line form with the caret carried', async () => {
+		const editor = mountEditor<Seam>({
+			source: '$$x^2$$\n\nafter\n',
+			presentationMode: 'live',
+			plugins: [math]
+		});
+		const el = await showSourceAt(editor, 5);
+		el.textContent = '$$x^2\n$$';
+		placeCaret(el, 6);
+
+		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await editor.settle();
+
+		expect(el.textContent).toBe('$$\nx^2\n\n$$');
+		expect(caretIn(el)).toBe(7);
+	});
+});

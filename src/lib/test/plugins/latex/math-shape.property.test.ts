@@ -91,6 +91,13 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 	const below = blocksOf(source).slice(1);
 	const now = blocksOf(reload);
 	expect(now.slice(now.length - below.length), `${label}: the blocks below moved`).toEqual(below);
+	// The same bytes arriving whole (a paste, a replace) mustn't move them either.
+	const literal = legalizeWrite(doc, 0, text + ownTrailingLineEnding(node.raw), 'literal').text;
+	const pasted = blocksOf(literal + source.slice(node.raw.length));
+	expect(
+		pasted.slice(pasted.length - below.length),
+		`${label}: a literal write moved them`
+	).toEqual(below);
 
 	// A break before the opener moves the whole block down a line, which no painter reads.
 	if (text.startsWith(eol)) return 'moved down';

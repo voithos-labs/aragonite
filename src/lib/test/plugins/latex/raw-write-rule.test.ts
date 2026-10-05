@@ -25,6 +25,9 @@ describe('a truncating write of a $$ block gets its closer back', () => {
 	it.each([
 		['the one-line form closes on line 0', '$$x^2$$\n', '$$After\n', '$$After$$\n'],
 		['lines a join brought along stay their own', '$$x^2$$\n', '$$a\nb\n', '$$a$$\nb\n'],
+		// A literal write's last line ending `$$` is a foreign line, not the formula's closer.
+		['even a last one ending in $$', '$$x^2$$\n', '$$xoo\nprice 10$$\n', '$$xoo$$\nprice 10$$\n'],
+		['a literal break mid-body', '$$x^2$$\n', '$$x\n^2$$\n', '$$x$$\n^2$$\n'],
 		[
 			'the multi-line form closes on a line of its own',
 			'$$\nx^2\n$$\n',
@@ -61,7 +64,6 @@ describe('a truncating write of a $$ block gets its closer back', () => {
 describe('a $$ write reads the shape the painter and the parser read', () => {
 	it.each([
 		['a break at the body’s end', '$$x^2$$\n', '$$x^2\n$$\n', '$$\nx^2\n\n$$\n'],
-		['a break mid-body', '$$x^2$$\n', '$$x\n^2$$\n', '$$\nx\n^2\n$$\n'],
 		['a CRLF break', '$$x^2$$\r\n', '$$x^2\r\n$$\r\n', '$$\r\nx^2\r\n\r\n$$\r\n']
 	])('gives a one-line form holding %s the multi-line form', (_case, source, written, expected) => {
 		expect(write(source, written)).toBe(expected);
