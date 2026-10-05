@@ -265,6 +265,7 @@ Three families of seam run these checks:
 | G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | —       |
 | G1.54 | A commit's mutation leaves the tree's own top-level array as it found it                   | A·N     |
 | G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
+| G1.58 | Tab over a range keeps every word it holds                                                 | A·N     |
 
 ### The entries
 
@@ -792,6 +793,13 @@ an open defect. Predicate
 `invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 
+**G1.58 · Tab over a range keeps every word** (`range-indent-keeps-text`). Tab and Shift+Tab over a range
+move list items and shift code lines, and nothing else. After each press, dev compares every leaf's
+text, whitespace aside, across the top-level blocks the range spans, against what was there before
+the press. A renumbered marker or an added tab passes, and so does an item read in a new place; a lost
+word doesn't. Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
+`selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1120,8 +1128,9 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
 | G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
-| G4.108 | Only the range replace removes a live range or groups a range gesture's undo entry        | L       |
+| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step   | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
+| G4.112 | Tab over a range reaches list items through one route and never removes the range         | L       |
 
 ### The entries
 
@@ -2124,7 +2133,8 @@ typing, an IME composition, paste and a command key over a cross-block range all
 covers and keeps the gesture one undo entry with one caret landing. A route that called `rangeDelete`,
 `removeHeldWhole` or `commitGridLineDelete` itself, or opened its own `undoStep` under
 `selection/cross-block/`, would skip the pick, the entry or the landing, so the scan allows those
-calls in the range replace only (the range delete's own files aside). `lint/file-rules.test.ts`.
+calls in the range replace only (the range delete's own files aside). Tab and Shift+Tab remove nothing,
+so the range indent (`selection/cross-block/range-indent.ts`) opens its own step. `lint/file-rules.test.ts`.
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
@@ -2142,6 +2152,16 @@ container's `raw`. Built with an empty `raw`, its first rebuild respells every l
 `lint/fresh-container-bytes.test.ts` fails an object literal holding both `raw: ''` and `children`
 under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
 genuinely new containers, each with its reason.
+
+**G4.112 · Tab over a range has one route.** Over a range Tab and Shift+Tab indent: every list item it
+reaches into nests or lifts once, through `selection/cross-block/range-indent.ts :: indentRange`. Three
+rows hold it. The two item moves (`tree-operations/list/item-moves.ts :: nestListItem`,
+`liftNestedItem`) are called from a caret's own Tab in `editor-actions/list-context.ts` and from the
+range indent only, so a range's items can't move one way and a caret's another. A container resolves
+its own chords through `editor-actions/container-block-component.ts :: dispatchContainerChord` only,
+which leaves a key a live range owns to the range; a list item that ran its own Tab there moved itself
+a second time. And a command insertion for the range replace is built in `selection/cross-block/keydown.ts`
+only, whose candidate test leaves Tab out, so no route removes a range for Tab. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

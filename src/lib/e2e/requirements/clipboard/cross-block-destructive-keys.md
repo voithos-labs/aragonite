@@ -49,11 +49,12 @@ and Ctrl+0's "strip heading prefix" logic runs on the merged block.
 Load plain paragraphs. Select from mid-first to mid-second; press Ctrl+2.
 The range deletes, the merged block becomes an H2 heading.
 
-### 6. Tab in the middle of a paragraph selection inserts a literal tab
+### 6. Tab over a paragraph selection deletes nothing
 
 Plain paragraphs (no list). Select from mid-first to mid-second; press
-Tab. The range deletes, Tab inserts a literal `\t` at the collapsed
-caret inside the merged paragraph.
+Tab. Nothing happens: Tab isn't a delete-then-dispatch key. Over a selection
+it indents the list items and code lines in it (`selection/range-indent.md`),
+and two paragraphs have neither. The selection stays.
 
 ### 7. Selection collapses regardless of key outcome
 
@@ -74,16 +75,17 @@ wrapper. The grid stays well-formed and the next keystroke lands in a cell.
 ### 9. A command key over a whole table, row or column removes it first
 
 Drag over a whole body row, a whole column, or every cell of the table, then press
-Enter, Tab or Ctrl+2. The row, column or table goes the way it goes on Backspace, and the key
+Enter or Ctrl+2. The row, column or table goes the way it goes on Backspace, and the key
 runs at the caret that's left, so each ends exactly as Backspace and then the key would. One
-Ctrl+Z puts the document back as it was. Miss-analysis: every scenario above drew prose or a
+Ctrl+Z puts the document back as it was. Tab over the same grid changes nothing, since a table
+has nothing to indent. Miss-analysis: every scenario above drew prose or a
 range leaving a table, so nothing pressed a command key over a grid held whole, where the key
 cleared the cells and ran in the first one instead.
 
 ### 10. After a range longer than the screen, the caret's block is in view
 
 Put the caret in the first of 160 one-line paragraphs, press Shift+ArrowDown 40 times, then press
-Tab or Shift+Enter. Both write in place, so neither key places a caret of its own, and the block
-holding the caret is on screen afterwards. Miss-analysis: every range in this file fit on one
+Shift+Enter. It writes in place, so the key places no caret of its own, and the block holding the
+caret is on screen afterwards. Miss-analysis: every range in this file fit on one
 screen, so nothing noticed a key that writes in place leave its caret hundreds of pixels above the viewport
 once the removal stopped landing its caret.
