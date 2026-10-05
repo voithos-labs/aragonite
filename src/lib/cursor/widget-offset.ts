@@ -722,17 +722,17 @@ function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean
 	// reveal branches below depend on per-span DOM state that only this side can see.
 	if (family === null || !familyHidesText(family, screenVisibility(mode, { chromePaints })))
 		return false;
-	// Inline code backticks show for the caret's own code span in every editing mode.
-	if (family === 'code-fence')
-		return mode === 'reading' || !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	const revealed = el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	// A code span's backticks show for the caret's own span in every mode that takes a caret.
+	if (family === 'code-fence' && revealed) return mode === 'reading';
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
-	// preview-inline's reveal rule is scoped to `.md-marker`, so a reference label reveals by
-	// class alone; fence lines are whole-block markers and reveal with block focus.
-	if (el.classList.contains('md-fence-line')) return false;
-	if (el.classList.contains('md-ref-label')) return !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
-	return el.hasAttribute('data-construct-start') && !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	// preview-inline's reveal rule is scoped to `.md-marker`, so a reference label and a code span's
+	// backticks reveal by class alone; fence lines are whole-block markers and reveal with focus.
+	if (family === 'fence-line') return false;
+	if (family === 'ref-label' || family === 'code-fence') return !revealed;
+	return el.hasAttribute('data-construct-start') && !revealed;
 }
 
 function snapOutOfRun(

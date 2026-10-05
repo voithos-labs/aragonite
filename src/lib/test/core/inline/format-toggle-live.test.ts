@@ -101,8 +101,7 @@ describe('source mode reads a run through the space beside it', () => {
 	});
 });
 
-// The DOM reads a range ending on a hidden run back as any boundary of that run, so a toggle hands
-// back the text it shows and reads a range as the widest one showing the same text.
+// The DOM reads a range ending on a hidden run back as any boundary of that run.
 // Miss-analysis: no test chained live toggles, each fed the range the one before handed back.
 describe('a chain of live toggles, each on the range the last one handed back', () => {
 	function chain(raw: string, word: string, formats: InlineMarkKind[]): string[] {

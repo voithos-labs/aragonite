@@ -24,10 +24,11 @@ const FAMILY_CLASS: Record<MarkerFamily, string> = {
 	'code-fence': 'md-code-fence'
 };
 
+/** Every family's class, so a scan of the source names each family the day it is added. */
+export const MARKER_FAMILY_CLASSES: readonly string[] = Object.values(FAMILY_CLASS);
+
 /** Every family at once, for a caller reading spans back out of a rendered fragment. */
-export const MARKER_FAMILY_SELECTOR = Object.values(FAMILY_CLASS)
-	.map((cls) => `.${cls}`)
-	.join(', ');
+export const MARKER_FAMILY_SELECTOR = MARKER_FAMILY_CLASSES.map((cls) => `.${cls}`).join(', ');
 
 /**
  * Whether `el` is a container's leading marker prefix (`> `, `- `): the read-only marker span a

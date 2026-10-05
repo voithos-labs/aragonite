@@ -15,7 +15,7 @@ import {
 import type { Reading } from '../../schema/reading';
 import type { InlineNode } from '../nodes';
 import { constructContentRange, inlineDescendants, readInline, type ContentRange } from './index';
-import { CONTENT_VISIBILITY, renderedText } from './visibility';
+import { CONTENT_VISIBILITY, renderedText, visibleRuns } from './visibility';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -44,41 +44,11 @@ export function toggleInlineFormat(
 	edit: InlineFormatEdit,
 	format: InlineMarkKind
 ): ToggleInlineFormatResult | null {
-	const result = writeToggle(edit, format);
-	return result && edit.reading.hidesDelimitersAtCaret()
-		? selectingWhatShows(result, edit)
-		: result;
-}
-
-/** Where markers hide, the range handed back hugs the text that shows: the DOM restores an end on a
- *  hidden closer past every closer there, and the next toggle would no longer read it as inside. */
-function selectingWhatShows(
-	result: ToggleInlineFormatResult,
-	edit: InlineFormatEdit
-): ToggleInlineFormatResult {
-	let start = result.newSelStart;
-	let end = result.newSelEnd;
-	if (start === end) return result;
-	const content = shiftedContent(edit.content, edit.display, result);
-	const inlines = readInline(
-		result.newDisplay,
-		content.start,
-		content.end,
-		edit.reading.resolver,
-		edit.reading.grammar
-	);
-	for (let moved = true; moved;) {
-		moved = false;
-		for (const node of inlineDescendants(inlines)) {
-			const inner = constructContentRange(node);
-			if (!inner || node.start !== start || node.end !== end) continue;
-			if (inner.start === start && inner.end === end) continue;
-			start = inner.start;
-			end = inner.end;
-			moved = true;
-		}
-	}
-	return { ...result, newSelStart: start, newSelEnd: end };
+	if (!edit.reading.hidesDelimitersAtCaret()) return writeToggle(edit, format);
+	// Ranges that differ only by hidden markers at their ends look the same, and the DOM reads one
+	// back as another, so the toggle reads the widest and hands back the text that shows.
+	const result = writeToggle({ ...edit, selection: widestShowingSame(edit) }, format);
+	return result && trimmedToShownText(result, edit);
 }
 
 function writeToggle(
@@ -216,6 +186,56 @@ export function createInlineFormatActiveMemo(): (
 		if (!slot || slot.resolver !== resolver || !sameEdit(slot.edit, edit))
 			slot = { edit, resolver, coverage: coverageOf(edit) };
 		return coverageCarries(slot.coverage, format);
+	};
+}
+
+// ── Ranges that show the same text ──────────────────────────────────────────
+
+/** The selection grown over every mark whose content it is exactly: what the toggle reads in a
+ *  mode where those marks' delimiters are hidden. */
+function widestShowingSame(edit: InlineFormatEdit): { start: number; end: number } {
+	const { display, content, reading } = edit;
+	let start = clampToContent(edit.selection.start, content);
+	let end = clampToContent(edit.selection.end, content);
+	if (start === end) return { start, end };
+	const inlines = readInline(
+		display,
+		content.start,
+		content.end,
+		reading.resolver,
+		reading.grammar
+	);
+	for (let grew = true; grew;) {
+		grew = false;
+		for (const node of inlineDescendants(inlines)) {
+			const inner = getInlineMarkPolicy(node.kind) ? constructContentRange(node) : null;
+			if (!inner || inner.start !== start || inner.end !== end) continue;
+			start = node.start;
+			end = node.end;
+			grew = true;
+		}
+	}
+	return { start, end };
+}
+
+/** The handed-back range without the hidden bytes at either end. */
+function trimmedToShownText(
+	result: ToggleInlineFormatResult,
+	edit: InlineFormatEdit
+): ToggleInlineFormatResult {
+	const { newDisplay, newSelStart, newSelEnd } = result;
+	if (newSelStart === newSelEnd) return result;
+	const { resolver, grammar } = edit.reading;
+	const content = shiftedContent(edit.content, edit.display, result);
+	const inlines = readInline(newDisplay, content.start, content.end, resolver, grammar);
+	const shown = visibleRuns(inlines, newDisplay, CONTENT_VISIBILITY, { grammar }).filter(
+		(run) => run.visible && run.start < newSelEnd && newSelStart < run.end
+	);
+	if (shown.length === 0) return result;
+	return {
+		newDisplay,
+		newSelStart: Math.max(newSelStart, shown[0].start),
+		newSelEnd: Math.min(newSelEnd, shown[shown.length - 1].end)
 	};
 }
 
