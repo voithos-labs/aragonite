@@ -1,0 +1,17 @@
+name: Feature request
+description: Something aragonite should do and doesn't yet
+type: Feature
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want
+      description: What you'd like to be able to do, from where you sit (as a user, a host app, or a plugin author).
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What you tried
+      description: Optional. Where the current props, API or plugins ran out, or the workaround you're using now.

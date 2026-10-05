@@ -236,9 +236,9 @@ e2e specs, so it keeps its own line.
 **The GitHub issue tracker is the defect ledger.** Three conventions carry all the metadata, and
 the body carries none of it:
 
-- An issue's **type** says what it is: `Bug`, `Feature`, or `Task`, one issue form each. The form
-  sets the type at creation, and [`scripts/issue-type.mjs`](../../scripts/issue-type.mjs) sets it
-  afterwards, for an issue the forms didn't type:
+- An issue's **type** says what it is: `Bug`, `Feature`, or `Task`. The bug and feature forms set
+  it when the issue is opened; a task or a blank issue gets it afterwards from
+  [`scripts/issue-type.mjs`](../../scripts/issue-type.mjs):
 
   ```
   $ node scripts/issue-type.mjs
