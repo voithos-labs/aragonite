@@ -154,7 +154,7 @@ function mergeMarkerLine(
 	const currentItem = children[currentIndex];
 	const absorbed = currentItem.children?.[0];
 	if (absorbed?.kind !== 'paragraph') return null;
-	// Lines that would no longer read inside the list have nowhere to go, so the merge declines.
+	// Lines that would read outside the list have nowhere to go, so the merge declines.
 	if (!readAsList(bytesWithoutMarkerLine(children, currentIndex), list, reading.grammar)) {
 		return null;
 	}
