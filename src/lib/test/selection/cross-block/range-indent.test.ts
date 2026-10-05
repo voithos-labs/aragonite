@@ -217,10 +217,8 @@ describe('Tab and Shift+Tab over a range that holds code lines', () => {
 	});
 });
 
-// The range and every block answer a key by its binding, so a rebound indent key moves every item
-// the range reaches, not only the one holding the caret.
-// Miss-analysis: every range test pressed the literal Tab, and the range read the key by name
-// while each block read it by binding, so no test saw the two disagree.
+// Miss-analysis: every range test pressed the literal Tab while each block reads a key by its
+// binding, so no test saw the range and the blocks disagree on a rebound key.
 describe('a rebound indent key over a range', () => {
 	const SIBLINGS = '- alpha\n- beta\n- gamma\n';
 	const OVER_TWO = {

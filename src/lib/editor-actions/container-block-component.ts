@@ -25,7 +25,7 @@ import type { CaretMemory } from '../cursor/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
-import { rangeOwnsKey } from '../selection/cross-block/keydown';
+import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
@@ -47,15 +47,15 @@ export function dispatchWholeBlockGlobalChord(
 }
 
 /** A chord at a container, against its own kind only: a key bubbling from a leaf met the global
- *  chords there, and one a live range owns is the range's. Null `selection`: the container has focus. */
+ *  chords there, and one a live range owns is the range's. Null `range`: the container has focus. */
 export function dispatchContainerChord(
 	e: KeyboardEvent,
 	target: KindCommandTarget,
 	commands: CommandDispatchContext,
-	selection: Pick<SelectionState, 'isCrossBlock'> | null
+	range: Omit<RangeKeyReads, 'commands'> | null
 ): boolean {
 	if (e.defaultPrevented) return false;
-	if (selection?.isCrossBlock && rangeOwnsKey(e)) return true;
+	if (range?.selection.isCrossBlock && rangeOwnsKey(e, { ...range, commands })) return true;
 	const chord = eventToChord(e);
 	if (!chord || !dispatchKindCommand(chord, target, commands)) return false;
 	e.preventDefault();

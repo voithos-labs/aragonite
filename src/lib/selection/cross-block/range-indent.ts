@@ -1,7 +1,7 @@
 /**
- * Tab and Shift+Tab over a live range: every list item the range touches nests or lifts one level,
- * the code lines it covers indent or dedent, and nothing else changes. Each block answers through
- * its own key binding, so a kind that binds no indent command is left as it is. One undo entry per
+ * An indent key over a live range: every list item the range touches nests or lifts one level, the
+ * code lines it covers indent or dedent, and nothing else changes. Each block answers through its
+ * own key binding, so a kind that binds no indent command is left as it is. One undo entry per
  * press, and the range stays over the same text, so the key repeats.
  */
 
@@ -97,17 +97,14 @@ function planIndent(
 	commandOf: (node: CstNode) => AnyCommandId | null
 ): IndentPlan {
 	const plan: IndentPlan = { items: [], code: [] };
-	if (coverage.grid) return plan;
 	const seen = new Set<string>();
-	const { start, end } = coverage.range;
-
-	const visit = (path: number[], from: number, to: number) => {
+	forEachCoveredLeaf(doc, coverage, (path, from, to) => {
 		const leaf = blockNodeAt(doc, path);
-		if (!leaf) return;
+		if (!leaf) return false;
 		const own = commandOf(leaf);
 		if (own === 'code.indent' || own === 'code.dedent') {
 			plan.code.push({ path, from, to, direction: own === 'code.indent' ? 'indent' : 'dedent' });
-			return;
+			return false;
 		}
 		for (let depth = path.length - 1; depth > 0; depth--) {
 			const holder = blockNodeAt(doc, path.slice(0, depth));
@@ -116,23 +113,55 @@ function planIndent(
 			const key = path.slice(0, depth).join(',');
 			if (!seen.has(key)) plan.items.push({ path: path.slice(0, depth), command });
 			seen.add(key);
-			return;
+			return false;
 		}
-	};
-
-	if (coverage.startEdge) visit(start.path, textOffset(start), Infinity);
-	for (const root of coverage.wholeRoots) {
-		for (const leaf of leavesUnder(doc, root)) visit(leaf, 0, Infinity);
-	}
-	// An end at its block's first byte holds none of that block.
-	const endAt = textOffset(end);
-	if (coverage.endEdge && endAt !== 0) visit(end.path, 0, endAt);
+		return false;
+	});
 	plan.items.sort((a, b) => comparePaths(a.path, b.path));
 	return plan;
 }
 
+/** Whether any block the range covers, a leaf or a block holding one, binds the key to one of the
+ *  four indent commands; the plan above reads the same blocks the same way. */
+export function coversIndentBinding(
+	doc: Document,
+	coverage: RangeCoverage,
+	commandOf: (node: CstNode) => AnyCommandId | null
+): boolean {
+	let found = false;
+	forEachCoveredLeaf(doc, coverage, (path) => {
+		for (let depth = path.length; depth > 0 && !found; depth--) {
+			const node = blockNodeAt(doc, path.slice(0, depth));
+			found = node !== null && isIndentCommand(commandOf(node));
+		}
+		return found;
+	});
+	return found;
+}
+
 const isItemMove = (command: AnyCommandId | null): command is ItemShift['command'] =>
 	command === 'list.indent' || command === 'list.unindent';
+
+const isIndentCommand = (command: AnyCommandId | null): boolean =>
+	isItemMove(command) || command === 'code.indent' || command === 'code.dedent';
+
+/** Each leaf the range covers with the text offsets it covers, until `visit` answers true. A grid
+ *  holds nothing to indent, so it visits none. */
+function forEachCoveredLeaf(
+	doc: Document,
+	coverage: RangeCoverage,
+	visit: (path: number[], from: number, to: number) => boolean
+): void {
+	if (coverage.grid) return;
+	const { start, end } = coverage.range;
+	if (coverage.startEdge && visit(start.path, textOffset(start), Infinity)) return;
+	for (const root of coverage.wholeRoots) {
+		for (const leaf of leavesUnder(doc, root)) if (visit(leaf, 0, Infinity)) return;
+	}
+	// An end at its block's first byte holds none of that block.
+	const endAt = textOffset(end);
+	if (coverage.endEdge && endAt !== 0) visit(end.path, 0, endAt);
+}
 
 /** A cell endpoint names no text offset, and no cell holds a line to shift. */
 const textOffset = (point: SelectionPoint): number =>

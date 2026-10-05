@@ -1850,7 +1850,7 @@ const RANGE_INDENT: ManifestRule[] = [
 			'src/lib/components/blocks/surface-wiring.svelte.ts':
 				'a leaf’s own chords, which the leaf runs once the range’s handler has passed on the key',
 			'src/lib/selection/cross-block/keydown.ts':
-				'the range’s own handler: what the caret memory notes, and a format chord over the range',
+				'the range’s own handler: what the caret memory notes, whether a key indents, and a format chord over the range',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'what each block the range covers says an indent key means',
 			'src/lib/selection/cross-block/range-replace.ts':

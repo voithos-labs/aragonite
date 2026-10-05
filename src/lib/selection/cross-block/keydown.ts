@@ -2,14 +2,16 @@
 
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { Document } from '../../core/nodes';
+import type { CstNode, Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { kindOfPath, replaceRange } from './range-replace';
-import { indentRange } from './range-indent';
+import { coversIndentBinding, indentRange } from './range-indent';
+import { coverRange, rangeCoverage } from '../range-coverage';
+import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
-import { dispatchKeyCommand } from '../../schema/block-commands';
+import { dispatchKeyCommand, type CommandDispatchContext } from '../../schema/block-commands';
 import { commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import {
@@ -61,9 +63,8 @@ async function handleKeyDown(ctx: CrossBlockDispatchContext, e: KeyboardEvent): 
 	// extend branches commit nothing that would update the caret memory.
 	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx));
 
-	// Mode-independent: the doc-edge extend behaves identically from a caret and an active range,
-	// so it dispatches once, ahead of the mode split.
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'End' || e.key === 'Home')) {
+	// The doc-edge extend behaves the same from a caret and from a range, so it runs before the split.
+	if (isDocEdgeExtendKey(e)) {
 		return handleDocEdgeExtend(ctx, e, e.key === 'End' ? 'end' : 'start');
 	}
 
@@ -82,143 +83,81 @@ async function handleCrossBlockActive(
 ): Promise<boolean> {
 	const el = ctx.getEl();
 	if (!el) return false;
-	const { selection, getDoc, getBlockElByPath } = ctx;
-	const myPath = ctx.getMyPath();
-	const doc = getDoc();
+	// Ctrl+C and Ctrl+X have no role: the copy and cut events write the clipboard synchronously,
+	// and Tauri's webview refuses `navigator.clipboard.writeText`.
+	const role = rangeKeyRole(e, ctx);
+	if (role === null) return false;
+	e.preventDefault();
+	const doc = ctx.getDoc();
 
-	// Ctrl+C and Ctrl+X pass through to the copy and cut events, which write the clipboard
-	// synchronously; Tauri's webview refuses `navigator.clipboard.writeText`.
-
-	// Extend, collapse and copy stay live in reading mode. The reading-mode checks below keep a key
-	// quiet, and go once one check in front of every key handler refuses it.
-	if (e.key === 'Backspace' || e.key === 'Delete') {
-		e.preventDefault();
-		if (isReadingMode(ctx.reading.mode)) return true;
-		await replaceRange(ctx, { kind: 'none', gesture: e.key });
-		return true;
-	}
-
-	// Before the command candidates: deleting the range and toggling a format at the collapsed
-	// caret would leave empty marker pairs where the text stood.
-	if (isClaimedRewriteChord(e)) {
-		e.preventDefault();
-		if (isReadingMode(ctx.reading.mode)) return true;
-		await dispatchOverRange(ctx, e, myPath);
-		return true;
-	}
-
-	if (isIndentKey(e)) {
-		e.preventDefault();
-		if (isReadingMode(ctx.reading.mode)) return true;
-		await indentRange(ctx, e);
-		return true;
-	}
-
-	if (isCommandCandidateKey(e)) {
-		e.preventDefault();
-		if (isReadingMode(ctx.reading.mode)) return true;
-		const chord = eventToChord(e);
-		if (chord) await replaceRange(ctx, { kind: 'command', chord });
-		return true;
-	}
-
-	// Intra-table rectangle: Shift+Arrow grows the rect cell-by-cell and exits at the vertical
-	// edge. Must precede the generic extend, which snaps the focus back to cellIdx 0.
-	if (
-		e.shiftKey &&
-		(e.key === 'ArrowUp' ||
-			e.key === 'ArrowDown' ||
-			e.key === 'ArrowLeft' ||
-			e.key === 'ArrowRight')
-	) {
-		const ext = intraTableRectExtension(doc, selection.anchor, selection.focus, e.key);
-		if (ext) {
-			e.preventDefault();
-			if (ext.kind === 'cell') {
-				selection.extendFocus(cellPoint(selection.focus!.path, ext.offset));
-			} else if (ext.direction === 'forward') {
-				extendFocusToNextBlock(
-					selection,
-					doc,
-					ctx.reading.grammar,
-					el,
-					ext.fromCellPath,
-					'vertical'
-				);
-			} else {
-				extendFocusToPreviousBlock(
-					selection,
-					doc,
-					ctx.reading.grammar,
-					el,
-					ext.fromCellPath,
-					'start'
-				);
+	// Reading mode consumes every key that writes, and still extends, collapses and selects all.
+	switch (role) {
+		case 'delete':
+			if (!isReadingMode(ctx.reading.mode)) {
+				await replaceRange(ctx, { kind: 'none', gesture: e.key as 'Backspace' | 'Delete' });
 			}
-			await revealActiveEndpoint(ctx);
+			return true;
+		case 'rewrite':
+			if (!isReadingMode(ctx.reading.mode)) await dispatchOverRange(ctx, e, ctx.getMyPath());
+			return true;
+		case 'indent':
+			if (!isReadingMode(ctx.reading.mode)) await indentRange(ctx, e);
+			return true;
+		case 'command': {
+			const chord = eventToChord(e);
+			if (chord && !isReadingMode(ctx.reading.mode)) {
+				await replaceRange(ctx, { kind: 'command', chord });
+			}
 			return true;
 		}
+		case 'extend':
+			extendOverRange(ctx, e, el, doc);
+			await revealActiveEndpoint(ctx);
+			return true;
+		case 'collapse': {
+			const toEnd = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+			await collapseTo(ctx, toEnd ? 'end' : 'start', doc);
+			return true;
+		}
+		case 'selectAll':
+			selectWholeDocument(ctx.selection, doc, ctx.getBlockElByPath);
+			return true;
 	}
+}
 
-	if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
-		e.preventDefault();
-		const focusPath = selection.focus?.path ?? myPath;
-		const focusEl = getBlockElByPath(focusPath) ?? el;
-		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
-		extendFocusToNextBlock(
-			selection,
-			doc,
-			ctx.reading.grammar,
-			focusEl,
-			focusPath,
-			axis,
-			getBlockElByPath
-		);
-		await revealActiveEndpoint(ctx);
-		return true;
+/** Shift+Arrow moves the range's focus end. Inside a table it grows the rectangle cell by cell
+ *  first, since the generic extend snaps the focus back to the row's first cell. */
+function extendOverRange(
+	ctx: CrossBlockDispatchContext,
+	e: KeyboardEvent,
+	el: HTMLElement,
+	doc: Document
+): void {
+	const { selection, getBlockElByPath } = ctx;
+	const { grammar } = ctx.reading;
+	const key = e.key as ArrowKey;
+	const ext = intraTableRectExtension(doc, selection.anchor, selection.focus, key);
+	if (ext?.kind === 'cell') {
+		selection.extendFocus(cellPoint(selection.focus!.path, ext.offset));
+		return;
 	}
-	if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
-		e.preventDefault();
-		const focusPath = selection.focus?.path ?? myPath;
-		const focusEl = getBlockElByPath(focusPath) ?? el;
-		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(
-			selection,
-			doc,
-			ctx.reading.grammar,
-			focusEl,
-			focusPath,
-			side,
-			getBlockElByPath
-		);
-		await revealActiveEndpoint(ctx);
-		return true;
+	if (ext) {
+		if (ext.direction === 'forward') {
+			extendFocusToNextBlock(selection, doc, grammar, el, ext.fromCellPath, 'vertical');
+		} else {
+			extendFocusToPreviousBlock(selection, doc, grammar, el, ext.fromCellPath, 'start');
+		}
+		return;
 	}
-
-	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-		e.preventDefault();
-		await collapseTo(ctx, 'start', doc);
-		return true;
+	const focusPath = selection.focus?.path ?? ctx.getMyPath();
+	const focusEl = getBlockElByPath(focusPath) ?? el;
+	if (key === 'ArrowDown' || key === 'ArrowRight') {
+		const axis = key === 'ArrowDown' ? 'vertical' : 'horizontal';
+		extendFocusToNextBlock(selection, doc, grammar, focusEl, focusPath, axis, getBlockElByPath);
+	} else {
+		const side = key === 'ArrowUp' ? 'start' : 'end';
+		extendFocusToPreviousBlock(selection, doc, grammar, focusEl, focusPath, side, getBlockElByPath);
 	}
-
-	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
-		e.preventDefault();
-		await collapseTo(ctx, 'start', doc);
-		return true;
-	}
-	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
-		e.preventDefault();
-		await collapseTo(ctx, 'end', doc);
-		return true;
-	}
-
-	if (isSelectAllChord(e)) {
-		e.preventDefault();
-		selectWholeDocument(selection, doc, getBlockElByPath);
-		return true;
-	}
-
-	return false;
 }
 
 /** The entry branch: chords that start a selection from a collapsed caret. */
@@ -278,22 +217,67 @@ export function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	return false;
 }
 
-/** Tab and Shift+Tab, which indent what the range holds and never remove it. */
-export function isIndentKey(e: KeyboardEvent): boolean {
-	return e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey;
+/** What reading a key over a live range takes: the range, its document and the keymap. */
+export interface RangeKeyReads {
+	selection: Pick<SelectionState, 'isCrossBlock' | 'anchor' | 'focus'>;
+	getDoc: () => Document;
+	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 }
 
-/** Every key the range's own handler runs, which a container holding the focus must leave to it:
- *  the range's handler awaits before claiming, so the key can reach the container first. */
-export function rangeOwnsKey(e: KeyboardEvent): boolean {
-	return (
-		e.key === 'Backspace' ||
-		e.key === 'Delete' ||
-		isIndentKey(e) ||
-		isCommandCandidateKey(e) ||
-		isClaimedRewriteChord(e)
-	);
+/** Every key the range's own handler claims, which a container the key bubbles through must leave
+ *  to it: the range's handler awaits before claiming, so the key can reach the container first. */
+export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	if (!reads.selection.isCrossBlock) return false;
+	return isDocEdgeExtendKey(e) || rangeKeyRole(e, reads) !== null;
 }
+
+type RangeKeyRole =
+	'delete' | 'rewrite' | 'indent' | 'command' | 'extend' | 'collapse' | 'selectAll';
+
+/** What the range's handler does with a key, or null when it leaves the key to the block. */
+function rangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole | null {
+	if (isRangeDeleteKey(e)) return 'delete';
+	// Before the command candidates: deleting the range and toggling a format at the collapsed
+	// caret would leave empty marker pairs where the text stood.
+	if (isClaimedRewriteChord(e)) return 'rewrite';
+	if (isIndentKey(e, reads)) return 'indent';
+	if (isCommandCandidateKey(e)) return 'command';
+	if (e.shiftKey && isArrowKey(e.key)) return 'extend';
+	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
+	if ((e.key === 'Escape' && plain) || (!e.shiftKey && isArrowKey(e.key))) return 'collapse';
+	if (isSelectAllChord(e)) return 'selectAll';
+	return null;
+}
+
+/** Backspace and Delete, which remove the range. */
+export function isRangeDeleteKey(e: KeyboardEvent): boolean {
+	return e.key === 'Backspace' || e.key === 'Delete';
+}
+
+/** Tab and Shift+Tab always, so focus never leaves the editor even when nothing indents; any
+ *  other key when a block the range covers binds it to an indent command, as `indentRange` reads it. */
+export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
+	const { anchor, focus } = reads.selection;
+	if (!anchor || !focus || !eventToChord(e)) return false;
+	const doc = reads.getDoc();
+	const byKind = new Map<string, AnyCommandId | null>();
+	const commandOf = (node: CstNode) => {
+		if (!byKind.has(node.kind)) byKind.set(node.kind, commandForKey(e, node.kind, reads.commands));
+		return byKind.get(node.kind) ?? null;
+	};
+	return coversIndentBinding(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), commandOf);
+}
+
+/** Mod+Shift+End and Mod+Shift+Home, which extend to the document's edge from a caret or a range. */
+function isDocEdgeExtendKey(e: KeyboardEvent): boolean {
+	return (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'End' || e.key === 'Home');
+}
+
+type ArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
+
+const isArrowKey = (key: string): key is ArrowKey =>
+	key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight';
 
 /** Chords the range handles itself, swallowed before the browser's bold or Ctrl+K kill-line runs.
  *  Mod+Shift+X is here on its own, since unshifted Mod+X is the block cut. */

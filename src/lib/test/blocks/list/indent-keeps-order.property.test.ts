@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// The keys that move list items between levels (Tab and Shift+Tab at a caret or over a range,
-// Backspace at an item's start, Enter in an empty nested item) never change the order the text
-// reads in, whatever shape the lists have.
-// Miss-analysis: the property drew one tight bullet list of single-line items, so no loose list,
-// ordered list, paragraph after a sublist, second list or quoted list ever met a move.
+// The keys that move list items between levels never change the order the text reads in.
+// Miss-analysis: the property drew one tight bullet list, so no loose list, ordered list,
+// paragraph after a sublist, second list or quoted list ever met a move.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '$lib/core/nodes';

@@ -135,9 +135,10 @@ gamma
 
 	// Tab over a range indents what it holds; as a candidate it would remove the range first.
 	it('Tab and Shift+Tab are indent keys, never candidates', () => {
+		const { env } = envWithCommandTarget();
 		for (const init of [{}, { shiftKey: true }]) {
 			expect(isCommandCandidateKey(press('Tab', init))).toBe(false);
-			expect(isIndentKey(press('Tab', init))).toBe(true);
+			expect(isIndentKey(press('Tab', init), env.ctx)).toBe(true);
 		}
 	});
 });
