@@ -13,25 +13,25 @@ afterEach(async () => {
 	if (mounted) await mounted.destroy();
 });
 
-// Each route lifts one item out of `alpha`'s sublist with `gamma` still after it.
+// Each route lifts one item out of `alpha`'s sublist with two siblings still after it.
 const ROUTES: [route: string, source: string, key: KeyboardEventInit, lifted: string][] = [
 	[
 		'Shift+Tab',
-		'- alpha\n  - beta\n  - gamma\n- delta\n',
+		'- alpha\n  - beta\n  - gamma\n  - delta\n- omega\n',
 		{ key: 'Tab', shiftKey: true },
-		'- alpha\n- beta\n  - gamma\n- delta\n'
+		'- alpha\n- beta\n  - gamma\n  - delta\n- omega\n'
 	],
 	[
 		'Backspace at the start of a sublist',
-		'- alpha\n  - beta\n  - gamma\n- delta\n',
+		'- alpha\n  - beta\n  - gamma\n  - delta\n- omega\n',
 		{ key: 'Backspace' },
-		'- alpha\n- beta\n  - gamma\n- delta\n'
+		'- alpha\n- beta\n  - gamma\n  - delta\n- omega\n'
 	],
 	[
 		'Enter in an empty nested item',
-		'- alpha\n  - beta\n  - \n  - gamma\n- delta\n',
+		'- alpha\n  - beta\n  - \n  - gamma\n  - delta\n- omega\n',
 		{ key: 'Enter' },
-		'- alpha\n  - beta\n- \n  - gamma\n- delta\n'
+		'- alpha\n  - beta\n- \n  - gamma\n  - delta\n- omega\n'
 	]
 ];
 
