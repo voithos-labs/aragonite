@@ -52,7 +52,7 @@ describe('the reveal reads the selection only where it could show something', ()
 		window.getSelection()?.removeAllRanges();
 	});
 
-	it('reads nothing in a live block with no code span', () => {
+	it('reads nothing in a live block, constructs or not', () => {
 		expect(readsFor(CONSTRUCTS, 'live')).toBe(0);
 	});
 

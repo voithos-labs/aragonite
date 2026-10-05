@@ -155,7 +155,7 @@ const CLASSIFICATION_RE = new RegExp(
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
-		'the reveal writer: it stamps the class the classification reads, on the families `caretShowsFamily` names',
+		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
 		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
 	'src/lib/components/blocks/text/edge-step.ts':

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A block's render re-applies the shown markers and the edge ring, and both ask the selection where
-// the caret is, which forces a layout. A block the caret has never entered asks nothing, since a
+// the caret is, then walk it. A block the caret has never entered asks nothing, since a
 // fling mounts many. Miss-analysis: removing the first-focus check left every suite green.
 import { describe, it, expect, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import {
