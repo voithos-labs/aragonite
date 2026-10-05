@@ -1881,12 +1881,15 @@ const MATH_SHAPE: FileRule = {
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
 const ROGUE_PAINTER = 'src/lib/components/RoguePaint.svelte';
+const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|coveredWhole|startEdge|endEdge|startCells|endCells)\b`;
 
 const RANGE_PAINT: FileRule = {
 	id: 'G4.114 how a block paints under a range is decided in the selection model only',
 	population: notUnder('src/lib/selection/'),
-	matches:
-		/\.(?:coveredRootHolding|rootHolding)\s*\(|\.(?:wholeRoots|coveredWhole|startEdge|endEdge)\b/,
+	// A dotted read, or an object pattern naming a field, assigned or typed as the coverage.
+	matches: new RegExp(
+		String.raw`\.(?:coveredRootHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)`
+	),
 	reaches: ['src/lib/components/SelectionOverlay.svelte'],
 	reason:
 		'a painter that reads the coverage itself keeps its own copy of which block a range covers whole, and the end blocks paint one shape while the blocks between paint another: ask `classifyBlockForSelection` or `blockPaintsWholeBox`',
@@ -1894,11 +1897,17 @@ const RANGE_PAINT: FileRule = {
 		at(ROGUE_PAINTER, 'const boxed = coverage.rootHolding(path) !== null;'),
 		at(ROGUE_PAINTER, 'if (coverage.coveredRootHolding(path)) return;'),
 		at(ROGUE_PAINTER, 'const roots = live.wholeRoots;'),
-		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;')
+		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;'),
+		at(ROGUE_PAINTER, 'const run = coverage.endCells;'),
+		at(ROGUE_PAINTER, 'const { wholeRoots, startEdge } = coverage;'),
+		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\tcoveredWhole\n} = live;'),
+		at(ROGUE_PAINTER, 'function paint({ endEdge }: RangeCoverage): void {}')
 	],
 	misses: [
 		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, coverage, null);'),
-		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;')
+		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;'),
+		at(ROGUE_PAINTER, 'const { start, end } = coverage.range;'),
+		at(ROGUE_PAINTER, 'if (a == { startEdge }) return;')
 	]
 };
 

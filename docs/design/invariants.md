@@ -2173,9 +2173,12 @@ box, paints its selected text, or paints nothing is decided by
 `src/lib/selection/primitives.ts` :: `classifyBlockForSelection` (and `blockPaintsWholeBox`, which
 asks it), from the one coverage. A painter that read the coverage itself would keep its own idea
 of which block the range covers whole, and the end blocks would paint one shape while the blocks
-between paint another. `lint/file-rules.test.ts` fails a read of the coverage's roots or edges
-(`rootHolding`, `coveredRootHolding`, `wholeRoots`, `coveredWhole`, `startEdge`, `endEdge`)
-anywhere outside `src/lib/selection/`.
+between paint another. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or
+an end table's cell run anywhere outside `src/lib/selection/`: a call to `rootHolding` or
+`coveredRootHolding`, a dotted read of `wholeRoots`, `coveredWhole`, `startEdge`, `endEdge`,
+`startCells` or `endCells`, or an object pattern naming one of those fields, whether it's
+destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
+(`coverage['wholeRoots']`) gets past it.
 
 ## Accessibility
 
