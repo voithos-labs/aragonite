@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-// Tab and Shift+Tab move list items between levels and never change the order their text reads in,
-// whether a caret or a range presses them.
-// Miss-analysis: every indent test pressed one key on a hand-picked list, so nothing pressed a
-// sequence that lifts an item with siblings after it, the shape that read them out of order.
+// The keys that move list items between levels (Tab and Shift+Tab at a caret or over a range,
+// Backspace at an item's start, Enter in an empty nested item) never change the order the text
+// reads in, whatever shape the lists have.
+// Miss-analysis: the property drew one tight bullet list of single-line items, so no loose list,
+// ordered list, paragraph after a sublist, second list or quoted list ever met a move.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import fc from 'fast-check';
-import type { Document } from '$lib/core/nodes';
+import type { CstNode, Document } from '$lib/core/nodes';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -24,60 +25,210 @@ afterEach(async () => {
 	mounted = null;
 });
 
-const COUNT = 6;
-const TEXTS = Array.from({ length: COUNT }, (_, i) => `i${i}`);
-const SOURCE = TEXTS.map((text) => `- ${text}\n`).join('');
+// ── The documents ───────────────────────────────────────────────────────────
 
-const arbPress = fc.record({
-	from: fc.nat({ max: COUNT - 1 }),
-	// Zero presses at a caret; more reaches that many items down as a range.
-	span: fc.nat({ max: 3 }),
-	shift: fc.boolean()
+/** An item's text is `i<n>`, or empty; `more` puts a paragraph `p<n>` after its sublist. */
+interface ItemShape {
+	empty: boolean;
+	sublist: ListShape | null;
+	more: boolean;
+}
+
+interface ListShape {
+	ordered: boolean;
+	loose: boolean;
+	items: ItemShape[];
+}
+
+const arbList = (depth: number): fc.Arbitrary<ListShape> =>
+	fc.record({
+		ordered: fc.boolean(),
+		loose: fc.boolean(),
+		items: fc.array(
+			fc.record({
+				empty: fc.boolean(),
+				sublist: depth < 2 ? fc.option(arbList(depth + 1), { freq: 2 }) : fc.constant(null),
+				more: fc.boolean()
+			}),
+			{ minLength: 1, maxLength: 3 }
+		)
+	});
+
+const arbDoc = fc.record({
+	lists: fc.oneof(
+		arbList(0).map((list) => [list]),
+		fc.tuple(arbList(0), arbList(0)).map(([a, b]) => [a, { ...b, ordered: !a.ordered }])
+	),
+	quoted: fc.boolean()
 });
 
-/** The path of the paragraph that holds `text`, wherever the presses so far moved it. */
-function pathOf(doc: Document, text: string): number[] {
-	let found: number[] | null = null;
-	const walk = (nodes: Document['children'], path: number[]) =>
-		nodes.forEach((node, i) => {
-			if (node.kind === 'paragraph' && node.raw.trim() === text) found = [...path, i];
-			if (node.children) walk(node.children, [...path, i]);
+/** Markdown for the drawn shape, with at most one empty item, and that one nested; the order it
+ *  reads in comes from the parse, not from here. */
+function render({ lists, quoted }: { lists: ListShape[]; quoted: boolean }): string {
+	let next = 0;
+	let emptyDrawn = false;
+	const lines: string[] = [];
+	const writeList = (list: ListShape, indent: string) => {
+		list.items.forEach((item, i) => {
+			if (i > 0 && list.loose) lines.push('');
+			const marker = list.ordered ? `${i + 1}. ` : '- ';
+			const empty = item.empty && indent !== '' && !emptyDrawn;
+			emptyDrawn ||= empty;
+			lines.push(`${indent}${marker}${empty ? '' : `i${next++}`}`);
+			const inner = indent + ' '.repeat(marker.length);
+			if (item.sublist) {
+				if (list.loose) lines.push('');
+				writeList(item.sublist, inner);
+			}
+			if (item.more && !empty) lines.push('', `${inner}p${next++}`);
 		});
-	walk(doc.children, []);
-	if (!found) throw new Error(`no paragraph reads ${text}`);
+	};
+	lists.forEach((list, i) => {
+		if (i > 0) lines.push('');
+		writeList(list, '');
+	});
+	const body = quoted ? lines.map((line) => (line ? `> ${line}` : '>')) : lines;
+	return body.join('\n') + '\n';
+}
+
+// ── Reading the order ───────────────────────────────────────────────────────
+
+/** Every text in document order; an empty item reads as `E`, so where it moved still counts. */
+function readOrder(doc: Document): string[] {
+	const order: string[] = [];
+	const walk = (node: CstNode, parent: CstNode | null) => {
+		if (node.children) return node.children.forEach((child) => walk(child, node));
+		const tokens = node.raw.match(/[ip]\d+/g);
+		if (tokens) order.push(...tokens);
+		else if (parent?.kind === 'listItem' && node.raw.trim() === '') order.push('E');
+	};
+	doc.children.forEach((child) => walk(child as CstNode, null));
+	return order;
+}
+
+interface Found {
+	path: number[];
+	offset: number;
+	/** How many list items hold it. */
+	depth: number;
+}
+
+/** Where `token` starts, in the paragraph that holds it. */
+function find(doc: Document, token: string): Found | null {
+	let found: Found | null = null;
+	const walk = (node: CstNode, path: number[], items: number, parent: CstNode | null) => {
+		if (found) return;
+		if (node.children) {
+			const depth = items + (node.kind === 'listItem' ? 1 : 0);
+			node.children.forEach((child, i) => walk(child, [...path, i], depth, node));
+			return;
+		}
+		if (token === 'E') {
+			if (parent?.kind === 'listItem' && node.raw.trim() === '') {
+				found = { path, offset: 0, depth: items };
+			}
+		} else if (node.raw.match(/[ip]\d+/g)?.includes(token)) {
+			found = { path, offset: node.raw.indexOf(token), depth: items };
+		}
+	};
+	doc.children.forEach((child, i) => walk(child as CstNode, [i], 0, null));
 	return found;
 }
 
-describe('Tab and Shift+Tab keep the order of a list', () => {
-	it('any sequence reads the items in their first order', async () => {
+// ── The presses ─────────────────────────────────────────────────────────────
+
+type Press =
+	| { kind: 'tab'; from: number; span: number; shift: boolean }
+	| { kind: 'backspace'; at: number }
+	| { kind: 'enter' };
+
+const arbPress: fc.Arbitrary<Press> = fc.oneof(
+	{
+		weight: 3,
+		arbitrary: fc.record({
+			kind: fc.constant('tab' as const),
+			from: fc.nat(),
+			// Zero presses at a caret; more reaches that many items down as a range.
+			span: fc.nat({ max: 3 }),
+			shift: fc.boolean()
+		})
+	},
+	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('backspace' as const), at: fc.nat() }) },
+	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('enter' as const) }) }
+);
+
+/** Places the caret or the range a press asks for and presses its key, or skips a press that has
+ *  no target in the document as it now stands. */
+async function press(editor: MountedEditor<Seam>, step: Press, order: string[]): Promise<void> {
+	const doc = editor.instance.__test.getDocument();
+	// The items' own texts, the empty one included; `p` paragraphs only end a range.
+	const items = order.filter((token) => !token.startsWith('p'));
+	if (items.length === 0) return;
+	let anchor: Found | null;
+	let focus: Found | null;
+	let focusToken: string;
+	let key: KeyboardEventInit;
+	if (step.kind === 'tab') {
+		const from = order.indexOf(items[step.from % items.length]);
+		focusToken = order[Math.min(from + step.span, order.length - 1)];
+		anchor = find(doc, order[from]);
+		focus = find(doc, focusToken);
+		key = { key: 'Tab', shiftKey: step.shift };
+	} else if (step.kind === 'backspace') {
+		focusToken = items[step.at % items.length];
+		anchor = focus = find(doc, focusToken);
+		// Mid-paragraph, Backspace deletes a character instead of moving an item.
+		if (anchor?.offset !== 0) return;
+		key = { key: 'Backspace' };
+	} else {
+		focusToken = 'E';
+		anchor = focus = find(doc, 'E');
+		// Only a nested empty item lifts; a top-level one leaves the list instead.
+		if (!anchor || anchor.depth < 2) return;
+		key = { key: 'Enter' };
+	}
+	if (!anchor || !focus) return;
+	// A collapsed pair is a caret, which also ends the range the last press kept.
+	const atCaret = anchor.path.join() === focus.path.join();
+	const end = atCaret || focusToken === 'E' ? focus.offset : focus.offset + 1;
+	await editor.instance.setSelection({
+		anchor: { path: anchor.path, offset: anchor.offset },
+		focus: { path: focus.path, offset: atCaret ? anchor.offset : end }
+	});
+	await editor.settle();
+	await pressKey(surfaceAt(editor, focus.path), key);
+}
+
+describe('the keys that move list items keep the order the text reads in', () => {
+	it('any sequence, over any lists, reads the text in its first order', async () => {
 		await fc.assert(
-			fc.asyncProperty(fc.array(arbPress, { minLength: 1, maxLength: 6 }), async (presses) => {
-				await mounted?.destroy();
-				const editor = mountEditor<Seam>({ source: SOURCE });
-				mounted = editor;
-				for (const { from, span, shift } of presses) {
-					const doc = editor.instance.__test.getDocument();
-					const start = pathOf(doc, TEXTS[from]);
-					const end = pathOf(doc, TEXTS[Math.min(from + span, COUNT - 1)]);
-					// A collapsed pair is a caret, which also ends the range the last press kept.
-					const atCaret = end.join() === start.join();
-					await editor.instance.setSelection({
-						anchor: { path: start, offset: 0 },
-						focus: { path: end, offset: atCaret ? 0 : 1 }
-					});
-					await editor.settle();
-					await pressKey(surfaceAt(editor, end), { key: 'Tab', shiftKey: shift });
-					expect(editor.source().match(/i\d/g)).toEqual(TEXTS);
+			fc.asyncProperty(
+				arbDoc,
+				fc.array(arbPress, { minLength: 1, maxLength: 5 }),
+				async (shape, presses) => {
+					await mounted?.destroy();
+					const editor = mountEditor<Seam>({ source: render(shape) });
+					mounted = editor;
+					const first = readOrder(editor.instance.__test.getDocument());
+					for (const step of presses) {
+						await press(editor, step, readOrder(editor.instance.__test.getDocument()));
+						const now = readOrder(editor.instance.__test.getDocument());
+						// Backspace in an empty item may delete it, which takes its `E` with it.
+						const expected = now.includes('E') ? first : first.filter((t) => t !== 'E');
+						expect(now).toEqual(expected);
+					}
 				}
-			}),
+			),
 			{ numRuns: 40, seed: freshOrFixedSeed(693) }
 		);
-	}, 120_000);
+	}, 180_000);
+});
 
-	// The property's first shrunk counterexample: a range nests two items, then a caret lifts the
-	// first of them while the second still sits after it.
+// The property's first shrunk counterexample: a range nests two items, then a caret lifts the
+// first of them while the second still sits after it.
+describe('pinned examples', () => {
 	it('Tab over i0 to i2, then Shift+Tab on i1', async () => {
-		const editor = mountEditor<Seam>({ source: SOURCE });
+		const editor = mountEditor<Seam>({ source: '- i0\n- i1\n- i2\n- i3\n- i4\n- i5\n' });
 		mounted = editor;
 		await editor.instance.setSelection({
 			anchor: { path: [0, 0, 0], offset: 0 },
@@ -85,7 +236,7 @@ describe('Tab and Shift+Tab keep the order of a list', () => {
 		});
 		await editor.settle();
 		await pressKey(surfaceAt(editor, [0, 2, 0]), { key: 'Tab' });
-		const at = pathOf(editor.instance.__test.getDocument(), 'i1');
+		const at = find(editor.instance.__test.getDocument(), 'i1')!.path;
 		await editor.instance.setSelection({
 			anchor: { path: at, offset: 0 },
 			focus: { path: at, offset: 0 }

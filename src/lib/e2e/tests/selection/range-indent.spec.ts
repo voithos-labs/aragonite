@@ -2,6 +2,7 @@
 // shift the code lines it covers, never delete, and keep the selection for the next press.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import type { KeybindingOverride } from '../../../schema/keybinding-overrides';
 
 const SECTION = 'intro\n\nAgreed work\n- alpha\n- beta\n- gamma\n\nLoose ends\n';
 const SIBLINGS = '- alpha\n- beta\n- gamma\n';
@@ -59,6 +60,19 @@ test.describe('Tab and Shift+Tab over a selection', () => {
 
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n- gamma\n', 3000);
+	});
+
+	test('a key rebound to the list indent nests every item the selection reaches, like Tab', async () => {
+		const keybindings: KeybindingOverride[] = [
+			{ chord: 'Mod+]', command: 'list.indent', kind: 'listItem' }
+		];
+		await editor.page.evaluate((ov) => (window as any).__test.setKeybindings(ov), keybindings);
+		await editor.loadContent(SIBLINGS);
+		await select([[0, 1, 0], 1], [[0, 2, 0], 2]);
+
+		await editor.page.keyboard.press('ControlOrMeta+]');
+		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n  - gamma\n', 3000);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
 	test('Tab from inside a code block down into prose indents the code lines it covers', async () => {

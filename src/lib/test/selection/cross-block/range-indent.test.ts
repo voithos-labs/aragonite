@@ -12,6 +12,7 @@ import {
 import { pressKey } from '$lib/test/harness/settle';
 import type { EditorSelection } from '$lib/selection/primitives';
 import type { UndoEntry } from '$lib/undo/types';
+import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 
 beforeAll(installLayoutStubs);
 
@@ -24,15 +25,24 @@ afterEach(async () => {
 const TAB = { key: 'Tab' };
 const SHIFT_TAB = { key: 'Tab', shiftKey: true };
 
+interface PressOptions {
+	presses?: number;
+	presentationMode?: 'reading';
+	keybindings?: KeybindingOverride[];
+}
+
 /** Mounts `source`, draws the range, and presses `key` in the block holding the focus. */
 async function pressOver(
 	source: string,
 	selection: EditorSelection,
 	key: KeyboardEventInit,
-	presses = 1,
-	presentationMode?: 'reading'
+	{ presses = 1, presentationMode, keybindings }: PressOptions = {}
 ): Promise<void> {
-	mounted = mountEditor<Seam>({ source, ...(presentationMode ? { presentationMode } : {}) });
+	mounted = mountEditor<Seam>({
+		source,
+		...(presentationMode ? { presentationMode } : {}),
+		...(keybindings ? { keybindings } : {})
+	});
 	await mounted.instance.setSelection(selection);
 	await mounted.settle();
 	for (let i = 0; i < presses; i++) {
@@ -83,7 +93,7 @@ describe('Tab and Shift+Tab over a range that holds list items', () => {
 
 	it('the range stays selected, so a second Tab nests again', async () => {
 		const range = { anchor: { path: [0, 1, 0], offset: 1 }, focus: { path: [0, 2, 0], offset: 2 } };
-		await pressOver('- alpha\n- beta\n- gamma\n', range, TAB, 2);
+		await pressOver('- alpha\n- beta\n- gamma\n', range, TAB, { presses: 2 });
 
 		expect(mounted.source()).toBe('- alpha\n  - beta\n    - gamma\n');
 		expect(undoDepth()).toBe(2);
@@ -140,10 +150,26 @@ describe('Tab and Shift+Tab over a range that holds list items', () => {
 		expect(rangeLive()).toBe(true);
 	});
 
+	// A loose nested list parses into one sublist per item, so `gamma` sits after `beta`'s sublist.
+	it('Shift+Tab over a loose nested list keeps the order', async () => {
+		const range = {
+			anchor: { path: [0, 0, 0], offset: 5 },
+			focus: { path: [0, 0, 1, 0, 0], offset: 2 }
+		};
+		await pressOver('- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n', range, SHIFT_TAB);
+
+		expect(mounted.source().match(/alpha|beta|gamma|delta/g)).toEqual([
+			'alpha',
+			'beta',
+			'gamma',
+			'delta'
+		]);
+	});
+
 	it('reading mode takes the key and writes nothing', async () => {
 		const source = '- alpha\n- beta\n- gamma\n';
 		const range = { anchor: { path: [0, 1, 0], offset: 1 }, focus: { path: [0, 2, 0], offset: 2 } };
-		await pressOver(source, range, TAB, 1, 'reading');
+		await pressOver(source, range, TAB, { presentationMode: 'reading' });
 
 		expect(mounted.source()).toBe(source);
 	});
@@ -188,5 +214,47 @@ describe('Tab and Shift+Tab over a range that holds code lines', () => {
 		await pressOver('```\none\n\ttwo\n    three\n```\n\nafter\n', FROM_TWO, SHIFT_TAB);
 
 		expect(mounted.source()).toBe(CODE);
+	});
+});
+
+// The range and every block answer a key by its binding, so a rebound indent key moves every item
+// the range reaches, not only the one holding the caret.
+// Miss-analysis: every range test pressed the literal Tab, and the range read the key by name
+// while each block read it by binding, so no test saw the two disagree.
+describe('a rebound indent key over a range', () => {
+	const SIBLINGS = '- alpha\n- beta\n- gamma\n';
+	const OVER_TWO = {
+		anchor: { path: [0, 1, 0], offset: 1 },
+		focus: { path: [0, 2, 0], offset: 2 }
+	};
+	const MOD_BRACKET = { key: ']', ctrlKey: true };
+	const REBINDS: [name: string, keybindings: KeybindingOverride[]][] = [
+		['bound on list items', [{ chord: 'Mod+]', command: 'list.indent', kind: 'listItem' }]],
+		['bound everywhere', [{ chord: 'Mod+]', command: 'list.indent' }]],
+		[
+			'bound in place of Tab',
+			[
+				{ chord: 'Tab', command: null, kind: 'listItem' },
+				{ chord: 'Mod+]', command: 'list.indent', kind: 'listItem' }
+			]
+		]
+	];
+
+	for (const [name, keybindings] of REBINDS) {
+		it(`Mod+] ${name} nests both items in one undo entry`, async () => {
+			await pressOver(SIBLINGS, OVER_TWO, MOD_BRACKET, { keybindings });
+
+			expect(mounted.source()).toBe('- alpha\n  - beta\n  - gamma\n');
+			expect(undoDepth()).toBe(1);
+			expect(rangeLive()).toBe(true);
+		});
+	}
+
+	it('Tab with its binding taken off moves nothing and keeps the range', async () => {
+		const keybindings = REBINDS[2][1];
+		await pressOver(SIBLINGS, OVER_TWO, TAB, { keybindings });
+
+		expect(mounted.source()).toBe(SIBLINGS);
+		expect(rangeLive()).toBe(true);
 	});
 });

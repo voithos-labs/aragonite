@@ -1841,17 +1841,33 @@ const RANGE_INDENT: ManifestRule[] = [
 		]
 	},
 	{
-		id: 'G4.112 a container runs its own chords through the one dispatch that yields to a range',
+		id: 'G4.112 a key resolves to a command at the declared dispatch points only',
 		population: notUnder('src/lib/schema/'),
-		matches: /(?<![\w.])dispatchKindCommand\s*\(/,
+		matches: /(?<![\w.])(?:dispatchKindCommand|dispatchKeyCommand|commandForKey)\s*\(/,
 		declared: {
 			'src/lib/editor-actions/container-block-component.ts':
-				'leaves a key a live range owns to the range, whose handler claims it only after an await'
+				'the container dispatch, which leaves a key a live range owns to the range, whose handler claims it only after an await',
+			'src/lib/components/blocks/surface-wiring.svelte.ts':
+				'a leaf’s own chords, which the leaf runs once the range’s handler has passed on the key',
+			'src/lib/selection/cross-block/keydown.ts':
+				'the range’s own handler: what the caret memory notes, and a format chord over the range',
+			'src/lib/selection/cross-block/range-indent.ts':
+				'what each block the range covers says an indent key means',
+			'src/lib/selection/cross-block/range-replace.ts':
+				'a command key, run at the caret the range’s removal leaves',
+			'src/lib/editor-actions/plugin/container.ts':
+				'reads what a key means for the caret memory, and never runs it',
+			'src/lib/components/link-card/LinkCardHost.svelte':
+				'asks only whether the key is the one that opens the link card'
 		},
 		reason:
 			'a container that resolves a chord itself runs Tab on its own item while the range below indents every item: call `dispatchContainerChord`',
-		hits: [at(ROGUE_INDENT_ROUTE, 'dispatchKindCommand(chord, target, commands);')],
-		misses: [at(ROGUE_INDENT_ROUTE, 'dispatchContainerChord(e, target, commands, selection);')]
+		hits: [
+			at(ROGUE_INDENT_ROUTE, 'dispatchKindCommand(chord, target, commands);'),
+			at(ROGUE_INDENT_ROUTE, 'if (dispatchKeyCommand(chord, target, commands)) return;'),
+			at(ROGUE_INDENT_ROUTE, "if (commandForKey(e, kind, commands) === 'list.indent') indent();")
+		],
+		misses: [at(ROGUE_INDENT_ROUTE, 'dispatchContainerChord(e, target, commands, range);')]
 	},
 	{
 		id: 'G4.112 a command key over a range is pressed from the keydown handler only',

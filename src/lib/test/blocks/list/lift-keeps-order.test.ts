@@ -46,6 +46,47 @@ describe('lifting a nested item keeps the document in order', () => {
 		});
 	}
 
+	// Everything after the lifted item inside `alpha` comes along: a paragraph, another sublist, or
+	// the next sublist of a loose list, which parses into one sublist per item.
+	const AFTER_THE_SUBLIST: [shape: string, source: string, lifted: string][] = [
+		[
+			'a paragraph',
+			'- alpha\n  - beta\n  - gamma\n\n  more\n',
+			'- alpha\n- beta\n  - gamma\n\n  more\n'
+		],
+		[
+			'an ordered sublist',
+			'- alpha\n  - beta\n  - gamma\n\n  1. one\n',
+			'- alpha\n- beta\n  - gamma\n\n  1. one\n'
+		],
+		[
+			'the next item of a loose list',
+			'- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n',
+			'- alpha\n- beta\n\n  - gamma\n\n- delta\n'
+		]
+	];
+	for (const [shape, source, lifted] of AFTER_THE_SUBLIST) {
+		for (const [route, key] of [
+			['Shift+Tab', { key: 'Tab', shiftKey: true }],
+			['Backspace', { key: 'Backspace' }]
+		] as const) {
+			it(`${route} on beta carries ${shape} after its sublist`, async () => {
+				mounted = mountEditor({ source });
+				await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, key);
+
+				expect(mounted.source()).toBe(lifted);
+			});
+		}
+	}
+
+	it('Enter in an empty item of a loose nested list carries the next item', async () => {
+		mounted = mountEditor({ source: '- alpha\n\n  - beta\n\n  - \n\n  - gamma\n' });
+		await pressKeyAt(mounted, [0, 0, 2, 0, 0], 0, { key: 'Enter' });
+
+		expect(mounted.source().indexOf('- \n')).toBeLessThan(mounted.source().indexOf('gamma'));
+		expect(mounted.source().match(/alpha|beta|gamma/g)).toEqual(['alpha', 'beta', 'gamma']);
+	});
+
 	it('the lifted item keeps its own children first, then takes its siblings', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - beta\n    - one\n  - gamma\n' });
 		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });

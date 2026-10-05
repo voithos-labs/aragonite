@@ -1,5 +1,6 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
+import { enterPresentationMode } from '../../../presentation/helpers';
 
 test.describe('list Shift+Tab', () => {
 	let editor: EditorPage;
@@ -36,6 +37,33 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n  - gamma\n- delta\n');
+	});
+
+	test('Backspace at the start of a nested item lifts it the same way', async () => {
+		await editor.loadContent('- alpha\n  - beta\n  - gamma\n- delta\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n  - gamma\n- delta\n');
+	});
+
+	test('Enter in an empty nested item lifts it the same way', async () => {
+		await editor.loadContent('- alpha\n  - beta\n  - \n  - gamma\n- delta\n');
+		await editor.focusBlockAtPath([0, 0, 1, 1, 0], 0);
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n- \n  - gamma\n- delta\n');
+	});
+
+	// A loose nested list parses into one sublist per item, so `gamma` sits after `beta`'s sublist.
+	test('in live mode, Shift+Tab in a loose nested list keeps the order', async ({ page }) => {
+		const source = '- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n';
+		const live = await enterPresentationMode(page, 'live', source);
+		await page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+Tab');
+		await expect.poll(() => live.bridge.getSource()).not.toBe(source);
+		const lifted = await live.bridge.getSource();
+		expect(lifted.match(/alpha|beta|gamma|delta/g)).toEqual(['alpha', 'beta', 'gamma', 'delta']);
 	});
 
 	test('Shift+Tab on top-level item is no-op', async () => {
