@@ -627,7 +627,7 @@ A container may declare its child 0 as a **reserved chrome leaf**, a title or su
 A few container-specific operations, for completeness:
 
 - Split inside a container splits the inner child, and the container's `raw` is rebuilt from its children. Deleting all children removes the container from its parent.
-- Enter in a list item creates a sibling item (at the end it inserts below, in the middle it splits). Enter in an _empty_ item (nothing but spaces and tabs, so a non-breaking space counts as content) exits the list: matching-type nested sub-lists promote into the surviving list, mismatched-type nested lists and non-list trailing children lift out as top-level siblings rather than being dropped, and ordered markers renumber across the gap.
+- Enter in a list item creates a sibling item (at the end it inserts below, in the middle it splits). The new item's first line sits behind its marker, so the item holds what a reload reads there: Enter after `a` in `- a b` writes `- a` and `-  b`, and the new item's marker is `-  `, the space included. Enter in an _empty_ item (nothing but spaces and tabs, so a non-breaking space counts as content) exits the list: matching-type nested sub-lists promote into the surviving list, mismatched-type nested lists and non-list trailing children lift out as top-level siblings rather than being dropped, and ordered markers renumber across the gap.
 - Block IDs are held per `BlockList`, so each nesting level has its own array (§ 13).
 - Cross-block selection within a container is the same selection model scoped to that container's list; selecting _across_ a container boundary needs the cross-block system (§ 10).
 

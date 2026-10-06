@@ -215,25 +215,27 @@ Over a selection the same chord writes bytes at once, in every mode. Its questio
 What happens to delimiters an edit cuts through or empties. Splits first:
 
 ```ts
-// reading as in § 2
+// stores: where each half lands (a store is § 4.5's). The first half stays in the block's own
+// slot and the second goes in after it, so here both read as top-level paragraphs.
 const node = parse('Some **bold** text\n').children[0];
-rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', reading);
+rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', stores);
 // { firstRaw: 'Some **bo**\n', secondRaw: '**ld** text\n' }: closed before the cut, reopened after
 
 const link = parse('see [here](https://x.example) now\n').children[0];
-rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', reading);
+rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', stores);
 // { firstRaw: 'see [h](https://x.example)\n', secondRaw: '[ere](https://x.example) now\n' }
 
 const auto = parse('see <https://x.example> now\n').children[0];
-rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', reading);
+rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', stores);
 // { firstRaw: 'see \n', secondRaw: '<https://x.example> now\n' }: the cut moved to the nearer edge
 
 const image = parse('a ![alt](i.png) b\n').children[0];
-rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', reading); // null: a plain kind, so the literal cut stands
+rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', stores); // null: a plain kind, so the literal cut stands
 ```
 
 - Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run, and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind with content declines, and the byte-literal cut stands.
-- Each half has to re-parse to one prose block that a reload of the file would keep: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop.
+- Each half has to re-parse to one prose block that a reload of the file would keep, read where it lands: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop. In a to-do, `# **bo**` above the cut is text behind the box, same as in the to-do it came from.
+- In a list item the second half becomes the first line of a new item, and that item takes the marker its bytes read as. `- **bo ld**` cut after `bo` writes `- **bo**` and `-  **ld**`: the space stays (live drops only what it never showed), the new item's marker is `-  `, and the tree matches a reload. Source mode does the same with `- a b` cut after `a`.
 - An autolink or an escape has no interior for a cut to land in at all. Two halves of a URL are not two URLs, and half an escape is a literal backslash, so the cut moves to its nearer edge and one half takes the construct whole, every byte kept (which is what rules out the alternative, dropping the delimiter pair). A hard break is childless and `never-extend` too, but its moved cut doesn't parse back, so there the literal cut stands.
 - A side left with no content takes the whole construct rather than a pair enclosing nothing.
 
