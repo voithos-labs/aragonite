@@ -34,9 +34,7 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/item-partition.ts':
-		'same head normalization, per promoted item and lifted body, for the first-item unwrap and the item exit',
-	'src/lib/tree-operations/list/unwrap-merge.ts':
-		'the line above each list an unwrap leaves, which the paragraph above it decides',
+		'same head normalization, per promoted item and the item’s first block, plus the line above each list a dissolving item leaves, which the paragraph above it decides',
 	'src/lib/tree-operations/list/item-moves.ts':
 		'a block carried in after a lifted item’s sublist takes the line it needs to read back where it now stands',
 	'src/lib/tree-operations/list/exit-replacement.ts':

@@ -8,13 +8,7 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
-import {
-	firstDisplayLine,
-	ownTrailingLineEnding,
-	splitLines,
-	trailingLineEnding
-} from '../../core/lines';
-import { canInterruptParagraph } from '../../core/parsers/list';
+import { splitLines, trailingLineEnding } from '../../core/lines';
 import { joinIntoLeaf } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneNode } from '../clone';
@@ -22,9 +16,8 @@ import { parseContainerRaw } from '../../schema/container-raw';
 import type { GrammarView } from '../../schema/block-openers';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { orderedBaseOf, renumberOrderedList } from './ordered-markers';
-import { itemPiecesInOrder, type ItemPiece } from './item-partition';
-import { assembleListHalf } from './list-builders';
+import { renumberOrderedList } from './ordered-markers';
+import { dissolveItem } from './item-partition';
 import { keepingListOrder } from '../../invariants/list-move-keeps-order';
 import { leafTextAround, leafTexts } from '../../invariants/leaf-text';
 import { assignChildIdsDeep } from '../../block-id';
@@ -52,45 +45,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		return [clonedList];
 	}
 
-	return keepingListOrder(
-		() => leafTexts([list]),
-		() => unwrapInOrder(list, firstItem),
-		(blocks) => leafTexts(blocks)
-	);
-}
-
-function unwrapInOrder(list: NodeView, firstItem: NodeView): CstNode[] {
-	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
-	const pieces = itemPiecesInOrder(firstItem.children!, parentOrdered);
-	// The list's later items join the sublist items when those come last.
-	const last = pieces.at(-1);
-	const tail: ItemPiece = last && 'items' in last ? last : { items: [], leadingTrivia: '' };
-	for (const item of list.children!.slice(1)) tail.items.push(cloneNode(item));
-	if (tail !== last && tail.items.length > 0) pieces.push(tail);
-
-	// The list's starting number runs on across every list the unwrap leaves.
-	let number = orderedBaseOf(firstItem);
-	const blocks: CstNode[] = [];
-	for (const piece of pieces) {
-		if ('block' in piece) {
-			blocks.push(piece.block);
-			continue;
-		}
-		const half = assembleListHalf(list, piece.items, number);
-		number += piece.items.length;
-		half.leadingTrivia = lineAboveList(blocks.at(-1), half, piece.leadingTrivia);
-		blocks.push(half);
-	}
-	return blocks;
-}
-
-/** The line above a list the unwrap leaves: the one its sublist had, or under a paragraph a blank
- *  one when the list's first line can't interrupt the paragraph (CommonMark § 5.2). */
-function lineAboveList(above: CstNode | undefined, list: CstNode, own: string): string {
-	if (!above || own !== '' || above.kind !== 'paragraph') return above ? own : '';
-	return canInterruptParagraph(firstDisplayLine(list.raw).text)
-		? ''
-		: ownTrailingLineEnding(above.raw);
+	return dissolveItem(list, 0).blocks;
 }
 
 /** The merge target's path; null when no prose leaf is reachable. */

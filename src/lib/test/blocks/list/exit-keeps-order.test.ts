@@ -43,7 +43,7 @@ describe('Enter in an empty item keeps its children in the order they read', () 
 	for (const mode of ['source', 'live'] as const) {
 		for (const [shape, source, aPath, exited] of SHAPES) {
 			it(`${mode}: in ${shape}`, async () => {
-				mounted = mountEditor({ source, mode });
+				mounted = mountEditor({ source, presentationMode: mode });
 				await pressKeyAt(mounted, aPath, 1, ENTER);
 				const emptyPath = aPath.with(-2, aPath.at(-2)! + 1);
 				await pressKeyAt(mounted, emptyPath, 0, ENTER);
@@ -53,7 +53,7 @@ describe('Enter in an empty item keeps its children in the order they read', () 
 		}
 
 		it(`${mode}: at a list's first item`, async () => {
-			mounted = mountEditor({ source: '- \n  - x\n\n  p\n\n  - y\n- b\n', mode });
+			mounted = mountEditor({ source: '- \n  - x\n\n  p\n\n  - y\n- b\n', presentationMode: mode });
 			await pressKeyAt(mounted, [0, 0, 0], 0, ENTER);
 
 			expect(mounted.source()).toBe('\n- x\n\np\n\n- y\n- b\n');

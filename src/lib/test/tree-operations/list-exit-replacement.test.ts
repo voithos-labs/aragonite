@@ -146,6 +146,7 @@ describe('buildExitReplacement', () => {
 
 	it('input list is not mutated', () => {
 		const list = parseList('- A\n- B\n- C\n');
+		blankFirstParagraph(list.children![1]);
 		const before = serialize({ children: [list], prefix: '', suffix: '' });
 
 		buildExitReplacement(list, 1, '\n');

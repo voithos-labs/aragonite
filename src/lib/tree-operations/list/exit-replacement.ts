@@ -1,61 +1,22 @@
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { metadataOf } from '../../core/nodes';
 import type { LineEnding } from '../../core/lines';
-import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-primitives';
-import { assembleListHalf } from './list-builders';
-import { partitionItemChildren } from './item-partition';
-import { orderedBaseOf } from './ordered-markers';
+import { dissolveItem } from './item-partition';
 
 /**
- * The replacement when an item exits its list: the list's halves around a fresh exit paragraph at
- * `paragraphIndex`, the item's same-type nested items rejoining the halves and the rest lifted.
+ * The replacement when an empty item exits its list: a fresh paragraph where the item's line was,
+ * the item's other children after it in the order they read, and the list's halves around them.
  */
 export function buildExitReplacement(
 	list: NodeView,
 	itemIndex: number,
 	lineEnding: LineEnding
 ): { blocks: CstNode[]; paragraphIndex: number } {
-	const items = list.children ?? [];
-	const exitedItem = items[itemIndex];
-	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
-
-	// Child 0 is the exiting paragraph, which the fresh one below replaces.
-	const { promotedItems, liftedBlocks } = partitionItemChildren(
-		(exitedItem?.children ?? []).slice(1),
-		parentOrdered
-	);
-
-	const before = items.slice(0, itemIndex).map(cloneNode);
-	const after = items.slice(itemIndex + 1).map(cloneNode);
-
-	// wasFirstItem has no `before` half, so promotions slide into `after`.
-	const wasFirstItem = itemIndex === 0;
-	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
-	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
-
 	// Every byte this op creates is a line ending, the document's.
-	const exitParagraph = emptyParagraph('', lineEnding);
-
-	// Preserve the original list's starting number across the split.
-	const base = orderedBaseOf(items[0]);
-
-	const blocks: CstNode[] = [];
-	if (firstHalfItems.length > 0) {
-		blocks.push(assembleListHalf(list, firstHalfItems, base));
-		// The exit paragraph follows the surviving list; without a blank line the
-		// parser lazy-continues a typed line into the list's last item on reload.
-		exitParagraph.leadingTrivia = lineEnding;
-	}
-	const paragraphIndex = blocks.length;
-	blocks.push(exitParagraph);
-	for (const lifted of liftedBlocks) blocks.push(lifted);
-	if (secondHalfItems.length > 0) {
-		// Continue the sequence across the gap: the exited slot doesn't burn a number.
-		const secondHalfStart = base + firstHalfItems.length;
-		blocks.push(assembleListHalf(list, secondHalfItems, secondHalfStart));
-	}
-
-	return { blocks, paragraphIndex };
+	const { blocks, firstBlockIndex } = dissolveItem(list, itemIndex, emptyParagraph('', lineEnding));
+	// Without a blank line under the list above, the parser lazy-continues a typed line into the
+	// list's last item on reload.
+	if (firstBlockIndex > 0) blocks[firstBlockIndex].leadingTrivia = lineEnding;
+	return { blocks, paragraphIndex: firstBlockIndex };
 }
