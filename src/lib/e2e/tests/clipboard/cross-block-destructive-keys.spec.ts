@@ -230,6 +230,24 @@ test.describe('a command key over a whole table, row or column', () => {
 	}
 });
 
+// Miss-analysis: no row took blocks whole between neighbours of different kinds, so nothing held
+// the block a command key is claimed by to the one its removal lands in.
+test('Enter over two rules held whole splits the heading before them', async ({ page }) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent('# head\n\n---\n\n---\n\nbeta\n');
+	// Set, not dragged: a rule has no caret position for a drag to stop on.
+	await editor.bridge.setSelection({
+		anchor: { path: [1], offset: 0 },
+		focus: { path: [2], offset: 3 }
+	});
+	await editor.waitForCrossBlock(true);
+
+	await page.keyboard.press('Enter');
+
+	await editor.bridge.waitForSourceEquals('# head\n\n\nbeta\n', 3000);
+});
+
 // Miss-analysis: every range here fit on one screen, so no test saw a key that writes in place
 // leave its caret where a long removal had scrolled away from.
 test.describe('a command key over a range longer than the screen', () => {

@@ -79,8 +79,19 @@ export function survivorAfterRemoval(
 	removedPath: readonly number[],
 	gesture: RemovalGesture
 ): CaretPosition | null {
-	const pointsForward = gesture === 'Delete' || gesture === 'cut';
-	return survivorBeside(doc, removedPath, pointsForward);
+	return survivorBeside(doc, removedPath, pointsForward(gesture));
+}
+
+/** Delete and cut land a removed block's caret on the next block; Backspace and a keyless delete
+ *  on the previous one. */
+export function pointsForward(gesture: RemovalGesture): boolean {
+	return gesture === 'Delete' || gesture === 'cut';
+}
+
+/** The neighbour a caret takes beside a removed block: the one on the `forward` side, else
+ *  whichever exists. Read after the removal and, by a command key's claim, before it. */
+export function neighbourBeside<T>(forward: boolean, before: T | null, after: T | null): T | null {
+	return forward ? (after ?? before) : (before ?? after);
 }
 
 /** Where a range picks up once it took the block at `removedPath` whole and ran on past it: the
@@ -105,7 +116,7 @@ function survivorBeside(
 	const next = firstCaretLeafFrom(doc, slot);
 	const atEnd = previous && { path: docPathFrom(previous), offset: CURSOR_END };
 	const atStart = next && { path: docPathFrom(next), offset: CURSOR_START };
-	return forward ? (atStart ?? atEnd) : (atEnd ?? atStart);
+	return neighbourBeside<CaretPosition>(forward, atEnd, atStart);
 }
 
 /** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and took

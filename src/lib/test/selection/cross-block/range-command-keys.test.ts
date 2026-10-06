@@ -14,6 +14,7 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -106,6 +107,23 @@ describe('a binding scoped to one kind, over a range', () => {
 			expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
 		});
 	}
+
+	// Miss-analysis: no row took blocks whole between neighbours of different kinds, so nothing held
+	// the claim's side to the removal's. The bytes are pinned in `cross-block-destructive-keys.spec.ts`.
+	it('Enter over two rules runs in the heading the removal lands in, as claimed', async () => {
+		const mounted = mountEditor<Seam>({ source: '# head\n\n---\n\n---\n\nbeta\n' });
+		await mounted.settle();
+		await mounted.instance.setSelection({
+			anchor: { path: [1], offset: 0 },
+			focus: { path: [2], offset: 3 }
+		});
+		await mounted.settle();
+
+		await pressKey(surfaceAt(mounted, [3]), ENTER);
+
+		expect(mounted.source()).not.toContain('---');
+		expect(takeDevWarns()).toEqual([]);
+	});
 
 	// The removal lands past the rule it takes whole, in the paragraph, which is whose binding counts.
 	it('a heading bound to Mod+J on paragraphs runs where a range from a rule lands', async () => {

@@ -7,7 +7,7 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { RangeCoverage } from './range-coverage';
-import type { RemovalGesture } from './caret-target';
+import { neighbourBeside, pointsForward, type RemovalGesture } from './caret-target';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { firstCaretLeafFrom, previousCaretPath } from './path-lookup';
 
@@ -56,8 +56,7 @@ export function landingKind(
 		case 'beside': {
 			const before = previousCaretPath(doc, landing.root);
 			const after = firstCaretLeafFrom(doc, pastLastRoot(coverage));
-			const forward = gesture === 'Delete' || gesture === 'cut';
-			const beside = forward ? (after ?? before) : (before ?? after);
+			const beside = neighbourBeside(pointsForward(gesture), before, after);
 			// A removal that empties the document leaves it one empty paragraph.
 			return beside ? kindAt(doc, beside) : 'paragraph';
 		}
