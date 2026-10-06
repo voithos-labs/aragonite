@@ -32,4 +32,32 @@ test.describe('table block: rectangular selection', () => {
 		expect(sel!.focus.offset).toBe(6);
 		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
 	});
+
+	test('a rectangle inside one table paints nothing outside it', async ({ page }) => {
+		// Cells 0 to 4 hold A, B, 1 and 2; C, 3 and the last row stay out.
+		await dragBetweenCells(page, 0, 4);
+		await editor.waitForCrossBlock(true);
+		await expect(page.locator('.selection-overlay').first()).toBeAttached();
+
+		const paintedOutside = () =>
+			page.evaluate(() => {
+				const painted = [...document.querySelectorAll('.selection-overlay')]
+					.map((el) => el.getBoundingClientRect())
+					.filter((r) => r.width > 0.5 && r.height > 0.5);
+				const cells = [...document.querySelectorAll('.table-cell')].map((el) =>
+					el.getBoundingClientRect()
+				);
+				const covers = (x: number, y: number) =>
+					painted.some((r) => r.left <= x && x <= r.right && r.top <= y && y <= r.bottom);
+				const outside = [2, 5, 6, 7, 8]
+					.filter((i) =>
+						covers(cells[i].left + cells[i].width / 2, cells[i].top + cells[i].height / 2)
+					)
+					.map((i) => `cell ${i}`);
+				const tableRight = Math.max(...cells.map((c) => c.right));
+				if (painted.some((r) => r.right > tableRight + 0.5)) outside.push('past the table');
+				return outside;
+			});
+		await expect.poll(paintedOutside).toEqual([]);
+	});
 });
