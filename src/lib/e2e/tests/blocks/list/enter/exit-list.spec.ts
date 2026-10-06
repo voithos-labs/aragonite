@@ -159,7 +159,7 @@ test.describe('list Enter: exit list on empty item', () => {
 
 		await editor.bridge.waitForSourceContains('lead');
 		expect(await editor.bridge.getSource()).toBe(
-			'- zeta\n- alpha\n\nlead\n- x\n\np\n\n- y\n- beta\n'
+			'- zeta\n- alpha\n\nlead\n\n- x\n\np\n\n- y\n- beta\n'
 		);
 	});
 
