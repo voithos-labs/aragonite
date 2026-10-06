@@ -1,6 +1,6 @@
 # Feature: Prose keyboard shortcuts
 
-Covers in-prose keyboard shortcuts: literal tab insertion, where a heading-level conversion leaves the caret, and Escape for collapsing a live cross-block selection. What the hard break and the heading levels write is pinned at the unit level.
+Covers in-prose keyboard shortcuts: literal tab insertion at a caret and Tab over a selection, where a heading-level conversion leaves the caret, and Escape for collapsing a live cross-block selection. What the hard break and the heading levels write is pinned at the unit level.
 
 ## Happy paths
 

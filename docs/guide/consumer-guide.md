@@ -491,7 +491,6 @@ events.on('error', (err) => err);
 
 - A construct with no content (a bare `# `, an empty fence) keeps its markers dimmed so the block stays visible and editable, and the first character of content folds them away.
 - A keystroke that turns its block into another kind (a tab that makes a code block, `# ` that makes a heading) names the new kind at the block's corner for a moment, and a screen reader hears it once. The preview modes do the same.
-- A hard line break whose backslash or trailing spaces don't show draws a dimmed `↵` where they are.
 
 Three things behave differently from what the screen might suggest:
 
@@ -786,7 +785,7 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Indent / outdent a list item        | `Tab` / `Shift+Tab`                                                             |
 | Check / uncheck a task item         | `Mod+Enter`                                                                     |
 | Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                             |
-| Insert a tab in prose               | `Tab`                                                                           |
+| Insert a tab in prose               | `Tab` (at a caret; over a selection it does nothing)                            |
 | Indent / outdent a selection        | `Tab` / `Shift+Tab` (its list items and code lines)                             |
 | Undo                                | `Mod+Z`                                                                         |
 | Redo                                | `Mod+Y` or `Mod+Shift+Z`                                                        |
