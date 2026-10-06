@@ -1,6 +1,6 @@
 /**
- * Home in a text block whose first line opens behind its text, after a container's marker (`- `,
- * `> `) or before a leading widget, where the browser's own line start lands outside the text.
+ * Home in a text block whose first line starts behind a marker (`- `, `- [ ] `, `[^1]: `) or a
+ * leading widget, where the browser's own line start lands outside the text.
  * Home and Shift+Home go to the start of the caret's line; only on the first line does the editor
  * place that start itself.
  */

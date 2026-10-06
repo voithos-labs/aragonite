@@ -123,7 +123,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
 		keys: [],
-		note: 'The modifier reads are pointer reads, a Shift-press that extends rather than drags from a widget and the widget activation click: no keystroke is consumed.'
+		note: 'Its modifier reads are on pointer events (Shift extends a selection instead of dragging a widget, and a click activates a widget), so it consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/text/home-key.ts',
