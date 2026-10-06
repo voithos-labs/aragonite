@@ -67,29 +67,39 @@ test.describe('list Enter: ordered numbering', () => {
 		await editor.bridge.waitForSource((s) => !s.includes('three'));
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^3\. four$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^1\. one$/m);
-		expect(source).toMatch(/^2\. two$/m);
-		expect(source).toMatch(/^3\. four$/m);
-		expect(source).not.toMatch(/^4\. four$/m);
-		expect(source).not.toMatch(/^1\. four$/m);
+		expect(await editor.bridge.getSource()).toBe('1. one\n2. two\n\n\n3. four\n');
 	});
 
-	test('ordered: double-Enter at end of middle item exits with continuous numbering', async () => {
-		await editor.loadContent('1. one\n2. two\n3. three\n');
-		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
-		await second.click();
-		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceMatches(/^4\. three$/m);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSource((s) => /^3\. three$/m.test(s) && !/^4\. three$/m.test(s));
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^1\. one$/m);
-		expect(source).toMatch(/^2\. two$/m);
-		expect(source).toMatch(/^3\. three$/m);
-		expect(source).not.toMatch(/^4\. three$/m);
-	});
+	// The exit's empty paragraph is itself a blank line, so it and the list below share one.
+	for (const [where, source, exited, typed] of [
+		[
+			'',
+			'1. one\n2. two\n3. three\n',
+			'1. one\n2. two\n\n\n3. three\n',
+			'1. one\n2. two\n\nlead\n\n3. three\n'
+		],
+		[
+			' in a quote',
+			'> 1. one\n> 2. two\n> 3. three\n',
+			'> 1. one\n> 2. two\n>\n>\n> 3. three\n',
+			'> 1. one\n> 2. two\n>\n> lead\n>\n> 3. three\n'
+		]
+	]) {
+		test(`ordered: double-Enter at end of middle item exits with continuous numbering${where}`, async () => {
+			await editor.loadContent(source);
+			const second = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
+			await second.click();
+			await editor.page.keyboard.press('End');
+			await editor.page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceMatches(/^(> )?4\. three$/m);
+			await editor.page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceMatches(/^(> )?3\. three$/m);
+			expect(await editor.bridge.getSource()).toBe(exited);
+			await editor.typeText('lead');
+			await editor.bridge.waitForSourceContains('lead');
+			expect(await editor.bridge.getSource()).toBe(typed);
+		});
+	}
 
 	test('ordered: Enter at end of last item in loose list appends continuing item', async () => {
 		await editor.loadContent('1. one\n2. two\n\n3. three\n');

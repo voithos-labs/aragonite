@@ -806,11 +806,13 @@ Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
 Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
-unwrap of a list's first item and its merge of a middle item move blocks between levels, never past
-each other. Each one reads the leaf text of the list it rewrites, in order and whitespace aside,
-before and after the move, and dev warns when the two differ. A merge rewrites the two lines it
-joins (a live-mode join can drop markers), so its check reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
-run by `tree-operations/list/item-moves.ts` and `tree-operations/list/unwrap-merge.ts` ·
+unwrap of a list's first item and its merge of a middle item, and Enter in an empty item of an outermost list
+move blocks between levels, never past each other. Each one reads the leaf text of the list it
+rewrites, in order and whitespace aside, before and after the move, and dev warns when the two
+differ. A merge rewrites the two lines it joins (a live-mode join can drop markers), so its check
+reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
+run by `tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap
+and the Enter exit, G4.123) and `tree-operations/list/unwrap-merge.ts` (the merge) ·
 `test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
 presses the moves over loose, ordered, quoted and side-by-side lists.
 
@@ -1152,6 +1154,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
 | G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
+| G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 
 ### The entries
 
@@ -2263,6 +2266,16 @@ report with its imports. Two directory cycles are still in it, {`core`, `schema`
 from `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up
 there is a cycle no behavior test notices. An import the scan can't resolve to a file fails too,
 so nothing drops out of the graph unseen. `lint/directory-layering.test.ts`.
+
+**G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a list's
+first item and Enter in an empty item of an outermost list both dissolve the item, and both split its children
+through `tree-operations/list/item-partition.ts` :: `dissolveItem`, which runs the split inside
+G1.61's check. A route with a split of its own can put the children in another order with no
+warning. Three rows in `lint/file-rules.test.ts` hold it: the splitter, `itemPiecesInOrder`, is called
+in that module only, and every call sits inside a `keepingListOrder(…)` call. The third catches a
+splitter under another name. Rebuilding the list around a dissolved item takes
+`tree-operations/list/list-builders.ts` :: `assembleListHalf`, and only `dissolveItem`'s module and the paste
+break-out call it (a paste splits the list around what it pastes, and no item dissolves there).
 
 ## Accessibility
 

@@ -1985,8 +1985,89 @@ const RANGE_PAINT: FileRule = {
 	]
 };
 
+// ── G4.123 a dissolving list item's children leave it under the order check ──
+
+const DISSOLVE_HOME = 'src/lib/tree-operations/list/item-partition.ts';
+const ROGUE_DISSOLVE = 'src/lib/tree-operations/list/rogue.ts';
+const PIECE_SPLIT = /(?<![\w.])(?<!function\s+)itemPiecesInOrder\s*\(/g;
+
+/** Whether the file splits an item's children anywhere outside a `keepingListOrder(…)` call. */
+function splitsOutsideOrderCheck(file: SourceFile): boolean {
+	const checked = [...file.code.matchAll(/(?<![\w.])keepingListOrder\s*\(/g)].map((call) => {
+		const from = call.index + call[0].length;
+		return [from, from + (balancedCall(file.code, from)?.length ?? 0)];
+	});
+	return [...file.code.matchAll(PIECE_SPLIT)].some(
+		(split) => !checked.some(([from, to]) => split.index >= from && split.index < to)
+	);
+}
+
+const ITEM_PIECES: ManifestRule[] = [
+	{
+		id: 'G4.123 an item’s children are split in the dissolve module only',
+		matches: new RegExp(PIECE_SPLIT.source),
+		declared: {
+			[DISSOLVE_HOME]: '`dissolveItem`, which the first-item unwrap and the Enter exit both call'
+		},
+		reason:
+			'a second route that splits a dissolving item’s children drifts from the first, and the two routes read the same item’s children out in different orders: call `dissolveItem`',
+		hits: [at(ROGUE_DISSOLVE, 'const pieces = itemPiecesInOrder(item.children, false);')],
+		misses: [
+			at(ROGUE_DISSOLVE, 'const { blocks } = dissolveItem(list, 1);'),
+			at(ROGUE_DISSOLVE, 'function itemPiecesInOrder(children, ordered) {}')
+		]
+	},
+	{
+		id: 'G4.123 a list is rebuilt around a dissolved item in the dissolve module only',
+		population: under(SOURCE_DIR.library),
+		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
+		declared: {
+			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
+			'src/lib/tree-operations/paste/list-break-out.ts':
+				'a paste splits the list around the pasted blocks, and no item dissolves'
+		},
+		reason:
+			'a route that dissolves an item has to rebuild the list around it, and one that does so outside `dissolveItem` splits the item’s children its own way: call `dissolveItem`',
+		hits: [
+			at(ROGUE_DISSOLVE, 'blocks.push(assembleListHalf(list, firstHalfItems, base));'),
+			at(ROGUE_DISSOLVE, 'const half = assembleListHalf(list, secondHalfItems, start);')
+		],
+		misses: [
+			at(ROGUE_DISSOLVE, "import { assembleListHalf } from './list-builders';"),
+			at(ROGUE_DISSOLVE, 'export function assembleListHalf(template, items, start) {}')
+		]
+	}
+];
+
+const PIECES_UNDER_ORDER_CHECK: FileRule = {
+	id: 'G4.123 an item’s children are split inside the list order check only',
+	population: under(SOURCE_DIR.library),
+	matches: splitsOutsideOrderCheck,
+	reaches: [DISSOLVE_HOME],
+	reason:
+		'a split outside `keepingListOrder` can put the children out of reading order and no dev warning fires: wrap the split and the assembly in it',
+	hits: [
+		at(ROGUE_DISSOLVE, 'return assemble(itemPiecesInOrder(children, ordered));'),
+		at(
+			ROGUE_DISSOLVE,
+			'keepingListOrder(read, () => blocks);\nconst pieces = itemPiecesInOrder(children, false);'
+		)
+	],
+	misses: [
+		at(
+			ROGUE_DISSOLVE,
+			'return keepingListOrder(\n\t() => leafTexts([list]),\n\t() => assemble(itemPiecesInOrder(children, ordered))\n);'
+		),
+		at(ROGUE_DISSOLVE, 'function itemPiecesInOrder(children, ordered) {}')
+	]
+};
+
 const SOURCES = collectEditorSources();
-describeFileRules([...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE, RANGE_PAINT], SOURCES);
+describeFileRules(
+	[...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE, RANGE_PAINT, PIECES_UNDER_ORDER_CHECK],
+	SOURCES
+);
+describeManifests(ITEM_PIECES, SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);

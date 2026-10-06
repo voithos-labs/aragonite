@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The keys that move list items (Tab, Shift+Tab, Backspace at an item's start, Enter in an empty
-// nested item) never change the order the text reads in.
+// item, nested or not) never change the order the text reads in.
 // Miss-analysis: the property drew one tight bullet list, so no loose list, ordered list,
 // paragraph after a sublist, second list or quoted list ever met a move.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
@@ -9,6 +9,7 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import {
 	installLayoutStubs,
 	mountEditor,
+	pressKeyAt,
 	surfaceAt,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
@@ -151,7 +152,8 @@ function find(doc: Document, token: string): Found | null {
 type Press =
 	| { kind: 'tab'; from: number; span: number; shift: boolean }
 	| { kind: 'backspace'; at: number }
-	| { kind: 'enter' };
+	| { kind: 'enter' }
+	| { kind: 'exit'; at: number };
 
 const arbPress: fc.Arbitrary<Press> = fc.oneof(
 	{
@@ -165,7 +167,8 @@ const arbPress: fc.Arbitrary<Press> = fc.oneof(
 		})
 	},
 	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('backspace' as const), at: fc.nat() }) },
-	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('enter' as const) }) }
+	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('enter' as const) }) },
+	{ weight: 1, arbitrary: fc.record({ kind: fc.constant('exit' as const), at: fc.nat() }) }
 );
 
 /** Places the caret or the range a press asks for and presses its key, or skips a press that has
@@ -179,6 +182,7 @@ async function press(editor: MountedEditor<Seam>, step: Press, order: string[]):
 	let focus: Found | null;
 	let focusToken: string;
 	let key: KeyboardEventInit;
+	if (step.kind === 'exit') return exitTopLevelItem(editor, doc, items, step.at);
 	if (step.kind === 'tab') {
 		const from = order.indexOf(items[step.from % items.length]);
 		focusToken = order[Math.min(from + step.span, order.length - 1)];
@@ -208,6 +212,30 @@ async function press(editor: MountedEditor<Seam>, step: Press, order: string[]):
 	});
 	await editor.settle();
 	await pressKey(surfaceAt(editor, focus.path), key);
+}
+
+/** Enter at the end of a top-level item's text hands what the item holds after it to a new empty
+ *  item, and Enter there leaves the list with all of it. */
+async function exitTopLevelItem(
+	editor: MountedEditor<Seam>,
+	doc: Document,
+	items: string[],
+	at: number
+): Promise<void> {
+	const token = items
+		.filter((t) => t !== 'E')
+		.find((t, i, all) => {
+			const found = find(doc, t);
+			return found?.depth === 1 && i >= at % all.length;
+		});
+	const found = token && find(doc, token);
+	if (!found) return;
+	// A caret ends the range the last press kept, which Enter would otherwise replace.
+	const caret = { path: found.path, offset: found.offset };
+	await editor.instance.setSelection({ anchor: caret, focus: caret });
+	await editor.settle();
+	await pressKeyAt(editor, found.path, found.offset + token.length, { key: 'Enter' });
+	await pressKeyAt(editor, found.path.with(-2, found.path.at(-2)! + 1), 0, { key: 'Enter' });
 }
 
 describe('the keys that move list items keep the order the text reads in', () => {

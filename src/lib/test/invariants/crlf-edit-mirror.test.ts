@@ -144,7 +144,7 @@ const GESTURES: EditGesture[] = [
 	},
 	{
 		name: 'list exit minting the paragraph below the list',
-		source: '- a\n- b\n',
+		source: '- a\n- \n',
 		apply: (doc) =>
 			serializeNodes(buildExitReplacement(doc.children[0], 1, documentLineEnding(doc)).blocks)
 	},

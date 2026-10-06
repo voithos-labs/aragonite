@@ -1,7 +1,7 @@
 /**
- * G1.61: a list move (Tab nesting an item, a lift out of a sublist, Backspace unwrapping a list's
- * first item or merging a middle one) reads the same text in the same order before and after. Each
- * move reads the list it rewrites; a merge reads around the two lines its join rewrites.
+ * G1.61: every list move, the Enter that leaves a list included, reads the same text in the same
+ * order before and after. Each move reads the list it rewrites; a merge reads around the two lines
+ * its join rewrites.
  */
 
 import { assertInvariant, type InvariantViolation } from '../assert';

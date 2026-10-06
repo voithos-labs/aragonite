@@ -85,14 +85,18 @@ export function clearRedundantSeparator(
 }
 
 /**
- * A blank block is itself a blank line, so it and its follower share one separator (G2.13). The
- * follower's is kept, so filling the blank block later still finds the follower separated.
+ * A blank block is itself a blank line, so it and its follower share one separator (G2.13): true
+ * when both hold one. The follower's is the one kept, so filling the blank block still finds it.
  */
+export function doublesSeparator(children: readonly NodeView[], index: number): boolean {
+	const node = children[index];
+	if (!node || node.leadingTrivia === '' || !isBlankParagraph(node)) return false;
+	return (children[index + 1]?.leadingTrivia ?? '') !== '';
+}
+
+/** Drops the blank block's own separator where it doubles its follower's. */
 export function dropDoubledSeparator(body: BodyParent, index: number, sharing: SharingState): void {
-	const node = body.children[index];
-	if (!node || node.leadingTrivia === '' || !isBlankParagraph(node)) return;
-	if ((body.children[index + 1]?.leadingTrivia ?? '') === '') return;
-	writeSeparator(body, index, '', sharing);
+	if (doublesSeparator(body.children, index)) writeSeparator(body, index, '', sharing);
 }
 
 /**
