@@ -2230,13 +2230,13 @@ outside those copy functions, the visible-selection copy and the menu's paste ev
 listed by function.
 
 **G4.116 · The pending break hears a key first.** Shift+Enter at the end of a text block opens a
-line and writes nothing; Backspace and ArrowLeft end that line before the caret moves
-(`components/blocks/text/pending-break-keys.ts`). The shared keymap's edge step also takes a plain
-ArrowLeft at a hidden construct edge; if it took the key first, the line would stay open and the
-next key would write a break the user had already stepped away from. No key sequence reaches
-that today (Shift+Enter resets the caret's side), so the order itself is the guard.
-`lint/pending-break-key-order.test.ts` fails when `TextEditableBlock.svelte`'s keydown calls the
-shared keymap before it asks the pending break.
+line and writes nothing; Backspace and ArrowLeft take that line back and stop at the end of the
+text above (`components/blocks/text/pending-break-keys.ts`). The shared keymap has its own answer
+for ArrowLeft at the text's start, the move up to the block before, so in an empty paragraph it
+would leave with the line still open. The behavior rows in
+`e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
+`lint/pending-break-key-order.test.ts` pins the order as well: it fails when
+`TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
 
 ## Accessibility
 

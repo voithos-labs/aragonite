@@ -1,11 +1,11 @@
 # Presentation: Shift+Enter at the end of a block
 
-Shift+Enter at the end of a block opens an empty line under the text, with the caret on it and a
-dimmed return glyph after the text, in every mode that edits. Nothing is written yet. A hard break
-in Markdown is a backslash at the end of a line, and a backslash with no next line is just a
-backslash, so the break's bytes go in with the first thing that lands on the new line, whichever
-way it arrives. Anything else (a click elsewhere, a caret key, the block losing focus) drops the
-line and leaves the bytes alone.
+Shift+Enter at the end of a block opens an empty line under the text, with the caret on it, in
+every mode that edits. Nothing is written yet. A hard break in Markdown is a backslash at the end
+of a line, and a backslash with no next line is just a backslash, so the break's bytes go in with
+the first thing that lands on the new line, whichever way it arrives. Anything else (a click
+elsewhere, a caret key that takes the caret off the line, the block losing focus) drops the line
+and leaves the bytes alone.
 
 Miss-analysis: the break used to be written straight away as a trailing backslash and read back
 from the bytes, and every test typed a letter after it through the key route. So nobody saw that a
