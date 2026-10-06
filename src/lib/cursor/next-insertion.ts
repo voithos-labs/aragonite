@@ -19,13 +19,12 @@ export interface SpentEdit extends TextEdit {
 	kept?: boolean;
 }
 
-/** One kind of record, as the caret memory holds it. */
+/** One kind of record. It never asks whether a write holds it: `createInsertionRecords` does. */
 export interface InsertionRecord {
-	/** Hold the record left in `block` for one write; null when none waits there. A held record
-	 *  stays in effect (drawn, and deaf to `end`) until its hold lets go of it. */
+	/** The record left in `block`, for one write to spend; null when none waits there. */
 	take(block: object): InsertionSpend | null;
-	/** Drop the record unless a write holds it. */
-	end(): void;
+	/** Drop the record, or only the one left in `block` when a block is named. */
+	end(block?: object): void;
 }
 
 /** A record held for one write. */
@@ -34,7 +33,7 @@ export interface InsertionSpend {
 	readonly at: number;
 	/** `edit` with the record's bytes in it when it inserts at `at` in `before`, else null. */
 	apply(before: string, edit: TextEdit): SpentEdit | null;
-	/** Let go: `waiting` leaves the record for the next insertion, otherwise it ends. */
+	/** The hold let go: `waiting` leaves the record for the next insertion, otherwise it ends. */
 	release(waiting: boolean): void;
 }
 
@@ -53,37 +52,55 @@ export interface HeldInsertion {
 	finish(changed: boolean): void;
 }
 
-export function holdInsertion(
-	records: readonly InsertionRecord[],
-	block: object,
-	side: EdgeAffinity | null
-): HeldInsertion {
-	const held = records.flatMap((record) => {
-		const spend = record.take(block);
-		return spend ? [{ spend, state: 'held' as 'held' | 'kept' | 'done' }] : [];
-	});
-	return {
-		empty: held.length === 0,
-		side,
-		waitsAt: (offset) => held.some((h) => h.state === 'held' && h.spend.at === offset),
-		spend: (before, edit) => {
-			let out = edit;
-			for (const h of held) {
-				if (h.state !== 'held') continue;
-				const spent = h.spend.apply(before, out);
-				if (spent?.kept) h.state = 'kept';
-				else {
-					h.spend.release(false);
-					h.state = 'done';
+/** The caret memory's records, and which of them a write holds right now. */
+export interface InsertionRecords {
+	hold(block: object, side: EdgeAffinity | null): HeldInsertion;
+	/** Ends `record` (every record when omitted), in `block` when one is named. A record a write
+	 *  holds stays in effect, drawn and spendable, until that hold lets go of it. */
+	end(record?: InsertionRecord, block?: object): void;
+}
+
+export function createInsertionRecords(records: readonly InsertionRecord[]): InsertionRecords {
+	const holding = new Set<InsertionRecord>();
+
+	function hold(block: object, side: EdgeAffinity | null): HeldInsertion {
+		const held = records.flatMap((record) => {
+			const spend = holding.has(record) ? null : record.take(block);
+			if (!spend) return [];
+			holding.add(record);
+			return [{ record, spend, state: 'held' as 'held' | 'kept' | 'done' }];
+		});
+		const release = (h: (typeof held)[number], waiting: boolean) => {
+			holding.delete(h.record);
+			h.spend.release(waiting);
+			h.state = 'done';
+		};
+		return {
+			empty: held.length === 0,
+			side,
+			waitsAt: (offset) => held.some((h) => h.state === 'held' && h.spend.at === offset),
+			spend: (before, edit) => {
+				let out = edit;
+				for (const h of held) {
+					if (h.state !== 'held') continue;
+					const spent = h.spend.apply(before, out);
+					if (spent?.kept) h.state = 'kept';
+					else release(h, false);
+					if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
 				}
-				if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
+				return out;
+			},
+			finish: (changed) => {
+				for (const h of held) if (h.state !== 'done') release(h, h.state === 'kept' || !changed);
 			}
-			return out;
-		},
-		finish: (changed) => {
-			for (const h of held) {
-				if (h.state !== 'done') h.spend.release(h.state === 'kept' || !changed);
-				h.state = 'done';
+		};
+	}
+
+	return {
+		hold,
+		end: (record, block) => {
+			for (const each of record ? [record] : records) {
+				if (!holding.has(each)) each.end(block);
 			}
 		}
 	};

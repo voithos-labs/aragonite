@@ -9,7 +9,7 @@ import {
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 import type { PastedImage } from '../../editor-keys';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 const imageFile = (name: string, type = 'image/png'): File =>
 	new File([new Uint8Array([137, 80, 78, 71])], name, { type });
@@ -69,7 +69,7 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 			recordPreEditOffset: () => {},
 			getPreEditOffset: () => 0,
 			getSelection: () => (state.caret === null ? null : { start: state.caret, end: state.caret }),
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		events: {
 			emit: (name: string, payload: unknown) => void (name === 'error' && errors.push(payload))

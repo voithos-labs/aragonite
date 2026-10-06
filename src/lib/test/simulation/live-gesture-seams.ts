@@ -50,7 +50,7 @@ import {
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 import { documentBody } from '$lib/tree-operations/node-primitives';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 export type GestureKind =
 	| 'type'
@@ -393,7 +393,7 @@ async function pressEdgeKey(
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => offset,
 			requestCaret: () => {},
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		}),
 		completeMarker: () => void leaf.blockEdit.completeMarker(leaf.index),
 		setSnapTarget: () => {},

@@ -9,7 +9,7 @@ import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../cursor/caret-memory';
-import { holdInsertion } from '../cursor/next-insertion';
+import { createInsertionRecords } from '../cursor/next-insertion';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
@@ -47,11 +47,9 @@ export function stubCaretMemory(): CaretMemory {
 		side: () => null,
 		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
 		pendingBreak: {
-			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} }),
-			take: () => null,
-			end: () => {}
+			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
 		},
-		holdInsertion: (block) => holdInsertion([], block, null),
+		holdInsertion: (block) => createInsertionRecords([]).hold(block, null),
 		noteKey: () => {},
 		noteTyping: () => {},
 		noteExtreme: () => {},

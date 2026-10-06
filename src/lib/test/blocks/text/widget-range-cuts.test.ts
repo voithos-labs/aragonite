@@ -35,7 +35,7 @@ import {
 	mountIslandBlock,
 	mountSurface
 } from './edge-policy-fixture';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 const LIVE = fixtureReading({}, 'live');
 const IMAGE = 'x **![a](b.png)** y\n';
@@ -123,7 +123,7 @@ function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 			recordPreEditOffset: () => {},
 			getPreEditOffset: () => 0,
 			getSelection: () => null,
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		pasteOffset: (caret: number) => caret,
 		selection,
