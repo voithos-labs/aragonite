@@ -64,8 +64,6 @@ export interface InsertionSpend {
 
 /** Every record left in one block, held together for one write. */
 export interface HeldInsertion {
-	/** True when nothing was held and the block moves no insertion, so the write can skip both. */
-	readonly empty: boolean;
 	/** The caret's side as the records were held, for a route that forgets the memory first. */
 	readonly side: EdgeAffinity | null;
 	/** Whether a record waits for an insertion at `offset`. */
@@ -118,7 +116,6 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 			return out;
 		};
 		return {
-			empty: held.length === 0 && place === undefined,
 			side,
 			waitsAt,
 			spend: (before, edit, caret) => {

@@ -68,20 +68,20 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		// Held through every write: a typed one spends it, a write that changes nothing leaves it
 		// waiting, and any other write ends it.
 		const held = write.held ?? deps.holdInsertion();
-		const display = held.empty ? null : trimTrailingLineEnding(node.raw);
+		const display = trimTrailingLineEnding(node.raw);
 		const changed = write.text !== display;
-		// The caret the input began at, which can sit across a hidden run from where the text went.
+		// The caret the input began at: undo puts it back, and the browser can have put the text
+		// across a hidden run from it.
+		const began = write.sessionAnchor ?? deps.getPreEditOffset();
 		const spend = (text: string): TextEdit =>
-			write.inPlace
-				? held.spendInPlace(text, write)
-				: held.spend(text, write, deps.getPreEditOffset());
-		const edit = typed && display !== null && changed ? spend(display) : write;
+			write.inPlace ? held.spendInPlace(text, write) : held.spend(text, write, began);
+		const edit = typed && changed ? spend(display) : write;
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.
 			withOwnEnding(node, edit.text),
 			write.mode,
-			write.sessionAnchor ?? deps.getPreEditOffset(),
+			began,
 			edit.caretAfter
 		);
 		held.finish(changed);

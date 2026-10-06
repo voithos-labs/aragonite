@@ -82,7 +82,7 @@ describe('a hold on the records', () => {
 		records.end();
 		records.end(record, BLOCK);
 		expect(state.waiting).toBe(true);
-		expect(records.hold(BLOCK, null).empty).toBe(true);
+		expect(records.hold(BLOCK, null).waitsAt(2)).toBe(false);
 
 		held.finish(true);
 		expect(state.waiting).toBe(false);
