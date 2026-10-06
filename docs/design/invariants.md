@@ -2251,8 +2251,11 @@ would leave with the line still open. The behavior rows in
 first item and Enter in an empty top-level item both dissolve the item, and both split its children
 through `tree-operations/list/item-partition.ts` :: `dissolveItem`, which runs the split inside
 G1.61's check. A route with a split of its own can put the children in another order with no
-warning. Two rows in `lint/file-rules.test.ts` hold it: the splitter, `itemPiecesInOrder`, is called
-in that module only, and every call sits inside a `keepingListOrder(…)` call.
+warning. Three rows in `lint/file-rules.test.ts` hold it: the splitter, `itemPiecesInOrder`, is called
+in that module only, and every call sits inside a `keepingListOrder(…)` call. The third catches a
+splitter under another name. Rebuilding the list around a dissolved item takes
+`tree-operations/list/list-builders.ts` :: `assembleListHalf`, and only `dissolveItem`'s module and the paste
+break-out call it (a paste splits the list around what it pastes, and no item dissolves there).
 
 ## Accessibility
 

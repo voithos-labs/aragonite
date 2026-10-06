@@ -2014,6 +2014,26 @@ const ITEM_PIECES: ManifestRule[] = [
 			at(ROGUE_DISSOLVE, 'const { blocks } = dissolveItem(list, 1);'),
 			at(ROGUE_DISSOLVE, 'function itemPiecesInOrder(children, ordered) {}')
 		]
+	},
+	{
+		id: 'G4.123 a list is rebuilt around a dissolved item in the dissolve module only',
+		population: under('src/lib/'),
+		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
+		declared: {
+			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
+			'src/lib/tree-operations/paste/list-break-out.ts':
+				'a paste splits the list around the pasted blocks, and no item dissolves'
+		},
+		reason:
+			'a route that dissolves an item has to rebuild the list around it, and one that does so outside `dissolveItem` splits the item’s children its own way: call `dissolveItem`',
+		hits: [
+			at(ROGUE_DISSOLVE, 'blocks.push(assembleListHalf(list, firstHalfItems, base));'),
+			at(ROGUE_DISSOLVE, 'const half = assembleListHalf(list, secondHalfItems, start);')
+		],
+		misses: [
+			at(ROGUE_DISSOLVE, "import { assembleListHalf } from './list-builders';"),
+			at(ROGUE_DISSOLVE, 'export function assembleListHalf(template, items, start) {}')
+		]
 	}
 ];
 
