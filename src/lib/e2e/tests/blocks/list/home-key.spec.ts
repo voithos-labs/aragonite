@@ -71,6 +71,19 @@ for (const mode of ['source', 'live'] as const) {
 			expect(await selectedText(page)).toBe('e.g.');
 		});
 
+		test('Shift+Home with a selection from the first line moves only its end', async ({ page }) => {
+			const ep = await enterPresentationMode(page, mode, BROKEN);
+			await clickWordSettled(ep, page, 'def');
+			await landAt(ep, page, 5);
+			await page.keyboard.press('Shift+ArrowDown');
+			await page.keyboard.press('Shift+End');
+
+			await page.keyboard.press('Shift+Home');
+			await ep.waitForRenderFlush();
+			expect(await anchorOffset(ep)).toBe(5);
+			expect(await focusOffset(ep)).toBe(SECOND_LINE);
+		});
+
 		test('on the first line still stops after the marker', async ({ page }) => {
 			const ep = await enterPresentationMode(page, mode, BROKEN);
 			await clickWordSettled(ep, page, 'def');

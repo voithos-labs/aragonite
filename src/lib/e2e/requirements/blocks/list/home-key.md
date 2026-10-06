@@ -22,5 +22,7 @@ start are the same place, so a Home that always went to the item's start passed 
 ## User interactions
 
 - Shift+Home from the end of `e.g.` selects exactly `e.g.`.
+- With a selection already running from `abc d` on the first line to the end of `e.g.`, Shift+Home
+  moves only its end, to the start of `e.g.`: it's the end's line that counts, not the start's.
 - Shift+Home from inside `abc def` on the first line selects back to the text start, and the
   marker isn't part of the selection.
