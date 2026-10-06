@@ -4,6 +4,8 @@
 // commit, and a paste. jsdom inserts nothing itself, so the insert is done here at the DOM caret.
 
 import { settleEditor } from './settle';
+import { surfaceAt, type MountedEditor } from './mount-editor.svelte';
+import { cellAt } from '../blocks/table/mount-table';
 
 export type InsertionRoute =
 	| 'hardware key'
@@ -99,3 +101,20 @@ function insertTextNode(parent: Node, offset: number): Text {
 	parent.insertBefore(node, parent.childNodes[offset] ?? null);
 	return node;
 }
+
+/** The two prose surfaces text is typed into, each holding one `line` at the same offsets: a
+ *  paragraph, and a table cell, which wires the same steps on its own. */
+export const TEXT_HOSTS = [
+	{
+		name: 'a paragraph',
+		source: (line: string) => `${line}\n`,
+		el: (editor: MountedEditor) => surfaceAt(editor, [0]),
+		line: (source: string) => source.replace(/\n$/, '')
+	},
+	{
+		name: 'a table cell',
+		source: (line: string) => `| h |\n| - |\n| ${line} |\n`,
+		el: (editor: MountedEditor) => cellAt(editor, 1, 0),
+		line: (source: string) => /\n\| (.*) \|\n$/.exec(source)?.[1] ?? source
+	}
+];

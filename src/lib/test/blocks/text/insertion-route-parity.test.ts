@@ -12,7 +12,7 @@ import {
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
-import { INSERTION_ROUTES, insertBy } from '$lib/test/harness/insertion-routes';
+import { INSERTION_ROUTES, TEXT_HOSTS, insertBy } from '$lib/test/harness/insertion-routes';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 beforeAll(installLayoutStubs);
@@ -56,22 +56,27 @@ describe.each(INSERTION_ROUTES)('typed by %s', (route) => {
 
 // Chromium aims a key typed past a hidden closer back at its start. Miss-analysis: the keydown
 // wrote every delimiter there, so no row met a `beforeinput` target the caret disagreed with.
-describe('a delimiter whose browser target sits across a hidden run from the caret', () => {
-	it('pairs at the caret', async () => {
-		const { editor, el } = caretIn('x **b** y\n', 5);
-		const target = window.getSelection()!.getRangeAt(0).cloneRange();
-		placeCaret(el, 7);
-		const e = new InputEvent('beforeinput', {
-			inputType: 'insertText',
-			data: '`',
-			bubbles: true,
-			cancelable: true
+describe.each(TEXT_HOSTS)(
+	'a delimiter aimed across a hidden run from the caret, in $name',
+	(host) => {
+		it('pairs at the caret', async () => {
+			const editor = mountEditor({ source: host.source('x **b** y'), presentationMode: 'live' });
+			const el = host.el(editor);
+			placeCaret(el, 5);
+			const target = window.getSelection()!.getRangeAt(0).cloneRange();
+			placeCaret(el, 7);
+			const e = new InputEvent('beforeinput', {
+				inputType: 'insertText',
+				data: '`',
+				bubbles: true,
+				cancelable: true
+			});
+			Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
+
+			el.dispatchEvent(e);
+			await editor.settle();
+
+			expect(editor.source()).toMatch(/``/);
 		});
-		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
-
-		el.dispatchEvent(e);
-		await editor.settle();
-
-		expect(editor.source()).toMatch(/``/);
-	});
-});
+	}
+);

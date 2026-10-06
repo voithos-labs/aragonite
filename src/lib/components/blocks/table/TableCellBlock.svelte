@@ -85,7 +85,7 @@
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
 	import { createEdgeStep } from '../text/edge-step';
-	import { createTypedPlacement } from '../text/edge-seat';
+	import { applyTypedInput, createTypedPlacement } from '../text/edge-seat';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -794,10 +794,8 @@
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		// Ahead of the live range edit, which would write a delimiter typed at a collapsed caret as a
-		// lone byte, its partner missing.
-		if (handleDelimiterAutoPair(e)) return;
-		if (handleLiveSelectionEdit(e)) return;
+		const typedSteps = { autoPair: handleDelimiterAutoPair, rangeEdit: handleLiveSelectionEdit };
+		if (applyTypedInput(e, typedSteps)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.

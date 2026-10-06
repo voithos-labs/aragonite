@@ -53,7 +53,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createEdgeStep } from './edge-step';
-	import { createTypedPlacement } from './edge-seat';
+	import { applyTypedInput, createTypedPlacement } from './edge-seat';
 	import { handlePendingBreakKey, type PendingBreakKeyDeps } from './pending-break-keys';
 	import { handleHomeKey, type HomeKeyDeps } from './home-key';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
@@ -954,10 +954,8 @@
 	}
 
 	function onBeforeInput(e: InputEvent): void {
-		// Ahead of the live range edit, which would write a delimiter typed at a collapsed caret as a
-		// lone byte, its partner missing.
-		if (handleDelimiterAutoPair(e)) return;
-		if (handleLiveSelectionEdit(e)) return;
+		const typedSteps = { autoPair: handleDelimiterAutoPair, rangeEdit: handleLiveSelectionEdit };
+		if (applyTypedInput(e, typedSteps)) return;
 		// An `insertLineBreak` from a soft keyboard or IME got past `onKeyDown`: consume it, since
 		// Shift+Enter is what makes a hard break.
 		if (e.inputType === 'insertLineBreak') {

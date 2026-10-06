@@ -12,7 +12,7 @@ import {
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
-import { INSERTION_ROUTES, insertBy } from '$lib/test/harness/insertion-routes';
+import { INSERTION_ROUTES, TEXT_HOSTS, insertBy } from '$lib/test/harness/insertion-routes';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 beforeAll(installLayoutStubs);
@@ -42,6 +42,35 @@ describe.each(['**', '*', '_', '~~'])('a new %s pair', (delimiter) => {
 			expect(editor.source()).toBe(`a ${delimiter}two w${delimiter}\n`);
 		}
 	);
+});
+
+describe.each(TEXT_HOSTS)('a held space in $name', (host) => {
+	async function heldIn() {
+		const editor = mountEditor({ source: host.source('a **two**'), presentationMode: 'live' });
+		const el = host.el(editor);
+		placeCaret(el, 7);
+		await insertBy('hardware key', el, ' ');
+		return { editor, el };
+	}
+
+	it('the next letter takes the space back in', async () => {
+		const { editor, el } = await heldIn();
+		// Past the closer, never inside it, where the bold would show its markers.
+		expect(editor.source()).not.toContain('**two **');
+
+		await insertBy('soft key', el, 'w');
+
+		expect(host.line(editor.source())).toBe('a **two w**');
+	});
+
+	it('one ArrowRight ends it, and the next letter lands outside', async () => {
+		const { editor, el } = await heldIn();
+
+		await pressKey(el, { key: 'ArrowRight' });
+		await insertBy('hardware key', el, 'w');
+
+		expect(host.line(editor.source())).toBe('a **two** w');
+	});
 });
 
 describe('typing on after an existing bold', () => {
