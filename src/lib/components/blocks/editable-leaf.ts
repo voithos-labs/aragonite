@@ -782,7 +782,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			return box ? [box.getBoundingClientRect()] : [];
 		},
 		insertMarkdown: clipboard.insertMarkdown,
-		afterSourceCommit
+		afterSourceCommit,
+		getCommandContext
 	} satisfies EditableLeafBlockApi;
 
 	return {

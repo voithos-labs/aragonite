@@ -35,6 +35,7 @@ import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { clearGridCells, keepsTableEdge, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, unjoinedRangeDelete } from './range-delete-chrome';
+import { removalLanding } from './removal-landing';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -68,13 +69,14 @@ export function rangeDelete(
 	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
 	// the rows, columns or table away, through the table's own structural commits.
 	if (coverage.grid) return clearGridCells(doc, coverage, coverage.grid, sharing, reading);
+	const landing = removalLanding(coverage, 'delete');
 	if (keepsTableEdge(coverage)) {
-		return tableAwareRangeDelete(doc, coverage, sharing, reading);
+		return tableAwareRangeDelete(doc, coverage, sharing, reading, landing);
 	}
 	// Nothing merges across a title-line container's edge, and a range that holds an edge's block
 	// whole has nothing there to merge.
 	if (!coverage.startEdge || !coverage.endEdge || involvesReservedChrome(doc, start, end)) {
-		return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
+		return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture, landing);
 	}
 	return joinedRangeDelete(doc, coverage, sharing, reading);
 }
@@ -88,7 +90,8 @@ export function removeHeldWhole(
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
+	const landing = removalLanding(coverage, 'remove-whole');
+	return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture, landing);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

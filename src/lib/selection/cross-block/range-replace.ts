@@ -16,6 +16,7 @@ import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-d
 import { coverRange, rangeCoverage, type RangeCoverage } from '../range-coverage';
 import { commitGridLineDelete } from '../range-delete-table-coverage';
 import type { RemovalGesture } from '../caret-target';
+import { landingKind, removalLanding, type RangeRemoval } from '../removal-landing';
 import { pathsEqual } from '../path-math';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import {
@@ -34,6 +35,9 @@ import { dispatchKeyCommand } from '../../schema/block-commands';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import { emitClipboardError } from '../../editor-events';
+import { assertInvariant } from '../../assert';
+import { isDevChecks } from '../../env';
+import { checkCommandLanding } from '../../invariants/command-key-landing';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -94,6 +98,14 @@ export async function replaceRange(
 	return outcome;
 }
 
+/** The kind of the block a command key's removal leaves the caret in, read before the removal, so
+ *  the key is claimed by the keymap of the block the command then runs in. */
+export function commandLandingKind(doc: Document, coverage: RangeCoverage): AnyBlockKind {
+	const landing = removalLanding(coverage, STRUCTURAL_REMOVAL[reachOf(coverage)]);
+	// A command key names no gesture of its own, so its removal is keyless (`gestureOf`).
+	return landingKind(doc, coverage, landing, KEYLESS);
+}
+
 /** The kind of the deepest block `path` resolves to; the document root reads as its own kind. */
 export function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 	let node: CstNode | Document = doc;
@@ -124,7 +136,11 @@ async function replaceInStep(
 		return outcome;
 	}
 
-	const [removed, removalLanding] = await ctx.controller.holdLandings(() =>
+	const claimed =
+		insertion.kind === 'command' && isDevChecks()
+			? commandLandingKind(ctx.getDoc(), coverage)
+			: null;
+	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
 		removeRange(ctx, coverage, removal, insertion)
 	);
 	if (!removed.wrote) return 'nothing';
@@ -134,15 +150,21 @@ async function replaceInStep(
 	const at = removed.caret;
 	if (insertion.kind === 'command') {
 		// Before the command runs, since the block reads the caret to run it.
-		await removalLanding?.place();
-		await runCommandAt(ctx, at?.path ?? coverage.range.start.path, insertion.chord);
+		await removalCaret?.place();
+		const path = at?.path ?? coverage.range.start.path;
+		if (claimed) {
+			assertInvariant('command-key-landing', () =>
+				checkCommandLanding(claimed, kindOfPath(path, ctx.getDoc()))
+			);
+		}
+		await runCommandAt(ctx, path, insertion.chord);
 		return 'written';
 	}
 	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
 	const [, insertionLanding] = await ctx.controller.holdLandings(() =>
 		insertAt(ctx, at, insertion, text)
 	);
-	await (insertionLanding ?? removalLanding)?.place();
+	await (insertionLanding ?? removalCaret)?.place();
 	if (text && !at && insertion.kind === 'paste') {
 		// Consumed with nowhere to go: an imported image isn't on the clipboard, so say so.
 		emitClipboardError(ctx.events, {
@@ -171,13 +193,27 @@ type Family = 'structural' | 'content' | 'composition';
  *  a rectangle of its cells, or anything else. */
 type Reach = 'unit' | 'lines' | 'cells' | 'other';
 
-type Removal = 'replace-in-slot' | 'remove-whole' | 'remove-lines' | 'delete';
+type Removal = 'replace-in-slot' | RangeRemoval;
+
+const STRUCTURAL_REMOVAL: Record<Reach, RangeRemoval> = {
+	unit: 'remove-whole',
+	lines: 'remove-lines',
+	cells: 'delete',
+	other: 'delete'
+};
 
 const REMOVAL: Record<Family, Record<Reach, Removal>> = {
-	structural: { unit: 'remove-whole', lines: 'remove-lines', cells: 'delete', other: 'delete' },
+	structural: STRUCTURAL_REMOVAL,
 	content: { unit: 'replace-in-slot', lines: 'delete', cells: 'delete', other: 'delete' },
 	composition: { unit: 'delete', lines: 'delete', cells: 'delete', other: 'delete' }
 };
+
+/** The gesture a removal lands its caret by: a key's own, else a delete no key asked for. */
+function gestureOf(insertion: RangeInsertion): RemovalGesture {
+	return insertion.kind === 'none' ? insertion.gesture : KEYLESS;
+}
+
+const KEYLESS: RemovalGesture = 'keyless';
 
 /** Typing nothing is a keyless delete. */
 function familyOf(insertion: RangeInsertion): Family {
@@ -212,7 +248,7 @@ function removeRange(
 	removal: Exclude<Removal, 'replace-in-slot'>,
 	insertion: RangeInsertion
 ): Promise<Removed> {
-	const gesture = insertion.kind === 'none' ? insertion.gesture : 'keyless';
+	const gesture = gestureOf(insertion);
 	const grid = coverage.grid;
 	if (removal === 'remove-lines' && (grid?.kind === 'row' || grid?.kind === 'column')) {
 		return commitGridLineDelete(ctx, grid).then((caret) => ({ wrote: caret !== null, caret }));
@@ -390,10 +426,16 @@ async function runCommandAt(
 	chord: string
 ): Promise<void> {
 	const target = await ctx.caretLanding.mount(path);
-	if (!target?.runCommand) return;
+	if (!target) return;
 	dispatchKeyCommand(
 		chord,
-		{ kind: kindOfPath(path, ctx.getDoc()), runCommand: target.runCommand, getPath: () => path },
+		{
+			kind: kindOfPath(path, ctx.getDoc()),
+			runCommand: target.runCommand,
+			getCommandContext: target.getCommandContext,
+			getPath: () => path,
+			afterSourceCommit: target.afterSourceCommit
+		},
 		ctx.commands
 	);
 }

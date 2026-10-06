@@ -18,6 +18,7 @@ import {
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	runPluginCommand,
+	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -54,7 +55,12 @@ export interface BlockCommandOptions {
 /** What the focused block supplies; the dispatch adds the argument and the editor context. */
 export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
 
-const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
+interface RegisteredBlockCommand {
+	handler: BlockCommandHandler;
+	options: BlockCommandOptions;
+}
+
+const blockCommands = createPluginRegistry<string, RegisteredBlockCommand>({
 	label: 'registerBlockCommand',
 	isBuiltin: () => false
 });
@@ -74,13 +80,12 @@ export function registerBlockCommand(
 	handler: BlockCommandHandler,
 	options: BlockCommandOptions = {}
 ): PluginCommandId {
-	void options;
 	const key = compositeKey(kind, name);
 	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
 	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
 	blockCommands.register(
 		key,
-		handler,
+		{ handler, options },
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
 	return id;
@@ -92,7 +97,18 @@ export function getBlockCommand(
 	id: AnyCommandId,
 	activation: PluginActivation
 ): BlockCommandHandler | undefined {
-	return blockCommands.get(compositeKey(kind, id), activation);
+	return blockCommands.get(compositeKey(kind, id), activation)?.handler;
+}
+
+/** What a command at `kind` does over a selection spanning blocks: a built-in in
+ *  `AFTER_RANGE_REMOVAL_COMMAND_IDS`, or a plugin command registered with `overRange`. */
+export function commandOverRange(
+	kind: AnyBlockKind,
+	id: AnyCommandId,
+	activation: PluginActivation
+): BlockCommandOptions['overRange'] {
+	if (AFTER_RANGE_REMOVAL_COMMAND_IDS.has(id)) return 'afterRemoval';
+	return blockCommands.get(compositeKey(kind, id), activation)?.options.overRange;
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────

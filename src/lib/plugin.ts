@@ -153,7 +153,11 @@ export type {
 	BlockActionContext,
 	BlockContextActionProvider
 } from './schema/context-actions';
-export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
+export type {
+	BlockCommandContext,
+	BlockCommandHandler,
+	BlockCommandOptions
+} from './schema/block-commands';
 // What a kind's own indent command does over a selection spanning blocks.
 export { registerRangeIndent } from './schema/range-indent-forms';
 export type { RangeLineShift } from './schema/range-indent-forms';

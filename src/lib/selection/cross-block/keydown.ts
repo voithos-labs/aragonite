@@ -4,20 +4,19 @@ import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { kindOfPath, replaceRange } from './range-replace';
+import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
-import { dispatchKeyCommand, type CommandDispatchContext } from '../../schema/block-commands';
 import {
-	AFTER_RANGE_REMOVAL_COMMAND_IDS,
-	bindsAtSomeKind,
-	chordsBoundTo,
-	commandForKey
-} from '../../schema/commands';
+	commandOverRange,
+	dispatchKeyCommand,
+	type CommandDispatchContext
+} from '../../schema/block-commands';
+import { chordsBoundTo, commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import { rangeIndentCommands } from '../../schema/range-indent-forms';
 import {
@@ -229,14 +228,18 @@ async function dispatchOverRange(
 	);
 }
 
-/** A key the keymap binds to a command that runs at a collapsed caret, never over stale block
- *  indices, so over a range it dispatches after the range is removed. */
-export function isCommandCandidateKey(
-	e: KeyboardEvent,
-	reads: Pick<RangeKeyReads, 'commands'>
-): boolean {
+/** A key bound to a command that runs after a range's removal, read in the keymap of the block the
+ *  removal leaves the caret in, where the command then runs. */
+export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	const chord = eventToChord(e);
-	return chord !== null && bindsAtSomeKind(chord, AFTER_RANGE_REMOVAL_COMMAND_IDS, reads.commands);
+	const { anchor, focus } = reads.selection;
+	if (!chord || !anchor || !focus) return false;
+	const doc = reads.getDoc();
+	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
+	const command = commandForKey(e, kind, reads.commands);
+	return (
+		command !== null && commandOverRange(kind, command, reads.commands.activation) !== undefined
+	);
 }
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
@@ -273,12 +276,12 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) return 'rewrite';
 	if (isIndentKey(e, reads)) return 'indent';
-	if (isCommandCandidateKey(e, reads)) return 'command';
 	if (e.shiftKey && isArrowKey(e.key)) return 'extend';
 	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && isArrowKey(e.key))) return 'collapse';
 	if (isSelectAllChord(e)) return 'selectAll';
-	return null;
+	// Last, since it reads the range's coverage: the navigation keys above never need it.
+	return isCommandCandidateKey(e, reads) ? 'command' : null;
 }
 
 /** Backspace and Delete, which remove the range. */
