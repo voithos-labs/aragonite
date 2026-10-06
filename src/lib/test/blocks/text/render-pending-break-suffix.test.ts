@@ -16,13 +16,9 @@ import { hiddenSuffixLength, rawTextOfContent } from '$lib/cursor/widget-offset'
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-/** The block's top-level children in order: text, the suffix span, or a break anchor. Whatever
- *  else the line draws holds no text and is the stylesheet's to show, so it's left out. */
+/** The block's top-level children in order: text, the suffix span, or a break anchor. */
 function shape(el: HTMLElement): string[] {
-	const drawn = [...el.childNodes].filter(
-		(node) => !(node instanceof HTMLElement && node.classList.contains('md-hard-break'))
-	);
-	return drawn.map((node) => {
+	return [...el.childNodes].map((node) => {
 		if (node instanceof HTMLBRElement) return `<br ${node.dataset.caretAnchor ?? ''}>`;
 		if (node instanceof HTMLElement && node.hasAttribute('data-block-suffix')) {
 			return `suffix:${node.textContent}`;
