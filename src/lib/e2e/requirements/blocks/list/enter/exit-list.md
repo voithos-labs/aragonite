@@ -14,7 +14,7 @@ Enter on an item whose first paragraph is empty exits the list. What happens nex
   - Mismatched-type nested lists (e.g. ordered inside unordered) lift out as a separate top-level block
   - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks, and a line typed into the new paragraph stays its own paragraph
 - An empty item holding a sublist, a paragraph and a second sublist: the new paragraph sits where the item's line was, and the sublist items, the paragraph and the second sublist's items follow in the order they read (miss-analysis: every exit row gave the item one kind of child, so nothing read a sublist item against a paragraph after it)
-- The new paragraph is a blank line of its own, so it shares one with what follows instead of adding a second: `1. a / 2. [empty] / 3. b` exits to `1. a`, a blank line, the empty paragraph, `2. b`, at the top level and in a quote, and an empty item holding a paragraph leaves one empty paragraph above it. A reload reads the same blocks the editor shows (miss-analysis: the exit rows asserted bytes only, so a second blank line that reloads as a second empty paragraph read as a plain byte change)
+- An empty paragraph already reads as a blank line, so the exit puts one blank line beside it, not one on each side: `1. a / 2. [empty] / 3. b` exits to `1. a`, a blank line, the empty paragraph, `2. b`, at the top level and in a quote, and an empty item holding a paragraph leaves one empty paragraph above it. A reload reads the same blocks the editor shows (miss-analysis: the exit rows asserted bytes only, so a second blank line that reloads as a second empty paragraph read as a plain byte change)
 
 ## State consistency
 
