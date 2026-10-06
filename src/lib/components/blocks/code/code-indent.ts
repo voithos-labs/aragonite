@@ -76,18 +76,28 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 	};
 }
 
-/** The body lines a range over the fence touches, shifted one step; null when the range holds no
- *  body text or no line changes. Offsets are the block's display text, its raw less the final break. */
-export function shiftBodyLines(
+/** Tab or Shift+Tab in the code block: the lines `range` touches, kept off the fence lines, shift one
+ *  step (a caret's Tab types one); null when nothing changes. Offsets are in the display text. */
+export function shiftCodeLines(
 	node: NodeView,
 	range: Selection,
 	direction: 'indent' | 'dedent'
 ): IndentResult | null {
 	const text = trimTrailingLineEnding(node.raw);
 	const body = clampRangeToBody(node, range);
-	if (body.start === body.end) return null;
 	const result = direction === 'indent' ? indentLines(text, body) : dedentLines(text, body);
 	return result.text === text ? null : result;
+}
+
+/** The same over a range spanning blocks, which shifts only the body lines it covers: a range that
+ *  holds no body text types no tab. */
+export function shiftBodyLines(
+	node: NodeView,
+	range: Selection,
+	direction: 'indent' | 'dedent'
+): IndentResult | null {
+	const body = clampRangeToBody(node, range);
+	return body.start === body.end ? null : shiftCodeLines(node, body, direction);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

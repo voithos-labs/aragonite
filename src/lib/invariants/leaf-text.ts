@@ -1,13 +1,16 @@
 /** Every leaf's text in document order, whitespace aside, for the checks that compare a move's
- *  before and after: a marker renumbered or a line indented reads the same, a moved word doesn't. */
+ *  before and after: a marker renumbered, a line indented or a fence lengthened reads the same, a
+ *  moved word doesn't. */
 
 import type { NodeView } from '../core/node-views';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getContentRange } from '../core/inline';
 
 export function leafTexts(nodes: readonly NodeView[]): string[] {
 	const texts: string[] = [];
 	const walk = (node: NodeView) => {
 		if (node.children) return node.children.forEach(walk);
-		const text = node.raw.replace(/\s+/g, '');
+		const text = textOf(node);
 		if (text) texts.push(text);
 	};
 	nodes.forEach(walk);
@@ -28,10 +31,20 @@ export function leafTextAround(
 		if (node === from) side = 'between';
 		if (node === to) return void (side = 1);
 		if (node.children) return node.children.forEach(walk);
-		if (side !== 'between') texts[side] += node.raw.replace(/\s+/g, '');
+		if (side !== 'between') texts[side] += textOf(node);
 	};
 	nodes.forEach(walk);
 	return texts;
+}
+
+/** A leaf's text as its kind reads it: its write rule's text, else its content span. */
+function textOf(node: NodeView): string {
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	// An unregistered kind has no content span to read, so all of it is text.
+	if (!descriptor) return node.raw.replace(/\s+/g, '');
+	const span = getContentRange(node);
+	const text = descriptor.rawWrite?.text?.(node.raw) ?? node.raw.slice(span.start, span.end);
+	return text.replace(/\s+/g, '');
 }
 
 export function sameTexts(before: readonly string[], after: readonly string[]): boolean {

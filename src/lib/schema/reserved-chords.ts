@@ -287,7 +287,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Delete',
 			'E',
 			'End',
-			'Enter',
 			'Escape',
 			'Home',
 			'I',
@@ -300,7 +299,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'k',
 			'x'
 		],
-		note: 'Mod+0-6 routes to the merged command registry, where that binding lives. The rewrite chords are claimed over a cross-block range and handed to the cross-block dispatch: the four format toggles route to the cross-block handler, and the link card declines, since no single block can hold the link it would create. Falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes a branch of its own: unshifted Mod+X is the whole-block cut.'
+		note: 'Enter and Mod+0-6 are claimed over a range by what the keymap binds them to, not here. The rewrite chords are claimed over a cross-block range and handed to the cross-block dispatch: the four format toggles route to the cross-block handler, and the link card declines, since no single block can hold the link it would create. Falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes a branch of its own: unshifted Mod+X is the whole-block cut.'
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',

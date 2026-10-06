@@ -10,6 +10,7 @@ import type { Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
+import type { RemovalLanding } from './removal-landing';
 import { isChromeChild, nearestChromeContainer, type RangeCoverage } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { comparePaths, pathsEqual } from './path-math';
@@ -49,13 +50,14 @@ export function involvesReservedChrome(
 }
 
 /** Deletes what the range covers with no merge: removes what it holds whole and truncates each kept
- *  edge in place. `gesture` lands the caret when the range keeps neither edge. */
+ *  edge in place. The caret goes where `landing` says, beside a removed block on `gesture`'s side. */
 export function unjoinedRangeDelete(
 	doc: Document,
 	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading,
-	gesture: RemovalGesture
+	gesture: RemovalGesture,
+	landing: RemovalLanding
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = coverage.range;
@@ -103,24 +105,26 @@ export function unjoinedRangeDelete(
 	if (endChain) rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
-	if (seam !== null) {
-		const joinAt = { path: start.path.slice(), offset: seam };
-		return { newDoc: doc, caret: () => joinAt };
+	switch (landing.at) {
+		case 'resume':
+			return { newDoc: doc, caret: (committed) => caretWhereRangeResumes(committed, landing.root) };
+		case 'beside':
+			return {
+				newDoc: doc,
+				caret: (committed) => caretWhereRemoved(committed, landing.root, gesture)
+			};
+		default: {
+			const joinAt = { path: start.path.slice(), offset: seam ?? 0 };
+			return { newDoc: doc, caret: () => joinAt };
+		}
 	}
-	const first = coverage.wholeRoots[0];
-	return {
-		newDoc: doc,
-		caret: endEdge
-			? (committed) => caretWhereRangeResumes(committed, coverage.rootHolding(start.path) ?? first)
-			: (committed) => caretWhereRemoved(committed, first, gesture)
-	};
 }
 
 /** The caret once the block at `path` went, on the side `gesture` points; read on the committed
  *  tree, which holds the block the commit gives an emptied document. */
 export function caretWhereRemoved(
 	committed: DocumentView,
-	path: number[],
+	path: readonly number[],
 	gesture: RemovalGesture
 ): SelectionPoint | null {
 	return caretAt(committed, survivorAfterRemoval(committed, path, gesture));
@@ -130,7 +134,7 @@ export function caretWhereRemoved(
  *  range's end begins, read on the committed tree. */
 export function caretWhereRangeResumes(
 	committed: DocumentView,
-	path: number[]
+	path: readonly number[]
 ): SelectionPoint | null {
 	return caretAt(committed, survivorWhereRangeResumes(committed, path));
 }

@@ -2,18 +2,23 @@
 
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { kindOfPath, replaceRange } from './range-replace';
-import { bindsIndentAt, coversIndentBinding, indentRange, INDENT_COMMANDS } from './range-indent';
+import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
+import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
-import { dispatchKeyCommand, type CommandDispatchContext } from '../../schema/block-commands';
+import {
+	commandOverRange,
+	dispatchKeyCommand,
+	type CommandDispatchContext
+} from '../../schema/block-commands';
 import { chordsBoundTo, commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
+import { rangeIndentCommands } from '../../schema/range-indent-forms';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -197,8 +202,7 @@ function takesIdleTab(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean
 	const sel = window.getSelection();
 	if (!el || !sel || sel.isCollapsed) return false;
 	if (!el.contains(sel.anchorNode) || !el.contains(sel.focusNode)) return false;
-	const commandOf = (node: CstNode) => commandForKey(e, node.kind, ctx.commands);
-	return !bindsIndentAt(ctx.getDoc(), ctx.getMyPath(), commandOf);
+	return !bindsIndentAt(ctx.getDoc(), ctx.getMyPath(), indentFormsFor(e, ctx.commands));
 }
 
 /** Resolves a swallowed format chord against the kind of the block that took the key, as a
@@ -224,12 +228,18 @@ async function dispatchOverRange(
 	);
 }
 
-/** Keys the block-level handler owns, which must run at a collapsed caret rather than over stale
- *  block indices, so they dispatch after the range is removed. */
-export function isCommandCandidateKey(e: KeyboardEvent): boolean {
-	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
-	return false;
+/** A key bound to a command that runs after a range's removal, read in the keymap of the block the
+ *  removal leaves the caret in, where the command then runs. */
+export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const chord = eventToChord(e);
+	const { anchor, focus } = reads.selection;
+	if (!chord || !anchor || !focus) return false;
+	const doc = reads.getDoc();
+	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
+	const command = commandForKey(e, kind, reads.commands);
+	return (
+		command !== null && commandOverRange(kind, command, reads.commands.activation) !== undefined
+	);
 }
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
@@ -266,12 +276,12 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) return 'rewrite';
 	if (isIndentKey(e, reads)) return 'indent';
-	if (isCommandCandidateKey(e)) return 'command';
 	if (e.shiftKey && isArrowKey(e.key)) return 'extend';
 	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && isArrowKey(e.key))) return 'collapse';
 	if (isSelectAllChord(e)) return 'selectAll';
-	return null;
+	// Last, since it reads the range's coverage: the navigation keys above never need it.
+	return isCommandCandidateKey(e, reads) ? 'command' : null;
 }
 
 /** Backspace and Delete, which remove the range. */
@@ -280,22 +290,18 @@ export function isRangeDeleteKey(e: KeyboardEvent): boolean {
 }
 
 /** Tab and Shift+Tab always, so focus never leaves the editor even when nothing indents; any
- *  other key when a block the range covers binds it to an indent command, as `indentRange` reads it. */
+ *  other key when a block the range covers binds it to a command its kind indents a range with. */
 export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	if (isTabKey(e)) return true;
 	const { anchor, focus } = reads.selection;
 	const chord = eventToChord(e);
+	if (!anchor || !focus || !chord) return false;
 	// The range is walked only for a chord some keymap binds to indent; any other key costs nothing.
-	if (!anchor || !focus || !chord || !chordsBoundTo(INDENT_COMMANDS, reads.commands).has(chord)) {
-		return false;
-	}
+	const indents = rangeIndentCommands(reads.commands.activation);
+	if (!chordsBoundTo(indents, reads.commands).has(chord)) return false;
 	const doc = reads.getDoc();
-	const byKind = new Map<string, AnyCommandId | null>();
-	const commandOf = (node: CstNode) => {
-		if (!byKind.has(node.kind)) byKind.set(node.kind, commandForKey(e, node.kind, reads.commands));
-		return byKind.get(node.kind) ?? null;
-	};
-	return coversIndentBinding(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), commandOf);
+	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
+	return coversIndentBinding(doc, coverage, indentFormsFor(e, reads.commands));
 }
 
 /** Tab or Shift+Tab, with no other modifier. */

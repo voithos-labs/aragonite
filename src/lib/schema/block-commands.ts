@@ -18,6 +18,7 @@ import {
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	runPluginCommand,
+	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -45,10 +46,21 @@ export interface BlockCommandContext {
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-/** What the focused block supplies; the dispatch adds the argument and the editor context. */
-export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
+/** How a block command behaves over a selection spanning blocks. `'afterRemoval'`: a key bound to
+ *  it removes the selection, the way Backspace would, then runs it at the caret that's left. */
+export interface BlockCommandOptions {
+	overRange?: 'afterRemoval';
+}
 
-const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
+/** What the focused block supplies; the dispatch adds the argument and the editor context. */
+export type BlockCommandTarget = Omit<BlockCommandContext, 'arg' | 'editor'>;
+
+interface RegisteredBlockCommand {
+	handler: BlockCommandHandler;
+	options: BlockCommandOptions;
+}
+
+const blockCommands = createPluginRegistry<string, RegisteredBlockCommand>({
 	label: 'registerBlockCommand',
 	isBuiltin: () => false
 });
@@ -65,14 +77,15 @@ const MOVE_STEP: Partial<Record<string, -1 | 1>> = { 'block.moveUp': -1, 'block.
 export function registerBlockCommand(
 	kind: AnyBlockKind,
 	name: string,
-	handler: BlockCommandHandler
+	handler: BlockCommandHandler,
+	options: BlockCommandOptions = {}
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
 	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
 	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
 	blockCommands.register(
 		key,
-		handler,
+		{ handler, options },
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
 	return id;
@@ -84,7 +97,18 @@ export function getBlockCommand(
 	id: AnyCommandId,
 	activation: PluginActivation
 ): BlockCommandHandler | undefined {
-	return blockCommands.get(compositeKey(kind, id), activation);
+	return blockCommands.get(compositeKey(kind, id), activation)?.handler;
+}
+
+/** What a command at `kind` does over a selection spanning blocks: a built-in in
+ *  `AFTER_RANGE_REMOVAL_COMMAND_IDS`, or a plugin command registered with `overRange`. */
+export function commandOverRange(
+	kind: AnyBlockKind,
+	id: AnyCommandId,
+	activation: PluginActivation
+): BlockCommandOptions['overRange'] {
+	if (AFTER_RANGE_REMOVAL_COMMAND_IDS.has(id)) return 'afterRemoval';
+	return blockCommands.get(compositeKey(kind, id), activation)?.options.overRange;
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────
@@ -137,7 +161,7 @@ export interface KindCommandTarget {
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
-	getCommandContext?(): BlockTargetContext;
+	getCommandContext?(): BlockCommandTarget;
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
@@ -170,7 +194,7 @@ type BlockLocalResolution =
 			tier: 'minted';
 			target: KindCommandTarget;
 			handler: BlockCommandHandler;
-			context: BlockTargetContext;
+			context: BlockCommandTarget;
 			/** The plugin whose setup registered the handler, whose editor context it runs with. */
 			owner: string | null;
 	  }
@@ -344,8 +368,18 @@ export function dispatchKeyCommand(
 	ctx: CommandDispatchContext
 ): boolean {
 	const binding = resolveBinding(chord, target.kind, ctx.keybindingOverrides(), ctx.activation);
-	if (!binding) return false;
+	if (!binding || leftUnderLiveRange(binding.command, target, ctx)) return false;
 	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord');
+}
+
+/** A command meant to run once a range is removed, reached by a key the range didn't claim (the
+ *  block it would land in binds the key otherwise): run here, it would write under the live range. */
+function leftUnderLiveRange(
+	id: AnyCommandId,
+	target: KindCommandTarget,
+	ctx: CommandDispatchContext
+): boolean {
+	return ctx.isCrossBlockRange() && commandOverRange(target.kind, id, ctx.activation) !== undefined;
 }
 
 /** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
@@ -358,6 +392,7 @@ export function dispatchKindCommand(
 	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
 	if (!binding || isReadingMode(ctx.getPresentationMode)) return false;
 	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
+	if (leftUnderLiveRange(binding.command, target, ctx)) return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx);
 }

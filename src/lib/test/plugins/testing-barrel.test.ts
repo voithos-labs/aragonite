@@ -20,6 +20,7 @@ import {
 	registerBlockOpener,
 	registerBlockCompleter,
 	registerBlockCommand,
+	registerRangeIndent,
 	registerBlockContextActions,
 	registerChromeLeaf,
 	registerGlobalCommand,
@@ -48,6 +49,7 @@ import { devWarn } from '$lib/dev-warn';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
 import { getBlockCommand } from '$lib/schema/block-commands';
+import { rangeIndentForm } from '$lib/schema/range-indent-forms';
 import { blockContextActionsFor } from '$lib/schema/context-actions';
 import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -113,6 +115,11 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 		register: () => void registerBlockCommand(block, 'probe.cmd', () => true),
 		registered: () =>
 			getBlockCommand(block, 'probe.cmd' as never, everyInstalledPlugin) !== undefined
+	},
+	{
+		entry: 'registerRangeIndent',
+		register: () => registerRangeIndent(block, 'probe.indent' as never, () => null),
+		registered: () => rangeIndentForm(block, 'probe.indent' as never, everyInstalledPlugin) !== null
 	},
 	{
 		entry: 'registerBlockContextActions',

@@ -22,6 +22,20 @@ describe('G1.58 an indent over a range keeps the text it holds', () => {
 		expect(checkIndentKeepsText(before, textOf('```\none\n\ttwo\n```\n'))).toBeNull();
 	});
 
+	// Miss-analysis: every code row kept the fence's length, so none saw the write rule lengthen it
+	// around a body line that now reads as a closer.
+	it('passes a dedent that lengthens the fence around a closer-like line', () => {
+		const before = textOf('```\none\n    ```\ntwo\n```\n');
+		expect(checkIndentKeepsText(before, textOf('````\none\n```\ntwo\n````\n'))).toBeNull();
+	});
+
+	it('fails a code line that lost its text', () => {
+		const before = textOf('```\none\ntwo\n```\n');
+		expect(checkIndentKeepsText(before, textOf('```\none\n```\n'))?.code).toBe(
+			'range-indent-keeps-text'
+		);
+	});
+
 	it('fails an item that lost its text', () => {
 		expect(checkIndentKeepsText(textOf('- a\n- b\n'), textOf('- a\n-\n'))?.code).toBe(
 			'range-indent-keeps-text'
