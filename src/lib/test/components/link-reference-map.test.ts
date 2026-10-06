@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { advanceSignatureEpoch, lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { advanceSignatureEpoch, lrdMapCouldChange } from '$lib/components/link-reference-map';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import type { EditEvent } from '$lib/editor-events';
 

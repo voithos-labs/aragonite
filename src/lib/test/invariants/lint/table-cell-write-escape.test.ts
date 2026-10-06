@@ -7,8 +7,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const RULE_HOME = 'src/lib/schema/table-cell-raw.ts';
+const RULE_HOME = SOURCE.tableCellEscape;
 
 function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): string[] {
 	return sources

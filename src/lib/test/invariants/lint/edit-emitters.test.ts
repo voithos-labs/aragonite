@@ -1,7 +1,7 @@
 /**
  * G4.107: an `edit` event fires at the write that changed the bytes, so only the writes emit it,
  * never a timer or a batch that outlives them. `input` also means "this write held the block's
- * kind", a premise the LRD signature check (`components/lrd-map-gate.ts`) reads but cannot verify,
+ * kind", a premise the link-reference map check (`components/link-reference-map.ts`) reads but cannot verify,
  * so only the in-place leaf write, whose trial reparse found no kind change, may declare it.
  */
 

@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { collectEditorSources, collectFiles, EDITOR_SRC, ROUTES_SRC } from './scan-source';
 import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
 import { findCommentBlocks } from './comment-lines';
+import { SOURCE_DIR } from './source-paths';
 
 const HOUSE_WORDS = [
 	'seam',
@@ -75,7 +76,7 @@ describe('G4.26 no house word in a comment', () => {
 
 	it('read the library, its tests and the demo routes', () => {
 		expect(sources.length).toBeGreaterThan(1000);
-		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
+		expect(sources.some((f) => f.relPath.startsWith(SOURCE_DIR.routes))).toBe(true);
 	});
 
 	it('no comment under src/lib or src/routes holds a house word', () => {
@@ -109,7 +110,7 @@ describe('G4.26 no house word in a comment', () => {
 
 // ── Requirement files ───────────────────────────────────────────────────────
 
-const REQUIREMENTS = 'src/lib/e2e/requirements';
+const REQUIREMENTS = SOURCE_DIR.e2eRequirements;
 
 /** House words in a requirement file's body text. Headings stay as written (specs and docs
  *  point at them), and code spans and fenced samples are code, not vocabulary. */
@@ -143,7 +144,7 @@ describe('G4.26 requirement files keep house words out of their body text', () =
 	it('no requirement file holds a house word outside its headings and code', () => {
 		const offenders = files
 			.map((f) => ({
-				file: f.slice(REQUIREMENTS.length + 1),
+				file: f.slice(REQUIREMENTS.length),
 				hits: countHouseWordsInRequirement(readFileSync(f, 'utf8'))
 			}))
 			.filter((row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file));

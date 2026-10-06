@@ -6,9 +6,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources, readEditorFile } from './scan-source';
+import { collectEditorSources, readSource } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
-const PLUGIN_ROOTS = [path.resolve('src/lib/plugins'), path.resolve('src/routes/test/plugins')];
+const PLUGIN_ROOTS = [path.resolve(SOURCE_DIR.plugins), path.resolve(SOURCE_DIR.referencePlugins)];
 
 /** Tokens a `var(--x)` read references, ignoring any inline fallback. */
 function readsIn(code: string): string[] {
@@ -45,7 +46,7 @@ describe('plugin CSS ownership: the scan collected the plugin components', () =>
 
 describe('plugin CSS ownership: every var() read resolves to a real token', () => {
 	it('no read falls outside editor-theme.css and the plugin-local declarations', () => {
-		const themeTokens = new Set(declsIn(readEditorFile('styles/editor-theme.css').code));
+		const themeTokens = new Set(declsIn(readSource(SOURCE.themeTokens).code));
 		const sources = pluginComponentSources();
 		// Local declarations pool tree-wide, not per file: custom properties cascade from
 		// ancestors.

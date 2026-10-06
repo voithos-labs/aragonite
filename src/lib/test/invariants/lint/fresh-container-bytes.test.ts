@@ -13,6 +13,7 @@ import {
 	type SourceFile
 } from './scan-source';
 import { describeFileRules, under, type FileRule } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Whether the file holds an object literal with both an empty `raw` and a `children` key. */
 function hasEmptyContainerLiteral(file: SourceFile): boolean {
@@ -33,7 +34,7 @@ function objectLiteralAround(code: string, at: number, classes: Uint8Array): str
 const RULES: FileRule[] = [
 	{
 		id: 'G4.109 a container built around existing children starts from its source’s bytes',
-		population: under('src/lib/tree-operations/', 'src/lib/editor-actions/', 'src/lib/selection/'),
+		population: under(SOURCE_DIR.treeOperations, SOURCE_DIR.editorActions, SOURCE_DIR.selection),
 		matches: hasEmptyContainerLiteral,
 		allowed: {
 			'src/lib/tree-operations/list/list-builders.ts':
@@ -48,7 +49,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a container built around children that came from another has an empty `raw`, so its first rebuild respells every line: start it from the source container’s `raw`, or allow it here with why it is new',
-		reaches: ['src/lib/tree-operations/blockquote.ts'],
+		reaches: [SOURCE.blockquoteOps],
 		hits: [
 			{
 				relPath: 'src/lib/tree-operations/x.ts',

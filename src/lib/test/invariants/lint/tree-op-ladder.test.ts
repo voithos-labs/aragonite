@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, importSpecifiers } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
 /** Lowest level first: a file may import only the levels below its own. */
 const LADDER = [
@@ -21,7 +22,8 @@ const LADDER = [
 
 type Rung = (typeof LADDER)[number];
 
-const LAYER_DIR = 'src/lib/tree-operations/';
+const LAYER_DIR = SOURCE_DIR.treeOperations;
+const FULL_SPECIFIER = new RegExp(`/${LAYER_DIR.split('/').at(-2)}/([\\w-]+)$`);
 
 /** The level a listed file sits at, or -1 for every other file. */
 function rungOfFile(relPath: string): number {
@@ -32,7 +34,7 @@ function rungOfFile(relPath: string): number {
 
 /** The level a specifier names (a sibling `./name`, or a full `tree-operations/name`), or -1. */
 function rungOfSpecifier(spec: string): number {
-	const name = /^\.\/([\w-]+)$/.exec(spec)?.[1] ?? /\/tree-operations\/([\w-]+)$/.exec(spec)?.[1];
+	const name = /^\.\/([\w-]+)$/.exec(spec)?.[1] ?? FULL_SPECIFIER.exec(spec)?.[1];
 	return name === undefined ? -1 : LADDER.indexOf(name as Rung);
 }
 

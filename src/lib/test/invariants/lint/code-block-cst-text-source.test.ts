@@ -6,9 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const CODE_BLOCK = 'components/blocks/code/CodeBlock.svelte';
+const CODE_BLOCK = SOURCE.codeBlockComponent;
 // `.textContent` in any position except the left side of an assignment.
 const TEXT_CONTENT_READ = /\.textContent\b(?!\s*=(?!=))/;
 
@@ -17,7 +18,7 @@ function textContentReads(code: string): string[] {
 }
 
 describe('CodeBlock takes its edit text from the CST, not the DOM', () => {
-	const { code } = readEditorFile(CODE_BLOCK);
+	const { code } = readSource(CODE_BLOCK);
 
 	it('read the CodeBlock source and found the paths this guard covers', () => {
 		expect(code.length).toBeGreaterThan(0);

@@ -6,9 +6,10 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, resolveSpecifier } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
-const LIB = 'src/lib';
+const LIB = SOURCE_DIR.library.slice(0, -1);
 const DIST = './dist/';
 
 // Type-only edges erase before bundling, so they cannot put a barrel in a chunk cycle.
@@ -31,22 +32,7 @@ function entryModules(): string[] {
 
 // ── The module graph ─────────────────────────────────────────────────────────
 
-function resolveSpecifier(fromRelPath: string, specifier: string): string | null {
-	let base: string;
-	if (specifier === '$lib') base = `${LIB}/index`;
-	else if (specifier.startsWith('$lib/')) base = `${LIB}/${specifier.slice('$lib/'.length)}`;
-	else if (specifier.startsWith('.'))
-		base = path.posix.normalize(path.posix.join(path.posix.dirname(fromRelPath), specifier));
-	else return null;
-
-	for (const candidate of [base, `${base}.ts`, `${base}.svelte`, `${base}/index.ts`]) {
-		if (!candidate.endsWith('.ts') && !candidate.endsWith('.svelte')) continue;
-		if (existsSync(path.resolve(candidate))) return candidate;
-	}
-	return null;
-}
-
-// Library-scoped, not repo-wide: only `src/lib` holds modules a published entry can reach.
+// Library-scoped, not repo-wide: only the library holds modules a published entry can reach.
 function buildGraph(): Map<string, string[]> {
 	const graph = new Map<string, string[]>();
 	for (const file of collectEditorSources(EDITOR_SRC)) {
@@ -89,9 +75,9 @@ describe('published entry barrels are import sinks', () => {
 	const graph = buildGraph();
 
 	it('found the entry points and their import graph', () => {
-		expect(entries).toContain(`${LIB}/plugin.ts`);
-		expect(entries).toContain(`${LIB}/index.ts`);
-		expect(graph.get(`${LIB}/plugin.ts`)?.length ?? 0).toBeGreaterThan(0);
+		expect(entries).toContain(SOURCE.pluginBarrel);
+		expect(entries).toContain(SOURCE.publicBarrel);
+		expect(graph.get(SOURCE.pluginBarrel)?.length ?? 0).toBeGreaterThan(0);
 	});
 
 	it.each(entries)('%s is imported by nothing it imports', (entry) => {
@@ -102,7 +88,7 @@ describe('published entry barrels are import sinks', () => {
 // ── Self-tests (non-vacuity) ─────────────────────────────────────────────────
 
 describe('entry-barrel sink: classifier non-vacuity', () => {
-	const entry = `${LIB}/plugin.ts`;
+	const entry = SOURCE.pluginBarrel;
 
 	it('reports a back edge however deep in the closure it sits', () => {
 		const graph = new Map([
@@ -120,16 +106,5 @@ describe('entry-barrel sink: classifier non-vacuity', () => {
 			['b.ts', ['a.ts']]
 		]);
 		expect(backEdgesInto(graph, entry)).toEqual([]);
-	});
-
-	it('resolves the specifier spellings the library actually writes', () => {
-		expect(resolveSpecifier(`${LIB}/x.ts`, '$lib/plugin')).toBe(`${LIB}/plugin.ts`);
-		expect(resolveSpecifier(`${LIB}/x.ts`, '$lib/components/BlockList.svelte')).toBe(
-			`${LIB}/components/BlockList.svelte`
-		);
-		expect(resolveSpecifier(`${LIB}/core/inline/x.ts`, './index')).toBe(
-			`${LIB}/core/inline/index.ts`
-		);
-		expect(resolveSpecifier(`${LIB}/x.ts`, 'svelte')).toBeNull();
 	});
 });

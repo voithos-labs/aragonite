@@ -6,13 +6,18 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { collectFiles } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
 const ROOT = path.resolve('.');
 const CATALOG = 'docs/design/virtual-rendering.md';
 
 /** Excluded from the citation set: this file's fixtures name tags the catalog must not carry. */
-const SELF = 'src/lib/test/invariants/lint/vr-tag-census.test.ts';
+const SELF = path
+	.relative(ROOT, fileURLToPath(import.meta.url))
+	.split(path.sep)
+	.join('/');
 
 /** Tags are cited from windowing code, styles, unit tests and e2e requirement files alike. */
 const CITING_EXTENSIONS = ['.ts', '.svelte', '.css', '.md'];
@@ -33,7 +38,7 @@ function citations(relPaths: string[]): Map<string, string[]> {
 }
 
 /** Stops at `src/`: the catalog's own prose names its retired numbers (VR-7, VR-10, VR-13). */
-const scanned = collectFiles('src', { extensions: CITING_EXTENSIONS });
+const scanned = collectFiles(SOURCE_DIR.sourceTree, { extensions: CITING_EXTENSIONS });
 const cited = citations(scanned.filter((rel) => rel !== SELF));
 
 // ── The catalog ──────────────────────────────────────────────────────────────

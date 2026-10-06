@@ -8,6 +8,7 @@
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './reactivity/child-list';
+import type { AnyCommandId } from './schema/command-id';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -256,13 +257,13 @@ export interface BlockComponent {
 	 * fixed argument as `unknown`, so the handler must check its shape and ignore anything
 	 * unexpected. False lets the caller fall through to later keydown branches.
 	 */
-	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
+	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
 	/**
 	 * Whether the command's toggle reads on at this block's own caret or selection: the read
 	 * a toolbar paints a pressed state from. Absent, or an id with no toggle state, reads
 	 * inactive.
 	 */
-	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
+	isCommandActive?(id: AnyCommandId): boolean;
 	/**
 	 * Run `run` once this block's shown widget source, which lives in the DOM only, is written
 	 * back. A block that never shows one omits it; a command from outside the block waits on it.

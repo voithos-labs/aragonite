@@ -21,11 +21,13 @@ import {
 	rawAssignments,
 	regexLiteralAt,
 	REPO_WIDE_ROOTS,
+	resolveSpecifier,
 	sourceFile,
 	splitTopLevel,
 	stringLiteralAt,
 	stripComments
 } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 describe('repo-wide scan roots', () => {
 	const sources = collectEditorSources();
@@ -33,9 +35,9 @@ describe('repo-wide scan roots', () => {
 
 	it('reaches all three roots, none of them empty', () => {
 		const byRoot = {
-			library: paths.filter((p) => p.startsWith('src/lib/')),
-			referencePlugins: paths.filter((p) => p.startsWith('src/routes/test/plugins/')),
-			consumerExample: paths.filter((p) => p.startsWith('examples/consumer/src/'))
+			library: paths.filter((p) => p.startsWith(SOURCE_DIR.library)),
+			referencePlugins: paths.filter((p) => p.startsWith(SOURCE_DIR.referencePlugins)),
+			consumerExample: paths.filter((p) => p.startsWith(SOURCE_DIR.consumerExample))
 		};
 		for (const [root, hits] of Object.entries(byRoot)) {
 			expect(hits.length, `repo-wide scan reached no file under ${root}`).toBeGreaterThan(0);
@@ -46,10 +48,10 @@ describe('repo-wide scan roots', () => {
 	});
 
 	it('sees the reference plugin the external-author rules are modelled on', () => {
-		expect(paths).toContain('src/routes/test/plugins/callout/callout-kind.ts');
+		expect(paths).toContain(SOURCE.calloutReferenceKind);
 		// The synced copy under examples/consumer/src/plugins is generated and absent on a
 		// fresh checkout; the consumer root is pinned through a tracked file instead.
-		expect(paths).toContain('examples/consumer/src/plugin-probe.ts');
+		expect(paths).toContain(SOURCE.consumerPluginProbe);
 	});
 
 	it('collects each file exactly once (no root nested inside another)', () => {
@@ -59,13 +61,15 @@ describe('repo-wide scan roots', () => {
 	it('an explicit root narrows the scan (the opt-out lints rely on this)', () => {
 		const libraryOnly = collectEditorSources(EDITOR_SRC).map((f) => f.relPath);
 		expect(libraryOnly.length).toBeLessThan(paths.length);
-		expect(libraryOnly.every((p) => p.startsWith('src/lib/'))).toBe(true);
+		expect(libraryOnly.every((p) => p.startsWith(SOURCE_DIR.library))).toBe(true);
 	});
 
 	it('excludes test, e2e, and declaration files from every root', () => {
-		// `src/routes/test/plugins` is itself a root, so its own `test` segment is
-		// expected; what must not appear is a `test`/`e2e` directory below a root.
-		const belowRoot = paths.map((p) => p.replace(/^src\/routes\/test\/plugins\//, ''));
+		// The reference plugins root has its own `test` segment; what must not appear is a
+		// `test`/`e2e` directory below a root.
+		const belowRoot = paths.map((p) =>
+			p.startsWith(SOURCE_DIR.referencePlugins) ? p.slice(SOURCE_DIR.referencePlugins.length) : p
+		);
 		expect(belowRoot.filter((p) => /(^|\/)(test|e2e)\//.test(p))).toEqual([]);
 		expect(paths.filter((p) => p.endsWith('.d.ts'))).toEqual([]);
 	});
@@ -107,13 +111,32 @@ describe('importSpecifiers', () => {
 			"export type * from './reexport-types';"
 		].join('\n');
 		expect(specifiers(code)).toEqual([
-			{ specifier: './static', kind: 'static' },
-			{ specifier: '$lib/types', kind: 'static' },
-			{ specifier: './side-effect.css', kind: 'side-effect' },
-			{ specifier: './dynamic', kind: 'dynamic' },
-			{ specifier: './reexport', kind: 'reexport' },
-			{ specifier: './reexport-types', kind: 'reexport' }
+			{ specifier: './static', kind: 'static', typeOnly: false },
+			{ specifier: '$lib/types', kind: 'static', typeOnly: true },
+			{ specifier: './side-effect.css', kind: 'side-effect', typeOnly: false },
+			{ specifier: './dynamic', kind: 'dynamic', typeOnly: false },
+			{ specifier: './reexport', kind: 'reexport', typeOnly: false },
+			{ specifier: './reexport-types', kind: 'reexport', typeOnly: true }
 		]);
+	});
+
+	it('marks only a whole-statement type import as type-only', () => {
+		const typeOnly = (code: string) => specifiers(code).map((found) => found.typeOnly);
+		expect(typeOnly("import type { X } from './a';\nexport type { Y } from './b';")).toEqual([
+			true,
+			true
+		]);
+		// An inline `type` keeps the statement, which still loads the module.
+		expect(typeOnly("import { type X } from './a';")).toEqual([false]);
+		expect(typeOnly("import type from './a';")).toEqual([false]);
+	});
+
+	it('marks an `import()` in a type position type-only, and a loading one not', () => {
+		const typeOnly = (code: string) => specifiers(code).map((found) => found.typeOnly);
+		expect(typeOnly("let id: import('./a').CommandId;")).toEqual([true]);
+		expect(typeOnly("let e: Promise<typeof import('./a')>;")).toEqual([true]);
+		expect(typeOnly("const m = await import('./a');")).toEqual([false]);
+		expect(typeOnly("import('./a').then((m) => m.run());")).toEqual([false]);
 	});
 
 	it('reads no import inside a template literal or a comment', () => {
@@ -133,6 +156,33 @@ describe('importSpecifiers', () => {
 			"\t@import 'theme.css';"
 		].join('\n');
 		expect(specifiers(code)).toEqual([]);
+	});
+});
+
+describe('resolveSpecifier', () => {
+	const from = `${SOURCE_DIR.library}x.ts`;
+
+	it('resolves the spellings the library writes', () => {
+		expect(resolveSpecifier(from, '$lib/plugin')).toBe(SOURCE.pluginBarrel);
+		expect(resolveSpecifier(from, '$lib')).toBe(SOURCE.publicBarrel);
+		expect(resolveSpecifier(from, './env')).toBe(SOURCE.envFlags);
+		expect(
+			resolveSpecifier(from, `$lib/${SOURCE.blockList.slice(SOURCE_DIR.library.length)}`)
+		).toBe(SOURCE.blockList);
+		expect(resolveSpecifier(`${SOURCE_DIR.treeOperations}x.ts`, '.')).toBe(
+			SOURCE.treeOperationsBarrel
+		);
+	});
+
+	it('reads a `.svelte.ts` module by its `.svelte` name, and drops a query suffix', () => {
+		const layout = SOURCE.layoutState.slice(SOURCE_DIR.library.length, -'.ts'.length);
+		expect(resolveSpecifier(from, `$lib/${layout}`)).toBe(SOURCE.layoutState);
+		expect(resolveSpecifier(from, './env?raw')).toBe(SOURCE.envFlags);
+	});
+
+	it('returns null for a package and for a path with no file behind it', () => {
+		expect(resolveSpecifier(from, 'svelte')).toBeNull();
+		expect(resolveSpecifier(from, './no-such-module')).toBeNull();
 	});
 });
 
@@ -306,10 +356,10 @@ describe('literal values', () => {
 
 describe('collectFiles', () => {
 	it('lists matching files under a root as sorted repo paths, and never enters a skipped name', () => {
-		const lint = collectFiles('src/lib/test/invariants', { extensions: ['.ts'], skip: ['lint'] });
+		const lint = collectFiles(SOURCE_DIR.invariantTests, { extensions: ['.ts'], skip: ['lint'] });
 		expect(lint.length).toBeGreaterThan(0);
 		expect(lint).toEqual([...lint].sort());
-		expect(lint.every((f) => f.startsWith('src/lib/test/invariants/') && f.endsWith('.ts'))).toBe(
+		expect(lint.every((f) => f.startsWith(SOURCE_DIR.invariantTests) && f.endsWith('.ts'))).toBe(
 			true
 		);
 		expect(lint.some((f) => f.includes('/lint/'))).toBe(false);

@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, walkCode } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
 /** A menu's root element: the shared menu class (its rows are `md-menu-item`) or a popup role. */
 const MENU_ELEMENT_RE = /class="md-menu["\s]|role="(?:menu|listbox|dialog)"/;
@@ -76,8 +77,8 @@ describe('G4.67 every editor menu counts itself on menuChange and hands over its
 	const sources = collectEditorSources().filter(
 		(file) =>
 			file.relPath.endsWith('.svelte') &&
-			(file.relPath.startsWith('src/lib/components/') ||
-				file.relPath.startsWith('src/lib/plugins/'))
+			(file.relPath.startsWith(SOURCE_DIR.components) ||
+				file.relPath.startsWith(SOURCE_DIR.plugins))
 	);
 
 	it('inspected the menu components', () => {

@@ -1151,6 +1151,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
+| G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
 
 ### The entries
 
@@ -1266,8 +1267,8 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
-barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, the tree-operations layer
-rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers
+through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
 which skips strings, templates and comments, so an import quoted in an example is no edge.
 `lint/plugin-import-boundary.test.ts`.
 
@@ -2169,7 +2170,7 @@ so the range indent (`selection/cross-block/range-indent.ts`) opens its own step
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
 later, since a held one fires against whatever document is there by then (the write gate refuses
 a write made for a swapped-out document, `editor.md` § The commit primitive). The typing batch only groups undo steps and has no way to emit. `input` also promises the
-block kept its kind, which `components/lrd-map-gate.ts` relies on and can't check, so only the
+block kept its kind, which `components/link-reference-map.ts` relies on and can't check, so only the
 in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
 it. `lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere
 else, a second one beside an allowed one, or a second `input` declaration fails it.
@@ -2246,6 +2247,22 @@ would leave with the line still open. The behavior rows in
 `e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
 `lint/pending-break-key-order.test.ts` pins the order as well: it fails when
 `TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
+
+**G4.122 · The directory import graph.** Every production import under `src/lib` goes into a graph
+whose nodes are the top-level directories, plus each root file (`assert.ts`, `index.ts`, ...) as a
+node of its own. A pair joined only by `import type` (or an `import('x')` written in a type) is
+kept apart from one where something loads at runtime, since a type-only edge just means a shared
+type sits too high. The scan holds that graph to the edges listed in
+`lint/directory-layering-baseline.ts`. A new edge fails and the red names the imports behind it;
+a listed edge that's gone fails until its line is deleted. What the scan can't do is refuse a
+line someone adds, so that's a reviewer's job, and in a slice that moves files the baseline's
+diff may only rename nodes along the move map: any other new line gets named in the slice's
+report with its imports. Two directory cycles are still in it, {`core`, `schema`, `cursor`,
+`invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
+`ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports
+from `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up
+there is a cycle no behavior test notices. An import the scan can't resolve to a file fails too,
+so nothing drops out of the graph unseen. `lint/directory-layering.test.ts`.
 
 ## Accessibility
 

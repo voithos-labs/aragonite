@@ -55,7 +55,7 @@
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
+	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver

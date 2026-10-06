@@ -14,12 +14,13 @@ import {
 	stripComments,
 	type SourceFile
 } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const READERS_HOME = 'src/lib/tree-operations/node-primitives.ts';
-const CONTENT_WRITE = 'src/lib/tree-operations/content-write.ts';
+const READERS_HOME = SOURCE.nodePrimitives;
+const CONTENT_WRITE = SOURCE.contentWrite;
 
 /** The fence rule has one implementation, which only the kinds' write rules reach. */
-const FENCE_HOME = 'src/lib/schema/fenced-code-raw.ts';
+const FENCE_HOME = SOURCE.fenceRule;
 
 /** Every site sizing a fence run over a body, which is a wider set than the write rule. */
 const ESCALATION_SITES: Record<string, string> = {

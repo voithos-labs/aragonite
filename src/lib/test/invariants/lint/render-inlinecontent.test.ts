@@ -6,12 +6,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedRegion, readEditorFile, sourceFile, type SourceFile } from './scan-source';
+import { balancedRegion, readSource, sourceFile, type SourceFile } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const RENDER_DOM_FILE = 'components/blocks/text/text-render.ts';
-const TEXT_BLOCK_FILE = 'components/blocks/text/TextEditableBlock.svelte';
-const CELL_RENDER_FILE = 'components/blocks/table/cell-render.ts';
-const CELL_BLOCK_FILE = 'components/blocks/table/TableCellBlock.svelte';
+const RENDER_DOM_FILE = SOURCE.textRender;
+const TEXT_BLOCK_FILE = SOURCE.textBlockComponent;
+const CELL_RENDER_FILE = SOURCE.cellRender;
+const CELL_BLOCK_FILE = SOURCE.tableCell;
 
 function callsCachingAccessor(code: string): boolean {
 	return /\bgetInlineContent\b/.test(code);
@@ -36,13 +37,13 @@ export function extractRenderEffect(
 
 describe('G4.2 render path computes inline, never the caching accessor', () => {
 	it('text-render.ts (whole render DOM-build file) does not call getInlineContent', () => {
-		const file = readEditorFile(RENDER_DOM_FILE);
+		const file = readSource(RENDER_DOM_FILE);
 		expect(file.text.length).toBeGreaterThan(0);
 		expect(callsCachingAccessor(file.code)).toBe(false);
 	});
 
 	it('TextEditableBlock render $effect does not call getInlineContent', () => {
-		const file = readEditorFile(TEXT_BLOCK_FILE);
+		const file = readSource(TEXT_BLOCK_FILE);
 		const effect = extractRenderEffect(file);
 		// Fail loud if the anchor vanished: a silent pass leaves the render path unguarded.
 		expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
@@ -50,13 +51,13 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 	});
 
 	it('cell-render.ts (whole render DOM-build file) does not call getInlineContent', () => {
-		const file = readEditorFile(CELL_RENDER_FILE);
+		const file = readSource(CELL_RENDER_FILE);
 		expect(file.text.length).toBeGreaterThan(0);
 		expect(callsCachingAccessor(file.code)).toBe(false);
 	});
 
 	it('TableCellBlock render $effect does not call getInlineContent', () => {
-		const file = readEditorFile(CELL_BLOCK_FILE);
+		const file = readSource(CELL_BLOCK_FILE);
 		const effect = extractRenderEffect(file, 'cellRender.render');
 		expect(effect, 'cell render $effect anchor "cellRender.render" not found').not.toBeNull();
 		expect(callsCachingAccessor(effect!)).toBe(false);

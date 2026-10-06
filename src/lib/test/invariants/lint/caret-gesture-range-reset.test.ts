@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
+import { SOURCE } from './source-paths';
 
 /** The range reset (the pointerdown preamble) a caret-placing click runs first. */
 const RESET_RE = /\bresetForPointerDown\s*\(/;
@@ -34,13 +35,10 @@ const CONTAINER_API_EXPORT_RE =
 type Door = 'reset' | 'delegate' | 'both';
 
 /** Defines the preamble, and binds the mousedown that places a press in a surface's padding. */
-const PREAMBLE_MODULE = 'src/lib/selection/cross-block/pointer.ts';
+const PREAMBLE_MODULE = SOURCE.pointerPreamble;
 
 /** These build the editable element, so a factory call here defines it rather than publishing. */
-const CONTAINER_SEAM_MODULES = [
-	'src/lib/editor-actions/container-block-component.ts',
-	'src/lib/editor-actions/plugin/container.ts'
-];
+const CONTAINER_SEAM_MODULES: string[] = [SOURCE.containerBlockComponent, SOURCE.pluginContainer];
 
 /** Gestures whose caret the browser places, and the call or calls each one has to make. */
 const CARET_GESTURE_DOORS: Record<string, Door> = {
