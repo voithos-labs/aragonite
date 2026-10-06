@@ -27,6 +27,11 @@ DOM and the commit waits for the committed bytes to reach the source.
   (one undo entry: the commit goes through a single content update)
 - a committed multibyte insert in one paragraph survives while an undone commit in
   another is gone
+- Shift+Enter at the end of a paragraph writes nothing, and the source holds byte for
+  byte until the next insertion. That insertion (a composed run, a punctuation key or a
+  paste, one per seed) lands on the new line with the break written ahead of it, and one
+  undo takes back both. Miss-analysis: no session pressed Shift+Enter at a block's end,
+  so the break was only ever followed by a letter typed through the key route (#522)
 
 ## Edge cases
 

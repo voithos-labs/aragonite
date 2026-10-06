@@ -3,8 +3,9 @@ import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { attachIme } from '../../simulation/ime';
-import { makeRng } from '../../simulation/rng';
+import { makeRng, type Rng } from '../../simulation/rng';
 import type { CompositionCase } from '../../simulation/gestures/ime';
+import type { BreakFollow } from '../../simulation/gestures/structure';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
@@ -24,6 +25,15 @@ const COMPOSITIONS: readonly CompositionCase[] = [
 	{ updates: ['に', 'にほ', 'にほん'], commit: '日本' },
 	{ updates: ['あ', 'あい'], commit: '愛' }
 ];
+
+/** The three routes an insertion can take onto the line Shift+Enter opened; each seed runs one. */
+function breakFollows(rng: Rng): BreakFollow[] {
+	return [
+		{ kind: 'composed', composition: rng.pick(COMPOSITIONS) },
+		{ kind: 'key', key: rng.pick(['.', '*', '?']) },
+		{ kind: 'paste', text: rng.pick(['pasted', 'see also']) }
+	];
+}
 
 test.describe('ime-ops simulation', () => {
 	let editor: EditorPage;
@@ -74,6 +84,17 @@ test.describe('ime-ops simulation', () => {
 
 			// The undone commit is gone; the first paragraph's commit survives.
 			expect(await editor.bridge.getSource()).toContain(first.commit);
+
+			// ── Shift+Enter at the second paragraph's end, then one insertion there ──
+			const beforeBreak = await editor.bridge.getSource();
+			await g.breakAtEndThen(1, breakFollows(rng)[(seed - 1) % 3]);
+			await assertCheckpoint(ctx, 'pending-break');
+
+			// One undo takes back the break and what was inserted after it.
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(beforeBreak);
+			ctx.tracker.resync(beforeBreak);
+			await assertCheckpoint(ctx, 'pending-break-undo');
 		});
 	}
 });

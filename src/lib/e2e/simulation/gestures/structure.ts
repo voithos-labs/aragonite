@@ -5,6 +5,7 @@ import {
 	assertStructuralIntegrity,
 	settleTypedSource
 } from '../invariants';
+import type { CompositionCase } from './ime';
 
 /**
  * Structural gestures trigger the editor's own behaviour, so none can be predicted character by
@@ -51,8 +52,8 @@ export async function exitFence(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The only gesture that writes a hard line break inside a paragraph, since Shift+Enter at a block's
- * end leaves a bare trailing backslash. It leaves the caret mid-block, so it is a note's last.
+ * Shift+Enter inside already-typed text, which writes its break at once (at a block's end it waits
+ * for the next insertion: `breakAtEndThen`). It leaves the caret mid-block, so it is a note's last.
  */
 export async function hardBreakAt(
 	ctx: SimContext,
@@ -61,6 +62,57 @@ export async function hardBreakAt(
 ): Promise<void> {
 	await ctx.editor.clickBlockAtPath(blockPath, offset);
 	await actThenResync(ctx, () => ctx.page.keyboard.press('Shift+Enter'));
+}
+
+/** What lands on the line Shift+Enter opened at a block's end. */
+export type BreakFollow =
+	| { kind: 'key'; key: string }
+	| { kind: 'paste'; text: string }
+	| { kind: 'composed'; composition: CompositionCase };
+
+/** Shift+Enter at the end of a plain paragraph writes nothing until the insertion after it, which
+ *  writes the break ahead of itself by whatever route it comes; both halves are checked exactly. */
+export async function breakAtEndThen(
+	ctx: SimContext,
+	blockIndex: number,
+	follow: BreakFollow
+): Promise<void> {
+	const { editor, page, tracker } = ctx;
+	await editor.focusBlockEnd(blockIndex);
+	const before = await editor.bridge.getSource();
+	const text = await editor.getBlockText(blockIndex);
+	const at = before.indexOf(text) + text.length;
+
+	await page.keyboard.press('Shift+Enter');
+	await editor.waitForRenderFlush();
+	const held = await editor.bridge.getSource();
+	if (held !== before) {
+		throw new Error(
+			`[${ctx.label}] Shift+Enter at a block's end wrote bytes before anything was inserted.\n` +
+				`BEFORE: ${JSON.stringify(before)}\nAFTER:  ${JSON.stringify(held)}`
+		);
+	}
+
+	const inserted = await insertOnBreakLine(ctx, follow);
+	const expected = before.slice(0, at) + '\\\n' + inserted + before.slice(at);
+	await settleTypedSource(ctx, expected);
+	tracker.resync(expected);
+}
+
+async function insertOnBreakLine(ctx: SimContext, follow: BreakFollow): Promise<string> {
+	if (follow.kind === 'key') {
+		await ctx.page.keyboard.press(follow.key);
+		return follow.key;
+	}
+	if (follow.kind === 'paste') {
+		await ctx.editor.seedClipboard(follow.text);
+		await ctx.editor.paste();
+		return follow.text;
+	}
+	if (!ctx.ime) throw new Error(`[${ctx.label}] a composed run needs a threaded IME driver`);
+	for (const update of follow.composition.updates) await ctx.ime.compose(update);
+	await ctx.ime.commit(follow.composition.commit);
+	return follow.composition.commit;
 }
 
 /**

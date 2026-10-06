@@ -26,7 +26,9 @@ import {
 	toggleTaskByKeyboard,
 	typeFreshItem,
 	typeFenceOpener,
-	exitFence
+	exitFence,
+	breakAtEndThen,
+	type BreakFollow
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
@@ -756,6 +758,11 @@ export class Gestures {
 
 	composeAbort(blockIndex: number, composition: CompositionCase): Promise<void> {
 		return composeAbort(this.ctx, blockIndex, composition);
+	}
+
+	/** Shift+Enter at the end of a plain paragraph, then a key, a paste or a composed run there. */
+	breakAtEndThen(blockIndex: number, follow: BreakFollow): Promise<void> {
+		return breakAtEndThen(this.ctx, blockIndex, follow);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────
