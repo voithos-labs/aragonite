@@ -268,7 +268,8 @@ test.describe('selection: overlay: mid-text ends reach the line edges', () => {
 				expect(start.rects.length).toBeGreaterThan(0);
 				expect(start.rects[0].left).toBeGreaterThan(1);
 				for (const rect of start.rects) expect(rect.right).toBeGreaterThanOrEqual(start.width - 1);
-				expect(start.rects.at(-1)!.bottom).toBeGreaterThanOrEqual(start.height - 1);
+				const startLines = await glyphLines(page, startPath);
+				expect(start.rects.at(-1)!.bottom).toBeGreaterThanOrEqual(startLines.at(-1)!.bottom);
 
 				// The end takes every line above it, then runs from the left edge to its point.
 				const end = await endpointPaint(page, endPath);
@@ -276,7 +277,7 @@ test.describe('selection: overlay: mid-text ends reach the line edges', () => {
 				const last = end.rects.at(-1)!;
 				expect(last.left).toBeLessThanOrEqual(1);
 				expect(last.right).toBeLessThan(end.width - 1);
-				expect(end.rects[0].top).toBeLessThanOrEqual(1);
+				expect(end.rects[0].top).toBeLessThanOrEqual((await glyphLines(page, endPath))[0].top);
 
 				expect(doubledPaint(await paintedRects(page))).toEqual([]);
 			});
@@ -284,14 +285,28 @@ test.describe('selection: overlay: mid-text ends reach the line edges', () => {
 	}
 });
 
-/** The glyph box of each line the block at `path` paints, in its own box's pixels. */
+/** The painted rects over the words a range leaves out, the line's gap around their letters
+ *  included: 2px of the 2.8px a 25.6px line leaves either side of 20px letters. */
+function paintedOver(painted: Box[], words: Box): Box[] {
+	const top = words.top - 2;
+	const bottom = words.bottom + 2;
+	return painted.filter((rect) => {
+		const w = Math.min(rect.right, words.right) - Math.max(rect.left, words.left);
+		const h = Math.min(rect.bottom, bottom) - Math.max(rect.top, top);
+		return w > 0.5 && h > 0.5;
+	});
+}
+
+/** The glyph box of each line of text the block at `path` paints, in its own box's pixels. */
 async function glyphLines(page: Page, path: number[]): Promise<Box[]> {
 	return page.evaluate((key) => {
 		const host = document.querySelector(`[data-block-path='${key}']`);
 		if (!host) throw new Error(`no block at ${key}`);
 		const box = host.getBoundingClientRect();
 		const rects: DOMRect[] = [];
-		for (const el of [host, ...host.querySelectorAll('*')]) {
+		// The block's editable text only: a code block's language chip is text too.
+		const text = host.querySelector('[contenteditable="true"]') ?? host;
+		for (const el of [text, ...text.querySelectorAll('*')]) {
 			for (const node of el.childNodes) {
 				if (node.nodeType !== Node.TEXT_NODE) continue;
 				const range = document.createRange();
@@ -354,23 +369,23 @@ test.describe('selection: overlay: an end paints its whole line, not its glyphs'
 			// Nothing paints under "In the name of", and the paint from "the Moon" spans the line.
 			const start = await endpointPaint(page, [0, 0]);
 			const [startLine] = await glyphLines(page, [0, 0]);
-			const startX = (await textRunRect(page, 'the Moon', { path: [0, 0] })).left;
-			const startBox = (await page.locator("[data-block-path='[0,0]']").boundingBox())!;
-			for (const rect of start.rects)
-				expect(rect.left).toBeGreaterThanOrEqual(startX - startBox.x - 1);
+			const painted = await paintedRects(page);
+			expect(
+				paintedOver(painted, await textRunRect(page, 'In the name of', { path: [0, 0] }))
+			).toEqual([]);
 			expect(start.rects[0].top).toBeLessThan(startLine.top - 1);
 			expect(start.rects.at(-1)!.bottom).toBeGreaterThan(startLine.bottom + 1);
 
 			// Nothing paints over "ed Sailor Moon!", and the paint up to "nam" spans the line.
 			const end = await endpointPaint(page, [2, 3, 0]);
 			const [endLine] = await glyphLines(page, [2, 3, 0]);
-			const endX = (await textRunRect(page, 'ed Sailor', { path: [2, 3, 0] })).left;
-			const endBox = (await page.locator("[data-block-path='[2,3,0]']").boundingBox())!;
-			for (const rect of end.rects) expect(rect.right).toBeLessThanOrEqual(endX - endBox.x + 1);
+			expect(
+				paintedOver(painted, await textRunRect(page, 'ed Sailor Moon!', { path: [2, 3, 0] }))
+			).toEqual([]);
 			expect(end.rects[0].top).toBeLessThan(endLine.top - 1);
 			expect(end.rects.at(-1)!.bottom).toBeGreaterThan(endLine.bottom + 1);
 
-			expect(doubledPaint(await paintedRects(page))).toEqual([]);
+			expect(doubledPaint(painted)).toEqual([]);
 		});
 
 		test(`${mode}: the lines beside a wrapped end's line begin past its leading`, async ({

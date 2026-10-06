@@ -42,9 +42,9 @@
 
 - An end's own line paints its whole line, the gap above and below the text included, not just
   the height of the letters. A one-line quote you start mid-text paints from the start point to
-  the right edge over the quote's full height, and nothing under the words before the start point;
-  a one-line list item you end mid-text paints from its left edge to the end point the same way,
-  and nothing over the words after it. In a wrapped paragraph the strip under a start's line (or
+  the right edge over the whole line, and nothing anywhere touches the words before the start
+  point or the gap around them; a one-line list item you end mid-text paints from its left edge to
+  the end point the same way, and nothing touches the words after it. In a wrapped paragraph the strip under a start's line (or
   over an end's line) begins past that line's own gap, so no tint touches the unselected words, in
   source mode and in live mode
   - Miss-analysis: the line-edge rows checked only that the paint reached the block's edges, and

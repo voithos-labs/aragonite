@@ -57,8 +57,8 @@ export function mergeRectsPerLine(rects: readonly LocalRect[]): LocalRect[] {
 	return merged;
 }
 
-/** Widens an endpoint block's selected lines to its box's edges, a start rightward and down, an end
- *  leftward and up; its own line spans the line box, and the padding too when it's the last line. */
+/** Widens an endpoint block's selected lines to its box's edges, a start rightward and down to its
+ *  last line, an end leftward and up to its first; each line spans its line box, never the padding. */
 export function reachLineEdges(
 	lines: readonly LocalRect[],
 	side: 'start' | 'end',
@@ -68,31 +68,33 @@ export function reachLineEdges(
 ): LocalRect[] {
 	if (lines.length === 0) return [];
 	const right = lines.reduce((edge, line) => Math.max(edge, line.left + line.width), width);
-	const onlyLine = lines.length === 1;
+	const first = lineBox(lines[0], lineHeight, height);
+	const last = lineBox(lines[lines.length - 1], lineHeight, height);
 	if (side === 'start') {
-		const first = lines[0];
-		const box = lineBox(first, lineHeight, height);
-		const below = onlyLine ? height : box.bottom;
-		const firstLine = {
-			left: first.left,
-			top: box.top,
-			width: right - first.left,
-			height: below - box.top
+		const left = lines[0].left;
+		const startLine = {
+			left,
+			top: first.top,
+			width: right - left,
+			height: first.bottom - first.top
 		};
-		return height > below
-			? [firstLine, { left: 0, top: below, width: right, height: height - below }]
-			: [firstLine];
+		return lines.length === 1
+			? [startLine]
+			: [
+					startLine,
+					{ left: 0, top: first.bottom, width: right, height: last.bottom - first.bottom }
+				];
 	}
-	const last = lines[lines.length - 1];
-	const box = lineBox(last, lineHeight, height);
-	const above = onlyLine ? 0 : box.top;
-	const lastLine = {
+	const end = lines[lines.length - 1];
+	const endLine = {
 		left: 0,
-		top: above,
-		width: last.left + last.width,
-		height: box.bottom - above
+		top: last.top,
+		width: end.left + end.width,
+		height: last.bottom - last.top
 	};
-	return above > 0 ? [{ left: 0, top: 0, width: right, height: above }, lastLine] : [lastLine];
+	return lines.length === 1
+		? [endLine]
+		: [{ left: 0, top: first.top, width: right, height: last.top - first.top }, endLine];
 }
 
 /** The vertical span of `line`'s line box: its glyphs plus the leading `lineHeight` adds, split
@@ -107,4 +109,23 @@ function lineBox(
 		top: Math.max(0, line.top - leading),
 		bottom: Math.min(height, line.top + line.height + leading)
 	};
+}
+
+/** A vertical stretch of the page, in pixels. */
+export interface Band {
+	top: number;
+	bottom: number;
+}
+
+/** The stretches between the first band and the last that no band covers: the space between two
+ *  blocks a range runs through, which paints too so the range reads as one region. */
+export function holesBetween(bands: readonly Band[]): Band[] {
+	const sorted = [...bands].sort((a, b) => a.top - b.top);
+	const holes: Band[] = [];
+	let bottom = sorted.length > 0 ? sorted[0].bottom : 0;
+	for (const band of sorted.slice(1)) {
+		if (band.top > bottom) holes.push({ top: bottom, bottom: band.top });
+		bottom = Math.max(bottom, band.bottom);
+	}
+	return holes;
 }

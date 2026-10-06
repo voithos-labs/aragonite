@@ -4,7 +4,11 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
-import { measurePartialRectsInContentEditable, reachLineEdges } from '../../cursor/overlay-rects';
+import {
+	holesBetween,
+	measurePartialRectsInContentEditable,
+	reachLineEdges
+} from '../../cursor/overlay-rects';
 
 describe('measurePartialRectsInContentEditable', () => {
 	let el: HTMLDivElement;
@@ -41,27 +45,27 @@ describe('reachLineEdges', () => {
 		{ left: 0, top: 31, width: 60, height: 20 }
 	];
 
-	it('runs a start from its point to the right edge over its line box, then takes every line below', () => {
+	it('runs a start from its point to the right edge over its line box, then the lines below', () => {
 		expect(reachLineEdges(LINES, 'start', 500, 56, 26)).toEqual([
 			{ left: 40, top: 2, width: 460, height: 26 },
-			{ left: 0, top: 28, width: 500, height: 28 }
+			{ left: 0, top: 28, width: 500, height: 26 }
 		]);
 	});
 
-	it('takes every line above an end, then runs from the left edge to its point over its line box', () => {
+	it('takes the lines above an end, then runs from the left edge to its point over its line box', () => {
 		expect(reachLineEdges(LINES, 'end', 500, 56, 26)).toEqual([
-			{ left: 0, top: 0, width: 500, height: 28 },
+			{ left: 0, top: 2, width: 500, height: 26 },
 			{ left: 0, top: 28, width: 60, height: 26 }
 		]);
 	});
 
-	it('gives a block’s only line its padding too, so no strip lands beside the unselected text', () => {
+	it('leaves the block’s padding to the paint between blocks', () => {
 		const line = { left: 40, top: 5, width: 100, height: 20 };
 		expect(reachLineEdges([line], 'start', 500, 30, 26)).toEqual([
-			{ left: 40, top: 2, width: 460, height: 28 }
+			{ left: 40, top: 2, width: 460, height: 26 }
 		]);
 		expect(reachLineEdges([line], 'end', 500, 30, 26)).toEqual([
-			{ left: 0, top: 0, width: 140, height: 28 }
+			{ left: 0, top: 2, width: 140, height: 26 }
 		]);
 	});
 
@@ -89,6 +93,13 @@ describe('reachLineEdges', () => {
 		});
 	});
 
+	it('keeps a line box inside its block', () => {
+		const flush = { left: 40, top: 0, width: 100, height: 20 };
+		expect(reachLineEdges([flush], 'start', 500, 20, 26)).toEqual([
+			{ left: 40, top: 0, width: 460, height: 20 }
+		]);
+	});
+
 	// A long code line scrolls past the block's box, and the paint follows it.
 	it('reaches past the box to a line wider than it', () => {
 		const wide = { left: 10, top: 0, width: 900, height: 20 };
@@ -99,5 +110,35 @@ describe('reachLineEdges', () => {
 
 	it('paints nothing where nothing was measured', () => {
 		expect(reachLineEdges([], 'start', 500, 56, 26)).toEqual([]);
+	});
+});
+
+describe('holesBetween', () => {
+	it('returns each stretch between the first band and the last that no band covers', () => {
+		const bands = [
+			{ top: 40, bottom: 60 },
+			{ top: 0, bottom: 26 },
+			{ top: 30, bottom: 45 },
+			{ top: 64, bottom: 90 }
+		];
+		expect(holesBetween(bands)).toEqual([
+			{ top: 26, bottom: 30 },
+			{ top: 60, bottom: 64 }
+		]);
+	});
+
+	it('finds no hole where bands meet edge to edge or nest', () => {
+		expect(
+			holesBetween([
+				{ top: 0, bottom: 100 },
+				{ top: 20, bottom: 40 },
+				{ top: 100, bottom: 120 }
+			])
+		).toEqual([]);
+	});
+
+	it('paints nothing above the first band, below the last, or with nothing painted', () => {
+		expect(holesBetween([{ top: 50, bottom: 60 }])).toEqual([]);
+		expect(holesBetween([])).toEqual([]);
 	});
 });
