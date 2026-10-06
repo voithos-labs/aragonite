@@ -138,13 +138,11 @@ async function replaceInStep(
 		await runCommandAt(ctx, at?.path ?? coverage.range.start.path, insertion.chord);
 		return 'written';
 	}
-	if (
-		insertion.kind === 'text' &&
-		at &&
-		(await typedByBlock(ctx, at, insertion.text, removalLanding))
-	) {
-		return 'written';
-	}
+	const typed =
+		insertion.kind === 'text' && at
+			? await typedByBlock(ctx, at, insertion.text, removalLanding)
+			: null;
+	if (typed) return typed;
 	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
 	const [, insertionLanding] = await ctx.controller.holdLandings(() =>
 		insertAt(ctx, at, insertion, text)
@@ -350,22 +348,23 @@ async function replaceUnit(
 }
 
 /** A character typed over a range is the range's removal, then the write the block makes for a
- *  character typed at its caret (`BlockComponent.typeText`); false where the block has none. */
+ *  character typed at its caret (`BlockComponent.typeText`); null where the block has none. */
 async function typedByBlock(
 	ctx: CrossBlockMutationContext,
 	caret: SelectionPoint,
 	text: string,
 	removalLanding: HeldLanding | null
-): Promise<boolean> {
+): Promise<RangeReplaceOutcome | null> {
 	const block = await ctx.caretLanding.mount(caret.path);
 	const typeText = block?.typeText;
-	if (!typeText) return false;
+	if (!typeText) return null;
 	// Placed first, so the typed write's own caret lands from where the removal left it.
 	await removalLanding?.place();
 	const offset = charOffsetOf(caret, 'range-replace:type');
-	const [, landing] = await ctx.controller.holdLandings(() => typeText(text, offset));
+	const [wrote, landing] = await ctx.controller.holdLandings(() => typeText(text, offset));
 	await landing?.place();
-	return true;
+	// A document swapped in between the removal and the typed write refuses the write.
+	return wrote ? 'written' : 'refused';
 }
 
 /** A paste goes through the paste dispatch, and text into a block with no typing write of its own

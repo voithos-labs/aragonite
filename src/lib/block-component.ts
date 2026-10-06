@@ -348,6 +348,7 @@ export type EditableLeafBlockApi = BlockComponent &
 			| 'setSelection'
 			| 'measurePartialRects'
 			| 'insertMarkdown'
+			| 'typeText'
 			| 'afterSourceCommit'
 		>
 	>;

@@ -345,7 +345,6 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
-	export const typeText = editableSurface.surface.typeText;
 
 	// The chord passes a null `range`, so a cell never creates a link; the pressed state passes
 	// the live selection.
@@ -499,7 +498,8 @@
 			getSelectionOffsets,
 			applyMenuClipboard,
 			snapCaretToPoint,
-			insertMarkdown: clipboard.insertMarkdown
+			insertMarkdown: clipboard.insertMarkdown,
+			typeText: editableSurface.surface.typeText
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, el);
 	});
