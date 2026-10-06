@@ -5,9 +5,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
-	holesBetween,
 	measurePartialRectsInContentEditable,
-	reachLineEdges
+	reachLineEdges,
+	regionGaps
 } from '../../cursor/overlay-rects';
 
 describe('measurePartialRectsInContentEditable', () => {
@@ -113,32 +113,35 @@ describe('reachLineEdges', () => {
 	});
 });
 
-describe('holesBetween', () => {
-	it('returns each stretch between the first band and the last that no band covers', () => {
-		const bands = [
-			{ top: 40, bottom: 60 },
-			{ top: 0, bottom: 26 },
-			{ top: 30, bottom: 45 },
-			{ top: 64, bottom: 90 }
-		];
-		expect(holesBetween(bands)).toEqual([
-			{ top: 26, bottom: 30 },
-			{ top: 60, bottom: 64 }
+describe('regionGaps', () => {
+	// A column from x 0 to 500: a start band from x 120 on its line, a nested box beside a 20px rail,
+	// a 4px margin, then an end band up to x 80.
+	const START = { left: 120, top: 0, right: 500, bottom: 26, endpoint: true };
+	const NESTED = { left: 20, top: 30, right: 500, bottom: 56 };
+	const END = { left: 0, top: 60, right: 80, bottom: 86, endpoint: true };
+
+	it('fills the space between lines and a container’s rail, nothing before the start or after the end', () => {
+		expect(regionGaps([START, NESTED, END], 0, 500)).toEqual([
+			{ left: 0, top: 26, right: 500, bottom: 30 },
+			{ left: 0, top: 30, right: 20, bottom: 56 },
+			{ left: 0, top: 56, right: 500, bottom: 60 }
 		]);
 	});
 
-	it('finds no hole where bands meet edge to edge or nest', () => {
-		expect(
-			holesBetween([
-				{ top: 0, bottom: 100 },
-				{ top: 20, bottom: 40 },
-				{ top: 100, bottom: 120 }
-			])
-		).toEqual([]);
+	it('finds nothing to fill where the paint already spans the column edge to edge', () => {
+		const box = { left: 0, top: 26, right: 500, bottom: 60 };
+		expect(regionGaps([START, box, END], 0, 500)).toEqual([]);
 	});
 
-	it('paints nothing above the first band, below the last, or with nothing painted', () => {
-		expect(holesBetween([{ top: 50, bottom: 60 }])).toEqual([]);
-		expect(holesBetween([])).toEqual([]);
+	it('fills a box’s rail on its first line too, since a box is no start point', () => {
+		const box = { left: 20, top: 0, right: 500, bottom: 26 };
+		expect(regionGaps([box, END], 0, 500)).toEqual([
+			{ left: 0, top: 0, right: 20, bottom: 26 },
+			{ left: 0, top: 26, right: 500, bottom: 60 }
+		]);
+	});
+
+	it('paints nothing with nothing painted', () => {
+		expect(regionGaps([], 0, 500)).toEqual([]);
 	});
 });

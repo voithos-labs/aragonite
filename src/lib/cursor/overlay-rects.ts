@@ -111,21 +111,55 @@ function lineBox(
 	};
 }
 
-/** A vertical stretch of the page, in pixels. */
-export interface Band {
+/** A painted rect by its four edges; `endpoint` marks a range end's own line paint. */
+export interface PaintedRect {
+	left: number;
 	top: number;
+	right: number;
 	bottom: number;
+	endpoint?: boolean;
 }
 
-/** The stretches between the first band and the last that no band covers: the space between two
- *  blocks a range runs through, which paints too so the range reads as one region. */
-export function holesBetween(bands: readonly Band[]): Band[] {
-	const sorted = [...bands].sort((a, b) => a.top - b.top);
-	const holes: Band[] = [];
-	let bottom = sorted.length > 0 ? sorted[0].bottom : 0;
-	for (const band of sorted.slice(1)) {
-		if (band.top > bottom) holes.push({ top: bottom, bottom: band.top });
-		bottom = Math.max(bottom, band.bottom);
+/** The rects that make a cross-block range one region: every line between its first and last spans
+ *  `left` to `right`, leaving bare only the text before the start point and after the end point. */
+export function regionGaps(
+	painted: readonly PaintedRect[],
+	left: number,
+	right: number
+): PaintedRect[] {
+	if (painted.length === 0) return [];
+	const first = painted.reduce((a, b) => (b.top < a.top ? b : a));
+	const last = painted.reduce((a, b) => (b.bottom > a.bottom ? b : a));
+	const ys = [...new Set(painted.flatMap((r) => [r.top, r.bottom]))].sort((a, b) => a - b);
+	const gaps: PaintedRect[] = [];
+	for (let i = 0; i + 1 < ys.length; i++) {
+		const top = ys[i];
+		const bottom = ys[i + 1];
+		const from = first.endpoint && bottom <= first.bottom ? first.left : left;
+		const to = last.endpoint && top >= last.top ? last.right : right;
+		const covering = painted
+			.filter((r) => r.top <= top && r.bottom >= bottom)
+			.sort((a, b) => a.left - b.left);
+		let x = from;
+		for (const r of covering) {
+			if (Math.min(r.left, to) > x)
+				gaps.push({ left: x, top, right: Math.min(r.left, to), bottom });
+			x = Math.max(x, r.right);
+		}
+		if (to > x) gaps.push({ left: x, top, right: to, bottom });
 	}
-	return holes;
+	return stackRuns(gaps);
+}
+
+// Joins gaps of one width that meet top to bottom, so a tall gap is one element, not one per edge.
+function stackRuns(gaps: PaintedRect[]): PaintedRect[] {
+	const sorted = [...gaps].sort((a, b) => a.left - b.left || a.right - b.right || a.top - b.top);
+	const runs: PaintedRect[] = [];
+	for (const gap of sorted) {
+		const run = runs[runs.length - 1];
+		if (run && run.left === gap.left && run.right === gap.right && run.bottom === gap.top) {
+			run.bottom = gap.bottom;
+		} else runs.push({ ...gap });
+	}
+	return runs.sort((a, b) => a.top - b.top || a.left - b.left);
 }

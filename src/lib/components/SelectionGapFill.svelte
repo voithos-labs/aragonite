@@ -1,12 +1,12 @@
 <script lang="ts">
 	/**
-	 * Paints the space between the blocks a cross-block range runs through (padding, the margin to
-	 * the next block), so the range reads as one region the way a code editor paints it. It fills
-	 * only what no block's own selection paint covers, between the first painted line and the last.
+	 * Paints what the blocks' own selection paint leaves bare between a cross-block range's first
+	 * line and its last (padding, the margin to the next block, a container's rail or indent), so
+	 * the range reads as one region spanning the block column, the way a code editor paints it.
 	 */
 	import { getContext, tick } from 'svelte';
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
-	import { holesBetween } from '../cursor/overlay-rects';
+	import { regionGaps } from '../cursor/overlay-rects';
 	import { observeResize } from '../cursor/observe-resize';
 	import { pathsEqual } from '../selection/path-math';
 
@@ -36,16 +36,20 @@
 			if (!root || !list) return;
 			const origin = root.getBoundingClientRect();
 			const column = list.getBoundingClientRect();
-			const painted = [...list.querySelectorAll('.selection-overlay')]
-				.map((el) => el.getBoundingClientRect())
-				.filter((r) => r.width > 0 && r.height > 0);
-			const top = root.scrollTop - origin.top - root.clientTop;
-			const left = column.left - origin.left - root.clientLeft + root.scrollLeft;
-			gaps = holesBetween(painted).map((hole) => ({
-				left,
-				top: hole.top + top,
-				width: column.width,
-				height: hole.bottom - hole.top
+			const painted = [...list.querySelectorAll('.selection-overlay')].flatMap((el) => {
+				const r = el.getBoundingClientRect();
+				const endpoint = el.classList.contains('selection-overlay-endpoint');
+				return r.width > 0 && r.height > 0
+					? [{ left: r.left, top: r.top, right: r.right, bottom: r.bottom, endpoint }]
+					: [];
+			});
+			const dx = root.scrollLeft - origin.left - root.clientLeft;
+			const dy = root.scrollTop - origin.top - root.clientTop;
+			gaps = regionGaps(painted, column.left, column.right).map((gap) => ({
+				left: gap.left + dx,
+				top: gap.top + dy,
+				width: gap.right - gap.left,
+				height: gap.bottom - gap.top
 			}));
 		}
 
