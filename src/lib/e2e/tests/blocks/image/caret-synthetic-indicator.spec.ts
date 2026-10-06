@@ -73,6 +73,24 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(parseFloat(overlay!.width)).toBeLessThan(4);
 	});
 
+	// The click arms a nested widget's edge, so the paint has to find the same widget.
+	for (const [wrapper, doc] of [
+		['a link', '[![pic|300x200](/test-fixtures/sample.png)](https://x)\n'],
+		['emphasis', '*![pic|300x200](/test-fixtures/sample.png)*\n']
+	]) {
+		test(`live mode: a click past an image inside ${wrapper} paints the synthetic caret`, async ({
+			page
+		}) => {
+			await editor.loadContent(doc);
+			await editor.setPresentationMode('live');
+			await waitForFirstImageLoaded(page);
+			await clickPastImageRightEdge(page);
+
+			await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+			expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+		});
+	}
+
 	test('the native caret goes dark while the synthetic one is painted', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
