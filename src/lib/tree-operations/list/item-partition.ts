@@ -22,7 +22,7 @@ export interface DissolvedItem {
 }
 
 /** The blocks `list` becomes once item `itemIndex` dissolves, with `firstBlock` standing in for the
- *  item's first child; a dev build warns when the text no longer reads in the same order. */
+ *  item's first child; a dev build warns when its text reads in a different order. */
 export function dissolveItem(
 	list: NodeView,
 	itemIndex: number,

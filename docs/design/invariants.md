@@ -806,11 +806,13 @@ Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
 Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
-unwrap of a list's first item and its merge of a middle item move blocks between levels, never past
-each other. Each one reads the leaf text of the list it rewrites, in order and whitespace aside,
-before and after the move, and dev warns when the two differ. A merge rewrites the two lines it
-joins (a live-mode join can drop markers), so its check reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
-run by `tree-operations/list/item-moves.ts` and `tree-operations/list/unwrap-merge.ts` ·
+unwrap of a list's first item and its merge of a middle item, and Enter in an empty top-level item
+move blocks between levels, never past each other. Each one reads the leaf text of the list it
+rewrites, in order and whitespace aside, before and after the move, and dev warns when the two
+differ. A merge rewrites the two lines it joins (a live-mode join can drop markers), so its check
+reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
+run by `tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap
+and the Enter exit, G4.123) and `tree-operations/list/unwrap-merge.ts` (the merge) ·
 `test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
 presses the moves over loose, ordered, quoted and side-by-side lists.
 
@@ -1151,6 +1153,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
+| G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 
 ### The entries
 
@@ -2243,6 +2246,13 @@ would leave with the line still open. The behavior rows in
 `e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
 `lint/pending-break-key-order.test.ts` pins the order as well: it fails when
 `TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
+
+**G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a list's
+first item and Enter in an empty top-level item both dissolve the item, and both split its children
+through `tree-operations/list/item-partition.ts` :: `dissolveItem`, which runs the split inside
+G1.61's check. A route with a split of its own can put the children in another order with no
+warning. Two rows in `lint/file-rules.test.ts` hold it: the splitter, `itemPiecesInOrder`, is called
+in that module only, and every call sits inside a `keepingListOrder(…)` call.
 
 ## Accessibility
 
