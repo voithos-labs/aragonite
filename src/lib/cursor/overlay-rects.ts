@@ -1,4 +1,5 @@
-/** The client rects a block contributes when it is an endpoint of a cross-block selection. */
+/** The rects a cross-block selection paints: an end block's own, and the stretches between the
+ *  first painted line and the last that no block's paint covers (`regionGaps`). */
 
 import type { DomTextOffset } from './coordinate-spaces';
 import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from './widget-offset';
@@ -57,32 +58,109 @@ export function mergeRectsPerLine(rects: readonly LocalRect[]): LocalRect[] {
 	return merged;
 }
 
-/** Widens an endpoint block's selected lines to its box's edges: a start runs to the right edge
- *  and takes every line below, an end takes every line above and runs from the left edge. */
+/** Widens an endpoint block's selected lines to its box's edges, a start rightward and down to its
+ *  last line, an end leftward and up to its first; each line spans its line box, never the padding. */
 export function reachLineEdges(
 	lines: readonly LocalRect[],
 	side: 'start' | 'end',
 	width: number,
-	height: number
+	height: number,
+	lineHeight: number
 ): LocalRect[] {
 	if (lines.length === 0) return [];
 	const right = lines.reduce((edge, line) => Math.max(edge, line.left + line.width), width);
+	const first = lineBox(lines[0], lineHeight, height);
+	const last = lineBox(lines[lines.length - 1], lineHeight, height);
 	if (side === 'start') {
-		const first = lines[0];
-		const below = first.top + first.height;
-		const firstLine = {
-			left: first.left,
+		const left = lines[0].left;
+		const startLine = {
+			left,
 			top: first.top,
-			width: right - first.left,
-			height: first.height
+			width: right - left,
+			height: first.bottom - first.top
 		};
-		return height > below
-			? [firstLine, { left: 0, top: below, width: right, height: height - below }]
-			: [firstLine];
+		return lines.length === 1
+			? [startLine]
+			: [
+					startLine,
+					{ left: 0, top: first.bottom, width: right, height: last.bottom - first.bottom }
+				];
 	}
-	const last = lines[lines.length - 1];
-	const lastLine = { left: 0, top: last.top, width: last.left + last.width, height: last.height };
-	return last.top > 0
-		? [{ left: 0, top: 0, width: right, height: last.top }, lastLine]
-		: [lastLine];
+	const end = lines[lines.length - 1];
+	const endLine = {
+		left: 0,
+		top: last.top,
+		width: end.left + end.width,
+		height: last.bottom - last.top
+	};
+	return lines.length === 1
+		? [endLine]
+		: [{ left: 0, top: first.top, width: right, height: last.top - first.top }, endLine];
+}
+
+/** The vertical span of `line`'s line box: its glyphs plus the leading `lineHeight` adds, split
+ *  evenly above and below, kept inside the block. */
+function lineBox(
+	line: LocalRect,
+	lineHeight: number,
+	height: number
+): { top: number; bottom: number } {
+	const leading = lineHeight > line.height ? (lineHeight - line.height) / 2 : 0;
+	return {
+		top: Math.max(0, line.top - leading),
+		bottom: Math.min(height, line.top + line.height + leading)
+	};
+}
+
+/** A painted rect by its four edges; `endpoint` marks a range end's own line paint. */
+export interface PaintedRect {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+	endpoint?: boolean;
+}
+
+/** The rects that make a cross-block range one region: every line between its first and last spans
+ *  `left` to `right`, leaving bare only the text before the start point and after the end point. */
+export function regionGaps(
+	painted: readonly PaintedRect[],
+	left: number,
+	right: number
+): PaintedRect[] {
+	if (painted.length === 0) return [];
+	const first = painted.reduce((a, b) => (b.top < a.top ? b : a));
+	const last = painted.reduce((a, b) => (b.bottom > a.bottom ? b : a));
+	const ys = [...new Set(painted.flatMap((r) => [r.top, r.bottom]))].sort((a, b) => a - b);
+	const gaps: PaintedRect[] = [];
+	for (let i = 0; i + 1 < ys.length; i++) {
+		const top = ys[i];
+		const bottom = ys[i + 1];
+		const from = first.endpoint && bottom <= first.bottom ? first.left : left;
+		const to = last.endpoint && top >= last.top ? last.right : right;
+		const covering = painted
+			.filter((r) => r.top <= top && r.bottom >= bottom)
+			.sort((a, b) => a.left - b.left);
+		let x = from;
+		for (const r of covering) {
+			if (Math.min(r.left, to) > x)
+				gaps.push({ left: x, top, right: Math.min(r.left, to), bottom });
+			x = Math.max(x, r.right);
+		}
+		if (to > x) gaps.push({ left: x, top, right: to, bottom });
+	}
+	return stackRuns(gaps);
+}
+
+// Joins gaps of one width that meet top to bottom, so a tall gap is one element, not one per edge.
+function stackRuns(gaps: PaintedRect[]): PaintedRect[] {
+	const sorted = [...gaps].sort((a, b) => a.left - b.left || a.right - b.right || a.top - b.top);
+	const runs: PaintedRect[] = [];
+	for (const gap of sorted) {
+		const run = runs[runs.length - 1];
+		if (run && run.left === gap.left && run.right === gap.right && run.bottom === gap.top) {
+			run.bottom = gap.bottom;
+		} else runs.push({ ...gap });
+	}
+	return runs.sort((a, b) => a.top - b.top || a.left - b.left);
 }

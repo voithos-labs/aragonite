@@ -133,6 +133,7 @@
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
+	import SelectionGapFill from './SelectionGapFill.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import InlineMenuHost from './menu/InlineMenuHost.svelte';
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
@@ -1324,6 +1325,7 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
 	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}

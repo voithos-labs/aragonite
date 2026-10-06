@@ -7,7 +7,7 @@ that pick one boundary per press before it moves the caret (`edge-step.ts`), and
 the next byte would join wears a faint ring (`md-edge-held`). A code span's backticks are
 hidden markers like any other, in prose and in table cells. Driven on
 `/test/editor` via `?presentationMode=live` with real clicks and keys; each scenario checks the
-source, and the ring by its class.
+source, and the ring by its class (one row also by what it draws).
 
 ## Happy paths
 
@@ -36,6 +36,11 @@ source, and the ring by its class.
   ArrowLeft brings it back
 - at the end of `***both***` the ring goes from both constructs, to the emphasis alone, to none,
   one press at a time
+- the ring actually shows, not just its class: at the end of a code span alone on its line, a
+  code span mid-line, bold, emphasis and strikethrough, the ringed construct draws the ring's
+  colour around itself, in the light theme and the dark one, and on a code span that colour isn't
+  the chip's own border. Miss-analysis: every ring row read the class, and the code chip's own
+  border rule outranked the ring's, so the class was there while nothing drew it
 
 ## A code span's backticks
 

@@ -155,6 +155,12 @@ export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 
 export type BlockSelectionClass = 'outside' | 'start' | 'whole' | 'end' | 'single-block';
 
+/** Whether a range paints as one region across blocks, the space between them included, rather
+ *  than inside one block (its own text, one table's cell rectangle, or the block held whole). */
+export function rangeSpansBlocks(coverage: RangeCoverage): boolean {
+	return !pathsEqual(coverage.range.start.path, coverage.range.end.path);
+}
+
 /** Where a block stands in a range, which decides how it paints: a subtree the range covers end to
  *  end is 'whole' even when it holds an endpoint, and nothing inside it paints. */
 export function classifyBlockForSelection(
@@ -162,7 +168,7 @@ export function classifyBlockForSelection(
 	coverage: RangeCoverage
 ): BlockSelectionClass {
 	const { start, end } = coverage.range;
-	if (pathsEqual(start.path, end.path)) {
+	if (!rangeSpansBlocks(coverage)) {
 		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
 	const root = coverage.coveredRootHolding(path);

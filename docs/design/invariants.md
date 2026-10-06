@@ -2214,14 +2214,17 @@ anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `index
 **G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one
 box, paints its selected text, or paints nothing is decided by
 `src/lib/selection/primitives.ts` :: `classifyBlockForSelection` (and `blockPaintsWholeBox`, which
-asks it), from the one coverage. A painter that read the coverage itself would keep its own idea
+asks it), from the one coverage. Whether the range spans blocks at all, so the space between them
+paints too, is `rangeSpansBlocks` in the same file; the classifier asks it, and so does the
+component that paints that space. A painter that read the coverage itself would keep its own idea
 of which block the range covers whole, and the end blocks would paint one shape while the blocks
-between paint another. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or
+between paint another. One that compared the range's ends itself could paint the space beside a
+table's cell rectangle. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or
 an end table's cell run anywhere outside `src/lib/selection/`: a call to `rootHolding` or
 `coveredRootHolding`, a dotted read of `wholeRoots`, `coveredWhole`, `startEdge`, `endEdge`,
 `startCells` or `endCells`, or an object pattern naming one of those fields, whether it's
-destructured with `=` or typed as a `RangeCoverage` parameter. A bracket read
-(`coverage['wholeRoots']`) gets past it.
+destructured with `=` or typed as a `RangeCoverage` parameter. It fails a `pathsEqual` of a
+range's `start.path` and `end.path` too. A bracket read (`coverage['wholeRoots']`) gets past it.
 
 **G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy (its own
 range, a selected widget, a range across blocks, a cell rectangle riding the last) has one
