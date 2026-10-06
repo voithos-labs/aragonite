@@ -57,10 +57,10 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	});
 	const placement = createTypedPlacement({
 		getEl: () => surface.el,
-		getRaw: () => node.raw,
-		getInlines,
+		getNode: () => node,
 		reading: fixtureReading(),
-		caretMemory
+		caretMemory,
+		heldSpace: () => caretMemory.heldSpace.forBlock({})
 	});
 	const surface = makeSurface({
 		relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt),

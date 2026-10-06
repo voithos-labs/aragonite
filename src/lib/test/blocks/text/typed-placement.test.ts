@@ -9,7 +9,6 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import type { CstNode } from '$lib/core/nodes';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
 import { asPresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../../harness/fixture-grammar';
@@ -21,10 +20,10 @@ function placementOf(node: CstNode, mode: string, affinity: EdgeAffinity | null)
 	const reading = fixtureReading({}, asPresentationMode(mode));
 	const placement = createTypedPlacement({
 		getEl: () => el,
-		getRaw: () => node.raw,
-		getInlines: () => resolvedInlineContent(node, reading),
+		getNode: () => node,
 		reading,
-		caretMemory: { side: () => affinity }
+		caretMemory: { side: () => affinity },
+		heldSpace: () => ({ at: () => null, inside: () => null })
 	});
 	const el = mountSurface(display, mode);
 	/** `typed` inserted at `at`, as the write passes it on: placed, or null where it stands. */

@@ -198,15 +198,16 @@
 		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
 		isReading: () => readOnly,
 		reading,
-		caretMemory
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
 	});
 
 	const typedPlacement = createTypedPlacement({
 		getEl: () => el ?? null,
-		getRaw: () => node.raw,
-		getInlines: () => resolvedInlineContent(node, reading),
+		getNode: () => node,
 		reading,
-		caretMemory
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
 	});
 
 	const editableSurface = createEditableSurface({

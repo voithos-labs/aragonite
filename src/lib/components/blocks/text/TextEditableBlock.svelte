@@ -229,14 +229,15 @@
 			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
 		isReading: () => readOnly,
 		reading,
-		caretMemory
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
 	});
 	const typedPlacement = createTypedPlacement({
 		getEl: () => el ?? null,
-		getRaw: () => node.raw,
-		getInlines: () => resolvedInlineContent(node, reading),
+		getNode: () => node,
 		reading,
-		caretMemory
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
 	});
 	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
 	let caretHasEntered = false;

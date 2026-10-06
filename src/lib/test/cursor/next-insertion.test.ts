@@ -142,6 +142,21 @@ const MEMORY_RECORDS = [
 			memory.pendingBreak.forBlock(BLOCK).open({ textEnd: 3, lineEnd: 3, ending: '\n' }),
 		waiting: (memory: ReturnType<typeof createCaretMemory>) =>
 			memory.pendingBreak.forBlock(BLOCK).lines() > 0
+	},
+	{
+		name: 'the held space',
+		// `ab**`: a letter at 4 joins before the closer at 2, so a space typed there is held.
+		open: (memory: ReturnType<typeof createCaretMemory>) => {
+			const held = memory.holdInsertion(BLOCK, (before, edit, at) =>
+				at === 4 && edit.text[at] === 'a'
+					? { text: before.slice(0, 2) + 'a' + before.slice(2), caretAfter: 3 }
+					: null
+			);
+			held.spend('ab**', { text: 'ab** ', caretAfter: 5 });
+			held.finish(true);
+		},
+		waiting: (memory: ReturnType<typeof createCaretMemory>) =>
+			memory.heldSpace.forBlock(BLOCK).at() !== null
 	}
 ];
 

@@ -18,7 +18,6 @@ import { asPresentationMode } from '$lib/presentation-mode';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { createInsertionRecords } from '$lib/cursor/next-insertion';
 import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
@@ -110,10 +109,10 @@ export function makeEdgeDispatch(
 	};
 	const placement = createTypedPlacement({
 		getEl: () => el,
-		getRaw: () => readNode().raw,
-		getInlines: () => resolvedInlineContent(readNode(), deps.reading),
+		getNode: readNode,
 		reading: deps.reading,
-		caretMemory: { side: () => side }
+		caretMemory: { side: () => side },
+		heldSpace: () => ({ at: () => null, inside: () => null })
 	});
 	const dispatch = createEdgePolicyDispatch(deps);
 	// A held range reads as its start, as the block's caret read does.

@@ -29,7 +29,6 @@ import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import { createTypedPlacement, type TypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import { resolveLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -370,10 +369,10 @@ async function pressEdgeKey(
 	const node = () => nodeAt(h.doc, leaf.path) as CstNode;
 	const placement = createTypedPlacement({
 		getEl: () => el,
-		getRaw: () => node().raw,
-		getInlines: () => resolvedInlineContent(node(), fixtureReading()),
+		getNode: node,
 		reading: fixtureReading(),
-		caretMemory: { side: () => gesture.affinity }
+		caretMemory: { side: () => gesture.affinity },
+		heldSpace: () => ({ at: () => null, inside: () => null })
 	});
 	// The block anchors a key's write at the caret it recorded when the key arrived.
 	const writeText = createSurfaceWrite({

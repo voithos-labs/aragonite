@@ -24,6 +24,10 @@ import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 import type { CaretMemory } from '../../../cursor/caret-memory';
 import type { PlaceInsertion, TextEdit } from '../../../cursor/next-insertion';
+import type { HeldSpaceView } from '../../../cursor/held-space';
+import type { NodeView } from '../../../core/node-views';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { withOwnEnding } from '../surface-write';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 
 export interface EdgeSeat {
@@ -102,12 +106,12 @@ export function relocateInsertion(
 
 export interface TypedPlacementDeps {
 	getEl: () => HTMLElement | null;
-	/** The block's own bytes, in the coordinates the caret counts in. */
-	getRaw: () => string;
-	/** The inline tree of those bytes, read the way the block draws them. */
-	getInlines: () => readonly InlineNode[];
+	/** The block, whose displayed text an insertion goes into. */
+	getNode: () => NodeView;
 	reading: Reading;
 	caretMemory: Pick<CaretMemory, 'side'>;
+	/** The block's held space (`cursor/held-space.ts`), read lazily: the block makes it later. */
+	heldSpace: () => HeldSpaceView;
 }
 
 /** Where text typed into a block lands while its screen hides markers, for the two places that
@@ -124,25 +128,30 @@ export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
 		const el = deps.getEl();
 		return el && revealsNoMarkers(el) ? screenVisibilityOf(el) : null;
 	};
+	// The tree of `text`, which is the block's own unless a held space was lifted out of it.
+	const inlinesOf = (text: string): InlineNode[] => {
+		const node = deps.getNode();
+		const raw = withOwnEnding(node, text);
+		return resolvedInlineContent(raw === node.raw ? node : { ...node, raw }, deps.reading);
+	};
 	return {
 		insertion: (before, edit, at, side) => {
 			const screen = hidingScreen();
 			if (!screen) return null;
 			const typed = edit.text.slice(at, at + edit.text.length - before.length);
-			return relocateInsertion(before, at, typed, deps.getInlines(), side, screen, deps.reading);
+			return relocateInsertion(before, at, typed, inlinesOf(before), side, screen, deps.reading);
 		},
 		offsetFor: (caret, typed) => {
 			const screen = hidingScreen();
 			if (!screen) return caret;
-			const seat = resolveEdgeSeat(
-				caret,
-				deps.getInlines(),
-				deps.caretMemory.side(),
-				deps.getRaw(),
-				screen,
-				typed,
-				deps.reading
-			);
+			const node = deps.getNode();
+			// The closer a held space was written past is still the caret's to type over.
+			const inside = deps.heldSpace().at() === caret ? deps.heldSpace().inside() : null;
+			if (inside !== null && node.raw[inside] === typed) return inside;
+			const reading = deps.reading;
+			const inlines = resolvedInlineContent(node, reading);
+			const side = deps.caretMemory.side();
+			const seat = resolveEdgeSeat(caret, inlines, side, node.raw, screen, typed, reading);
 			return seat?.offset ?? caret;
 		}
 	};

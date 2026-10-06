@@ -35,6 +35,7 @@ import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-
 import type { SurfaceBackend } from '../../cursor/surface-backend';
 import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
 import type { BlockPendingBreak } from '../../cursor/pending-break.svelte';
+import type { HeldSpaceView } from '../../cursor/held-space';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import {
@@ -231,6 +232,8 @@ export interface EditableSurface {
 	lineEnding(): LineEnding;
 	/** The line Shift+Enter at the block's end opened, which this block's next insertion spends. */
 	pendingBreak: BlockPendingBreak;
+	/** A space typed at a hidden closer here, which the next letter takes back inside. */
+	heldSpace: HeldSpaceView;
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
@@ -562,6 +565,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		writeText,
 		lineEnding,
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
+		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
 		command,
 		onKeyDown,
 		onBeforeInput,
