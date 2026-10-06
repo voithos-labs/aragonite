@@ -1134,11 +1134,8 @@ const RULES: FileRule[] = [
 		id: 'G4.85 a removing live rewrite reads its candidate through readBack, never a parse of its own',
 		population: holdsLiveRewrites,
 		matches: /(?<![\w.])(?:readBlocks|parse|parseTaskItemBody)\s*\(/,
-		allowed: {
-			[`${TEXT_BLOCK_DIR}live-split-rebalance.ts`]:
-				'`soleProseBlock`, the split’s own candidate read, moves onto `readBack` in T19 slice 3'
-		},
 		reaches: [
+			`${TEXT_BLOCK_DIR}live-split-rebalance.ts`,
 			`${TEXT_BLOCK_DIR}live-join-seam.ts`,
 			`${TEXT_BLOCK_DIR}construct-edge-delete.ts`,
 			`${TEXT_BLOCK_DIR}live-selection-edit.ts`,
@@ -1158,6 +1155,8 @@ const RULES: FileRule[] = [
 		allowed: {
 			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
 			'src/lib/tree-operations/list/ordered-markers.ts': 'renumbers an ordered list',
+			'src/lib/tree-operations/list/task-paragraph.ts':
+				'measures how far a new item’s first line widens its marker, for the item to take it',
 			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
 			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
 			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',

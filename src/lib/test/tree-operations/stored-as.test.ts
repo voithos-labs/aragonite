@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { readThroughItemMarker } from '$lib/tree-operations/list/task-paragraph';
+import { storedAsAt, storedAsIn } from '$lib/tree-operations/stored-as';
+import { fragmentReaderAt, readThroughItemMarker } from '$lib/tree-operations/list/task-paragraph';
 import { fixtureGrammar, fixtureReading } from '../harness/fixture-grammar';
 
 const storeAt = (source: string, path: number[]) =>
@@ -29,6 +29,14 @@ describe('what a position stores', () => {
 	it('a top-level or quoted slot reads its bytes as a fragment', () => {
 		expect(kinds(storeAt('a\n', [0]).readSlot(' b\n'))).toEqual([['paragraph', ' b\n']]);
 		expect(kinds(storeAt('> a\n', [0, 0]).readSlot('# b\n'))).toEqual([['heading', '# b\n']]);
+	});
+
+	// A split's second half lands in a slot no block holds yet, past the holder's last child.
+	it('a slot past the last child stores and reads a new block there', () => {
+		const store = storedAsIn(parse('a\n'), 1, fixtureReading());
+		expect(store.surface).toBe('block');
+		expect(store.stored('**b**\n')).toBe('**b**\n');
+		expect(kinds(store.readSlot('# b\n'))).toEqual([['heading', '# b\n']]);
 	});
 
 	it('a list item’s first slot reads through its marker; a later slot as a fragment', () => {
@@ -65,5 +73,29 @@ describe('reading bytes through a list item’s marker', () => {
 
 	it('refuses bytes that change the item’s task state', () => {
 		expect(read('- a\n', '[ ] x\n')).toBeNull();
+	});
+});
+
+describe('what a write into a list item’s first slot installs', () => {
+	const written = (source: string, text: string) =>
+		kinds(fragmentReaderAt(nodeAt(parse(source), [0, 0]) as CstNode, 0, fixtureGrammar)(text));
+
+	// The marker line widens over indented code, so the item reads a paragraph there.
+	it('indented code at a plain item’s start is the paragraph its marker line reads', () => {
+		expect(written('- a\n', '    b\n')).toEqual([['paragraph', '    b\n']]);
+		expect(written('1. a\n', '    b\n')).toEqual([['paragraph', '    b\n']]);
+	});
+
+	it('keeps every byte, the spaces a wider marker takes included', () => {
+		expect(written('- a\n', ' x\n')).toEqual([['paragraph', ' x\n']]);
+		expect(written('- a\n', 'x\n\ny\n\n')).toEqual([
+			['paragraph', 'x\n'],
+			['paragraph', 'y\n']
+		]);
+	});
+
+	it('bytes the marker line reads as no item read as the item’s body', () => {
+		expect(written('- a\n', '---\n')).toEqual([['thematicBreak', '---\n']]);
+		expect(written('- [ ] a\n', '---\n')).toEqual([['paragraph', '---\n']]);
 	});
 });

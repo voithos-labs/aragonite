@@ -18,14 +18,14 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 9);
 		await editor.paste();
-		await editor.bridge.waitForSourceMatches(/^- three$/m);
+		await editor.bridge.waitForSourceMatches(/^- {2}three$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^- Unordered$/m);
 		expect(src).toMatch(/^1\. Ordered first$/m);
 		expect(src).toMatch(/^2\. Ordered second$/m);
 		expect(src).toMatch(/^3\. Ordered third$/m);
-		expect(src).toMatch(/^- three$/m);
+		expect(src).toMatch(/^- {2}three$/m);
 		// The pasted ordered list must not sit at the 2-space item indent.
 		expect(src).not.toMatch(/^ {2,}1\. Ordered first$/m);
 		// And "three" must not sit at the 3-space continuation indent.
@@ -72,11 +72,11 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Unordered'.length);
 		await editor.paste();
-		await editor.bridge.waitForSourceMatches(/^- third$/m);
+		await editor.bridge.waitForSourceMatches(/^- {2}third$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^3\. Ordered$/m);
-		expect(src).toMatch(/^- third$/m);
+		expect(src).toMatch(/^- {2}third$/m);
 		expect(src).not.toMatch(/^3\. Ordered-/m);
 	});
 
@@ -88,7 +88,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		// must land at the end of the last pasted item, never on the residue.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
 		await editor.paste();
-		await editor.bridge.waitForSourceMatches(/^- three$/m);
+		await editor.bridge.waitForSourceMatches(/^- {2}three$/m);
 
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceMatches(/^3\. Ordered thirdX$/m);
@@ -96,7 +96,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^3\. Ordered thirdX$/m);
 		// The residue item is untouched: the caret never went there.
-		expect(src).toMatch(/^- three$/m);
+		expect(src).toMatch(/^- {2}three$/m);
 		expect(src).not.toMatch(/threeX/);
 	});
 
@@ -106,7 +106,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);
 		await editor.paste();
-		await editor.bridge.waitForSourceMatches(/^2\. target$/m);
+		await editor.bridge.waitForSourceMatches(/^2\. {2}target$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. First$/m);
@@ -114,7 +114,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src).toMatch(/^- paste two$/m);
 		// Continuous numbering across the paste gap: the split position uses one number, so
 		// the second half starts at 2. Same convention as the exit paragraph.
-		expect(src).toMatch(/^2\. target$/m);
+		expect(src).toMatch(/^2\. {2}target$/m);
 		// Nesting the paste would indent the unordered list.
 		expect(src).not.toMatch(/^ {2,}- paste one$/m);
 	});

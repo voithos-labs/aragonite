@@ -20,4 +20,4 @@ Design reason: the user copied a list of the same type; flattening preserves the
 - Multi-block clipboard (e.g. `list + paragraph`): absorb declines (`parsed.children.length !== 1` guard). Falls through to `findListBreakOut` → break-out preserves the multi-block structure at the enclosing list's parent level.
 - Target deeper than a direct leaf of the listItem: absorb declines. Default structural paste applies (rare; may revisit).
 - Pasted items with a different ordered-marker suffix (`1) ` into a `1. ` list): suffix coerces to match the parent's template; `1. alpha, 2. x, 3. y, 4. beta` with uniform `. ` suffix throughout.
-- Trailing slice of a word-boundary split trims one leading whitespace character so the resulting trailing item serializes with a single-space marker.
+- Trailing slice of a word-boundary split keeps its leading space, and the trailing item reads it into its marker the way a reload does (`7.  third`, and the drawn marker is `7.  ` too), the same as Enter at that spot.

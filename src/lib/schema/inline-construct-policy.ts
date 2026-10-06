@@ -7,7 +7,6 @@
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import type { Reading } from './reading';
 import type { StoredAs } from './stored-as';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
@@ -148,17 +147,24 @@ export function inlineMarkForCommand(command: string): InlineMark | null {
 
 // ── Split rebalancer ────────────────────────────────────────────────────────
 
+/** Where each half of a split is stored: the first in the block's own slot, the second where the
+ *  split puts it (the next slot, or a new list item's first). */
+export interface SplitStores {
+	first: StoredAs;
+	second: StoredAs;
+}
+
 /**
  * The one live-mode split rewrite, consulting each construct's own `splitBehavior`, so
  * `splitNode` needs neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
- * Registration is process-wide, so the editor's reading is passed on each call.
+ * Registration is process-wide, so each call brings the stores, which carry the reading.
  */
 export type LiveSplitRebalancer = (
 	node: NodeView,
 	offset: number,
 	firstRaw: string,
 	secondRaw: string,
-	reading: Reading
+	stores: SplitStores
 ) => { firstRaw: string; secondRaw: string } | null;
 
 let splitRebalancer: LiveSplitRebalancer | undefined;

@@ -46,3 +46,36 @@ describe('indentItem writes the moved item under the item above', () => {
 		expect(await indentSecondItem(source)).toBe(bytes);
 	});
 });
+
+/** Shift+Tab on the first item of the sublist under item 0, with both lists mounted. */
+async function liftFirstSubItem(source: string): Promise<string> {
+	const { deps } = makeEditorActionsDeps(source);
+	const item = () => deps.doc.children[0].children![0];
+	const sublist = () => item().children![1];
+	registerBlockListState(sublist(), makeBlockListState(sublist));
+	registerBlockListState(item(), makeBlockListState(item));
+	const { listContext } = makeListContextAt(deps, 0);
+
+	expect(await listContext.promoteNestedItem(0, sublist(), 0)).toBe(true);
+	expectParseConverged(deps.doc);
+	return serialize(deps.doc);
+}
+
+// The glyph and number follow the destination list; the spaces after them are the item's own
+// bytes, which its text starts behind.
+describe('a list move keeps the item’s own wider spacing', () => {
+	it.each([
+		{ into: 'a bullet sublist', source: '- a\n  - x\n-  b\n', bytes: '- a\n  - x\n  -  b\n' },
+		{
+			into: 'an ordered sublist',
+			source: '1. a\n   1. x\n2.  b\n',
+			bytes: '1. a\n   1. x\n   2.  b\n'
+		}
+	])('Tab into $into', async ({ source, bytes }) => {
+		expect(await indentSecondItem(source)).toBe(bytes);
+	});
+
+	it('Shift+Tab out of a sublist of another glyph', async () => {
+		expect(await liftFirstSubItem('- a\n  *  x\n')).toBe('- a\n-  x\n');
+	});
+});

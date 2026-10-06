@@ -85,9 +85,18 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 	} else {
 		target = templateMarker ?? '- ';
 	}
+	target = keepingWidth(target, meta.marker);
 	if (meta.marker === target) return;
 	meta.marker = target;
 	rebuildListItemRaw(item);
+}
+
+/** `target`, keeping `current`'s run of spaces when it is the wider one: those spaces are the
+ *  item's own bytes, which a reload reads into its marker. */
+function keepingWidth(target: string, current: string): string {
+	const own = / *$/.exec(current)![0];
+	const theirs = / *$/.exec(target)![0];
+	return own.length > theirs.length ? target.slice(0, target.length - theirs.length) + own : target;
 }
 
 /**
@@ -106,7 +115,7 @@ export function templatePastedItemMarkers(
 		items.forEach((item, i) => {
 			const meta = metadataOf(item, 'listItem');
 			if (!meta) return;
-			meta.marker = String(base + firstIndex + i) + suffix;
+			meta.marker = keepingWidth(String(base + firstIndex + i) + suffix, meta.marker);
 			rebuildListItemRaw(item);
 		});
 	} else {

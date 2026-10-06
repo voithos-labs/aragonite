@@ -30,7 +30,11 @@ function emptyParagraph(): CstNode {
 describe('parseConverges on the empty-paragraph shapes the editor reaches', () => {
 	it('an empty list item holding an empty-paragraph placeholder', () => {
 		const listTemplate = parse('- a\n').children[0];
-		const emptyItem = buildListItemWithContent(listTemplate.children![0], [emptyParagraph()]);
+		const emptyItem = buildListItemWithContent(
+			listTemplate.children![0],
+			[emptyParagraph()],
+			fixtureGrammar
+		);
 		const list = assembleListHalf(listTemplate, [emptyItem], 1);
 		expect(list.raw).toBe('- \n');
 		expect(parseConverges(docOf([list]))).toBe(true);

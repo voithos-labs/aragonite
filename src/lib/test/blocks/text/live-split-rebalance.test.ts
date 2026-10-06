@@ -5,7 +5,7 @@ import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { fixtureReading, renderOptions } from '../../harness/fixture-grammar';
+import { fixtureReading, renderOptions, topLevelSplit } from '../../harness/fixture-grammar';
 
 // The bytes a live-mode Enter writes into each half. Each case states the literal cut a refusal
 // leaves; the `\n` padding is what `splitNode` has already added.
@@ -20,7 +20,7 @@ function split(source: string, offset: number) {
 		offset,
 		first.endsWith('\n') ? first : first + '\n',
 		second.endsWith('\n') ? second : second + '\n',
-		fixtureReading()
+		topLevelSplit(node)
 	);
 }
 
@@ -74,7 +74,7 @@ describe('a cut inside a symmetric pair closes it and reopens it', () => {
 	// halves still close. `splitNode` moved the cut past the ending before offering the halves.
 	it('closes across a soft break the cut consumes', () => {
 		const node = parse('**bo\nld**\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', fixtureReading())).toEqual({
+		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', topLevelSplit(node))).toEqual({
 			firstRaw: '**bo**\n',
 			secondRaw: '**ld**\n'
 		});
@@ -201,7 +201,8 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 			reopened: []
 		};
 		const dropsVisible = { firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\tbar' };
-		expect(parsesBack(bytes, seam, dropsVisible, fixtureReading())).toBe(false);
+		const stores = topLevelSplit(parse(raw, { scope: 'fragment' }).children[0]);
+		expect(parsesBack(bytes, seam, dropsVisible, stores)).toBe(false);
 
 		// The same candidate over an invisible tail is the one the rewrite writes.
 		const invisible = { ...bytes, raw: '~~foo~~\t\n', contentEnd: 8 };
@@ -210,7 +211,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 				invisible,
 				{ ...seam, tail: '\t' },
 				{ firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\t' },
-				fixtureReading()
+				stores
 			)
 		).toBe(true);
 	});
@@ -229,7 +230,9 @@ describe('constructs that declare no rewrite decline the whole cut', () => {
 
 	it('a non-prose block is never rebalanced', () => {
 		const fence = parse('```\n**a**\n```\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', fixtureReading())).toBeNull();
+		expect(
+			rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', topLevelSplit(fence))
+		).toBeNull();
 	});
 });
 
@@ -290,8 +293,11 @@ describe('a reference form rebalances only when the resolver reaches the join', 
 			offset,
 			raw.slice(0, offset) + '\n',
 			raw.slice(offset),
-			fixtureReading(
-				withResolver ? { resolver: map.resolve, resolverSignature: map.signature } : {}
+			topLevelSplit(
+				node,
+				fixtureReading(
+					withResolver ? { resolver: map.resolve, resolverSignature: map.signature } : {}
+				)
 			)
 		);
 	}

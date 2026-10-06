@@ -62,6 +62,14 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
 }
 
+/** A container assembled from parts takes the metadata and children a reload of its rebuilt
+ *  bytes reads; false when they read as something other than one node of its kind. */
+export function adoptOwnReading(node: CstNode, grammar: GrammarView): boolean {
+	const reading = followBytes(node, node.raw, grammar, { whole: true });
+	if (reading.outcome === 'reread') takeReread(node, reading.node);
+	return reading.outcome !== 'diverged';
+}
+
 /**
  * The chain rebuild's step, which re-derives kind and metadata itself once it knows whether an
  * outer line moved; a rebuild outside the chain uses {@link rebuildContainerRaw}.

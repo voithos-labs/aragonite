@@ -1,5 +1,5 @@
-// G1.42: a list item holds the checkbox its reload reads (a to-do, its block kinds too), so a
-// write that read its bytes with the wrong reader is caught, and a shape the parser loads is not.
+// G1.42: a list item holds the checkbox and the block kinds its reload reads, so a write that read
+// its bytes with the wrong reader is caught, and a shape the parser loads is not.
 // Miss-analysis: the first version checked a stand-in (a task item holds a paragraph first), which
 // the parser breaks for `- [ ] |b|` over a delimiter row, so it fired on a loadable document.
 import { describe, it, expect } from 'vitest';
@@ -46,6 +46,20 @@ describe('checkTaskMarkerSlot (G1.42)', () => {
 		const item = list.children![0];
 		item.children = [paragraphNode('', '# x', '\n'), paragraphNode('', 'bc', '\n')];
 		expect(check(list)?.code).toBe('task-marker-slot');
+	});
+
+	// Miss-analysis: the check compared a plain item's checkbox only, so an item built over indented
+	// code its marker line reads as a paragraph passed it.
+	it('flags a plain item holding indented code its reload reads as a paragraph', () => {
+		const list = parse('-     b\n').children[0];
+		list.children![0].children = [parse('    b\n').children[0]];
+		expect(check(list)?.code).toBe('task-marker-slot');
+	});
+
+	it('leaves an item holding no block to the empty-container check', () => {
+		const list = parse('- a\n').children[0];
+		list.children![0].children = [];
+		expect(check(list)).toBeNull();
 	});
 
 	it('finds the item at any depth', () => {

@@ -67,7 +67,7 @@ describe('a multi-block paste keeps every line after the caret', () => {
 		[
 			'a list, a heading after the caret',
 			'- abc # h\n  more\n',
-			'- abc\n- one\n- two\n- # h\n  more\n'
+			'- abc\n- one\n- two\n-  # h\n   more\n'
 		],
 		['an ordered list', '1. abc\n   After\n', '1. abc\n- one\n- two\n2. After\n']
 	])('pasting items into %s keeps the rest of the item', async (_, source, expected) => {

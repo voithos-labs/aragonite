@@ -16,4 +16,4 @@ Design reason: pasting `1. a\n2. b\n` (ordered) into `- target` (unordered) with
 
 - Matching-type list paste: handled by `findContainerMatchingUnwrap` earlier in the pipeline, so this path does not fire.
 - Target deeper than a direct child of the listItem (e.g. target is inside a nested container within the item): falls through to the default structural paste. The break-out helper intentionally keeps the "target is a direct listItem leaf" precondition narrow to keep the splitting algorithm simple.
-- Trailing slice with a leading space/tab: the first whitespace character is trimmed so the resulting second-half item serializes with a single-space marker (`- three`, not `-  three`).
+- Trailing slice with a leading space: every byte stays, and the second-half item reads that space into its marker the way a reload does (`-  three`, marker `-  `), the same as Enter at that spot.

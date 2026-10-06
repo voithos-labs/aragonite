@@ -1,19 +1,31 @@
 /** Constructors for list and listItem CST nodes. */
 
-import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
+import {
+	metadataOf,
+	type CstNode,
+	type ListItemMetadata,
+	type ListMetadata
+} from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { trailingLineEnding, type LineEnding } from '../../core/lines';
+import {
+	indentColumns,
+	isBlankLine,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
+import { readItemShape } from '../../core/parsers/list';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
-import { readBlocks } from '../../core/parser';
-import { emptyParagraph } from '../node-primitives';
-import { fragmentReaderAt, type FragmentReader } from './task-paragraph';
+import { fragmentReaderAt, markerLineWidening, type FragmentReader } from './task-paragraph';
 import type { GrammarView } from '../../schema/block-openers';
+import { adoptOwnReading } from '../../schema/container-raw';
+import { emptyParagraph } from '../node-primitives';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -46,33 +58,36 @@ export function assembleListHalf(
 }
 
 /** A listItem mirroring `template`'s metadata, affixes and bytes, so lines it keeps keep their
- *  spelling. `children` are placed verbatim: clone any the source tree still holds. */
-export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
+ *  spelling, then holding what those bytes read as. Clone any `children` the tree still holds. */
+export function buildListItemWithContent(
+	template: NodeView,
+	children: CstNode[],
+	grammar: GrammarView
+): CstNode {
 	const metadata = template.metadata
 		? (cloneMetadata(template.metadata) as ListItemMetadata)
 		: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null };
-	return mintListItem(metadata, template, children);
+	return mintListItem(metadata, template, children, grammar);
 }
 
 /** A listItem from explicit metadata with empty affixes, starting from the bytes of `source` when
- *  `children` came out of it. `children` are placed verbatim. */
+ *  `children` came out of it, and then holding what those bytes read as. */
 export function buildListItem(
 	metadata: ListItemMetadata,
 	children: CstNode[],
+	grammar: GrammarView,
 	source?: NodeView
 ): CstNode {
-	return mintListItem(
-		metadata,
-		{ raw: source?.raw ?? '', innerPrefix: '', innerSuffix: '' },
-		children
-	);
+	const affixes = { raw: source?.raw ?? '', innerPrefix: '', innerSuffix: '' };
+	return mintListItem(metadata, affixes, children, grammar);
 }
 
 // Affixes are set before the rebuild, which derives the item's raw from them and `source.raw`.
 function mintListItem(
 	metadata: ListItemMetadata,
 	source: Pick<NodeView, 'raw' | 'innerPrefix' | 'innerSuffix'>,
-	children: CstNode[]
+	children: CstNode[],
+	grammar: GrammarView
 ): CstNode {
 	const item: CstNode = {
 		kind: 'listItem',
@@ -86,7 +101,57 @@ function mintListItem(
 	};
 	if (children[0]) children[0].leadingTrivia = '';
 	rebuildListItemRaw(item);
+	// A first line the marker line doesn't hold as this item takes the wider marker it reads as,
+	// or else opens below an empty marker (`docs/design/editor.md` § 9).
+	if (adoptOwnReading(item, grammar)) return item;
+	if (takeWidenedMarker(item, grammar) && adoptOwnReading(item, grammar)) return item;
+	openBelowMarker(item);
+	adoptOwnReading(item, grammar);
 	return item;
+}
+
+/** `item` takes the marker its first line reads as, the spaces it widens over moving off the
+ *  first block, and its lines at its content column move with that column. */
+function takeWidenedMarker(item: CstNode, grammar: GrammarView): boolean {
+	const widened = markerLineWidening(item, grammar);
+	if (!widened) return false;
+	const column = (readItemShape(item.raw)?.indent.length ?? 0) + widened.width.from;
+	const first = item.children![0];
+	item.metadata = widened.metadata;
+	first.raw = first.raw.slice(widened.taken);
+	item.raw = shiftedBelowFirst(item.raw, column, widened.width.to - widened.width.from);
+	rebuildListItemRaw(item);
+	return true;
+}
+
+/** `raw` with every line after the first that sits at `column` moved `grow` columns right; a
+ *  blank line, or a lazy one left of the column, continues where it stands. */
+function shiftedBelowFirst(raw: string, column: number, grow: number): string {
+	if (grow <= 0) return raw;
+	const lines = raw.split(/(?<=\n)/);
+	const pad = ' '.repeat(grow);
+	for (let i = 1; i < lines.length; i++) {
+		const line = lines[i];
+		if (!isBlankLine(trimTrailingLineEnding(line)) && indentColumns(line) >= column)
+			lines[i] = pad + line;
+	}
+	return lines.join('');
+}
+
+/** `item` with an empty first line, its blocks below it: a first line no marker holds (a line of
+ *  dashes reads as a divider) reads as the item's own there. */
+function openBelowMarker(item: CstNode): void {
+	const children = item.children!;
+	children.unshift(emptyParagraph('', trailingLineEnding(children[0]?.raw ?? '', '\n')));
+	item.childIds = assignIds(children);
+	rewriteFromOpener(item);
+}
+
+/** Rebuilds `item` from its opener line alone, so no line below keeps a column it was written at. */
+function rewriteFromOpener(item: CstNode): void {
+	const { marker, taskMarker } = metadataOf(item, 'listItem');
+	item.raw = (readItemShape(item.raw)?.indent ?? '') + marker + (taskMarker ?? '');
+	rebuildListItemRaw(item);
 }
 
 /**
@@ -107,10 +172,8 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 
 // ── Paste split ──────────────────────────────────────────────────────────────
 
-/**
- * Split a leaf's raw at `offset` for a paste, each half read as its landing slot reads it, the
- * trailing half losing one leading space or tab so the new marker's space isn't doubled.
- */
+/** Split a leaf's raw at `offset` for a paste, each half read as its landing slot reads it and
+ *  every byte kept. */
 export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
@@ -120,12 +183,10 @@ export function splitLeafForPaste(
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
 	const lineEnding = trailingLineEnding(raw, ending);
 	const { head: leadingText, rest } = cutKeepingStructure({ ...leaf, raw }, offset);
-	const trailingText = rest.replace(/^[ \t]/, '');
-
 	const leadingNode =
 		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, read.leading) : null;
 	// The line the cut ended is dropped: the trailing item's marker starts a line of its own.
-	const trailingNodes = parseCutResidue(trailingText, lineEnding, read.trailing).blocks;
+	const trailingNodes = parseCutResidue(rest, lineEnding, read.trailing).blocks;
 
 	return { leadingNode, trailingNodes, lineEnding };
 }
@@ -148,7 +209,7 @@ export function buildSplitItems(
 
 	// Both halves keep the item's marker, so the leading one stays at `innerIndex` under it and
 	// the trailing one opens its own copy of the item.
-	const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
+	const { leadingNode, trailingNodes } = splitLeafForPaste(
 		targetLeaf,
 		offset,
 		ending,
@@ -169,46 +230,8 @@ export function buildSplitItems(
 
 	return {
 		leadingItem:
-			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
+			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren, grammar) : null,
 		trailingItem:
-			trailingChildren.length > 0
-				? trailingItemFor(item, trailingChildren, lineEnding, grammar)
-				: null
+			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren, grammar) : null
 	};
-}
-
-/**
- * The item holding the text after a split, its first block on the marker line unless the reload
- * reads that line otherwise (indented code reads as a wider marker), then below an empty marker.
- */
-function trailingItemFor(
-	template: CstNode,
-	children: CstNode[],
-	lineEnding: LineEnding,
-	grammar: GrammarView
-): CstNode {
-	const onMarkerLine = buildListItemWithContent(template, children);
-	if (readsBackAsBuilt(onMarkerLine, grammar)) return onMarkerLine;
-	const belowMarker = buildListItemWithContent(template, [
-		emptyParagraph('', lineEnding),
-		...children
-	]);
-	return readsBackAsBuilt(belowMarker, grammar) ? belowMarker : onMarkerLine;
-}
-
-/** Whether `item`'s bytes, read alone, give back one item holding the same blocks. */
-function readsBackAsBuilt(item: CstNode, grammar: GrammarView): boolean {
-	const blocks = readBlocks(item.raw, { grammar, scope: 'fragment' }).children;
-	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
-	const read = list?.children?.length === 1 ? list.children[0] : null;
-	const built = item.children ?? [];
-	return (
-		read?.children?.length === built.length &&
-		read.children.every(
-			(child, i) =>
-				child.kind === built[i].kind &&
-				child.raw === built[i].raw &&
-				child.leadingTrivia === built[i].leadingTrivia
-		)
-	);
 }

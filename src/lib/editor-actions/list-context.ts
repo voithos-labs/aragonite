@@ -18,11 +18,11 @@ import {
 	replacePreservingFirst,
 	stampStructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, emptyParagraph, type SplitResult } from '../tree-operations';
+import { splitNode, emptyParagraph, type SplitResult } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
 import { renumberOrderedList, bumpOrderedMarker } from '../tree-operations/list/ordered-markers';
 import { buildListItem } from '../tree-operations/list/list-builders';
-import { fragmentReaderAt } from '../tree-operations/list/task-paragraph';
+import { storedAsIn } from '../tree-operations/stored-as';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import {
 	nestListItem,
@@ -46,24 +46,16 @@ export interface ListContextDeps {
 	reading: Reading;
 }
 
-/** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
- *  unchecked; it starts from `source`'s bytes, so its marker line takes the item's indent. */
-function mintFollowerItem(
-	prevMeta: ListItemMetadata | undefined,
-	children: CstNode[],
-	source?: NodeView
-): CstNode {
+/** The marker and checkbox of the item Enter creates: the previous item's marker bumped, its
+ *  task checkbox inherited unchecked. */
+function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetadata {
 	const inheritTask = prevMeta?.taskItem === true;
-	return buildListItem(
-		{
-			marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
-			taskItem: inheritTask,
-			taskChecked: false,
-			taskMarker: inheritTask ? '[ ] ' : null
-		},
-		children,
-		source
-	);
+	return {
+		marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+		taskItem: inheritTask,
+		taskChecked: false,
+		taskMarker: inheritTask ? '[ ] ' : null
+	};
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -114,10 +106,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
-				newItem = mintFollowerItem(
-					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
+				// The new item starts from `prevItem`'s bytes, so its marker line takes the indent.
+				newItem = buildListItem(
+					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined),
 					// rebuildListItemRaw derives the item's raw from its body's line ending.
 					[emptyParagraph('', deps.getLineEnding())],
+					deps.reading.grammar,
 					prevItem
 				);
 			}
@@ -171,15 +165,22 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// the child that was split.
 					const preSpliceLen = itemChildren.length;
 
-					const split = performSplit(
+					// The second half is stored as the new item's first block, behind its marker line.
+					const metadata = followerMetadata(metadataOf(itemScope.node, 'listItem'));
+					const follower: NodeView = { kind: 'listItem', leadingTrivia: '', raw: '', metadata };
+					const secondHalfAt = storedAsIn(
+						{ owner: follower, children: [], lineEnding: itemScope.body.lineEnding },
+						0,
+						deps.reading,
+						itemChildren[innerIndex].kind
+					);
+					const split = splitNode(
 						itemScope.body,
 						innerIndex,
 						offset,
 						sharing,
 						deps.reading,
-						// The new item inherits this one's task marker, so its first block reads
-						// as this item's first block does.
-						fragmentReaderAt(itemScope.node, 0, deps.reading.grammar)
+						secondHalfAt
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					secondHalfLanding = split.landingOffset;
@@ -191,11 +192,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const newItem = mintFollowerItem(
-						metadataOf(itemScope.node, 'listItem'),
-						secondHalf,
-						itemScope.node
-					);
+					const newItem = buildListItem(metadata, secondHalf, deps.reading.grammar, itemScope.node);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);

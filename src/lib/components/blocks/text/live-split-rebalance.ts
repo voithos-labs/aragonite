@@ -17,15 +17,16 @@ import {
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
-import type { Reading } from '../../../schema/reading';
+import { readBack, shownOf } from '../../../core/inline/live-edit/read-back';
+import type { StoredAs } from '../../../schema/stored-as';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import { isBlankText } from '../../../core/lines';
 import {
 	getInlineConstructPolicy,
-	type LiveSplitRebalancer
+	type LiveSplitRebalancer,
+	type SplitStores
 } from '../../../schema/inline-construct-policy';
-import { readBlocks } from '../../../core/parser';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -34,8 +35,9 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	offset,
 	firstRaw,
 	secondRaw,
-	reading
+	stores
 ) => {
+	const { reading } = stores.first;
 	const read = readSplitBytes(node, offset, firstRaw, secondRaw);
 	if (read === null) return null;
 	const inlines = readInline(
@@ -64,7 +66,7 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	for (const candidate of candidates) {
 		// The dropped bytes are the check's business, not the caller's: what the caller gets back
 		// is the two halves, whatever the candidate had to declare to earn them.
-		if (candidate !== null && parsesBack(bytes, seam, candidate, reading)) {
+		if (candidate !== null && parsesBack(bytes, seam, candidate, stores)) {
 			return { firstRaw: candidate.firstRaw, secondRaw: candidate.secondRaw };
 		}
 	}
@@ -267,18 +269,17 @@ interface HalfRead {
 	kinds: Set<AnyInlineKind>;
 }
 
-/**
- * A candidate answers every question below or it is not written. Exported for the verification
- * test, which has to reach it with a candidate no producer here would build.
- */
+/** A candidate answers every question below, each half read where it is stored, or it is not
+ *  written. Exported for the test, which reaches it with candidates no producer here builds. */
 export function parsesBack(
 	bytes: SplitBytes,
 	seam: SeamParts,
 	candidate: RebalancedHalves,
-	reading: Reading
+	stores: SplitStores
 ): boolean {
-	const first = soleProseBlock(candidate.firstRaw, reading);
-	const second = soleProseBlock(candidate.secondRaw, reading);
+	const { reading } = stores.first;
+	const first = proseHalf(candidate.firstRaw, stores.first);
+	const second = proseHalf(candidate.secondRaw, stores.second);
 	if (first === null || second === null) return false;
 	// Each half must be a block a reparse keeps. Empty is one; whitespace-only is not, since the
 	// document reads those bytes as a blank line and the pair comes back a different shape.
@@ -304,15 +305,9 @@ export function parsesBack(
 
 const readsAsBlankLine = (visible: string): boolean => visible !== '' && isBlankText(visible);
 
-/** A half read as a top-level fragment: exactly one prose block, or null. */
-function soleProseBlock(raw: string, reading: Reading): HalfRead | null {
-	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
-	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
-	const block = blocks[0];
-	const range = getContentRange(block);
-	const nodes = readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar);
-	return {
-		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, { grammar: reading.grammar }),
-		kinds: constructKinds(nodes)
-	};
+/** A half read where `store` keeps it: exactly one prose block, or null. */
+function proseHalf(raw: string, store: StoredAs): HalfRead | null {
+	const read = readBack(raw, store);
+	if (read === null) return null;
+	return { visible: shownOf(read, store), kinds: constructKinds(read.inlines) };
 }

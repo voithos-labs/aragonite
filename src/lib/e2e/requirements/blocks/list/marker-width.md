@@ -6,6 +6,7 @@ A list item's marker is the bullet (or number) plus every space after it, so `- 
 
 - Load `- a b`, Backspace after `a`: the source is `-  b`, the item's marker is `-  `, and the live tree matches a reload; a letter typed next lands after the widened marker (`-  zb`)
 - Load `- [ ] a b`, the same Backspace: the source is `- [ ]  b` and the checkbox takes the space (`[ ]  `)
+- Load `- a b`, Enter after `a`: the source is `- a\n-  b`, the new item's marker is `-  `, and the live tree matches a reload
 
 ## Edge cases
 
@@ -16,3 +17,4 @@ A list item's marker is the bullet (or number) plus every space after it, so `- 
 ## Miss-analysis
 
 - The editor kept the old marker and a paragraph starting with a space, where a reload reads a wider marker (and, with lines below it, sometimes a different list). Every list test typed words into items; none left whitespace at an item's content start, the one place a keystroke changes what the marker reads as.
+- Enter built the new item from the old one's marker and never read its first line back, so `-  b` kept a `- ` marker. The rows above only rewrote an item that already existed; none made a new one whose first line starts with a space.

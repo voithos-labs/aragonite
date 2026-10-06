@@ -255,7 +255,7 @@ Three families of seam run these checks:
 | G1.39 | At most one block paints the editor's own caret at a time                                  | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                         | A·N     |
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own)        | A·P·N   |
-| G1.42 | A list item's checkbox, and a to-do's blocks, are what its reload reads                    | A·N     |
+| G1.42 | A list item's checkbox and blocks are what its reload reads                                | A·N     |
 | G1.43 | Reading a commit's landing moves no caret                                                  | A·N     |
 | G1.44 | The document holds a block, and a commit leaves no container it touched empty              | A·N     |
 | G1.45 | A caret landing's focus scrolls nothing                                                    | A·N     |
@@ -694,17 +694,19 @@ both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 
-**G1.42 · A list item's checkbox says what its reload reads** (`task-marker-slot`). A to-do's
-checkbox is metadata on the list item, but a write only changes the block behind it, so the two can
-drift apart. A list item holds the checkbox a reload of its bytes gives it, and a to-do also holds
-the blocks the reload gives it (their kinds, compared as a whole list, so one line split into two
-paragraphs counts). `- [ ] # b` read by a plain parse (a heading behind a checkbox) fails, and so
-does a plain item whose text now opens with `[ ] `. A shape the parser loads passes by definition,
-`- [ ] |b|` over a delimiter row included (a to-do holding a table, #665). A plain item's own block
-drift isn't this check's (#668 widens it). Writes into an item's first slot keep all this through
-`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), but a
-route can still read its bytes with the wrong reader, so the commit checks the result too. Dev
-only: it reparses each touched node that holds a list item. Predicate
+**G1.42 · A list item's checkbox and blocks say what its reload reads** (`task-marker-slot`). A
+to-do's checkbox is metadata on the list item, but a write only changes the block behind it, so the
+two can drift apart. A list item holds the checkbox a reload of its bytes gives it, and the blocks
+too (their kinds, compared as a whole list, so one line split into two paragraphs counts).
+`- [ ] # b` read by a plain parse (a heading behind a checkbox) fails, so does a plain item whose
+text now opens with `[ ] `, and so does a plain item holding indented code its marker line reads as
+a paragraph. A shape the parser loads passes by definition, `- [ ] |b|` over a delimiter row
+included (a to-do holding a table, #665). An item holding no block at all is G1.44's. Writes into
+an item's first slot keep all this through
+`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), and a block
+replacing a to-do's text gives the box up only where the bare bullet still holds it
+(`landAtTaskStart`), but a route can still read its bytes with the wrong reader, so the commit
+checks the result too. Dev only: it reparses each touched node that holds a list item. Predicate
 `invariants/node-shape.ts :: checkTaskMarkerSlot` · the commit, over its touched nodes ·
 `test/invariants/task-marker-slot.test.ts`.
 
@@ -1944,29 +1946,33 @@ G4.82b rows), with G1.42 as the runtime half.
 
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
 reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`
-(after a task checkbox, the first line stays paragraph text). A caller that only knows a path or a
-slot gets the same reader from `slotReaderAt` or `childSlotAt`, and there's no plain reader to
-reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
+(in a list item's first slot, behind its whole marker line, checkbox included, every byte kept;
+text that doesn't start with whitespace reads the same either way, so only text that does pays
+for the marker line). A caller that only knows a path or a slot gets the same reader from
+`slotReaderAt` or `childSlotAt`, and there's no plain reader to reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
 `editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
 front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
 `lint/manifest-rules.test.ts`.
 
 **G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs` (`src/lib/schema/stored-as.ts`)
-answers three things about a position: whether it stores a block or plain text (a table cell), the
-bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
-line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
-`storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
-reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
-it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
-`as StoredAs` cast to that file.
+answers four things about a position: whether it stores a block or plain text (a table cell), the
+bytes its write rules would keep, how a reload reads them there (behind a list item's marker line,
+say), and what a write installs there. It's a branded type, and only
+`tree-operations/stored-as.ts :: storedAsAt` and `storedAsIn` build one, from the tree
+(`storedAsIn` also names a slot no block holds yet, such as a split's second half). So a rewrite
+can't describe its own position, and nothing reads a candidate behind a hand-written copy of the
+container's marker, which drifts from the item it copies (a to-do's box, a marker a leading space
+widens). The one owner built by hand is Enter's new item, whose marker object is the one the item
+itself is built with, so the two can't drift. `lint/file-rules.test.ts` holds the `as StoredAs`
+cast to that file.
 
 **G4.85 · A removing rewrite reads through the store.** The join cleanup and the edge delete read
 every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their
 own, since a top-level fragment read forgets the container the bytes land in. The store is a
 required field on the join and the edge delete's query, and `lint/file-rules.test.ts` keeps
 `readBlocks` and `parse` out of every `.ts` module in `components/blocks/text/` and
-`core/inline/live-edit/`. The split's own candidate read in `live-split-rebalance.ts` is the one
-file it lists as an exception, with its reason. Which store a route hands over is checked too:
+`core/inline/live-edit/`, the split rebalancer's included: it reads each half through the store
+where that half lands. Which store a route hands over is checked too:
 `tree-operations/store-routes.test.ts` runs every place a store is made or fetched on bytes a lone
 top-level paragraph's store reads differently (`# y` after a to-do's box, `[ ] y` after a plain
 item's marker), and fails a store made anywhere no row runs through.

@@ -8,14 +8,10 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// Hand-built list fixtures read as stale to the dev-mode stale-raw check, and a first half
-// that parses to several blocks is one of the split shapes under test.
-afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
-
-/** The two splits whose new item reads back as another tree, the item split's open defect. */
-const allowSplitReadBack = () =>
-	allowDevWarns(['invariant:stale-raw', 'tree-ops', 'invariant:reads-back']);
+// A first half that parses to several blocks is one of the split shapes under test.
+afterEach(() => allowDevWarns(['tree-ops']));
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
@@ -57,12 +53,14 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 		expect(listState.innerBlockIds[0]).toBe('item-0');
 
+		// The new item's empty first line, then the blank line above `b`, which a reload reads as an
+		// empty paragraph of its own.
 		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
-		expect(newItem.children).toHaveLength(3);
+		expect(newItem.children!.map((c) => c.raw)).toEqual(['\n', '\n', 'b\n', 'c\n']);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
-		allowSplitReadBack();
+		expect(describeConvergence(deps.doc)).toBeNull();
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -114,9 +112,11 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(liveItem().children!.map((c) => c.raw)).toEqual(['x\n', '    a\n', '\n']);
 		expect(itemState.innerBlockIds).toHaveLength(3);
 
+		// The new item's first block sits on its marker line, where four spaces widen the marker.
+		expect(describeConvergence(deps.doc)).toBeNull();
 		const newItem = liveList().children![1];
-		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
-		allowSplitReadBack();
+		expect(newItem.metadata).toMatchObject({ marker: '-     ' });
+		expect(newItem.children!.map((c) => [c.kind, c.raw])).toEqual([['paragraph', 'b\n']]);
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {

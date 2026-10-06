@@ -401,8 +401,6 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/tree-operations/list/task-paragraph.ts':
 				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through, and `readThroughItemMarker`, which reads a list item’s first slot through its marker line',
-			'src/lib/tree-operations/list/list-builders.ts':
-				'reads a whole built list item back, whose bytes carry their own marker',
 			'src/lib/tree-operations/node-ops.ts':
 				'counts the blocks joined or split bytes read as, to refuse a join or place a split; what it installs is read at the slot',
 			'src/lib/tree-operations/node-primitives.ts':
