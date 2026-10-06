@@ -16,9 +16,9 @@ import {
 	definePluginBlock,
 	registerBlockCommand,
 	registerBlockOpener,
+	registerRangeIndent,
 	type EditorPlugin
 } from '$lib/plugin';
-import { registerRangeIndent } from '$lib/schema/range-indent-forms';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import RevealLeafBlock from '../../blocks/fixtures/RevealLeafBlock.svelte';
 import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
@@ -30,7 +30,7 @@ type Seam = { getUndoStack(): { undo: unknown[] } };
 
 const KIND = 'quote-leaf';
 
-/** An `@@ ` line whose indent command adds a `>` after its marker, at a caret or over a range. */
+/** An `@@ ` line whose indent command puts a tab after its marker, at a caret or over a range. */
 function quoteLeafPlugin(): EditorPlugin {
 	return definePluginBlock({
 		name: KIND,
@@ -41,7 +41,7 @@ function quoteLeafPlugin(): EditorPlugin {
 			const indent = registerBlockCommand(kind, 'quoteLeaf.indent', () => true);
 			augmentBlockKind(kind, { keymap: [{ chord: 'Tab', command: indent }] });
 			registerRangeIndent(kind, indent, (node, range) => ({
-				text: `@@ >${trimTrailingLineEnding(node.raw).slice(3)}`,
+				text: `@@ \t${trimTrailingLineEnding(node.raw).slice(3)}`,
 				selection: { start: range.start + 1, end: range.end + 1 }
 			}));
 			registerBlockOpener(kind, {
@@ -69,9 +69,9 @@ describe('Tab over a range holding a plugin kind with its own indent', () => {
 		});
 		await mounted.settle();
 
-		await pressKey(surfaceAt(mounted, [0]), { key: 'Tab' });
+		await pressKey(surfaceAt(mounted, [2]), { key: 'Tab' });
 
-		expect(mounted.source()).toBe('para\n\n@@ >one\n\n@@ >two\n');
+		expect(mounted.source()).toBe('para\n\n@@ \tone\n\n@@ \ttwo\n');
 		expect(mounted.instance.__test.getUndoStack().undo).toHaveLength(1);
 	});
 });

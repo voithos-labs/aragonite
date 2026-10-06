@@ -154,6 +154,9 @@ export type {
 	BlockContextActionProvider
 } from './schema/context-actions';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
+// What a kind's own indent command does over a selection spanning blocks.
+export { registerRangeIndent } from './schema/range-indent-forms';
+export type { RangeLineShift } from './schema/range-indent-forms';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's `EditorContext`,
 // with the argument `runCommand(id, arg)` or the chord's binding carried.

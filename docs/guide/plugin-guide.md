@@ -1698,6 +1698,22 @@ The consumer route `editor.runCommand(id)` reaches neither of those tiers: it re
 
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
+**`registerRangeIndent(kind, command, shift)`**
+
+Tab over a selection that spans blocks indents what it covers: list items nest, code lines shift. Your kind joins in when its keymap binds an indent key to your own command and you tell the editor what that command does over a range. `shift` gets one of your blocks and the stretch of its text the selection covers, and hands back the new text plus where the selection now sits in it, or `null` when nothing changes. The text is the block's raw without its final line ending. Skip the registration and your blocks just sit there under a range (Tab is still taken, so focus doesn't wander off the editor).
+
+```ts
+const indent = registerBlockCommand(poem, 'poem.indent', indentAtCaret);
+// in the descriptor: keymap: [{ chord: 'Tab', command: indent }]
+registerRangeIndent(poem, indent, (node, range) => ({
+	text: '~ \t' + node.raw.replace(/\r?\n$/, '').slice(2),
+	selection: { start: range.start + 1, end: range.end + 1 }
+}));
+// a selection from the paragraph above into '~ roses are red', then Tab: '~ \troses are red'
+```
+
+Every block of your kind the selection reaches gets one call, and the whole press is one undo entry, list moves and code shifts included. Keep the bytes you add whitespace: the editor checks in development that an indent over a range adds and drops no text.
+
 **`registerGlobalCommand(name, handler, { chord }?)`**
 
 The editor-wide sibling: it creates a process-wide command whose handler receives the dispatching instance's `EditorContext` rather than a block, so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Its second argument is whatever `runCommand(id, arg)` or the chord's binding passed, `undefined` when neither did. The chord is optional; without one the command runs only through `runCommand`. Call it from `setup`:

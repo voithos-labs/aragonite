@@ -2,10 +2,10 @@
 
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { kindOfPath, replaceRange } from './range-replace';
-import { bindsIndentAt, coversIndentBinding, indentRange, INDENT_COMMANDS } from './range-indent';
+import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -19,6 +19,7 @@ import {
 	commandForKey
 } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
+import { rangeIndentCommands } from '../../schema/range-indent-forms';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -202,8 +203,7 @@ function takesIdleTab(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean
 	const sel = window.getSelection();
 	if (!el || !sel || sel.isCollapsed) return false;
 	if (!el.contains(sel.anchorNode) || !el.contains(sel.focusNode)) return false;
-	const commandOf = (node: CstNode) => commandForKey(e, node.kind, ctx.commands);
-	return !bindsIndentAt(ctx.getDoc(), ctx.getMyPath(), commandOf);
+	return !bindsIndentAt(ctx.getDoc(), ctx.getMyPath(), indentFormsFor(e, ctx.commands));
 }
 
 /** Resolves a swallowed format chord against the kind of the block that took the key, as a
@@ -287,22 +287,18 @@ export function isRangeDeleteKey(e: KeyboardEvent): boolean {
 }
 
 /** Tab and Shift+Tab always, so focus never leaves the editor even when nothing indents; any
- *  other key when a block the range covers binds it to an indent command, as `indentRange` reads it. */
+ *  other key when a block the range covers binds it to a command its kind indents a range with. */
 export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	if (isTabKey(e)) return true;
 	const { anchor, focus } = reads.selection;
 	const chord = eventToChord(e);
+	if (!anchor || !focus || !chord) return false;
 	// The range is walked only for a chord some keymap binds to indent; any other key costs nothing.
-	if (!anchor || !focus || !chord || !chordsBoundTo(INDENT_COMMANDS, reads.commands).has(chord)) {
-		return false;
-	}
+	const indents = rangeIndentCommands(reads.commands.activation);
+	if (!chordsBoundTo(indents, reads.commands).has(chord)) return false;
 	const doc = reads.getDoc();
-	const byKind = new Map<string, AnyCommandId | null>();
-	const commandOf = (node: CstNode) => {
-		if (!byKind.has(node.kind)) byKind.set(node.kind, commandForKey(e, node.kind, reads.commands));
-		return byKind.get(node.kind) ?? null;
-	};
-	return coversIndentBinding(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), commandOf);
+	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
+	return coversIndentBinding(doc, coverage, indentFormsFor(e, reads.commands));
 }
 
 /** Tab or Shift+Tab, with no other modifier. */

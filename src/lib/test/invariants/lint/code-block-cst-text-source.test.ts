@@ -22,8 +22,7 @@ describe('CodeBlock takes its edit text from the CST, not the DOM', () => {
 
 	it('read the CodeBlock source and found the paths this guard covers', () => {
 		expect(code.length).toBeGreaterThan(0);
-		expect(code).toContain('indentSelection');
-		expect(code).toContain('dedentSelection');
+		expect(code).toContain('shiftSelection');
 	});
 
 	it('no edit path reads textContent off the rendered element', () => {
