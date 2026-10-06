@@ -99,8 +99,8 @@ each effect's body out and refuses the caching accessor inside it:
 ```ts
 // src/lib/test/invariants/lint/render-inlinecontent.test.ts
 it('TextEditableBlock render $effect does not call getInlineContent', () => {
-	const file = readEditorFile(TEXT_BLOCK_FILE);
-	const effect = extractRenderEffect(file.text);
+	const file = readSource(TEXT_BLOCK_FILE);
+	const effect = extractRenderEffect(file);
 	// Fail loud if the anchor vanished: a silent pass leaves the render path unguarded.
 	expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
 	expect(callsCachingAccessor(effect!)).toBe(false);

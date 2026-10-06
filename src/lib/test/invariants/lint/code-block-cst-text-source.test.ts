@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { readSource } from './scan-source';
 import { SOURCE } from './source-paths';
 
-const CODE_BLOCK = SOURCE.codeBlock;
+const CODE_BLOCK = SOURCE.codeBlockComponent;
 // `.textContent` in any position except the left side of an assignment.
 const TEXT_CONTENT_READ = /\.textContent\b(?!\s*=(?!=))/;
 

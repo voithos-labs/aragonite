@@ -88,6 +88,11 @@ Four deliberate exceptions, and no, a fifth isn't on offer:
 - **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside
   `src/lib/`, so it has no in-library module to mirror.
 
+A source scan under `lint/` takes every file and directory it reads from
+`src/lib/test/invariants/lint/source-paths.ts`, where each entry also names a bit of text its file
+has to hold, so moving a file is one edit there and a slip onto the wrong file fails. Hand-write a
+path in a read instead and `source-paths.test.ts` fails, naming the path.
+
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 
 ### By area

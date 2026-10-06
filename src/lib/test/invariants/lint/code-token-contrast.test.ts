@@ -124,7 +124,7 @@ const DE_EMPHASIS_TOKENS = [
 /** Blocks that draw their text at a reduced opacity: raw source text, and the link reference
  *  definition, which fades its whole block again on top of the raw text's own opacity. */
 const RAW_BLOCK_RULE = {
-	file: SOURCE.textBlock,
+	file: SOURCE.textBlockComponent,
 	selector: '.text-editable-block.raw-block'
 };
 const REFERENCE_DEFINITION_RULE = {

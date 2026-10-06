@@ -58,18 +58,15 @@ describe('the file scan', () => {
 	it('names a file the population no longer reaches, and one the matcher no longer flags', () => {
 		const rule: FileRule = {
 			...RULE,
-			population: under('src/lib/cursor/'),
-			reaches: ['src/lib/cursor/walk.ts', 'src/lib/cursor/gone.ts'],
-			mustMatch: ['src/lib/tree-operations/unshare.ts']
+			population: under('fixture/walks/'),
+			reaches: ['fixture/walks/walk.ts', 'fixture/walks/gone.ts'],
+			mustMatch: ['fixture/writes/unshare.ts']
 		};
 		const report = runFileRule(rule, [
-			file('src/lib/cursor/walk.ts', 'permitted();'),
-			file('src/lib/tree-operations/unshare.ts', 'permitted();')
+			file('fixture/walks/walk.ts', 'permitted();'),
+			file('fixture/writes/unshare.ts', 'permitted();')
 		]);
-		expect(report.unreached).toEqual([
-			'src/lib/cursor/gone.ts',
-			'src/lib/tree-operations/unshare.ts'
-		]);
+		expect(report.unreached).toEqual(['fixture/walks/gone.ts', 'fixture/writes/unshare.ts']);
 	});
 
 	it('a predicate matcher reads the file, not just its code', () => {

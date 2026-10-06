@@ -10,7 +10,7 @@ import { balancedRegion, readSource, sourceFile, type SourceFile } from './scan-
 import { SOURCE } from './source-paths';
 
 const RENDER_DOM_FILE = SOURCE.textRender;
-const TEXT_BLOCK_FILE = SOURCE.textBlock;
+const TEXT_BLOCK_FILE = SOURCE.textBlockComponent;
 const CELL_RENDER_FILE = SOURCE.cellRender;
 const CELL_BLOCK_FILE = SOURCE.tableCell;
 

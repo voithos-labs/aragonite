@@ -8,7 +8,7 @@ import { SOURCE } from './source-paths';
 
 describe('G4.116 the pending break answers a key before the shared keymap', () => {
 	it('runs the pending break’s keys ahead of the shared keymap', () => {
-		const { code } = readSource(SOURCE.textBlock);
+		const { code } = readSource(SOURCE.textBlockComponent);
 		const keydown = code.slice(code.indexOf('async function onKeyDown('));
 		const pending = keydown.indexOf('handlePendingBreakKey(');
 

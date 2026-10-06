@@ -97,12 +97,6 @@ export function collectEditorSources(
 		.map(readSource);
 }
 
-export function readEditorFile(relFromEditor: string): SourceFile {
-	return readSource(
-		path.relative(path.resolve('.'), path.join(EDITOR_SRC, relFromEditor)).split(path.sep).join('/')
-	);
-}
-
 /** The bundled plugins, by directory name. */
 export function bundledPluginDirs(): string[] {
 	return readdirSync(path.resolve(SOURCE_DIR.plugins), { withFileTypes: true })

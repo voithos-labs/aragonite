@@ -150,7 +150,7 @@ const ACTIVE_IDENTITY_RE = /document\.activeElement\s*[!=]==|[!=]==\s*document\.
 // ── G4.51 debounced checkpoints ──────────────────────────────────────────────
 
 /** The definition sites declare the members rather than spending them as a pair. */
-const CHECKPOINT_DECLARATIONS: string[] = [SOURCE.actionContracts, SOURCE.commitEngine];
+const CHECKPOINT_DECLARATIONS: string[] = [SOURCE.actionContracts, SOURCE.undoController];
 
 function pairing(
 	id: string,
@@ -602,7 +602,12 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'the browser places a press in an editable’s top or bottom padding at the line’s start or end on Mac and Linux; bind the surface’s pointerdown to a named function that calls crossBlock.handlePointerDown exactly once, or allow it here with why',
-		reaches: [SOURCE.codeBlock, SOURCE.tableCell, SOURCE.textBlock, SOURCE.editableLeaf],
+		reaches: [
+			SOURCE.codeBlockComponent,
+			SOURCE.tableCell,
+			SOURCE.textBlockComponent,
+			SOURCE.editableLeaf
+		],
 		hits: [
 			at('x.svelte', '<div contenteditable="true"></div>'),
 			at(
