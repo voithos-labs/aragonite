@@ -14,7 +14,8 @@ import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-br
 import type { Document } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// Indented code after a split item's new marker would read as a wider marker, so it opens below.
+// The text after the caret opens a new item on its marker line with every byte kept, and the item
+// holds what a reload reads there: indented code widens the marker, `---` ends the list.
 // Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.
 
 async function pasteAfterAbc(source: string, clipboard: string) {
@@ -33,22 +34,23 @@ describe('the text after the caret, split into an item of its own', () => {
 			'an indented line continuing the paragraph',
 			'- abc\n      code\n  more\n',
 			'- one\n- two',
-			'- abc\n- one\n- two\n- \n      code\n  more\n'
+			'- abc\n- one\n- two\n-     code\n  more\n'
 		],
 		[
 			'indented code after a blank line',
 			'- abc\n\n      code\n',
 			'- one\n- two',
-			'- abc\n- one\n- two\n- \n      code\n'
+			'- abc\n- one\n- two\n-     code\n'
 		],
 		// `- ---` is a thematic break of its own, which ends the list.
 		[
 			'a thematic break drawn in dashes',
 			'- abc\n\n  ---\n',
 			'- one\n- two',
-			'- abc\n- one\n- two\n- \n  ---\n'
-		]
-	])('opens on the line after an empty marker: %s', async (_, source, clipboard, expected) => {
+			'- abc\n- one\n- two\n- ---\n'
+		],
+		['a space after the caret', '- abc def\n', '- one\n- two', '- abc\n- one\n- two\n-  def\n']
+	])('keeps every byte on the marker line: %s', async (_, source, clipboard, expected) => {
 		const doc = await pasteAfterAbc(source, clipboard);
 
 		expect(serialize(doc)).toBe(expected);
@@ -56,7 +58,7 @@ describe('the text after the caret, split into an item of its own', () => {
 	});
 
 	// The break-out route splits the item the same way, into the second half of the list.
-	it('opens on the line after an empty marker when the list breaks out', () => {
+	it('keeps every byte on the marker line when the list breaks out', () => {
 		const list = parse('1. abc\n       code\n').children[0];
 		const pasted = parse('- x\n').children;
 		const { replacement } = buildListBreakOutReplacement(
@@ -72,7 +74,7 @@ describe('the text after the caret, split into an item of its own', () => {
 		const secondHalf = replacement[replacement.length - 1];
 		const alone: Document = { kind: 'document', prefix: '', children: [secondHalf], suffix: '' };
 
-		expect(secondHalf.raw).toBe('2. \n       code\n');
+		expect(secondHalf.raw).toBe('2.     code\n');
 		expect(describeConvergence(alone)).toBeNull();
 	});
 
