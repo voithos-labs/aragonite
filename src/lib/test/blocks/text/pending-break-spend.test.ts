@@ -147,3 +147,24 @@ describe.each(MODES)('%s mode: Shift+Enter where the line ends in structure', (m
 		expect(editor.source()).toBe(written);
 	});
 });
+
+// Miss-analysis: each Shift+Enter route pinned its own heading rows, so nothing said the break
+// written inside the text and the one written at its end share one shape.
+describe.each(MODES)('%s mode: both Shift+Enter routes write a heading’s break alike', (mode) => {
+	it.each([
+		['inside the text', 3, '# a\\ #'],
+		['at the end of the text', 5, '# a b\\ #']
+	])(
+		'%s: the backslash after the text, the line ending past the closing run',
+		async (_, at, headingLine) => {
+			const editor = mountEditor({ source: '# a b #\n', presentationMode: mode });
+			const el = surfaceAt(editor, [0]);
+			placeCaret(el, at);
+			await pressKey(el, { key: 'Enter', shiftKey: true });
+			// At the end the break is written with the next key.
+			await pressKey(el, { key: 'w' });
+
+			expect(editor.source().split('\n')[0]).toBe(headingLine);
+		}
+	);
+});
