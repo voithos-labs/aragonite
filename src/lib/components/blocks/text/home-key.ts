@@ -32,19 +32,10 @@ export function handleHomeKey(e: KeyboardEvent, deps: HomeKeyDeps): boolean {
 	const toBlockStart = e.ctrlKey || e.metaKey;
 	if (!toBlockStart) {
 		const focus = deps.getFocusOffset() ?? bounds.start;
-		if (!isAtFirstVisualLine(el, focus, bounds, selectionFocus())) return false;
+		if (!isAtFirstVisualLine(el, focus, bounds)) return false;
 	}
 	e.preventDefault();
 	if (e.shiftKey) extendSelectionToRaw(el, bounds.start);
 	else deps.focusContentStart();
 	return true;
-}
-
-// Shift+Home moves the selection's focus, which a forward selection holds below its start.
-function selectionFocus(): Range | undefined {
-	const sel = window.getSelection();
-	if (!sel?.focusNode || sel.isCollapsed) return undefined;
-	const range = document.createRange();
-	range.setStart(sel.focusNode, sel.focusOffset);
-	return range;
 }

@@ -87,28 +87,22 @@ export interface CaretBounds {
 	end: number;
 }
 
-/** True if `caret` (the selection's first range by default) sits on `el`'s first visual line. The
- *  fallback offset answers with no live range, which Chromium drops beside a widget. */
+/** True if the caret, or a selection's moving end, sits on `el`'s first visual line. The fallback
+ *  offset answers with no live range, which Chromium drops beside a widget. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	bounds: CaretBounds,
-	caret?: Range
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(
-		el,
-		() => fallbackOffset <= bounds.start,
-		{
-			isEmpty: bounds.start === bounds.end,
-			toStart: true,
-			boundaryTop: () => {
-				const firstText = findFirstTextNode(el);
-				const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
-				return top ?? collapsedContentsTop(el, true);
-			}
-		},
-		caret
-	);
+	return isAtEdgeVisualLine(el, () => fallbackOffset <= bounds.start, {
+		isEmpty: bounds.start === bounds.end,
+		toStart: true,
+		boundaryTop: () => {
+			const firstText = findFirstTextNode(el);
+			const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
+			return top ?? collapsedContentsTop(el, true);
+		}
+	});
 }
 
 export function isAtLastVisualLine(
@@ -134,19 +128,17 @@ export function isAtLastVisualLine(
 function isAtEdgeVisualLine(
 	el: HTMLElement,
 	fallback: () => boolean,
-	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null },
-	caret?: Range
+	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null }
 ): boolean {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return fallback();
 	if (edge.isEmpty) return true;
 
-	const cursorRange = caret ?? sel.getRangeAt(0);
+	const cursorRange = movingEnd(sel);
 	const tolerance = sameLineTolerance(el);
 	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null) {
-		if (!cursorRange.collapsed) return true;
 		// A caret beside an atomic widget sits at an element-level position and measures to no rect
 		// of its own: it borrows the widget's box, and is at the edge line when nothing reaches past.
 		const band = neighbourCaretRect(cursorRange);
@@ -160,6 +152,14 @@ function isAtEdgeVisualLine(
 	const edgeTop = edge.boundaryTop();
 	if (edgeTop === null) return fallback();
 	return Math.abs(cursorTop - edgeTop) < tolerance;
+}
+
+// Shift+Arrow and Shift+Home move a selection's focus, so its line is the one that counts.
+function movingEnd(sel: Selection): Range {
+	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
+	const range = document.createRange();
+	range.setStart(sel.focusNode, sel.focusOffset);
+	return range;
 }
 
 function nodeCaretRect(node: Node | undefined, fromEnd: boolean): CaretRect | null {
