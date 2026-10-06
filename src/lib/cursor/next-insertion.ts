@@ -21,12 +21,14 @@ export interface SpentEdit extends TextEdit {
 }
 
 /** Moves `edit`, an insertion at `at` in `before`, to the offset `side` means at a hidden edge;
- *  null leaves it where it is. A block that draws every marker has none. */
+ *  null leaves it where it is. `caret` is where the caret said it was typed, which the browser can
+ *  put on the other side of a hidden run. A block that draws every marker has none. */
 export type PlaceInsertion = (
 	before: string,
 	edit: TextEdit,
 	at: number,
-	side: EdgeAffinity | null
+	side: EdgeAffinity | null,
+	caret?: number
 ) => TextEdit | null;
 
 /** The block's move of an insertion with the side the records were held at, for a record that
@@ -65,7 +67,7 @@ export interface HeldInsertion {
 	waitsAt(offset: number): boolean;
 	/** `edit` moved to the side the caret means, unless a record waits where it inserts, then
 	 *  `spendInPlace`. */
-	spend(before: string, edit: TextEdit): TextEdit;
+	spend(before: string, edit: TextEdit, caret?: number): TextEdit;
 	/** `edit` with each record's bytes in it, for a write that put its bytes where the caret means
 	 *  itself (the auto-pair), so no record moves them; a record the edit doesn't insert at ends. */
 	spendInPlace(before: string, edit: TextEdit): TextEdit;
@@ -114,10 +116,10 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 			empty: held.length === 0 && place === undefined,
 			side,
 			waitsAt,
-			spend: (before, edit) => {
+			spend: (before, edit, caret) => {
 				const at = insertionStart(before, edit);
 				// A record waiting where the text goes in is what that insertion was for.
-				const placed = place && at !== null && !waitsAt(at) && place(before, edit, at, side);
+				const placed = place && at !== null && !waitsAt(at) && place(before, edit, at, side, caret);
 				return spendAll(before, placed || edit, place ? { place, side } : null);
 			},
 			spendInPlace: (before, edit) => spendAll(before, edit, null),

@@ -122,3 +122,23 @@ describe('where a delimiter typed at a hidden run lands', () => {
 		expect(placementOf(block(BOLD), 'source', 'far').placement.offsetFor(11, '`')).toBe(11);
 	});
 });
+
+// After a split the caret reads the reopened run's start, raw 0, while Chromium types past the run.
+// Miss-analysis: every placement row put the text where the caret read, so none saw the two differ.
+describe('a caret read across a hidden run from where the text went', () => {
+	const REOPENED = block('**ld** text\n');
+	const typedPastOpener = { text: '**Xld** text', caretAfter: 3 };
+
+	it('leaves the text where the browser put it when the caret’s own offset holds', () => {
+		const { placement } = placementOf(REOPENED, 'live', null);
+		expect(placement.insertion('**ld** text', typedPastOpener, 2, null, 0)).toBeNull();
+	});
+
+	it('ignores a caret at another screen position', () => {
+		const { placement } = placementOf(REOPENED, 'live', null);
+		expect(placement.insertion('**ld** text', typedPastOpener, 2, null, 9)).toEqual({
+			text: 'X**ld** text',
+			caretAfter: 1
+		});
+	});
+});

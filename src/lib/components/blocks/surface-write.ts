@@ -10,7 +10,7 @@ import type { WriteMode } from '../../schema/block-kind-descriptor';
 import type { LeafRangeEdit } from '../../tree-operations/leaf-range';
 import type { KindCue } from '../kind-cue.svelte';
 import type { BlockAutoPairs } from './text/auto-pair-record';
-import type { HeldInsertion } from '../../cursor/next-insertion';
+import type { HeldInsertion, TextEdit } from '../../cursor/next-insertion';
 import { shownKind } from '../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { withStoredCaret } from '../../editor-actions/stored-caret';
@@ -70,8 +70,12 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const held = write.held ?? deps.holdInsertion();
 		const display = held.empty ? null : trimTrailingLineEnding(node.raw);
 		const changed = write.text !== display;
-		const spend = write.inPlace ? held.spendInPlace : held.spend;
-		const edit = typed && display !== null && changed ? spend(display, write) : write;
+		// The caret the input began at, which can sit across a hidden run from where the text went.
+		const spend = (text: string): TextEdit =>
+			write.inPlace
+				? held.spendInPlace(text, write)
+				: held.spend(text, write, deps.getPreEditOffset());
+		const edit = typed && display !== null && changed ? spend(display) : write;
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.

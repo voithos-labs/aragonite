@@ -83,8 +83,8 @@ export function resolveEdgeSeat(
 	return null;
 }
 
-/** `typed`, inserted at `at` in `before`, written where the edge resolver puts it instead; null
- *  where it already lands there. Every insertion route writes through this, after the fact. */
+/** `typed`, inserted at `at` in `before`, written where the edge resolver puts it, or null where
+ *  it already lands there. `caret` counts only where it names the same screen position as `at`. */
 export function relocateInsertion(
 	before: string,
 	at: number,
@@ -92,10 +92,14 @@ export function relocateInsertion(
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	screen: VisibilityContext,
-	reading: Reading
+	reading: Reading,
+	caret = at
 ): TextEdit | null {
-	const seat = resolveEdgeSeat(at, inlines, affinity, before, screen, typed, reading);
-	if (!seat) return null;
+	const samePosition =
+		caret === at || seatOffsetsAt(at, inlines, before, screen, reading.grammar).includes(caret);
+	const from = samePosition ? caret : at;
+	const seat = resolveEdgeSeat(from, inlines, affinity, before, screen, typed, reading);
+	if (!seat || seat.offset === at) return null;
 	return {
 		text: before.slice(0, seat.offset) + typed + before.slice(seat.offset),
 		caretAfter: seat.offset + typed.length
@@ -135,11 +139,12 @@ export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
 		return resolvedInlineContent(raw === node.raw ? node : { ...node, raw }, deps.reading);
 	};
 	return {
-		insertion: (before, edit, at, side) => {
+		insertion: (before, edit, at, side, caret) => {
 			const screen = hidingScreen();
 			if (!screen) return null;
 			const typed = edit.text.slice(at, at + edit.text.length - before.length);
-			return relocateInsertion(before, at, typed, inlinesOf(before), side, screen, deps.reading);
+			const inlines = inlinesOf(before);
+			return relocateInsertion(before, at, typed, inlines, side, screen, deps.reading, caret);
 		},
 		offsetFor: (caret, typed) => {
 			const screen = hidingScreen();
