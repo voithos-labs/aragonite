@@ -802,9 +802,8 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-	// A pending hard break's first anchor ends the marker's line, so the position past the marker is
-	// the next line's start, after that anchor.
-	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
+	// A span right after a pending hard break's anchors (a setext underline) starts past the line
+	// they open, so the position before it is on that line.
 	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
 		return { node: parent, offset: idx - 1 };
 	}
@@ -900,8 +899,8 @@ function* landingSegments(
 		// spans, and splitting the run there would create a caret position nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
-			// A pending hard break's anchors start a line between two hidden runs (the break's
-			// backslash, a setext underline), and the caret sits at that line's start.
+			// A pending hard break's anchors start a line between two hidden runs (a closer ending the
+			// text, a setext underline), and the caret sits at that line's start.
 			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
 				yield run;
 				run = null;

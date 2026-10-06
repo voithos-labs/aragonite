@@ -1241,7 +1241,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/components/blocks/text/construct-edge-delete.ts':
 				'the edge delete, which reads its own candidate back where it is stored',
 			'src/lib/components/blocks/text/text-keydown.ts':
-				'a hard break, its opened line or a tab inserted, which deletes nothing',
+				'a hard break or a tab inserted, which deletes nothing',
 			'src/lib/components/blocks/text/pending-break-keys.ts':
 				'a key typed on the line a pending break opened, which deletes nothing',
 			'src/lib/components/blocks/text/edge-seat.ts':

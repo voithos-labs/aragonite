@@ -27,7 +27,7 @@ async function openBreak(
 ): Promise<{ editor: MountedEditor; el: HTMLElement }> {
 	const editor = mountEditor({ source, presentationMode: mode });
 	const el = surfaceAt(editor, [0]);
-	placeCaret(el, source.length - 1);
+	placeCaret(el, source.search(/\r?\n/));
 	for (let i = 0; i < times; i++) await pressKey(el, { key: 'Enter', shiftKey: true });
 	return { editor, el };
 }
@@ -85,6 +85,14 @@ describe.each(MODES)('%s mode: the insertion after Shift+Enter at the end', (mod
 		await editor.settle();
 
 		expect(editor.source()).toBe('abc\\\nx\n');
+	});
+
+	it('a CRLF block’s break takes CRLF', async () => {
+		const { editor, el } = await openBreak(mode, 1, 'abc\r\n');
+
+		await pressKey(el, { key: 'x' });
+
+		expect(editor.source()).toBe('abc\\\r\nx\r\n');
 	});
 
 	it('two Shift+Enters open two lines, and the key lands on the second', async () => {

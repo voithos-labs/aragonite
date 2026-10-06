@@ -14,27 +14,6 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// At the end of the displayed text the break's own line ending becomes the block's trailing
-	// one, so the original is not put back and the caret clamps to the new length.
-	it('emits the transitional break at end of display text, caret clamped', () => {
-		const r = insertHardBreak('abc\n', 3, '\n', { start: 0, end: 3 });
-		expect(r.newRaw).toBe('abc\\\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	// A CRLF block's typed break takes CRLF, the ending the block's getter hands over.
-	it('keeps the CRLF ending at end-of-display, caret clamped', () => {
-		const r = insertHardBreak('abc\r\n', 3, '\r\n', { start: 0, end: 3 });
-		expect(r.newRaw).toBe('abc\\\r\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	it('clamps an offset past the display length to end-of-display', () => {
-		const r = insertHardBreak('abc\n', 9, '\n', { start: 0, end: 3 });
-		expect(r.newRaw).toBe('abc\\\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
 	it('gives a mid-display break the block CRLF ending, caret past it', () => {
 		const r = insertHardBreak('abc\r\n', 1, '\r\n', { start: 0, end: 3 });
 		expect(r.newRaw).toBe('a\\\r\nbc\r\n');
@@ -67,6 +46,13 @@ describe('insertHardBreak: a heading’s closing run stays on the heading’s li
 
 	it('at the start of the text, the run stays on the heading’s line', () => {
 		expect(insertHardBreak('# Hi #\n', 2, '\n', { start: 2, end: 4 }).newRaw).toBe('# \\ #\nHi\n');
+	});
+
+	it('at the end of a setext underline, adds no second ending, caret clamped', () => {
+		expect(insertHardBreak('Plan\n===\n', 8, '\n', { start: 0, end: 4 })).toEqual({
+			newRaw: 'Plan\n===\\\n',
+			caretOffset: 9
+		});
 	});
 
 	it('leaves a setext underline under the title for a break in its middle', () => {

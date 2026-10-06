@@ -98,17 +98,6 @@ const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint
 
 const GESTURES: EditGesture[] = [
 	{
-		name: 'hard break at end of display',
-		source: 'abc\n',
-		apply: (doc) =>
-			insertHardBreak(
-				doc.children[0].raw,
-				displayLength(doc.children[0].raw),
-				documentLineEnding(doc),
-				{ start: 0, end: displayLength(doc.children[0].raw) }
-			).newRaw
-	},
-	{
 		name: 'hard break mid display',
 		source: 'abc\n',
 		apply: (doc) =>

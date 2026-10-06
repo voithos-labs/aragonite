@@ -1,7 +1,7 @@
 /**
  * Pure text and caret transforms for TextEditableBlock's structural gestures: changing a
- * heading's level, demoting it to prose, inserting a hard break, inserting a literal tab.
- * The component owns the wiring; these own the string math.
+ * heading's level, demoting it to prose, inserting a hard break inside the text, inserting a
+ * literal tab. The component owns the wiring; these own the string math.
  */
 
 import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
@@ -64,8 +64,8 @@ export function cycleHeading(
 	};
 }
 
-/** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's.
- *  At the content's end, the block's own ending stands in for it until the next key adds the line. */
+/** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's;
+ *  at the end of the text's line the pending break writes it instead (`cursor/pending-break.svelte.ts`). */
 export function insertHardBreak(
 	raw: string,
 	offset: number,
@@ -73,47 +73,21 @@ export function insertHardBreak(
 	content: ContentRange
 ): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
-	const trailing = ownTrailingLineEnding(raw);
-	if (offset === content.end && content.end < display.length) {
-		return {
-			newRaw: raw.slice(0, content.end) + '\\' + raw.slice(content.end),
-			caretOffset: content.end + 1
-		};
-	}
 	const lineTail = sameLineSuffixOf(raw, content.end);
-	if (offset >= content.start && offset < content.end && lineTail) {
-		return breakBeforeLine(
-			display.slice(0, offset) + '\\' + lineTail,
-			display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
-		);
-	}
-	return breakBeforeLine(display.slice(0, offset) + '\\', display.slice(offset));
-
-	/** `head`, the break's line ending, then `rest` on the new line. */
-	function breakBeforeLine(head: string, rest: string): TextEditResult {
-		const newDisplay = head + ending + rest;
-		// With nothing after the break, the inserted ending is itself the trailing ending;
-		// reattaching the original would double it into a blank line and break list continuation.
-		const newRaw = rest === '' ? newDisplay : newDisplay + trailing;
-		return {
-			newRaw,
-			caretOffset: Math.min(head.length + ending.length, displayLength(newRaw))
-		};
-	}
-}
-
-/** The key typed after a hard break's backslash, opening the break's own line at `lineEnd` (past a
- *  heading's closing run). Works on the display text, without its trailing line ending. */
-export function openHardBreakLine(
-	display: string,
-	lineEnd: number,
-	ending: LineEnding,
-	key: string
-): { display: string; caret: number } {
-	const line = ending + key;
+	const [head, rest] =
+		offset >= content.start && offset < content.end && lineTail
+			? [
+					display.slice(0, offset) + '\\' + lineTail,
+					display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
+				]
+			: [display.slice(0, offset) + '\\', display.slice(offset)];
+	const newDisplay = head + ending + rest;
+	// Past a setext underline's end the inserted ending is the trailing one; a second would add a
+	// blank line.
+	const newRaw = rest === '' ? newDisplay : newDisplay + ownTrailingLineEnding(raw);
 	return {
-		display: display.slice(0, lineEnd) + line + display.slice(lineEnd),
-		caret: lineEnd + line.length
+		newRaw,
+		caretOffset: Math.min(head.length + ending.length, displayLength(newRaw))
 	};
 }
 
