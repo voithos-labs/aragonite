@@ -131,6 +131,14 @@ describe('importSpecifiers', () => {
 		expect(typeOnly("import type from './a';")).toEqual([false]);
 	});
 
+	it('marks an `import()` in a type position type-only, and a loading one not', () => {
+		const typeOnly = (code: string) => specifiers(code).map((found) => found.typeOnly);
+		expect(typeOnly("let id: import('./a').CommandId;")).toEqual([true]);
+		expect(typeOnly("let e: Promise<typeof import('./a')>;")).toEqual([true]);
+		expect(typeOnly("const m = await import('./a');")).toEqual([false]);
+		expect(typeOnly("import('./a').then((m) => m.run());")).toEqual([false]);
+	});
+
 	it('reads no import inside a template literal or a comment', () => {
 		const code = [
 			"const example = `\nimport { x } from './in-template';\n`;",

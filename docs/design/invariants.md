@@ -1151,7 +1151,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
-| G4.122 | No new import edge between `src/lib`'s top-level directories, and the list only shrinks   | L       |
+| G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
 
 ### The entries
 
@@ -2250,11 +2250,14 @@ would leave with the line still open. The behavior rows in
 
 **G4.122 · The directory import graph.** Every production import under `src/lib` goes into a graph
 whose nodes are the top-level directories, plus each root file (`assert.ts`, `index.ts`, ...) as a
-node of its own. A pair joined only by `import type` is kept apart from one where something loads
-at runtime, since a type-only edge just means a shared type sits too high. The scan holds that
-graph to the edges listed in `lint/directory-layering-baseline.ts`, both ways: a new edge fails,
-and so does a listed edge that's gone. So a move that removes an edge deletes its line, and the
-list only ever gets shorter. Two directory cycles are still in it, {`core`, `schema`, `cursor`,
+node of its own. A pair joined only by `import type` (or an `import('x')` written in a type) is
+kept apart from one where something loads at runtime, since a type-only edge just means a shared
+type sits too high. The scan holds that graph to the edges listed in
+`lint/directory-layering-baseline.ts`. A new edge fails and the red names the imports behind it;
+a listed edge that's gone fails until its line is deleted. What the scan can't do is refuse a
+line someone adds, so that's a reviewer's job, and in a slice that moves files the baseline's
+diff may only rename nodes along the move map: any other new line gets named in the slice's
+report with its imports. Two directory cycles are still in it, {`core`, `schema`, `cursor`,
 `invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
 `ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports
 from `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up

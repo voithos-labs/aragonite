@@ -1,8 +1,9 @@
 /**
- * Today's import edges between the top-level directories of `src/lib` (a root file is its own
- * node). `directory-layering.test.ts` fails on an edge missing here and on a listed edge that is
- * gone, so these lists only shrink. Two directory cycles remain to break: {core, schema, cursor,
- * invariants, tree-operations, debug} and {selection, editor-actions, components, ambient}.
+ * Today's import edges between `src/lib`'s top-level directories (a root file is its own node).
+ * `directory-layering.test.ts` fails on an edge not listed and on a listed edge that's gone; a new
+ * line needs a reviewer's yes, and a move may only rename nodes along its move map. Two cycles are
+ * left to break: {core, schema, cursor, invariants, tree-operations, debug} and {selection,
+ * editor-actions, components, ambient}.
  */
 
 /** Pairs joined by at least one import that loads at runtime. */
@@ -13,7 +14,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'ambient -> dev-warn.ts',
 	'assert.ts -> dev-warn.ts',
 	'assert.ts -> env.ts',
-	'block-component.ts -> schema',
 	'bounded-memo.ts -> dev-warn.ts',
 	'components -> a11y-strings.ts',
 	'components -> active-editor.ts',
@@ -197,6 +197,7 @@ export const TYPE_EDGES: readonly string[] = [
 	'block-component.ts -> core',
 	'block-component.ts -> editor-rects.ts',
 	'block-component.ts -> reactivity',
+	'block-component.ts -> schema',
 	'block-id.ts -> core',
 	'components -> action-contracts.ts',
 	'components -> editor-props.ts',

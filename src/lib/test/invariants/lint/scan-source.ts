@@ -824,7 +824,7 @@ export function lastArgument(args: string): string {
 export interface ImportSpecifier {
 	specifier: string;
 	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
-	/** An `import type` or `export type` statement, which loads nothing at runtime. */
+	/** An `import type` or `export type` statement, or an `import()` in a type, which loads nothing. */
 	typeOnly: boolean;
 }
 
@@ -853,7 +853,8 @@ function readImport(
 ): ImportSpecifier | null {
 	const next = skipSpaces(code, at + keyword.length);
 	if (keyword === 'import' && code[next] === '(') {
-		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic', false);
+		const typePosition = isTypePositionImport(code, at, next);
+		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic', typePosition);
 	}
 	if (!startsLine(code, at)) return null;
 	// `import type from './x'` imports a default named `type`.
@@ -870,6 +871,14 @@ function readImport(
 	return from === null
 		? null
 		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport', typeOnly);
+}
+
+/** `import('x').T` or `typeof import('x')` names a type: a promise has no member `T`, and nothing
+ *  takes the `typeof` of a promise at runtime. */
+function isTypePositionImport(code: string, at: number, open: number): boolean {
+	if (/\btypeof\s*$/.test(code.slice(Math.max(0, at - 20), at))) return true;
+	const call = /^\(\s*(['"])[^'"]*\1\s*\)\s*\.\s*([A-Za-z_$][\w$]*)/.exec(code.slice(open));
+	return call !== null && !['then', 'catch', 'finally'].includes(call[2]);
 }
 
 /** The file a library import names (through `$lib`, a relative path, an index file or a
