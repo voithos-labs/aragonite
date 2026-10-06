@@ -124,6 +124,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 3,
 		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph; and hands a to-do's re-read text back the blank lines its parse split off, before anything lands"
 	},
+	'src/lib/tree-operations/list/list-builders.ts': {
+		count: 2,
+		why: 'a new item, before any write installs it, moves the spaces its widened marker takes off its first block and writes its opener line from that marker'
+	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {
 		count: 1,
 		why: 'gives the spaces a list item’s marker line takes back to the freshly parsed first block that held them, before any write installs it'

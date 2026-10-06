@@ -23,7 +23,6 @@ import { lastCaretLeaf } from '../selection/path-lookup';
 import { renumberOrderedList, bumpOrderedMarker } from '../tree-operations/list/ordered-markers';
 import { buildListItem } from '../tree-operations/list/list-builders';
 import { storedAsIn } from '../tree-operations/stored-as';
-import type { GrammarView } from '../schema/block-openers';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import {
 	nestListItem,
@@ -57,17 +56,6 @@ function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetad
 		taskChecked: false,
 		taskMarker: inheritTask ? '[ ] ' : null
 	};
-}
-
-/** The item Enter creates, holding what its bytes read as; it starts from `source`'s bytes, so
- *  its marker line takes the item's indent. */
-function mintFollowerItem(
-	prevMeta: ListItemMetadata | undefined,
-	children: CstNode[],
-	grammar: GrammarView,
-	source?: NodeView
-): CstNode {
-	return buildListItem(followerMetadata(prevMeta), children, grammar, source);
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -118,8 +106,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
-				newItem = mintFollowerItem(
-					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
+				// The new item starts from `prevItem`'s bytes, so its marker line takes the indent.
+				newItem = buildListItem(
+					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined),
 					// rebuildListItemRaw derives the item's raw from its body's line ending.
 					[emptyParagraph('', deps.getLineEnding())],
 					deps.reading.grammar,
@@ -176,12 +165,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const preSpliceLen = itemChildren.length;
 
 					// The second half is stored as the new item's first block, behind its marker line.
-					const follower: NodeView = {
-						kind: 'listItem',
-						leadingTrivia: '',
-						raw: '',
-						metadata: followerMetadata(metadataOf(itemScope.node, 'listItem'))
-					};
+					const metadata = followerMetadata(metadataOf(itemScope.node, 'listItem'));
+					const follower: NodeView = { kind: 'listItem', leadingTrivia: '', raw: '', metadata };
 					const secondHalfAt = storedAsIn(
 						{ owner: follower, children: [], lineEnding: itemScope.body.lineEnding },
 						0,
@@ -205,12 +190,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const newItem = mintFollowerItem(
-						metadataOf(itemScope.node, 'listItem'),
-						secondHalf,
-						deps.reading.grammar,
-						itemScope.node
-					);
+					const newItem = buildListItem(metadata, secondHalf, deps.reading.grammar, itemScope.node);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);

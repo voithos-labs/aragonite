@@ -63,10 +63,11 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 }
 
 /** A container assembled from parts takes the metadata and children a reload of its rebuilt
- *  bytes reads, since no earlier reading of them exists to compare against. */
-export function adoptOwnReading(node: CstNode, grammar: GrammarView): void {
+ *  bytes reads; false when they read as something other than one node of its kind. */
+export function adoptOwnReading(node: CstNode, grammar: GrammarView): boolean {
 	const reading = followBytes(node, node.raw, grammar, { whole: true });
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
+	return reading.outcome !== 'diverged';
 }
 
 /**

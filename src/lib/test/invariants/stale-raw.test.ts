@@ -51,7 +51,11 @@ describe('checkStaleRaw (G1.1)', () => {
 	// item; both satisfy the byte invariant, so neither form may fire.
 	it('passes for an empty list item holding an empty-paragraph placeholder', () => {
 		const listTemplate = firstBlock('- a\n');
-		const emptyItem = buildListItemWithContent(listTemplate.children![0], [emptyParagraph()]);
+		const emptyItem = buildListItemWithContent(
+			listTemplate.children![0],
+			[emptyParagraph()],
+			defaultGrammarView
+		);
 		expect(emptyItem.raw).toBe('- \n');
 		expect(checkStaleRaw(emptyItem, defaultGrammarView)).toBeNull();
 
@@ -97,7 +101,11 @@ describe('checkStaleRaw (G1.1)', () => {
 	// real drift.
 
 	it('fires when raw carries content but the sole child is an empty placeholder', () => {
-		const item = buildListItemWithContent(firstBlock('- a\n').children![0], [emptyParagraph()]);
+		const item = buildListItemWithContent(
+			firstBlock('- a\n').children![0],
+			[emptyParagraph()],
+			defaultGrammarView
+		);
 		item.raw = '- actual content\n';
 		expect(checkStaleRaw(item, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});

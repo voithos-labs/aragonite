@@ -14,8 +14,7 @@ import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-br
 import type { Document } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The text after the caret opens a new item on its marker line with every byte kept, and the item
-// holds what a reload reads there: indented code widens the marker, `---` ends the list.
+// The text after the caret opens a new item on its marker line, and the tree takes its reload.
 // Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.
 
 async function pasteAfterAbc(source: string, clipboard: string) {
@@ -42,18 +41,27 @@ describe('the text after the caret, split into an item of its own', () => {
 			'- one\n- two',
 			'- abc\n- one\n- two\n-     code\n'
 		],
-		// `- ---` is a thematic break of its own, which ends the list.
 		[
-			'a thematic break drawn in dashes',
-			'- abc\n\n  ---\n',
+			'a heading with a line under it',
+			'- abc # h\n  more\n',
 			'- one\n- two',
-			'- abc\n- one\n- two\n- ---\n'
+			'- abc\n- one\n- two\n-  # h\n   more\n'
 		],
 		['a space after the caret', '- abc def\n', '- one\n- two', '- abc\n- one\n- two\n-  def\n']
 	])('keeps every byte on the marker line: %s', async (_, source, clipboard, expected) => {
 		const doc = await pasteAfterAbc(source, clipboard);
 
 		expect(serialize(doc)).toBe(expected);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// `- ---` is a thematic break of its own, which would end the list.
+	it('opens a line no marker holds below an empty one', async () => {
+		const doc = await pasteAfterAbc('- abc\n\n  ---\n', '- one\n- two');
+
+		expect(serialize(doc)).toBe('- abc\n- one\n- two\n- \n  ---\n');
+		const last = doc.children[0].children!.at(-1)!;
+		expect(last.children!.map((c) => c.kind)).toEqual(['paragraph', 'thematicBreak']);
 		expect(describeConvergence(doc)).toBeNull();
 	});
 

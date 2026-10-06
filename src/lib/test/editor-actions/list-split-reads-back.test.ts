@@ -73,7 +73,18 @@ describe('Enter in a list item: the new item holds what its bytes read as', () =
 			'live',
 			'- [ ] # **bo**\n- [ ]  **ld**\n',
 			{ taskMarker: '[ ]  ' }
-		]
+		],
+		// Two spaces in, `more` reads as a paragraph after the list on reload.
+		[
+			'a heading with a line under it, its lines under the wider marker',
+			'- a # h\n  more\n',
+			1,
+			'source',
+			'- a\n-  # h\n   more\n',
+			{ marker: '-  ' }
+		],
+		// `-  ---` reads as a divider, so the line opens below an empty marker.
+		['a line of dashes', '- a ---\n', 1, 'source', '- a\n- \n   ---\n', { marker: '- ' }]
 	])('%s', async (_what, source, offset, mode, expected, marker) => {
 		const doc = await enterInFirstItem(source, offset, mode);
 

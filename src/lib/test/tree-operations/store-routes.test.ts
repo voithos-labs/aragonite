@@ -394,7 +394,8 @@ interface Family {
 	name: string;
 	/** Each file's calls that make or fetch a store, which this family's rows run through. */
 	stores: Record<string, number>;
-	/** Files that hand a store they were given to a rewrite, and make none. */
+	/** Files that make no store but call a route taking one: they hand on a store they were given,
+	 *  or leave the route to make its own. */
 	passesOn?: string[];
 	rows: Row[];
 }
@@ -542,6 +543,8 @@ const FAMILIES: Family[] = [
 		// After a to-do's box, `# **bo**` is text; at the top level it is a heading.
 		name: 'a split',
 		stores: { 'tree-operations/node-ops.ts': 2, 'editor-actions/list-context.ts': 1 },
+		// A block's own Enter, whose halves stay in its holder: the split makes both stores itself.
+		passesOn: ['editor-actions/block-edit-core.ts'],
 		rows: [
 			{
 				shape: 'a to-do',
@@ -694,9 +697,27 @@ const REWRITES = [
 /** A store made from the tree, or fetched from the getter a block hands its helpers. */
 const MAKES_A_STORE = /(?<![\w$])(?<!function\s)(?:storedAsAt|storedAsIn)\s*\(|\bstoredAs\(\)/g;
 
-/** A call that hands a store to a rewrite that removes bytes, or asks one what a line reads as. */
-const HANDS_ON_A_STORE =
-	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack|splitNode)\s*\(/;
+/** The calls that hand a store to a rewrite that removes bytes, or ask one what a line reads as. */
+const STORE_TAKERS = [
+	'cleanJoinedRaw',
+	'joinLeaves',
+	'replaceRangeInLeaf',
+	'applyLiveRangeEdit',
+	'resolveEdgeDeletion',
+	'keepsKindAt',
+	'cleanTruncatedProse',
+	'readBack',
+	'splitNode'
+];
+
+/** Whether `code` calls a store taker, by its own name or by a name it imports it as. */
+function handsOnAStore(code: string): boolean {
+	const aliases = [...code.matchAll(/\b(\w+)\s+as\s+(\w+)/g)]
+		.filter(([, name]) => STORE_TAKERS.includes(name))
+		.map(([, , alias]) => alias);
+	const names = [...STORE_TAKERS, ...aliases].join('|');
+	return new RegExp(`(?<![\\w$.])(?<!function\\s)(?:${names})\\s*\\(`).test(code);
+}
 
 describe('the route list', () => {
 	const sources = collectEditorSources(EDITOR_SRC);
@@ -728,10 +749,13 @@ describe('the route list', () => {
 		expect(found, why).toEqual(claimed);
 	});
 
+	it('matches a store taker called by a name it was imported as', () => {
+		expect(handsOnAStore("import { splitNode as cut } from './x';\ncut(a);")).toBe(true);
+		expect(handsOnAStore("import { cut } from './x';\ncut(a);")).toBe(false);
+	});
+
 	it('every file that hands a store on is a family’s, or a rewrite', () => {
-		const found = sources
-			.filter((file) => HANDS_ON_A_STORE.test(file.code))
-			.map((f) => inLib(f.relPath));
+		const found = sources.filter((file) => handsOnAStore(file.code)).map((f) => inLib(f.relPath));
 		const named = FAMILIES.flatMap(({ stores, passesOn }) => [
 			...Object.keys(stores),
 			...(passesOn ?? [])
