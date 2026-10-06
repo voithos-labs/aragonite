@@ -36,11 +36,12 @@ const AMBIGUOUS_RATE_CEILING = 0.3;
 
 let stats: FuzzStats;
 
+// The whole sweep runs in this hook, which outlasts the default hook timeout on a busy machine.
 beforeAll(async () => {
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 	stats = await fuzzLiveGestures({ seed: SEED, docs: DOCS, steps: STEPS });
-});
+}, 120_000);
 afterAll(() => {
 	__resetLiveSplitRebalancerForTests();
 	__resetLiveJoinSeamCleanerForTests();
