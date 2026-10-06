@@ -2,7 +2,7 @@
 
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength, firstDisplayLine } from '../lines';
+import { displayLength, firstDisplayLine, type LineEnding } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // The built-in descriptors register before any read, with or without a mounted editor; the call
 // is explicit because a bare side-effect import is tree-shaken from the production build.
@@ -56,14 +56,16 @@ export function sameLineSuffixOf(raw: string, contentEnd: number): string {
 	return firstDisplayLine(raw.slice(contentEnd, displayLength(raw))).text;
 }
 
-/** `text` with a hard break at `at`: the backslash, then `suffix` (a heading's closing run, at or
- *  past `at`), then `lines`, then the rest; `lineStart` is where the text after the break begins. */
+/** `text` broken at `at`: a backslash, `suffix` (a heading's closing run, at or past `at`), then
+ *  `breaks` line endings, a lone backslash between each two. `lineStart` is where the rest begins. */
 export function withHardBreak(
 	text: string,
 	at: number,
 	suffix: ContentRange,
-	lines: string
+	ending: LineEnding,
+	breaks = 1
 ): { text: string; lineStart: number } {
+	const lines = ending + ('\\' + ending).repeat(breaks - 1);
 	const head = text.slice(0, at) + '\\' + text.slice(suffix.start, suffix.end) + lines;
 	return {
 		text: head + text.slice(at, suffix.start) + text.slice(suffix.end),

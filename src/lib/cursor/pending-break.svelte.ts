@@ -77,11 +77,10 @@ export function createPendingBreak(): PendingBreak {
 /** `edit` with the break's backslash after the text and one line ending per open line before the
  *  insertion; a second line's own break is a lone backslash on it. */
 function spent({ textEnd, lineEnd, ending, count }: OpenBreak, edit: TextEdit): TextEdit {
-	const lines = ending + ('\\' + ending).repeat(count - 1);
+	const broken = withHardBreak(edit.text, textEnd, { start: textEnd, end: lineEnd }, ending, count);
+	// The bytes the break put past the line's end, less the backslash ahead of its suffix.
+	const lines = broken.lineStart - lineEnd - 1;
 	const shift = (offset: number) =>
-		offset + (offset > textEnd ? 1 : 0) + (offset >= lineEnd ? lines.length : 0);
-	return {
-		text: withHardBreak(edit.text, textEnd, { start: textEnd, end: lineEnd }, lines).text,
-		caretAfter: shift(edit.caretAfter)
-	};
+		offset + (offset > textEnd ? 1 : 0) + (offset >= lineEnd ? lines : 0);
+	return { text: broken.text, caretAfter: shift(edit.caretAfter) };
 }
