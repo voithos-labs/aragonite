@@ -263,6 +263,26 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		// The mirror of the first-line case: a run of hidden markers at the end moves the bound in.
 		expect(isAtLastVisualLine(block, 8, { start: 0, end: 8 })).toBe(true);
 	});
+
+	// Miss-analysis: every row here measured a caret, so a selection's start and its moving end
+	// never sat on different lines.
+	it("over a selection, the line is the selection's moving end, not its start", () => {
+		// `hello ` is line one and `world` line two; any range sits on the line of its start.
+		const lineOf = (range: Range) => rectAt(range.startOffset < 6 ? 0 : 40);
+		Range.prototype.getClientRects = function (this: Range): DOMRectList {
+			return rectListOf(lineOf(this));
+		};
+		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
+			return lineOf(this);
+		};
+		const sel = window.getSelection()!;
+		sel.setBaseAndExtent(text, 2, text, 9);
+		expect(isAtLastVisualLine(block, 9, { start: 0, end: 11 })).toBe(true);
+		expect(isAtFirstVisualLine(block, 9, { start: 0, end: 11 })).toBe(false);
+		sel.setBaseAndExtent(text, 9, text, 2);
+		expect(isAtFirstVisualLine(block, 2, { start: 0, end: 11 })).toBe(true);
+		expect(isAtLastVisualLine(block, 2, { start: 0, end: 11 })).toBe(false);
+	});
 });
 
 // Miss-analysis: the no-rect branch ran only with the caret in a text node, never beside a widget.
