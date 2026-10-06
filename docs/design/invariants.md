@@ -267,6 +267,7 @@ Three families of seam run these checks:
 | G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
 | G1.58 | An indent key over a range keeps every word it holds, in order                             | A·N     |
 | G1.61 | A list move keeps the order its text reads in                                              | A·N     |
+| G1.71 | A command key over a range runs in the kind of block whose keymap claimed it               | A·N     |
 
 ### The entries
 
@@ -808,17 +809,28 @@ The reading is `invariants/leaf-text.ts` :: `leafTexts`, shared with G1.61.
 Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
 `selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
 
-**G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
-Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
-unwrap of a list's first item and its merge of a middle item, and Enter in an empty item of an outermost list
-move blocks between levels, never past each other. Each one reads the leaf text of the list it
-rewrites, in order and whitespace aside (read as G1.58 reads it), before and after the move, and dev warns when the two
-differ. A merge rewrites the two lines it joins (a live-mode join can drop markers), so its check
-reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
-run by `tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap
-and the Enter exit, G4.123) and `tree-operations/list/unwrap-merge.ts` (the merge) ·
-`test/invariants/list-move-keeps-order.test.ts`, and `test/blocks/list/indent-keeps-order.property.test.ts`
-presses the moves over loose, ordered, quoted and side-by-side lists.
+**G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift
+(Shift+Tab, Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab),
+Backspace's unwrap of a list's first item and its merge of a middle item, and Enter in an empty item
+of an outermost list move blocks between levels, never past each other. Each one reads the leaf text
+of the list it rewrites, in order and whitespace aside (read as G1.58 reads it), before and after the
+move, and dev warns when the two differ. A merge rewrites the two lines it joins (a live-mode join
+can drop markers), so its check reads the text before and after them. Predicate
+`invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` · run by
+`tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap and the
+Enter exit, G4.123) and `tree-operations/list/unwrap-merge.ts` (the merge) ·
+`test/invariants/list-move-keeps-order.test.ts`, and
+`test/blocks/list/indent-keeps-order.property.test.ts` presses the moves over loose, ordered, quoted
+and side-by-side lists.
+
+**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a
+range, a key is a command key when the keymap of the block the removal will leave the caret in binds
+it to a command that runs after the removal; that block is picked from the coverage before anything
+moves (`selection/removal-landing.ts` :: `removalLanding`), and the removal lands its caret by the
+same pick. After the removal, dev checks the command runs in a block of the kind the claim read. It
+compares kinds only, since a join can move the caret's offset. Predicate
+`invariants/command-key-landing.ts :: checkCommandLanding` · run by
+`selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 ## Group 2: property and regression tested
 
