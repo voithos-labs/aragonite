@@ -9,9 +9,11 @@ import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { firstDisplayLine, ownTrailingLineEnding } from '../../core/lines';
 import { canInterruptParagraph } from '../../core/parsers/list';
+import { isBlankParagraph } from '../../core/parser';
 import { keepingListOrder } from '../../invariants/list-move-keeps-order';
 import { leafTexts } from '../../invariants/leaf-text';
 import { cloneNode } from '../clone';
+import { doublesSeparator } from '../settle';
 import { assembleListHalf } from './list-builders';
 import { orderedBaseOf } from './ordered-markers';
 
@@ -77,8 +79,16 @@ function assembleInOrder(list: NodeView, itemIndex: number, pieces: ItemPiece[])
 		blocks.push(assembleListHalf(list, items.slice(0, itemIndex).map(cloneNode), base));
 	const firstBlockIndex = blocks.length;
 	let number = base + itemIndex;
-	for (const piece of pieces) {
+	for (let k = 0; k < pieces.length; k++) {
+		const piece = pieces[k];
 		if ('block' in piece) {
+			const above = blocks.at(-1);
+			if (above && takesLineUnderList(above, piece.block)) {
+				piece.block.leadingTrivia = ownTrailingLineEnding(above.raw);
+				// A blank line the item held under its blank first line is the one just taken.
+				if (isBlankParagraph(piece.block) && isBareBlankLine(pieces[k + 1]))
+					pieces.splice(k + 1, 1);
+			}
 			blocks.push(piece.block);
 			continue;
 		}
@@ -87,8 +97,23 @@ function assembleInOrder(list: NodeView, itemIndex: number, pieces: ItemPiece[])
 		half.leadingTrivia = lineAboveList(blocks.at(-1), half, piece.leadingTrivia);
 		blocks.push(half);
 	}
+	blocks.forEach((block, i) => {
+		if (doublesSeparator(blocks, i)) block.leadingTrivia = '';
+	});
 	return { blocks, firstBlockIndex };
 }
+
+/** A paragraph right under a list takes a blank line, or a line typed into it continues the list's
+ *  last item on reload. */
+function takesLineUnderList(above: CstNode, block: CstNode): boolean {
+	return above.kind === 'list' && block.kind === 'paragraph' && block.leadingTrivia === '';
+}
+
+const isBareBlankLine = (piece: ItemPiece | undefined): boolean =>
+	piece !== undefined &&
+	'block' in piece &&
+	isBlankParagraph(piece.block) &&
+	!piece.block.leadingTrivia;
 
 /** The line above a list the item leaves: the one its sublist had, or under a paragraph a blank
  *  one when the list's first line can't interrupt the paragraph (CommonMark § 5.2). */

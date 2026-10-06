@@ -14,9 +14,6 @@ export function buildExitReplacement(
 	lineEnding: LineEnding
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	// Every byte this op creates is a line ending, the document's.
-	const { blocks, firstBlockIndex } = dissolveItem(list, itemIndex, emptyParagraph('', lineEnding));
-	// Without a blank line under the list above, the parser lazy-continues a typed line into the
-	// list's last item on reload.
-	if (firstBlockIndex > 0) blocks[firstBlockIndex].leadingTrivia = lineEnding;
-	return { blocks, paragraphIndex: firstBlockIndex };
+	const exit = dissolveItem(list, itemIndex, emptyParagraph('', lineEnding));
+	return { blocks: exit.blocks, paragraphIndex: exit.firstBlockIndex };
 }
