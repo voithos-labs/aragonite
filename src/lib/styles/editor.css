@@ -681,11 +681,12 @@
 	padding-bottom: 24px;
 }
 
-/* A hard break whose bytes are hidden or blank (trailing spaces) draws a dimmed return glyph, so
-   the line break has a visible cause; generated content adds no text to a copy or screen reader. */
+/* A hard break whose bytes are hidden or blank (trailing spaces) draws a dimmed return glyph, as
+   does Shift+Enter's line at a block's end, not written yet; generated content adds no text. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	.md-hard-break::before,
-:where(.editor):not([data-presentation]) .md-hard-break[data-trailing-spaces]::before {
+:where(.editor):not([data-presentation])
+	.md-hard-break:is([data-trailing-spaces], [data-pending-break])::before {
 	content: '↵';
 	content: '↵' / '';
 	opacity: var(--syntax-marker-dim, 0.65);
@@ -694,7 +695,7 @@
 /* A focused preview block paints the backslash itself, so the glyph would say it twice. */
 :where(.editor)[data-presentation^='preview-']
 	.block-host[data-focused]
-	.md-hard-break:not([data-trailing-spaces])::before {
+	.md-hard-break:not([data-trailing-spaces], [data-pending-break])::before {
 	content: none;
 }
 

@@ -27,6 +27,7 @@ import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
 import type { RawRange } from '../../../cursor/widget-offset';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
+import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -63,6 +64,9 @@ export interface TextClipboardDeps {
 	get reading(): Reading;
 	/** Where the block's bytes are stored, read when a cut writes. */
 	storedAs: () => StoredAs;
+	/** Where a paste at `caret` lands: the offset an edge step chose there (`side`, as the paste
+	 *  found it), else the caret itself. */
+	pasteOffset: (caret: number, side: EdgeAffinity | null) => number;
 }
 
 interface SelectedWidget {
@@ -150,22 +154,20 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		selectionArms: [{ copy: copyWidget, remove: removeWidget }],
 		rangeArm: { copy: copyRange, remove: removeRange },
 
-		pasteTail: async (pastedText, foldedCaret) => {
+		pasteTail: async (pastedText, { range, held }) => {
 			// A selected widget is the selection a paste replaces, through the same route as any.
 			const widget = selectedWidgetOnThisBlock();
 			if (widget !== null) deps.selection.clearWidget();
-			// Once the widget's source is hidden again the caret sits on its element-level edge,
-			// where `getRaw` can read null; the committed caret is the right offset.
-			const offset = deps.cursor.getRaw() ?? foldedCaret ?? 0;
-			const range = widget?.inline ?? deps.cursor.getRawSelection();
+			const replaced = widget?.inline ?? (range && range.start < range.end ? range : null);
 
 			const result = await pasteDispatch(
 				{
 					pastedText,
 					targetPath: deps.myPath,
-					offset: range ? range.start : offset,
-					preDelete: range ? { start: range.start, end: range.end } : undefined,
-					caretBefore: widget?.preSelectOffset
+					offset: replaced ? replaced.start : deps.pasteOffset(range?.start ?? 0, held.side),
+					preDelete: replaced ? { start: replaced.start, end: replaced.end } : undefined,
+					caretBefore: widget?.preSelectOffset ?? deps.caret.getPreEditOffset(),
+					spend: held.spend
 				},
 				{
 					doc: deps.getDoc(),

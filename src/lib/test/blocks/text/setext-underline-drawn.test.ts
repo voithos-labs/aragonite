@@ -81,7 +81,8 @@ describe.each(['source', 'live'] as const)(
 
 			await pressKeyAt(mounted, [0], 4, { key: 'Enter', shiftKey: true });
 			await mounted.settle();
-			expect(mounted.source()).toBe('Plan\\\n===\n');
+			// Nothing is written until the next key.
+			expect(mounted.source()).toBe('Plan\n===\n');
 
 			await pressKey(surfaceAt(mounted, [0]), { key: 'x' });
 			await mounted.settle();

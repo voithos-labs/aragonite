@@ -1150,6 +1150,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
+| G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
 
 ### The entries
 
@@ -2233,6 +2234,15 @@ shape holds most of it: there's no cut payload to write, and an `async` copy doe
 `lint/call-site-rules.test.ts` holds the rest. It fails a `.setData(` call in any production file
 outside those copy functions, the visible-selection copy and the menu's paste event, each
 listed by function.
+
+**G4.116 · The pending break hears a key first.** Shift+Enter at the end of a text block opens a
+line and writes nothing; Backspace and ArrowLeft take that line back and stop at the end of the
+text above (`components/blocks/text/pending-break-keys.ts`). The shared keymap has its own answer
+for ArrowLeft at the text's start, the move up to the block before, so in an empty paragraph it
+would leave with the line still open. The behavior rows in
+`e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
+`lint/pending-break-key-order.test.ts` pins the order as well: it fails when
+`TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
 
 ## Accessibility
 

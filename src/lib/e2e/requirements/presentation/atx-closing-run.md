@@ -38,7 +38,7 @@ never emptied, and no scenario broke or pasted into a heading with structure pas
   (`# Hi\ #` over `w`), the way `# Hi` gives `# Hi\` over `w`; the caret starts the new line
   first, and a setext heading and a plain paragraph write what they always did
 - preview-block: Shift+Enter at the text's end shows the run on the heading's line, not on the
-  new line under it
+  new line under it, and writes nothing until the next key
 
 Miss-analysis for the last two: the break at the text's end was only tried on blocks with
 nothing past their text, so no scenario saw the run drawn, and then written, on the new line.

@@ -305,6 +305,85 @@ export function findDomTextLanding(
 	container: ParentNode,
 	target: DomTextOffset
 ): { position: DomPosition; inTextAtTarget: boolean } | null {
+	const landing = landingIgnoringPendingBreak(container, target);
+	if (!landing) return null;
+	const onLine = ontoPendingBreakLine(landing.position, container);
+	return onLine === landing.position ? landing : { position: onLine, inTextAtTarget: false };
+}
+
+/** A position a pending hard break's line follows sits on that line, before its last anchor: while
+ *  the break is open, Backspace and ArrowLeft end it before a caret could sit at the text's end. */
+function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosition {
+	let next = nodeAfter(position, root);
+	if (!isPendingBreakPart(next)) return position;
+	let last: Node | null = null;
+	for (; isPendingBreakPart(next); next = next!.nextSibling) {
+		if (isBreakAnchor(next)) last = next;
+	}
+	if (!last?.parentNode) return position;
+	return {
+		node: last.parentNode,
+		offset: Array.prototype.indexOf.call(last.parentNode.childNodes, last)
+	};
+}
+
+/** Whether the collapsed caret in `el` is on a line a pending hard break opened: right after one
+ *  of its anchors, where the caret on the text's own line never sits. */
+export function caretOnPendingBreakLine(el: HTMLElement): boolean {
+	const sel = window.getSelection();
+	const node = sel?.focusNode;
+	if (!sel?.isCollapsed || !node || !el.contains(node)) return false;
+	let before: Node | null;
+	if (node.nodeType !== Node.TEXT_NODE) before = node.childNodes[sel.focusOffset - 1] ?? null;
+	else if (sel.focusOffset > 0) return false;
+	else {
+		// The start of a text node: what precedes it, climbing out of the spans it opens.
+		let at: Node = node;
+		while (!at.previousSibling && at.parentNode && at.parentNode !== el) at = at.parentNode;
+		before = at.previousSibling;
+	}
+	while (before?.nodeType === Node.TEXT_NODE && (before.textContent?.length ?? 0) === 0) {
+		before = before.previousSibling;
+	}
+	return isBreakAnchor(before);
+}
+
+/** The node right after `position`, at whatever depth, past empty text; null when nothing follows
+ *  before the end of `root` or the position sits inside a text node's text. */
+function nodeAfter({ node, offset }: DomPosition, root: ParentNode): Node | null {
+	let from: Node;
+	if (node.nodeType === Node.TEXT_NODE) {
+		if (offset < (node.textContent?.length ?? 0)) return null;
+		from = node;
+	} else {
+		const child = node.childNodes[offset];
+		if (child) return skipEmptyText(child);
+		from = node;
+	}
+	for (let at: Node | null = from; at && at !== root; at = at.parentNode) {
+		const next = skipEmptyText(at.nextSibling);
+		if (next) return next;
+	}
+	return null;
+}
+
+function skipEmptyText(node: Node | null): Node | null {
+	let at = node;
+	while (at?.nodeType === Node.TEXT_NODE && (at.textContent?.length ?? 0) === 0)
+		at = at.nextSibling;
+	return at;
+}
+
+function isPendingBreakPart(node: Node | null): boolean {
+	return (
+		isBreakAnchor(node) || (node instanceof HTMLElement && node.hasAttribute('data-pending-break'))
+	);
+}
+
+function landingIgnoringPendingBreak(
+	container: ParentNode,
+	target: DomTextOffset
+): { position: DomPosition; inTextAtTarget: boolean } | null {
 	// The marker prefix is read-only and Chromium bounces a caret out in front of it, so every
 	// target up to its far edge resolves past it, where raw 0 sits.
 	const prefix = markerPrefixOf(container);
@@ -744,9 +823,8 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-	// A pending hard break's first anchor ends the marker's line, so the position past the marker is
-	// the next line's start, after that anchor.
-	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
+	// A span right after a pending hard break's anchors (a setext underline) starts past the line
+	// they open, so the position before it is on that line.
 	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
 		return { node: parent, offset: idx - 1 };
 	}
@@ -842,8 +920,8 @@ function* landingSegments(
 		// spans, and splitting the run there would create a caret position nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
-			// A pending hard break's anchors start a line between two hidden runs (the break's
-			// backslash, a setext underline), and the caret sits at that line's start.
+			// A pending hard break's anchors start a line between two hidden runs (a closer ending the
+			// text, a setext underline), and the caret sits at that line's start.
 			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
 				yield run;
 				run = null;

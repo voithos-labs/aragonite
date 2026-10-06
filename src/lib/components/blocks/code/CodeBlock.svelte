@@ -756,11 +756,11 @@
 		events: editorEvents,
 		onPasteImage,
 		rangeArm: { copy: copySelection, remove: removeSelection },
-		pasteTail: async (pastedText) => {
+		pasteTail: async (pastedText, { range }) => {
 			if (!el) return;
 			// Where the fence lines are hidden, paste refuses where typing refuses: a target confined
 			// to fence structure has nothing to paste into. The tree-op owns the splice.
-			const target = currentRange();
+			const target = range ?? { start: 0, end: 0 };
 			if (!fenceLinesEditable && isStructureOnlyRange(node, target)) return;
 			const sel = fenceLinesEditable ? orderedRange(target) : fenceEditSpan(node, target);
 			const result = await pasteDispatch(
@@ -768,7 +768,8 @@
 					pastedText,
 					targetPath: myPath,
 					offset: sel.start,
-					preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
+					preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined,
+					caretBefore: editableSurface.caret.getPreEditOffset()
 				},
 				{
 					doc: getDoc(),

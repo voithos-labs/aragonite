@@ -8,6 +8,7 @@ import {
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 import type { ClipboardArm } from '../../components/blocks/clipboard-step';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 interface Recorder {
 	log: string[];
@@ -69,7 +70,9 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 			getCursorOffset: () => null,
 			focus: () => {},
 			recordPreEditOffset: () => void log.push('record'),
-			getPreEditOffset: () => 0
+			getPreEditOffset: () => 0,
+			getSelection: () => null,
+			holdInsertion: () => holdInsertion([], {}, null)
 		},
 		events: { on: () => () => {}, emit: () => {} },
 		onPasteImage: undefined,
@@ -183,7 +186,7 @@ describe('clipboard skeleton: paste order', () => {
 		expect(rec.prevented).toBe(true);
 	});
 
-	it('runs fold, then cross-block, then reset, then the tail', async () => {
+	it('records undo’s caret, then runs fold, cross-block, reset and the tail', async () => {
 		const log: string[] = [];
 		const rec = recorder('HELLO');
 		await createClipboardHandlers(
@@ -194,7 +197,7 @@ describe('clipboard skeleton: paste order', () => {
 				}
 			})
 		).onPaste(rec.e);
-		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
+		expect(log).toEqual(['record', 'fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('reading mode prevents and stays inert: no cross-block, no tail', async () => {
@@ -216,7 +219,7 @@ describe('clipboard skeleton: paste order', () => {
 		await createClipboardHandlers(deps(log, { pasteTail: () => void (tailRan = true) })).onPaste(
 			rec.e
 		);
-		expect(log).toEqual(['crossblock-paste', 'forget']);
+		expect(log).toEqual(['record', 'crossblock-paste', 'forget']);
 		expect(tailRan).toBe(false);
 	});
 });
@@ -224,7 +227,7 @@ describe('clipboard skeleton: paste order', () => {
 // `insertMarkdown` is a second way into a paste, so it must run the gesture's steps in the same
 // order; its promise resolves after the block's own paste step.
 describe('clipboard skeleton: programmatic insertMarkdown', () => {
-	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
+	it('runs the same record → fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(
 			deps(log, {
@@ -235,7 +238,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 			})
 		);
 		expect(await handlers.insertMarkdown('HELLO')).toBe(true);
-		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
+		expect(log).toEqual(['record', 'fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('hands the cross-block dispatch the payload, so a range is replaced rather than re-read', async () => {
@@ -277,6 +280,6 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
 		expect(await handlers.insertMarkdown('a\r\nb')).toBe(true);
-		expect(log).toEqual(['crossblock-paste', 'forget', 'pasteTail:a\nb']);
+		expect(log).toEqual(['record', 'crossblock-paste', 'forget', 'pasteTail:a\nb']);
 	});
 });

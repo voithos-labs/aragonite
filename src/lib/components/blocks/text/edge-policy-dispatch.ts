@@ -10,14 +10,13 @@ import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-import { getContentRange, sameLineSuffix } from '../../../core/inline';
+import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-import { trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
-	hiddenSuffixLength,
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
@@ -33,7 +32,6 @@ import {
 } from './construct-edge-delete';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
-import { openHardBreakLine } from './text-keydown';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
@@ -41,7 +39,6 @@ import type { BlockAutoPairs } from './auto-pair-record';
 import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
-import { hidesMarkers } from '../../../presentation-mode';
 import { rangeWrite, type TextWrite } from '../surface-write';
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
@@ -65,8 +62,6 @@ interface IslandSpan {
 export interface EdgePolicyDispatchDeps {
 	get node(): NodeView;
 	get index(): number;
-	/** The ending a line typed into the block takes: its own, else the document's. */
-	lineEnding: () => LineEnding;
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
@@ -147,12 +142,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			reason:
 				'an explicit instruction about the very next byte, so it outranks every classification below, which decide by where the caret happens to be',
 			claims: handlePendingMarks
-		},
-		{
-			id: 'transitional-hard-break',
-			reason:
-				'a hard break at the end of a block has no following line yet, so its own position is where the next byte starts that line',
-			claims: handleTransitionalHardBreak
 		},
 		{
 			id: 'cst-widget',
@@ -520,37 +509,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
-	// ── Hard break at the block end, pending marks ─────────────────────────────
-
-	/** A key typed on a hard break at the end of a block's content goes on the new line, not
-	 *  between the backslash and its line ending, where it would undo the break. */
-	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (deps.isReading()) return false;
-		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
-		const d = display();
-		const contentEnd = getContentRange(deps.node).end;
-		// A heading's closing run stays on the heading's line, so the new line starts past it.
-		const lineEnd = contentEnd + sameLineSuffix(deps.node).length;
-		const el = deps.getEl();
-		// The caret past the backslash, or where the new line is drawn (`paintPendingBreak`, past
-		// the run); a hidden run draws its whole span at that one spot.
-		const onBreak =
-			el !== null && hiddenSuffixLength(el) > 0
-				? caretOffset >= contentEnd && caretOffset <= lineEnd
-				: caretOffset === contentEnd ||
-					(hidesMarkers(deps.reading.mode()) && caretOffset === lineEnd);
-		const text = d.slice(0, contentEnd);
-		if (!onBreak || !text.endsWith('\\')) return false;
-		// An escaped backslash (`\\\\`) is content, not a break.
-		if (text.endsWith('\\\\')) return false;
-		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
-		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
-		e.preventDefault();
-		deps.setSnapTarget(null);
-		const opened = openHardBreakLine(d, lineEnd, deps.lineEnding(), e.key);
-		writeDisplay(opened.display, opened.caret, 'transitional-hard-break');
-		return true;
-	}
+	// ── Pending marks ──────────────────────────────────────────────────────────
 
 	/** A printable key while a toggle at a collapsed caret has marks pending. The marks are the newer
 	 *  instruction, so they outrank the arrival side (`docs/design/live-mode.md` § 4.3). */

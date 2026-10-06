@@ -80,8 +80,8 @@ for (const mode of ['source', 'live'] as const) {
 			await ep.focusBlockAtPath([0], 4);
 
 			await page.keyboard.press('Shift+Enter');
-			await ep.bridge.waitForSourceEquals('Plan\\\n===\n\nnext\n');
-			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
+			await ep.waitForRenderFlush();
+			expect(await ep.bridge.getSource()).toBe('Plan\n===\n\nnext\n');
 
 			await ep.typeSlowly('x');
 			await ep.bridge.waitForSourceEquals('Plan\\\nx\n===\n\nnext\n');

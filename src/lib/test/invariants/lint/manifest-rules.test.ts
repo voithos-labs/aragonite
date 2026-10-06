@@ -246,7 +246,9 @@ const EDGE_INTERCEPTORS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 		'the one caret-edge dispatch: CST widget, decoration widget and marker-prefix overlap, each routed to the block’s surface write',
 	'src/lib/components/blocks/text/widget-interaction.ts':
-		'the selected-widget second-press delete, a selected-state handler ordered before the shared keymap'
+		'the selected-widget second-press delete, a selected-state handler ordered before the shared keymap',
+	'src/lib/components/blocks/text/pending-break-keys.ts':
+		'Backspace on the line a pending break opened ends the break and deletes nothing, ahead of the edge-policy dispatch'
 };
 
 // ── The manifests ────────────────────────────────────────────────────────────

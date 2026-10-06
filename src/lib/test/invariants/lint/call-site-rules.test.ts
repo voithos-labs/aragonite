@@ -73,7 +73,7 @@ const RULES: CallSiteRule[] = [
 			'src/lib/components/blocks/editable-surface.ts :: lineEnding':
 				'the getter for the ending a typed line break takes: its own, else the document’s',
 			'src/lib/components/blocks/text/text-keydown.ts :: insertHardBreak':
-				'a hard break at the content’s end reuses the block’s trailing ending as its own line’s, until the pending break takes that branch',
+				'a hard break inside the text, a command that keeps the block’s own ending until it moves onto the surface write with the other commands',
 			'src/lib/components/blocks/code/code-paste-surface.ts :: onInlinePaste':
 				'a paste’s own write, which moves onto the surface write with the other clipboard edits',
 			'src/lib/components/blocks/code/code-context-actions.ts :: run':
@@ -109,7 +109,7 @@ const RULES: CallSiteRule[] = [
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: perform':
 				'the demote and heading cycle commands, moving with the other commands',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
-				'Shift+Enter, whose break at the content’s end moves with the pending break',
+				'Shift+Enter inside the text, a command moving with the other commands (at the end it writes nothing until the next insertion)',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: toggleFormat':
 				'a command, moving with the other commands',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
@@ -189,8 +189,6 @@ const RULES: CallSiteRule[] = [
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
 				'Shift+Enter types a new line',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
-				'Shift+Enter beside a widget types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
 				'Enter in a multi-line plugin source types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':

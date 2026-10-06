@@ -64,6 +64,7 @@ export function makeRenderHarness(
 			return '';
 		},
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
+		pendingBreakLines: () => 0,
 		resolveImageUrl: (u) => u,
 		resolveLinkUrl: (u) => u,
 		get imageLoadPolicy() {

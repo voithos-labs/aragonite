@@ -17,7 +17,12 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind, structuralSuffix } from '../../../core/inline';
+	import {
+		getContentRange,
+		isProseKind,
+		sameLineSuffix,
+		structuralSuffix
+	} from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -48,6 +53,8 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createEdgeStep } from './edge-step';
+	import { typingOffset } from './edge-seat';
+	import { handlePendingBreakKey } from './pending-break-keys';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -72,7 +79,8 @@
 		rawTextOfContent,
 		revealsNoMarkers,
 		screenVisibilityOf,
-		rawSelectionFocus
+		rawSelectionFocus,
+		caretOnPendingBreakLine
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
@@ -218,7 +226,9 @@
 		getEl: () => el ?? null,
 		getRaw: () => node.raw,
 		getInlines: () => resolvedInlineContent(node, reading),
-		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		// On the line a pending break opened, the caret is at no construct's edge.
+		getCaret: () =>
+			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
 		isReading: () => readOnly,
 		reading,
 		caretMemory
@@ -252,7 +262,7 @@
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
-	const { writeText } = editableSurface;
+	const { writeText, pendingBreak } = editableSurface;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -322,7 +332,19 @@
 		readRevealedText: () => readRawText(),
 		get reading() {
 			return reading;
-		}
+		},
+		// Only a step's own choice moves a paste: a side a key left is the typing path's to read.
+		pasteOffset: (caret, side) =>
+			el && typeof side === 'object' && side !== null
+				? typingOffset(
+						caret,
+						resolvedInlineContent(node, reading),
+						side,
+						node.raw,
+						screenVisibilityOf(el),
+						reading
+					)
+				: caret
 	});
 
 	// Showing markers in preview-inline mode: CSS classes only, no keys intercepted.
@@ -340,7 +362,6 @@
 	// Every caret-edge key goes through this one dispatch (G4.12); entering a widget stays in
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
-		lineEnding: editableSurface.lineEnding,
 		get node() {
 			return node;
 		},
@@ -407,6 +428,7 @@
 			return ambientPrefixText;
 		},
 		getDisplayText: () => getDisplayText(),
+		pendingBreakLines: () => pendingBreak.lines(),
 		resolveImageUrl,
 		resolveLinkUrl,
 		get imageLoadPolicy() {
@@ -476,13 +498,24 @@
 		return demoteToParagraph(node.raw, getContentRange(node), offset);
 	}
 
+	/** At the end of the text's line the break waits for the next insertion to write it; anywhere
+	 *  else it writes its bytes now. */
 	function writeHardBreak(offset: number): void {
-		const { newRaw, caretOffset } = insertHardBreak(
-			node.raw,
-			offset,
-			editableSurface.lineEnding(),
-			getContentRange(node)
-		);
+		const content = getContentRange(node);
+		const lineEnd = content.end + sameLineSuffix(node).length;
+		const ending = editableSurface.lineEnding();
+		// A caret in front of a hidden closer at the end is at the end too: nothing paints past it.
+		const textEnd = Math.min(content.end, caretBounds().end);
+		if (offset >= textEnd && offset <= lineEnd) {
+			// Asked of the write gate, so no line opens where its insertion would be refused.
+			if (!controller.admitsGesture('hardBreak')) return;
+			// The insertion that writes the break starts its own undo entry.
+			controller.flushDebouncedCheckpoint();
+			pendingBreak.open({ textEnd: content.end, lineEnd, ending });
+			setPendingCursorOffset(lineEnd, 'hard-break');
+			return;
+		}
+		const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, ending, content);
 		const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset, caretOffset);
 		if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
 	}
@@ -741,6 +774,8 @@
 			clearSnapTargetIfMoved(root);
 			notePressSeat(root);
 			if (composing) return;
+			// The line goes once the caret leaves it, whatever moved the caret.
+			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
 			edgeStep.sync();
@@ -825,6 +860,20 @@
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || editableSurface.isDetached()) return;
+
+		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
+		if (
+			handlePendingBreakKey(e, {
+				pendingBreak,
+				getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+				getDisplayText,
+				hasPendingMarks: () => caretMemory.pendingMarks.get() !== null,
+				opensBreak: (ev) => wiring.resolveChord(ev, node.kind) === 'block.hardBreak',
+				writeText,
+				requestCaret: (at) => setPendingCursorOffset(at, 'pending-break')
+			})
+		)
+			return;
 
 		// Shows markers only, before any default runs: fast arrows outrun the async
 		// `selectionchange` update, and a step against still-hidden markers skips their bytes.
@@ -961,6 +1010,7 @@
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
 		// Save an edit to a shown source before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
+		pendingBreak.end();
 		armSnapTarget(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();

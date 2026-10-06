@@ -565,14 +565,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		events: editorEvents,
 		onPasteImage,
 		rangeArm: { copy: copyRange, remove: removeRange },
-		pasteTail: editableSurface.command((pastedText: string) => {
+		pasteTail: (pastedText, { range }) => {
 			const el = deps.getEl();
 			if (!el) return;
-			const sel = backend.getRawSelection();
-			const start = sel ? sel.start : (backend.getRaw() ?? (el.textContent ?? '').length);
-			const end = sel ? sel.end : start;
-			spliceSourceText(el, start, end, pastedText);
-		})
+			const end = (el.textContent ?? '').length;
+			spliceSourceText(el, range?.start ?? end, range?.end ?? end, pastedText);
+		}
 	});
 
 	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend

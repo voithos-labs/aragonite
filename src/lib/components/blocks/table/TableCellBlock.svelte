@@ -24,7 +24,7 @@
 	} from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
 	import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
-	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+	import { pasteDispatch, type PasteDispatchInput } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
@@ -279,7 +279,6 @@
 	// The caret-edge dispatch prose uses, so an edge key against a CST or decoration widget
 	// resolves against its declared policy here too (G4.12).
 	const edgeDispatch = createEdgePolicyDispatch({
-		lineEnding: editableSurface.lineEnding,
 		get node() {
 			return node;
 		},
@@ -902,11 +901,12 @@
 			remove: (range: RawRange) =>
 				deleteCellRange(range.start, range.end, editableSurface.caret.getPreEditOffset())
 		},
-		pasteTail: async (pastedText) => {
+		pasteTail: async (pastedText, { range, held }) => {
 			if (!el) return;
-			const selOffsets = cursor.getRawSelection();
-			const start = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
-			await applyCellPaste(pastedText, { start, end: selOffsets ? selOffsets.end : start });
+			await applyCellPaste(pastedText, range ?? { start: 0, end: 0 }, {
+				caretBefore: editableSurface.caret.getPreEditOffset(),
+				spend: held.spend
+			});
 		}
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
@@ -937,14 +937,16 @@
 
 	async function applyCellPaste(
 		pastedText: string,
-		sel: { start: number; end: number }
+		sel: { start: number; end: number },
+		recorded?: Pick<PasteDispatchInput, 'caretBefore' | 'spend'>
 	): Promise<void> {
 		const result = await pasteDispatch(
 			{
 				pastedText,
 				targetPath: myPath,
 				offset: sel.start,
-				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
+				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined,
+				...recorded
 			},
 			{
 				doc: getDoc(),

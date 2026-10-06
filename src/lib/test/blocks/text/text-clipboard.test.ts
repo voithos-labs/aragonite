@@ -18,6 +18,7 @@ import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -77,7 +78,13 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		caret: { recordPreEditOffset: () => {}, getPreEditOffset: () => 0 },
+		caret: {
+			recordPreEditOffset: () => {},
+			getPreEditOffset: () => 0,
+			getSelection: () => null,
+			holdInsertion: () => holdInsertion([], {}, null)
+		},
+		pasteOffset: (caret: number) => caret,
 		selection,
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		caretMemory: stubCaretMemory(),
@@ -252,7 +259,13 @@ function foldSettleHarness() {
 			return [0];
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		caret: { recordPreEditOffset: () => {}, getPreEditOffset: () => 0 },
+		caret: {
+			recordPreEditOffset: () => {},
+			getPreEditOffset: () => 0,
+			getSelection: () => null,
+			holdInsertion: () => holdInsertion([], {}, null)
+		},
+		pasteOffset: (caret: number) => caret,
 		selection,
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),

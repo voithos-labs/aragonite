@@ -144,6 +144,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'The caret-edge policy runs on plain keys; the modifier read is its gate. The bare space is container marker completion, consumed rather than claimed as a chord.'
 	},
 	{
+		file: 'components/blocks/text/pending-break-keys.ts',
+		chords: [],
+		keys: ['ArrowLeft', 'Backspace', 'Delete'],
+		note: 'A plain Backspace or ArrowLeft ends the pending break and stops there; with a modifier the key ends it and runs as usual.'
+	},
+	{
 		file: 'components/blocks/text/widget-interaction.ts',
 		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: [

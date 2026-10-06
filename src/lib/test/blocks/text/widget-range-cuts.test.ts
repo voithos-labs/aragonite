@@ -35,6 +35,7 @@ import {
 	mountIslandBlock,
 	mountSurface
 } from './edge-policy-fixture';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 const LIVE = fixtureReading({}, 'live');
 const IMAGE = 'x **![a](b.png)** y\n';
@@ -118,7 +119,13 @@ function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 		index: 0,
 		myPath: [0],
 		cursor: { getRaw: () => null, getRawSelection: () => null },
-		caret: { recordPreEditOffset: () => {}, getPreEditOffset: () => 0 },
+		caret: {
+			recordPreEditOffset: () => {},
+			getPreEditOffset: () => 0,
+			getSelection: () => null,
+			holdInsertion: () => holdInsertion([], {}, null)
+		},
+		pasteOffset: (caret: number) => caret,
 		selection,
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),
