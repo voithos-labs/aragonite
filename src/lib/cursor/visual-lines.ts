@@ -22,6 +22,15 @@ export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | n
 	return null;
 }
 
+/** Where the caret is for a vertical move: the caret itself, or a selection's focus, the end a
+ *  Shift+Arrow moves and a plain arrow moves from. Collapsed. */
+export function movingEnd(sel: Selection): Range {
+	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
+	const range = document.createRange();
+	range.setStart(sel.focusNode, sel.focusOffset);
+	return range;
+}
+
 export function getRangeTop(range: Range): number | null {
 	return firstUsefulRect(range, false)?.top ?? null;
 }
@@ -152,14 +161,6 @@ function isAtEdgeVisualLine(
 	const edgeTop = edge.boundaryTop();
 	if (edgeTop === null) return fallback();
 	return Math.abs(cursorTop - edgeTop) < tolerance;
-}
-
-// Shift+Arrow and Shift+Home move a selection's focus, so its line is the one that counts.
-function movingEnd(sel: Selection): Range {
-	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
-	const range = document.createRange();
-	range.setStart(sel.focusNode, sel.focusOffset);
-	return range;
 }
 
 function nodeCaretRect(node: Node | undefined, fromEnd: boolean): CaretRect | null {

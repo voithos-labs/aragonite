@@ -85,12 +85,12 @@ export async function handleSharedKeydown(
 	let cachedBounds: LandableBounds | null = null;
 	const bounds = () => (cachedBounds ??= caretLandableBounds(ctx, el));
 
-	// Read the focus offset (not the anchor) for Shift+Arrow: after a forward extension the
+	// The selection's moving end, which the line check measures: after a forward extension the
 	// anchor stays mid-block while the focus sits at the boundary.
-	const shiftOffset = e.shiftKey ? ctx.getFocusOffset() : null;
+	const verticalOffset = () => ctx.getFocusOffset() ?? ctx.getCursorOffset() ?? 0;
 
 	if (e.key === 'ArrowUp') {
-		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
+		const offset = verticalOffset();
 		if (isAtFirstVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's first reachable
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
@@ -116,7 +116,7 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowDown') {
-		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
+		const offset = verticalOffset();
 		if (isAtLastVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's last reachable
 			// offset, so native Shift+ArrowDown extension has nowhere left to go.
