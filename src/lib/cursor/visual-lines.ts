@@ -22,6 +22,15 @@ export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | n
 	return null;
 }
 
+/** Where the caret is for a vertical move: the caret itself, or a selection's focus, the end a
+ *  Shift+Arrow moves and a plain arrow moves from. Collapsed. */
+export function movingEnd(sel: Selection): Range {
+	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
+	const range = document.createRange();
+	range.setStart(sel.focusNode, sel.focusOffset);
+	return range;
+}
+
 export function getRangeTop(range: Range): number | null {
 	return firstUsefulRect(range, false)?.top ?? null;
 }
@@ -87,8 +96,8 @@ export interface CaretBounds {
 	end: number;
 }
 
-/** True if the selection in `el` sits on the first visual line, or holds no range. `fallbackOffset`
- *  answers without a live range, which Chromium drops beside widgets across event-loop yields. */
+/** True if the caret, or a selection's moving end, sits on `el`'s first visual line. The fallback
+ *  offset answers with no live range, which Chromium drops beside a widget. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
@@ -134,12 +143,11 @@ function isAtEdgeVisualLine(
 	if (!sel || sel.rangeCount === 0) return fallback();
 	if (edge.isEmpty) return true;
 
-	const cursorRange = sel.getRangeAt(0);
+	const cursorRange = movingEnd(sel);
 	const tolerance = sameLineTolerance(el);
 	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null) {
-		if (!cursorRange.collapsed) return true;
 		// A caret beside an atomic widget sits at an element-level position and measures to no rect
 		// of its own: it borrows the widget's box, and is at the edge line when nothing reaches past.
 		const band = neighbourCaretRect(cursorRange);

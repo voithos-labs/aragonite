@@ -122,8 +122,14 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
+		keys: [],
+		note: 'Its modifier reads are on pointer events (Shift extends a selection instead of dragging a widget, and a click activates a widget), so it consumes no keystroke.'
+	},
+	{
+		file: 'components/blocks/text/home-key.ts',
+		chords: ['Shift+Home', 'Mod+Home'],
 		keys: ['Home'],
-		note: 'Bare Home only; the modifier reads are the guard that keeps Shift+Home native and the widget activation click, which consumes no keystroke.'
+		note: "Taken only behind a marker or a leading widget, on the first line: Shift+Home extends to the text's start, and Mod+Home goes there from any line."
 	},
 	{
 		file: 'components/blocks/text/click-snap-guard.ts',

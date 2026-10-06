@@ -315,11 +315,9 @@ export function findDomTextLanding(
  *  the break is open, Backspace and ArrowLeft end it before a caret could sit at the text's end. */
 function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosition {
 	let next = nodeAfter(position, root);
-	if (!isPendingBreakPart(next)) return position;
+	if (!isBreakAnchor(next)) return position;
 	let last: Node | null = null;
-	for (; isPendingBreakPart(next); next = next!.nextSibling) {
-		if (isBreakAnchor(next)) last = next;
-	}
+	for (; isBreakAnchor(next); next = next!.nextSibling) last = next;
 	if (!last?.parentNode) return position;
 	return {
 		node: last.parentNode,
@@ -372,12 +370,6 @@ function skipEmptyText(node: Node | null): Node | null {
 	while (at?.nodeType === Node.TEXT_NODE && (at.textContent?.length ?? 0) === 0)
 		at = at.nextSibling;
 	return at;
-}
-
-function isPendingBreakPart(node: Node | null): boolean {
-	return (
-		isBreakAnchor(node) || (node instanceof HTMLElement && node.hasAttribute('data-pending-break'))
-	);
 }
 
 function landingIgnoringPendingBreak(

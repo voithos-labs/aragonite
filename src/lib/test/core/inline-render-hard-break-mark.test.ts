@@ -6,8 +6,8 @@ import { parseInline } from '../../core/inline';
 import { renderedText, screenVisibility } from '../../core/inline/visibility';
 import { renderOptions } from '../harness/fixture-grammar';
 
-// A hard break's mark draws a dimmed return glyph where its bytes are hidden (editor.css), and
-// holds no text, so the offsets, the copy and the hiding rule read the same bytes as without it.
+// A trailing-space hard break sits in a mark source mode draws a return glyph on (editor.css); the
+// mark holds no text, so the offsets, the copy and the hiding rule read the same bytes as without it.
 
 function render(raw: string) {
 	const nodes = parseInline(raw, 0, raw.length);
@@ -18,17 +18,24 @@ function render(raw: string) {
 
 describe('the hard-break mark', () => {
 	it.each([
-		['backslash', 'one\\\ntwo', '\\', false],
-		['backslash CRLF', 'one\\\r\ntwo', '\\', false],
-		['two spaces', 'one  \ntwo', '  ', true],
-		['three spaces CRLF', 'one   \r\ntwo', '   ', true]
-	])('%s: the marker sits in a mark that adds no text', (_, raw, markerText, spaces) => {
+		['two spaces', 'one  \ntwo', '  '],
+		['three spaces CRLF', 'one   \r\ntwo', '   ']
+	])('%s: the marker sits in a mark that adds no text', (_, raw, markerText) => {
 		const { host } = render(raw);
 		const mark = host.querySelector('.md-hard-break');
 		expect(mark).not.toBeNull();
 		expect(mark!.querySelector('.md-marker')?.textContent).toBe(markerText);
 		expect(mark!.textContent).toBe(markerText);
-		expect(mark!.hasAttribute('data-trailing-spaces')).toBe(spaces);
+		expect(host.textContent).toBe(raw);
+	});
+
+	it.each([
+		['backslash', 'one\\\ntwo'],
+		['backslash CRLF', 'one\\\r\ntwo']
+	])('%s: the marker shows itself, with no mark around it', (_, raw) => {
+		const { host } = render(raw);
+		expect(host.querySelector('.md-hard-break')).toBeNull();
+		expect(host.querySelector('.md-marker')?.textContent).toBe('\\');
 		expect(host.textContent).toBe(raw);
 	});
 

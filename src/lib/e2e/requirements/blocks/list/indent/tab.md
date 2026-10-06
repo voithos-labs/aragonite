@@ -6,6 +6,8 @@ How Tab changes a list item's nesting level, including ordered-list numbering wh
 
 - Tab on non-first item nests it under the previous sibling
 - Tab on first item does nothing (no previous sibling to nest under)
+- Tab over a selection inside one item nests the item, as at a caret (over a selection in a plain
+  paragraph Tab does nothing)
 - If the previous sibling ends with a nested list of the same type, the item is appended to it
 - Otherwise a new nested list is created at the end of the previous sibling, after everything it
   holds, so a paragraph below its sublist stays above the moved item

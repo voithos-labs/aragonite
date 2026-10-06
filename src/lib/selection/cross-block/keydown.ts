@@ -5,7 +5,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CstNode, Document } from '../../core/nodes';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { kindOfPath, replaceRange } from './range-replace';
-import { coversIndentBinding, indentRange, INDENT_COMMANDS } from './range-indent';
+import { bindsIndentAt, coversIndentBinding, indentRange, INDENT_COMMANDS } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -71,6 +71,9 @@ async function handleKeyDown(ctx: CrossBlockDispatchContext, e: KeyboardEvent): 
 	if (selection.isCrossBlock) {
 		const handled = await handleCrossBlockActive(ctx, e);
 		if (handled) return true;
+	} else if (takesIdleTab(ctx, e)) {
+		e.preventDefault();
+		return true;
 	}
 
 	return handleCrossBlockEntry(ctx, e);
@@ -186,6 +189,18 @@ async function handleCrossBlockEntry(
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
+/** Tab over a selection inside one block, where neither the block nor one holding it binds the key
+ *  to an indent: taken for nothing, as over a range. Reading mode leaves Tab to the next link. */
+function takesIdleTab(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean {
+	if (!isTabKey(e) || isReadingMode(ctx.reading.mode)) return false;
+	const el = ctx.getEl();
+	const sel = window.getSelection();
+	if (!el || !sel || sel.isCollapsed) return false;
+	if (!el.contains(sel.anchorNode) || !el.contains(sel.focusNode)) return false;
+	const commandOf = (node: CstNode) => commandForKey(e, node.kind, ctx.commands);
+	return !bindsIndentAt(ctx.getDoc(), ctx.getMyPath(), commandOf);
+}
+
 /** Resolves a swallowed format chord against the kind of the block that took the key, as a
  *  single-block keystroke would, so a consumer's rebinding reaches the same handler. */
 async function dispatchOverRange(
@@ -267,7 +282,7 @@ export function isRangeDeleteKey(e: KeyboardEvent): boolean {
 /** Tab and Shift+Tab always, so focus never leaves the editor even when nothing indents; any
  *  other key when a block the range covers binds it to an indent command, as `indentRange` reads it. */
 export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
-	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
+	if (isTabKey(e)) return true;
 	const { anchor, focus } = reads.selection;
 	const chord = eventToChord(e);
 	// The range is walked only for a chord some keymap binds to indent; any other key costs nothing.
@@ -281,6 +296,11 @@ export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 		return byKind.get(node.kind) ?? null;
 	};
 	return coversIndentBinding(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), commandOf);
+}
+
+/** Tab or Shift+Tab, with no other modifier. */
+function isTabKey(e: KeyboardEvent): boolean {
+	return e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
 
 /** Mod+Shift+End and Mod+Shift+Home, which extend to the document's edge from a caret or a range. */

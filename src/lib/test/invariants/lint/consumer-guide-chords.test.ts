@@ -412,6 +412,8 @@ export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRo
 
 const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
 const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
+const CARET_MOTION =
+	"caret motion: the section preamble names it, the browser's move kept off a marker";
 const SHIFT_ARROWS = ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'];
 
 const unlisted = (chords: string[], owner: string, reason: string) =>
@@ -441,6 +443,7 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 		SELECTION_PREAMBLE
 	),
 	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
+	...unlisted(['Shift+Home', 'Mod+Home'], 'components/blocks/text/home-key.ts', CARET_MOTION),
 	...unlisted(
 		['Shift+ArrowUp', 'Shift+ArrowDown'],
 		'components/blocks/table/TableCellBlock.svelte',

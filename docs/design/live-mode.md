@@ -368,7 +368,9 @@ Some keystrokes change what a block is, and in source mode the markers on screen
 
 Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-kind-cue.md`.
 
-A hard break has the same problem with no kind change at all. Its backslash hides, and two trailing spaces are blank in any mode, so the next line starts under the previous one inside the same paragraph for no visible reason. Where the break's bytes don't show, the stylesheet draws a dimmed `↵` in their place: generated content on a mark that wraps the break's marker and holds no text of its own, so the caret walk, a selection and a copy read only the bytes, and the hiding rule (§ 2) is untouched. Source mode draws it for the trailing-space form only, reading mode draws none since nobody edits there, and a focused preview block that shows the backslash draws none. A soft break (a bare newline) already shows as the line break it is, so it gets no mark.
+A hard break looks like it has the same problem. Its backslash hides, and two trailing spaces are blank in any mode, so the next line just starts under the previous one inside the same paragraph. Except that's what a line break looks like in every editor that doesn't show you its markup, so live mode leaves it alone. Wherever markers are hidden, a hard break is just a line break. Whether a break is soft or hard only matters to whatever renders the Markdown later, and source mode shows you which one you've got. Same for the empty line Shift+Enter opens at the end of a block: it's an empty line with the caret on it, like in Google Docs.
+
+Source mode keeps one mark, for the trailing-space form. Its bytes are on screen there but blank, so the stylesheet draws a dimmed `↵` after them, as generated content on a wrapper around the spaces that holds no text of its own (the caret walk, a selection and a copy read only the bytes). A backslash shows itself in source mode, so it gets nothing, and reading mode draws nothing at all.
 
 Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.md`.
 

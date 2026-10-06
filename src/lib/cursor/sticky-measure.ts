@@ -21,6 +21,7 @@ import {
 } from './widget-offset';
 import {
 	firstUsefulRect,
+	movingEnd,
 	neighbourCaretRect,
 	sameLineTolerance,
 	type CaretRect
@@ -29,7 +30,7 @@ import {
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
-	const range = sel.getRangeAt(0);
+	const range = movingEnd(sel);
 
 	const rect = firstUsefulRect(range) ?? neighbourCaretRect(range);
 	const viewportX = asViewportX(rect ? rect.left : el.getBoundingClientRect().left);
