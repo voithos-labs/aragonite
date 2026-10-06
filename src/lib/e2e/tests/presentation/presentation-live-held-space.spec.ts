@@ -132,6 +132,25 @@ test.describe('live mode: typing on after an existing bold', () => {
 	});
 });
 
+test.describe('live mode: a format chord during a held space', () => {
+	for (const [chord, want] of [
+		['i', 'a **two** *x*'],
+		['b', 'a **two** x']
+	] as const) {
+		test(`Mod+${chord.toUpperCase()} after a held space in a bold types ${want}`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', 'a **two**');
+			await clickEnd(ep, page, 'two');
+			await page.keyboard.type(' ');
+			await page.keyboard.press(`ControlOrMeta+${chord}`);
+			await ep.waitForRenderFlush();
+			await page.keyboard.type('x');
+			await ep.bridge.waitForSourceContains(want);
+		});
+	}
+});
+
 test.describe('live mode: the hold ends without touching the bytes', () => {
 	test('a click away leaves the space where it is', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', 'a **two**\n\nnext');

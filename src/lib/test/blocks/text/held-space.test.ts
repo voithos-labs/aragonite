@@ -129,6 +129,25 @@ describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_na
 	});
 });
 
+// The held construct's own chord leaves it; another chord pends its mark, as at any caret.
+// Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord swallowed whole stayed green.
+describe.each([
+	['bold', '**', 'i', 'a **two** *x*\n'],
+	['bold', '**', 'b', 'a **two** x\n'],
+	['emphasis', '*', 'i', 'a *two* x\n'],
+	['emphasis', '*', 'b', 'a *two* **x**\n']
+])('a held space after %s, then Mod+%s', (_name, delimiter, chord, want) => {
+	it(`types ${JSON.stringify(want)}`, async () => {
+		const { editor, el } = caretIn(`a ${delimiter}two${delimiter}\n`, 5 + delimiter.length);
+		await insertBy('hardware key', el, ' ');
+
+		await pressKey(el, { key: chord, ctrlKey: true });
+		await insertBy('hardware key', el, 'x');
+
+		expect(editor.source()).toBe(want);
+	});
+});
+
 describe('the hold ends without touching the bytes', () => {
 	it('End at the line’s end', async () => {
 		const { editor, el } = caretIn('a **two**\n', 7);

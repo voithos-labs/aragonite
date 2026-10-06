@@ -38,7 +38,11 @@ source.
 
 - one ArrowRight ends the hold without moving the caret, at a line's end and mid-line
 - the typed closer ends it, at a line's end and mid-line
-- the format chord ends it, at a line's end and mid-line
+- the construct's own chord (Mod+B in a bold) ends it, at a line's end and mid-line
+- another mark's chord ends it too, and still arms its mark for the next letter, which lands past
+  the bold: Mod+I after `a **two** ` then `x` gives `a **two** *x*`, the same bytes as with no
+  space held. Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord the hold
+  swallowed whole passed
 - End ends it: at a line's end the letter lands right after the space, mid-line at the end of
   the line
 
