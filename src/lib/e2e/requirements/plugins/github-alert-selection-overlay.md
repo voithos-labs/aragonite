@@ -4,7 +4,8 @@ A GitHub alert renders a title row (the kind's icon and label) from its `[!TYPE]
 than from bytes, so no child block host paints that row. A block whose whole subtree a
 cross-block range covers therefore paints one box over everything it renders, title row
 included, and its children paint nothing. A range that cuts through the alert gets no such box:
-the blocks the range actually touches paint their own pieces.
+the blocks the range actually touches paint their own pieces, and the alert's frame beside the
+lines between the range's first line and its last is painted with the space between blocks.
 
 ## Happy paths
 
@@ -18,7 +19,8 @@ the blocks the range actually touches paint their own pieces.
 - The alert's body block paints nothing under that sweep, because the container's box already
   covers it and two overlays over one line read twice as dark
 - A range that ends inside the alert paints no container box: the body block paints its own
-  endpoint rects, and the title row stays outside the highlight
+  endpoint rects, and the title row, which sits between the range's first line and its last, is
+  painted exactly once
 
 - A range from mid-text in the alert's body, over two blank lines, into mid-text in the last
   item of a numbered list paints one region with no hole, the alert's padding below its body and

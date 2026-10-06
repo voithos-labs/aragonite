@@ -21,6 +21,18 @@ async function boxCoversTitle(page: Page): Promise<boolean> {
 	return title.y >= box.y - 1 && title.y + title.height <= box.y + box.height + 1;
 }
 
+/** How many painted selection rects cover the middle of the title row. */
+async function paintsOverTitle(page: Page): Promise<number> {
+	return page.evaluate(() => {
+		const title = document.querySelector('.admonition-title')!.getBoundingClientRect();
+		const x = title.left + title.width / 2;
+		const y = title.top + title.height / 2;
+		return [...document.querySelectorAll('.selection-overlay')]
+			.map((el) => el.getBoundingClientRect())
+			.filter((r) => r.left <= x && x <= r.right && r.top <= y && y <= r.bottom).length;
+	});
+}
+
 test.describe('cross-block selection overlay - a GitHub alert held whole', () => {
 	let editor: PluginsPage;
 
@@ -66,7 +78,7 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 	});
 
 	// The range cuts through the alert, so no one box can stand for it: its body block paints its
-	// own endpoint rects and the title row stays unpainted.
+	// own endpoint rects, and the title row between the range's ends is painted once.
 	test('a range ending inside the alert leaves the box to the body block', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([1, 0], 4);
@@ -76,6 +88,7 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 		await expect(
 			page.locator("[data-block-path='[1,0]'] .selection-overlay-endpoint")
 		).not.toHaveCount(0);
+		await expect.poll(() => paintsOverTitle(page)).toBe(1);
 	});
 });
 
