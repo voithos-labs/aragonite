@@ -8,7 +8,8 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
+import { getLiveSplitRebalancer, type SplitStores } from '../schema/inline-construct-policy';
+import type { StoredAs } from '../schema/stored-as';
 import type { Reading } from '../schema/reading';
 import {
 	displayLength,
@@ -70,7 +71,7 @@ export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]
 
 /**
  * Split the node at `blockIndex` at `offset`; the first half keeps the ID and any setext underline.
- * A caller moving the second half elsewhere passes `readSecondHalf` for that position.
+ * A caller moving the second half elsewhere passes `secondHalfAt`, where it will be stored.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -78,11 +79,7 @@ export function splitNode(
 	offset: number,
 	sharing: SharingState,
 	reading: Reading,
-	readSecondHalf: FragmentReader = fragmentReaderAt(
-		ownerAt(parent, [blockIndex]),
-		blockIndex + 1,
-		reading.grammar
-	)
+	secondHalfAt?: StoredAs
 ): SplitResult {
 	const { grammar } = reading;
 	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
@@ -90,6 +87,15 @@ export function splitNode(
 
 	const node = parent.children[blockIndex];
 	const descriptor = getBlockKindDescriptor(node.kind);
+	const holder = {
+		children: parent.children,
+		owner: ownerAt(parent, [blockIndex]),
+		lineEnding: parentLineEnding(parent)
+	};
+	const stores: SplitStores = {
+		first: storedAsIn(holder, blockIndex, reading),
+		second: secondHalfAt ?? storedAsIn(holder, blockIndex + 1, reading, node.kind)
+	};
 
 	// A context-dependent kind (a table cell, a container's title child) has no standalone
 	// recognizer, so the reparse would destroy both halves.
@@ -108,7 +114,7 @@ export function splitNode(
 	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
 	// user never saw; the rebalancer declines when its bytes do not parse back.
 	if (reading.hidesDelimitersAtCaret()) {
-		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, reading);
+		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, stores);
 		if (rebalanced) {
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
@@ -126,15 +132,15 @@ export function splitNode(
 		parent.children[blockIndex + 1],
 		grammar
 	);
-	const first = reparseAsNodes(
-		firstRaw,
-		node.leadingTrivia,
-		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar),
-		lineEnding
-	);
+	const first = reparseAsNodes(firstRaw, node.leadingTrivia, stores.first.readWritten, lineEnding);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf, lineEnding);
+	const second = reparseAsNodes(
+		secondRaw,
+		first.suffix + separator,
+		stores.second.readWritten,
+		lineEnding
+	);
 	if (isDevChecks() && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);

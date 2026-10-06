@@ -37,6 +37,8 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/plugins/mermaid/mermaid-kind.ts': "the mermaid leaf's own rebuildRaw, fence and code",
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		"moves the task marker between the item's metadata and its own first line — one node's bytes, re-split",
+	'src/lib/tree-operations/list/task-paragraph.ts':
+		'the first-slot reader gives back the spaces a marker line takes from the bytes it was handed: one write’s bytes, re-split',
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':

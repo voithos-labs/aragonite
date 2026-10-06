@@ -31,6 +31,7 @@ import {
 	dropDoubledSeparator,
 	emptyParagraph,
 	paragraphNode,
+	landAtTaskStart,
 	writeKeepingTaskMarker
 } from '../tree-operations';
 import {
@@ -39,6 +40,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import { spliceMany } from '../tree-operations/splice-many';
+import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type {
@@ -282,6 +284,19 @@ function landTrailingBlank(body: BodyParent, afterIndex: number, endedBefore: bo
 	body.suffix = body.lineEnding;
 }
 
+/** The caller's focus in the blocks that land: past the body rule's escapes, and moved with its
+ *  bytes when a to-do's first slot reads the blocks as its text. */
+function landedFocus(
+	focus: ReplaceFocus,
+	mapIndex: (index: number) => number,
+	atTaskStart: TaskStartLanding | null
+): ReplaceFocus {
+	const index = mapIndex(focus.replacementIndex);
+	if (!atTaskStart) return { ...focus, replacementIndex: index };
+	const moved = atTaskStart.caretAt(index, focus.offset);
+	return { replacementIndex: moved.index, offset: moved.offset };
+}
+
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	const core: BlockEditCore = {
 		async split(i, offset) {
@@ -466,16 +481,14 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const target = scope.target();
 			const owner = 'owner' in target ? target.owner : undefined;
 			const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
-			const { replacement, mapIndex } = normalizeReplacementForBody(
-				owner,
-				given,
-				lineEnding,
-				scope.reading.grammar
-			);
-			const focusIndex = focus ? mapIndex(focus.replacementIndex) : 0;
+			const legal = normalizeReplacementForBody(owner, given, lineEnding, scope.reading.grammar);
+			const atTaskStart = landAtTaskStart(owner, i, legal.replacement, scope.reading.grammar);
+			const replacement = atTaskStart?.nodes ?? legal.replacement;
+			const caret = focus && landedFocus(focus, legal.mapIndex, atTaskStart);
+			const focusIndex = caret?.replacementIndex ?? 0;
 			// The fix-up's merges can move where the caret belongs, so the commit keeps it updated.
-			const tracked = focus
-				? trackedPasteCaret(replacement, i, focusIndex, focus.offset)
+			const tracked = caret
+				? trackedPasteCaret(replacement, i, focusIndex, caret.offset)
 				: undefined;
 			const snapshot = { index: i, offset: options.snapshotOffset };
 			const wrote = await scope.commit({
@@ -513,9 +526,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return change;
 				},
 				landing: () => {
-					if (!focus || !tracked || replacement.length === 0) return null;
-					if (focus.path) return scope.at(i + focusIndex, focus.path, focus.offset);
-					const at = landedPastePosition(scope.children()[tracked.index], tracked, focus.offset);
+					if (!caret || !tracked || replacement.length === 0) return null;
+					if (caret.path) return scope.at(i + focusIndex, caret.path, caret.offset);
+					const at = landedPastePosition(scope.children()[tracked.index], tracked, caret.offset);
 					return scope.at(tracked.index, at.path, at.offset);
 				}
 			});

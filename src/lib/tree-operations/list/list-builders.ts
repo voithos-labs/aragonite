@@ -12,8 +12,9 @@ import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
 import { readBlocks } from '../../core/parser';
 import { emptyParagraph } from '../node-primitives';
-import { fragmentReaderAt, type FragmentReader } from './task-paragraph';
+import { fragmentReaderAt, itemBodyReader, type FragmentReader } from './task-paragraph';
 import type { GrammarView } from '../../schema/block-openers';
+import { adoptOwnReading } from '../../schema/container-raw';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -55,17 +56,20 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
 }
 
 /** A listItem from explicit metadata with empty affixes, starting from the bytes of `source` when
- *  `children` came out of it. `children` are placed verbatim. */
+ *  `children` came out of it, and then holding what those bytes read as. */
 export function buildListItem(
 	metadata: ListItemMetadata,
 	children: CstNode[],
+	grammar: GrammarView,
 	source?: NodeView
 ): CstNode {
-	return mintListItem(
+	const item = mintListItem(
 		metadata,
 		{ raw: source?.raw ?? '', innerPrefix: '', innerSuffix: '' },
 		children
 	);
+	adoptOwnReading(item, grammar);
+	return item;
 }
 
 // Affixes are set before the rebuild, which derives the item's raw from them and `source.raw`.
@@ -155,7 +159,8 @@ export function buildSplitItems(
 		targetRaw ?? targetLeaf.raw,
 		{
 			leading: fragmentReaderAt(item, innerIndex, grammar),
-			trailing: fragmentReaderAt(item, 0, grammar)
+			// The trailing item's first line is placed after this read, by what reads back.
+			trailing: itemBodyReader(item, grammar)
 		}
 	);
 

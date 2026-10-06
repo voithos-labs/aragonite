@@ -121,8 +121,12 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'two cell clears; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
 	},
 	'src/lib/tree-operations/list/reconcile-task.ts': {
-		count: 2,
-		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
+		count: 3,
+		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph; and hands a to-do's re-read text back the blank lines its parse split off, before anything lands"
+	},
+	'src/lib/tree-operations/list/task-paragraph.ts': {
+		count: 1,
+		why: 'gives the spaces a list item’s marker line takes back to the freshly parsed first block that held them, before any write installs it'
 	},
 	'src/lib/tree-operations/open-tail.ts': {
 		count: 1,

@@ -26,13 +26,20 @@ import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-p
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { allowDevWarns } from '../support/warn-gate';
 import {
 	registerLiveJoinSeamCleaner,
-	__resetLiveJoinSeamCleanerForTests
+	registerLiveSplitRebalancer,
+	__resetLiveJoinSeamCleanerForTests,
+	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import {
+	makeBlockListState,
 	makeContainerHarness,
 	makeEditorActionsDeps,
+	makeListContextAt,
 	makeStubBlockEdit,
 	pasteContext
 } from '../harness/editor-actions';
@@ -72,6 +79,7 @@ const LIVE = fixtureReading({}, 'live');
 
 beforeAll(() => {
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
+	registerLiveSplitRebalancer(rebalanceLiveSplit);
 	ensurePasteSurface(tableCellPasteSurface);
 });
 beforeEach(() => {
@@ -86,7 +94,10 @@ afterEach(() => {
 	delete document.body.dataset.presentation;
 	window.getSelection()?.removeAllRanges();
 });
-afterAll(() => __resetLiveJoinSeamCleanerForTests());
+afterAll(() => {
+	__resetLiveJoinSeamCleanerForTests();
+	__resetLiveSplitRebalancerForTests();
+});
 
 // ── Where the bytes go ───────────────────────────────────────────────────────
 
@@ -309,6 +320,20 @@ async function mergeNext(source: string, containerPath: number[]): Promise<strin
 	return serialize(h.deps.doc);
 }
 
+/** Enter at `offset` in the first item's text, through the list's own split. */
+async function enterInFirstItem(source: string, offset: number): Promise<string> {
+	const list = parse(source).children[0];
+	const { deps } = makeEditorActionsDeps([list], { reading: LIVE });
+	const liveItem = () => deps.doc.children[0].children![0];
+	registerBlockListState(list.children![0], makeBlockListState(liveItem, ['text']) as never);
+	const { listContext } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+	await listContext.splitItemAtOffset(0, 0, offset);
+	// A top-level store installs a to-do's `# ` text as a heading behind the box, which the
+	// read-back checks catch.
+	if (TOP.on) allowDevWarns(['invariant:task-marker-slot', 'invariant:reads-back']);
+	return serialize(deps.doc);
+}
+
 function deleteRange(source: string, from: [number[], number], to: [number[], number]): string {
 	const doc = parse(source);
 	const range = coverRange(doc, { path: from[0], offset: from[1] }, { path: to[0], offset: to[1] });
@@ -514,6 +539,18 @@ const FAMILIES: Family[] = [
 		]
 	},
 	{
+		// After a to-do's box, `# **bo**` is text; at the top level it is a heading.
+		name: 'a split',
+		stores: { 'tree-operations/node-ops.ts': 2, 'editor-actions/list-context.ts': 1 },
+		rows: [
+			{
+				shape: 'a to-do',
+				run: () => enterInFirstItem('- [ ] # **bo ld**\n', 6),
+				want: '- [ ] # **bo**\n- [ ]  **ld**\n'
+			}
+		]
+	},
+	{
 		name: 'a merge',
 		stores: { 'tree-operations/node-ops.ts': 1 },
 		rows: [
@@ -650,6 +687,7 @@ const REWRITES = [
 	'components/blocks/text/live-selection-edit.ts',
 	'components/blocks/text/construct-edge-delete.ts',
 	'components/blocks/text/live-join-seam.ts',
+	'components/blocks/text/live-split-rebalance.ts',
 	'core/inline/live-edit/read-back.ts'
 ];
 
@@ -658,7 +696,7 @@ const MAKES_A_STORE = /(?<![\w$])(?<!function\s)(?:storedAsAt|storedAsIn)\s*\(|\
 
 /** A call that hands a store to a rewrite that removes bytes, or asks one what a line reads as. */
 const HANDS_ON_A_STORE =
-	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
+	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack|splitNode)\s*\(/;
 
 describe('the route list', () => {
 	const sources = collectEditorSources(EDITOR_SRC);

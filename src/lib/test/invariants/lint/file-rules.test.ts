@@ -1134,11 +1134,8 @@ const RULES: FileRule[] = [
 		id: 'G4.85 a removing live rewrite reads its candidate through readBack, never a parse of its own',
 		population: holdsLiveRewrites,
 		matches: /(?<![\w.])(?:readBlocks|parse|parseTaskItemBody)\s*\(/,
-		allowed: {
-			[`${TEXT_BLOCK_DIR}live-split-rebalance.ts`]:
-				'`soleProseBlock`, the split’s own candidate read, moves onto `readBack` in T19 slice 3'
-		},
 		reaches: [
+			`${TEXT_BLOCK_DIR}live-split-rebalance.ts`,
 			`${TEXT_BLOCK_DIR}live-join-seam.ts`,
 			`${TEXT_BLOCK_DIR}construct-edge-delete.ts`,
 			`${TEXT_BLOCK_DIR}live-selection-edit.ts`,

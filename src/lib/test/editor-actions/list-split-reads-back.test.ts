@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: every list split row checked the bytes, and none read the new item back, so an
-// item minted over a leading space or indented code kept a marker its reload widens.
+// item built over a leading space or indented code kept a marker its reload widens.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
