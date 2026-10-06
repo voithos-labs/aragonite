@@ -9,7 +9,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import { stampWrites } from '$lib/editor-actions/commit/document-stamp';
 import { replaceRange, type RangeInsertion } from '$lib/selection/cross-block/range-replace';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
 import { rangeContext } from './range-context';
@@ -47,6 +47,23 @@ describe('the range replace in reading mode', () => {
 			expect(readingWarns()).toBe(warns ? 1 : 0);
 		});
 	}
+});
+
+// The typed half runs after the removal, so a swap can land between them; the block's typing write
+// then refuses, and the replace says so. Miss-analysis: the caller dropped the write's answer.
+describe('a character typed over a range whose block refuses the typing write', () => {
+	it('is reported refused', async () => {
+		const { deps, controller } = makeRange('source');
+		const ctx = rangeContext(deps, controller);
+		const refusing = { ...stubBlockComponent(), typeText: async () => false };
+
+		const outcome = await replaceRange(
+			{ ...ctx, caretLanding: { ...ctx.caretLanding, mount: async () => refusing } },
+			{ kind: 'text', text: 'x' }
+		);
+
+		expect(outcome).toBe('refused');
+	});
 });
 
 describe('a range gesture a `source` swap outran', () => {
