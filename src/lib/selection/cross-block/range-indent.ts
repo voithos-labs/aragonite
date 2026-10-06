@@ -129,14 +129,21 @@ export function coversIndentBinding(
 	commandOf: (node: CstNode) => AnyCommandId | null
 ): boolean {
 	let found = false;
-	forEachCoveredLeaf(doc, coverage, (path) => {
-		for (let depth = path.length; depth > 0 && !found; depth--) {
-			const node = blockNodeAt(doc, path.slice(0, depth));
-			found = node !== null && isIndentCommand(commandOf(node));
-		}
-		return found;
-	});
+	forEachCoveredLeaf(doc, coverage, (path) => (found = bindsIndentAt(doc, path, commandOf)));
 	return found;
+}
+
+/** Whether the leaf at `path`, or a block holding it, binds the key to an indent command. */
+export function bindsIndentAt(
+	doc: Document,
+	path: number[],
+	commandOf: (node: CstNode) => AnyCommandId | null
+): boolean {
+	for (let depth = path.length; depth > 0; depth--) {
+		const node = blockNodeAt(doc, path.slice(0, depth));
+		if (node !== null && isIndentCommand(commandOf(node))) return true;
+	}
+	return false;
 }
 
 const isItemMove = (command: AnyCommandId | null): command is ItemShift['command'] =>

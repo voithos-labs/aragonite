@@ -55,6 +55,7 @@
 	import { createEdgeStep } from './edge-step';
 	import { typingOffset } from './edge-seat';
 	import { handlePendingBreakKey } from './pending-break-keys';
+	import { handleHomeKey } from './home-key';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -73,8 +74,6 @@
 	import { rangeWrite, withOwnEnding } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
-		landableStartAbutsIsland,
-		markerPrefixOf,
 		rawOffsetAt,
 		rawTextOfContent,
 		revealsNoMarkers,
@@ -898,18 +897,16 @@
 		// from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// The browser's Home lands before the marker span or past a leading widget. `CURSOR_START`
-		// rather than offset 0, so the clamp still applies.
 		if (
-			e.key === 'Home' &&
-			!e.shiftKey &&
-			el &&
-			(markerPrefixOf(el) !== null || landableStartAbutsIsland(el))
-		) {
-			e.preventDefault();
-			focus(CURSOR_START);
+			handleHomeKey(e, {
+				getEl: () => el ?? null,
+				caretBounds,
+				getFocusOffset: () => cursor.getFocusOffset(),
+				// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
+				focusContentStart: () => focus(CURSOR_START)
+			})
+		)
 			return;
-		}
 
 		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
 		if (wiring.dispatchChord(e, target)) return;

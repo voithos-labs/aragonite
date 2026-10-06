@@ -3,7 +3,7 @@
 // nothing elsewhere, the key taken either way so focus stays in the editor.
 // Miss-analysis: the indent rows over a selection ran across blocks, and the prose Tab rows only
 // ever pressed at a caret, so a selection inside one paragraph reached the literal tab unseen.
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { activateDirectives } from '$lib/plugin';
 import {
 	destroyMountedEditors,
@@ -16,10 +16,8 @@ import {
 import { pressKey } from '$lib/test/harness/settle';
 import { cellAt } from '../table/mount-table';
 
-beforeAll(() => {
-	installLayoutStubs();
-	activateDirectives();
-});
+beforeAll(installLayoutStubs);
+beforeEach(activateDirectives);
 afterEach(destroyMountedEditors);
 
 const TAB = { key: 'Tab' };

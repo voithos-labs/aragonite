@@ -87,22 +87,28 @@ export interface CaretBounds {
 	end: number;
 }
 
-/** True if the selection in `el` sits on the first visual line, or holds no range. `fallbackOffset`
- *  answers without a live range, which Chromium drops beside widgets across event-loop yields. */
+/** True if `caret` (the selection's first range by default) sits on `el`'s first visual line. The
+ *  fallback offset answers with no live range, which Chromium drops beside a widget. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	bounds: CaretBounds
+	bounds: CaretBounds,
+	caret?: Range
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset <= bounds.start, {
-		isEmpty: bounds.start === bounds.end,
-		toStart: true,
-		boundaryTop: () => {
-			const firstText = findFirstTextNode(el);
-			const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
-			return top ?? collapsedContentsTop(el, true);
-		}
-	});
+	return isAtEdgeVisualLine(
+		el,
+		() => fallbackOffset <= bounds.start,
+		{
+			isEmpty: bounds.start === bounds.end,
+			toStart: true,
+			boundaryTop: () => {
+				const firstText = findFirstTextNode(el);
+				const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
+				return top ?? collapsedContentsTop(el, true);
+			}
+		},
+		caret
+	);
 }
 
 export function isAtLastVisualLine(
@@ -128,13 +134,14 @@ export function isAtLastVisualLine(
 function isAtEdgeVisualLine(
 	el: HTMLElement,
 	fallback: () => boolean,
-	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null }
+	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null },
+	caret?: Range
 ): boolean {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return fallback();
 	if (edge.isEmpty) return true;
 
-	const cursorRange = sel.getRangeAt(0);
+	const cursorRange = caret ?? sel.getRangeAt(0);
 	const tolerance = sameLineTolerance(el);
 	const cursorTop = getRangeTop(cursorRange);
 

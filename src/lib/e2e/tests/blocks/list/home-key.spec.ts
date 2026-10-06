@@ -19,8 +19,15 @@ const WRAPPING = `- ${Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ')
 const selectedText = (page: Page) => page.evaluate(() => window.getSelection()?.toString() ?? '');
 const anchorOffset = async (ep: EditorPage) =>
 	(await ep.bridge.getSelectionPaths())?.anchor.offset ?? -1;
-const caretTop = (page: Page) =>
-	page.evaluate(() => window.getSelection()!.getRangeAt(0).getBoundingClientRect().top);
+// The character after the caret, since a caret at a wrap reads as the end of the line above.
+const lineTopAfterCaret = (page: Page) =>
+	page.evaluate(() => {
+		const { focusNode, focusOffset } = window.getSelection()!;
+		const range = document.createRange();
+		range.setStart(focusNode!, focusOffset);
+		range.setEnd(focusNode!, focusOffset + 1);
+		return range.getBoundingClientRect().top;
+	});
 
 for (const mode of ['source', 'live'] as const) {
 	test.describe(`${mode}: Home in a list item`, () => {
@@ -42,13 +49,13 @@ for (const mode of ['source', 'live'] as const) {
 		test('on a wrapped line lands at that line', async ({ page }) => {
 			const ep = await enterPresentationMode(page, mode, WRAPPING);
 			await clickWordSettled(ep, page, 'word39');
-			const top = await caretTop(page);
+			const top = await lineTopAfterCaret(page);
 
 			await page.keyboard.press('Home');
 			await ep.waitForRenderFlush();
 			const offset = await focusOffset(ep);
 			expect(offset).toBeGreaterThan(0);
-			expect(await caretTop(page)).toBe(top);
+			expect(await lineTopAfterCaret(page)).toBe(top);
 			expect(WRAPPING.slice(2)[offset - 1]).toBe(' ');
 		});
 
