@@ -159,6 +159,8 @@ Every route spends it in one place. `writeText` holds whatever the caret memory 
 
 Shift+Enter anywhere inside the text still writes its `\` and line ending right away (`src/lib/components/blocks/text/text-keydown.ts` :: `insertHardBreak`). Both routes get their bytes from one writer, `src/lib/core/inline/index.ts` :: `withHardBreak`, so either way the `\` goes where the line breaks and the line ending goes after a heading's closing run, which stays on the heading's line.
 
+Over a selection inside one block, Enter and Shift+Enter take the selection out first, like typing over it would, then break the line where it started (and if that's the end of the text, Shift+Enter opens the pending line). The command dispatch does the removal for every command that breaks a line, so no handler reads the selection itself: it asks the block's `afterSelectionRemoved` before running anything in `src/lib/schema/commands.ts` :: `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, and a plugin command opts in with `overSelection`. The removal and the break are one undo entry. A line break that comes in as input rather than as a command (a table cell's `<br>`, the code block's Shift+Enter) asks for the same removal itself.
+
 ### Three block surfaces
 
 A block picks its own editing surface, and three exist:
@@ -180,7 +182,7 @@ readonly editable: boolean     // a report: mirrors the descriptor's editable de
 readonly focusable: boolean    // the flag focus dispatch reads before landing anything
 ```
 
-Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, § 10), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`), and `afterSourceCommit` for a block that can show a source the tree hasn't seen yet (a widget's, or a render-primary leaf's own), so a command from outside it waits until that source is written.
+Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, § 10), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`), and `afterSourceCommit` for a block that can show a source the tree hasn't seen yet (a widget's, or a render-primary leaf's own), so a command from outside it waits until that source is written. `afterSelectionRemoved` is for a block whose line-breaking commands should replace a selection (§ 4, Shift+Enter at the end of a block): leave it out and those commands run at the caret with the selection still there.
 
 **Caret placement is two verbs.** `focus` places a caret and ends any live cross-block range. That's the safe default, since a caret landing inside a range left live is content the next keystroke type-replaces. The optional `parkCaret` is the same landing _without_ the range-ending, and it's for the selection-extend paths only, where the dispatcher parks a caret in an endpoint it has just revealed (to reveal a block: mount it while it's off screen, so its DOM exists before something touches it) while the extend is still growing the range. G2.12 guards which callers may reach the second verb.
 

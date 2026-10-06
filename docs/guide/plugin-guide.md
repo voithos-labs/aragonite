@@ -1708,6 +1708,16 @@ const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
 
 The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
 
+**Over a selection inside your block**, your command runs at the caret with the selection still there, which is right for most commands (a toggle reads the selection, it doesn't want it gone). A command that breaks the line wants what Enter does: pass `overSelection: 'afterRemoval'` too, and the selected text goes first, then your handler runs at the caret it left, with `ctx.node` already holding the shorter text. The removal and whatever your handler writes undo as one step.
+
+```ts
+const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
+	overRange: 'afterRemoval',
+	overSelection: 'afterRemoval'
+});
+// in '~ roses', select 'se' and press Enter: '~ ros' is left, then splitVerse runs between 'ro' and 's'
+```
+
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
 **`registerRangeIndent(kind, command, shift)`**
