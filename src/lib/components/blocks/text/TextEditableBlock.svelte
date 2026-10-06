@@ -25,7 +25,6 @@
 	} from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatInElement } from '../../../cursor/point-offset';
@@ -64,7 +63,7 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
-	import { widgetElByStart } from './widget-adjacency';
+	import { widgetElByStart, widgetsIn } from './widget-adjacency';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		editableSurfaceAttributes,
@@ -792,8 +791,7 @@
 		// paints one of its own under it, however the range was entered.
 		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of resolvedInlineContent(node, reading)) {
-			if (!isInlineWidget(inline, node.raw, grammar)) continue;
+		for (const inline of widgetsIn(node, reading)) {
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {

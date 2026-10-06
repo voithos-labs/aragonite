@@ -32,7 +32,7 @@ import {
 } from './construct-edge-delete';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { resolveMarkedInsertion } from './pending-mark-insert';
-import { widgetAtCursor } from './widget-adjacency';
+import { widgetAtCursor, widgetsIn } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { rangeWrite, type TextWrite } from '../surface-write';
@@ -257,8 +257,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
-		const { grammar } = deps.reading;
-		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction, grammar);
+		const widgetAt = widgetAtCursor(caretOffset, widgetsIn(node, deps.reading), direction);
 		if (!widgetAt) return false;
 		// Past the early return: every keystroke in every prose block reaches the line above, so
 		// the work below stays off that path.
@@ -274,7 +273,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (enterFromRight || enterFromLeft) {
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
 			const policy =
-				deps.widgetEdgePolicy?.(widgetAt) ?? getInlineWidgetEditing(widgetAt.kind, grammar);
+				deps.widgetEdgePolicy?.(widgetAt) ??
+				getInlineWidgetEditing(widgetAt.kind, deps.reading.grammar);
 			// A step-over widget reads as one character to navigation, so the browser carries the
 			// caret across; a destructive key still runs the atomic-delete branch below.
 			if (!isDestructive && policy?.onEdge === 'step-over') return false;

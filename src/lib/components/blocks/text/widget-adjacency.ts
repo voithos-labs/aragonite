@@ -1,8 +1,4 @@
-/**
- * Pure queries over a prose block's inline content and raw source: which live widget a caret
- * offset touches, which one a selected widget names, the leading/trailing edge widgets, and
- * whether an offset has only whitespace to one side.
- */
+/** Pure queries over the widgets a prose block renders and the text around them. */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
@@ -26,20 +22,23 @@ export interface WidgetAtCursor extends WidgetRange {
 
 export type CaretDirection = 'forward' | 'backward';
 
-/** The live widget the caret sits against, or null. At a boundary two widgets share,
+/** Every widget `node` renders, nested ones included (a link or emphasis around an image hides it
+ *  from the top-level inline list). Every reader of a block's widgets asks here. */
+export function widgetsIn(node: NodeView, reading: InlineReading): InlineNode[] {
+	return flattenInlineWidgets(resolvedInlineContent(node, reading), node.raw, reading.grammar);
+}
+
+/** The widget among `widgets` the caret sits against, or null. At a boundary two widgets share,
  *  `direction` breaks the tie: forward takes the second widget, backward the first. */
 export function widgetAtCursor(
 	offset: number | null,
-	inlineContent: ReadonlyArray<InlineNode> | undefined,
-	raw: string,
-	direction: CaretDirection = 'backward',
-	grammar: GrammarView
+	widgets: ReadonlyArray<InlineNode>,
+	direction: CaretDirection = 'backward'
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
 	let leadingMatch: WidgetAtCursor | null = null;
 	let trailingMatch: WidgetAtCursor | null = null;
-	// Recurse so a widget nested inside a link (`[![alt][ref]][repo]`) is seen.
-	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw, grammar)) {
+	for (const inline of widgets) {
 		if (offset === inline.start && !leadingMatch)
 			leadingMatch = { start: inline.start, end: inline.end, atRight: false, kind: inline.kind };
 		if (offset === inline.end && !trailingMatch)
@@ -56,9 +55,7 @@ export function widgetNodeIn(
 	sourceStart: number,
 	reading: InlineReading
 ): InlineNode | null {
-	const inlines = resolvedInlineContent(node, reading);
-	const widgets = flattenInlineWidgets(inlines, node.raw, reading.grammar);
-	return widgets.find((widget) => widget.start === sourceStart) ?? null;
+	return widgetsIn(node, reading).find((widget) => widget.start === sourceStart) ?? null;
 }
 
 /** The span of {@link widgetNodeIn}'s widget. */

@@ -4,6 +4,7 @@ import type { InlineNode } from '$lib/core/nodes';
 import {
 	widgetAtCursor,
 	widgetNodeIn,
+	widgetsIn,
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
@@ -20,17 +21,29 @@ function image(start: number, end: number): InlineNode {
 	return { kind: 'image', start, end, alt: '', url: 'x.png' };
 }
 
-function rawHtml(start: number, end: number): InlineNode {
-	return { kind: 'rawHtml', start, end };
-}
-
 // `![a](x.png)` is 11 chars; the image occupies [0, 11), trailing text after.
 const IMAGE_RAW = '![a](x.png) tail\n';
-const imageInlines: InlineNode[] = [image(0, 11), text(11, 16, ' tail')];
+
+const widgetsOf = (source: string) => widgetsIn(parse(source).children[0], fixtureReading());
+
+describe('widgetsIn', () => {
+	it.each([
+		['a bare image', IMAGE_RAW, [{ kind: 'image', start: 0, end: 11 }]],
+		['an image a link wraps', '[![cat](x.png)](y)\n', [{ kind: 'image', start: 1, end: 14 }]],
+		['an image emphasis wraps', '*![cat](x.png)*\n', [{ kind: 'image', start: 1, end: 14 }]],
+		['a `<br>`', 'a<br>b\n', [{ kind: 'rawHtml', start: 1, end: 5 }]],
+		['no widget for a tag that is not live', 'a<span>b\n', []]
+	])('lists %s', (_, source, expected) => {
+		expect(widgetsOf(source)).toMatchObject(expected);
+		expect(widgetsOf(source)).toHaveLength(expected.length);
+	});
+});
 
 describe('widgetAtCursor', () => {
+	const widgets = [image(0, 11)];
+
 	it('returns leading edge with atRight=false when cursor is at the widget start', () => {
-		expect(widgetAtCursor(0, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toEqual({
+		expect(widgetAtCursor(0, widgets)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: false,
@@ -39,7 +52,7 @@ describe('widgetAtCursor', () => {
 	});
 
 	it('returns trailing edge with atRight=true when cursor is at the widget end', () => {
-		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toEqual({
+		expect(widgetAtCursor(11, widgets)).toEqual({
 			start: 0,
 			end: 11,
 			atRight: true,
@@ -47,42 +60,23 @@ describe('widgetAtCursor', () => {
 		});
 	});
 
-	it('returns null when cursor is strictly inside the widget range', () => {
-		expect(widgetAtCursor(5, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
-	});
-
-	it('returns null when cursor is past the widget in plain text', () => {
-		expect(widgetAtCursor(14, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
-	});
-
-	it('returns null for a null offset', () => {
-		expect(widgetAtCursor(null, imageInlines, IMAGE_RAW, undefined, defaultGrammarView)).toBeNull();
-	});
-
-	it('treats a <br> rawHtml node as a live widget but a non-live tag as plain', () => {
-		const brRaw = 'a<br>b';
-		const brInlines = [text(0, 1, 'a'), rawHtml(1, 5), text(5, 6, 'b')];
-		expect(widgetAtCursor(1, brInlines, brRaw, undefined, defaultGrammarView)).toEqual({
-			start: 1,
-			end: 5,
-			atRight: false,
-			kind: 'rawHtml'
-		});
-
-		const spanRaw = 'a<span>b';
-		const spanInlines = [text(0, 1, 'a'), rawHtml(1, 7), text(7, 8, 'b')];
-		expect(widgetAtCursor(1, spanInlines, spanRaw, undefined, defaultGrammarView)).toBeNull();
+	it.each([
+		['strictly inside the widget', 5],
+		['past the widget', 14],
+		['null', null]
+	])('returns null for an offset %s', (_, offset) => {
+		expect(widgetAtCursor(offset, widgets)).toBeNull();
 	});
 });
 
 // Two adjacent widgets share a boundary, so a forward key must enter B and a backward key A.
 // Picking by document order always returns A, and a forward Delete would then wipe B in one key.
 describe('widgetAtCursor at a shared widget boundary', () => {
-	const TWO_IMAGES = '![a](x.png)![b](y.png)\n';
-	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];
+	const adjacent = [image(0, 11), image(11, 22)];
+	const first = { start: 0, end: 11, atRight: true, kind: 'image' };
 
 	it('forward keys resolve the boundary to the following widget (B, leading edge)', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'forward', defaultGrammarView)).toEqual({
+		expect(widgetAtCursor(11, adjacent, 'forward')).toEqual({
 			start: 11,
 			end: 22,
 			atRight: false,
@@ -90,33 +84,13 @@ describe('widgetAtCursor at a shared widget boundary', () => {
 		});
 	});
 
-	it('backward keys resolve the boundary to the preceding widget (A, trailing edge)', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'backward', defaultGrammarView)).toEqual(
-			{
-				start: 0,
-				end: 11,
-				atRight: true,
-				kind: 'image'
-			}
-		);
-	});
-
-	it('defaults to the preceding widget (backward) when no direction is given', () => {
-		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, undefined, defaultGrammarView)).toEqual({
-			start: 0,
-			end: 11,
-			atRight: true,
-			kind: 'image'
-		});
+	it('backward keys, and no direction, resolve the boundary to the preceding widget', () => {
+		expect(widgetAtCursor(11, adjacent, 'backward')).toEqual(first);
+		expect(widgetAtCursor(11, adjacent)).toEqual(first);
 	});
 
 	it('direction is inert away from a shared boundary (single trailing edge)', () => {
-		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, 'forward', defaultGrammarView)).toEqual({
-			start: 0,
-			end: 11,
-			atRight: true,
-			kind: 'image'
-		});
+		expect(widgetAtCursor(11, [image(0, 11)], 'forward')).toEqual(first);
 	});
 });
 
@@ -137,41 +111,6 @@ describe('widgetNodeIn', () => {
 		['the start of the link around an image', '[![cat](x.png)](y)\n', 0]
 	])('finds nothing at %s', (_, source, start) => {
 		expect(at(source, start)).toBeNull();
-	});
-});
-
-// `[![cat][shot]][repo]` parses to a link whose child is the image, so the finders must reach
-// into the link's children to resolve a click-selected image-in-link.
-describe('widget nested inside a link node', () => {
-	const NESTED_RAW = '[![cat][shot]][repo]';
-	const nestedImage: InlineNode = {
-		kind: 'image',
-		start: 1,
-		end: 13,
-		alt: 'cat',
-		url: 'resolved.png',
-		label: 'shot'
-	};
-	const nestedInlines: InlineNode[] = [
-		{ kind: 'link', start: 0, end: 20, url: 'repo-url', label: 'repo', children: [nestedImage] }
-	];
-
-	it('widgetAtCursor finds the nested image at its leading edge', () => {
-		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW, undefined, defaultGrammarView)).toEqual({
-			start: 1,
-			end: 13,
-			atRight: false,
-			kind: 'image'
-		});
-	});
-
-	it('widgetAtCursor finds the nested image at its trailing edge', () => {
-		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW, undefined, defaultGrammarView)).toEqual({
-			start: 1,
-			end: 13,
-			atRight: true,
-			kind: 'image'
-		});
 	});
 });
 

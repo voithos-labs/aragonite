@@ -97,9 +97,8 @@ const POLICY_ARMS: Record<string, string> = {
 /** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline
  *  kind at once; anything below a block asking both blurs the boundary between the tables. */
 const BOTH_TABLE_READERS: Record<string, string> = {
-	'src/lib/components/blocks/text/TextEditableBlock.svelte':
-		'the prose surface: which mark a format command toggles, and whether a node is an island',
-	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface',
+	'src/lib/components/blocks/table/TableCellBlock.svelte':
+		'the cell surface: which mark a format command toggles, and whether a node is an island',
 	'src/lib/inline-menu/inline-menu-session.ts':
 		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose'
 };

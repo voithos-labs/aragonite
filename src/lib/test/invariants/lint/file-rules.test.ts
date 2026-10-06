@@ -2064,9 +2064,45 @@ const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	]
 };
 
+// ── G4.125 one list of the widgets a block renders ─────────────────────────
+
+const WIDGET_LIST_HOME = SOURCE.widgetAdjacency;
+const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
+
+const WIDGET_LIST: FileRule = {
+	id: 'G4.125 a component lists a block’s widgets through `widgetsIn` only',
+	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
+	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
+	allowed: {
+		[WIDGET_LIST_HOME]:
+			'`widgetsIn` itself, and the edge finders, which read the top-level list on purpose'
+	},
+	reaches: [WIDGET_LIST_HOME],
+	reason:
+		'a reader that walks the inline list itself can miss a widget a link or emphasis wraps, so a click arms one widget and the paint looks for another: ask `widgetsIn`',
+	hits: [
+		at(ROGUE_WIDGET_READER, 'if (!isInlineWidget(inline, node.raw, grammar)) continue;'),
+		at(ROGUE_WIDGET_READER, 'const all = flattenInlineWidgets(inlines, raw, grammar);'),
+		at(`${SOURCE_DIR.plugins}x/x.ts`, 'return isInlineWidget (node, raw, grammar);')
+	],
+	misses: [
+		at(ROGUE_WIDGET_READER, 'for (const inline of widgetsIn(node, reading)) {'),
+		at(ROGUE_WIDGET_READER, 'const nested = isInlineWidgetKind(kind);'),
+		at(`${SOURCE_DIR.inline}transparency.ts`, 'if (isInlineWidget(inline, node.raw, grammar)) {')
+	]
+};
+
 const SOURCES = collectEditorSources();
 describeFileRules(
-	[...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE, RANGE_PAINT, PIECES_UNDER_ORDER_CHECK],
+	[
+		...RULES,
+		...LEAF_RANGE_RULES,
+		REF_FOCUS,
+		MATH_SHAPE,
+		RANGE_PAINT,
+		PIECES_UNDER_ORDER_CHECK,
+		WIDGET_LIST
+	],
 	SOURCES
 );
 describeManifests(ITEM_PIECES, SOURCES);

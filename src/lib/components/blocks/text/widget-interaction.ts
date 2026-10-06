@@ -14,7 +14,6 @@ import { selectWidgetWhole } from '../../../selection/caret-doors';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
-	flattenInlineWidgets,
 	getInlineWidgetEditing,
 	isCharacterLikeWidget,
 	isWidgetActivationClick
@@ -49,7 +48,8 @@ import {
 	rawHasNoTextBefore,
 	rawHasNoTextAfter,
 	widgetElByStart,
-	widgetNodeIn
+	widgetNodeIn,
+	widgetsIn
 } from './widget-adjacency';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
@@ -233,11 +233,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.reading.grammar);
 	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.reading.grammar);
 
-	/** Every widget in this block, nested ones included: a construct wrapping a widget (emphasis
-	 *  around a formula, a link around an image) hides it from the top-level inline list. */
-	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.reading.grammar);
-	}
+	const widgetsOf = (): InlineNode[] => widgetsIn(deps.node, deps.reading);
 
 	// ── Editing a widget's source ──────────────────────────────────────────────
 	// The source edit lives only in the DOM and is written on commit, so it lands as one undo entry.
