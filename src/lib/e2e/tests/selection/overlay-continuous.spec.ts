@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { holes, paintedBands, type Band } from './painted-region';
+import { holes, paintedBands, paintedRegion, unpaintedMiddle, type Band } from './painted-region';
 
 // A range across blocks paints one region, the way a code editor does: no hole between its first
 // line and its last, and nothing above the first or below the last.
@@ -77,3 +77,31 @@ test('a range grown with Shift+ArrowDown stays one region', async ({ page }) => 
 
 	await expect.poll(async () => holes(await paintedBands(page))).toEqual([]);
 });
+
+// Every line between the first and the last spans the block column, a container's rail, marker
+// gutter or indent included.
+const NESTED = '- one\n  - nested two words\n  - nested three\n- four\n\nafter\n';
+
+/** [name, document, anchor path, anchor offset, focus path, focus offset] */
+const WIDE: [string, string, number[], number, number[], number][] = [
+	['from mid-quote, its rail', QUOTE_TO_PARAGRAPH, [0, 0], 6, [1], 5],
+	['from a mid nested list item, its indent and markers', NESTED, [0, 0, 1, 0, 0], 3, [1], 3]
+];
+
+for (const mode of ['source', 'live']) {
+	test.describe(`selection: overlay: every middle line spans the column (${mode})`, () => {
+		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of WIDE) {
+			test(name, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(doc);
+				await editor.focusBlockAtPath(anchorPath, anchorOffset);
+				await editor.shiftClickBlock(focusPath, focusOffset);
+				await editor.waitForCrossBlock(true);
+
+				await expect.poll(async () => unpaintedMiddle(await paintedRegion(page))).toEqual([]);
+			});
+		}
+	});
+}

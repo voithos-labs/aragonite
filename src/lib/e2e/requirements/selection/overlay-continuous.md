@@ -3,8 +3,8 @@
 A range across blocks reads as one selection, the shape a code editor paints: from the start
 point to the right edge, everything in between full width, then from the left edge to the end
 point. The space between two blocks the range runs through is painted too (a block's padding, the
-margin to the next block, the blank lines between them), so no stripe of unpainted page cuts the
-region. Above the start's line and below the end's line nothing paints. Driven on `/test/editor`
+margin to the next block, the blank lines between them), and so is a container's rail or
+indent beside a line, so no stripe of unpainted page cuts the region. Above the start's line and below the end's line nothing paints. Driven on `/test/editor`
 with a real click and a Shift+click, in source mode and in live mode; each scenario reads the
 painted rects' geometry, not pixels.
 
@@ -23,6 +23,18 @@ painted rects' geometry, not pixels.
 - a range from inside a GitHub alert's body into a list item (the demo page's "Punishing Evil"
   section) paints one region, the alert's own padding below its body included (the plugin spec
   `plugins/github-alert-selection-overlay.spec.ts` holds that row)
+
+## Every line between spans the column
+
+- every painted line strictly between the range's first line and its last spans the editor's
+  block column edge to edge, a container's rail, marker gutter or inset included: a range from
+  mid-quote into the paragraph after it paints the rail beside the quote's second line, and a
+  range from a mid nested list item into the paragraph after the list paints the indent and the
+  markers beside the items between. The only unpainted parts are the first line's text before the
+  start point and the last line's text after the end point (the plugin spec holds the callout
+  row: its inset beside the body's second line). Miss-analysis: the continuity rows read only
+  where paint sits vertically, so a column a container keeps for its rail or markers stayed bare
+  beside every nested line and no row looked across a line
 
 ## Miss-analysis
 

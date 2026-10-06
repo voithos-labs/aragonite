@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage, dragBetweenPoints } from './helpers';
 import { textRunCenter } from '../../text-runs';
-import { holes, paintedBands } from '../selection/painted-region';
+import { holes, paintedBands, paintedRegion, unpaintedMiddle } from '../selection/painted-region';
 
 /**
  * A GitHub alert caught in a cross-block selection (requirements/plugins/github-alert-selection-
@@ -107,6 +107,23 @@ test.describe('cross-block selection overlay - a range from inside a GitHub aler
 			await editor.waitForCrossBlock(true);
 
 			expect(holes(await paintedBands(page))).toEqual([]);
+		});
+	}
+});
+
+// The alert's inset beside its body is part of every line between the range's first and last.
+test.describe('cross-block selection overlay - the lines between span the column', () => {
+	for (const mode of ['source', 'live']) {
+		test(`${mode}: from mid-callout, its inset painted`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('admonitions');
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('> [!NOTE]\n> body line one\n> body line two\n\nafter the note\n');
+			await editor.focusBlockAtPath([0, 0], 5);
+			await editor.shiftClickBlock([1], 3);
+			await editor.waitForCrossBlock(true);
+
+			await expect.poll(async () => unpaintedMiddle(await paintedRegion(page))).toEqual([]);
 		});
 	}
 });

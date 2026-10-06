@@ -24,6 +24,10 @@ the blocks the range actually touches paint their own pieces.
   item of a numbered list paints one region with no hole, the alert's padding below its body and
   the blank lines included, in source mode and in live mode. Miss-analysis: every row here
   checked which block paints a box, never the space between the boxes
+- A range from mid-text in a callout's body (two lines) into the paragraph after it paints the
+  callout's inset beside the body's second line, so that line spans the editor's block column
+  edge to edge, in source mode and in live mode. Miss-analysis: the region rows read only where
+  paint sits vertically, never across a line beside a container's frame
 
 ## Miss-analysis
 
