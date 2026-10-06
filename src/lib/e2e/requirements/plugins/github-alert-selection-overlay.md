@@ -20,6 +20,11 @@ the blocks the range actually touches paint their own pieces.
 - A range that ends inside the alert paints no container box: the body block paints its own
   endpoint rects, and the title row stays outside the highlight
 
+- A range from mid-text in the alert's body, over two blank lines, into mid-text in the last
+  item of a numbered list paints one region with no hole, the alert's padding below its body and
+  the blank lines included, in source mode and in live mode. Miss-analysis: every row here
+  checked which block paints a box, never the space between the boxes
+
 ## Miss-analysis
 
 - The overlay suite pinned what a container delegates against blockquotes and callouts, whose

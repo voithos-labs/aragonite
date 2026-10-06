@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage, dragBetweenPoints } from './helpers';
 import { textRunCenter } from '../../text-runs';
+import { holes, paintedBands } from '../selection/painted-region';
 
 /**
  * A GitHub alert caught in a cross-block selection (requirements/plugins/github-alert-selection-
@@ -76,4 +77,36 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 			page.locator("[data-block-path='[1,0]'] .selection-overlay-endpoint")
 		).not.toHaveCount(0);
 	});
+});
+
+// The demo page's "Punishing Evil" section, selected from mid callout body to mid last item.
+test.describe('cross-block selection overlay - a range from inside a GitHub alert', () => {
+	const DOC = [
+		'> [!WARNING]',
+		"> In the name of the Moon, I'll punish you!",
+		'',
+		'',
+		'1. Fighting evil by moonlight,',
+		'2. winning love by daylight,',
+		'3. never running from a real fight,',
+		'4. she is the one named Sailor Moon!',
+		''
+	].join('\n');
+
+	for (const mode of ['source', 'live']) {
+		test(`${mode}: paints one region, the blank lines and the alert's padding included`, async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('admonitions');
+			await editor.setPresentationMode(mode);
+			await editor.loadContent(DOC);
+			const body = await textRunCenter(page, 'the Moon', { path: [0, 0] });
+			const item = await textRunCenter(page, 'Sailor', { path: [2, 3, 0] });
+			await dragBetweenPoints(page, body, item);
+			await editor.waitForCrossBlock(true);
+
+			expect(holes(await paintedBands(page))).toEqual([]);
+		});
+	}
 });
