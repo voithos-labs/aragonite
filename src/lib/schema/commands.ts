@@ -77,6 +77,19 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 	'heading.cycle'
 ]);
 
+/**
+ * Commands that run at the caret a range's removal leaves, so over a range a key bound to one is
+ * Backspace and then the key. `heading.cycle` is declined above for a toolbar, which removes nothing.
+ */
+export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	'block.split',
+	'block.hardBreak',
+	'heading.cycle',
+	'code.newline',
+	'cell.enter',
+	'chrome.descendToBody'
+]);
+
 /** Built-in commands that move the block or row holding the caret rather than the caret. */
 export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'block.moveUp',
@@ -419,6 +432,21 @@ export function chordsBoundTo(
 	overrides?.global.forEach(take);
 	overrides?.byKind.forEach((scoped) => scoped.forEach(take));
 	return chords;
+}
+
+/** Whether some kind's keymap, overrides included, resolves `chord` to one of `commands`: the
+ *  keymap's answer while the block that will run the command isn't known yet. */
+export function bindsAtSomeKind(
+	chord: string,
+	commands: ReadonlySet<AnyCommandId>,
+	ctx: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): boolean {
+	const overrides = ctx.keybindingOverrides();
+	for (const kind of getAllRegisteredKinds()) {
+		const binding = resolveBinding(chord, kind, overrides, ctx.activation);
+		if (binding && commands.has(binding.command)) return true;
+	}
+	return false;
 }
 
 /**

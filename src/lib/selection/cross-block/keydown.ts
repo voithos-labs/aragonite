@@ -12,7 +12,12 @@ import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
 import { dispatchKeyCommand, type CommandDispatchContext } from '../../schema/block-commands';
-import { chordsBoundTo, commandForKey } from '../../schema/commands';
+import {
+	AFTER_RANGE_REMOVAL_COMMAND_IDS,
+	bindsAtSomeKind,
+	chordsBoundTo,
+	commandForKey
+} from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import {
 	collapseCrossBlock,
@@ -224,12 +229,14 @@ async function dispatchOverRange(
 	);
 }
 
-/** Keys the block-level handler owns, which must run at a collapsed caret rather than over stale
- *  block indices, so they dispatch after the range is removed. */
-export function isCommandCandidateKey(e: KeyboardEvent): boolean {
-	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
-	return false;
+/** A key the keymap binds to a command that runs at a collapsed caret, never over stale block
+ *  indices, so over a range it dispatches after the range is removed. */
+export function isCommandCandidateKey(
+	e: KeyboardEvent,
+	reads: Pick<RangeKeyReads, 'commands'>
+): boolean {
+	const chord = eventToChord(e);
+	return chord !== null && bindsAtSomeKind(chord, AFTER_RANGE_REMOVAL_COMMAND_IDS, reads.commands);
 }
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
@@ -266,7 +273,7 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) return 'rewrite';
 	if (isIndentKey(e, reads)) return 'indent';
-	if (isCommandCandidateKey(e)) return 'command';
+	if (isCommandCandidateKey(e, reads)) return 'command';
 	if (e.shiftKey && isArrowKey(e.key)) return 'extend';
 	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && isArrowKey(e.key))) return 'collapse';

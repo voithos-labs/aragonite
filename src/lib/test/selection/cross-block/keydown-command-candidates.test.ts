@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// Command-candidate keys (Enter, Mod+0-6) are owned by the block at the caret, so over a
-// cross-block range they delete, then dispatch at the post-delete caret: dispatching first runs
-// against stale indices, and deleting alone swallows the keystroke. Format toggles are not
-// candidates; they take the cross-block toggle, which marks each block's own span.
+// A key the keymap binds to a command run at the caret (Enter, Mod+0-6 by default) deletes the
+// range, then dispatches at the caret that's left: dispatching first runs against stale indices.
+// Format toggles are not candidates; they take the cross-block toggle over each block's own span.
 import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -67,8 +66,8 @@ describe('cross-block keydown: command candidates', () => {
 		expect(runCommand).not.toHaveBeenCalled();
 	});
 
-	// The contrapositive of `isCommandCandidateKey` at its only caller: a modified Enter is not
-	// a candidate, so a check widened to every Enter would delete the range on Ctrl+Enter.
+	// No default keymap binds a modified Enter to a command run at the caret, so a check widened
+	// to every Enter would delete the range on Ctrl+Enter.
 	for (const [name, init] of [
 		['Ctrl+Enter', { ctrlKey: true }],
 		['Alt+Enter', { altKey: true }]
@@ -137,7 +136,7 @@ gamma
 	it('Tab and Shift+Tab are indent keys, never candidates', () => {
 		const { env } = envWithCommandTarget();
 		for (const init of [{}, { shiftKey: true }]) {
-			expect(isCommandCandidateKey(press('Tab', init))).toBe(false);
+			expect(isCommandCandidateKey(press('Tab', init), env.ctx)).toBe(false);
 			expect(isIndentKey(press('Tab', init), env.ctx)).toBe(true);
 		}
 	});
