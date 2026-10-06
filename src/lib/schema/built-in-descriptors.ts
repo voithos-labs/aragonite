@@ -23,6 +23,7 @@ import { tableCellWrite } from './table-cell-raw';
 import { fencedCodeWrite } from './fenced-code-raw';
 import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
+import { registerBuiltInRangeIndent } from './range-indent-forms';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
 import {
 	containerEstimate,
@@ -611,4 +612,7 @@ export function registerBuiltInDescriptors(): void {
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (list item edits)' }
 		})
 	});
+	// Over a range, the item holding each covered line nests or lifts, as at a caret.
+	registerBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
+	registerBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
 }

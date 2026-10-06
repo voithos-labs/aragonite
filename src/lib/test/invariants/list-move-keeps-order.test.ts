@@ -15,6 +15,11 @@ describe('G1.61 a list move keeps the order its text reads in', () => {
 		expect(checkListMoveKeepsOrder(before, textOf('1. a\n2. b\n   1. c\n'))).toBeNull();
 	});
 
+	it('reads a code block by its body, so a longer fence adds no text', () => {
+		const fenced = (fence: string) => `- x\n\n  ${fence}\n  a\n  ${fence}\n`;
+		expect(textOf(fenced('````'))).toEqual(textOf(fenced('```')));
+	});
+
 	it('reads a merge by the text around the two lines it joins', () => {
 		const [list] = parse('- a\n  - x\n- b\n  - y\n').children;
 		const x = list.children![0].children![1].children![0].children![0];

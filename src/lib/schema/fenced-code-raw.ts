@@ -64,8 +64,15 @@ export function fenceShapeOf(node: NodeView): FenceShape {
 export function fenceRawWrite(shapeOf: (node: NodeView) => FenceShape): WriteRule {
 	return {
 		normalize: (raw, ctx) => reconcileFenceRaw(raw, 0, shapeOf(ctx.node), ctx).raw,
-		mapOffset: (raw, offset, ctx) => reconcileFenceRaw(raw, offset, shapeOf(ctx.node), ctx).offset
+		mapOffset: (raw, offset, ctx) => reconcileFenceRaw(raw, offset, shapeOf(ctx.node), ctx).offset,
+		text: fenceBody
 	};
+}
+
+/** A fenced block's body, its fence lines left out; all of `raw` when line 0 opens no fence. */
+function fenceBody(raw: string): string {
+	const anatomy = fenceAnatomy(raw);
+	return anatomy ? raw.slice(anatomy.bodyStart, anatomy.closerStart) : raw;
 }
 
 /** The built-in code block's rule, sized by its parsed metadata. */

@@ -77,6 +77,19 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 	'heading.cycle'
 ]);
 
+/**
+ * Built-in commands a key over a range runs after removing it, at the caret that's left; a plugin
+ * command opts in at registration. A toolbar removes nothing first, so it declines `heading.cycle`.
+ */
+export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	'block.split',
+	'block.hardBreak',
+	'heading.cycle',
+	'code.newline',
+	'cell.enter',
+	'chrome.descendToBody'
+]);
+
 /** Built-in commands that move the block or row holding the caret rather than the caret. */
 export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'block.moveUp',

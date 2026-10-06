@@ -20,6 +20,8 @@ import {
 	registerLiveSplitRebalancer
 } from '../schema/inline-construct-policy';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
+import { registerBuiltInRangeIndent } from '../schema/range-indent-forms';
+import { shiftBodyLines } from './blocks/code/code-indent';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
 import { cleanLiveJoinSeam } from './blocks/text/live-join-seam';
 import { rebalanceLiveSplit } from './blocks/text/live-split-rebalance';
@@ -87,6 +89,14 @@ export function registerBuiltInBlocks(): void {
 	augmentBuiltin('table', {
 		foreignDragHitTest: tableDragHitTest,
 		caretTargetAtPoint: tableCaretAtPoint
+	});
+
+	// Over a range, a code block shifts the body lines the range covers, as its own Tab does.
+	registerBuiltInRangeIndent('fencedCode', 'code.indent', {
+		lines: (node, range) => shiftBodyLines(node, range, 'indent')
+	});
+	registerBuiltInRangeIndent('fencedCode', 'code.dedent', {
+		lines: (node, range) => shiftBodyLines(node, range, 'dedent')
 	});
 
 	// Image resize is editor-layer behavior, so the core image kind stays data-only

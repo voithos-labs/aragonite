@@ -34,7 +34,7 @@
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
 	} from './code-editing';
-	import { indentLines, dedentLines, type IndentResult } from './code-indent';
+	import { shiftCodeLines } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
 	import { fenceShapeOf, writeFenceInfo } from '../../../schema/fenced-code-raw';
@@ -539,10 +539,10 @@
 			case 'code.newline':
 				return codeNewline();
 			case 'code.indent':
-				indentSelection();
+				shiftSelection('indent');
 				return true;
 			case 'code.dedent':
-				dedentSelection();
+				shiftSelection('dedent');
 				return true;
 			case 'code.backspace':
 				return codeBackspace();
@@ -703,26 +703,15 @@
 		return { start: cursor, end: cursor };
 	}
 
-	function applyIndentResult(result: IndentResult): void {
+	// `el` is checked only because `currentRange()` reads the DOM selection through it.
+	function shiftSelection(direction: 'indent' | 'dedent'): void {
+		if (!el) return;
+		const result = shiftCodeLines(node, currentRange(), direction);
+		if (!result) return;
 		const written = writeCode(result.text, result.selection.start, 'indent');
 		// Both endpoints sit inside the body, so an escalation inserting at the opener
 		// run moves them by the same delta.
 		if (result.selection.start !== result.selection.end) selectAfter(written, result.selection);
-	}
-
-	// Indent and dedent rewrite whole lines, so their range clamps off the fence lines. `el` is
-	// checked only because `currentRange()` reads the DOM selection through it.
-	function indentSelection(): void {
-		if (!el) return;
-		applyIndentResult(indentLines(getDisplayText(), clampRangeToBody(node, currentRange())));
-	}
-
-	function dedentSelection(): void {
-		if (!el) return;
-		const text = getDisplayText();
-		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
-		if (result.text === text) return;
-		applyIndentResult(result);
 	}
 
 	// ── Pointer + clipboard ─────────────────────────────────────────────

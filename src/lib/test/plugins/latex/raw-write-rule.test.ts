@@ -122,3 +122,22 @@ describe('a closer restored into the unterminated last block of a CRLF document 
 		expect(write(source, written)).toBe(expected);
 	});
 });
+
+// Miss-analysis: the order checks read a math leaf's raw, so the closer this rule puts back read
+// as added text, and no row asked what the rule calls the block's text.
+describe('the rule reads a $$ block’s text without its fences', () => {
+	// Whitespace aside, as the order checks read it.
+	const textOf = (raw: string) => {
+		const rule = tryGetBlockKindDescriptor(parse('$$x$$\n').children[0].kind)?.rawWrite;
+		return rule?.text?.(raw).replace(/\s+/g, ' ').trim();
+	};
+
+	it('reads the same text before and after it puts the closer back', () => {
+		expect(textOf('$$\nx\n')).toBe('x');
+		expect(textOf(write('$$\nx\n$$\n', '$$\nx\n'))).toBe('x');
+	});
+
+	it('keeps what follows a one-line closer', () => {
+		expect(textOf('$$x^2$$\nmore\n')).toBe('x^2 more');
+	});
+});

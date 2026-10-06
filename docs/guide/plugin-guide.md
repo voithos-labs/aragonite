@@ -1696,7 +1696,35 @@ The consumer route `editor.runCommand(id)` reaches neither of those tiers: it re
 
 **View state rides `ctx.hooks`.** Because the context is built by the surface that owns the mounted component, it also carries the component's own view-state handles, supplied through the factory's `commandHooks` getter. A view-state command (open an editor, open a focus overlay) therefore drives the component directly, with no node-keyed side map. Hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (read live at dispatch, so an undo that replaces the node still hits the current handlers). The platform keeps `hooks` opaque (`unknown`): cast it to your own type in the handler, and decline when it's `undefined`, which means the kind is registered with no instance mounted.
 
+**Over a selection spanning blocks**, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as Enter and Mod+1 do:
+
+```ts
+const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
+	overRange: 'afterRemoval'
+});
+// in the descriptor: keymap: [{ chord: 'Enter', command: newVerse }]
+// a selection from '~ ro|ses' into 'vio|lets', then Enter: it goes ('~ rolets'), then splitVerse runs between 'ro' and 'lets'
+```
+
+The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
+
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
+
+**`registerRangeIndent(kind, command, shift)`**
+
+Tab over a selection that spans blocks indents what it covers: list items nest, code lines shift. Your kind joins in when its keymap binds an indent key to your own command and you tell the editor what that command does over a range. `shift` gets one of your blocks and the stretch of its text the selection covers, and hands back the new text plus where the selection now sits in it, or `null` when nothing changes. The text is the block's raw without its final line ending. Skip the registration and your blocks just sit there under a range (Tab is still taken, so focus doesn't wander off the editor).
+
+```ts
+const indent = registerBlockCommand(poem, 'poem.indent', indentAtCaret);
+// in the descriptor: keymap: [{ chord: 'Tab', command: indent }]
+registerRangeIndent(poem, indent, (node, range) => ({
+	text: '~ \t' + node.raw.replace(/\r?\n$/, '').slice(2),
+	selection: { start: range.start + 1, end: range.end + 1 }
+}));
+// a selection from the paragraph above into '~ roses are red', then Tab: '~ \troses are red'
+```
+
+Every block of your kind the selection reaches gets one call, and the whole press is one undo entry, list moves and code shifts included. Only add whitespace. In development the editor checks that an indent over a range adds and drops no text, and it warns if you register a line shift on a container kind, since a range indent only asks the leaf holding the text.
 
 **`registerGlobalCommand(name, handler, { chord }?)`**
 

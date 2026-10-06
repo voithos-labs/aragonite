@@ -188,8 +188,15 @@ function writeMathBlock(raw: string, offset: number, ctx: WriteContext) {
 
 const mathBlockWrite: WriteRule = {
 	normalize: (raw, ctx) => writeMathBlock(raw, 0, ctx).raw,
-	mapOffset: (raw, offset, ctx) => writeMathBlock(raw, offset, ctx).offset
+	mapOffset: (raw, offset, ctx) => writeMathBlock(raw, offset, ctx).offset,
+	text: mathText
 };
+
+/** The formula and anything past its closer, the `$$` fences left out. */
+function mathText(raw: string): string {
+	const source = readMathSource(raw);
+	return source ? source.body + source.after : raw;
+}
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
 

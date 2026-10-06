@@ -91,6 +91,9 @@ export interface WriteContext {
 export interface WriteRule {
 	normalize(raw: string, ctx: WriteContext): string;
 	mapOffset(raw: string, offset: number, ctx: WriteContext): number;
+	/** The part of `raw` that is the block's text, leaving out structure this rule may rewrite (a
+	 *  fence's lines); absent, all of it. The editor's text checks read a block through it. */
+	text?(raw: string): string;
 }
 
 /**

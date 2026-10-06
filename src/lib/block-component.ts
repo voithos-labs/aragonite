@@ -9,6 +9,7 @@ import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './reactivity/child-list';
 import type { AnyCommandId } from './schema/command-id';
+import type { BlockCommandTarget } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -258,6 +259,9 @@ export interface BlockComponent {
 	 * unexpected. False lets the caller fall through to later keydown branches.
 	 */
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
+	/** What a plugin's block command runs against at this block, for a command the editor runs
+	 *  here itself (a key over a selection, after the selection's removal). */
+	getCommandContext?(): BlockCommandTarget;
 	/**
 	 * Whether the command's toggle reads on at this block's own caret or selection: the read
 	 * a toolbar paints a pressed state from. Absent, or an id with no toggle state, reads
@@ -350,6 +354,7 @@ export type EditableLeafBlockApi = BlockComponent &
 			| 'insertMarkdown'
 			| 'typeText'
 			| 'afterSourceCommit'
+			| 'getCommandContext'
 		>
 	>;
 
