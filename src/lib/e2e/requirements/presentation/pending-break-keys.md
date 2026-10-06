@@ -14,7 +14,8 @@ the right answer.
 Each row is `first` / `abc` / `next`, Shift+Enter at the end of `abc`, the key, then `z`, in source
 and live mode.
 
-- ArrowUp goes up to the start of `abc`: `zabc`, no break.
+- ArrowUp goes up to the start of `abc`, and the line is gone before the next key: `zabc`, no
+  break.
 - ArrowDown goes to the start of `next` (the empty line's column is 0): `znext`.
 - ArrowRight leaves the block for `next`: `znext`.
 - Home and End stay on the open line, so `z` lands there: `abc\` over `z`.

@@ -7,14 +7,25 @@ import { clickBlockSettled, enterPresentationMode } from './helpers';
 // caret is drawn, and the line goes once the caret leaves it.
 // Requirements: e2e/requirements/presentation/pending-break-keys.md.
 
-/** Shift+Enter at the end of block `index`, then `key`, then `z`. */
-async function keyThenZ(ep: EditorPage, page: Page, index: number, key: string): Promise<void> {
+/** Shift+Enter at the end of block `index`, then `key`, then `z`; `drawn` is how many anchors the
+ *  open line leaves after the key, before `z`: 2 while it's still there, 0 once it's gone. */
+async function keyThenZ(
+	ep: EditorPage,
+	page: Page,
+	index: number,
+	key: string,
+	drawn?: number
+): Promise<void> {
 	await clickBlockSettled(ep, index);
 	await page.keyboard.press('End');
 	await page.keyboard.press('Shift+Enter');
 	await ep.waitForRenderFlush();
 	await page.keyboard.press(key);
 	await ep.waitForRenderFlush();
+	if (drawn !== undefined) {
+		const block = page.locator('.block-host').nth(index);
+		await expect(block.locator('br[data-caret-anchor="break"]')).toHaveCount(drawn);
+	}
 	await ep.typeSlowly('z');
 }
 
@@ -22,17 +33,17 @@ const DOC = 'first\n\nabc\n\nnext\n';
 
 for (const mode of ['source', 'live'] as const) {
 	test.describe(`${mode} mode: a caret key on the open line`, () => {
-		for (const [key, written] of [
-			['ArrowUp', 'first\n\nzabc\n\nnext\n'],
-			['ArrowDown', 'first\n\nabc\n\nznext\n'],
-			['ArrowRight', 'first\n\nabc\n\nznext\n'],
-			['Home', 'first\n\nabc\\\nz\n\nnext\n'],
-			['End', 'first\n\nabc\\\nz\n\nnext\n']
-		]) {
+		for (const [key, written, drawn] of [
+			['ArrowUp', 'first\n\nzabc\n\nnext\n', 0],
+			['ArrowDown', 'first\n\nabc\n\nznext\n', 0],
+			['ArrowRight', 'first\n\nabc\n\nznext\n', 0],
+			['Home', 'first\n\nabc\\\nz\n\nnext\n', 2],
+			['End', 'first\n\nabc\\\nz\n\nnext\n', 2]
+		] as const) {
 			test(`${key} moves from the open line`, async ({ page }) => {
 				const ep = await enterPresentationMode(page, mode, DOC);
 
-				await keyThenZ(ep, page, 1, key);
+				await keyThenZ(ep, page, 1, key, drawn);
 
 				await expect.poll(() => ep.bridge.getSource()).toBe(written);
 			});

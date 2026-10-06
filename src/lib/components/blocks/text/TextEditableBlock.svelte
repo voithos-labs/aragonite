@@ -861,7 +861,7 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || editableSurface.isDetached()) return;
 
-		// Ahead of the edge step, which would take ArrowLeft at a hidden closer and keep the line.
+		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
 		if (
 			handlePendingBreakKey(e, {
 				pendingBreak,
