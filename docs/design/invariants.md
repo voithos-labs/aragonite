@@ -797,10 +797,14 @@ an open defect. Predicate
 `editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
 
 **G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab,
-Shift+Tab or a rebound indent key over a range moves list items and shifts code lines, and nothing
-else. After each press, dev reads every leaf's text in document order, whitespace aside, across the
-top-level blocks the range spans, and compares it with what was there before the press. A renumbered
-marker or an added tab passes. A lost word fails, and so does one that now reads in a new place.
+Shift+Tab or a rebound indent key over a range moves list items and shifts code lines (or does what
+a plugin kind registered), and nothing else. After each press, dev reads every leaf's text in
+document order, whitespace aside, across the top-level blocks the range spans, and compares it with
+what was there before the press. A leaf's text is what its kind calls text: its write rule's
+`text` reading when it has one (a code block's body, without the fence lines), else its content
+span. So a renumbered marker, an added tab, or a fence the write rule lengthened around a line that
+now reads as a closer all pass. A lost word fails, and so does one that now reads in a new place.
+The reading is `invariants/leaf-text.ts` :: `leafTexts`, shared with G1.61.
 Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
 `selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
 
@@ -808,7 +812,7 @@ Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run
 Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
 unwrap of a list's first item and its merge of a middle item, and Enter in an empty item of an outermost list
 move blocks between levels, never past each other. Each one reads the leaf text of the list it
-rewrites, in order and whitespace aside, before and after the move, and dev warns when the two
+rewrites, in order and whitespace aside (read as G1.58 reads it), before and after the move, and dev warns when the two
 differ. A merge rewrites the two lines it joins (a live-mode join can drop markers), so its check
 reads the text before and after them. Predicate `invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` ·
 run by `tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap
