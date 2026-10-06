@@ -276,7 +276,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		localHistory: (e) =>
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
-		handleBeforeInput: onBeforeInput
+		handleBeforeInput: onBeforeInput,
+		removeSelection: (range) => removeRange(range)
 	});
 
 	const surface = editableSurface.surface;
@@ -580,7 +581,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			kind: deps.getNode().kind,
 			getCommandContext,
 			getPath: deps.getPath,
-			afterSourceCommit
+			afterSourceCommit,
+			afterSelectionRemoved: editableSurface.afterSelectionRemoved
 		});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
@@ -784,6 +786,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		insertMarkdown: clipboard.insertMarkdown,
 		typeText: surface.typeText,
 		afterSourceCommit,
+		afterSelectionRemoved: editableSurface.afterSelectionRemoved,
 		getCommandContext
 	} satisfies EditableLeafBlockApi;
 

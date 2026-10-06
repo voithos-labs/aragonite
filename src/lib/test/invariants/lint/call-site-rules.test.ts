@@ -186,10 +186,8 @@ const RULES: CallSiteRule[] = [
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
 		holds: () => false,
 		allowed: {
-			'src/lib/components/blocks/code/CodeBlock.svelte :: codeNewline':
-				'Enter types a new line, and an electric indent two',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: onBeforeInput':
-				'a soft break (Shift+Enter, or a line break with no key) types a new line',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: writeLineBreak':
+				'Enter or a soft break (Shift+Enter, or a line break with no key) types a new line, and an electric indent two',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
 				'the line break a key types over a selection',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: bareFenceCompletion':

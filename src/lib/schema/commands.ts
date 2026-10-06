@@ -90,6 +90,16 @@ export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Se
 	'chrome.descendToBody'
 ]);
 
+/**
+ * Built-in commands that put a line break at the caret. Over a selection inside one block they
+ * run after its removal, as typing over it would; a plugin command opts in at registration.
+ */
+export const AFTER_SELECTION_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	'block.split',
+	'block.hardBreak',
+	'code.newline'
+]);
+
 /** Built-in commands that move the block or row holding the caret rather than the caret. */
 export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'block.moveUp',

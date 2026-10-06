@@ -5,6 +5,7 @@
  * offsets; state that changes is passed as functions, never as captured values.
  */
 
+import { tick } from 'svelte';
 import type {
 	BlockEditActions,
 	ContentWrite,
@@ -31,6 +32,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../selection/caret-doors';
+import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { SurfaceBackend } from '../../cursor/surface-backend';
 import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
@@ -215,6 +217,9 @@ export interface EditableSurfaceDeps {
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
+	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
+	 *  bytes land. Omitted where no line break or command removes a selection first. */
+	removeSelection?: (range: RawRange) => PromiseLike<unknown> | void;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -242,6 +247,9 @@ export interface EditableSurface {
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
+	/** Removes the selection through `removeSelection`, then runs `run` at the caret it leaves: a
+	 *  command target's `afterSelectionRemoved`, and how a line break typed as input replaces one. */
+	afterSelectionRemoved(run: () => boolean): boolean;
 	/** Bound to the element's `keydown`. */
 	onKeyDown: (e: KeyboardEvent) => void;
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
@@ -561,6 +569,20 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// `bind:this` teardown nulls the reference a resuming handler still holds.
 	const isDetached = (): boolean => deps.getEl()?.isConnected !== true;
 
+	function afterSelectionRemoved(run: () => boolean): boolean {
+		const range = deps.backend.getRawSelection();
+		const remove = deps.removeSelection;
+		if (!range || range.start === range.end || !remove) return run();
+		const seed = deleteSnapshot(deps.getMyPath(), range.start);
+		void deps.controller.undoStep(seed, async () => {
+			await remove(range);
+			// The command reads the caret the removal's render puts back.
+			await tick();
+			if (!isDetached()) run();
+		});
+		return true;
+	}
+
 	return {
 		crossBlock,
 		sharedCtx,
@@ -572,6 +594,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
 		command,
+		afterSelectionRemoved,
 		onKeyDown,
 		onBeforeInput,
 		onInput,

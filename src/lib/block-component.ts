@@ -274,6 +274,12 @@ export interface BlockComponent {
 	 */
 	afterSourceCommit?(run: () => void): void;
 	/**
+	 * Remove this block's own selection, then run `run` at the caret that's left, as one undo
+	 * entry: how a command that breaks the line replaces what's selected. With nothing selected,
+	 * run it at once and return its answer. A block that omits it runs every command at the caret.
+	 */
+	afterSelectionRemoved?(run: () => boolean): boolean;
+	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */
@@ -354,6 +360,7 @@ export type EditableLeafBlockApi = BlockComponent &
 			| 'insertMarkdown'
 			| 'typeText'
 			| 'afterSourceCommit'
+			| 'afterSelectionRemoved'
 			| 'getCommandContext'
 		>
 	>;

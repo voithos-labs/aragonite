@@ -13,6 +13,10 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '$lib/test/harness/settle';
 import { cellAt } from '$lib/test/blocks/table/mount-table';
+import {
+	AFTER_RANGE_REMOVAL_COMMAND_IDS,
+	AFTER_SELECTION_REMOVAL_COMMAND_IDS
+} from '$lib/schema/commands';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -64,10 +68,15 @@ describe.each(MODES)('%s mode: a break key over a selection in one block', (mode
 		expect(editor.source()).toBe('alpha\n');
 	});
 
-	it('a table cell’s line break writes its `<br>` where the selection was', async () => {
-		const editor = mountEditor({ source: '| a |\n| - |\n| alpha |\n', presentationMode: mode });
-		const el = cellAt(editor, 1, 0);
-		selectRange(el, 1, 3);
+	// A line break the browser sends as input, which no command carries.
+	it.each([
+		['a table cell', '| a |\n| - |\n| alpha |\n', 1, '| a |\n| - |\n| a<br>ha |\n'],
+		['a code block', '```\nalpha\n```\n', 5, '```\na\nha\n```\n']
+	])('%s: a line break typed as input lands where the selection was', async (...row) => {
+		const [where, source, start, written] = row;
+		const editor = mountEditor({ source, presentationMode: mode });
+		const el = where === 'a table cell' ? cellAt(editor, 1, 0) : surfaceAt(editor, [0]);
+		selectRange(el, start, start + 2);
 
 		el.dispatchEvent(
 			new InputEvent('beforeinput', {
@@ -78,7 +87,7 @@ describe.each(MODES)('%s mode: a break key over a selection in one block', (mode
 		);
 		await settleEditor();
 
-		expect(editor.source()).toBe('| a |\n| - |\n| a<br>ha |\n');
+		expect(editor.source()).toBe(written);
 	});
 
 	// Enter in a cell moves to the cell below rather than breaking the line, so the text stays.
@@ -94,6 +103,20 @@ describe.each(MODES)('%s mode: a break key over a selection in one block', (mode
 	});
 });
 
+describe('live mode: a code block', () => {
+	// Live mode hides the fence lines, so only the body part of the selection goes.
+	it('Enter over a selection running into a code block’s hidden closer', async () => {
+		const editor = mountEditor({ source: '```js\nconst x = 1\n```\n', presentationMode: 'live' });
+		const el = surfaceAt(editor, [0]);
+		selectRange(el, 12, 20);
+
+		await pressKey(el, { key: 'Enter' });
+		await settleEditor();
+
+		expect(editor.source()).toBe('```js\nconst \n\n```\n');
+	});
+});
+
 describe('EditorInstance.runCommand over a selection in one block', () => {
 	it.each([
 		['block.split', 'a\n\nha\n'],
@@ -106,5 +129,15 @@ describe('EditorInstance.runCommand over a selection in one block', () => {
 		await settleEditor();
 
 		expect(editor.source()).toBe(written);
+	});
+});
+
+// Over a range spanning blocks the same commands remove first too; one missing from that set
+// would write under the live range.
+describe('the built-in commands that remove a selection first', () => {
+	it('each runs after a range’s removal too', () => {
+		for (const id of AFTER_SELECTION_REMOVAL_COMMAND_IDS) {
+			expect(AFTER_RANGE_REMOVAL_COMMAND_IDS.has(id), id).toBe(true);
+		}
 	});
 });

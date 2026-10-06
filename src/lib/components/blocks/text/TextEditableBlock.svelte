@@ -266,9 +266,24 @@
 			armSnapTarget(null);
 		},
 		handleKeydown: onKeyDown,
-		handleBeforeInput: onBeforeInput
+		handleBeforeInput: onBeforeInput,
+		// After a shown source is written: until then the selected text lives in the DOM only.
+		removeSelection: (range) =>
+			new Promise((written) =>
+				afterSourceCommit(() =>
+					written(
+						writeText({
+							...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+							intent: 'command',
+							mode: 'authored',
+							source: 'selection-removal'
+						})
+					)
+				)
+			)
 	});
 	const { writeText, pendingBreak } = editableSurface;
+	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -669,7 +684,8 @@
 		insertMarkdown,
 		snapCaretToPoint,
 		runCommand,
-		afterSourceCommit
+		afterSourceCommit,
+		afterSelectionRemoved
 	} satisfies BlockComponent);
 
 	// ── Content sync ──────────────────────────────────────────────────────
@@ -896,7 +912,13 @@
 
 		if (handleHomeKey(e, homeKeyDeps)) return;
 
-		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
+		const target = {
+			kind: node.kind,
+			runCommand,
+			getPath: () => myPath,
+			afterSourceCommit,
+			afterSelectionRemoved
+		};
 		if (wiring.dispatchChord(e, target)) return;
 	}
 

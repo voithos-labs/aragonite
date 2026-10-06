@@ -93,6 +93,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		controller: {
 			flushDebouncedCheckpoint: () => {},
 			isolateUndoEntry: (write: () => void) => write(),
+			undoStep: async (_seed: unknown, run: () => Promise<unknown>) => void (await run()),
 			endContinuedBurst: () => {}
 		} as EditorServices['controller'],
 		caretLanding: {} as EditorServices['caretLanding'],

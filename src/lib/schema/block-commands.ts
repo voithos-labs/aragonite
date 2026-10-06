@@ -19,6 +19,7 @@ import {
 	isBuiltinCommandId,
 	runPluginCommand,
 	AFTER_RANGE_REMOVAL_COMMAND_IDS,
+	AFTER_SELECTION_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -46,10 +47,13 @@ export interface BlockCommandContext {
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-/** How a block command behaves over a selection spanning blocks. `'afterRemoval'`: a key bound to
- *  it removes the selection, the way Backspace would, then runs it at the caret that's left. */
+/** How a block command behaves over a selection. `'afterRemoval'` removes the selection, the way
+ *  Backspace would, then runs the command at the caret that's left: `overRange` over a selection
+ *  spanning blocks, by a key bound to it; `overSelection` over one inside the command's own
+ *  block, however the command runs. A command that puts a line break at the caret wants both. */
 export interface BlockCommandOptions {
 	overRange?: 'afterRemoval';
+	overSelection?: 'afterRemoval';
 }
 
 /** What the focused block supplies; the dispatch adds the argument and the editor context. */
@@ -109,6 +113,17 @@ export function commandOverRange(
 ): BlockCommandOptions['overRange'] {
 	if (AFTER_RANGE_REMOVAL_COMMAND_IDS.has(id)) return 'afterRemoval';
 	return blockCommands.get(compositeKey(kind, id), activation)?.options.overRange;
+}
+
+/** What a command at `kind` does over a selection inside its block: a built-in in
+ *  `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, or a plugin command registered with `overSelection`. */
+export function commandOverSelection(
+	kind: AnyBlockKind,
+	id: AnyCommandId,
+	activation: PluginActivation
+): BlockCommandOptions['overSelection'] {
+	if (AFTER_SELECTION_REMOVAL_COMMAND_IDS.has(id)) return 'afterRemoval';
+	return blockCommands.get(compositeKey(kind, id), activation)?.options.overSelection;
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────
@@ -171,6 +186,9 @@ export interface KindCommandTarget {
 	/** Runs `run` once a source the block shows is hidden and written, so a move takes the written
 	 *  bytes along. Absent runs it at once. */
 	afterSourceCommit?(run: () => void): void;
+	/** Removes the block's own selection, then runs `run` at the caret that's left, one undo entry
+	 *  with the removal; with nothing selected it returns `run`'s answer. Absent runs it at once. */
+	afterSelectionRemoved?(run: () => boolean): boolean;
 }
 
 /**
@@ -247,9 +265,28 @@ function resolveCommand(
 	return resolveBlockLocalCommand(id, target, activation);
 }
 
+/** Run a resolved block-level command, after removing the block's own selection where the command
+ *  asks for that, however it was invoked. */
+function runBlockLocalCommand(
+	resolved: BlockLocalResolution,
+	id: AnyCommandId,
+	arg: unknown,
+	path: CommandDispatchPath,
+	ctx: CommandDispatchContext
+): boolean {
+	const target = 'target' in resolved ? resolved.target : null;
+	if (!target?.afterSelectionRemoved || !commandOverSelection(target.kind, id, ctx.activation)) {
+		return runAtCaret(resolved, id, arg, path, ctx);
+	}
+	// Resolved again after the removal, so a plugin's handler reads the block it left.
+	return target.afterSelectionRemoved(() =>
+		runAtCaret(resolveBlockLocalCommand(id, target, ctx.activation), id, arg, path, ctx)
+	);
+}
+
 /** Run a resolved block-level command, catching and reporting a plugin throw; an id no handler
  *  answers declines with a warning. */
-function runBlockLocalCommand(
+function runAtCaret(
 	resolved: BlockLocalResolution,
 	id: AnyCommandId,
 	arg: unknown,
