@@ -7,12 +7,13 @@
 import { describe, it, expect } from 'vitest';
 import { balancedBlock, collectEditorSources, readSource } from './scan-source';
 import { describeFileRules, svelteOnly, type FileRule, type Probe } from './file-rule';
+import { SOURCE } from './source-paths';
 
 const LEAF_FACTORY_RE = /\bcreateEditableLeaf\s*\(/;
 
 /** `BlockComponent`'s members, read off its declaration so a member added there joins the scan. */
 function blockComponentMembers(): Set<string> {
-	const { code } = readSource('src/lib/block-component.ts');
+	const { code } = readSource(SOURCE.blockComponentApi);
 	const open = code.indexOf('{', code.indexOf('export interface BlockComponent '));
 	const body = balancedBlock(code, open + 1) ?? '';
 	return new Set(
@@ -50,11 +51,7 @@ const LEAF_EXPORT: FileRule = {
 	matches: (file) => !publishesOnlyBlockApi(file.code),
 	reason:
 		'export the leaf as `export const blockApi = leaf.blockApi;` and nothing else from its block surface: a flat copy compiles while dropping whatever it skipped (afterSourceCommit loses an open edit on editor.runCommand, insertMarkdown declines)',
-	reaches: [
-		'src/lib/plugins/latex/BlockMath.svelte',
-		'src/lib/test/blocks/fixtures/RevealLeafBlock.svelte',
-		'src/routes/test/plugins/memo/MemoBlock.svelte'
-	],
+	reaches: [SOURCE.latexBlockMath, SOURCE.revealLeafFixture, SOURCE.memoReferenceBlock],
 	atLeast: 9,
 	hits: [
 		at('const leaf = createEditableLeaf({});'),

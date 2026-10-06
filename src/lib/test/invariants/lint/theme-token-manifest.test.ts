@@ -7,7 +7,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
@@ -97,7 +98,7 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 
 	// Non-vacuity: a broken split (empty light block) passes every "both" assertion.
 	it('the block split and matcher are non-vacuous', () => {
-		const css = readEditorFile('styles/editor-theme.css').code;
+		const css = readSource(SOURCE.themeTokens).code;
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
 		expect(declares(base, '--color-error')).toBe(true);
 		expect(declares(light, '--color-error')).toBe(true);

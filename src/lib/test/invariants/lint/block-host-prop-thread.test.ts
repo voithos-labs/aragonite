@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
 const CONTEXT_PROPS = ['document', 'rects'] as const;
 const BRANCH_TAGS = ['Comp', 'TextEditableBlock'] as const;
@@ -42,7 +43,7 @@ function findMissingThreads(code: string): MissingThread[] {
 
 describe('BlockHost context-prop thread source-scan', () => {
 	it('both dispatch branches thread every context-delivered prop', () => {
-		const { code } = readEditorFile('components/BlockHost.svelte');
+		const { code } = readSource(SOURCE.blockHost);
 		expect(findMissingThreads(code)).toEqual([]);
 	});
 

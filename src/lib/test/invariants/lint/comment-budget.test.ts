@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, ROUTES_SRC } from './scan-source';
 import { findCommentBlocks, isOverBudget } from './comment-lines';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 export function overBudgetLines(relPath: string, code: string): string[] {
 	return findCommentBlocks(code, relPath)
@@ -26,7 +27,7 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 
 	it('the walk still reaches the stylesheets and src/routes', () => {
 		expect(sources.some((f) => f.relPath.endsWith('.css'))).toBe(true);
-		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
+		expect(sources.some((f) => f.relPath.startsWith(SOURCE_DIR.routes))).toBe(true);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
@@ -54,8 +55,8 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 	it('a docblock on an export of a published entry point is a header, members included', () => {
 		const onExport = `${preamble}${docblock(5)}export function f() {}`;
 		const onMember = `${preamble}export interface I {\n\ta(): void;\n${docblock(5).replace(/^/gm, '\t')}\tb(): void;\n}`;
-		expect(overBudgetLines('src/lib/editor-props.ts', onExport)).toEqual([]);
-		expect(overBudgetLines('src/lib/editor-props.ts', onMember)).toEqual([]);
+		expect(overBudgetLines(SOURCE.editorProps, onExport)).toEqual([]);
+		expect(overBudgetLines(SOURCE.editorProps, onMember)).toEqual([]);
 		expect(overBudgetLines('src/lib/core/x.ts', onMember)).toHaveLength(1);
 	});
 

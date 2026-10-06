@@ -7,12 +7,13 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { collectEditorSources, type SourceFile } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
-const PLUGIN_SRC = path.resolve('src/lib/plugins');
+const PLUGIN_SRC = path.resolve(SOURCE_DIR.plugins);
 const DISPATCH_SRCS = [
-	path.resolve('src/lib/tree-operations'),
-	path.resolve('src/lib/editor-actions'),
-	path.resolve('src/lib/selection')
+	path.resolve(SOURCE_DIR.treeOperations),
+	path.resolve(SOURCE_DIR.editorActions),
+	path.resolve(SOURCE_DIR.selection)
 ];
 
 // ── Forbidden-set derivation (plugin block-kind literals) ─────────────────────

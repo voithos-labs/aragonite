@@ -6,13 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-	balancedBlock,
-	collectEditorSources,
-	readEditorFile,
-	type SourceFile
-} from './scan-source';
+import { balancedBlock, collectEditorSources, readSource, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE } from './source-paths';
 
 /**
  * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
@@ -131,14 +127,14 @@ describe('separator-write entry-point census', () => {
 
 /** A function writing a separator rewrites bytes the owner's child spans describe, so it must drop
  *  those spans (`schema/child-spans.ts`); the lists above fix the files, this one the functions. */
-const DOORS_FILE = 'tree-operations/settle.ts';
+const DOORS_FILE = SOURCE.settle;
 
 /** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
-	'tree-operations/node-ops.ts',
-	'tree-operations/content-write.ts',
-	'tree-operations/node-primitives.ts',
-	'tree-operations/chain-rebuild.ts'
+	SOURCE.nodeOps,
+	SOURCE.contentWrite,
+	SOURCE.nodePrimitives,
+	SOURCE.chainRebuild
 ];
 
 /** Every `function name(` body in `code`, braces balanced. */
@@ -159,7 +155,7 @@ const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix)
 
 describe('every separator entry point retires the child spans it invalidates', () => {
 	const doors = [DOORS_FILE, ...CARRY_FILES]
-		.flatMap((file) => functionBodies(readEditorFile(file).code))
+		.flatMap((file) => functionBodies(readSource(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
 	/** The two writers in the shared file, each of which drops the spans first, since a drop below
@@ -168,7 +164,7 @@ describe('every separator entry point retires the child spans it invalidates', (
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
-			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
+			functionBodies(readSource(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
 		);
 		const forgot = DOORS.filter(
 			(name) => !/^\s*retireChildSpans\s*\(/.test(bodies.get(name) ?? '')
@@ -198,7 +194,7 @@ describe('every separator entry point retires the child spans it invalidates', (
 	// A second writer in the shared file could write a shared node or skip the span drop, which the
 	// one writer does for every fix-up.
 	it('the shared file writes an existing node’s separator through its two writers alone', () => {
-		const writers = functionBodies(readEditorFile(DOORS_FILE).code)
+		const writers = functionBodies(readSource(DOORS_FILE).code)
 			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
 			.map((fn) => fn.name)
 			.filter((name) => !(name in ANSWERED_ELSEWHERE));

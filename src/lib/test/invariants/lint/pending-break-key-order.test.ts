@@ -4,10 +4,11 @@
 // Miss-analysis: the first header said no key sequence reached the keymap first; one does.
 import { describe, it, expect } from 'vitest';
 import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
 describe('G4.116 the pending break answers a key before the shared keymap', () => {
 	it('runs the pending break’s keys ahead of the shared keymap', () => {
-		const { code } = readSource('src/lib/components/blocks/text/TextEditableBlock.svelte');
+		const { code } = readSource(SOURCE.textBlock);
 		const keydown = code.slice(code.indexOf('async function onKeyDown('));
 		const pending = keydown.indexOf('handlePendingBreakKey(');
 

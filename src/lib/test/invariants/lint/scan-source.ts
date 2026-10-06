@@ -8,18 +8,19 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { SOURCE_DIR } from './source-paths';
 
-export const EDITOR_SRC = path.resolve('src/lib');
+export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
 
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
-export const ROUTES_SRC = path.resolve('src/routes');
+export const ROUTES_SRC = path.resolve(SOURCE_DIR.routes);
 
 /** The library plus the reference plugins and the consumer example, which stand in for an outside
  *  author and must not model a violation. A library-only lint passes `EDITOR_SRC` and says why. */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
-	path.resolve('src/routes/test/plugins'),
-	path.resolve('examples/consumer/src')
+	path.resolve(SOURCE_DIR.referencePlugins),
+	path.resolve(SOURCE_DIR.consumerExample)
 ];
 
 export interface SourceFile {
@@ -102,9 +103,9 @@ export function readEditorFile(relFromEditor: string): SourceFile {
 	);
 }
 
-/** The bundled plugins, by directory name under `src/lib/plugins`. */
+/** The bundled plugins, by directory name. */
 export function bundledPluginDirs(): string[] {
-	return readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
+	return readdirSync(path.resolve(SOURCE_DIR.plugins), { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => entry.name)
 		.sort();

@@ -26,6 +26,7 @@ import {
 	stringLiteralAt,
 	stripComments
 } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 describe('repo-wide scan roots', () => {
 	const sources = collectEditorSources();
@@ -33,9 +34,9 @@ describe('repo-wide scan roots', () => {
 
 	it('reaches all three roots, none of them empty', () => {
 		const byRoot = {
-			library: paths.filter((p) => p.startsWith('src/lib/')),
-			referencePlugins: paths.filter((p) => p.startsWith('src/routes/test/plugins/')),
-			consumerExample: paths.filter((p) => p.startsWith('examples/consumer/src/'))
+			library: paths.filter((p) => p.startsWith(SOURCE_DIR.library)),
+			referencePlugins: paths.filter((p) => p.startsWith(SOURCE_DIR.referencePlugins)),
+			consumerExample: paths.filter((p) => p.startsWith(SOURCE_DIR.consumerExample))
 		};
 		for (const [root, hits] of Object.entries(byRoot)) {
 			expect(hits.length, `repo-wide scan reached no file under ${root}`).toBeGreaterThan(0);
@@ -46,10 +47,10 @@ describe('repo-wide scan roots', () => {
 	});
 
 	it('sees the reference plugin the external-author rules are modelled on', () => {
-		expect(paths).toContain('src/routes/test/plugins/callout/callout-kind.ts');
+		expect(paths).toContain(SOURCE.calloutReferenceKind);
 		// The synced copy under examples/consumer/src/plugins is generated and absent on a
 		// fresh checkout; the consumer root is pinned through a tracked file instead.
-		expect(paths).toContain('examples/consumer/src/plugin-probe.ts');
+		expect(paths).toContain(SOURCE.consumerPluginProbe);
 	});
 
 	it('collects each file exactly once (no root nested inside another)', () => {
@@ -59,13 +60,15 @@ describe('repo-wide scan roots', () => {
 	it('an explicit root narrows the scan (the opt-out lints rely on this)', () => {
 		const libraryOnly = collectEditorSources(EDITOR_SRC).map((f) => f.relPath);
 		expect(libraryOnly.length).toBeLessThan(paths.length);
-		expect(libraryOnly.every((p) => p.startsWith('src/lib/'))).toBe(true);
+		expect(libraryOnly.every((p) => p.startsWith(SOURCE_DIR.library))).toBe(true);
 	});
 
 	it('excludes test, e2e, and declaration files from every root', () => {
-		// `src/routes/test/plugins` is itself a root, so its own `test` segment is
-		// expected; what must not appear is a `test`/`e2e` directory below a root.
-		const belowRoot = paths.map((p) => p.replace(/^src\/routes\/test\/plugins\//, ''));
+		// The reference plugins root has its own `test` segment; what must not appear is a
+		// `test`/`e2e` directory below a root.
+		const belowRoot = paths.map((p) =>
+			p.startsWith(SOURCE_DIR.referencePlugins) ? p.slice(SOURCE_DIR.referencePlugins.length) : p
+		);
 		expect(belowRoot.filter((p) => /(^|\/)(test|e2e)\//.test(p))).toEqual([]);
 		expect(paths.filter((p) => p.endsWith('.d.ts'))).toEqual([]);
 	});
@@ -306,10 +309,10 @@ describe('literal values', () => {
 
 describe('collectFiles', () => {
 	it('lists matching files under a root as sorted repo paths, and never enters a skipped name', () => {
-		const lint = collectFiles('src/lib/test/invariants', { extensions: ['.ts'], skip: ['lint'] });
+		const lint = collectFiles(SOURCE_DIR.invariantTests, { extensions: ['.ts'], skip: ['lint'] });
 		expect(lint.length).toBeGreaterThan(0);
 		expect(lint).toEqual([...lint].sort());
-		expect(lint.every((f) => f.startsWith('src/lib/test/invariants/') && f.endsWith('.ts'))).toBe(
+		expect(lint.every((f) => f.startsWith(SOURCE_DIR.invariantTests) && f.endsWith('.ts'))).toBe(
 			true
 		);
 		expect(lint.some((f) => f.includes('/lint/'))).toBe(false);

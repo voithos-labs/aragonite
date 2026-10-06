@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { callSites, collectEditorSources, fileClasses, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** The rebuilds that name no kind: one node, one node's ancestry, a copied chain. */
 const KIND_FREE = [
@@ -28,11 +29,7 @@ const BUILT_IN_REBUILDERS = [
 ];
 
 /** Where the rebuilds themselves live. */
-const HOMES = [
-	'src/lib/schema/',
-	'src/lib/tree-operations/chain-rebuild.ts',
-	'src/lib/tree-operations/unshare.ts'
-];
+const HOMES = [SOURCE_DIR.schema, SOURCE.chainRebuild, SOURCE.unshare];
 
 interface Pin {
 	/** Calls per rebuild name: `.rebuild` is `ContainerScope.rebuild`, `.rebuildRaw` a descriptor call. */
@@ -261,7 +258,7 @@ describe('G4.96 a container is rebuilt where rebuilds live, or at a pinned site'
 		expect(flagged('const rebuild = descriptor.rebuildRaw;\nif (descriptor.rebuildRaw) {}')).toBe(
 			false
 		);
-		expect(flagged('rebuildTableRaw(t);', 'src/lib/schema/probe.ts')).toBe(false);
+		expect(flagged('rebuildTableRaw(t);', `${SOURCE_DIR.schema}probe.ts`)).toBe(false);
 	});
 
 	it('one more call in a pinned file fails its count', () => {

@@ -7,12 +7,13 @@
 
 import { collectEditorSources } from './scan-source';
 import { describeFileRules, type FileRule } from './file-rule';
+import { SOURCE } from './source-paths';
 
-const CONTENT_WRITE = 'src/lib/tree-operations/content-write.ts';
-const NODE_PRIMITIVES = 'src/lib/tree-operations/node-primitives.ts';
-const BLOCK_EDIT_CORE = 'src/lib/editor-actions/block-edit-core.ts';
-const LEAF_WRITE = 'src/lib/editor-actions/leaf-write.ts';
-const TREE_OPS_BARREL = 'src/lib/tree-operations/index.ts';
+const CONTENT_WRITE = SOURCE.contentWrite;
+const NODE_PRIMITIVES = SOURCE.nodePrimitives;
+const BLOCK_EDIT_CORE = SOURCE.blockEditCore;
+const LEAF_WRITE = SOURCE.leafWrite;
+const TREE_OPS_BARREL = SOURCE.treeOperationsBarrel;
 const BARREL_REASON = 'the tree-operations barrel re-exports it';
 
 /** The writers into a child slot that run their write inside `writeKeepingTaskMarker`. */

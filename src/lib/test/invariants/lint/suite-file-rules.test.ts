@@ -25,6 +25,7 @@ import {
 	type FileRule,
 	type Probe
 } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
@@ -48,7 +49,7 @@ const SOURCES = collectEditorSources(EDITOR_SRC, { includeTests: true });
  *  later joins the scan below with no edit here. */
 function enrolledResets(sources: SourceFile[]): string[] {
 	return sources
-		.filter(notUnder('src/lib/test/'))
+		.filter(notUnder(SOURCE_DIR.unitTests))
 		.flatMap((file) => callsTo(file.code, 'enrollTestReset'))
 		.map((arg) => arg.trim())
 		.filter((arg) => /^[\w$]+$/.test(arg));
@@ -184,12 +185,12 @@ function loadTimeRegistration(code: string): boolean {
 }
 const hookCall = (hook: string, body: string) => `${hook}(() => ${body});`;
 
-const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
-const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
-const LINT_DIRS = ['src/lib/test/invariants/lint/', 'src/lib/e2e/lint/'];
+const SUITE_DIRS = [SOURCE_DIR.unitTests, SOURCE_DIR.e2e];
+const PERF_DIRS = [SOURCE_DIR.unitPerfTests, SOURCE_DIR.e2ePerfTests];
+const LINT_DIRS = [SOURCE_DIR.unitLint, SOURCE_DIR.e2eLint];
 
 /** One test file and one library file, so a walk that lost either half reads as unreached. */
-const BOTH_HALVES = ['src/lib/index.ts', 'src/lib/test/invariants/lint/scan-source.ts'];
+const BOTH_HALVES = [SOURCE.publicBarrel, SOURCE.scanSource];
 
 const RULES: FileRule[] = [
 	{
@@ -262,10 +263,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a private walk reads a bracket or quote inside a literal as code the day one appears (#287): use collectFiles, stripComments, walkCode or the helpers built on them in scan-source.ts',
-		reaches: [
-			'src/lib/test/invariants/lint/scan-source.ts',
-			'src/lib/e2e/lint/composition-driver.test.ts'
-		],
+		reaches: [SOURCE.scanSource, SOURCE.compositionDriverLint],
 		hits: [
 			at(
 				`${LINT_DIRS[0]}a.test.ts`,
@@ -304,7 +302,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.4 no timing hacks for sequencing, in the unit suites too',
-		population: under('src/lib/test/'),
+		population: under(SOURCE_DIR.unitTests),
 		matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
 		allowed: {
 			'src/lib/test/invariants/lint/file-rules.test.ts':
@@ -312,7 +310,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'wait with settleEditor (test/harness/settle.ts), move a wall-clock timer with vi.useFakeTimers, or wait for real I/O with vi.waitFor; a macrotask flush also runs whatever unrelated timer is due, so a test can pass for the wrong reason',
-		reaches: ['src/lib/test/harness/settle.ts'],
+		reaches: [SOURCE.unitSettle],
 		hits: [
 			at('src/lib/test/a.test.ts', timerWait(['set', 'Timeout'].join(''))),
 			at('src/lib/test/b.test.ts', `${['queue', 'Microtask'].join('')}(() => {});`)
@@ -324,7 +322,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'one EditorActionsDeps builder for every suite',
-		population: under('src/lib/test/', 'src/lib/testing/'),
+		population: under(SOURCE_DIR.unitTests, SOURCE_DIR.testing),
 		matches: /\bblockRefSlots\s*:/,
 		allowed: {
 			'src/lib/testing/headless-actions.ts':
@@ -337,7 +335,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'no inline block-content selector in e2e specs',
-		population: under('src/lib/e2e/tests/'),
+		population: under(SOURCE_DIR.e2eTests),
 		matches: /:not\(\s*\.selection-overlay\s*\)/,
 		reason:
 			'route block-content lookups through BLOCK_CONTENT_SELECTOR (re-exported from editor-page) or a page-object helper; an inline copy never excludes .decoration-badge',
@@ -359,7 +357,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'e2e specs aim at text through the editor’s own offset mapping',
-		population: under('src/lib/e2e/tests/'),
+		population: under(SOURCE_DIR.e2eTests),
 		matches: /\bcreateTreeWalker\s*\(/,
 		allowed: {
 			'src/lib/e2e/tests/plugins/showcase-occurrences.spec.ts':
@@ -380,7 +378,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.106 an e2e spec reloads the editor’s own text through reloadContent',
-		population: under('src/lib/e2e/'),
+		population: under(SOURCE_DIR.e2e),
 		matches: /\b(?:loadContent|setSource)\s*\(\s*await\s+[\w.]+\.getSource\s*\(/,
 		reason:
 			'a `source` write equal to the text the editor holds is no change, so the check after it reads the unreloaded document: call `editor.reloadContent()`',
@@ -398,7 +396,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'every unit test starts from a clean plugin platform, which the unit setup alone resets',
-		population: under('src/lib/test/'),
+		population: under(SOURCE_DIR.unitTests),
 		matches: (file) => platformResetHooks(file.code).length > 0,
 		allowed: {
 			'src/lib/test/support/plugin-platform.ts': 'the unit setup’s own reset, before every test',
@@ -407,7 +405,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'test/support/plugin-platform.ts resets the plugin platform before every test, so a hook of a file’s own, whole or partial, is a second copy that drifts; a test asserting what a reset does calls it inside the test',
-		reaches: ['src/lib/test/support/plugin-platform.ts'],
+		reaches: [SOURCE.unitPluginPlatform],
 		hits: [
 			at('src/lib/test/a.test.ts', hookCall('beforeEach', resetCall(PUBLIC_RESET))),
 			at('src/lib/test/b.test.ts', `afterEach(${SCHEMA_RESET});`),
@@ -434,7 +432,7 @@ const RULES: FileRule[] = [
 	{
 		id: 'a unit test helper module leaves the plugin platform reset to the unit setup',
 		population: (file) =>
-			file.relPath.startsWith('src/lib/test/') && !file.relPath.endsWith('.test.ts'),
+			file.relPath.startsWith(SOURCE_DIR.unitTests) && !file.relPath.endsWith('.test.ts'),
 		matches: (file) => PLATFORM_RESET.test(file.code) || resetAliases(file.code).length > 0,
 		allowed: {
 			'src/lib/test/support/plugin-platform.ts': 'the unit setup’s own reset, before every test',
@@ -443,7 +441,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a helper that resets hides a second copy of the unit setup’s reset behind a name, where the hook scan above cannot see it; register in the helper and let the setup reset',
-		reaches: ['src/lib/test/core/inline/scan/scan-test-helpers.ts'],
+		reaches: [SOURCE.scanTestHelpers],
 		hits: [
 			at(
 				'src/lib/test/x/helper.ts',
@@ -461,7 +459,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'a unit test registers plugin state per test, never at load or in `beforeAll`',
-		population: under('src/lib/test/'),
+		population: under(SOURCE_DIR.unitTests),
 		matches: (file) => loadTimeRegistration(file.code),
 		allowed: {
 			'src/lib/test/plugin-platform-reset.test.ts':
@@ -530,7 +528,7 @@ const ROUTE_RULES: FileRule[] = [
 		matches: (file) => EDITOR_TAG.test(file.code) && !/\btrackParityDocument\s*\(/.test(file.code),
 		reason:
 			'the e2e fixture walks only the documents a route registered, so a route that forgets trackParityDocument gets no container-parity check at teardown and no error either',
-		reaches: ['src/routes/+page.svelte'],
+		reaches: [SOURCE.showcaseRoute],
 		atLeast: 10,
 		hits: [at('src/routes/x/+page.svelte', `<Editor bind:this={editor} />`)],
 		misses: [

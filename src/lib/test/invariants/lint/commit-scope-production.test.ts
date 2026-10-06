@@ -6,9 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const SCOPE_FILE = 'invariants/commit-scope.ts';
+const SCOPE_FILE = SOURCE.commitScope;
 
 const BUILD_FLAG_RE = /from\s*['"]esm-env['"]|\bDEV\b|\bNODE_ENV\b|import\.meta\.env/;
 const DECLARATION_RE = /^\s*(?:let|var|const)\s+depth\b/;
@@ -34,7 +35,7 @@ function findDefects(code: string): ScopeDefect[] {
 }
 
 describe('G4.61 the commit scope is production-live', () => {
-	const file = readEditorFile(SCOPE_FILE);
+	const file = readSource(SCOPE_FILE);
 
 	it('found the scope module to inspect', () => {
 		expect(file.code, `${SCOPE_FILE} not found`).toContain('isCommitInProgress');

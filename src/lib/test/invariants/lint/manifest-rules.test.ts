@@ -15,6 +15,7 @@ import {
 	type ManifestRule,
 	type Probe
 } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -25,9 +26,9 @@ const inKeys = (...groups: Record<string, string>[]) => {
 
 // ── G4.21 / G4.34 the image and link byte writers ────────────────────────────
 
-const IMAGE_BYTES = 'src/lib/core/inline/image-source-bytes.ts';
-const LINK_BYTES = 'src/lib/core/inline/link-source-bytes.ts';
-const IMAGE_POPOVER = 'src/lib/components/image/ImageProperties.svelte';
+const IMAGE_BYTES = SOURCE.imageSourceBytes;
+const LINK_BYTES = SOURCE.linkSourceBytes;
+const IMAGE_POPOVER = SOURCE.imageProperties;
 
 // ── G4.36 caret writes ───────────────────────────────────────────────────────
 
@@ -185,8 +186,8 @@ const codeOutsideStyleBlocks = (file: SourceFile): string =>
 
 // ── G4.33 live byte rewrites ─────────────────────────────────────────────────
 
-const ORACLE_HOME = 'src/lib/core/inline/visibility.ts';
-const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
+const ORACLE_HOME = SOURCE.inlineVisibility;
+const SLOT_HOME = SOURCE.inlineConstructPolicy;
 
 /** The modules building live-mode byte candidates, each verifying through the render path. */
 const REWRITE_MODULES: Record<string, string> = {
@@ -238,7 +239,7 @@ const ORACLE_CALL = /(?<![\w.])(?:renderedText|visibleRuns)\s*\(/;
 
 // ── G4.12 caret-edge destructive keys ────────────────────────────────────────
 
-const TEXT_BLOCK_DIR = 'src/lib/components/blocks/text/';
+const TEXT_BLOCK_DIR = SOURCE_DIR.textBlock;
 const DESTRUCTIVE_KEY_RE = /(['"])(?:Backspace|Delete)\1/;
 const PREVENT_DEFAULT_RE = /\.preventDefault\s*\(/;
 
@@ -294,7 +295,7 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		reason: 'a new name is a new link write path: add it with its reason',
 		// The card takes the writer's answer as a prop, which this file-set scan cannot see.
-		reaches: ['src/lib/components/link-card/LinkCard.svelte'],
+		reaches: [SOURCE.linkCard],
 		hits: [
 			'buildLinkEditBytes(link, display, fields)',
 			'buildLinkUnwrapBytes(link, display)',
@@ -396,7 +397,7 @@ const MANIFESTS: ManifestRule[] = [
 	{
 		id: 'G4.83 every fragment read in the edit layers is declared, with why it needs no slot reader',
 		population: (file) =>
-			['src/lib/tree-operations/', 'src/lib/selection/', 'src/lib/editor-actions/'].some((dir) =>
+			[SOURCE_DIR.treeOperations, SOURCE_DIR.selection, SOURCE_DIR.editorActions].some((dir) =>
 				file.relPath.startsWith(dir)
 			),
 		matches: /(?<![\w.])readBlocks\s*\(/,
@@ -473,7 +474,7 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.45 the files importing a bare tree-op primitive are the declared callers',
-		population: notUnder('src/lib/tree-operations/'),
+		population: notUnder(SOURCE_DIR.treeOperations),
 		matches: IMPORTS_BARE_PRIMITIVE,
 		declared: BARE_PRIMITIVE_CALLERS,
 		reason: 'a new caller of the bare primitives: name the commit that settles its writes',
@@ -669,13 +670,10 @@ const OBLIGATIONS: FileRule[] = [
 		matches: (file) => !/\b(?:writeText|updateBlockContent)\s*\(/.test(file.code),
 		reason: 'a caret-edge interceptor commits through the CST, never native mutation',
 		reaches: keys(EDGE_INTERCEPTORS),
-		hits: [at(`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`, 'range.deleteContents();')],
+		hits: [at(SOURCE.edgePolicyDispatch, 'range.deleteContents();')],
 		misses: [
-			at(
-				`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`,
-				'deps.blockEdit.updateBlockContent(index, raw, a, b);'
-			),
-			at(`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`, 'deps.writeText({ text, caretAfter });')
+			at(SOURCE.edgePolicyDispatch, 'deps.blockEdit.updateBlockContent(index, raw, a, b);'),
+			at(SOURCE.edgePolicyDispatch, 'deps.writeText({ text, caretAfter });')
 		]
 	}
 ];

@@ -4,6 +4,7 @@
  */
 
 import { commentSpans, commentText, languageOf, type CommentSpan } from './scan-source';
+import { SOURCE } from './source-paths';
 
 export interface CommentBlock {
 	/** 1-based line the block starts on. */
@@ -18,12 +19,12 @@ const BODY_BUDGET = 2;
 const HEADER_BUDGET = 5;
 
 /** Docblocks on these files' exports ship in the `.d.ts` a consumer hovers. */
-const PUBLISHED_ENTRY_POINTS = [
-	'src/lib/index.ts',
-	'src/lib/plugin.ts',
-	'src/lib/testing.ts',
-	'src/lib/editor-props.ts',
-	'src/lib/block-component.ts'
+const PUBLISHED_ENTRY_POINTS: string[] = [
+	SOURCE.publicBarrel,
+	SOURCE.pluginBarrel,
+	SOURCE.testingBarrel,
+	SOURCE.editorProps,
+	SOURCE.blockComponentApi
 ];
 
 /** A first block this far into the file is the header (imports may precede it). */

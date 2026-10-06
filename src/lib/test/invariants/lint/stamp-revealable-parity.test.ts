@@ -5,13 +5,14 @@
  * caret placement learns whether a typed byte may land between delimiters.
  */
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 import { listInlineConstructPolicies } from '../../../schema/inline-construct-policy';
 import { registerBuiltInDescriptors } from '../../../schema/built-in-descriptors';
 
 registerBuiltInDescriptors();
 
-const RENDER = 'core/inline-render.ts';
+const RENDER = SOURCE.inlineRender;
 
 /** Top-level `function name(…) {…}` bodies, split at column-0 `function` starts. */
 function topLevelFunctions(code: string): Map<string, string> {
@@ -29,7 +30,7 @@ function topLevelFunctions(code: string): Map<string, string> {
  *  `excludeHelper` drops the helper's own definition, for a helper the branches call directly. */
 function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<string> {
 	const token = `${helper}(`;
-	const { code } = readEditorFile(RENDER);
+	const { code } = readSource(RENDER);
 	const functions = topLevelFunctions(code);
 	const reaching = [...functions]
 		.filter(([name, body]) => name !== excludeHelper && body.includes(token))

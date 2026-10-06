@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
+import { SOURCE } from './source-paths';
 
 /** A component building its own editable element. */
 const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
@@ -64,7 +65,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 	// The cell is the only component on the published-object route, so losing it would leave this
 	// scan reading instance exports alone.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
-		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
+		const cell = components.find((f) => f.relPath === SOURCE.tableCell);
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();
 		expect(publishedSurfaceMembers(cell!.code)).toContain('insertMarkdown');
 		expect(

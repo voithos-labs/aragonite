@@ -14,14 +14,10 @@ import {
 	EDITOR_SRC,
 	walkCode
 } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
-const SCOPE = [
-	'src/lib/core/inline/',
-	'src/lib/cursor/',
-	'src/lib/ambient/',
-	'src/lib/components/blocks/text/'
-];
+const SCOPE = [SOURCE_DIR.inline, SOURCE_DIR.cursor, SOURCE_DIR.ambient, SOURCE_DIR.textBlock];
 
 /** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
  *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */
@@ -129,8 +125,8 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 
 	it('reads both walk boundaries out of the scoped sources', () => {
 		const seams = [
-			['src/lib/core/inline/walk.ts', 'inlineDescendants'],
-			['src/lib/cursor/dom-walk.ts', 'domDescendants']
+			[SOURCE.inlineWalk, 'inlineDescendants'],
+			[SOURCE.domWalk, 'domDescendants']
 		];
 		for (const [relPath, name] of seams) {
 			const seam = sources.find((file) => file.relPath === relPath);

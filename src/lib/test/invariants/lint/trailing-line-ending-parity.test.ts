@@ -15,6 +15,7 @@ import {
 	rawAssignments
 } from './scan-source';
 import { describeFileRules, except } from './file-rule';
+import { SOURCE } from './source-paths';
 
 // ── Content writes ───────────────────────────────────────────────────────────
 
@@ -223,7 +224,7 @@ describeFileRules(
 	[
 		{
 			id: 'G4.20 per-line work reads each line without its ending',
-			population: except('src/lib/core/lines.ts'),
+			population: except(SOURCE.lineSplitter),
 			matches: LINE_SPLIT,
 			allowed: {
 				'src/lib/debug/dump-tree.ts': "a debug dump prints each line's bytes, a `\\r` included",

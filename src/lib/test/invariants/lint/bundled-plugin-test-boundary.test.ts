@@ -8,9 +8,13 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { bundledPluginDirs, collectEditorSources, importSpecifiers } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
-const PLUGIN_SRC_ROOT = 'src/lib/plugins';
-const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
+const PLUGIN_TEST_ROOT = SOURCE_DIR.pluginTests;
+
+/** A library path as the `$lib` specifier that imports it. */
+const libSpecifier = (relPath: string): string =>
+	`$lib/${relPath.slice(SOURCE_DIR.library.length)}`;
 
 interface Exemption {
 	/** The exact specifiers this file may still reach for. */
@@ -282,8 +286,8 @@ const BUNDLED_PLUGINS = new Set(bundledPluginDirs());
 /** The plugin whose suite `relPath` belongs to, or null for a platform test sitting loose
  *  under the test root. */
 function suiteOf(relPath: string): string | null {
-	if (!relPath.startsWith(`${PLUGIN_TEST_ROOT}/`)) return null;
-	const name = relPath.slice(PLUGIN_TEST_ROOT.length + 1).split('/')[0];
+	if (!relPath.startsWith(PLUGIN_TEST_ROOT)) return null;
+	const name = relPath.slice(PLUGIN_TEST_ROOT.length).split('/')[0];
 	return BUNDLED_PLUGINS.has(name) ? name : null;
 }
 
@@ -291,18 +295,21 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 	// A relative path into library code would get around every rule below.
 	if (specifier.startsWith('.')) {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
-		return !resolved.startsWith('src/lib/') || resolved.startsWith('src/lib/test/');
+		return !resolved.startsWith(SOURCE_DIR.library) || resolved.startsWith(SOURCE_DIR.unitTests);
 	}
 	if (!specifier.startsWith('$lib')) return true;
 	if (PUBLIC_BARRELS.has(specifier)) return true;
-	if (specifier.startsWith('$lib/test/support/') || specifier.startsWith('$lib/test/harness/')) {
+	if (
+		specifier.startsWith(libSpecifier(SOURCE_DIR.testSupport)) ||
+		specifier.startsWith(libSpecifier(SOURCE_DIR.testHarness))
+	) {
 		return true;
 	}
 	if (PUBLISHED_PLUGIN_SUBPATHS.has(specifier)) return true;
 
 	const suite = suiteOf(relPath);
 	if (suite === null) return false;
-	const own = `${PLUGIN_SRC_ROOT.replace('src/lib', '$lib')}/${suite}`;
+	const own = libSpecifier(`${SOURCE_DIR.plugins}${suite}`);
 	return specifier === own || specifier.startsWith(`${own}/`);
 }
 
@@ -368,7 +375,7 @@ describe('G4.63 bundled-plugin test boundary', () => {
 // ── Classifier self-tests (non-vacuity) ──────────────────────────────────────
 
 describe('G4.63 classifier non-vacuity', () => {
-	const file = `${PLUGIN_TEST_ROOT}/details/round-trip.test.ts`;
+	const file = `${PLUGIN_TEST_ROOT}details/round-trip.test.ts`;
 
 	it('allows the three published entry points', () => {
 		for (const barrel of ['$lib', '$lib/plugin', '$lib/testing']) {
@@ -413,8 +420,8 @@ describe('G4.63 classifier non-vacuity', () => {
 	});
 
 	it('binds per-plugin suites only, leaving the loose platform tests alone', () => {
-		expect(suiteOf(`${PLUGIN_TEST_ROOT}/details/round-trip.test.ts`)).toBe('details');
-		expect(suiteOf(`${PLUGIN_TEST_ROOT}/kind-conformance.test.ts`)).toBe(null);
-		expect(suiteOf(`${PLUGIN_TEST_ROOT}/fixtures/showcase.ts`)).toBe(null);
+		expect(suiteOf(`${PLUGIN_TEST_ROOT}details/round-trip.test.ts`)).toBe('details');
+		expect(suiteOf(`${PLUGIN_TEST_ROOT}kind-conformance.test.ts`)).toBe(null);
+		expect(suiteOf(`${PLUGIN_TEST_ROOT}fixtures/showcase.ts`)).toBe(null);
 	});
 });

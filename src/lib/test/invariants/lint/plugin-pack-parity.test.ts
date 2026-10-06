@@ -8,9 +8,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { bundledPluginDirs, collectEditorSources } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 import { requiredPackPaths } from '../../../../../scripts/pack-manifest.mjs';
 
-const PLUGIN_SRC = path.resolve('src/lib/plugins');
+const PLUGIN_SRC = path.resolve(SOURCE_DIR.plugins);
 
 interface PackageManifest {
 	exports: Record<string, unknown>;
@@ -37,7 +38,7 @@ function cssImportingModules(): Array<{ plugin: string; file: string }> {
 	return collectEditorSources(PLUGIN_SRC)
 		.filter((f) => f.relPath.endsWith('.ts') && hasTopLevelCssImport(f.code))
 		.map((f) => {
-			const rel = f.relPath.slice('src/lib/plugins/'.length);
+			const rel = f.relPath.slice(SOURCE_DIR.plugins.length);
 			const [plugin, ...rest] = rel.split('/');
 			return { plugin, file: rest.join('/') };
 		});

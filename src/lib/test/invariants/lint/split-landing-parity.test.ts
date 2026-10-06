@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { callSites, collectEditorSources, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE } from './source-paths';
 
 /** Files that may name `splitNode`, aliased or not. */
 const SPLIT_NAMERS: Record<string, string> = {
@@ -17,10 +18,7 @@ const SPLIT_NAMERS: Record<string, string> = {
 };
 
 /** The two that re-export or define rather than land a caret. */
-const NON_LANDING = new Set([
-	'src/lib/tree-operations/node-ops.ts',
-	'src/lib/tree-operations/index.ts'
-]);
+const NON_LANDING = new Set<string>([SOURCE.nodeOps, SOURCE.treeOperationsBarrel]);
 
 const namesToken = (token: string) => (file: SourceFile) =>
 	new RegExp(`(?<![\\w'"])${token}\\b`).test(file.code);

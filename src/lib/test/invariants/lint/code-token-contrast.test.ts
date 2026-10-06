@@ -5,7 +5,8 @@
  * Miss-analysis (#290 #396 #397 #427 #428): the gate listed some text colors, never all of them.
  */
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 import { declaredValue, themeBlocks } from './theme-css';
 
 const AA_CONTRAST = 4.5;
@@ -123,17 +124,17 @@ const DE_EMPHASIS_TOKENS = [
 /** Blocks that draw their text at a reduced opacity: raw source text, and the link reference
  *  definition, which fades its whole block again on top of the raw text's own opacity. */
 const RAW_BLOCK_RULE = {
-	file: 'components/blocks/text/TextEditableBlock.svelte',
+	file: SOURCE.textBlock,
 	selector: '.text-editable-block.raw-block'
 };
 const REFERENCE_DEFINITION_RULE = {
-	file: 'styles/editor.css',
+	file: SOURCE.editorCss,
 	selector: ":where(.editor) .block-host[data-block-kind='linkReferenceDefinition']"
 };
 
 /** A rule's `opacity`, read from the file that declares it so a retuned fade is measured. */
 function ruleOpacity({ file, selector }: { file: string; selector: string }): number {
-	const css = readEditorFile(file).code;
+	const css = readSource(file).code;
 	const start = css.indexOf(`${selector} {`);
 	if (start === -1) throw new Error(`${file} has no \`${selector}\` rule`);
 	const body = css.slice(start, css.indexOf('}', start));
@@ -281,7 +282,7 @@ describe('WCAG AA: code tokens against the surfaces the editor paints them on', 
 	});
 
 	it('every `--code-tok-*` declaration is a color this test can measure', () => {
-		const css = readEditorFile('styles/editor-theme.css').code;
+		const css = readSource(SOURCE.themeTokens).code;
 		const unmeasurable = [...css.matchAll(CODE_TOKEN_DECL)]
 			.filter(([, , value]) => parseHex(value) === null && value.trim() !== 'inherit')
 			.map(([, token, value]) => `${token}: ${value.trim()}`);

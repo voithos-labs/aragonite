@@ -10,6 +10,7 @@ import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { isChordWellFormed } from '$lib/schema/keybindings';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,9 @@ export function harvestKeys(code: string): string[] {
 // Library-internal by design: the rule binds aragonite's own keydown branches, and a plugin
 // or example author's handlers are theirs to publish, not ours to manifest.
 const sources: SourceFile[] = collectEditorSources(EDITOR_SRC);
-const relToLib = (file: SourceFile) => file.relPath.replace(/^src\/lib\//, '');
+// The manifest names its files from the library root.
+const libRelative = (relPath: string) => relPath.slice(SOURCE_DIR.library.length);
+const relToLib = (file: SourceFile) => libRelative(file.relPath);
 const modifierReaders = sources.filter((file) => MODIFIER_READ.test(file.code));
 const byPath = new Map(sources.map((file) => [relToLib(file), file]));
 
@@ -97,9 +100,9 @@ describe('G4.29 scan non-vacuity', () => {
 	it('finds the modifier readers it is meant to find', () => {
 		const found = modifierReaders.map(relToLib);
 		expect(found.length).toBeGreaterThan(10);
-		expect(found).toContain('selection/cross-block/keydown.ts');
-		expect(found).toContain('editor-actions/container-block-component.ts');
-		expect(found).toContain('components/blocks/table/TableBlock.svelte');
+		expect(found).toContain(libRelative(SOURCE.crossBlockKeydown));
+		expect(found).toContain(libRelative(SOURCE.containerBlockComponent));
+		expect(found).toContain(libRelative(SOURCE.tableBlock));
 		// A .svelte file must survive collection, or every component site goes unscanned.
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});
@@ -111,7 +114,7 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(
 			collectReservedChords({ searchBar: true, activation: everyInstalledPlugin }).has('Mod+K')
 		).toBe(true);
-		const cardHost = byPath.get('components/link-card/LinkCardHost.svelte');
+		const cardHost = byPath.get(libRelative(SOURCE.linkCardHost));
 		expect(cardHost, 'LinkCardHost.svelte not found').toBeDefined();
 		expect(MODIFIER_READ.test(cardHost!.code)).toBe(false);
 	});
@@ -137,7 +140,7 @@ describe('G4.29 scan non-vacuity', () => {
 	});
 
 	it('the evidence assertion can fail', () => {
-		const site = HARDCODED_CHORD_SITES.find((s) => s.file === 'schema/keybindings.ts')!;
+		const site = HARDCODED_CHORD_SITES.find((s) => s.file === libRelative(SOURCE.keybindings))!;
 		expect(harvestKeys(byPath.get(site.file)!.code)).not.toContain('ArrowUp');
 	});
 });

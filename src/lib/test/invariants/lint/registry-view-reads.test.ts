@@ -30,6 +30,7 @@ import {
 } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── G4.69 the defaulted readers stay at the edge ─────────────────────────────
 
@@ -46,7 +47,7 @@ const DEFAULTED_READER_IMPORTERS: Record<string, string> = {
 		'the outline reads every plugin with no editor; the toc block passes its editor reader'
 };
 const mayImportDefaulted = (relPath: string): boolean =>
-	relPath in DEFAULTED_READER_IMPORTERS || relPath.startsWith('src/lib/testing/');
+	relPath in DEFAULTED_READER_IMPORTERS || relPath.startsWith(SOURCE_DIR.testing);
 
 /** Each defaulted reader a file imports from inside the library: `parse` and `parseInline` from
  *  anywhere in it, and the plugin barrel's `computeInlineContent`, which reads every plugin. */
@@ -72,7 +73,9 @@ function defaultedReaderImports(code: string): string[] {
 }
 
 describe('G4.69 only the barrels, the kits and no-editor code import the defaulted readers', () => {
-	const sources = collectEditorSources().filter((file) => file.relPath.startsWith('src/lib/'));
+	const sources = collectEditorSources().filter((file) =>
+		file.relPath.startsWith(SOURCE_DIR.library)
+	);
 
 	it('finds none elsewhere in the library', () => {
 		const offenders = sources
@@ -134,12 +137,12 @@ const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
 };
 
 const FALLBACK_EXEMPT = notUnder(
-	'src/lib/testing/',
-	'src/lib/core/parser.ts',
-	'src/lib/core/parsers/',
-	'src/lib/schema/block-openers.ts',
-	'src/lib/schema/registry-view.ts',
-	'src/lib/plugin.ts'
+	SOURCE_DIR.testing,
+	SOURCE.parser,
+	SOURCE_DIR.blockParsers,
+	SOURCE.blockOpeners,
+	SOURCE.registryView,
+	SOURCE.pluginBarrel
 );
 
 /** Each `relPath :: function` that names `defaultGrammarView` outside an import. */
@@ -213,15 +216,15 @@ export function actionDepsWithoutGrammar(
 
 // ── The resolver a drawn tree was read with ──────────────────────────────────
 
-const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
+const REWRITE_PROBE = `${SOURCE_DIR.textBlock}probe.ts`;
 
 /** The writes that reparse a block the editor drew: the prose block's rewrites and auto-pair, the
  *  bold and italic toggle, and the link card's byte writer. */
 const DRAWN_TREE_REWRITES = (file: SourceFile): boolean =>
-	file.relPath.startsWith('src/lib/components/blocks/text/') ||
-	file.relPath.startsWith('src/lib/core/inline/live-edit/') ||
-	file.relPath === 'src/lib/core/inline/format-toggle.ts' ||
-	file.relPath === 'src/lib/core/inline/link-source-bytes.ts';
+	file.relPath.startsWith(SOURCE_DIR.textBlock) ||
+	file.relPath.startsWith(SOURCE_DIR.liveEdit) ||
+	file.relPath === SOURCE.formatToggle ||
+	file.relPath === SOURCE.linkSourceBytes;
 
 const RULES: CallSiteRule[] = [
 	{

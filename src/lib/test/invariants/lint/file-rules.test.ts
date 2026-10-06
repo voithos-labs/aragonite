@@ -30,13 +30,14 @@ import {
 	type ManifestRule,
 	type Probe
 } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
 // ── G4.15 coordinate brands ──────────────────────────────────────────────────
 
-const COORDINATE_HOME = 'src/lib/cursor/coordinate-spaces.ts';
-const DOCPATH_HOME = 'src/lib/selection/path-math.ts';
+const COORDINATE_HOME = SOURCE.coordinateBrands;
+const DOCPATH_HOME = SOURCE.docPathBrand;
 const BRANDS = ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex', 'DocPath'];
 
 /** Where each brand's bare `as <Brand>` cast may live. `DocPath` composes in the neutral
@@ -79,8 +80,8 @@ const CST_IMPORT = "import type { CstNode, Document } from '../core/nodes';\n";
 
 // ── G4.44 / G4.65 prose surfaces ─────────────────────────────────────────────
 
-const LIVE_EDIT_HOME = 'src/lib/components/blocks/text/live-selection-edit.ts';
-const AUTOPAIR_HOME = 'src/lib/components/blocks/text/delimiter-autopair.ts';
+const LIVE_EDIT_HOME = SOURCE.liveSelectionEdit;
+const AUTOPAIR_HOME = SOURCE.delimiterAutopair;
 const RESOLVES_LIVE_EDIT = /(?<![\w.])(?:resolveLiveRangeEdit|applyLiveRangeEdit)\s*\(/;
 const APPLIES_AUTOPAIR = /(?<![\w.])applyDelimiterAutoPair\s*\(/;
 
@@ -149,10 +150,7 @@ const ACTIVE_IDENTITY_RE = /document\.activeElement\s*[!=]==|[!=]==\s*document\.
 // ── G4.51 debounced checkpoints ──────────────────────────────────────────────
 
 /** The definition sites declare the members rather than spending them as a pair. */
-const CHECKPOINT_DECLARATIONS = [
-	'src/lib/action-contracts.ts',
-	'src/lib/editor-actions/commit/undo-controller.ts'
-];
+const CHECKPOINT_DECLARATIONS: string[] = [SOURCE.actionContracts, SOURCE.commitEngine];
 
 function pairing(
 	id: string,
@@ -179,23 +177,23 @@ const EMPTY_BY_TRIM =
 
 /** The grammar files outside `core/parsers/` whose whitespace is GFM's: the one class home, the
  *  bare autolink boundary, the tag grammar and label matching. */
-const GRAMMAR_FILES = [
-	'src/lib/core/lines.ts',
-	'src/lib/core/inline/scan/autolinks.ts',
-	'src/lib/core/inline/html-tag-grammar.ts',
-	'src/lib/core/inline/link-reference-resolver.ts'
+const GRAMMAR_FILES: string[] = [
+	SOURCE.lineSplitter,
+	SOURCE.autolinkGrammar,
+	SOURCE.htmlTagGrammar,
+	SOURCE.linkReferenceResolver
 ];
 
-const PARSER_PROBE = 'src/lib/core/parsers/probe.ts';
+const PARSER_PROBE = `${SOURCE_DIR.blockParsers}probe.ts`;
 
 /** Plugin grammars share the parser's whitespace: the directive grammar and the bundled plugins. */
-const PLUGIN_GRAMMAR_DIRS = ['src/lib/core/directive/', 'src/lib/plugins/'];
+const PLUGIN_GRAMMAR_DIRS = [SOURCE_DIR.directive, SOURCE_DIR.plugins];
 
 const SHOWS_INK = 'whether the render shows ink, not whether the Markdown is blank';
 
 // ── The decorations directory ────────────────────────────────────────────────
 
-const DECORATIONS_DIR = 'src/lib/decorations/';
+const DECORATIONS_DIR = SOURCE_DIR.decorations;
 
 const DOM_MEASURES = [
 	/\b(?:textContent|innerText)\b[^;\n]{0,40}\.length\b/,
@@ -286,8 +284,8 @@ function readsGridLiteral(file: SourceFile): boolean {
 
 // ── G4.85, G4.86 where a leaf's bytes are stored ─────────────────────────────
 
-const TEXT_BLOCK_DIR = 'src/lib/components/blocks/text/';
-const LIVE_EDIT_DIR = 'src/lib/core/inline/live-edit/';
+const TEXT_BLOCK_DIR = SOURCE_DIR.textBlock;
+const LIVE_EDIT_DIR = SOURCE_DIR.liveEdit;
 const LIVE_EDIT_PROBE = `${LIVE_EDIT_DIR}probe.ts`;
 
 /** The text block's helper modules, where every live rewrite lives, and the live-edit readers. */
@@ -303,7 +301,7 @@ const LIST_MARKER_READ =
 // ── The rules ────────────────────────────────────────────────────────────────
 
 /** A file the G4.80 population holds, for its probes. */
-const SELECTION_PROBE = 'src/lib/selection/probe.ts';
+const SELECTION_PROBE = `${SOURCE_DIR.selection}probe.ts`;
 
 const RULES: FileRule[] = [
 	{
@@ -351,7 +349,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a set spent where no text is written is a promise dropped with nothing written: route the spend through the typing or composition write',
-		reaches: ['src/lib/components/blocks/text/edge-policy-dispatch.ts'],
+		reaches: [SOURCE.edgePolicyDispatch],
 		hits: [
 			'const marks = deps.pendingMarks.consume();',
 			'consumePendingMarks: caretMemory.pendingMarks.consume,'
@@ -369,7 +367,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a check reading DEV itself stays off under configureEditorEnv({ isDev: true }), so a suite on a toolchain resolving no export conditions runs without it: call isDevChecks()',
-		reaches: ['src/lib/env.ts'],
+		reaches: [SOURCE.envFlags],
 		hits: ["import { DEV } from 'esm-env';", 'import { BROWSER, DEV } from "esm-env";'],
 		misses: ["import { isDevChecks } from '../env';"]
 	},
@@ -382,7 +380,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'a getter over the document’s trailing blank line is a second document body beside documentBody: call documentBody',
-		reaches: ['src/lib/tree-operations/node-primitives.ts'],
+		reaches: [SOURCE.nodePrimitives],
 		hits: [
 			'const p = { children, get suffix() { return doc.suffix; } };',
 			'const q = { get  suffix ( ) { return s; } };'
@@ -462,11 +460,7 @@ const RULES: FileRule[] = [
 			!/\buseWindowFloor\s*\(/.test(file.code),
 		reason:
 			'a list that renders spacers mounts its new blocks one by one, and a layout read in between clamps the scroll at the document end: call `useWindowFloor` with the box around the spacers',
-		reaches: [
-			'src/lib/components/BlockList.svelte',
-			'src/lib/components/blocks/list/ListBlock.svelte',
-			'src/lib/components/blocks/table/TableBlock.svelte'
-		],
+		reaches: [SOURCE.blockList, SOURCE.listBlock, SOURCE.tableBlock],
 		hits: [
 			at('x.svelte', '<div class="rows">\n<div class="vr-spacer" style="height: 4px"></div>'),
 			at('x.svelte', '<div class="gap vr-spacer"></div>'),
@@ -485,11 +479,11 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.66 a relative scroll is written through scrollBy',
-		population: except('src/lib/cursor/scrollport.ts'),
+		population: except(SOURCE.scrollport),
 		matches: /setScrollTop\s*\([^;]*?\.scrollTop\s*\(\s*\)/,
 		reason:
 			'a relative scroll goes through port.scrollBy(delta), which keeps the fraction the scroller refuses (#315)',
-		reaches: ['src/lib/cursor/scroll-owner.ts'],
+		reaches: [SOURCE.scrollOwner],
 		hits: [
 			'port.setScrollTop(port.scrollTop() + delta);',
 			'el.setScrollTop(el.scrollTop() - lost);'
@@ -608,12 +602,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'the browser places a press in an editable’s top or bottom padding at the line’s start or end on Mac and Linux; bind the surface’s pointerdown to a named function that calls crossBlock.handlePointerDown exactly once, or allow it here with why',
-		reaches: [
-			'src/lib/components/blocks/code/CodeBlock.svelte',
-			'src/lib/components/blocks/table/TableCellBlock.svelte',
-			'src/lib/components/blocks/text/TextEditableBlock.svelte',
-			'src/lib/components/blocks/editable-leaf.ts'
-		],
+		reaches: [SOURCE.codeBlock, SOURCE.tableCell, SOURCE.textBlock, SOURCE.editableLeaf],
 		hits: [
 			at('x.svelte', '<div contenteditable="true"></div>'),
 			at(
@@ -643,13 +632,9 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
-		population: notUnder(
-			'src/lib/tree-operations/',
-			'src/lib/editor-actions/commit/',
-			'src/lib/core/nodes.ts'
-		),
+		population: notUnder(SOURCE_DIR.treeOperations, SOURCE_DIR.commit, SOURCE.cstNodes),
 		matches: stripsView,
-		mustMatch: ['src/lib/tree-operations/unshare.ts'],
+		mustMatch: [SOURCE.unshare],
 		reason:
 			'a CstNode/Document cast re-opens the byte-write hazard G1.9 closes in the types; route through makeBlockNode or the copy-before-write module instead',
 		hits: [
@@ -705,7 +690,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.32 one spelling for the inline cache: no consumer reaches for the raw accessor',
-		population: except('src/lib/core/inline/inline-cache.ts'),
+		population: except(SOURCE.inlineCache),
 		matches: /(?<![\w.])getInlineContent\s*\(/,
 		allowed: {
 			'src/lib/core/inline/transparency.ts':
@@ -736,7 +721,7 @@ const RULES: FileRule[] = [
 		matches: (file) => !PUBLISHES_RUN_COMMAND_RE.test(file.code),
 		reason:
 			'without an instance export of runCommand, editor.runCommand() declines every built-in text command on that block',
-		reaches: ['src/lib/components/blocks/table/TableCellBlock.svelte'],
+		reaches: [SOURCE.tableCell],
 		atLeast: 3,
 		hits: [
 			at('x.svelte', 'const s = createEditableSurface({'),
@@ -837,7 +822,7 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.72 the Markdown grammar reads GFM whitespace, not JS \\s or trim()',
 		population: (file) =>
-			under('src/lib/core/parsers/')(file) ||
+			under(SOURCE_DIR.blockParsers)(file) ||
 			GRAMMAR_FILES.includes(file.relPath) ||
 			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
@@ -851,7 +836,7 @@ const RULES: FileRule[] = [
 				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'src/lib/plugins/slash-commands/filter.ts': 'the words of a menu query the user typed'
 		},
-		reaches: [...GRAMMAR_FILES, 'src/lib/core/directive/grammar.ts'],
+		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
 		reason:
 			'JS `\\s` and `trim()` admit a non-breaking space, and GFM (§2.1) never does: a rule wanting spaces or tabs says `[ \\t]`, one wanting whitespace reads `WHITESPACE_CLASS`, `isWhitespaceChar` or `trimWhitespace` (core/lines.ts)',
 		hits: [
@@ -860,9 +845,12 @@ const RULES: FileRule[] = [
 			at(PARSER_PROBE, 'const trimmed = text.trim();'),
 			at(PARSER_PROBE, 'const head = text.trimStart();'),
 			at(PARSER_PROBE, 'const tail = text.trimEnd();'),
-			at('src/lib/core/inline/scan/autolinks.ts', 'const m = s.match(/^(\\S+)/);'),
-			at('src/lib/plugins/latex/latex-kind.ts', 'const isSpace = (ch: string) => /\\s/.test(ch);'),
-			at('src/lib/core/directive/grammar.ts', 'const title = info.trim();')
+			at(SOURCE.autolinkGrammar, 'const m = s.match(/^(\\S+)/);'),
+			at(
+				`${SOURCE_DIR.latexPlugin}latex-kind.ts`,
+				'const isSpace = (ch: string) => /\\s/.test(ch);'
+			),
+			at(SOURCE.directiveGrammar, 'const title = info.trim();')
 		],
 		misses: [
 			at(PARSER_PROBE, 'const m = text.match(/^#(?:[ \\t]|$)/);'),
@@ -1027,7 +1015,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.80 in selection/ only the range coverage and the caret walks ask if a container is closed',
-		population: under('src/lib/selection/'),
+		population: under(SOURCE_DIR.selection),
 		matches: /(?<![\w.])(?:isCollapsedContainer|collapsedContainerHiding)\s*\(/,
 		allowed: {
 			'src/lib/selection/range-coverage.ts':
@@ -1177,15 +1165,15 @@ const RULES: FileRule[] = [
 
 /** The directories holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
-	'src/lib/components/',
-	'src/lib/selection/',
-	'src/lib/editor-actions/',
-	'src/lib/tree-operations/',
-	'src/lib/core/inline/',
-	'src/lib/inline-menu/'
+	SOURCE_DIR.components,
+	SOURCE_DIR.selection,
+	SOURCE_DIR.editorActions,
+	SOURCE_DIR.treeOperations,
+	SOURCE_DIR.inline,
+	SOURCE_DIR.inlineMenu
 ];
 
-const SPLICE_PROBE = 'src/lib/components/blocks/text/probe.ts';
+const SPLICE_PROBE = `${SOURCE_DIR.textBlock}probe.ts`;
 
 /** One variable's bytes before a cut joined to the same variable's bytes after it. */
 const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}?\b\1\.slice\(/s;
@@ -1230,7 +1218,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 	{
 		id: 'G4.89 a leaf’s own bytes are spliced by the in-leaf range replace, or say why not',
 		population: (file) =>
-			under(...SPLICE_PATHS)(file) && !file.relPath.startsWith('src/lib/components/blocks/code/'),
+			under(...SPLICE_PATHS)(file) && !file.relPath.startsWith(SOURCE_DIR.codeBlock),
 		matches: SAME_SOURCE_SPLICE,
 		allowed: {
 			'src/lib/tree-operations/leaf-range.ts': 'the in-leaf range replace itself',
@@ -1280,7 +1268,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 		misses: [
 			at(SPLICE_PROBE, 'const out = head.slice(0, a) + tail.slice(b);'),
 			at(SPLICE_PROBE, 'const edit = replaceRangeInLeaf(node, range, text, store);'),
-			at('src/lib/components/blocks/code/probe.ts', 'const out = raw.slice(0, a) + raw.slice(b);')
+			at(`${SOURCE_DIR.codeBlock}probe.ts`, 'const out = raw.slice(0, a) + raw.slice(b);')
 		]
 	},
 	{
@@ -1340,7 +1328,7 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		},
 		reason:
 			'a scroll write outside the scroll owner skips its check of who owns the position: call a method on `EditorServices.scrollOwner`, or declare a scroller of its own here with why',
-		reaches: ['src/lib/cursor/scroll-owner.ts'],
+		reaches: [SOURCE.scrollOwner],
 		hits: [
 			'el.scrollTop = 40;',
 			'scroller.scrollTop += dy;',
@@ -1374,7 +1362,7 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		},
 		reason:
 			'a list that scrolls outside its descent corrects behind the measure round’s back: write heights and let the round keep the page still, or declare why here',
-		reaches: ['src/lib/reactivity/list-windowing.svelte.ts'],
+		reaches: [SOURCE.listWindowing],
 		hits: ['deps.scroll.scrollToMount([...path, index]);', 'owner.scrollToMount (path)'],
 		misses: [
 			'scrollToMount: scrollOwner.scrollToMount,',
@@ -1415,7 +1403,7 @@ const BARE_FOCUSES: ManifestRule[] = [
 		},
 		reason:
 			'a focus call without `preventScroll` scrolls the editor behind the scroll owner’s back: pass `{ preventScroll: true }` and let the route that moved the caret ask the owner, or declare here why this one may scroll',
-		reaches: ['src/lib/selection/native-bridge.ts'],
+		reaches: [SOURCE.nativeBridge],
 		hits: [
 			'el.focus();',
 			'blockEl?.focus();',
@@ -1492,7 +1480,7 @@ const HELD_BRANDS: FileRule = {
 	},
 	reason:
 		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
-	reaches: ['src/lib/reactivity/hold-across.ts'],
+	reaches: [SOURCE.holdAcross],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
 };
@@ -1600,7 +1588,7 @@ function describeMeasureWrites(sources: SourceFile[]): void {
 
 // ── G4.98 one place throws measured heights away ────────────────────────────
 
-const LAYOUT_HOME = 'src/lib/reactivity/layout-state.svelte.ts';
+const LAYOUT_HOME = SOURCE.layoutState;
 
 const HEIGHT_LIFETIME: ManifestRule[] = [
 	{
@@ -1685,7 +1673,7 @@ function describeOwnerWrites(sources: SourceFile[]): void {
 		it('only `writeScroll` and the round’s close write the port', () => {
 			const found = Object.fromEntries(
 				sources
-					.filter((file) => file.relPath === 'src/lib/cursor/scroll-owner.ts')
+					.filter((file) => file.relPath === SOURCE.scrollOwner)
 					.flatMap((file) => [...callSites(file, RAW_WRITE_KINDS)])
 			);
 			const declared = Object.fromEntries(
@@ -1747,12 +1735,12 @@ const SELECTION_WRITERS: ManifestRule[] = [
 
 // ── G4.101 what a typed write asks, it asks through the surface write ────────
 
-const ROGUE_WRITER = 'src/lib/components/blocks/x/rogue-writer.ts';
+const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under('src/lib/components/', 'src/lib/selection/'),
+		population: under(SOURCE_DIR.components, SOURCE_DIR.selection),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/surface-write.ts':
@@ -1774,13 +1762,15 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 
 // ── G4.108 one replace for every destructive gesture over a range ──────────
 
-const ROGUE_RANGE_ROUTE = 'src/lib/selection/cross-block/rogue.ts';
-const RANGE_REPLACE_HOME = 'src/lib/selection/cross-block/range-replace.ts';
+const ROGUE_RANGE_ROUTE = `${SOURCE_DIR.crossBlock}rogue.ts`;
+const RANGE_REPLACE_HOME = SOURCE.rangeReplace;
+/** `range-delete.ts` and its `range-delete-*.ts` siblings, which define the removals. */
+const RANGE_DELETE_FAMILY = SOURCE.rangeDelete.slice(0, -'.ts'.length);
 
 const RANGE_REPLACE: ManifestRule[] = [
 	{
 		id: 'G4.108 only the range replace removes a live range',
-		population: notUnder('src/lib/selection/range-delete'),
+		population: notUnder(RANGE_DELETE_FAMILY),
 		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole|commitGridLineDelete)\s*\(/,
 		declared: {
 			[RANGE_REPLACE_HOME]:
@@ -1800,7 +1790,7 @@ const RANGE_REPLACE: ManifestRule[] = [
 	},
 	{
 		id: 'G4.108 a gesture over a range opens its undo entry in the range replace or indent only',
-		population: under('src/lib/selection/cross-block/'),
+		population: under(SOURCE_DIR.crossBlock),
 		matches: /\.undoStep\s*\(/,
 		declared: {
 			[RANGE_REPLACE_HOME]: 'opens the one undo entry a destructive gesture over a range writes',
@@ -1818,8 +1808,8 @@ const RANGE_REPLACE: ManifestRule[] = [
 
 // ── G4.112 Tab over a range indents through one route ──────────────────────
 
-const ROGUE_INDENT_ROUTE = 'src/lib/components/blocks/rogue.ts';
-const ITEM_MOVES_HOME = 'src/lib/tree-operations/list/item-moves.ts';
+const ROGUE_INDENT_ROUTE = `${SOURCE_DIR.blocks}rogue.ts`;
+const ITEM_MOVES_HOME = SOURCE.listItemMoves;
 
 const RANGE_INDENT: ManifestRule[] = [
 	{
@@ -1843,7 +1833,7 @@ const RANGE_INDENT: ManifestRule[] = [
 	},
 	{
 		id: 'G4.112 a key resolves to a command at the declared dispatch points only',
-		population: notUnder('src/lib/schema/'),
+		population: notUnder(SOURCE_DIR.schema),
 		matches: /(?<![\w.])(?:dispatchKindCommand|dispatchKeyCommand|commandForKey)\s*\(/,
 		declared: {
 			'src/lib/editor-actions/container-block-component.ts':
@@ -1872,7 +1862,7 @@ const RANGE_INDENT: ManifestRule[] = [
 	},
 	{
 		id: 'G4.112 a command key over a range is pressed from the keydown handler only',
-		population: under('src/lib/'),
+		population: under(SOURCE_DIR.library),
 		matches: /\{\s*kind:\s*'command',/,
 		declared: {
 			'src/lib/selection/cross-block/keydown.ts':
@@ -1914,15 +1904,15 @@ const REF_FOCUS: FileRule = {
 
 // ── G4.113 one reading of a `$$` math block's shape ────────────────────────
 
-const MATH_SHAPE_HOME = 'src/lib/plugins/latex/math-shape.ts';
-const ROGUE_MATH_READER = 'src/lib/plugins/latex/rogue.ts';
+const MATH_SHAPE_HOME = SOURCE.mathShape;
+const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
 const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
 
 const MATH_SHAPE: FileRule = {
 	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
-	population: under('src/lib/plugins/latex/'),
+	population: under(SOURCE_DIR.latexPlugin),
 	matches: new RegExp(
 		String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}`
 	),
@@ -1952,17 +1942,17 @@ const MATH_SHAPE: FileRule = {
 
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
-const ROGUE_PAINTER = 'src/lib/components/RoguePaint.svelte';
+const ROGUE_PAINTER = `${SOURCE_DIR.components}RoguePaint.svelte`;
 const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|coveredWhole|startEdge|endEdge|startCells|endCells)\b`;
 
 const RANGE_PAINT: FileRule = {
 	id: 'G4.114 how a block paints under a range is decided in the selection model only',
-	population: notUnder('src/lib/selection/'),
+	population: notUnder(SOURCE_DIR.selection),
 	// A dotted read, or an object pattern naming a field, assigned or typed as the coverage.
 	matches: new RegExp(
 		String.raw`\.(?:coveredRootHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)`
 	),
-	reaches: ['src/lib/components/SelectionOverlay.svelte'],
+	reaches: [SOURCE.selectionOverlay],
 	reason:
 		'a painter that reads the coverage itself keeps its own copy of which block a range covers whole, and the end blocks paint one shape while the blocks between paint another: ask `classifyBlockForSelection` or `blockPaintsWholeBox`',
 	hits: [

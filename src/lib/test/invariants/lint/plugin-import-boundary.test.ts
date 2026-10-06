@@ -7,8 +7,9 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { collectEditorSources, importSpecifiers } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
-const PLUGIN_ROOT = 'src/lib/plugins';
+const PLUGIN_ROOT = SOURCE_DIR.plugins;
 
 // The rendering engine each plugin's `renderer.ts` is allowed to reach, incl.
 // subpaths (katex ships its CSS at `katex/dist/katex.min.css`).
@@ -18,9 +19,9 @@ const PLUGIN_ENGINES: Record<string, RegExp> = {
 };
 
 function pluginOf(relPath: string): { name: string; dir: string } | null {
-	if (!relPath.startsWith(`${PLUGIN_ROOT}/`)) return null;
-	const name = relPath.slice(PLUGIN_ROOT.length + 1).split('/')[0];
-	return name ? { name, dir: `${PLUGIN_ROOT}/${name}` } : null;
+	if (!relPath.startsWith(PLUGIN_ROOT)) return null;
+	const name = relPath.slice(PLUGIN_ROOT.length).split('/')[0];
+	return name ? { name, dir: `${PLUGIN_ROOT}${name}` } : null;
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
@@ -71,7 +72,7 @@ describe('plugin import boundary: bundled plugins import only the public barrel'
 // ── Classifier self-tests (non-vacuity) ──────────────────────────────────────
 
 describe('plugin import boundary: classifier non-vacuity', () => {
-	const file = 'src/lib/plugins/details/register.ts';
+	const file = `${PLUGIN_ROOT}details/register.ts`;
 
 	it('allows the public authoring barrel and svelte', () => {
 		expect(isAllowedSpecifier(file, '$lib/plugin')).toBe(true);
@@ -92,14 +93,14 @@ describe('plugin import boundary: classifier non-vacuity', () => {
 	});
 
 	it('grants the engine allowance only to renderer.ts of the declaring plugin', () => {
-		expect(isAllowedSpecifier('src/lib/plugins/latex/renderer.ts', 'katex')).toBe(true);
-		expect(
-			isAllowedSpecifier('src/lib/plugins/latex/renderer.ts', 'katex/dist/katex.min.css')
-		).toBe(true);
-		expect(isAllowedSpecifier('src/lib/plugins/mermaid/renderer.ts', 'mermaid')).toBe(true);
+		expect(isAllowedSpecifier(`${PLUGIN_ROOT}latex/renderer.ts`, 'katex')).toBe(true);
+		expect(isAllowedSpecifier(`${PLUGIN_ROOT}latex/renderer.ts`, 'katex/dist/katex.min.css')).toBe(
+			true
+		);
+		expect(isAllowedSpecifier(`${PLUGIN_ROOT}mermaid/renderer.ts`, 'mermaid')).toBe(true);
 		// Same engine, wrong file → denied.
-		expect(isAllowedSpecifier('src/lib/plugins/latex/latex-kind.ts', 'katex')).toBe(false);
+		expect(isAllowedSpecifier(`${PLUGIN_ROOT}latex/latex-kind.ts`, 'katex')).toBe(false);
 		// renderer.ts, wrong engine for its plugin → denied.
-		expect(isAllowedSpecifier('src/lib/plugins/mermaid/renderer.ts', 'katex')).toBe(false);
+		expect(isAllowedSpecifier(`${PLUGIN_ROOT}mermaid/renderer.ts`, 'katex')).toBe(false);
 	});
 });

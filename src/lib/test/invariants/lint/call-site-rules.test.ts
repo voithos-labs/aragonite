@@ -6,6 +6,7 @@
 import { callArguments, collectEditorSources } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder, type Probe } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── G4.1 createBlockListState ────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ function isFunctionArgument(arg: string): boolean {
 
 // ── G4.100 a block's own line ending ─────────────────────────────────────────
 
-const ROGUE_BLOCK = 'src/lib/components/blocks/x/rogue.ts';
+const ROGUE_BLOCK = `${SOURCE_DIR.blocks}x/rogue.ts`;
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 
 // ── The rules ────────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ const RULES: CallSiteRule[] = [
 		id: 'G4.27 every parse() call outside the parser declares its scope',
 		// The consumer example writes the documented default (a whole-document parse); the rule
 		// binds the library's own reparse sites and the reference plugins under the routes.
-		population: notUnder('examples/consumer/src/', 'src/lib/core/parser.ts', 'src/lib/testing/'),
+		population: notUnder(SOURCE_DIR.consumerExample, SOURCE.parser, SOURCE_DIR.testing),
 		calls: ['parse'],
 		holds: (args) => args.includes('scope:'),
 		reason:
@@ -65,8 +66,7 @@ const RULES: CallSiteRule[] = [
 	{
 		id: 'G4.100 a block’s own trailing line ending is added only by the surface write',
 		population: (file) =>
-			file.relPath.startsWith('src/lib/components/blocks/') &&
-			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+			file.relPath.startsWith(SOURCE_DIR.blocks) && file.relPath !== SOURCE.surfaceWrite,
 		calls: ['trailingLineEnding', 'ownTrailingLineEnding'],
 		holds: () => false,
 		allowed: {
@@ -99,8 +99,8 @@ const RULES: CallSiteRule[] = [
 	{
 		id: 'G4.111 an editable element writes its own text through the surface write',
 		population: (file) =>
-			['src/lib/components/', 'src/lib/selection/'].some((dir) => file.relPath.startsWith(dir)) &&
-			file.relPath !== 'src/lib/components/blocks/surface-write.ts',
+			[SOURCE_DIR.components, SOURCE_DIR.selection].some((dir) => file.relPath.startsWith(dir)) &&
+			file.relPath !== SOURCE.surfaceWrite,
 		calls: ['.updateBlockContent'],
 		holds: () => false,
 		allowed: {
@@ -171,7 +171,7 @@ const RULES: CallSiteRule[] = [
 	},
 	{
 		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
-		population: (file) => file.relPath.startsWith('src/lib/components/blocks/'),
+		population: (file) => file.relPath.startsWith(SOURCE_DIR.blocks),
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
 		holds: () => false,
 		allowed: {
