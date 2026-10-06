@@ -806,7 +806,7 @@ Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift (Shift+Tab,
 Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab), Backspace's
-unwrap of a list's first item and its merge of a middle item, and Enter in an empty top-level item
+unwrap of a list's first item and its merge of a middle item, and Enter in an empty item of an outermost list
 move blocks between levels, never past each other. Each one reads the leaf text of the list it
 rewrites, in order and whitespace aside, before and after the move, and dev warns when the two
 differ. A merge rewrites the two lines it joins (a live-mode join can drop markers), so its check
@@ -2248,7 +2248,7 @@ would leave with the line still open. The behavior rows in
 `TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
 
 **G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a list's
-first item and Enter in an empty top-level item both dissolve the item, and both split its children
+first item and Enter in an empty item of an outermost list both dissolve the item, and both split its children
 through `tree-operations/list/item-partition.ts` :: `dissolveItem`, which runs the split inside
 G1.61's check. A route with a split of its own can put the children in another order with no
 warning. Three rows in `lint/file-rules.test.ts` hold it: the splitter, `itemPiecesInOrder`, is called
