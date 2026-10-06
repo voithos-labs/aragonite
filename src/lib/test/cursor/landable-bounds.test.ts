@@ -4,7 +4,12 @@
 // every other widget the caret cannot enter keeps both of its boundaries.
 // Miss-analysis: block exits read the declared content range, blind to unreachable content bytes.
 import { describe, it, expect, afterEach } from 'vitest';
-import { landableDomTextBounds } from '../../cursor/widget-offset';
+import {
+	createCaretAnchor,
+	findDomTextOffsetTarget,
+	landableDomTextBounds
+} from '../../cursor/widget-offset';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
@@ -129,5 +134,39 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 			span('md-fence-line', '\n```')
 		);
 		expect(landableDomTextBounds(block)).toEqual({ start: 4, end: 8 });
+	});
+});
+
+// Miss-analysis: every pending-break fixture carried a hidden backslash before its anchors, so no
+// case built the line from the anchors alone.
+describe('a pending hard break’s line, drawn without a byte of its own', () => {
+	const breakAnchor = () => createCaretAnchor('break');
+	const glyph = () => span('md-hard-break', '');
+
+	it('keeps the text’s end as the last landable offset', () => {
+		const block = mountBlock({ mode: 'live' }, text('abc'), glyph(), breakAnchor(), breakAnchor());
+		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 3 });
+	});
+
+	it('takes a caret at the text’s end onto the line, in both modes', () => {
+		for (const mode of ['live', undefined]) {
+			const [first, last] = [breakAnchor(), breakAnchor()];
+			const block = mountBlock({ mode }, text('abc'), glyph(), first, last);
+			expect(findDomTextOffsetTarget(block, asDomTextOffset(3))).toEqual({
+				node: block,
+				offset: [...block.childNodes].indexOf(last)
+			});
+		}
+	});
+
+	it('takes a caret past a hidden closer onto the line', () => {
+		const strong = document.createElement('strong');
+		strong.append(span('md-marker', '**'), text('b'), span('md-marker', '**'));
+		const last = breakAnchor();
+		const block = mountBlock({ mode: 'live' }, strong, glyph(), breakAnchor(), last);
+		expect(findDomTextOffsetTarget(block, asDomTextOffset(5))).toEqual({
+			node: block,
+			offset: [...block.childNodes].indexOf(last)
+		});
 	});
 });

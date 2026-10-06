@@ -1,40 +1,69 @@
 // @vitest-environment jsdom
-// Miss-analysis: no render test drew a pending break in a block with bytes past its text.
-import { describe, it, expect } from 'vitest';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { hiddenSuffixLength } from '$lib/cursor/widget-offset';
-import { blockNode, makeRenderHarness } from '$lib/test/harness/text-render';
+// Shift+Enter at a block's end draws the line it opens, in every mode, from the editor's own record
+// of it: a return glyph and the caret anchors after the text, which add no text to the DOM read.
+// Miss-analysis: no render test drew a pending break in a block with bytes past its text, and the
+// line was read from a trailing backslash, so source mode never drew one.
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt,
+	surfaceAt
+} from '$lib/test/harness/mount-editor.svelte';
+import { hiddenSuffixLength, rawTextOfContent } from '$lib/cursor/widget-offset';
 
-/** The block's top-level children in order: text, the suffix span, or a break anchor. */
+beforeAll(installLayoutStubs);
+afterEach(destroyMountedEditors);
+
+/** The block's top-level children in order: text, the suffix span, the glyph, or a break anchor. */
 function shape(el: HTMLElement): string[] {
 	return [...el.childNodes].map((node) => {
 		if (node instanceof HTMLBRElement) return `<br ${node.dataset.caretAnchor ?? ''}>`;
 		if (node instanceof HTMLElement && node.hasAttribute('data-block-suffix')) {
 			return `suffix:${node.textContent}`;
 		}
+		if (node instanceof HTMLElement && node.classList.contains('md-hard-break')) return 'glyph';
 		return node.textContent ?? '';
 	});
 }
 
-describe('a pending hard break at the end of a block with structure past its text', () => {
-	it('draws a heading’s closing run before the new line', () => {
-		const { el, deps } = makeRenderHarness(blockNode('# Hi\\ #\n'), { mode: 'live' });
-		createTextRender(deps).render();
-		expect(shape(el)).toEqual(['# ', 'Hi', '\\', 'suffix: #', '<br break>', '<br break>']);
+async function openBreakAt(source: string, at: number, mode: 'source' | 'live') {
+	const editor = mountEditor({ source, presentationMode: mode });
+	await pressKeyAt(editor, [0], at, { key: 'Enter', shiftKey: true });
+	return { editor, el: surfaceAt(editor, [0]) };
+}
+
+describe.each(['source', 'live'] as const)('%s mode: the line a pending break opens', (mode) => {
+	it('follows the text with a glyph and two anchors', async () => {
+		const { el } = await openBreakAt('abc\n', 3, mode);
+
+		expect(shape(el)).toEqual(['abc', 'glyph', '<br break>', '<br break>']);
 	});
 
-	it('still reads the hidden closing run’s length with the anchors after it', () => {
-		const { el, deps } = makeRenderHarness(blockNode('# Hi\\ #\n'), { mode: 'live' });
-		const editor = document.createElement('div');
-		editor.setAttribute('data-presentation', 'live');
-		editor.appendChild(el);
-		createTextRender(deps).render();
+	it('draws a heading’s closing run before the new line', async () => {
+		const { el } = await openBreakAt('# Hi #\n', 6, mode);
+
+		expect(shape(el).slice(1)).toEqual(['Hi', 'suffix: #', 'glyph', '<br break>', '<br break>']);
+	});
+
+	it('draws a setext underline after the new line, on a line of its own', async () => {
+		const { el } = await openBreakAt('Hi\n===\n', 2, mode);
+
+		expect(shape(el)).toEqual(['Hi', 'glyph', '<br break>', '<br break>', 'suffix:\n===']);
+	});
+
+	it('reads back from the DOM as the stored bytes', async () => {
+		const { editor, el } = await openBreakAt('# Hi #\n', 6, mode);
+
+		expect(rawTextOfContent(el, editor.source(), ' #')).toBe('# Hi #');
+	});
+});
+
+describe('live mode: a pending break after a hidden closing run', () => {
+	it('still reads the run’s length with the line after it', async () => {
+		const { el } = await openBreakAt('# Hi #\n', 6, 'live');
+
 		expect(hiddenSuffixLength(el)).toBe(2);
-	});
-
-	it('draws a setext underline after the new line, on a line of its own', () => {
-		const { el, deps } = makeRenderHarness(blockNode('Hi\\\n===\n'), { mode: 'live' });
-		createTextRender(deps).render();
-		expect(shape(el)).toEqual(['Hi', '\\', '<br break>', '<br break>', 'suffix:\n===']);
 	});
 });
