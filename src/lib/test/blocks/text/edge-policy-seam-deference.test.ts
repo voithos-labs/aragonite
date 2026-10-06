@@ -55,7 +55,7 @@ function wire(node: CstNode, el: HTMLElement, options: Options): EdgeDispatchHar
 						end: asRawOffset(options.rawSelection.end)
 					}
 				: null,
-		getEdgeAffinity: () => options.affinity ?? null
+		side: options.affinity ?? null
 	});
 }
 

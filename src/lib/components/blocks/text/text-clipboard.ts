@@ -27,7 +27,6 @@ import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
 import type { RawRange } from '../../../cursor/widget-offset';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -64,9 +63,6 @@ export interface TextClipboardDeps {
 	get reading(): Reading;
 	/** Where the block's bytes are stored, read when a cut writes. */
 	storedAs: () => StoredAs;
-	/** Where a paste at `caret` lands: the offset an edge step chose there (`side`, as the paste
-	 *  found it), else the caret itself. */
-	pasteOffset: (caret: number, side: EdgeAffinity | null) => number;
 }
 
 interface SelectedWidget {
@@ -164,7 +160,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				{
 					pastedText,
 					targetPath: deps.myPath,
-					offset: replaced ? replaced.start : deps.pasteOffset(range?.start ?? 0, held.side),
+					// Placed across a hidden edge by `held.spend`, as every insertion is.
+					offset: replaced ? replaced.start : (range?.start ?? 0),
 					preDelete: replaced ? { start: replaced.start, end: replaced.end } : undefined,
 					caretBefore: widget?.preSelectOffset ?? deps.caret.getPreEditOffset(),
 					spend: held.spend

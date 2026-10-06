@@ -7,6 +7,7 @@
 
 import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../cursor/caret-memory';
+import type { HeldSpaceView } from '../../../cursor/held-space';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
 import { classifyArrivalKey, edgeStepDirection } from '../../../cursor/edge-affinity';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
@@ -29,6 +30,8 @@ export interface EdgeStepDeps {
 	/** The reading `getInlines` was read with, so a reference link reads as one. */
 	reading: Reading;
 	caretMemory: Pick<CaretMemory, 'side' | 'pin'>;
+	/** The block's held space, read lazily: the block makes it after the edge step. */
+	heldSpace: () => HeldSpaceView;
 }
 
 export interface EdgeStep {
@@ -93,6 +96,14 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		keySinceSync = true;
 		const direction = edgeStepDirection(e);
 		if (direction === null) return false;
+		// A held space is a side of its own: one press forward leaves the construct, the caret stays.
+		const caret = deps.getCaret();
+		if (direction === 'forward' && caret !== null && heldSpaceAt(caret) !== null) {
+			deps.caretMemory.pin(caret);
+			mark([]);
+			keySinceSync = false;
+			return true;
+		}
 		const at = edge();
 		if (!at) return false;
 		const target = edgeStep(
@@ -113,8 +124,23 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 
 	function sync(): void {
 		keySinceSync = false;
-		if (edgeHost()) mark(heldElements(edge()));
+		if (edgeHost()) mark(heldElements(edge() ?? heldSpaceEdge()));
 		else if (held.length > 0) mark([]);
+	}
+
+	/** Where the next letter joins the construct while a space typed at its hidden closer is held
+	 *  at `caret`, or null. */
+	function heldSpaceAt(caret: number): number | null {
+		const view = deps.heldSpace();
+		return hidingEl() && view.at() === caret ? view.inside() : null;
+	}
+
+	/** The construct a held space keeps the caret in, as the one stop the ring reads. */
+	function heldSpaceEdge(): ReturnType<typeof edge> {
+		const el = edgeHost();
+		const caret = deps.getCaret();
+		const inside = caret === null ? null : heldSpaceAt(caret);
+		return el && inside !== null ? { el, caret: inside, stops: [inside] } : null;
 	}
 
 	/** The block while it has the focus, hides markers at the caret and holds a construct: the one

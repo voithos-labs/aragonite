@@ -2,14 +2,14 @@
 
 Live mode paints no construct marker, so one screen position names two raw offsets: before
 the closing `**` and after it. Typing is native, and Chromium moves a collapsed caret back
-upstream across an unrendered run, so the DOM caret cannot express "after the run". Which
-side the byte takes is therefore decided at the keystroke and written through the CST. An
-IME commit cannot be intercepted at all (`insertCompositionText` is not cancelable), so its
-composed run is moved on the commit `compositionend` drives: the same side, one commit, one
-undo entry. Two inputs decide it: the kind's `edgeAffinity` policy first (a link never
-extends at either edge), then how the caret arrived. Driven on `/test/editor` via
-`?presentationMode=live` with real keystrokes, real clicks and a real CDP composition; every
-scenario checks the source, since the byte position is the whole contract.
+upstream across an unrendered run, so the DOM caret can't express "after the run". So the
+browser puts the byte in, and the write that reads it back moves it to its side, the same write
+for every way text arrives. An IME commit can't be stopped at all (`insertCompositionText`
+isn't cancelable), so its composed run gets moved on the commit `compositionend` drives: the
+same side, one commit, one undo entry. Two inputs decide it: the kind's `edgeAffinity` policy
+first (a link never extends at either edge), then how the caret arrived. Driven on
+`/test/editor` via `?presentationMode=live` with real keystrokes, real clicks and a real CDP
+composition; every scenario checks the source, since the byte position is the whole contract.
 
 ## Happy paths
 
@@ -61,9 +61,9 @@ scenario checks the source, since the byte position is the whole contract.
 
 ## User interactions
 
-- Real keyboard, real clicks and a real CDP composition only: the side is decided inside
-  the keydown dispatch and the one call every composition goes through, and a programmatic
-  caret write would bypass both, and would be normalized away anyway
+- Real keyboard, real clicks and a real CDP composition only: the side is decided in the write
+  every insertion goes through, from the side the keys left in the caret memory. A programmatic
+  caret write would skip the keys, and would be normalized away anyway
 - Arrival is established by stepping with arrows, by clicking, or by typing, never by
   asserting the affinity state, which is editor-internal
 

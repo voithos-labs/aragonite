@@ -14,10 +14,11 @@ import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
 import { stubBlockEdit } from '$lib/testing/headless-actions';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
-import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { asPresentationMode } from '$lib/presentation-mode';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
+import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
@@ -37,6 +38,8 @@ export interface EdgeDispatchHarness {
 export interface SurfaceWriteOverrides {
 	blockEdit?: Pick<BlockEditActions, 'updateBlockContent'>;
 	requestCaret?: (at: number, opts: { source: string }) => void;
+	/** The caret's side on record, which places a typed insertion at a hidden edge. */
+	side?: EdgeAffinity | null;
 }
 
 export function makeEdgeDispatch(
@@ -45,6 +48,7 @@ export function makeEdgeDispatch(
 	{
 		blockEdit: writes,
 		requestCaret = () => {},
+		side = null,
 		...overrides
 	}: Partial<EdgePolicyDispatchDeps> & SurfaceWriteOverrides = {}
 ): EdgeDispatchHarness {
@@ -93,18 +97,23 @@ export function makeEdgeDispatch(
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => keyCaret,
 			requestCaret,
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, side, placement.insertion)
 		}),
 		completeMarker: () => markerWrites.push(readNode()),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		getEdgeAffinity: () => null,
 		pendingMarks: makePendingMarks(),
-		ownPairs: createAutoPairRecord().forBlock(),
 		...overrides
 	};
+	const placement = createTypedPlacement({
+		getEl: () => el,
+		getNode: readNode,
+		reading: deps.reading,
+		caretMemory: { side: () => side },
+		heldSpace: () => ({ at: () => null, inside: () => null })
+	});
 	const dispatch = createEdgePolicyDispatch(deps);
 	// A held range reads as its start, as the block's caret read does.
 	const handleKeydown: EdgeDispatchHarness['handleKeydown'] = (e, caret) => {

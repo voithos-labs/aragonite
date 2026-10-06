@@ -44,6 +44,7 @@ import {
 	pasteContext
 } from '../harness/editor-actions';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
@@ -141,13 +142,13 @@ const HASH_RUN = { start: 3, end: 6 };
 type Mounted = { el: HTMLElement; blockEdit: ReturnType<typeof makeStubBlockEdit> };
 
 /** The block the editor renders at `place`, and what it commits. */
-function mountText(place: Place): Mounted {
+function mountText(place: Place, caretMemory?: CaretMemory): Mounted {
 	const mounted = mountBlock(TextEditableBlock, {
 		source: place.source,
 		path: place.leaf,
 		overrides: {
 			policies: { presentationMode: () => 'live' },
-			services: { decorations: noIslands }
+			services: { decorations: noIslands, ...(caretMemory ? { caretMemory } : {}) }
 		}
 	});
 	const el = mounted.target.querySelector('.text-editable-block') as HTMLElement;
@@ -276,13 +277,16 @@ function typedAtWidget(place: Place, range: typeof X, typed: string): string[] {
 	return h.edits.map((edit) => edit[1]);
 }
 
-/** A delimiter typed where the caret stands just inside a hidden closing run. */
-function typedBesideHiddenRun(place: Place, caret: number, typed: string): string[] {
-	const h = dispatchAt(place, [document.createTextNode(textOf(place))], {
-		getEdgeAffinity: () => 'far'
-	});
-	h.handleKeydown(key(typed), asRawOffset(caret));
-	return h.edits.map((edit) => edit[1]);
+/** A delimiter typed after an arrow stepped the caret past a hidden closing run, without moving. */
+async function typedPastHiddenRun(place: Place, caret: number, typed: string): Promise<string[]> {
+	const mounted = mountText(place, createCaretMemory());
+	mounted.el.focus();
+	select(mounted.el, caret);
+	mounted.el.dispatchEvent(
+		new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+	);
+	await settleEditor();
+	return commitsAfter(mounted, () => beforeInput(mounted.el, 'insertText', typed));
 }
 
 /** Backspace right after the entity that opens the leaf's bold word. */
@@ -441,8 +445,7 @@ const FAMILIES: Family[] = [
 		name: 'a delimiter typed where it may pair',
 		stores: {
 			'components/blocks/text/TextEditableBlock.svelte': 1,
-			'components/blocks/table/TableCellBlock.svelte': 1,
-			'components/blocks/text/edge-policy-dispatch.ts': 1
+			'components/blocks/table/TableCellBlock.svelte': 1
 		},
 		rows: [
 			{
@@ -458,7 +461,7 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'a to-do, beside a hidden run',
 				run: () =>
-					typedBesideHiddenRun({ source: '- [ ] # **bold** text\n', leaf: [0, 0, 0] }, 8, '`'),
+					typedPastHiddenRun({ source: '- [ ] # **bold** text\n', leaf: [0, 0, 0] }, 8, '`'),
 				want: ['# **bold**`` text\n']
 			}
 		]

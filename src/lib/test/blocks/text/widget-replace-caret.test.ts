@@ -16,7 +16,7 @@ import { createSurfaceWrite, rangeWrite } from '$lib/components/blocks/surface-w
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { LeafRangeEdit } from '$lib/tree-operations/leaf-range';
 import type { NodeView } from '$lib/core/node-views';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 const NO_CUE = { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} };
 
@@ -35,7 +35,7 @@ function keyWrite(
 		kindCue: NO_CUE,
 		getPreEditOffset: () => -1,
 		requestCaret,
-		holdInsertion: () => holdInsertion([], {}, null)
+		holdInsertion: () => createInsertionRecords([]).hold({}, null)
 	});
 	return (edit: LeafRangeEdit) =>
 		writeText({

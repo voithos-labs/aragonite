@@ -52,6 +52,8 @@ export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAc
 	// Bare modifiers come from the key-combination parser, which knows AltGraph. A printable key
 	// preserves because the typing path reads the side later in this same keydown.
 	if (BARE_MODIFIER_KEYS.includes(key) || isCharacterKey(key)) return 'preserve';
+	// A soft keyboard or an IME names no key; its text follows on `beforeinput`, which reads the side.
+	if (key === 'Unidentified' || key === 'Process') return 'preserve';
 	// Anything left moves the caret by a mutation or a command, not by a key; the commit path
 	// sets the side again through `noteTyping`.
 	return 'reset';

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 // The table that decides where a typed byte goes: construct edge, policy and arrival side give
-// the raw offset. Pure over the inline tree, so no DOM and no dispatch here; the dispatch branch
-// that uses it is covered in `edge-policy-construct-seat.test.ts`.
+// the raw offset. Pure over the inline tree, so no DOM here; the block's placement that uses it
+// is covered in `typed-placement.test.ts`.
 import { describe, expect, it } from 'vitest';
-import { relocateComposedRun, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
+import { relocateInsertion, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
@@ -133,51 +133,39 @@ describe('a childless construct is all delimiters', () => {
 	});
 });
 
-// The IME half: `insertCompositionText` is not cancelable, so the composed run is relocated on
-// the commit that lands it rather than intercepted at the keystroke.
-describe('relocateComposedRun', () => {
+// Every insertion route writes through this after the fact: the browser's insert, an IME commit
+// and a paste are moved once, on the write that lands them.
+describe('relocateInsertion', () => {
 	const BOLD = 'Some **bold** text';
-	const inlines = parseInline(BOLD, 0, BOLD.length);
+	const relocate = (at: number, typed: string, affinity: EdgeAffinity | null, source = BOLD) =>
+		relocateInsertion(
+			source,
+			at,
+			typed,
+			parseInline(source, 0, source.length),
+			affinity,
+			LIVE,
+			fixtureReading()
+		);
 
-	function composed(at: number, text: string): string {
-		return BOLD.slice(0, at) + text + BOLD.slice(at);
-	}
-
-	it('moves a run composed at the trailing content edge past the closing delimiter', () => {
-		expect(
-			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'far', LIVE, fixtureReading())
-		).toEqual({
-			raw: 'Some **bold**かん text',
-			caret: 15
+	it('moves a run inserted at the trailing content edge past the closing delimiter', () => {
+		expect(relocate(11, 'かん', 'far')).toEqual({
+			text: 'Some **bold**かん text',
+			caretAfter: 15,
+			crossed: ['strong']
 		});
 	});
 
 	it('leaves a run the caret position agrees with alone', () => {
-		expect(
-			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE, fixtureReading())
-		).toBeNull();
+		expect(relocate(11, 'かん', 'near')).toBeNull();
 	});
 
 	it('relocates a never-extend edge whatever the arrival', () => {
-		const link = 'A [link](http://e.com) tail';
-		const tree = parseInline(link, 0, link.length);
-		const after = link.slice(0, 7) + '感' + link.slice(7);
-		expect(relocateComposedRun(link, after, 7, tree, 'near', LIVE, fixtureReading())).toEqual({
-			raw: 'A [link](http://e.com)感 tail',
-			caret: 23
+		expect(relocate(7, '感', 'near', 'A [link](http://e.com) tail')).toEqual({
+			text: 'A [link](http://e.com)感 tail',
+			caretAfter: 23,
+			crossed: ['link']
 		});
-	});
-
-	// This handles one insertion, never a range edit: a composition that replaced a selection is
-	// a different edit, and rebuilding it from a length difference would corrupt the bytes.
-	it('declines anything that is not a plain insertion at the composition point', () => {
-		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, fixtureReading())).toBeNull();
-		expect(
-			relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE, fixtureReading())
-		).toBeNull();
-		expect(
-			relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE, fixtureReading())
-		).toBeNull();
 	});
 });
 

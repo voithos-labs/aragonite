@@ -38,7 +38,6 @@
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
-		screenVisibilityOf,
 		rawSelectionFocus,
 		type RawRange
 	} from '../../../cursor/widget-offset';
@@ -86,6 +85,7 @@
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
 	import { createEdgeStep } from '../text/edge-step';
+	import { applyTypedInput, createTypedPlacement } from '../text/edge-seat';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -198,7 +198,16 @@
 		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
 		isReading: () => readOnly,
 		reading,
-		caretMemory
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
+	});
+
+	const typedPlacement = createTypedPlacement({
+		getEl: () => el ?? null,
+		getNode: () => node,
+		reading,
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
 	});
 
 	const editableSurface = createEditableSurface({
@@ -220,6 +229,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
+		placeInsertion: typedPlacement.insertion,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
@@ -230,8 +240,6 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: caretMemory.side,
-		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
@@ -322,10 +330,7 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		getEdgeAffinity: caretMemory.side,
-		noteOutside: caretMemory.noteExtreme,
-		pendingMarks: caretMemory.pendingMarks,
-		ownPairs
+		pendingMarks: caretMemory.pendingMarks
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -493,7 +498,8 @@
 			getSelectionOffsets,
 			applyMenuClipboard,
 			snapCaretToPoint,
-			insertMarkdown: clipboard.insertMarkdown
+			insertMarkdown: clipboard.insertMarkdown,
+			typeText: editableSurface.surface.typeText
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, el);
 	});
@@ -764,6 +770,7 @@
 			text: readCellText,
 			content: () => ({ start: 0, end: readCellText().length }),
 			caret: () => cursor.getRaw(),
+			placeTyped: typedPlacement.offsetFor,
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
@@ -780,14 +787,15 @@
 					caretAfter,
 					intent: 'typed',
 					mode: 'authored',
-					source: 'delimiter-autopair'
+					source: 'delimiter-autopair',
+					inPlace: true
 				})
 		});
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (handleLiveSelectionEdit(e)) return;
-		if (handleDelimiterAutoPair(e)) return;
+		const typedSteps = { autoPair: handleDelimiterAutoPair, rangeEdit: handleLiveSelectionEdit };
+		if (applyTypedInput(e, typedSteps)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.

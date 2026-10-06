@@ -18,7 +18,7 @@ import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -82,7 +82,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 			recordPreEditOffset: () => {},
 			getPreEditOffset: () => 0,
 			getSelection: () => null,
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		pasteOffset: (caret: number) => caret,
 		selection,
@@ -263,7 +263,7 @@ function foldSettleHarness() {
 			recordPreEditOffset: () => {},
 			getPreEditOffset: () => 0,
 			getSelection: () => null,
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		pasteOffset: (caret: number) => caret,
 		selection,
