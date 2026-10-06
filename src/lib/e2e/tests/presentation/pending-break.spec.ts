@@ -90,8 +90,8 @@ for (const mode of MODES) {
 }
 
 test.describe('live mode: a pending break beside a hidden closer', () => {
-	test('ArrowLeft drops the line before the edge step can take the key', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', 'a **bold**\n');
+	test('ArrowLeft drops the line, and the next key writes no break', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', 'via `code`\n');
 		await openBreak(ep, page);
 
 		await page.keyboard.press('ArrowLeft');

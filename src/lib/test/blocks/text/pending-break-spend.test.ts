@@ -76,6 +76,17 @@ describe.each(MODES)('%s mode: the insertion after Shift+Enter at the end', (mod
 		expect(editor.source()).toBe('abc\\\nか\n');
 	});
 
+	it('a composition that commits nothing leaves the line open for the next key', async () => {
+		const { editor, el } = await openBreak(mode);
+
+		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '' }));
+		await editor.settle();
+		await pressKey(el, { key: 'x' });
+
+		expect(editor.source()).toBe('abc\\\nx\n');
+	});
+
 	it('text the browser inserts itself starts the new line', async () => {
 		const { editor, el } = await openBreak(mode);
 

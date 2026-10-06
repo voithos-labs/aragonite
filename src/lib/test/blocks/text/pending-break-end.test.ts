@@ -12,6 +12,9 @@ import {
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -96,9 +99,15 @@ describe('a pending break does not outlive what it was opened in', () => {
 		expect(editor.source()).toBe('xyzq\n');
 	});
 
-	it('reading mode opens none', async () => {
+	// The key's route stops at the command dispatch; the block's own command reaches the write gate.
+	it('reading mode opens none, by the key or by the block’s command', async () => {
 		const { editor, el } = await openBreak('abc\n', 'reading');
+		const surface = (editor as MountedEditor<EditorTestSurface>).instance.__test;
+		placeCaret(el, 3);
+		surface.getBlockComponent([0])?.runCommand?.('block.hardBreak');
+		await editor.settle();
 
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 		expect(editor.source()).toBe('abc\n');
 		expect(breakAnchors(el)).toBe(0);
 	});
