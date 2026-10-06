@@ -45,6 +45,12 @@ export interface BlockCommandContext {
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
+/** How a block command behaves over a selection spanning blocks. `'afterRemoval'`: a key bound to
+ *  it removes the selection, the way Backspace would, then runs it at the caret that's left. */
+export interface BlockCommandOptions {
+	overRange?: 'afterRemoval';
+}
+
 /** What the focused block supplies; the dispatch adds the argument and the editor context. */
 export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
 
@@ -65,8 +71,10 @@ const MOVE_STEP: Partial<Record<string, -1 | 1>> = { 'block.moveUp': -1, 'block.
 export function registerBlockCommand(
 	kind: AnyBlockKind,
 	name: string,
-	handler: BlockCommandHandler
+	handler: BlockCommandHandler,
+	options: BlockCommandOptions = {}
 ): PluginCommandId {
+	void options;
 	const key = compositeKey(kind, name);
 	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
 	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);

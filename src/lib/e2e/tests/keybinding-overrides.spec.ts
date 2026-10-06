@@ -142,6 +142,29 @@ test.describe('a command key over a selection spanning blocks', () => {
 		});
 	}
 
+	for (const [chord, key] of [
+		['Mod+2', 'ControlOrMeta+2'],
+		['Enter', 'Enter']
+	] as const) {
+		test(`${chord} disabled on paragraphs removes nothing and the selection stays`, async () => {
+			await selectAcross([{ chord, command: null, kind: 'paragraph' }]);
+
+			await editor.pressDeclined(key);
+
+			expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
+			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		});
+	}
+
+	test('a split bound to Mod+J on headings does nothing over paragraphs', async () => {
+		await selectAcross([{ chord: 'Mod+J', command: 'block.split', kind: 'heading' }]);
+
+		await editor.pressDeclined('ControlOrMeta+j');
+
+		expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+	});
+
 	test('the heading command rebound to Mod+Alt+2 makes the heading', async () => {
 		await selectAcross([{ chord: 'Mod+Alt+2', command: 'heading.cycle', arg: 2 }]);
 

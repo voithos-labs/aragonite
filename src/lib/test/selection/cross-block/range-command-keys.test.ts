@@ -70,6 +70,63 @@ describe('a command key over a range', () => {
 	}
 });
 
+// Miss-analysis: every binding row above was global, where any kind's answer is every kind's, so
+// nothing saw the claim ask a different block than the one the command runs in.
+describe('a binding scoped to one kind, over a range', () => {
+	const KIND_ROWS: Row[] = [
+		[
+			'Mod+1 disabled on paragraphs removes nothing',
+			MOD_1,
+			[{ chord: 'Mod+1', command: null, kind: 'paragraph' }],
+			SOURCE
+		],
+		[
+			'Enter disabled on paragraphs removes nothing',
+			ENTER,
+			[{ chord: 'Enter', command: null, kind: 'paragraph' }],
+			SOURCE
+		],
+		[
+			'a split bound to Mod+J on headings does nothing over paragraphs',
+			{ key: 'j', ctrlKey: true },
+			[{ chord: 'Mod+J', command: 'block.split', kind: 'heading' }],
+			SOURCE
+		]
+	];
+
+	for (const [name, key, keybindings, after] of KIND_ROWS) {
+		it(name, async () => {
+			const mounted = await mountWith(keybindings);
+			await mounted.instance.setSelection(ACROSS);
+			await mounted.settle();
+
+			await pressKey(surfaceAt(mounted, [1]), key);
+
+			expect(mounted.source()).toBe(after);
+			expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
+		});
+	}
+
+	// The removal lands past the rule it takes whole, in the paragraph, which is whose binding counts.
+	it('a heading bound to Mod+J on paragraphs runs where a range from a rule lands', async () => {
+		const source = '# head\n\n---\n\nbeta\n';
+		const mounted = mountEditor<Seam>({
+			source,
+			keybindings: [{ chord: 'Mod+J', command: 'heading.cycle', arg: 1, kind: 'paragraph' }]
+		});
+		await mounted.settle();
+		await mounted.instance.setSelection({
+			anchor: { path: [1], offset: 0 },
+			focus: { path: [2], offset: 2 }
+		});
+		await mounted.settle();
+
+		await pressKey(surfaceAt(mounted, [2]), { key: 'j', ctrlKey: true });
+
+		expect(mounted.source()).toBe('# head\n\n# ta\n');
+	});
+});
+
 // The block's own keymap dispatch answers a selection inside one block: a rebound chord writes what
 // the default one writes, and a disabled one writes nothing.
 describe('a command key over a selection inside one block', () => {

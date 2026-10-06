@@ -42,6 +42,13 @@ those are comes from the bindings, not the key itself.
 - miss-analysis: the cross-block command-key rows only pressed the default chords, where the
   literal keys and the keymap agree, so nothing saw a disabled key delete the selection or a
   rebound one do nothing
+- `Mod+2` disabled on paragraphs only, the same press: nothing's removed, since the selection
+  would land in a paragraph and that's where the key is off
+- `Enter` disabled on paragraphs only: the same
+- a split bound to `Mod+J` on headings only, pressed over the paragraphs: nothing happens and the
+  selection stays, since no paragraph binds `Mod+J`
+- miss-analysis: every binding row above was global, so nothing saw the selection ask a
+  different block than the one the command would run in
 
 ## User interactions (real keys, every leaf dispatch surface)
 
