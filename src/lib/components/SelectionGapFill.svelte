@@ -14,6 +14,9 @@
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 
+	// A block's own paint, never a gap rect: reading or observing those would re-measure forever.
+	const BLOCK_PAINT = '.selection-overlay:not(.selection-overlay-gap)';
+
 	const spansBlocks = $derived.by(() => {
 		const coverage = services?.rangeCoverage();
 		return !!coverage && rangeSpansBlocks(coverage);
@@ -34,7 +37,7 @@
 			if (!root || !list) return;
 			const origin = root.getBoundingClientRect();
 			const column = list.getBoundingClientRect();
-			const painted = [...list.querySelectorAll('.selection-overlay')].flatMap((el) => {
+			const painted = [...list.querySelectorAll(BLOCK_PAINT)].flatMap((el) => {
 				const r = el.getBoundingClientRect();
 				const endpoint = el.classList.contains('selection-overlay-endpoint');
 				return r.width > 0 && r.height > 0
@@ -76,15 +79,18 @@
 		};
 	});
 
-	function isOverlay(node: Node): boolean {
-		return node instanceof Element && node.classList.contains('selection-overlay');
+	// A host that mounts or unmounts with its paint already inside counts too.
+	function holdsBlockPaint(node: Node): boolean {
+		return (
+			node instanceof Element && (node.matches(BLOCK_PAINT) || !!node.querySelector(BLOCK_PAINT))
+		);
 	}
 
 	function touchesOverlay(record: MutationRecord): boolean {
 		return (
-			isOverlay(record.target) ||
-			[...record.addedNodes].some(isOverlay) ||
-			[...record.removedNodes].some(isOverlay)
+			(record.target instanceof Element && record.target.matches(BLOCK_PAINT)) ||
+			[...record.addedNodes].some(holdsBlockPaint) ||
+			[...record.removedNodes].some(holdsBlockPaint)
 		);
 	}
 </script>

@@ -1,4 +1,5 @@
-/** The client rects a block contributes when it is an endpoint of a cross-block selection. */
+/** The rects a cross-block selection paints: an end block's own, and the stretches between the
+ *  first painted line and the last that no block's paint covers (`regionGaps`). */
 
 import type { DomTextOffset } from './coordinate-spaces';
 import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from './widget-offset';
