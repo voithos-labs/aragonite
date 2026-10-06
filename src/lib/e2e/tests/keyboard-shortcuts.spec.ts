@@ -17,6 +17,22 @@ test.describe('prose keyboard shortcuts', () => {
 		expect(source).toContain('he\tllo');
 	});
 
+	for (const key of ['Tab', 'Shift+Tab']) {
+		test(`${key} over a selection in a paragraph changes nothing and keeps focus in the editor`, async () => {
+			await editor.loadContent('alpha\n');
+			await editor.focusBlock(0, 2);
+			await editor.page.keyboard.press('Shift+ArrowRight');
+			await editor.page.keyboard.press('Shift+ArrowRight');
+
+			await editor.pressDeclined(key);
+			expect(await editor.bridge.getSource()).toBe('alpha\n');
+			expect(await editor.page.evaluate(() => window.getSelection()?.toString())).toBe('ph');
+			expect(
+				await editor.editorContainer.evaluate((root) => root.contains(document.activeElement))
+			).toBe(true);
+		});
+	}
+
 	test('Ctrl+3 on a heading preserves cursor position relative to content', async () => {
 		// The caret offset counts the new marker once, never the replaced marker's length again past
 		// the prefix.
