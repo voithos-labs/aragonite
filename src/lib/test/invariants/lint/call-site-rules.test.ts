@@ -140,16 +140,14 @@ const RULES: CallSiteRule[] = [
 		calls: ['.setData'],
 		holds: () => false,
 		allowed: {
-			'src/lib/components/blocks/editable-surface.ts :: writeVisibleSelection':
-				'the visible-selection copy: reading mode, and a copy no `ClipboardArm` takes',
+			'src/lib/components/blocks/clipboard-step.ts :: writeShownSelection':
+				'the copy of what the user sees: reading mode, a copy no `ClipboardArm` takes, and the code block',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
 				'the text block’s copy of a selected widget',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
 				'the text block’s copy of its own range',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: copyCellRange':
 				'the cell’s copy of its own range',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: copySelection':
-				'the code block’s copy of its own range',
 			'src/lib/components/blocks/editable-leaf.ts :: copyRange':
 				'a plugin leaf’s copy of its own range',
 			'src/lib/selection/cross-block/clipboard.ts :: copyCrossBlock':

@@ -53,7 +53,12 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
-import { runClipboardCut, takeCopy, type ClipboardArm } from './clipboard-step';
+import {
+	runClipboardCut,
+	takeCopy,
+	writeShownSelection,
+	type ClipboardArm
+} from './clipboard-step';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
@@ -665,16 +670,11 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		crossBlock: deps.crossBlock
 	});
 
-	// Reading mode copies what the user sees, which is the browser's selection string with the
-	// CSS-hidden markers dropped, not a slice of the raw; so does a copy no `ClipboardArm` takes.
-	const writeVisibleSelection = (e: ClipboardEvent): void => {
-		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-	};
-
 	function onCopy(e: ClipboardEvent): void {
 		deps.caretMemory.forget();
 		e.preventDefault();
-		if (deps.isReadOnly() || takeCopy(e, arms) === null) writeVisibleSelection(e);
+		// Reading mode, and a copy no `ClipboardArm` takes, copy what the user sees.
+		if (deps.isReadOnly() || takeCopy(e, arms) === null) writeShownSelection(e);
 	}
 
 	function onCut(e: ClipboardEvent): Promise<void> {
