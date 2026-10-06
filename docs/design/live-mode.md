@@ -125,6 +125,8 @@ The wiring, for the curious:
 
 A byte typed where a marker run sits is placed by the edge resolver (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and how the caret arrived second.
 
+It doesn't matter how the text got there. A hardware key, a soft keyboard, an autocorrect replacement, an IME commit, a paste and a character typed over a selection all end in the same write, and that write is where the text gets moved (`cursor/next-insertion.ts`). The browser puts the text in wherever it likes, the editor reads it back, and the write moves it to the side the caret means. So an IME run, which can't be stopped per keystroke, is just moved once at its commit like everything else. A composition and a paste both wipe the caret memory before they write, so each grabs the caret's side at its first event and brings it along.
+
 - A `never-extend` kind (link, autolink, image, escape, hard break) places the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
 - A `symmetric-pair` kind follows how the caret arrived (the caret memory in `cursor/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
 - A caret placed at an end rather than stepped there (Home, End, a range across blocks collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it, since the caret took no step. A selection inside one block collapsed by an arrow is a step, and records that arrow's side.
@@ -134,7 +136,11 @@ A byte typed where a marker run sits is placed by the edge resolver (`components
   - Both offsets sit on one pixel, so the side shows another way: each construct the next byte would join wears `md-edge-held`, a faint ring (`--md-edge-held-ring`).
   - A code span's backticks stay hidden like every other marker, in prose and in table cells, so its edge takes the same extra press and wears the same ring.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
-- An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and the marks captured at `compositionstart` (`composition-seat.ts`).
+- A space can't sit right before a closer (`**two **` isn't bold, and its markers would show up again), so a space typed at a hidden closer goes past it: `a **two** `. The caret still means inside though, and the next letter takes the space back in with it, giving `a **two w**`. That's the held space (`cursor/held-space.ts`), and it's what lets you type a whole bold phrase without the bold stopping after the first word.
+  - A second space joins the first. A letter after it brings both in.
+  - Anything that moves the caret or picks a side ends the hold: an arrow, End, a click, the closer typed over, the format chord. The bytes were valid the whole time, so ending it changes nothing on screen, and the next letter types outside.
+  - One ArrowRight ends it without moving the caret, the same extra press any hidden edge takes. The ring stays on the construct while the hold lasts.
+  - It only happens where the markers are hidden. Source mode and the preview modes show the closer, so the space goes where you typed it.
 - A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` handler every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer.
   - The closer typed over that twin steps past it, and a closer typed by hand completes the construct. After either, the caret means outside the construct, whatever arrival preceded it, which is how you leave a construct without a toggle.
   - A first body byte that makes the pair no construct (`$5`) drops the twin, and Backspace between the twins takes both.

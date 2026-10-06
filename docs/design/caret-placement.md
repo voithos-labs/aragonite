@@ -117,7 +117,7 @@ Each entry carries its reason in the file, and the order is the contract (G4.12)
 
 ## 6. Which side of a hidden marker
 
-`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. This decides which one a typed byte goes to (the position the file calls a seat, in its symbol names). Three things get a say, in order:
+`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. This decides which one a typed byte goes to (the position the file calls a seat, in its symbol names). It's asked by the write every insertion ends in (`src/lib/cursor/next-insertion.ts`), after the browser or the paste put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way. Three things get a say, in order:
 
 1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on.
 2. **How the caret arrived.** On every keydown the caret memory records whether the caret stepped in from outside, was placed at an end, or just committed a byte (`src/lib/cursor/edge-affinity.ts` reads which from the key), and it forgets all that on any caret move that isn't a key. One exception: an edit that lands the caret at a block's start or end, rather than at a byte, counts as placed at an end. So Backspace on an empty list item under `- **a**` puts the next byte after the `**`, same as at the top level.

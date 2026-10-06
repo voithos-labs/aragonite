@@ -21,8 +21,9 @@ against, since the screen cannot show which side of a hidden run a byte took.
   never `[ab ](u)`
 - a delimiter typed at a hidden trailing edge from outside lands its counterpart past the closer
   (`Some **strong**`` text`), not a lone byte
-- `Backspace` between a backtick pair typed at the hidden closer of `x **b** y` takes both: the pair the
-  keydown path wrote is the auto-pair's own, as one the `beforeinput` path writes is
+- `Backspace` between a backtick pair typed at the hidden closer of `x **b** y` takes both: the pair
+  is the auto-pair's own, written where the byte lands even though the browser aimed it across
+  the hidden run
 - `Backspace` at a construct's trailing content edge takes the content byte, from either arrival,
   for the pairs the destructive-edges rows never covered: `*`, `` ` ``, `~~`
 - `Enter` inside a code span closes and reopens the span, and typing continues in the second half
