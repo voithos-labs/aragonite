@@ -14,7 +14,7 @@ Every function, file, and module does one thing you can state in a short sentenc
 
 A few adjacent habits:
 
-- No abstraction until the third repetition. Abstraction is a cost; pay it when repetition forces your hand, not when you get a feeling.
+- At the second copy, ask whether both enforce one rule. If they do, pull it into one place now. If they only look alike, leave them (a third copy settles it when you can't tell).
 - Prefer flat control flow.
 - Delete dead code. Git remembers.
 
