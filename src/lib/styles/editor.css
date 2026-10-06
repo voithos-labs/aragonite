@@ -548,10 +548,10 @@
 }
 
 /* The construct a typed byte would join at its hidden edge (`edge-step.ts`), where both sides
-   share a pixel; a shadow, so the line never reflows as it comes and goes. */
+   share a pixel. An outline, which never reflows the line and which no construct styles itself. */
 :where(.editor) .md-edge-held {
 	border-radius: 3px;
-	box-shadow: 0 0 0 1px var(--md-edge-held-ring);
+	outline: 1px solid var(--md-edge-held-ring);
 }
 
 /* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
