@@ -57,32 +57,54 @@ export function mergeRectsPerLine(rects: readonly LocalRect[]): LocalRect[] {
 	return merged;
 }
 
-/** Widens an endpoint block's selected lines to its box's edges: a start runs to the right edge
- *  and takes every line below, an end takes every line above and runs from the left edge. */
+/** Widens an endpoint block's selected lines to its box's edges, a start rightward and down, an end
+ *  leftward and up; its own line spans the line box, and the padding too when it's the last line. */
 export function reachLineEdges(
 	lines: readonly LocalRect[],
 	side: 'start' | 'end',
 	width: number,
-	height: number
+	height: number,
+	lineHeight: number
 ): LocalRect[] {
 	if (lines.length === 0) return [];
 	const right = lines.reduce((edge, line) => Math.max(edge, line.left + line.width), width);
+	const onlyLine = lines.length === 1;
 	if (side === 'start') {
 		const first = lines[0];
-		const below = first.top + first.height;
+		const box = lineBox(first, lineHeight, height);
+		const below = onlyLine ? height : box.bottom;
 		const firstLine = {
 			left: first.left,
-			top: first.top,
+			top: box.top,
 			width: right - first.left,
-			height: first.height
+			height: below - box.top
 		};
 		return height > below
 			? [firstLine, { left: 0, top: below, width: right, height: height - below }]
 			: [firstLine];
 	}
 	const last = lines[lines.length - 1];
-	const lastLine = { left: 0, top: last.top, width: last.left + last.width, height: last.height };
-	return last.top > 0
-		? [{ left: 0, top: 0, width: right, height: last.top }, lastLine]
-		: [lastLine];
+	const box = lineBox(last, lineHeight, height);
+	const above = onlyLine ? 0 : box.top;
+	const lastLine = {
+		left: 0,
+		top: above,
+		width: last.left + last.width,
+		height: box.bottom - above
+	};
+	return above > 0 ? [{ left: 0, top: 0, width: right, height: above }, lastLine] : [lastLine];
+}
+
+/** The vertical span of `line`'s line box: its glyphs plus the leading `lineHeight` adds, split
+ *  evenly above and below, kept inside the block. */
+function lineBox(
+	line: LocalRect,
+	lineHeight: number,
+	height: number
+): { top: number; bottom: number } {
+	const leading = lineHeight > line.height ? (lineHeight - line.height) / 2 : 0;
+	return {
+		top: Math.max(0, line.top - leading),
+		bottom: Math.min(height, line.top + line.height + leading)
+	};
 }
