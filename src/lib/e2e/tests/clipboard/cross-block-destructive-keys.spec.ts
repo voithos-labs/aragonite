@@ -180,8 +180,15 @@ test.describe('a command key over a whole table, row or column', () => {
 		return editor.bridge.getSource();
 	}
 
-	for (const key of ['Enter', 'ControlOrMeta+2']) {
-		for (const [coverage, select] of COVERAGES) {
+	// The caret a row or column removal leaves is a cell, which binds no Mod+2, so that key is no
+	// command key there; Enter is the cell's own, and past a whole table the caret is in prose.
+	const COMMAND_KEYS: [string, (typeof COVERAGES)[number][]][] = [
+		['Enter', COVERAGES],
+		['ControlOrMeta+2', COVERAGES.slice(2)]
+	];
+
+	for (const [key, coverages] of COMMAND_KEYS) {
+		for (const [coverage, select] of coverages) {
 			test(`${key} over ${coverage} ends as Backspace then ${key}, one undo`, async () => {
 				const expected = await pressOver(select, ['Backspace', key]);
 
@@ -192,6 +199,20 @@ test.describe('a command key over a whole table, row or column', () => {
 				await expect.poll(() => editor.bridge.getSource()).toBe(SOURCE);
 			});
 		}
+	}
+
+	for (const [coverage, select] of COVERAGES.slice(0, 2)) {
+		test(`ControlOrMeta+2 over ${coverage} changes nothing`, async () => {
+			await editor.goto();
+			await editor.loadContent(SOURCE);
+			await select(editor);
+			await editor.waitForCrossBlock(true);
+
+			await editor.pressDeclined('ControlOrMeta+2');
+
+			expect(await editor.bridge.getSource()).toBe(SOURCE);
+			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		});
 	}
 
 	// A table holds nothing Tab indents, so Tab over it is not a delete.

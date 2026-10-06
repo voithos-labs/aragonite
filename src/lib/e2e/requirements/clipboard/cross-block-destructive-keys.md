@@ -75,10 +75,11 @@ wrapper. The grid stays well-formed and the next keystroke lands in a cell.
 ### 9. A command key over a whole table, row or column removes it first
 
 Drag over a whole body row, a whole column, or every cell of the table, then press
-Enter or Ctrl+2. The row, column or table goes the way it goes on Backspace, and the key
-runs at the caret that's left, so each ends exactly as Backspace and then the key would. One
-Ctrl+Z puts the document back as it was. Tab over the same grid changes nothing, since a table
-has nothing to indent. Miss-analysis: every scenario above drew prose or a
+Enter, or Ctrl+2 over the whole table. The row, column or table goes the way it goes on Backspace,
+and the key runs at the caret that's left, so each ends exactly as Backspace and then the key would.
+One Ctrl+Z puts the document back as it was. Ctrl+2 over a whole row or column changes nothing and
+the selection stays: the caret would land in a cell, and a cell binds no Ctrl+2, so the key isn't a
+command key there. Tab over the same grid changes nothing, since a table has nothing to indent. Miss-analysis: every scenario above drew prose or a
 range leaving a table, so nothing pressed a command key over a grid held whole, where the key
 cleared the cells and ran in the first one instead.
 
