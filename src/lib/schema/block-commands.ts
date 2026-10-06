@@ -53,7 +53,7 @@ export interface BlockCommandOptions {
 }
 
 /** What the focused block supplies; the dispatch adds the argument and the editor context. */
-export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
+export type BlockCommandTarget = Omit<BlockCommandContext, 'arg' | 'editor'>;
 
 interface RegisteredBlockCommand {
 	handler: BlockCommandHandler;
@@ -161,7 +161,7 @@ export interface KindCommandTarget {
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
-	getCommandContext?(): BlockTargetContext;
+	getCommandContext?(): BlockCommandTarget;
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
@@ -194,7 +194,7 @@ type BlockLocalResolution =
 			tier: 'minted';
 			target: KindCommandTarget;
 			handler: BlockCommandHandler;
-			context: BlockTargetContext;
+			context: BlockCommandTarget;
 			/** The plugin whose setup registered the handler, whose editor context it runs with. */
 			owner: string | null;
 	  }

@@ -1696,7 +1696,7 @@ The consumer route `editor.runCommand(id)` reaches neither of those tiers: it re
 
 **View state rides `ctx.hooks`.** Because the context is built by the surface that owns the mounted component, it also carries the component's own view-state handles, supplied through the factory's `commandHooks` getter. A view-state command (open an editor, open a focus overlay) therefore drives the component directly, with no node-keyed side map. Hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (read live at dispatch, so an undo that replaces the node still hits the current handlers). The platform keeps `hooks` opaque (`unknown`): cast it to your own type in the handler, and decline when it's `undefined`, which means the kind is registered with no instance mounted.
 
-**Over a selection spanning blocks**, a key bound to your command reaches your handler with the selection still live, unless you say otherwise. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as Enter and Mod+1 do:
+**Over a selection spanning blocks**, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as Enter and Mod+1 do:
 
 ```ts
 const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {

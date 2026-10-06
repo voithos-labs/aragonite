@@ -450,6 +450,7 @@ A handler throw is contained at the dispatch boundary and surfaces as an `error`
 **Over a selection spanning blocks.** Two pre-freeze additions let a plugin's command join what built-in keys do over a range, both additive-later:
 
 - `registerBlockCommand`'s optional fourth argument, `BlockCommandOptions`, with `{ overRange: 'afterRemoval' }`: a key bound to the command removes the selection first, the way Backspace would, then runs it at the caret that's left, as the built-in split and heading keys do. It's an options bag on a signature plugins already bind, so another value later is one more addition, and a plugin that never passes it sees nothing new.
+- `BlockComponent.getCommandContext`, returning a `BlockCommandTarget` (the node, `updateMetadata`, the component's hooks): how the editor runs a plugin's command at a block it landed a caret in, after a removal. An optional member on a published type, so additive-later; the editable leaf supplies it, and a hand-built component that leaves it out dead-keys its `afterRemoval` commands with the usual dev warning.
 - `registerRangeIndent(kind, command, shift)`, with `shift` a `RangeLineShift`: what the kind's own indent command does to the lines a range covers in each of its blocks. A registry beside the command, so nothing bound changes; a lines form on a container kind dev-warns, since a range indent reads it only at the leaf holding the text.
 
 ### The root document, in a component

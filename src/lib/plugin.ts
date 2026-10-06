@@ -156,7 +156,8 @@ export type {
 export type {
 	BlockCommandContext,
 	BlockCommandHandler,
-	BlockCommandOptions
+	BlockCommandOptions,
+	BlockCommandTarget
 } from './schema/block-commands';
 // What a kind's own indent command does over a selection spanning blocks.
 export { registerRangeIndent } from './schema/range-indent-forms';

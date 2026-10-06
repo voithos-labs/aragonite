@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './reactivity/child-list';
 import type { AnyCommandId } from './schema/command-id';
-import type { BlockTargetContext } from './schema/block-commands';
+import type { BlockCommandTarget } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -261,7 +261,7 @@ export interface BlockComponent {
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
 	/** What a plugin's block command runs against at this block, for a command the editor runs
 	 *  here itself (a key over a selection, after the selection's removal). */
-	getCommandContext?(): BlockTargetContext;
+	getCommandContext?(): BlockCommandTarget;
 	/**
 	 * Whether the command's toggle reads on at this block's own caret or selection: the read
 	 * a toolbar paints a pressed state from. Absent, or an id with no toggle state, reads

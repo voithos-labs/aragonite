@@ -46,7 +46,7 @@ import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace'
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type BlockTargetContext } from '../../schema/block-commands';
+import { type BlockCommandTarget } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import {
 	componentPluginEditor,
@@ -192,7 +192,7 @@ export interface EditableLeaf {
 export function buildLeafCommandContext(
 	deps: Pick<LeafDepsBase, 'getNode' | 'getIndex' | 'commandHooks'>,
 	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
-): BlockTargetContext {
+): BlockCommandTarget {
 	return {
 		node: deps.getNode(),
 		updateMetadata: (patch) => void blockEdit.updateBlockMetadata(deps.getIndex(), patch),
