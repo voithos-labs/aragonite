@@ -14,6 +14,7 @@ Enter on an item whose first paragraph is empty exits the list. What happens nex
   - Mismatched-type nested lists (e.g. ordered inside unordered) lift out as a separate top-level block
   - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks
   - Order: lifted blocks appear immediately after the new exit paragraph, preserving the document order they had inside the exited item
+- An empty item holding a sublist, a paragraph and a second sublist: the new paragraph sits where the item's line was, and the sublist items, the paragraph and the second sublist's items follow in the order they read (miss-analysis: every exit row gave the item one kind of child, so nothing read a sublist item against a paragraph after it)
 
 ## State consistency
 
