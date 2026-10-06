@@ -26,8 +26,11 @@ an escape instead, or that a second Shift+Enter escaped the first one and sent t
 
 - `see C:`, End, type `\` then `U`: `see C:\U`. A typed backslash is a backslash. Source and live
   mode.
-- live, `a **bold**`, Shift+Enter at the end, then ArrowLeft: the new line goes before the edge
-  step can take the key, and the next key writes no backslash.
+- live, `a **bold**`, `an *it*` and `` via `code` ``, Shift+Enter at the end, then an IME commit
+  of `か`: the line stays drawn while you compose, and the run starts it (`a **bold**\` / `か`),
+  outside the construct. Miss-analysis: every composed row ran on a plain paragraph, where the
+  composition lands on the right side of the text whether the line is drawn or not.
+- Caret keys on the open line have their own file, `pending-break-keys.md`.
 - live, `a **bold** b`, caret at the end of `bold`, ArrowRight (the edge step out of the bold),
   then Ctrl+V of `X`: `a **bold**X b`. The paste lands on the side the step chose.
 - live, `abc def`, Shift+Enter at the end, `x`, Backspace: the line is emptied. The next Backspace

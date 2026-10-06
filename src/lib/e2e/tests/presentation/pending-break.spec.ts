@@ -89,18 +89,26 @@ for (const mode of MODES) {
 	});
 }
 
-test.describe('live mode: a pending break beside a hidden closer', () => {
-	test('ArrowLeft drops the line, and the next key writes no break', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', 'via `code`\n');
-		await openBreak(ep, page);
+test.describe('live mode: a composed run after a hidden closer', () => {
+	for (const [source, written] of [
+		['a **bold**\n', 'a **bold**\\\nか\n'],
+		['an *it*\n', 'an *it*\\\nか\n'],
+		['via `code`\n', 'via `code`\\\nか\n']
+	]) {
+		test(`starts the new line after ${JSON.stringify(source)}, drawn while composing`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await openBreak(ep, page);
+			const ime = await attachIme(page);
 
-		await page.keyboard.press('ArrowLeft');
-		await ep.waitForRenderFlush();
-		await expect(breakAnchors(page)).toHaveCount(0);
-		await ep.typeSlowly('x');
+			await ime.compose('か');
+			await expect(breakAnchors(page)).toHaveCount(2);
+			await ime.commit('か');
 
-		await expect.poll(() => ep.bridge.getSource()).not.toContain('\\');
-	});
+			await expect.poll(() => ep.bridge.getSource()).toBe(written);
+		});
+	}
 });
 
 test.describe('live mode: a paste after an edge step', () => {

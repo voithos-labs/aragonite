@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// A pending break that nothing is inserted into ends without a byte: a caret key, the block's blur,
-// a mode change and a document swap each leave the block's bytes as they were and its line unpainted.
-// Miss-analysis: GH #522, the break was a trailing backslash, so no test could abandon one.
+// A pending break that nothing is inserted into ends without a byte: a caret key, a press, an undo,
+// the block's blur, a mode change and a document swap each leave the bytes and draw no line.
+// Miss-analysis: GH #522, the break was a trailing backslash, so no test could abandon one; later,
+// every row ended it with a key or a move away, so a forget that kept it passed them all.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -60,8 +61,7 @@ describe.each(['source', 'live'] as const)('%s mode: a pending break ends unwrit
 });
 
 describe('live mode: ArrowLeft beside a hidden closer', () => {
-	// The edge step also takes a plain ArrowLeft at a hidden closer, and must not get it first.
-	it('ends the pending break rather than stepping into the construct', async () => {
+	it('ends the pending break, the closer kept', async () => {
 		const { editor, el } = await openBreak('a **bold**\n');
 
 		await pressKey(el, { key: 'ArrowLeft' });
@@ -71,8 +71,30 @@ describe('live mode: ArrowLeft beside a hidden closer', () => {
 	});
 });
 
+// The caret stays on the open line in both, so only the caret memory's forget can end the break.
+describe.each(['source', 'live'] as const)('%s mode: a caret move that is no key', (mode) => {
+	it('a press on the open line itself ends it', async () => {
+		const { editor, el } = await openBreak('abc\n', mode);
+
+		el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+		await editor.settle();
+
+		expect(breakAnchors(el)).toBe(0);
+		expect(editor.source()).toBe('abc\n');
+	});
+
+	it('an undo with nothing to undo ends it', async () => {
+		const { editor, el } = await openBreak('abc\n', mode);
+
+		await pressKey(el, { key: 'z', ctrlKey: true });
+
+		expect(breakAnchors(el)).toBe(0);
+		expect(editor.source()).toBe('abc\n');
+	});
+});
+
 describe('a pending break does not outlive what it was opened in', () => {
-	it('a switch to reading mode and back ends it', async () => {
+	it('a switch to reading mode and back draws no line', async () => {
 		const { editor } = await openBreak('abc\n');
 
 		editor.props.presentationMode = 'reading';
