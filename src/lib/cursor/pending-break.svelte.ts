@@ -6,6 +6,7 @@
  */
 
 import type { LineEnding } from '../core/lines';
+import { withHardBreak } from '../core/inline';
 import { insertsAt, type InsertionRecord, type TextEdit } from './next-insertion';
 
 export interface PendingBreak extends InsertionRecord {
@@ -77,12 +78,10 @@ export function createPendingBreak(): PendingBreak {
  *  insertion; a second line's own break is a lone backslash on it. */
 function spent({ textEnd, lineEnd, ending, count }: OpenBreak, edit: TextEdit): TextEdit {
 	const lines = ending + ('\\' + ending).repeat(count - 1);
-	const { text } = edit;
 	const shift = (offset: number) =>
 		offset + (offset > textEnd ? 1 : 0) + (offset >= lineEnd ? lines.length : 0);
 	return {
-		text:
-			text.slice(0, textEnd) + '\\' + text.slice(textEnd, lineEnd) + lines + text.slice(lineEnd),
+		text: withHardBreak(edit.text, textEnd, { start: textEnd, end: lineEnd }, lines).text,
 		caretAfter: shift(edit.caretAfter)
 	};
 }

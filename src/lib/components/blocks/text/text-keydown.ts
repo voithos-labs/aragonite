@@ -4,7 +4,7 @@
  * literal tab. The component owns the wiring; these own the string math.
  */
 
-import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
+import { sameLineSuffixOf, withHardBreak, type ContentRange } from '../../../core/inline';
 import {
 	displayLength,
 	ownTrailingLineEnding,
@@ -73,22 +73,16 @@ export function insertHardBreak(
 	content: ContentRange
 ): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
-	const lineTail = sameLineSuffixOf(raw, content.end);
-	const [head, rest] =
-		offset >= content.start && offset < content.end && lineTail
-			? [
-					display.slice(0, offset) + '\\' + lineTail,
-					display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
-				]
-			: [display.slice(0, offset) + '\\', display.slice(offset)];
-	const newDisplay = head + ending + rest;
+	// Only a break inside the text has the text line's closing run to keep on that line.
+	const suffix =
+		offset >= content.start && offset < content.end
+			? { start: content.end, end: content.end + sameLineSuffixOf(raw, content.end).length }
+			: { start: offset, end: offset };
+	const broken = withHardBreak(display, offset, suffix, ending);
 	// Past a setext underline's end the inserted ending is the trailing one; a second would add a
 	// blank line.
-	const newRaw = rest === '' ? newDisplay : newDisplay + ownTrailingLineEnding(raw);
-	return {
-		newRaw,
-		caretOffset: Math.min(head.length + ending.length, displayLength(newRaw))
-	};
+	const newRaw = offset >= display.length ? broken.text : broken.text + ownTrailingLineEnding(raw);
+	return { newRaw, caretOffset: Math.min(broken.lineStart, displayLength(newRaw)) };
 }
 
 /** A literal tab typed at `offset` into the displayed text. */

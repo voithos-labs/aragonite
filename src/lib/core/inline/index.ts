@@ -56,6 +56,21 @@ export function sameLineSuffixOf(raw: string, contentEnd: number): string {
 	return firstDisplayLine(raw.slice(contentEnd, displayLength(raw))).text;
 }
 
+/** `text` with a hard break at `at`: the backslash, then `suffix` (a heading's closing run, at or
+ *  past `at`), then `lines`, then the rest; `lineStart` is where the text after the break begins. */
+export function withHardBreak(
+	text: string,
+	at: number,
+	suffix: ContentRange,
+	lines: string
+): { text: string; lineStart: number } {
+	const head = text.slice(0, at) + '\\' + text.slice(suffix.start, suffix.end) + lines;
+	return {
+		text: head + text.slice(at, suffix.start) + text.slice(suffix.end),
+		lineStart: head.length
+	};
+}
+
 /** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;
