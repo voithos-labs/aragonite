@@ -34,7 +34,7 @@ source.
   hardware key does
 - source mode writes the space where the caret is, inside the visible closer
 
-## Ways out (Finn's ask: easy to leave without a new line)
+## Ways out (easy to leave without a new line)
 
 - one ArrowRight ends the hold without moving the caret, at a line's end and mid-line
 - the typed closer ends it, at a line's end and mid-line
