@@ -33,8 +33,7 @@ describe('the declared branch order', () => {
 			'decoration-island',
 			'ambient-marker',
 			'construct-edge-delete',
-			'marker-completion',
-			'construct-seat'
+			'marker-completion'
 		]);
 	});
 

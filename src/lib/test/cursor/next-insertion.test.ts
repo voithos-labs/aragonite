@@ -89,6 +89,51 @@ describe('a hold on the records', () => {
 	});
 });
 
+describe('the block’s move of an insertion', () => {
+	/** A move that would put any insertion at the text's start, and the offsets it was asked at. */
+	function toStart() {
+		const asked: number[] = [];
+		const place = (before: string, edit: { text: string }, at: number) => {
+			asked.push(at);
+			const typed = edit.text.slice(at, at + edit.text.length - before.length);
+			return { text: typed + before, caretAfter: typed.length };
+		};
+		return { asked, place };
+	}
+
+	it('moves one insertion, found from the caret it leaves after itself', () => {
+		const { asked, place } = toStart();
+		const held = createInsertionRecords([]).hold(BLOCK, null, place);
+
+		expect(held.spend('ab', { text: 'aXb', caretAfter: 2 })).toEqual({
+			text: 'Xab',
+			caretAfter: 1
+		});
+		expect(asked).toEqual([1]);
+	});
+
+	it.each([
+		['a deletion', { text: 'a', caretAfter: 1 }],
+		['a replacement', { text: 'aX', caretAfter: 2 }],
+		['an insertion the caret is not after', { text: 'aXb', caretAfter: 3 }]
+	])('never moves %s', (_label, edit) => {
+		const { asked, place } = toStart();
+
+		expect(createInsertionRecords([]).hold(BLOCK, null, place).spend('ab', edit)).toEqual(edit);
+		expect(asked).toEqual([]);
+	});
+
+	it('leaves an insertion a record waits for to that record', () => {
+		const { asked, place } = toStart();
+		const { record } = growingRun(1);
+
+		const held = createInsertionRecords([record]).hold(BLOCK, null, place);
+		held.spend('ab', { text: 'a b', caretAfter: 2 });
+
+		expect(asked).toEqual([]);
+	});
+});
+
 /** Each record the caret memory keeps, opened in `BLOCK` and read back from its own view. */
 const MEMORY_RECORDS = [
 	{

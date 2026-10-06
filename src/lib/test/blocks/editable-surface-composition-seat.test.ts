@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// Where a composed run is placed: what a `compositionend` commit writes in each presentation mode.
+// Where a composed run is placed: what a `compositionend` commit writes in each presentation mode,
+// with the side the caret meant when the composition opened.
 // Miss-analysis: no composition test ran outside live mode, so only keydown checked the mode.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -12,8 +13,9 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { trimTrailingLineEnding } from '$lib/core/lines';
-import { screenVisibilityOf } from '$lib/cursor/widget-offset';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
@@ -35,13 +37,14 @@ interface SeatHarness {
 function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHarness {
 	const node = parse(`${source}\n`, { scope: 'fragment' }).children[0];
 	let rawSelection: { start: number; end: number } | null = null;
+	const caretMemory = createCaretMemory();
+	if (affinity === 'far') caretMemory.noteKey({ key: 'ArrowLeft' }, null);
+	const getInlines = () => parseInline(source, 0, source.length);
 	// The deps read `surface` lazily, so the const below is initialized before any of them run.
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
-		getInlines: () => parseInline(source, 0, source.length),
+		getInlines,
 		reading: fixtureReading(),
-		getAffinity: () => affinity,
-		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,
 		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
@@ -52,17 +55,29 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
+	const placement = createTypedPlacement({
+		getEl: () => surface.el,
+		getRaw: () => node.raw,
+		getInlines,
+		reading: fixtureReading(),
+		caretMemory
+	});
 	const surface = makeSurface({
-		relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt)
+		relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt),
+		caretMemory,
+		getNode: () => node,
+		overrides: { placeInsertion: placement.insertion }
 	});
 	surface.el.textContent = source;
 
 	// Browser order as the block wires it: the caret capture first, then the block's own start.
+	// The commit leaves the caret after the composed run.
 	const compose = (domAfter: string, caretAt: number): void => {
 		surface.setCaret(caretAt);
 		seat.noteStart();
 		surface.surface.onCompositionStart();
 		surface.el.textContent = domAfter;
+		surface.setCaret(caretAt + domAfter.length - source.length);
 		surface.surface.onCompositionEnd();
 		seat.noteEnd();
 	};
@@ -76,14 +91,18 @@ describe('the composition caret position is gated on the mode, like its keydown 
 	it('source mode commits the DOM read verbatim: the delimiter the caret touched is visible', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		compose('Some **boldかん** text', 11);
-		expect(surface.commits.map((c) => c.text)).toEqual(['Some **boldかん** text']);
+		expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual([
+			'Some **boldかん** text'
+		]);
 	});
 
 	it('live mode relocates the composed run through the caret position', () => {
 		const { surface, compose } = makeSeatHarness(BOLD, 'far');
 		surface.el.setAttribute('data-presentation', 'live');
 		compose('Some **boldかん** text', 11);
-		expect(surface.commits.map((c) => c.text)).toEqual(['Some **bold**かん text']);
+		expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual([
+			'Some **bold**かん text'
+		]);
 	});
 });
 
@@ -97,7 +116,9 @@ describe('a composition over a selection takes the join', () => {
 		surface.el.setAttribute('data-presentation', 'live');
 		selectRange(9, 21);
 		compose('Some **boかんalic* words', 9);
-		expect(surface.commits.map((c) => c.text)).toEqual(['Some boかんalic words']);
+		expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual([
+			'Some boかんalic words'
+		]);
 	});
 
 	it('a range whose join has nothing to clean stays the verbatim native edit', () => {
@@ -106,6 +127,6 @@ describe('a composition over a selection takes the join', () => {
 		surface.el.setAttribute('data-presentation', 'live');
 		selectRange(5, 11);
 		compose('plainかん here', 5);
-		expect(surface.commits.map((c) => c.text)).toEqual(['plainかん here']);
+		expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual(['plainかん here']);
 	});
 });

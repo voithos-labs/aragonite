@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // A character typed over a range across blocks is the range's removal, then the write a character
-// typed at the caret makes: it names a new block kind, finishes an on-type completion, and ends
-// what the caret memory kept.
+// typed at the caret makes: it names a new kind, finishes an on-type completion, ends a record.
 // Miss-analysis: the typed character went straight to a raw commit, and the range rows checked
 // only the bytes of plain letters, never a kind marker or a completer's line.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';

@@ -9,7 +9,7 @@
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
-import type { MultiScopeTarget } from '../../action-contracts';
+import type { HeldLanding, MultiScopeTarget } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
 import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-delete';
@@ -136,6 +136,13 @@ async function replaceInStep(
 		// Before the command runs, since the block reads the caret to run it.
 		await removalLanding?.place();
 		await runCommandAt(ctx, at?.path ?? coverage.range.start.path, insertion.chord);
+		return 'written';
+	}
+	if (
+		insertion.kind === 'text' &&
+		at &&
+		(await typedByBlock(ctx, at, insertion.text, removalLanding))
+	) {
 		return 'written';
 	}
 	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
@@ -342,8 +349,27 @@ async function replaceUnit(
 	return landed === null ? 'nothing' : 'written';
 }
 
-/** Typed text goes through the write every keystroke takes, so a marker typed at offset 0 makes
- *  the kind and the container's rule escapes what it must; a paste goes through the paste dispatch. */
+/** A character typed over a range is the range's removal, then the write the block makes for a
+ *  character typed at its caret (`BlockComponent.typeText`); false where the block has none. */
+async function typedByBlock(
+	ctx: CrossBlockMutationContext,
+	caret: SelectionPoint,
+	text: string,
+	removalLanding: HeldLanding | null
+): Promise<boolean> {
+	const block = await ctx.caretLanding.mount(caret.path);
+	const typeText = block?.typeText;
+	if (!typeText) return false;
+	// Placed first, so the typed write's own caret lands from where the removal left it.
+	await removalLanding?.place();
+	const offset = charOffsetOf(caret, 'range-replace:type');
+	const [, landing] = await ctx.controller.holdLandings(() => typeText(text, offset));
+	await landing?.place();
+	return true;
+}
+
+/** A paste goes through the paste dispatch, and text into a block with no typing write of its own
+ *  through the reparsing commit, so a marker at offset 0 still makes the kind. */
 async function insertAt(
 	ctx: CrossBlockMutationContext,
 	caret: SelectionPoint | null,

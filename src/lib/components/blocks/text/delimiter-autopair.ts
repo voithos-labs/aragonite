@@ -162,6 +162,9 @@ export interface AutoPairSurface {
 	text(): string;
 	content(): ContentRange;
 	caret(): number | null;
+	/** Where a byte typed at `caret` lands, across a hidden edge the caret means; the caret itself
+	 *  where the block draws every marker. */
+	placeTyped?(caret: number, typed: string): number;
 	hasSelection(): boolean;
 	isRevealing(): boolean;
 	foldReveal(): { settled: Promise<void> } | null;
@@ -192,8 +195,11 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const typing = e.inputType === 'insertText';
 	if (!typing && e.inputType !== 'deleteContentBackward') return false;
 	if (e.isComposing || surface.hasSelection()) return false;
-	const caret = surface.caret();
-	if (caret === null) return false;
+	const at = surface.caret();
+	if (at === null) return false;
+	// A delimiter is decided where it will land, since what it writes depends on what is there.
+	const delimiter = typing && policyOf(e.data ?? '', surface.reading.grammar) !== null;
+	const caret = delimiter ? (surface.placeTyped?.(at, e.data ?? '') ?? at) : at;
 	const text = surface.text();
 	const ownPair = surface.ownPairs.consult(text, caret);
 	if (surface.isRevealing()) {

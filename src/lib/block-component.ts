@@ -291,6 +291,13 @@ export interface BlockComponent {
 	 */
 	insertMarkdown?(md: string): boolean | Promise<boolean>;
 	/**
+	 * Type `text` at raw `offset` as a keystroke would: the write a typed character makes, with the
+	 * name a new block kind gets and the line an on-type completer finishes. The editor calls it
+	 * for a character typed over a range, once the range is removed. Resolves once it lands.
+	 * Omitted by non-editable blocks.
+	 */
+	typeText?(text: string, offset: number): Promise<boolean>;
+	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
 	 */

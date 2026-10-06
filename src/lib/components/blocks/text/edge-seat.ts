@@ -22,6 +22,9 @@ import {
 import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
+import type { CaretMemory } from '../../../cursor/caret-memory';
+import type { PlaceInsertion, TextEdit } from '../../../cursor/next-insertion';
+import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 
 export interface EdgeSeat {
 	/** Raw offset the byte must be written at. */
@@ -76,24 +79,72 @@ export function resolveEdgeSeat(
 	return null;
 }
 
-/** The bytes an IME composition's commit should have written. `insertCompositionText` cannot be
- *  cancelled, so the composed run is moved once, on the commit that lands it. */
-export function relocateComposedRun(
+/** `typed`, inserted at `at` in `before`, written where the edge resolver puts it instead; null
+ *  where it already lands there. Every insertion route writes through this, after the fact. */
+export function relocateInsertion(
 	before: string,
-	after: string,
-	composedAt: number,
+	at: number,
+	typed: string,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	screen: VisibilityContext,
 	reading: Reading
-): { raw: string; caret: number } | null {
-	const composed = plainInsertionAt(before, after, composedAt);
-	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, reading);
+): TextEdit | null {
+	const seat = resolveEdgeSeat(at, inlines, affinity, before, screen, typed, reading);
 	if (!seat) return null;
 	return {
-		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
-		caret: seat.offset + composed.length
+		text: before.slice(0, seat.offset) + typed + before.slice(seat.offset),
+		caretAfter: seat.offset + typed.length
+	};
+}
+
+// ── One block's placement of what is typed ──────────────────────────────────
+
+export interface TypedPlacementDeps {
+	getEl: () => HTMLElement | null;
+	/** The block's own bytes, in the coordinates the caret counts in. */
+	getRaw: () => string;
+	/** The inline tree of those bytes, read the way the block draws them. */
+	getInlines: () => readonly InlineNode[];
+	reading: Reading;
+	caretMemory: Pick<CaretMemory, 'side'>;
+}
+
+/** Where text typed into a block lands while its screen hides markers, for the two places that
+ *  ask: the write every insertion passes, and the auto-pair, which decides at `beforeinput`. */
+export interface TypedPlacement {
+	/** The block's step in every insertion's write (`next-insertion.ts`). */
+	insertion: PlaceInsertion;
+	/** The offset a byte typed at `caret` now lands at. */
+	offsetFor(caret: number, typed: string): number;
+}
+
+export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
+	const hidingScreen = (): VisibilityContext | null => {
+		const el = deps.getEl();
+		return el && revealsNoMarkers(el) ? screenVisibilityOf(el) : null;
+	};
+	return {
+		insertion: (before, edit, at, side) => {
+			const screen = hidingScreen();
+			if (!screen) return null;
+			const typed = edit.text.slice(at, at + edit.text.length - before.length);
+			return relocateInsertion(before, at, typed, deps.getInlines(), side, screen, deps.reading);
+		},
+		offsetFor: (caret, typed) => {
+			const screen = hidingScreen();
+			if (!screen) return caret;
+			const seat = resolveEdgeSeat(
+				caret,
+				deps.getInlines(),
+				deps.caretMemory.side(),
+				deps.getRaw(),
+				screen,
+				typed,
+				deps.reading
+			);
+			return seat?.offset ?? caret;
+		}
 	};
 }
 

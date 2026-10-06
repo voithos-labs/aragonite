@@ -49,7 +49,7 @@ export function stubCaretMemory(): CaretMemory {
 		pendingBreak: {
 			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
 		},
-		holdInsertion: (block) => createInsertionRecords([]).hold(block, null),
+		holdInsertion: (block, place) => createInsertionRecords([]).hold(block, null, place),
 		noteKey: () => {},
 		noteTyping: () => {},
 		noteExtreme: () => {},

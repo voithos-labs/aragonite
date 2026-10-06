@@ -53,7 +53,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createEdgeStep } from './edge-step';
-	import { typingOffset } from './edge-seat';
+	import { createTypedPlacement } from './edge-seat';
 	import { handlePendingBreakKey, type PendingBreakKeyDeps } from './pending-break-keys';
 	import { handleHomeKey, type HomeKeyDeps } from './home-key';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
@@ -77,7 +77,6 @@
 		rawOffsetAt,
 		rawTextOfContent,
 		revealsNoMarkers,
-		screenVisibilityOf,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
 	} from '../../../cursor/widget-offset';
@@ -232,6 +231,13 @@
 		reading,
 		caretMemory
 	});
+	const typedPlacement = createTypedPlacement({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		caretMemory
+	});
 	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
 	let caretHasEntered = false;
 
@@ -254,6 +260,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
+		placeInsertion: typedPlacement.insertion,
 		inputPrelude: () => {
 			markKeystrokeStart();
 			armSnapTarget(null);
@@ -331,19 +338,7 @@
 		readRevealedText: () => readRawText(),
 		get reading() {
 			return reading;
-		},
-		// Only a step's own choice moves a paste: a side a key left is the typing path's to read.
-		pasteOffset: (caret, side) =>
-			el && typeof side === 'object' && side !== null
-				? typingOffset(
-						caret,
-						resolvedInlineContent(node, reading),
-						side,
-						node.raw,
-						screenVisibilityOf(el),
-						reading
-					)
-				: caret
+		}
 	});
 
 	// Showing markers in preview-inline mode: CSS classes only, no keys intercepted.
@@ -387,10 +382,7 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		getEdgeAffinity: caretMemory.side,
-		noteOutside: caretMemory.noteExtreme,
-		pendingMarks: caretMemory.pendingMarks,
-		ownPairs
+		pendingMarks: caretMemory.pendingMarks
 	});
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
@@ -398,8 +390,6 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: caretMemory.side,
-		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -460,6 +450,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const typeText = editableSurface.surface.typeText;
 
 	export function isVerticallyTransparent(): boolean {
 		return widgetInteraction.isVerticallyTransparent();
@@ -936,6 +927,7 @@
 			text: () => (widgetInteraction.isRevealing() ? readRawText() : getDisplayText()),
 			content: () => getContentRange(node),
 			caret: () => cursor.getRaw(),
+			placeTyped: typedPlacement.offsetFor,
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
@@ -954,7 +946,8 @@
 					caretAfter,
 					intent: 'typed',
 					mode: 'authored',
-					source: 'delimiter-autopair'
+					source: 'delimiter-autopair',
+					inPlace: true
 				})
 		});
 	}

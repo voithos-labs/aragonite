@@ -1,15 +1,13 @@
 /**
- * What an IME composition needs remembered, captured at `compositionstart`. The arrival side and
- * the pending marks both belong to the caret the composition opened at, and by the time the
- * composed run arrives the arrival side has been overwritten, so they are captured up front.
+ * What an IME composition needs remembered, captured at `compositionstart`: the pending marks and
+ * the selection belong to the caret the composition opened at, and both are gone by the time the
+ * composed run arrives. A plain run goes to the block's write, which places it like any insertion.
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import type { VisibilityContext } from '../../../core/inline/visibility';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { Reading } from '../../../schema/reading';
 import type { InlineMarkKind } from '../../../schema/inline-construct-policy';
-import { plainInsertionAt, relocateComposedRun } from './edge-seat';
+import { plainInsertionAt } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 
 export interface CompositionSeatDeps {
@@ -19,9 +17,6 @@ export interface CompositionSeatDeps {
 	/** The reading `getInlines` reads with, so a candidate keeps the reference links it shows and
 	 *  reads back as the syntax the editor draws. */
 	reading: Reading;
-	getAffinity: () => EdgeAffinity | null;
-	/** How the block reads on screen, for deciding which ranges are actually drawn. */
-	getScreen: () => VisibilityContext;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
 	/** Give them back when the composition wrote nothing: a cancelled IME run inserts nothing, so
@@ -42,14 +37,13 @@ export interface CompositionSeat {
 	/** Capture the state the composition opened in. Call it before the block's own
 	 *  `compositionstart` and the first `input`, which both overwrite the arrival side. */
 	noteStart(): void;
-	/** The bytes the commit should write, or null to keep the DOM read verbatim. */
+	/** The bytes the commit should write, or null to write the DOM read as an insertion. */
 	relocate(after: string, composedAt: number): { raw: string; caret: number } | null;
 	noteEnd(): void;
 }
 
 interface CompositionWindow {
 	before: string;
-	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
 	range: { start: number; end: number } | null;
 	/** Whether a commit asked for bytes. The answer given does not matter: a run arrived either
@@ -66,7 +60,6 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 		noteStart: () => {
 			started = {
 				before: deps.getDisplayText(),
-				affinity: deps.getAffinity(),
 				marks: deps.consumePendingMarks(),
 				range: deps.getRawSelection?.() ?? null,
 				committed: false
@@ -83,29 +76,16 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				return deps.resolveRangeEdit?.(started.range, typed) ?? null;
 			}
 			// Marks beat the arrival side (live-mode.md § 4.2): a toggle is the newer instruction about the
-			// same bytes, so the affinity only answers when nothing was pending.
-			if (started.marks) {
-				const composed = plainInsertionAt(started.before, after, composedAt);
-				const marked =
-					composed === null
-						? null
-						: resolveMarkedInsertion(
-								started.before,
-								composedAt,
-								composed,
-								started.marks,
-								deps.getInlines(),
-								deps.reading
-							);
-				if (marked) return marked;
-			}
-			return relocateComposedRun(
+			// same bytes, so the side only answers when nothing was pending.
+			if (!started.marks) return null;
+			const composed = plainInsertionAt(started.before, after, composedAt);
+			if (composed === null) return null;
+			return resolveMarkedInsertion(
 				started.before,
-				after,
 				composedAt,
+				composed,
+				started.marks,
 				deps.getInlines(),
-				started.affinity,
-				deps.getScreen(),
 				deps.reading
 			);
 		},

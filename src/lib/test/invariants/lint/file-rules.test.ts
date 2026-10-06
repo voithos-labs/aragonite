@@ -1248,6 +1248,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a `<br>` inserted at the caret, which deletes nothing',
 			'src/lib/components/blocks/editable-leaf.ts':
 				'a shown source’s own text, where every marker is on screen',
+			'src/lib/components/blocks/editable-surface.ts':
+				'text typed at an offset once a range is gone, which deletes nothing',
 			'src/lib/components/image/image-widget-editing.ts':
 				'an image replaced by its own edited bytes, one whole construct for another',
 			'src/lib/core/inline/format-toggle.ts':
@@ -1262,7 +1264,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/selection/range-delete.ts':
 				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
 			'src/lib/selection/cross-block/range-replace.ts':
-				'a key typed over a range lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
+				'a key typed over a range into a block with no typing write lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
 		},
 		reason:
 			'a splice of a leaf’s own bytes that cuts a range can strand the delimiter runs around it; call `replaceRangeInLeaf`, or declare why the splice cuts nothing',

@@ -38,7 +38,6 @@
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
-		screenVisibilityOf,
 		rawSelectionFocus,
 		type RawRange
 	} from '../../../cursor/widget-offset';
@@ -86,6 +85,7 @@
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
 	import { createEdgeStep } from '../text/edge-step';
+	import { createTypedPlacement } from '../text/edge-seat';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
@@ -201,6 +201,14 @@
 		caretMemory
 	});
 
+	const typedPlacement = createTypedPlacement({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		caretMemory
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -220,6 +228,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
+		placeInsertion: typedPlacement.insertion,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
@@ -230,8 +239,6 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: caretMemory.side,
-		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
@@ -322,10 +329,7 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		getEdgeAffinity: caretMemory.side,
-		noteOutside: caretMemory.noteExtreme,
-		pendingMarks: caretMemory.pendingMarks,
-		ownPairs
+		pendingMarks: caretMemory.pendingMarks
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -340,6 +344,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const typeText = editableSurface.surface.typeText;
 
 	// The chord passes a null `range`, so a cell never creates a link; the pressed state passes
 	// the live selection.
@@ -764,6 +769,7 @@
 			text: readCellText,
 			content: () => ({ start: 0, end: readCellText().length }),
 			caret: () => cursor.getRaw(),
+			placeTyped: typedPlacement.offsetFor,
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
@@ -780,7 +786,8 @@
 					caretAfter,
 					intent: 'typed',
 					mode: 'authored',
-					source: 'delimiter-autopair'
+					source: 'delimiter-autopair',
+					inPlace: true
 				})
 		});
 	}

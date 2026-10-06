@@ -1,7 +1,8 @@
 /**
- * What the caret memory keeps for the next insertion: a key that writes nothing until something
- * is inserted after it, such as Shift+Enter at a block's end. Every insertion route holds these
- * records through `CaretMemory.holdInsertion` and spends them on its own write, so a new record
+ * The one step every insertion passes before it is written: the block moves it to the side of a
+ * hidden edge the caret means, then the caret memory's records spend it (a key that wrote nothing
+ * until something is inserted after it, such as Shift+Enter at a block's end). Every route holds
+ * the records through `CaretMemory.holdInsertion` and spends them on its own write, so a new record
  * joins every route at once; anything that isn't an insertion there ends them.
  */
 
@@ -18,6 +19,15 @@ export interface SpentEdit extends TextEdit {
 	/** The record waits on for the next insertion too, as one the insertion extended. */
 	kept?: boolean;
 }
+
+/** Moves `edit`, an insertion at `at` in `before`, to the offset `side` means at a hidden edge;
+ *  null leaves it where it is. A block that draws every marker has none. */
+export type PlaceInsertion = (
+	before: string,
+	edit: TextEdit,
+	at: number,
+	side: EdgeAffinity | null
+) => TextEdit | null;
 
 /** One kind of record. It never asks whether a write holds it: `createInsertionRecords` does. */
 export interface InsertionRecord {
@@ -39,14 +49,18 @@ export interface InsertionSpend {
 
 /** Every record left in one block, held together for one write. */
 export interface HeldInsertion {
-	/** True when nothing was held, so the write has nothing to spend. */
+	/** True when nothing was held and the block moves no insertion, so the write can skip both. */
 	readonly empty: boolean;
 	/** The caret's side as the records were held, for a route that forgets the memory first. */
 	readonly side: EdgeAffinity | null;
 	/** Whether a record waits for an insertion at `offset`. */
 	waitsAt(offset: number): boolean;
-	/** `edit` with each record's bytes in it; a record the edit doesn't insert at ends. */
+	/** `edit` moved to the side the caret means, unless a record waits where it inserts, then
+	 *  `spendInPlace`. */
 	spend(before: string, edit: TextEdit): TextEdit;
+	/** `edit` with each record's bytes in it, for a write that put its bytes where the caret means
+	 *  itself (the auto-pair); a record the edit doesn't insert at ends. */
+	spendInPlace(before: string, edit: TextEdit): TextEdit;
 	/** Once, after the write: a record `spend` kept waits on, and so does every record when the
 	 *  write `changed` nothing; the rest end. */
 	finish(changed: boolean): void;
@@ -54,7 +68,7 @@ export interface HeldInsertion {
 
 /** The caret memory's records, and which of them a write holds right now. */
 export interface InsertionRecords {
-	hold(block: object, side: EdgeAffinity | null): HeldInsertion;
+	hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion;
 	/** Ends `record` (every record when omitted), in `block` when one is named. A record a write
 	 *  holds stays in effect, drawn and spendable, until that hold lets go of it. */
 	end(record?: InsertionRecord, block?: object): void;
@@ -63,7 +77,7 @@ export interface InsertionRecords {
 export function createInsertionRecords(records: readonly InsertionRecord[]): InsertionRecords {
 	const holding = new Set<InsertionRecord>();
 
-	function hold(block: object, side: EdgeAffinity | null): HeldInsertion {
+	function hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion {
 		const held = records.flatMap((record) => {
 			const spend = holding.has(record) ? null : record.take(block);
 			if (!spend) return [];
@@ -75,21 +89,30 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 			h.spend.release(waiting);
 			h.state = 'done';
 		};
+		const waitsAt = (offset: number) =>
+			held.some((h) => h.state === 'held' && h.spend.at === offset);
+		const spendInPlace = (before: string, edit: TextEdit): TextEdit => {
+			let out = edit;
+			for (const h of held) {
+				if (h.state !== 'held') continue;
+				const spent = h.spend.apply(before, out);
+				if (spent?.kept) h.state = 'kept';
+				else release(h, false);
+				if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
+			}
+			return out;
+		};
 		return {
-			empty: held.length === 0,
+			empty: held.length === 0 && place === undefined,
 			side,
-			waitsAt: (offset) => held.some((h) => h.state === 'held' && h.spend.at === offset),
+			waitsAt,
 			spend: (before, edit) => {
-				let out = edit;
-				for (const h of held) {
-					if (h.state !== 'held') continue;
-					const spent = h.spend.apply(before, out);
-					if (spent?.kept) h.state = 'kept';
-					else release(h, false);
-					if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
-				}
-				return out;
+				const at = insertionStart(before, edit);
+				// A record waiting where the text goes in is what that insertion was for.
+				const placed = place && at !== null && !waitsAt(at) && place(before, edit, at, side);
+				return spendInPlace(before, placed || edit);
 			},
+			spendInPlace,
 			finish: (changed) => {
 				for (const h of held) if (h.state !== 'done') release(h, h.state === 'kept' || !changed);
 			}
@@ -104,6 +127,13 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 			}
 		}
 	};
+}
+
+/** Where `edit` put its text into `before`, read off the caret it leaves after that text; null
+ *  when the edit is anything but one insertion. */
+function insertionStart(before: string, edit: TextEdit): number | null {
+	const at = edit.caretAfter - (edit.text.length - before.length);
+	return insertsAt(before, edit.text, at) ? at : null;
 }
 
 /** Whether `after` is `before` with text inserted at `at` and nothing else changed. */

@@ -11,7 +11,7 @@ import { classifyStickyKey } from './sticky-column';
 import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import { createPendingBreak, type BlockPendingBreak } from './pending-break.svelte';
-import { createInsertionRecords, type HeldInsertion } from './next-insertion';
+import { createInsertionRecords, type HeldInsertion, type PlaceInsertion } from './next-insertion';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
 import { BLOCK_MOVE_COMMAND_IDS } from '../schema/commands';
@@ -34,9 +34,9 @@ export interface CaretMemory {
 	/** The line Shift+Enter at a block's end opened; `noteKey` leaves it, since the text block's
 	 *  own keys decide which of them end it. */
 	readonly pendingBreak: { forBlock(block: object): BlockPendingBreak };
-	/** Takes what the next insertion in `block` spends, with the caret's side, so a route that
-	 *  forgets the memory before it writes can still spend them. */
-	holdInsertion(block: object): HeldInsertion;
+	/** Takes what the next insertion in `block` spends, with the caret's side and the block's move of
+	 *  an insertion across a hidden edge (`place`), so a route that forgets the memory can spend them. */
+	holdInsertion(block: object, place?: PlaceInsertion): HeldInsertion;
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
 	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
@@ -104,7 +104,7 @@ export function createCaretMemory(): CaretMemory {
 				end: () => records.end(pendingBreak, block)
 			})
 		},
-		holdInsertion: (block) => records.hold(block, side),
+		holdInsertion: (block, place) => records.hold(block, side, place),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;

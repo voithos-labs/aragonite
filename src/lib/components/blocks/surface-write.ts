@@ -35,6 +35,12 @@ export interface TextWrite {
 	/** Leave the caret alone: a widget's own key keeps the widget selected, and a key that leaves
 	 *  the block puts the caret in the next one. */
 	leavesCaret?: true;
+	/** The write already put its bytes on the side of a hidden edge the caret means (the auto-pair,
+	 *  pending marks), so an insertion in it is not moved again. */
+	inPlace?: true;
+	/** What the caret memory kept for the block, taken by a route before it forgot or reset the
+	 *  caret's side (a composition, the input read back); spent here instead of a new hold. */
+	held?: HeldInsertion;
 }
 
 export interface SurfaceWriteDeps {
@@ -48,7 +54,8 @@ export interface SurfaceWriteDeps {
 	requestCaret(at: number, opts: { source: string }): void;
 	/** A prose block's view of the pair the auto-pair wrote, which every write keeps in step. */
 	ownPairs?: BlockAutoPairs;
-	/** Takes what the caret memory keeps for this block's next insertion (a pending break). */
+	/** Takes what the caret memory keeps for this block's next insertion (a pending break), with the
+	 *  block's move of an insertion to the side of a hidden edge the caret means. */
 	holdInsertion(): HeldInsertion;
 }
 
@@ -60,10 +67,11 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const before = shownKind(node);
 		// Held through every write: a typed one spends it, a write that changes nothing leaves it
 		// waiting, and any other write ends it.
-		const held = deps.holdInsertion();
+		const held = write.held ?? deps.holdInsertion();
 		const display = held.empty ? null : trimTrailingLineEnding(node.raw);
 		const changed = write.text !== display;
-		const edit = typed && display !== null && changed ? held.spend(display, write) : write;
+		const spend = write.inPlace ? held.spendInPlace : held.spend;
+		const edit = typed && display !== null && changed ? spend(display, write) : write;
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.
