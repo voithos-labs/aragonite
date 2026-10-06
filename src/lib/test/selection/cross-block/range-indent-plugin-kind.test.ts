@@ -1,0 +1,77 @@
+// @vitest-environment jsdom
+// A plugin kind that binds Tab to its own indent command and registers what it does over a range
+// indents its blocks under a range, as the list and code kinds do.
+// Miss-analysis: every range indent row drew list items or a code block, the two kinds the range
+// indent named by command id, so no row asked a kind it didn't name.
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	surfaceAt
+} from '$lib/test/harness/mount-editor.svelte';
+import { pressKey } from '$lib/test/harness/settle';
+import {
+	augmentBlockKind,
+	definePluginBlock,
+	registerBlockCommand,
+	registerBlockOpener,
+	type EditorPlugin
+} from '$lib/plugin';
+import { registerRangeIndent } from '$lib/schema/range-indent-forms';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import RevealLeafBlock from '../../blocks/fixtures/RevealLeafBlock.svelte';
+import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
+
+beforeAll(installLayoutStubs);
+afterEach(destroyMountedEditors);
+
+type Seam = { getUndoStack(): { undo: unknown[] } };
+
+const KIND = 'quote-leaf';
+
+/** An `@@ ` line whose indent command adds a `>` after its marker, at a caret or over a range. */
+function quoteLeafPlugin(): EditorPlugin {
+	return definePluginBlock({
+		name: KIND,
+		kind: KIND,
+		component: RevealLeafBlock,
+		register: () => {
+			const kind = registerRevealLeafKind(KIND);
+			const indent = registerBlockCommand(kind, 'quoteLeaf.indent', () => true);
+			augmentBlockKind(kind, { keymap: [{ chord: 'Tab', command: indent }] });
+			registerRangeIndent(kind, indent, (node, range) => ({
+				text: `@@ >${trimTrailingLineEnding(node.raw).slice(3)}`,
+				selection: { start: range.start + 1, end: range.end + 1 }
+			}));
+			registerBlockOpener(kind, {
+				priority: 25,
+				interruptsParagraph: false,
+				tryOpen: (ctx) =>
+					ctx.line.text.startsWith('@@ ')
+						? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
+						: null
+			});
+		}
+	});
+}
+
+describe('Tab over a range holding a plugin kind with its own indent', () => {
+	it('indents each of its blocks the range reaches, in one undo entry', async () => {
+		const mounted = mountEditor<Seam>({
+			source: 'para\n\n@@ one\n\n@@ two\n',
+			plugins: [quoteLeafPlugin()]
+		});
+		await mounted.settle();
+		await mounted.instance.setSelection({
+			anchor: { path: [0], offset: 1 },
+			focus: { path: [2], offset: 5 }
+		});
+		await mounted.settle();
+
+		await pressKey(surfaceAt(mounted, [0]), { key: 'Tab' });
+
+		expect(mounted.source()).toBe('para\n\n@@ >one\n\n@@ >two\n');
+		expect(mounted.instance.__test.getUndoStack().undo).toHaveLength(1);
+	});
+});
