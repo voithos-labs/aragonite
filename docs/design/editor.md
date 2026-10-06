@@ -157,7 +157,7 @@ While the line is open, the caret is on it, so a caret key moves from there like
 
 Every route spends it in one place. `writeText` holds whatever the caret memory keeps for its block while it writes (`src/lib/cursor/next-insertion.ts` :: `createInsertionRecords`), so typing and the input read back get it for free. The two routes that have to clear the caret memory before they write hold it from the start: a composition from its first event to its commit, and a paste from the event to the end of the paste. A held record stays in effect the whole time (the line stays drawn while you compose), and only its hold lets go of it. A record an insertion extends can say so and wait for the next one. Another kind of record is one more entry in the caret memory's list, and every route picks it up. The held space (`live-mode.md` § 4.2) is the second.
 
-Shift+Enter anywhere inside the text still writes its `\` and line ending right away (`src/lib/components/blocks/text/text-keydown.ts` :: `insertHardBreak`).
+Shift+Enter anywhere inside the text still writes its `\` and line ending right away (`src/lib/components/blocks/text/text-keydown.ts` :: `insertHardBreak`). Both routes get their bytes from one writer, `src/lib/core/inline/index.ts` :: `withHardBreak`, so either way the `\` goes where the line breaks and the line ending goes after a heading's closing run, which stays on the heading's line.
 
 ### Three block surfaces
 

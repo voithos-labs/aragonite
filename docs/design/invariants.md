@@ -1155,6 +1155,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
 | G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
 | G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
+| G4.125 | A component lists a block's widgets only through `widgetsIn`                              | L       |
 
 ### The entries
 
@@ -2191,7 +2192,8 @@ text, it calls `components/blocks/surface-write.ts :: writeText`, which gives un
 before the key (not wherever the edit left it), keeps the block's line ending, and puts the caret
 back. A block that calls `updateBlockContent` itself has to pick its own undo caret, and
 that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
-it's called on, under `components/` or `selection/` outside the surface write,
+it's called on, under `components/`, `selection/` or a plugin's own code (the bundled ones in
+`src/lib/plugins/`, the reference ones in `src/routes/test/plugins/`) outside the surface write,
 except the few commands and clipboard edits still to move, each listed by function.
 
 **G4.112 · An indent key over a range has one route.** Over a range Tab, Shift+Tab and any key bound to
@@ -2232,15 +2234,17 @@ range's `start.path` and `end.path` too. A bracket read (`coverage['wholeRoots']
 **G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy (its own
 range, a selected widget, a range across blocks, a cell rectangle riding the last) has one
 `ClipboardArm`, written where that selection lives: in each block's clipboard code, and in
-`selection/cross-block/clipboard.ts` for a range across blocks. Only the type and the cut step are
+`selection/cross-block/clipboard.ts` for a range across blocks. Only the type, the cut step and the copy of what you see are
 shared (`components/blocks/clipboard-step.ts`). Its `copy` writes the payload and reads what
 its `remove` deletes. `runClipboardCut` runs that same copy before anything waits, then the removal,
 so a cut can't write different bytes from a copy, and a menu's Cut still lands (it's a scripted
 cut, and the browser closes its clipboard data the moment the event's handlers return). The type's
 shape holds most of it: there's no cut payload to write, and an `async` copy doesn't type-check.
 `lint/call-site-rules.test.ts` holds the rest. It fails a `.setData(` call in any production file
-outside those copy functions, the visible-selection copy and the menu's paste event, each
-listed by function.
+outside those copy functions, `clipboard-step.ts :: writeShownSelection` and the menu's paste
+event, each listed by function. That one writes the browser's selection string, the copy of what
+you see, for reading mode, a copy no arm takes, and the code block, whose hidden fence lines
+shouldn't land on the clipboard.
 
 **G4.116 · The pending break hears a key first.** Shift+Enter at the end of a text block opens a
 line and writes nothing; Backspace and ArrowLeft take that line back and stop at the end of the
@@ -2276,6 +2280,16 @@ in that module only, and every call sits inside a `keepingListOrder(…)` call. 
 splitter under another name. Rebuilding the list around a dissolved item takes
 `tree-operations/list/list-builders.ts` :: `assembleListHalf`, and only `dissolveItem`'s module and the paste
 break-out call it (a paste splits the list around what it pastes, and no item dissolves there).
+
+**G4.125 · One list of a block's widgets.** The widgets a prose block draws include the ones a
+link or emphasis wraps (a picture inside a link, say), and those don't show up in the block's
+top-level inline list. `src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn` is the
+list with them in, and the click that snaps the caret to a widget's edge, the caret painted
+there, the arrow keys at a widget's edge and every reader of a selected widget all ask it. A
+reader that walked the inline list itself could miss the wrapped one: a click arms an edge the
+paint can't find, and you're left with no caret you can see.
+`lint/file-rules.test.ts` fails an `isInlineWidget(` or `flattenInlineWidgets(` call under
+`components/` or `src/lib/plugins/` outside that file.
 
 ## Accessibility
 
