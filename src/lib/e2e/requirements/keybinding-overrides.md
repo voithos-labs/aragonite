@@ -47,8 +47,13 @@ those are comes from the bindings, not the key itself.
 - `Enter` disabled on paragraphs only: the same
 - a split bound to `Mod+J` on headings only, pressed over the paragraphs: nothing happens and the
   selection stays, since no paragraph binds `Mod+J`
+- `Enter` disabled on paragraphs only, over a selection from `alpha` into the heading `# beta`
+  with the caret's end in the heading: nothing happens and the selection stays. The selection
+  would land in the paragraph, where Enter is off, and the heading doesn't split under it either
 - miss-analysis: every binding row above was global, so nothing saw the selection ask a
   different block than the one the command would run in
+- miss-analysis: every kind-scoped row pressed the key in a block of the landing's kind, so none
+  saw the block holding focus run its own Enter under the live selection
 
 ## User interactions (real keys, every leaf dispatch surface)
 

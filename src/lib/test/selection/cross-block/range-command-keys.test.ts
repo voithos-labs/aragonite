@@ -108,6 +108,27 @@ describe('a binding scoped to one kind, over a range', () => {
 		});
 	}
 
+	// Miss-analysis: every kind-scoped row pressed the key in a block of the landing's kind, so none
+	// saw the block holding focus run its own binding of the key under the live range.
+	it('Enter disabled on paragraphs does nothing from a heading the range ends in', async () => {
+		const source = 'alpha\n\n# beta\n';
+		const mounted = mountEditor<Seam>({
+			source,
+			keybindings: [{ chord: 'Enter', command: null, kind: 'paragraph' }]
+		});
+		await mounted.settle();
+		await mounted.instance.setSelection({
+			anchor: { path: [0], offset: 1 },
+			focus: { path: [1], offset: 4 }
+		});
+		await mounted.settle();
+
+		await pressKey(surfaceAt(mounted, [1]), ENTER);
+
+		expect(mounted.source()).toBe(source);
+		expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
+	});
+
 	// Miss-analysis: no row took blocks whole between neighbours of different kinds, so nothing held
 	// the claim's side to the removal's. The bytes are pinned in `cross-block-destructive-keys.spec.ts`.
 	it('Enter over two rules runs in the heading the removal lands in, as claimed', async () => {

@@ -156,6 +156,19 @@ test.describe('a command key over a selection spanning blocks', () => {
 		});
 	}
 
+	test('Enter disabled on paragraphs does nothing from a heading the selection ends in', async () => {
+		await editor.loadContent('alpha\n\n# beta\n');
+		await setKeybindings(editor, [{ chord: 'Enter', command: null, kind: 'paragraph' }]);
+		await editor.focusBlockAtPath([0], 2);
+		await editor.shiftClickBlock([1], 4);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressDeclined('Enter');
+
+		expect(await editor.bridge.getSource()).toBe('alpha\n\n# beta\n');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+	});
+
 	test('a split bound to Mod+J on headings does nothing over paragraphs', async () => {
 		await selectAcross([{ chord: 'Mod+J', command: 'block.split', kind: 'heading' }]);
 
