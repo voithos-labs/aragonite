@@ -1151,6 +1151,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
+| G4.122 | No new import edge between `src/lib`'s top-level directories, and the list only shrinks   | L       |
 
 ### The entries
 
@@ -1266,8 +1267,8 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
-barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, the tree-operations layer
-rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers
+through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
 which skips strings, templates and comments, so an import quoted in an example is no edge.
 `lint/plugin-import-boundary.test.ts`.
 
@@ -2243,6 +2244,19 @@ would leave with the line still open. The behavior rows in
 `e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
 `lint/pending-break-key-order.test.ts` pins the order as well: it fails when
 `TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
+
+**G4.122 · The directory import graph.** Every production import under `src/lib` goes into a graph
+whose nodes are the top-level directories, plus each root file (`assert.ts`, `index.ts`, ...) as a
+node of its own. A pair joined only by `import type` is kept apart from one where something loads
+at runtime, since a type-only edge just means a shared type sits too high. The scan holds that
+graph to the edges listed in `lint/directory-layering-baseline.ts`, both ways: a new edge fails,
+and so does a listed edge that's gone. So a move that removes an edge deletes its line, and the
+list only ever gets shorter. Two directory cycles are still in it, {`core`, `schema`, `cursor`,
+`invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
+`ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports
+from `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up
+there is a cycle no behavior test notices. An import the scan can't resolve to a file fails too,
+so nothing drops out of the graph unseen. `lint/directory-layering.test.ts`.
 
 ## Accessibility
 

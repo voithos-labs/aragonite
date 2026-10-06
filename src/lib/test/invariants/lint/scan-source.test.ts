@@ -21,6 +21,7 @@ import {
 	rawAssignments,
 	regexLiteralAt,
 	REPO_WIDE_ROOTS,
+	resolveSpecifier,
 	sourceFile,
 	splitTopLevel,
 	stringLiteralAt,
@@ -110,13 +111,24 @@ describe('importSpecifiers', () => {
 			"export type * from './reexport-types';"
 		].join('\n');
 		expect(specifiers(code)).toEqual([
-			{ specifier: './static', kind: 'static' },
-			{ specifier: '$lib/types', kind: 'static' },
-			{ specifier: './side-effect.css', kind: 'side-effect' },
-			{ specifier: './dynamic', kind: 'dynamic' },
-			{ specifier: './reexport', kind: 'reexport' },
-			{ specifier: './reexport-types', kind: 'reexport' }
+			{ specifier: './static', kind: 'static', typeOnly: false },
+			{ specifier: '$lib/types', kind: 'static', typeOnly: true },
+			{ specifier: './side-effect.css', kind: 'side-effect', typeOnly: false },
+			{ specifier: './dynamic', kind: 'dynamic', typeOnly: false },
+			{ specifier: './reexport', kind: 'reexport', typeOnly: false },
+			{ specifier: './reexport-types', kind: 'reexport', typeOnly: true }
 		]);
+	});
+
+	it('marks only a whole-statement type import as type-only', () => {
+		const typeOnly = (code: string) => specifiers(code).map((found) => found.typeOnly);
+		expect(typeOnly("import type { X } from './a';\nexport type { Y } from './b';")).toEqual([
+			true,
+			true
+		]);
+		// An inline `type` keeps the statement, which still loads the module.
+		expect(typeOnly("import { type X } from './a';")).toEqual([false]);
+		expect(typeOnly("import type from './a';")).toEqual([false]);
 	});
 
 	it('reads no import inside a template literal or a comment', () => {
@@ -136,6 +148,33 @@ describe('importSpecifiers', () => {
 			"\t@import 'theme.css';"
 		].join('\n');
 		expect(specifiers(code)).toEqual([]);
+	});
+});
+
+describe('resolveSpecifier', () => {
+	const from = `${SOURCE_DIR.library}x.ts`;
+
+	it('resolves the spellings the library writes', () => {
+		expect(resolveSpecifier(from, '$lib/plugin')).toBe(SOURCE.pluginBarrel);
+		expect(resolveSpecifier(from, '$lib')).toBe(SOURCE.publicBarrel);
+		expect(resolveSpecifier(from, './env')).toBe(SOURCE.envFlags);
+		expect(
+			resolveSpecifier(from, `$lib/${SOURCE.blockList.slice(SOURCE_DIR.library.length)}`)
+		).toBe(SOURCE.blockList);
+		expect(resolveSpecifier(`${SOURCE_DIR.treeOperations}x.ts`, '.')).toBe(
+			SOURCE.treeOperationsBarrel
+		);
+	});
+
+	it('reads a `.svelte.ts` module by its `.svelte` name, and drops a query suffix', () => {
+		const layout = SOURCE.layoutState.slice(SOURCE_DIR.library.length, -'.ts'.length);
+		expect(resolveSpecifier(from, `$lib/${layout}`)).toBe(SOURCE.layoutState);
+		expect(resolveSpecifier(from, './env?raw')).toBe(SOURCE.envFlags);
+	});
+
+	it('returns null for a package and for a path with no file behind it', () => {
+		expect(resolveSpecifier(from, 'svelte')).toBeNull();
+		expect(resolveSpecifier(from, './no-such-module')).toBeNull();
 	});
 });
 

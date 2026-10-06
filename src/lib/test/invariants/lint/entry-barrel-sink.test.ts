@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, resolveSpecifier } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const LIB = SOURCE_DIR.library.slice(0, -1);
@@ -31,21 +31,6 @@ function entryModules(): string[] {
 }
 
 // ── The module graph ─────────────────────────────────────────────────────────
-
-function resolveSpecifier(fromRelPath: string, specifier: string): string | null {
-	let base: string;
-	if (specifier === '$lib') base = `${LIB}/index`;
-	else if (specifier.startsWith('$lib/')) base = `${LIB}/${specifier.slice('$lib/'.length)}`;
-	else if (specifier.startsWith('.'))
-		base = path.posix.normalize(path.posix.join(path.posix.dirname(fromRelPath), specifier));
-	else return null;
-
-	for (const candidate of [base, `${base}.ts`, `${base}.svelte`, `${base}/index.ts`]) {
-		if (!candidate.endsWith('.ts') && !candidate.endsWith('.svelte')) continue;
-		if (existsSync(path.resolve(candidate))) return candidate;
-	}
-	return null;
-}
 
 // Library-scoped, not repo-wide: only the library holds modules a published entry can reach.
 function buildGraph(): Map<string, string[]> {
@@ -121,16 +106,5 @@ describe('entry-barrel sink: classifier non-vacuity', () => {
 			['b.ts', ['a.ts']]
 		]);
 		expect(backEdgesInto(graph, entry)).toEqual([]);
-	});
-
-	it('resolves the specifier spellings the library actually writes', () => {
-		expect(resolveSpecifier(`${LIB}/x.ts`, '$lib/plugin')).toBe(`${LIB}/plugin.ts`);
-		expect(resolveSpecifier(`${LIB}/x.ts`, '$lib/components/BlockList.svelte')).toBe(
-			`${LIB}/components/BlockList.svelte`
-		);
-		expect(resolveSpecifier(`${LIB}/core/inline/x.ts`, './index')).toBe(
-			`${LIB}/core/inline/index.ts`
-		);
-		expect(resolveSpecifier(`${LIB}/x.ts`, 'svelte')).toBeNull();
 	});
 });

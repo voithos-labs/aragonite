@@ -6,7 +6,7 @@
  * `scan-source.differential.test.ts` (G4.57), which holds it against TypeScript's own lexer.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { SOURCE_DIR } from './source-paths';
 
@@ -830,6 +830,8 @@ export function lastArgument(args: string): string {
 export interface ImportSpecifier {
 	specifier: string;
 	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
+	/** An `import type` or `export type` statement, which loads nothing at runtime. */
+	typeOnly: boolean;
 }
 
 /** Every module a file imports or re-exports from, read in code position only. A static,
@@ -857,19 +859,41 @@ function readImport(
 ): ImportSpecifier | null {
 	const next = skipSpaces(code, at + keyword.length);
 	if (keyword === 'import' && code[next] === '(') {
-		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic');
+		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic', false);
 	}
 	if (!startsLine(code, at)) return null;
+	// `import type from './x'` imports a default named `type`.
+	const typeOnly = /^type\s+(?!from\b)[{*\w$]/.test(code.slice(next, next + 40));
 	if (keyword === 'import') {
-		if (code[next] === "'" || code[next] === '"') return stringSpecifier(code, next, 'side-effect');
+		if (code[next] === "'" || code[next] === '"') {
+			return stringSpecifier(code, next, 'side-effect', false);
+		}
 	} else {
-		const clause = code.startsWith('type', next) ? skipSpaces(code, next + 4) : next;
+		const clause = typeOnly ? skipSpaces(code, next + 4) : next;
 		if (code[clause] !== '{' && code[clause] !== '*') return null;
 	}
 	const from = fromClauseEnd(code, next);
 	return from === null
 		? null
-		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport');
+		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport', typeOnly);
+}
+
+/** The file a library import names (through `$lib`, a relative path, an index file or a
+ *  `.svelte.ts` module), or null for a package import or a path with no file behind it. */
+export function resolveSpecifier(fromRelPath: string, specifier: string): string | null {
+	const bare = specifier.replace(/\?.*$/, '');
+	let base: string;
+	if (bare === '$lib') base = `${SOURCE_DIR.library}index`;
+	else if (bare.startsWith('$lib/')) base = `${SOURCE_DIR.library}${bare.slice('$lib/'.length)}`;
+	else if (bare.startsWith('.'))
+		base = path.posix.normalize(path.posix.join(path.posix.dirname(fromRelPath), bare));
+	else return null;
+
+	for (const candidate of [base, `${base}.ts`, `${base}.svelte`, `${base}/index.ts`]) {
+		const full = path.resolve(candidate);
+		if (existsSync(full) && statSync(full).isFile()) return candidate;
+	}
+	return null;
 }
 
 /** Just past the `from` that ends an import clause, or null where the statement has none. */
@@ -891,10 +915,11 @@ function fromClauseEnd(code: string, from: number): number | null {
 function stringSpecifier(
 	code: string,
 	at: number,
-	kind: ImportSpecifier['kind']
+	kind: ImportSpecifier['kind'],
+	typeOnly: boolean
 ): ImportSpecifier | null {
 	if (code[at] !== "'" && code[at] !== '"') return null;
-	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind };
+	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind, typeOnly };
 }
 
 function skipSpaces(code: string, at: number): number {
