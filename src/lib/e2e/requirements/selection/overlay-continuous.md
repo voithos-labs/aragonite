@@ -18,6 +18,8 @@ painted rects' geometry, not pixels.
 ## Edge cases
 
 - nothing paints above the start block or below the end block
+- a range grown with Shift+ArrowDown after it's painted stays one region: the space between
+  blocks follows the blocks' own paint as it changes
 - a range from inside a GitHub alert's body into a list item (the demo page's "Punishing Evil"
   section) paints one region, the alert's own padding below its body included (the plugin spec
   `plugins/github-alert-selection-overlay.spec.ts` holds that row)

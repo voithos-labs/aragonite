@@ -60,3 +60,20 @@ for (const mode of ['source', 'live']) {
 		}
 	});
 }
+
+// The range grows by keys after it's painted, so the space between blocks has to follow.
+test('a range grown with Shift+ArrowDown stays one region', async ({ page }) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent(QUOTE);
+	await editor.focusBlockAtPath([0, 0], 15);
+	await editor.shiftClickBlock([1], 0);
+	await editor.waitForCrossBlock(true);
+	for (const key of ['Shift+ArrowDown', 'Shift+ArrowDown', 'Shift+ArrowDown']) {
+		await page.keyboard.press(key);
+		await editor.waitForRenderFlush();
+	}
+	expect((await editor.bridge.getSelectionPaths())?.focus.path).toEqual([2, 2, 0]);
+
+	await expect.poll(async () => holes(await paintedBands(page))).toEqual([]);
+});
