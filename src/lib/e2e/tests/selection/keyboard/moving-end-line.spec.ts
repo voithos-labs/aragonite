@@ -1,10 +1,16 @@
 import { test, expect } from '../../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../../editor-page';
-import { clickWordSettled, enterPresentationMode, landAt } from '../../presentation/helpers';
+import {
+	clickWordSettled,
+	enterPresentationMode,
+	extendTo,
+	landAt
+} from '../../presentation/helpers';
 
-// Over a selection, Shift+ArrowUp and Shift+ArrowDown ask which line the selection's moving end
-// is on, not its start. Requirements: `e2e/requirements/selection/keyboard/moving-end-line.md`.
+// Over a selection, ArrowUp and ArrowDown, shifted or not, ask which line and column the
+// selection's moving end is at, not its start.
+// Requirements: `e2e/requirements/selection/keyboard/moving-end-line.md`.
 
 // Each block's text is `abc def\` + newline + `e.g.`, 13 long, with line two from 9.
 const PARAGRAPH = 'before\n\nabc def\\\ne.g.\n\nafter\n';
@@ -13,6 +19,7 @@ const LIST_ITEM = '- abc def\\\n  e.g.\n\nafter\n';
 const CELL = 'top\n\n| H |\n| - |\n| Left<br>Right |\n\nafter\n';
 const TEXT_END = 13;
 const CELL_LINE_TWO = 8;
+const TWO_PARAGRAPHS = 'abcdefghijkl\n\nmnopqrstuvwx\n';
 
 const selection = async (ep: EditorPage) => (await ep.bridge.getSelectionPaths())!;
 
@@ -74,5 +81,41 @@ for (const mode of ['source', 'live'] as const) {
 			await ep.waitForCrossBlock(true);
 			expect((await selection(ep)).focus.path).toEqual([2]);
 		});
+	});
+}
+
+/** Where a key leaves the caret, read back as the source a typed `Z` makes there. */
+async function landingAfter(
+	page: Page,
+	mode: 'source' | 'live',
+	word: string,
+	from: [anchor: number, focus: number],
+	key: string
+): Promise<string> {
+	const ep = await enterPresentationMode(page, mode, TWO_PARAGRAPHS);
+	await clickWordSettled(ep, page, word);
+	await landAt(ep, page, from[0]);
+	const path = (await selection(ep)).focus.path;
+	await extendTo(ep, page, from[1] > from[0] ? 'ArrowRight' : 'ArrowLeft', path, from[1]);
+	await page.keyboard.press(key);
+	await ep.waitForRenderFlush();
+	await ep.typeText('Z');
+	await expect.poll(() => ep.bridge.getSource()).toContain('Z');
+	return ep.bridge.getSource();
+}
+
+for (const mode of ['source', 'live'] as const) {
+	test.describe(`${mode}: a plain arrow over a selection moves from its moving end`, () => {
+		for (const [name, word, from, key] of [
+			['forward, ArrowDown', 'abcdefghijkl', [1, 9], 'ArrowDown'],
+			['forward, ArrowUp', 'mnopqrstuvwx', [1, 9], 'ArrowUp'],
+			['backward, ArrowDown', 'abcdefghijkl', [9, 1], 'ArrowDown']
+		] as const) {
+			test(`${name}: lands where a caret at its moving end would`, async ({ page }) => {
+				const fromCaret = await landingAfter(page, mode, word, [from[1], from[1]], key);
+
+				expect(await landingAfter(page, mode, word, [...from], key)).toBe(fromCaret);
+			});
+		}
 	});
 }
