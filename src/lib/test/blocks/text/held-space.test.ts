@@ -53,6 +53,15 @@ describe('typing on after an existing bold', () => {
 		expect(editor.source()).toBe('**bold more**\n');
 	});
 
+	// The space typed mid-line sits beside the line's own, so the run fits at two offsets.
+	it('mid-line, a click at its end, then a space and a word, extends it', async () => {
+		const { editor, el } = caretIn('Some **bold** text\n', 11);
+
+		await insertBy('hardware key', el, ' more');
+
+		expect(editor.source()).toBe('Some **bold more** text\n');
+	});
+
 	it('a second space keeps the hold', async () => {
 		const { editor, el } = caretIn('a **two**\n', 7);
 
