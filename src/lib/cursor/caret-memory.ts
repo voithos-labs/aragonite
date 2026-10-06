@@ -94,9 +94,11 @@ export function createCaretMemory(): CaretMemory {
 		pendingMarks: {
 			get: () => marks,
 			toggle: (kind) => {
-				// Over a held space the chord leaves the construct the caret was in, and pends nothing.
-				if (heldSpace.holding()) records.end(heldSpace);
-				else marks = flipMark(marks, kind);
+				// The held construct's own chord is the way out of it; another chord pends its mark
+				// past it, as at any caret.
+				const ownChord = heldSpace.holdsInside(kind);
+				records.end(heldSpace);
+				if (!ownChord) marks = flipMark(marks, kind);
 			},
 			consume: () => {
 				const spent = marks;

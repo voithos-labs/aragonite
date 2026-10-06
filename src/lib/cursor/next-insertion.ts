@@ -20,6 +20,11 @@ export interface SpentEdit extends TextEdit {
 	kept?: boolean;
 }
 
+/** An insertion moved across a hidden edge, and the constructs whose marker runs it crossed. */
+export interface PlacedEdit extends TextEdit {
+	crossed: readonly string[];
+}
+
 /** Moves `edit`, an insertion at `at` in `before`, to the offset `side` means at a hidden edge;
  *  null leaves it where it is. `caret` is where the caret said it was typed, which the browser can
  *  put on the other side of a hidden run. A block that draws every marker has none. */
@@ -29,7 +34,7 @@ export type PlaceInsertion = (
 	at: number,
 	side: EdgeAffinity | null,
 	caret?: number
-) => TextEdit | null;
+) => PlacedEdit | null;
 
 /** The block's move of an insertion with the side the records were held at, for a record that
  *  moves bytes across a hidden edge itself. */

@@ -23,7 +23,7 @@ import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 import type { CaretMemory } from '../../../cursor/caret-memory';
-import type { PlaceInsertion, TextEdit } from '../../../cursor/next-insertion';
+import type { PlacedEdit, PlaceInsertion } from '../../../cursor/next-insertion';
 import type { HeldSpaceView } from '../../../cursor/held-space';
 import type { NodeView } from '../../../core/node-views';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
@@ -94,15 +94,23 @@ export function relocateInsertion(
 	screen: VisibilityContext,
 	reading: Reading,
 	caret = at
-): TextEdit | null {
+): PlacedEdit | null {
 	const samePosition =
 		caret === at || seatOffsetsAt(at, inlines, before, screen, reading.grammar).includes(caret);
 	const from = samePosition ? caret : at;
 	const seat = resolveEdgeSeat(from, inlines, affinity, before, screen, typed, reading);
 	if (!seat || seat.offset === at) return null;
+	const lo = Math.min(seat.offset, at);
+	const hi = Math.max(seat.offset, at);
+	const crossed = [...inlineDescendants(inlines)].flatMap((node) => {
+		const content = constructContentRange(node);
+		const edge = (offset: number) => offset >= lo && offset <= hi;
+		return content && (edge(content.start) || edge(content.end)) ? [node.kind] : [];
+	});
 	return {
 		text: before.slice(0, seat.offset) + typed + before.slice(seat.offset),
-		caretAfter: seat.offset + typed.length
+		caretAfter: seat.offset + typed.length,
+		crossed
 	};
 }
 

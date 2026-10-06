@@ -96,7 +96,7 @@ describe('the block’s move of an insertion', () => {
 		const place = (before: string, edit: { text: string }, at: number) => {
 			asked.push(at);
 			const typed = edit.text.slice(at, at + edit.text.length - before.length);
-			return { text: typed + before, caretAfter: typed.length };
+			return { text: typed + before, caretAfter: typed.length, crossed: [] };
 		};
 		return { asked, place };
 	}
@@ -107,7 +107,8 @@ describe('the block’s move of an insertion', () => {
 
 		expect(held.spend('ab', { text: 'aXb', caretAfter: 2 })).toEqual({
 			text: 'Xab',
-			caretAfter: 1
+			caretAfter: 1,
+			crossed: []
 		});
 		expect(asked).toEqual([1]);
 	});
@@ -149,7 +150,7 @@ const MEMORY_RECORDS = [
 		open: (memory: ReturnType<typeof createCaretMemory>) => {
 			const held = memory.holdInsertion(BLOCK, (before, edit, at) =>
 				at === 4 && edit.text[at] === 'a'
-					? { text: before.slice(0, 2) + 'a' + before.slice(2), caretAfter: 3 }
+					? { text: before.slice(0, 2) + 'a' + before.slice(2), caretAfter: 3, crossed: ['strong'] }
 					: null
 			);
 			held.spend('ab**', { text: 'ab** ', caretAfter: 5 });

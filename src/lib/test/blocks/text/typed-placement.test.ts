@@ -51,14 +51,16 @@ describe('a symmetric pair extends or not by the side on record', () => {
 	it('writes past the closing run when the arrival came from the far side', () => {
 		expect(placementOf(block(BOLD), 'live', 'far').typedAt(11, 'X')).toEqual({
 			text: 'Some **bold**X text',
-			caretAfter: 14
+			caretAfter: 14,
+			crossed: ['strong']
 		});
 	});
 
 	it('writes inside the opening run when the arrival came from the far side', () => {
 		expect(placementOf(block(BOLD), 'live', 'far').typedAt(5, 'X')).toEqual({
 			text: 'Some **Xbold** text',
-			caretAfter: 8
+			caretAfter: 8,
+			crossed: ['strong']
 		});
 	});
 
@@ -71,11 +73,13 @@ describe('a symmetric pair extends or not by the side on record', () => {
 	it('writes outside the construct for a line extreme, at either edge', () => {
 		expect(placementOf(block('**Lead** in\n'), 'live', 'outside').typedAt(2, 'X')).toEqual({
 			text: 'X**Lead** in',
-			caretAfter: 1
+			caretAfter: 1,
+			crossed: ['strong']
 		});
 		expect(placementOf(block(BOLD), 'live', 'outside').typedAt(11, 'X')).toEqual({
 			text: 'Some **bold**X text',
-			caretAfter: 14
+			caretAfter: 14,
+			crossed: ['strong']
 		});
 	});
 });
@@ -86,7 +90,8 @@ describe('a never-extend construct takes the byte outside whatever the arrival',
 	it.each(['near', 'far', 'outside', null] as const)('arrival %s → past the closer', (affinity) => {
 		expect(placementOf(block(LINK), 'live', affinity).typedAt(7, 'X')).toEqual({
 			text: 'A [link](http://e.com)X tail',
-			caretAfter: 23
+			caretAfter: 23,
+			crossed: ['link']
 		});
 	});
 
@@ -138,7 +143,8 @@ describe('a caret read across a hidden run from where the text went', () => {
 		const { placement } = placementOf(REOPENED, 'live', null);
 		expect(placement.insertion('**ld** text', typedPastOpener, 2, null, 9)).toEqual({
 			text: 'X**ld** text',
-			caretAfter: 1
+			caretAfter: 1,
+			crossed: ['strong']
 		});
 	});
 });

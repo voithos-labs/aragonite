@@ -149,7 +149,11 @@ describe('relocateInsertion', () => {
 		);
 
 	it('moves a run inserted at the trailing content edge past the closing delimiter', () => {
-		expect(relocate(11, 'かん', 'far')).toEqual({ text: 'Some **bold**かん text', caretAfter: 15 });
+		expect(relocate(11, 'かん', 'far')).toEqual({
+			text: 'Some **bold**かん text',
+			caretAfter: 15,
+			crossed: ['strong']
+		});
 	});
 
 	it('leaves a run the caret position agrees with alone', () => {
@@ -159,7 +163,8 @@ describe('relocateInsertion', () => {
 	it('relocates a never-extend edge whatever the arrival', () => {
 		expect(relocate(7, '感', 'near', 'A [link](http://e.com) tail')).toEqual({
 			text: 'A [link](http://e.com)感 tail',
-			caretAfter: 23
+			caretAfter: 23,
+			crossed: ['link']
 		});
 	});
 });

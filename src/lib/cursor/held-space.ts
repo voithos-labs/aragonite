@@ -18,6 +18,8 @@ export interface HeldSpace extends InsertionRecord {
 	forBlock(block: object): HeldSpaceView;
 	/** Whether a space is held in any block. */
 	holding(): boolean;
+	/** Whether the held space waits inside a `kind` construct, before its hidden closer. */
+	holdsInside(kind: string): boolean;
 }
 
 export interface HeldSpaceView {
@@ -36,6 +38,8 @@ interface Hold {
 	end: number;
 	/** The side that held it, so the letter that carries it back is placed the same way. */
 	side: EdgeAffinity | null;
+	/** The constructs whose closers the space was written past. */
+	kinds: readonly string[];
 }
 
 export function createHeldSpace(): HeldSpace {
@@ -47,6 +51,7 @@ export function createHeldSpace(): HeldSpace {
 			inside: () => (hold?.block === block ? hold.inside : null)
 		}),
 		holding: () => hold !== null,
+		holdsInside: (kind) => hold?.kinds.includes(kind) === true,
 		// Taken by every write, waiting or not, since the write that types a space opens it and has
 		// to keep it through its own end of the caret memory.
 		take: (block) => {
@@ -65,9 +70,10 @@ export function createHeldSpace(): HeldSpace {
 						return carried(before, taken, typed, placement.place) ?? edit;
 					}
 					if (taken || !isWhitespace(typed)) return null;
-					const inside = letterLandsAt(before, at, placement);
-					if (inside === null || inside >= at) return null;
-					hold = { block, inside, start: at, end: at + typed.length, side: placement.side };
+					const letter = letterPlaced(before, at, placement);
+					if (letter === null || letter.inside >= at) return null;
+					const { inside, kinds } = letter;
+					hold = { block, inside, start: at, end: at + typed.length, side: placement.side, kinds };
 					return { ...edit, kept: true };
 				},
 				release: (waiting) => {
@@ -83,11 +89,15 @@ export function createHeldSpace(): HeldSpace {
 
 const isWhitespace = (text: string): boolean => /^[^\S\r\n]+$/.test(text);
 
-/** Where a letter typed at `at` would be put: the side of a hidden edge the caret means. */
-function letterLandsAt(before: string, at: number, { place, side }: Placement): number | null {
+/** Where a letter typed at `at` would be put, and the constructs it would join on the way. */
+function letterPlaced(
+	before: string,
+	at: number,
+	{ place, side }: Placement
+): { inside: number; kinds: readonly string[] } | null {
 	const letter = { text: before.slice(0, at) + 'a' + before.slice(at), caretAfter: at + 1 };
 	const placed = place(before, letter, at, side);
-	return placed ? placed.caretAfter - 1 : null;
+	return placed ? { inside: placed.caretAfter - 1, kinds: placed.crossed } : null;
 }
 
 /** `typed` with the held space in front of it, placed as one insertion where the space was typed:
