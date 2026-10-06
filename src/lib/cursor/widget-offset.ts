@@ -327,6 +327,27 @@ function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosit
 	};
 }
 
+/** Whether the collapsed caret in `el` is on a line a pending hard break opened: right after one
+ *  of its anchors, where the caret on the text's own line never sits. */
+export function caretOnPendingBreakLine(el: HTMLElement): boolean {
+	const sel = window.getSelection();
+	const node = sel?.focusNode;
+	if (!sel?.isCollapsed || !node || !el.contains(node)) return false;
+	let before: Node | null;
+	if (node.nodeType !== Node.TEXT_NODE) before = node.childNodes[sel.focusOffset - 1] ?? null;
+	else if (sel.focusOffset > 0) return false;
+	else {
+		// The start of a text node: what precedes it, climbing out of the spans it opens.
+		let at: Node = node;
+		while (!at.previousSibling && at.parentNode && at.parentNode !== el) at = at.parentNode;
+		before = at.previousSibling;
+	}
+	while (before?.nodeType === Node.TEXT_NODE && (before.textContent?.length ?? 0) === 0) {
+		before = before.previousSibling;
+	}
+	return isBreakAnchor(before);
+}
+
 /** The node right after `position`, at whatever depth, past empty text; null when nothing follows
  *  before the end of `root` or the position sits inside a text node's text. */
 function nodeAfter({ node, offset }: DomPosition, root: ParentNode): Node | null {

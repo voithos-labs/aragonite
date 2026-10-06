@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Shift+Enter at a block's end draws the line it opens, in every mode, from the editor's own record
-// of it: a return glyph and the caret anchors after the text, which add no text to the DOM read.
+// of it: caret anchors after the text, which add no text to the DOM read.
 // Miss-analysis: no render test drew a pending break in a block with bytes past its text, and the
 // line was read from a trailing backslash, so source mode never drew one.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
@@ -16,14 +16,17 @@ import { hiddenSuffixLength, rawTextOfContent } from '$lib/cursor/widget-offset'
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-/** The block's top-level children in order: text, the suffix span, the glyph, or a break anchor. */
+/** The block's top-level children in order: text, the suffix span, or a break anchor. Whatever
+ *  else the line draws holds no text and is the stylesheet's to show, so it's left out. */
 function shape(el: HTMLElement): string[] {
-	return [...el.childNodes].map((node) => {
+	const drawn = [...el.childNodes].filter(
+		(node) => !(node instanceof HTMLElement && node.classList.contains('md-hard-break'))
+	);
+	return drawn.map((node) => {
 		if (node instanceof HTMLBRElement) return `<br ${node.dataset.caretAnchor ?? ''}>`;
 		if (node instanceof HTMLElement && node.hasAttribute('data-block-suffix')) {
 			return `suffix:${node.textContent}`;
 		}
-		if (node instanceof HTMLElement && node.classList.contains('md-hard-break')) return 'glyph';
 		return node.textContent ?? '';
 	});
 }
@@ -35,22 +38,22 @@ async function openBreakAt(source: string, at: number, mode: 'source' | 'live') 
 }
 
 describe.each(['source', 'live'] as const)('%s mode: the line a pending break opens', (mode) => {
-	it('follows the text with a glyph and two anchors', async () => {
+	it('follows the text with two anchors', async () => {
 		const { el } = await openBreakAt('abc\n', 3, mode);
 
-		expect(shape(el)).toEqual(['abc', 'glyph', '<br break>', '<br break>']);
+		expect(shape(el)).toEqual(['abc', '<br break>', '<br break>']);
 	});
 
 	it('draws a heading’s closing run before the new line', async () => {
 		const { el } = await openBreakAt('# Hi #\n', 6, mode);
 
-		expect(shape(el).slice(1)).toEqual(['Hi', 'suffix: #', 'glyph', '<br break>', '<br break>']);
+		expect(shape(el).slice(1)).toEqual(['Hi', 'suffix: #', '<br break>', '<br break>']);
 	});
 
 	it('draws a setext underline after the new line, on a line of its own', async () => {
 		const { el } = await openBreakAt('Hi\n===\n', 2, mode);
 
-		expect(shape(el)).toEqual(['Hi', 'glyph', '<br break>', '<br break>', 'suffix:\n===']);
+		expect(shape(el)).toEqual(['Hi', '<br break>', '<br break>', 'suffix:\n===']);
 	});
 
 	it('reads back from the DOM as the stored bytes', async () => {

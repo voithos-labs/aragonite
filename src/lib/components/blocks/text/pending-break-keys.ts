@@ -1,12 +1,12 @@
 /**
- * The keys a pending break answers first in a text block, ahead of the edge step and every other
- * key handler: a typed character lands on the open line, and a key that moves the caret or deletes
- * ends the line first. Backspace and ArrowLeft stop there, at the end of the text above.
+ * The keys a pending break answers first in a text block, ahead of every other key handler: a
+ * typed character lands on the open line, Backspace and ArrowLeft take the line back and stop at
+ * the end of the text above, and Delete ends it. Any other key moves from the open line, which
+ * ends once the caret leaves it (`caretOnPendingBreakLine`).
  */
 
 import type { ContentWrite } from '../../../action-contracts';
 import type { BlockPendingBreak } from '../../../cursor/pending-break.svelte';
-import { classifyArrivalKey } from '../../../cursor/edge-affinity';
 import { BARE_MODIFIER_KEYS } from '../../../schema/keybindings';
 import type { TextWrite } from '../surface-write';
 import { hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -47,13 +47,9 @@ export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDep
 		});
 		return true;
 	}
-	const arrival = classifyArrivalKey(e.key, e.metaKey);
-	const deletes = e.key === 'Backspace' || e.key === 'Delete';
-	// A key that neither moves the caret nor deletes (Tab, Enter, a chord) leaves the line to
-	// whatever it writes, which spends it or ends it.
-	if (!deletes && (arrival === 'preserve' || arrival === 'reset')) return false;
-	deps.pendingBreak.end();
 	const stepsBack = e.key === 'Backspace' || e.key === 'ArrowLeft';
+	if (!stepsBack && e.key !== 'Delete') return false;
+	deps.pendingBreak.end();
 	if (!stepsBack || e.shiftKey || hasModifier(e)) return false;
 	e.preventDefault();
 	deps.requestCaret(at);

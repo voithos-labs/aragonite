@@ -79,7 +79,8 @@
 		rawTextOfContent,
 		revealsNoMarkers,
 		screenVisibilityOf,
-		rawSelectionFocus
+		rawSelectionFocus,
+		caretOnPendingBreakLine
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
@@ -225,7 +226,9 @@
 		getEl: () => el ?? null,
 		getRaw: () => node.raw,
 		getInlines: () => resolvedInlineContent(node, reading),
-		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		// On the line a pending break opened, the caret is at no construct's edge.
+		getCaret: () =>
+			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
 		isReading: () => readOnly,
 		reading,
 		caretMemory
@@ -771,6 +774,8 @@
 			clearSnapTargetIfMoved(root);
 			notePressSeat(root);
 			if (composing) return;
+			// The line goes once the caret leaves it, whatever moved the caret.
+			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
 			edgeStep.sync();

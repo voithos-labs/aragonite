@@ -39,10 +39,8 @@ interface OpenBreak extends BreakLine {
 
 export function createPendingBreak(): PendingBreak {
 	let open = $state.raw<OpenBreak | null>(null);
-
-	const end = (): void => {
-		if (open !== null) open = null;
-	};
+	// A write in progress holds the break: it stays drawn, and only that write lets it go.
+	let held = false;
 
 	return {
 		forBlock: (block) => ({
@@ -51,25 +49,30 @@ export function createPendingBreak(): PendingBreak {
 			open: (line) => {
 				const more = open?.block === block && open.lineEnd === line.lineEnd;
 				open = { ...line, block, count: more ? open!.count + 1 : 1 };
+				held = false;
 			},
 			end: () => {
-				if (open?.block === block) open = null;
+				if (open?.block === block && !held) open = null;
 			}
 		}),
 		take: (block) => {
 			const taken = open;
-			if (taken?.block !== block) return null;
-			open = null;
+			if (taken?.block !== block || held) return null;
+			held = true;
 			return {
 				at: taken.lineEnd,
 				apply: (before, edit) =>
 					insertsAt(before, edit.text, taken.lineEnd) ? spent(taken, edit) : null,
-				restore: () => {
-					open ??= taken;
+				release: (waiting) => {
+					if (open !== taken) return;
+					held = false;
+					if (!waiting) open = null;
 				}
 			};
 		},
-		end
+		end: () => {
+			if (open !== null && !held) open = null;
+		}
 	};
 }
 

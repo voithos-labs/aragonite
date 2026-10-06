@@ -1,7 +1,7 @@
-// The text block asks the pending break about a key before the shared keymap, whose edge step takes
-// a plain ArrowLeft at a hidden construct edge and would leave the line open.
-// Miss-analysis: Shift+Enter resets the caret's side, so no key sequence reaches the edge step with
-// the line open; the order is the one thing that holds it, so the order is what this pins.
+// The text block asks the pending break about a key before the shared keymap, which would take an
+// ArrowLeft at the text's start up to the block above and keep the line open. The behavior rows
+// (`e2e/tests/presentation/pending-break-keys.spec.ts`) are the guard; this pins the order too.
+// Miss-analysis: the first header said no key sequence reached the keymap first; one does.
 import { describe, it, expect } from 'vitest';
 import { readSource } from './scan-source';
 

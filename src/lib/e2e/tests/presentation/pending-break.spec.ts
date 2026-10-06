@@ -22,6 +22,21 @@ async function openBreak(ep: EditorPage, page: Page, times = 1): Promise<void> {
 const breakAnchors = (page: Page) =>
 	page.locator('.block-host').first().locator('br[data-caret-anchor="break"]');
 
+/** Whether the run being composed sits after the open line's first anchor, on the new line. The
+ *  browser may swap the line's last anchor for the run, so only the first is looked for. */
+const composedAfterBreak = (page: Page, run: string) =>
+	page
+		.locator('.block-host')
+		.first()
+		.locator('[contenteditable]')
+		.evaluate((el, composed) => {
+			const anchor = el.querySelector('br[data-caret-anchor="break"]');
+			for (let node = anchor?.nextSibling; node; node = node.nextSibling) {
+				if (node.textContent?.includes(composed)) return true;
+			}
+			return false;
+		}, run);
+
 for (const mode of MODES) {
 	test.describe(`${mode} mode: a backslash typed at a block's end`, () => {
 		test('stays a backslash, and the next key types after it', async ({ page }) => {
@@ -103,7 +118,7 @@ test.describe('live mode: a composed run after a hidden closer', () => {
 			const ime = await attachIme(page);
 
 			await ime.compose('か');
-			await expect(breakAnchors(page)).toHaveCount(2);
+			await expect.poll(() => composedAfterBreak(page, 'か')).toBe(true);
 			await ime.commit('か');
 
 			await expect.poll(() => ep.bridge.getSource()).toBe(written);

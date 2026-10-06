@@ -60,6 +60,8 @@ export function createCaretMemory(): CaretMemory {
 	let side: EdgeAffinity | null = null;
 	let marks: ReadonlySet<InlineMarkKind> | null = null;
 	const pendingBreak = createPendingBreak();
+	// Everything the next insertion spends: a new kind of record is one more entry here.
+	const records = [pendingBreak];
 
 	function dropColumn(): void {
 		// Runs on nearly every keystroke, so the enabled check short-circuits first.
@@ -97,7 +99,7 @@ export function createCaretMemory(): CaretMemory {
 			}
 		},
 		pendingBreak,
-		holdInsertion: (block) => holdInsertion([pendingBreak], block, side),
+		holdInsertion: (block) => holdInsertion(records, block, side),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;
@@ -125,7 +127,7 @@ export function createCaretMemory(): CaretMemory {
 		forget: () => {
 			dropColumn();
 			settleSide(null);
-			pendingBreak.end();
+			for (const record of records) record.end();
 		}
 	};
 }

@@ -463,13 +463,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
-		if (deps.isInputSuppressed?.()) return;
+		const held = fromComposition ? heldForComposition : null;
+		if (fromComposition) heldForComposition = null;
+		if (deps.isInputSuppressed?.()) return held?.finish(true);
 		deps.inputPrelude?.();
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
-		if (deps.getComposing() || !el) return;
-		const held = fromComposition ? heldForComposition : null;
-		heldForComposition = null;
+		if (deps.getComposing() || !el) return held?.finish(true);
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
 		// The keydown branches' mode check: a block that draws its delimiters keeps the reading
@@ -478,7 +478,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			fromComposition && revealsNoMarkers(el) && !held?.waitsAt(preEditOffset)
 				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
 				: null;
-		held?.restore();
+		// Let go untouched, so the commit's own write holds the records again and spends them.
+		held?.finish(false);
 		void writeText({
 			text: seated?.raw ?? text,
 			caretAfter: seated?.caret ?? savedOffset,
@@ -488,8 +489,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		});
 	}
 
-	// Taken at composition start, whose cross-block step forgets the caret memory, and handed back
-	// to the commit's write.
+	// Held from composition start, whose cross-block step forgets the caret memory, to the commit.
 	let heldForComposition: HeldInsertion | null = null;
 
 	function onCompositionStart(): void {
@@ -497,6 +497,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		traceCompositionStart();
 		// Capture before `crossBlock.handleCompositionStart()`, whose delete moves the caret.
 		preEditOffset = deps.backend.getRaw() ?? 0;
+		heldForComposition?.finish(true);
 		heldForComposition = holdInsertion();
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
@@ -607,7 +608,8 @@ export interface ClipboardSurfaceDeps {
 export interface PasteTarget {
 	/** The selection, or the caret as an empty range; null when the block holds neither. */
 	range: RawRange | null;
-	/** What the caret memory kept for this block's next insertion, which an inline paste spends. */
+	/** What the caret memory kept for this block's next insertion, held until the paste ends; an
+	 *  inline paste spends it. */
 	held: HeldInsertion;
 }
 
@@ -669,16 +671,20 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
 		const target = readPasteTarget();
-		// Read `clipboardData` before the first await, while the event still holds it.
-		const images = imageArm.filesOf(e.clipboardData);
-		if (images.length === 0) {
-			const text = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-			await insertPastedText(text, e, target);
-			return;
+		try {
+			// Read `clipboardData` before the first await, while the event still holds it.
+			const images = imageArm.filesOf(e.clipboardData);
+			if (images.length === 0) {
+				const text = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+				await insertPastedText(text, e, target);
+				return;
+			}
+			await deps.foldReveal?.()?.settled;
+			deps.caretMemory.forget();
+			await pasteImages(deps, imageArm, e, images, target);
+		} finally {
+			target.held.finish(true);
 		}
-		await deps.foldReveal?.()?.settled;
-		deps.caretMemory.forget();
-		await pasteImages(deps, imageArm, e, images, target);
 	}
 
 	/** Everything a plain-text paste does, shared by the gesture and the API call; `e` is null
@@ -700,7 +706,12 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		if (deps.isReadOnly()) return false;
 		const text = normalizeLineEndings(md);
 		if (!text) return false;
-		await insertPastedText(text, null, readPasteTarget());
+		const target = readPasteTarget();
+		try {
+			await insertPastedText(text, null, target);
+		} finally {
+			target.held.finish(true);
+		}
 		return true;
 	}
 

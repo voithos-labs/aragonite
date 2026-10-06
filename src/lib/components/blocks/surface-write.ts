@@ -58,10 +58,12 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const index = deps.getIndex();
 		const typed = write.intent === 'typed';
 		const before = shownKind(node);
-		const display = trimTrailingLineEnding(node.raw);
-		// Taken from every write: a typed one spends it, and any other write ends it.
+		// Held through every write: a typed one spends it, a write that changes nothing leaves it
+		// waiting, and any other write ends it.
 		const held = deps.holdInsertion();
-		const edit = typed ? held.spend(display, write) : write;
+		const display = held.empty ? null : trimTrailingLineEnding(node.raw);
+		const changed = write.text !== display;
+		const edit = typed && display !== null && changed ? held.spend(display, write) : write;
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.
@@ -70,9 +72,8 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 			write.sessionAnchor ?? deps.getPreEditOffset(),
 			edit.caretAfter
 		);
+		held.finish(changed);
 		if (!written.admitted) return written;
-		// A write that changes nothing is no insertion, so what was held for one still waits.
-		if (edit.text === display) held.restore();
 		// Ends the auto-pair's record when the pair it wrote isn't standing in the new bytes.
 		deps.ownPairs?.consult(edit.text, edit.caretAfter);
 		// A new kind, a merge or a changed container lands the caret itself, so the block puts
