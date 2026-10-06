@@ -54,8 +54,8 @@
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createEdgeStep } from './edge-step';
 	import { typingOffset } from './edge-seat';
-	import { handlePendingBreakKey } from './pending-break-keys';
-	import { handleHomeKey } from './home-key';
+	import { handlePendingBreakKey, type PendingBreakKeyDeps } from './pending-break-keys';
+	import { handleHomeKey, type HomeKeyDeps } from './home-key';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -857,22 +857,29 @@
 		compositionSeat.noteEnd();
 	}
 
+	// Built once, not per keydown: every typed character passes both key handlers.
+	const pendingBreakKeyDeps: PendingBreakKeyDeps = {
+		pendingBreak,
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		getDisplayText,
+		hasPendingMarks: () => caretMemory.pendingMarks.get() !== null,
+		opensBreak: (ev) => wiring.resolveChord(ev, node.kind) === 'block.hardBreak',
+		writeText,
+		requestCaret: (at) => setPendingCursorOffset(at, 'pending-break')
+	};
+	const homeKeyDeps: HomeKeyDeps = {
+		getEl: () => el ?? null,
+		caretBounds,
+		getFocusOffset: () => cursor.getFocusOffset(),
+		// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
+		focusContentStart: () => focus(CURSOR_START)
+	};
+
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || editableSurface.isDetached()) return;
 
 		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
-		if (
-			handlePendingBreakKey(e, {
-				pendingBreak,
-				getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
-				getDisplayText,
-				hasPendingMarks: () => caretMemory.pendingMarks.get() !== null,
-				opensBreak: (ev) => wiring.resolveChord(ev, node.kind) === 'block.hardBreak',
-				writeText,
-				requestCaret: (at) => setPendingCursorOffset(at, 'pending-break')
-			})
-		)
-			return;
+		if (handlePendingBreakKey(e, pendingBreakKeyDeps)) return;
 
 		// Shows markers only, before any default runs: fast arrows outrun the async
 		// `selectionchange` update, and a step against still-hidden markers skips their bytes.
@@ -897,16 +904,7 @@
 		// from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		if (
-			handleHomeKey(e, {
-				getEl: () => el ?? null,
-				caretBounds,
-				getFocusOffset: () => cursor.getFocusOffset(),
-				// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
-				focusContentStart: () => focus(CURSOR_START)
-			})
-		)
-			return;
+		if (handleHomeKey(e, homeKeyDeps)) return;
 
 		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
 		if (wiring.dispatchChord(e, target)) return;

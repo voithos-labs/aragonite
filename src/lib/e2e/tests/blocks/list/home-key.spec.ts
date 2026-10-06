@@ -41,9 +41,11 @@ for (const mode of ['source', 'live'] as const) {
 			await ep.waitForRenderFlush();
 			expect(await focusOffset(ep)).toBe(SECOND_LINE);
 
+			// Live mode hides the backslash, so the Backspace there takes the whole break.
 			await page.keyboard.press('Backspace');
-			await ep.waitForRenderFlush();
-			expect(await ep.bridge.getSource()).toMatch(/^- abc def/);
+			await ep.bridge.waitForSourceEquals(
+				mode === 'source' ? '- abc def\\e.g.\n' : '- abc defe.g.\n'
+			);
 		});
 
 		test('on a wrapped line lands at that line', async ({ page }) => {
