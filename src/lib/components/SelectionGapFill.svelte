@@ -8,17 +8,15 @@
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
 	import { regionGaps } from '../cursor/overlay-rects';
 	import { observeResize } from '../cursor/observe-resize';
-	import { pathsEqual } from '../selection/path-math';
+	import { rangeSpansBlocks } from '../selection/primitives';
 
 	let { getEditorEl }: { getEditorEl: () => HTMLElement | null } = $props();
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 
-	// A range inside one block keeps the browser's highlight, or one table's cell rectangle.
 	const spansBlocks = $derived.by(() => {
-		const start = services?.selection.start;
-		const end = services?.selection.end;
-		return !!start && !!end && !!services?.rangeCoverage() && !pathsEqual(start.path, end.path);
+		const coverage = services?.rangeCoverage();
+		return !!coverage && rangeSpansBlocks(coverage);
 	});
 
 	let gaps: { left: number; top: number; width: number; height: number }[] = $state([]);
