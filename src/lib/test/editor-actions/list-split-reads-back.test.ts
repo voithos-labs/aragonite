@@ -83,6 +83,15 @@ describe('Enter in a list item: the new item holds what its bytes read as', () =
 			'- a\n-  # h\n   more\n',
 			{ marker: '-  ' }
 		],
+		// A lazy line continues its paragraph wherever it starts, so it keeps its own column.
+		[
+			'a lazy line under the moved lines',
+			'- a # h\n  p\nlazy\n',
+			1,
+			'source',
+			'- a\n-  # h\n   p\nlazy\n',
+			{ marker: '-  ' }
+		],
 		// `-  ---` reads as a divider, so the line opens below an empty marker.
 		['a line of dashes', '- a ---\n', 1, 'source', '- a\n- \n   ---\n', { marker: '- ' }]
 	])('%s', async (_what, source, offset, mode, expected, marker) => {
