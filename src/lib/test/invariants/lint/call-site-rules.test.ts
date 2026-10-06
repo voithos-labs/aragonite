@@ -109,7 +109,7 @@ const RULES: CallSiteRule[] = [
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: perform':
 				'the demote and heading cycle commands, moving with the other commands',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
-				'Shift+Enter, whose break at the content’s end moves with the pending break',
+				'Shift+Enter inside the text, a command moving with the other commands (at the end it writes nothing until the next insertion)',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: toggleFormat':
 				'a command, moving with the other commands',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: deleteCellRange':
@@ -189,8 +189,6 @@ const RULES: CallSiteRule[] = [
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
 				'Shift+Enter types a new line',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: handleTransitionalHardBreak':
-				'Shift+Enter beside a widget types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
 				'Enter in a multi-line plugin source types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':

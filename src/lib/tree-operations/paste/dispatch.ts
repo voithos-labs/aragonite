@@ -16,14 +16,17 @@ import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { replaceRangeInLeaf } from '../leaf-range';
 import {
 	documentLineEnding,
+	ownTrailingLineEnding,
 	trailingLineEnding,
 	trimTrailingLineEnding,
 	withLineEnding,
 	type LineEnding
 } from '../../core/lines';
+import type { TextEdit } from '../../cursor/next-insertion';
 import {
 	getPasteSurface,
 	isPasteSurfaceRegistered,
+	type InlinePasteResult,
 	type PasteRange,
 	type PasteSurface,
 	type StructuralPasteResult
@@ -54,9 +57,12 @@ export interface PasteDispatchInput {
 	offset: number;
 	/** Selection range within the target's raw (not cross-block). */
 	preDelete?: PasteRange;
-	/** Where undo puts the caret back when the paste began elsewhere than the range's start: the
-	 *  side a selected widget was selected from. */
+	/** Where undo puts the caret back: the caret the paste found, or the side a selected widget was
+	 *  selected from. Without it, the range's start. */
 	caretBefore?: number;
+	/** What the caret memory kept for the block's next insertion (a pending break): an inline
+	 *  paste writes it with its own text, and a paste that splits the block leaves it unwritten. */
+	spend?: (before: string, edit: TextEdit) => TextEdit;
 }
 
 export interface PasteDispatchContext {
@@ -205,10 +211,14 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = inlineResultInEnding(
+		const result = spentInline(
 			targetNode.raw,
-			hook(targetNode, input.offset, pastedText, input.preDelete, store, ending),
-			ending
+			inlineResultInEnding(
+				targetNode.raw,
+				hook(targetNode, input.offset, pastedText, input.preDelete, store, ending),
+				ending
+			),
+			input.spend
 		);
 		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
@@ -264,6 +274,20 @@ function trailingSeparatorOf(
 	// `focusReplacementIndex` is the last pasted node (`paste/focus-target.ts`), so anything past
 	// it is reattached residue.
 	return result.focusReplacementIndex === result.replacement.length - 1 ? parsed.suffix : '';
+}
+
+/** An inline paste's result with what the next insertion spends written into it. */
+function spentInline(
+	raw: string,
+	result: InlinePasteResult,
+	spend: PasteDispatchInput['spend']
+): InlinePasteResult {
+	if (!spend) return result;
+	const edit = spend(trimTrailingLineEnding(raw), {
+		text: trimTrailingLineEnding(result.newRaw),
+		caretAfter: result.caretOffset
+	});
+	return { newRaw: edit.text + ownTrailingLineEnding(result.newRaw), caretOffset: edit.caretAfter };
 }
 
 /** The hook's own caret offset, overridden by where the caret ended up when a merge moved it. */

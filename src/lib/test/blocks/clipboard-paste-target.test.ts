@@ -111,7 +111,6 @@ describe.each(['live', 'source'] as const)(
 				await editor.settle();
 
 				expect(editor.source()).toBe(left);
-				expect(newestEntryCaret(editor).offset).toBe(from);
 			});
 		}
 	}

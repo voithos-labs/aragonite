@@ -10,6 +10,7 @@ import type { WriteMode } from '../../schema/block-kind-descriptor';
 import type { LeafRangeEdit } from '../../tree-operations/leaf-range';
 import type { KindCue } from '../kind-cue.svelte';
 import type { BlockAutoPairs } from './text/auto-pair-record';
+import type { HeldInsertion } from '../../cursor/next-insertion';
 import { shownKind } from '../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { withStoredCaret } from '../../editor-actions/stored-caret';
@@ -47,6 +48,8 @@ export interface SurfaceWriteDeps {
 	requestCaret(at: number, opts: { source: string }): void;
 	/** A prose block's view of the pair the auto-pair wrote, which every write keeps in step. */
 	ownPairs?: BlockAutoPairs;
+	/** Takes what the caret memory keeps for this block's next insertion (a pending break). */
+	holdInsertion(): HeldInsertion;
 }
 
 export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) => ContentWrite {
@@ -55,17 +58,23 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const index = deps.getIndex();
 		const typed = write.intent === 'typed';
 		const before = shownKind(node);
+		const display = trimTrailingLineEnding(node.raw);
+		// Taken from every write: a typed one spends it, and any other write ends it.
+		const held = deps.holdInsertion();
+		const edit = typed ? held.spend(display, write) : write;
 		const written = deps.blockEdit.updateBlockContent(
 			index,
 			// The block's own ending only: a last line saved without one stays that way.
-			withOwnEnding(node, write.text),
+			withOwnEnding(node, edit.text),
 			write.mode,
 			write.sessionAnchor ?? deps.getPreEditOffset(),
-			write.caretAfter
+			edit.caretAfter
 		);
 		if (!written.admitted) return written;
+		// A write that changes nothing is no insertion, so what was held for one still waits.
+		if (edit.text === display) held.restore();
 		// Ends the auto-pair's record when the pair it wrote isn't standing in the new bytes.
-		deps.ownPairs?.consult(write.text, write.caretAfter);
+		deps.ownPairs?.consult(edit.text, edit.caretAfter);
 		// A new kind, a merge or a changed container lands the caret itself, so the block puts
 		// none back. An on-type completion is its own later write, whose undo entry reads this caret.
 		if (written.keepsCaret && !write.leavesCaret) {

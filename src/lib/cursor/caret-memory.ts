@@ -1,15 +1,17 @@
 /**
  * What the editor remembers about how the caret arrived: the sticky column (the x a run of
- * Up/Down arrows keeps), the edge affinity (which side of a hidden marker run the caret means)
- * and the pending marks (the formats a toggle promised the next typed byte). All three share one
- * lifetime: a keydown updates them through `noteKey`, and any other caret move calls `forget`,
- * which drops all three at once.
+ * Up/Down arrows keeps), the edge affinity (which side of a hidden marker run the caret means), the
+ * pending marks (the formats a toggle promised the next typed byte) and the pending break. They
+ * share one lifetime: a keydown updates them through `noteKey`, and any other caret move calls
+ * `forget`, which drops them all at once.
  */
 
 import type { EditorX } from './coordinate-spaces';
 import { classifyStickyKey } from './sticky-column';
 import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
+import { createPendingBreak, type PendingBreak } from './pending-break.svelte';
+import { holdInsertion, type HeldInsertion } from './next-insertion';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
 import { BLOCK_MOVE_COMMAND_IDS } from '../schema/commands';
@@ -29,6 +31,12 @@ export interface CaretMemory {
 	side(): EdgeAffinity | null;
 	/** The marks a toggle at a collapsed caret promised; `forget` drops them with the rest. */
 	readonly pendingMarks: PendingMarks;
+	/** The line Shift+Enter at a block's end opened; `noteKey` leaves it, since the text block's
+	 *  own keys decide which of them end it. */
+	readonly pendingBreak: PendingBreak;
+	/** Takes what the next insertion in `block` spends, with the caret's side, so a route that
+	 *  forgets the memory before it writes can still spend them. */
+	holdInsertion(block: object): HeldInsertion;
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
 	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
@@ -51,6 +59,7 @@ export function createCaretMemory(): CaretMemory {
 	let column: EditorX | null = null;
 	let side: EdgeAffinity | null = null;
 	let marks: ReadonlySet<InlineMarkKind> | null = null;
+	const pendingBreak = createPendingBreak();
 
 	function dropColumn(): void {
 		// Runs on nearly every keystroke, so the enabled check short-circuits first.
@@ -87,6 +96,8 @@ export function createCaretMemory(): CaretMemory {
 				if (marks === null) marks = unspent;
 			}
 		},
+		pendingBreak,
+		holdInsertion: (block) => holdInsertion([pendingBreak], block, side),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;
@@ -114,6 +125,7 @@ export function createCaretMemory(): CaretMemory {
 		forget: () => {
 			dropColumn();
 			settleSide(null);
+			pendingBreak.end();
 		}
 	};
 }

@@ -13,12 +13,7 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
-import {
-	documentLineEnding,
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding
-} from '$lib/core/lines';
+import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
@@ -55,6 +50,7 @@ import {
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 import { documentBody } from '$lib/tree-operations/node-primitives';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 export type GestureKind =
 	| 'type'
@@ -372,7 +368,6 @@ async function pressEdgeKey(
 	const el = mountBlock(leaf.node, mode);
 	const node = () => nodeAt(h.doc, leaf.path) as CstNode;
 	const dispatch = createEdgePolicyDispatch({
-		lineEnding: () => trailingLineEnding(node().raw, documentLineEnding(h.doc)),
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},
@@ -397,7 +392,8 @@ async function pressEdgeKey(
 			blockEdit: leaf.blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => offset,
-			requestCaret: () => {}
+			requestCaret: () => {},
+			holdInsertion: () => holdInsertion([], {}, null)
 		}),
 		completeMarker: () => void leaf.blockEdit.completeMarker(leaf.index),
 		setSnapTarget: () => {},

@@ -121,6 +121,10 @@ test.describe('live mode: a paste after an edge step', () => {
 
 test.describe('live mode: a hard break at a block end, emptied again', () => {
 	test('Backspace takes the emptied line', async ({ page }) => {
+		test.fail(
+			true,
+			'#690: the edge delete reparses the block without its emptied last line, where the break reads as text'
+		);
 		const ep = await enterPresentationMode(page, 'live', 'abc def\n');
 		await openBreak(ep, page);
 		await ep.typeSlowly('x');

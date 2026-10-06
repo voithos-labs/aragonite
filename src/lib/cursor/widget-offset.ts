@@ -305,6 +305,64 @@ export function findDomTextLanding(
 	container: ParentNode,
 	target: DomTextOffset
 ): { position: DomPosition; inTextAtTarget: boolean } | null {
+	const landing = landingIgnoringPendingBreak(container, target);
+	if (!landing) return null;
+	const onLine = ontoPendingBreakLine(landing.position, container);
+	return onLine === landing.position ? landing : { position: onLine, inTextAtTarget: false };
+}
+
+/** A position a pending hard break's line follows sits on that line, before its last anchor: while
+ *  the break is open, Backspace and ArrowLeft end it before a caret could sit at the text's end. */
+function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosition {
+	let next = nodeAfter(position, root);
+	if (!isPendingBreakPart(next)) return position;
+	let last: Node | null = null;
+	for (; isPendingBreakPart(next); next = next!.nextSibling) {
+		if (isBreakAnchor(next)) last = next;
+	}
+	if (!last?.parentNode) return position;
+	return {
+		node: last.parentNode,
+		offset: Array.prototype.indexOf.call(last.parentNode.childNodes, last)
+	};
+}
+
+/** The node right after `position`, at whatever depth, past empty text; null when nothing follows
+ *  before the end of `root` or the position sits inside a text node's text. */
+function nodeAfter({ node, offset }: DomPosition, root: ParentNode): Node | null {
+	let from: Node;
+	if (node.nodeType === Node.TEXT_NODE) {
+		if (offset < (node.textContent?.length ?? 0)) return null;
+		from = node;
+	} else {
+		const child = node.childNodes[offset];
+		if (child) return skipEmptyText(child);
+		from = node;
+	}
+	for (let at: Node | null = from; at && at !== root; at = at.parentNode) {
+		const next = skipEmptyText(at.nextSibling);
+		if (next) return next;
+	}
+	return null;
+}
+
+function skipEmptyText(node: Node | null): Node | null {
+	let at = node;
+	while (at?.nodeType === Node.TEXT_NODE && (at.textContent?.length ?? 0) === 0)
+		at = at.nextSibling;
+	return at;
+}
+
+function isPendingBreakPart(node: Node | null): boolean {
+	return (
+		isBreakAnchor(node) || (node instanceof HTMLElement && node.hasAttribute('data-pending-break'))
+	);
+}
+
+function landingIgnoringPendingBreak(
+	container: ParentNode,
+	target: DomTextOffset
+): { position: DomPosition; inTextAtTarget: boolean } | null {
 	// The marker prefix is read-only and Chromium bounces a caret out in front of it, so every
 	// target up to its far edge resolves past it, where raw 0 sits.
 	const prefix = markerPrefixOf(container);

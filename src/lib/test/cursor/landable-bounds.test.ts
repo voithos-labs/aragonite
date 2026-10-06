@@ -141,7 +141,11 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 // case built the line from the anchors alone.
 describe('a pending hard break’s line, drawn without a byte of its own', () => {
 	const breakAnchor = () => createCaretAnchor('break');
-	const glyph = () => span('md-hard-break', '');
+	const glyph = () => {
+		const el = span('md-hard-break', '');
+		el.setAttribute('data-pending-break', '');
+		return el;
+	};
 
 	it('keeps the text’s end as the last landable offset', () => {
 		const block = mountBlock({ mode: 'live' }, text('abc'), glyph(), breakAnchor(), breakAnchor());

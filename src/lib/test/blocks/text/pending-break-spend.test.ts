@@ -97,6 +97,21 @@ describe.each(MODES)('%s mode: the insertion after Shift+Enter at the end', (mod
 	});
 });
 
+describe('live mode: Shift+Enter in front of a hidden closer at the end', () => {
+	// The caret paints at the line's end whichever side of the hidden `**` it reads.
+	it('opens the line past the closer', async () => {
+		const editor = mountEditor({ source: 'a **bold**\n', presentationMode: 'live' });
+		const el = surfaceAt(editor, [0]);
+		placeCaret(el, 8);
+		await pressKey(el, { key: 'Enter', shiftKey: true });
+		expect(editor.source()).toBe('a **bold**\n');
+
+		await pressKey(el, { key: 'x' });
+
+		expect(editor.source()).toBe('a **bold**\\\nx\n');
+	});
+});
+
 describe.each(MODES)('%s mode: Shift+Enter where the line ends in structure', (mode) => {
 	it.each([
 		['a heading’s closing run stays on the heading’s line', '# Hi #\n', 6, '# Hi\\ #\nw\n'],

@@ -17,6 +17,7 @@ import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { asPresentationMode } from '$lib/presentation-mode';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
@@ -63,7 +64,6 @@ export function makeEdgeDispatch(
 		}
 	};
 	const deps: EdgePolicyDispatchDeps = {
-		lineEnding: () => '\n',
 		get node() {
 			return readNode();
 		},
@@ -92,7 +92,8 @@ export function makeEdgeDispatch(
 			blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: () => keyCaret,
-			requestCaret
+			requestCaret,
+			holdInsertion: () => holdInsertion([], {}, null)
 		}),
 		completeMarker: () => markerWrites.push(readNode()),
 		setSnapTarget: () => {},

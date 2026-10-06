@@ -9,6 +9,7 @@ import type { NodeView } from '$lib/core/node-views';
 import { createSurfaceWrite, type TextWrite } from '$lib/components/blocks/surface-write';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { stubBlockEdit } from '$lib/testing/headless-actions';
+import { holdInsertion } from '$lib/cursor/next-insertion';
 
 const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	intent: 'typed',
@@ -32,7 +33,8 @@ function writerOver(raw: string, keepsCaret: boolean) {
 		blockEdit,
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		getPreEditOffset: () => 0,
-		requestCaret
+		requestCaret,
+		holdInsertion: () => holdInsertion([], {}, null)
 	});
 	return { writeText, requestCaret };
 }
