@@ -120,8 +120,8 @@ const PINNED: Record<string, Pin> = {
 		why: 'a reparse that backfilled an empty container, a new node below the scope'
 	},
 	'src/lib/tree-operations/list/list-builders.ts': {
-		calls: { rebuildListItemRaw: 2, rebuildListRaw: 1 },
-		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item from its opener line when its first line widens its marker'
+		calls: { rebuildListItemRaw: 3, rebuildListRaw: 1 },
+		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item whose first line widens its marker or opens below an empty one'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
 		calls: { rebuildListItemRaw: 4 },

@@ -215,7 +215,7 @@ Over a selection the same chord writes bytes at once, in every mode. Its questio
 What happens to delimiters an edit cuts through or empties. Splits first:
 
 ```ts
-// stores: where each half lands (a store is § 4.5's). The first half stays in the block's own
+// stores: where each half lands (§ 4.5 says what a store is). The first half stays in the block's own
 // slot and the second goes in after it, so here both read as top-level paragraphs.
 const node = parse('Some **bold** text\n').children[0];
 rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', stores);

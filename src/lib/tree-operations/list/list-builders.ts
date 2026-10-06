@@ -7,7 +7,13 @@ import {
 	type ListMetadata
 } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { trailingLineEnding, type LineEnding } from '../../core/lines';
+import {
+	indentColumns,
+	isBlankLine,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { readItemShape } from '../../core/parsers/list';
 import { cloneMetadata, cloneNode } from '../clone';
@@ -95,8 +101,8 @@ function mintListItem(
 	};
 	if (children[0]) children[0].leadingTrivia = '';
 	rebuildListItemRaw(item);
-	// Bytes that read as no item are written where they read as this one (`docs/design/editor.md`
-	// § 9): under the marker their first line widens, else below an empty marker line.
+	// A first line the marker line doesn't hold as this item takes the wider marker it reads as,
+	// or else opens below an empty marker (`docs/design/editor.md` § 9).
 	if (adoptOwnReading(item, grammar)) return item;
 	if (takeWidenedMarker(item, grammar) && adoptOwnReading(item, grammar)) return item;
 	openBelowMarker(item);
@@ -105,15 +111,31 @@ function mintListItem(
 }
 
 /** `item` takes the marker its first line reads as, the spaces it widens over moving off the
- *  first block, and writes its other lines at that marker's content column. */
+ *  first block, and its lines at its content column move with that column. */
 function takeWidenedMarker(item: CstNode, grammar: GrammarView): boolean {
 	const widened = markerLineWidening(item, grammar);
 	if (!widened) return false;
+	const column = (readItemShape(item.raw)?.indent.length ?? 0) + widened.width.from;
 	const first = item.children![0];
 	item.metadata = widened.metadata;
 	first.raw = first.raw.slice(widened.taken);
-	rewriteFromOpener(item);
+	item.raw = shiftedBelowFirst(item.raw, column, widened.width.to - widened.width.from);
+	rebuildListItemRaw(item);
 	return true;
+}
+
+/** `raw` with every line after the first that sits at `column` moved `grow` columns right; a
+ *  blank line, or a lazy one left of the column, continues where it stands. */
+function shiftedBelowFirst(raw: string, column: number, grow: number): string {
+	if (grow <= 0) return raw;
+	const lines = raw.split(/(?<=\n)/);
+	const pad = ' '.repeat(grow);
+	for (let i = 1; i < lines.length; i++) {
+		const line = lines[i];
+		if (!isBlankLine(trimTrailingLineEnding(line)) && indentColumns(line) >= column)
+			lines[i] = pad + line;
+	}
+	return lines.join('');
 }
 
 /** `item` with an empty first line, its blocks below it: a first line no marker holds (a line of

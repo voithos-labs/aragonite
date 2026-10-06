@@ -1946,9 +1946,10 @@ G4.82b rows), with G1.42 as the runtime half.
 
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
 reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`
-(in a list item's first slot, behind its whole marker line, checkbox included, every byte kept). A caller that only knows a path or a
-slot gets the same reader from `slotReaderAt` or `childSlotAt`, and there's no plain reader to
-reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
+(in a list item's first slot, behind its whole marker line, checkbox included, every byte kept;
+text that doesn't start with whitespace reads the same either way, so only text that does pays
+for the marker line). A caller that only knows a path or a slot gets the same reader from
+`slotReaderAt` or `childSlotAt`, and there's no plain reader to reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
 `editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
 front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
 `lint/manifest-rules.test.ts`.
@@ -1957,11 +1958,13 @@ front of, or the paste's re-read of a clipboard block, which keeps the kind the 
 answers four things about a position: whether it stores a block or plain text (a table cell), the
 bytes its write rules would keep, how a reload reads them there (behind a list item's marker line,
 say), and what a write installs there. It's a branded type, and only
-`tree-operations/stored-as.ts :: storedAsAt` and `storedAsIn` build one, from the tree (`storedAsIn`
-also names a slot no block holds yet, such as a split's second half). So a rewrite can't describe its own position, and nothing
-reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
-it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
-`as StoredAs` cast to that file.
+`tree-operations/stored-as.ts :: storedAsAt` and `storedAsIn` build one, from the tree
+(`storedAsIn` also names a slot no block holds yet, such as a split's second half). So a rewrite
+can't describe its own position, and nothing reads a candidate behind a hand-written copy of the
+container's marker, which drifts from the item it copies (a to-do's box, a marker a leading space
+widens). The one owner built by hand is Enter's new item, whose marker object is the one the item
+itself is built with, so the two can't drift. `lint/file-rules.test.ts` holds the `as StoredAs`
+cast to that file.
 
 **G4.85 · A removing rewrite reads through the store.** The join cleanup and the edge delete read
 every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their

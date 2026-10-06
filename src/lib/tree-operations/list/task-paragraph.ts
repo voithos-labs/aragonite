@@ -35,7 +35,11 @@ export function fragmentReaderAt(
 ): FragmentReader {
 	const meta = index === 0 && owner?.kind === 'listItem' ? metadataOf(owner, 'listItem') : null;
 	if (meta) {
-		return (text) => readBehindMarkerLine(meta, text, grammar) ?? readItemBody(meta, text, grammar);
+		// The marker line reads text as the body does unless it starts with whitespace the marker
+		// can take (`first-slot-reading.property.test.ts`), so only that text pays for the probe.
+		return (text) =>
+			(/^\s/.test(text) ? readBehindMarkerLine(meta, text, grammar) : null) ??
+			readItemBody(meta, text, grammar);
 	}
 	// Fragment scope: these are one block's bytes, so a kind that depends on document position
 	// must not be produced here.
@@ -64,11 +68,11 @@ interface MarkerLineRead {
 }
 
 /** The marker and checkbox an item's first line reads as when its first block's leading spaces
- *  widen them, and how many spaces they take off that block; null when the line keeps its own. */
+ *  widen them, the spaces they take off that block, and the marker's width before and after. */
 export function markerLineWidening(
 	item: NodeView,
 	grammar: GrammarView
-): { metadata: ListItemMetadata; taken: number } | null {
+): { metadata: ListItemMetadata; taken: number; width: { from: number; to: number } } | null {
 	const meta = metadataOf(item, 'listItem');
 	const first = item.children?.[0];
 	if (!meta || !first) return null;
@@ -79,10 +83,11 @@ export function markerLineWidening(
 		grammar
 	);
 	if (!read) return null;
-	const width = (m: ListItemMetadata) => m.marker.length + (m.taskMarker?.length ?? 0);
-	const taken = width(read.metadata) - width(meta);
+	const lineWidth = (m: ListItemMetadata) => m.marker.length + (m.taskMarker?.length ?? 0);
+	const taken = lineWidth(read.metadata) - lineWidth(meta);
 	if (taken <= 0 || !/^[ \t]+$/.test(first.raw.slice(0, taken))) return null;
-	return { metadata: read.metadata, taken };
+	const width = { from: meta.marker.length, to: read.metadata.marker.length };
+	return { metadata: read.metadata, taken, width };
 }
 
 /** `text` behind `meta`'s marker line, as one item holding the same checkbox, or null. */

@@ -1155,6 +1155,8 @@ const RULES: FileRule[] = [
 		allowed: {
 			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
 			'src/lib/tree-operations/list/ordered-markers.ts': 'renumbers an ordered list',
+			'src/lib/tree-operations/list/task-paragraph.ts':
+				'measures how far a new item’s first line widens its marker, for the item to take it',
 			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
 			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
 			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',
