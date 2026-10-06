@@ -14,6 +14,7 @@
 	} from '../selection/primitives';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 	import { mergeRectsPerLine, reachLineEdges, type LocalRect } from '../cursor/overlay-rects';
+	import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 
 	let {
 		path,
@@ -61,6 +62,15 @@
 
 	let endpointRects: LocalRect[] = $state([]);
 
+	// Read off the block's text, since a heading or a code block sets its own; NaN for `normal`.
+	function textLineHeight(host: HTMLElement): number {
+		const text =
+			host.querySelector<HTMLElement>(
+				`[contenteditable="true"]:not([${WHOLE_BLOCK_INPUT_ATTR}])`
+			) ?? host;
+		return parseFloat(getComputedStyle(text).lineHeight);
+	}
+
 	$effect(() => {
 		if (!paintsEndpoints) {
 			endpointRects = [];
@@ -90,7 +100,7 @@
 				}))
 			);
 			endpointRects = textSide
-				? reachLineEdges(lines, textSide, blockRect.width, blockRect.height)
+				? reachLineEdges(lines, textSide, blockRect.width, blockRect.height, textLineHeight(el))
 				: lines;
 		}
 

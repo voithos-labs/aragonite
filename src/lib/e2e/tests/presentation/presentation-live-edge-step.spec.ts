@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import type { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { enterPresentationMode, focusPath } from './helpers';
 import { textRunEnd } from '../../text-runs';
@@ -214,5 +214,62 @@ test.describe("live mode: a code span's backticks stay hidden", () => {
 			await expect.poll(() => backticks(page)).toEqual(['none', 'none']);
 			await expect.poll(() => held(page)).toEqual(['code']);
 		});
+	}
+});
+
+/** Whether the ringed construct draws the ring's colour around itself, read off its computed style,
+ *  with the ring and the code chip's border colours from the editor's own theme. */
+async function ringPaint(page: Page): Promise<{ shown: boolean; ring: string; border: string }> {
+	return page.evaluate(() => {
+		const theme = document.querySelector('.aragonite-editor-theme');
+		if (!theme) throw new Error('no themed wrapper');
+		const probe = document.createElement('span');
+		theme.appendChild(probe);
+		probe.style.color = 'var(--md-edge-held-ring)';
+		const ring = getComputedStyle(probe).color;
+		probe.style.color = 'var(--md-inline-code-border)';
+		const border = getComputedStyle(probe).color;
+		probe.remove();
+		const held = document.querySelector('.md-edge-held');
+		if (!held) return { shown: false, ring, border };
+		const style = getComputedStyle(held);
+		const outlined =
+			style.outlineStyle !== 'none' &&
+			parseFloat(style.outlineWidth) > 0 &&
+			style.outlineColor === ring;
+		const shadowed = style.boxShadow
+			.split(/,(?![^(]*\))/)
+			.some((shadow) => shadow.includes(ring) && !shadow.includes('inset'));
+		return { shown: outlined || shadowed, ring, border };
+	});
+}
+
+test.describe('live mode: the ring paints on every symmetric pair, in both themes', () => {
+	const DOC = [
+		'`alone`',
+		'',
+		'a `code` b',
+		'',
+		'a **bold** b',
+		'',
+		'a *em* b',
+		'',
+		'a ~~gone~~ b'
+	].join('\n');
+
+	for (const theme of ['light', 'dark']) {
+		for (const word of ['alone', 'code', 'bold', 'em', 'gone']) {
+			test(`${theme}: at the end of ${word}`, async ({ page }) => {
+				const ep = new EditorPage(page);
+				await ep.goto(`?presentationMode=live&theme=${theme}`);
+				await ep.loadContent(DOC);
+				await clickEnd(ep, page, word);
+				await expect.poll(async () => (await held(page)).length).toBe(1);
+
+				const paint = await ringPaint(page);
+				expect(paint.shown).toBe(true);
+				expect(paint.ring).not.toBe(paint.border);
+			});
+		}
 	}
 });
