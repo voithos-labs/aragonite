@@ -6,10 +6,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { SOURCE } from './source-paths';
 
 const README = path.resolve('README.md');
 const GUIDE = path.resolve('docs/guide/consumer-guide.md');
-const ROUTE = path.resolve('examples/consumer/src/routes/quickstart/+page.svelte');
+const ROUTE = path.resolve(SOURCE.consumerQuickstartRoute);
 
 /** The body of the first ```svelte fence in a markdown file. */
 function firstSvelteFence(file: string): string {

@@ -125,7 +125,8 @@ export const SOURCE = {
 	showcaseRoute: 'src/routes/+page.svelte',
 	calloutReferenceKind: 'src/routes/test/plugins/callout/callout-kind.ts',
 	memoReferenceBlock: 'src/routes/test/plugins/memo/MemoBlock.svelte',
-	consumerPluginProbe: 'examples/consumer/src/plugin-probe.ts'
+	consumerPluginProbe: 'examples/consumer/src/plugin-probe.ts',
+	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte'
 } as const;
 
 /** The directories the scans walk or bind by prefix. */

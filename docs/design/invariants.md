@@ -2170,7 +2170,7 @@ so the range indent (`selection/cross-block/range-indent.ts`) opens its own step
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
 later, since a held one fires against whatever document is there by then (the write gate refuses
 a write made for a swapped-out document, `editor.md` § The commit primitive). The typing batch only groups undo steps and has no way to emit. `input` also promises the
-block kept its kind, which `components/lrd-map-gate.ts` relies on and can't check, so only the
+block kept its kind, which `components/link-reference-map.ts` relies on and can't check, so only the
 in-place write (`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares
 it. `lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere
 else, a second one beside an allowed one, or a second `input` declaration fails it.

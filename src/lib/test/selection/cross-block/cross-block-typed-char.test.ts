@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { lrdMapCouldChange } from '$lib/components/link-reference-map';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { serialize } from '$lib/core/serializer';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { lrdMapCouldChange } from '$lib/components/link-reference-map';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 

@@ -1,7 +1,7 @@
 /**
  * Which top-level directory of `src/lib` may import which (G4.122). Production imports are read
  * into a directory graph and held to the edges `directory-layering-baseline.ts` lists, both ways:
- * a new edge fails, and so does a listed edge that no longer exists, so the list only shrinks.
+ * a new edge fails, and so does a listed edge that is gone, so the list only shrinks.
  */
 
 import { describe, it, expect } from 'vitest';
