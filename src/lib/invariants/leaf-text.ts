@@ -4,6 +4,7 @@
 
 import type { NodeView } from '../core/node-views';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getContentRange } from '../core/inline';
 
 export function leafTexts(nodes: readonly NodeView[]): string[] {
 	const texts: string[] = [];
@@ -39,10 +40,10 @@ export function leafTextAround(
 /** A leaf's text as its kind reads it: its write rule's text, else its content span. */
 function textOf(node: NodeView): string {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const span = descriptor?.getContentRange?.(node);
-	const text =
-		descriptor?.rawWrite?.text?.(node.raw) ??
-		(span ? node.raw.slice(span.start, span.end) : node.raw);
+	// An unregistered kind has no content span to read, so all of it is text.
+	if (!descriptor) return node.raw.replace(/\s+/g, '');
+	const span = getContentRange(node);
+	const text = descriptor.rawWrite?.text?.(node.raw) ?? node.raw.slice(span.start, span.end);
 	return text.replace(/\s+/g, '');
 }
 

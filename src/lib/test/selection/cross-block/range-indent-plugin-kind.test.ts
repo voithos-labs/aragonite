@@ -22,6 +22,9 @@ import {
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import RevealLeafBlock from '../../blocks/fixtures/RevealLeafBlock.svelte';
 import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
+import { testContainer } from '$lib/test/harness/test-kinds';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
+import type { AnyCommandId } from '$lib/schema/command-id';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -73,5 +76,17 @@ describe('Tab over a range holding a plugin kind with its own indent', () => {
 
 		expect(mounted.source()).toBe('para\n\n@@ \tone\n\n@@ \ttwo\n');
 		expect(mounted.instance.__test.getUndoStack().undo).toHaveLength(1);
+	});
+});
+
+// Miss-analysis: a lines form on a container kind registered quietly and was never read, since a
+// range indent reads lines forms at the leaf holding the text.
+describe('registerRangeIndent on a container kind', () => {
+	it('warns, since no range indent ever reads it', () => {
+		const kind = testContainer('quote-box', { rebuildRaw: () => {} });
+
+		registerRangeIndent(kind, 'quoteBox.indent' as AnyCommandId, () => null);
+
+		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['registry']);
 	});
 });

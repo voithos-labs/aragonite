@@ -8,13 +8,10 @@ import type { NodeView } from '../core/node-views';
 import type { AnyCommandId } from './command-id';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
+import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { devWarn } from '../dev-warn';
 
 // ── Public API ─────────────────────────────────────────────────────────────
-
-export interface TextSpan {
-	start: number;
-	end: number;
-}
 
 /**
  * Shifts the lines `range` covers in `node`'s text (its raw less the final line ending) one step,
@@ -22,8 +19,8 @@ export interface TextSpan {
  */
 export type RangeLineShift = (
 	node: NodeView,
-	range: TextSpan
-) => { text: string; selection: TextSpan } | null;
+	range: { start: number; end: number }
+) => { text: string; selection: { start: number; end: number } } | null;
 
 export type RangeIndentForm = { lines: RangeLineShift } | { item: 'nest' | 'lift' };
 
@@ -36,6 +33,13 @@ export function registerRangeIndent(
 	command: AnyCommandId,
 	shift: RangeLineShift
 ): void {
+	// A range indent reads a lines form at the leaf holding the text, never at a container.
+	if (tryGetBlockKindDescriptor(kind)?.isContainer) {
+		devWarn(
+			'registry',
+			`registerRangeIndent: "${kind}" is a container, so this form is never read`
+		);
+	}
 	forms.register(
 		keyOf(kind, command),
 		{ command, form: { lines: shift } },
