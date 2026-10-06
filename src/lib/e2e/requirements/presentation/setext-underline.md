@@ -12,8 +12,9 @@ line, or what a hard break at the title's end writes (GH #468).
 ## Happy paths
 
 - source mode shows the underline under the title; live mode shows the title alone
-- Shift+Enter at the title's end, in source and live mode, keeps the heading (`Plan\` over `===`),
-  and the next key starts its second line under the break, above the underline
+- Shift+Enter at the title's end, in source and live mode, writes nothing yet, and the next key
+  starts the heading's second line under the break, above the underline (`Plan\` over `x` over
+  `===`)
 
 ## Edge cases
 

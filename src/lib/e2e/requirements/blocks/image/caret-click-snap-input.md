@@ -6,8 +6,8 @@ After click-snap places the caret at a widget boundary, printable input has to l
 
 - After click-snap places the caret at an image's trailing edge, typing a printable character inserts it into the source immediately after the image
 - Typing after a click-snap continues where the edit left off: `pendingCursorOffset` restores the caret after the CST update, so the second character lands right beside the first, with no jump back to the start of the paragraph
-- Shift+Enter at image.end inserts the hard break immediately after the image source, not at offset 0 of the inner paragraph
-- Shift+Enter still lands the break after the image source when the browser has dropped the caret between the click and the keystroke: the snap target the click set is the offset the keydown reads
+- Shift+Enter at image.end, then a key, puts the hard break immediately after the image source, not at offset 0 of the inner paragraph (Shift+Enter at the end writes nothing until that key)
+- Shift+Enter still puts the break after the image source when the browser has dropped the caret between the click and the keystroke: the snap target the click set is the offset the keydown reads
   - Miss-analysis: the specs that drop the range drop it inside the same `evaluate` that dispatches the event, so the editor's own `selectionchange` handler had never run before a key was pressed, and a handler that threw the snap target away on `rangeCount === 0` passed every one of them
 - Paste in click-snap state lands at the snap target offset, not at offset 0
 
