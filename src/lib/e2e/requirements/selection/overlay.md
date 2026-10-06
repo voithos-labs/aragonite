@@ -40,6 +40,17 @@
   - Miss-analysis: the endpoint rects were only ever checked for being there and for staying inside
     their block, so nothing compared the ends' paint with the boxes of the blocks between
 
+- An end's own line paints its whole line, the gap above and below the text included, not just
+  the height of the letters. A one-line quote you start mid-text paints from the start point to
+  the right edge over the quote's full height, and nothing under the words before the start point;
+  a one-line list item you end mid-text paints from its left edge to the end point the same way,
+  and nothing over the words after it. In a wrapped paragraph the strip under a start's line (or
+  over an end's line) begins past that line's own gap, so no tint touches the unselected words, in
+  source mode and in live mode
+  - Miss-analysis: the line-edge rows checked only that the paint reached the block's edges, and
+    the unit rows set each line's letters flush with the next, so no test looked at the gap a
+    line keeps around its letters, where the strip painted under the unselected words
+
 ## Error / degenerate cases
 
 - Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity
