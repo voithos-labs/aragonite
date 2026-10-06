@@ -53,3 +53,25 @@ describe.each(INSERTION_ROUTES)('typed by %s', (route) => {
 		expect(editor.source()).toBe('a **two **\n');
 	});
 });
+
+// Chromium aims a key typed past a hidden closer back at its start. Miss-analysis: the keydown
+// wrote every delimiter there, so no row met a `beforeinput` target the caret disagreed with.
+describe('a delimiter whose browser target sits across a hidden run from the caret', () => {
+	it('pairs at the caret', async () => {
+		const { editor, el } = caretIn('x **b** y\n', 5);
+		const target = window.getSelection()!.getRangeAt(0).cloneRange();
+		placeCaret(el, 7);
+		const e = new InputEvent('beforeinput', {
+			inputType: 'insertText',
+			data: '`',
+			bubbles: true,
+			cancelable: true
+		});
+		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
+
+		el.dispatchEvent(e);
+		await editor.settle();
+
+		expect(editor.source()).toMatch(/``/);
+	});
+});

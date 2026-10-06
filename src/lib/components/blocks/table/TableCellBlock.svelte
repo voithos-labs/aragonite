@@ -794,8 +794,10 @@
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (handleLiveSelectionEdit(e)) return;
+		// Ahead of the live range edit, which would write a delimiter typed at a collapsed caret as a
+		// lone byte, its partner missing.
 		if (handleDelimiterAutoPair(e)) return;
+		if (handleLiveSelectionEdit(e)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.

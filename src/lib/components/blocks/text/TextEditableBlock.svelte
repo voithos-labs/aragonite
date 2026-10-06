@@ -954,8 +954,10 @@
 	}
 
 	function onBeforeInput(e: InputEvent): void {
-		if (handleLiveSelectionEdit(e)) return;
+		// Ahead of the live range edit, which would write a delimiter typed at a collapsed caret as a
+		// lone byte, its partner missing.
 		if (handleDelimiterAutoPair(e)) return;
+		if (handleLiveSelectionEdit(e)) return;
 		// An `insertLineBreak` from a soft keyboard or IME got past `onKeyDown`: consume it, since
 		// Shift+Enter is what makes a hard break.
 		if (e.inputType === 'insertLineBreak') {
