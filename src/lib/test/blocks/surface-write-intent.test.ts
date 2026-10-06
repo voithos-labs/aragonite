@@ -9,7 +9,7 @@ import { createSurfaceWrite, type WriteIntent } from '$lib/components/blocks/sur
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { stubBlockEdit } from '$lib/testing/headless-actions';
 import { settleEditor } from '$lib/test/harness/settle';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 function writerFor() {
 	const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw: 'ab\n' };
@@ -29,7 +29,7 @@ function writerFor() {
 		kindCue: { afterTypedWrite, labelAt: () => undefined, dismiss: () => {} },
 		getPreEditOffset: () => 0,
 		requestCaret: () => {},
-		holdInsertion: () => holdInsertion([], {}, null)
+		holdInsertion: () => createInsertionRecords([]).hold({}, null)
 	});
 	return { writeText, afterTypedWrite, completeLineOnType };
 }

@@ -12,7 +12,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 import type { BlockEditActions } from '$lib/action-contracts';
 import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;
@@ -64,7 +64,7 @@ export function harness(
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 			getPreEditOffset: trap,
 			requestCaret: (at) => void carets.push(at),
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		}),
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,

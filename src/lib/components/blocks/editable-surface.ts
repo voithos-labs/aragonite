@@ -33,14 +33,16 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../selection/caret-doors';
 import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { SurfaceBackend } from '../../cursor/surface-backend';
-import type { HeldInsertion } from '../../cursor/next-insertion';
+import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
 import type { BlockPendingBreak } from '../../cursor/pending-break.svelte';
+import type { HeldSpaceView } from '../../cursor/held-space';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import {
 	documentLineEnding,
 	normalizeLineEndings,
 	trailingLineEnding,
+	trimTrailingLineEnding,
 	type LineEnding
 } from '../../core/lines';
 import type { KindCue } from '../kind-cue.svelte';
@@ -195,12 +197,15 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
 	readText: () => string;
-	/** Where live mode puts a composed run: an IME's beforeinput is not cancelable, so the byte
-	 *  move a keystroke gets at keydown happens at this commit. Null keeps the text as read. */
+	/** What a composed run's commit writes when the composition opened over a range or with pending
+	 *  marks, both captured at its start; null keeps the text as read. */
 	relocateComposedText?: (
 		after: string,
 		composedAt: number
 	) => { raw: string; caret: number } | null;
+	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
+	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
+	placeInsertion?: PlaceInsertion;
 	/** Runs before the shared input commit (the text block resets its snap target here). */
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
@@ -227,6 +232,8 @@ export interface EditableSurface {
 	lineEnding(): LineEnding;
 	/** The line Shift+Enter at the block's end opened, which this block's next insertion spends. */
 	pendingBreak: BlockPendingBreak;
+	/** A space typed at a hidden closer here, which the next letter takes back inside. */
+	heldSpace: HeldSpaceView;
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
@@ -273,6 +280,7 @@ export interface EditableSurfaceMethods {
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
+	typeText(text: string, offset: number): Promise<boolean>;
 }
 
 export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurface {
@@ -379,6 +387,19 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		);
 	}
 
+	// The write a typed character makes, for text typed over a range once the range is gone.
+	function typeText(text: string, offset: number): Promise<boolean> {
+		const display = trimTrailingLineEnding(deps.getNode().raw);
+		preEditOffset = offset;
+		return writeText({
+			text: display.slice(0, offset) + text + display.slice(offset),
+			caretAfter: offset + text.length,
+			intent: 'typed',
+			mode: 'authored',
+			source: 'typed-over-range'
+		});
+	}
+
 	const surface: EditableSurfaceMethods = {
 		focus,
 		parkCaret,
@@ -386,7 +407,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset,
 		getSelectedText,
 		setSelection,
-		measurePartialRects
+		measurePartialRects,
+		typeText
 	};
 
 	// ── Input and composition ─────────────────────────────────────────────────
@@ -406,7 +428,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// This block's identity in the caret memory, so a record left here is spent only here.
 	const block = {};
-	const holdInsertion = (): HeldInsertion => deps.caretMemory.holdInsertion(block);
+	const holdInsertion = (): HeldInsertion =>
+		deps.caretMemory.holdInsertion(block, deps.placeInsertion);
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,
@@ -463,29 +486,32 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
-		const held = fromComposition ? heldForComposition : null;
+		// Held before `noteTyping` resets the caret's side, which places the insertion.
+		const held = fromComposition ? heldForComposition : holdInsertion();
 		if (fromComposition) heldForComposition = null;
-		if (deps.isInputSuppressed?.()) return held?.finish(true);
+		// Nothing reaches the text: a composition's records end with it, typing's wait on.
+		const unwritten = () => held?.finish(fromComposition);
+		if (deps.isInputSuppressed?.()) return unwritten();
 		deps.inputPrelude?.();
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
-		if (deps.getComposing() || !el) return held?.finish(true);
+		if (deps.getComposing() || !el) return unwritten();
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
-		// The keydown branches' mode check: a block that draws its delimiters keeps the reading
-		// verbatim, and so does a run composed where a record waits, which is that record's insertion.
-		const seated =
+		// A block that draws its delimiters keeps the reading verbatim, and so does a run composed
+		// where a record waits, which is that record's insertion.
+		const rewritten =
 			fromComposition && revealsNoMarkers(el) && !held?.waitsAt(preEditOffset)
 				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
 				: null;
-		// Let go untouched, so the commit's own write holds the records again and spends them.
-		held?.finish(false);
 		void writeText({
-			text: seated?.raw ?? text,
-			caretAfter: seated?.caret ?? savedOffset,
+			text: rewritten?.raw ?? text,
+			caretAfter: rewritten?.caret ?? savedOffset,
 			intent: 'typed',
 			mode: 'authored',
-			source: fromComposition ? 'composition' : 'input'
+			source: fromComposition ? 'composition' : 'input',
+			...(rewritten ? { inPlace: true } : {}),
+			...(held ? { held } : {})
 		});
 	}
 
@@ -539,6 +565,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		writeText,
 		lineEnding,
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
+		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
 		command,
 		onKeyDown,
 		onBeforeInput,

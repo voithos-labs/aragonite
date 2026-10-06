@@ -73,7 +73,7 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// Keydown decides where a byte lands at a hidden edge; auto-pairing still adds the pair.
+	// The byte lands past the closer, and the auto-pair still writes its partner there.
 	test('a delimiter typed at the trailing edge from outside lands its paired closer past the closer', async ({
 		page
 	}) => {
@@ -103,8 +103,8 @@ test.describe('every mode that paints the closer: typing it steps past it', () =
 	}
 });
 
-// A backtick typed at a hidden closer is written by the keydown path, which records the pair as
-// the auto-pair's own just as the `beforeinput` path does: Backspace between the two takes both.
+// A backtick typed at a hidden closer pairs where it lands, and the auto-pair records the pair as
+// its own: Backspace between the two takes both.
 test('live mode: Backspace takes both of a pair written at a hidden closer', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', 'x **b** y\n');
 	await ep.focusBlock(0, 7);

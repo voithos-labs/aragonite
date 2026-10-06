@@ -8,7 +8,7 @@ import {
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 import type { ClipboardArm } from '../../components/blocks/clipboard-step';
-import { holdInsertion } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 interface Recorder {
 	log: string[];
@@ -72,7 +72,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 			recordPreEditOffset: () => void log.push('record'),
 			getPreEditOffset: () => 0,
 			getSelection: () => null,
-			holdInsertion: () => holdInsertion([], {}, null)
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		events: { on: () => () => {}, emit: () => {} },
 		onPasteImage: undefined,

@@ -10,16 +10,20 @@ import { insertsAt, type InsertionRecord, type TextEdit } from './next-insertion
 
 export interface PendingBreak extends InsertionRecord {
 	/** One block's view of the break; `block` is the identity its writes take the break with. */
-	forBlock(block: object): BlockPendingBreak;
+	forBlock(block: object): OpenLines;
 }
 
-export interface BlockPendingBreak {
+/** One block's open lines, without the end, which goes through the caret memory's records. */
+export interface OpenLines {
 	/** How many lines are open in this block: 0, or one per Shift+Enter. Reactive. */
 	lines(): number;
 	/** The offset the open line's caret sits at, or null when no line is open here. */
 	at(): number | null;
 	/** Shift+Enter at the line's end: opens a line there, or one more when one is open there. */
 	open(line: BreakLine): void;
+}
+
+export interface BlockPendingBreak extends OpenLines {
 	/** Ends the break when it is this block's. */
 	end(): void;
 }
@@ -39,8 +43,6 @@ interface OpenBreak extends BreakLine {
 
 export function createPendingBreak(): PendingBreak {
 	let open = $state.raw<OpenBreak | null>(null);
-	// A write in progress holds the break: it stays drawn, and only that write lets it go.
-	let held = false;
 
 	return {
 		forBlock: (block) => ({
@@ -49,29 +51,24 @@ export function createPendingBreak(): PendingBreak {
 			open: (line) => {
 				const more = open?.block === block && open.lineEnd === line.lineEnd;
 				open = { ...line, block, count: more ? open!.count + 1 : 1 };
-				held = false;
-			},
-			end: () => {
-				if (open?.block === block && !held) open = null;
 			}
 		}),
 		take: (block) => {
 			const taken = open;
-			if (taken?.block !== block || held) return null;
-			held = true;
+			if (taken?.block !== block) return null;
 			return {
 				at: taken.lineEnd,
 				apply: (before, edit) =>
 					insertsAt(before, edit.text, taken.lineEnd) ? spent(taken, edit) : null,
 				release: (waiting) => {
-					if (open !== taken) return;
-					held = false;
-					if (!waiting) open = null;
+					if (open === taken && !waiting) open = null;
 				}
 			};
 		},
-		end: () => {
-			if (open !== null && !held) open = null;
+		end: (block) => {
+			// Written only when it changes: the caret memory forgets during teardown, where a write
+			// to reactive state throws.
+			if (open !== null && (block === undefined || open.block === block)) open = null;
 		}
 	};
 }

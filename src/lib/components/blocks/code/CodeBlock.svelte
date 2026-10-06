@@ -137,6 +137,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const typeText = editableSurface.surface.typeText;
 
 	// ── Render pipeline ───────────────────────────────────────────────────────
 

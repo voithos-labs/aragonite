@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 // What one composition captures, from `noteStart` to the commit: the values the commit itself has
-// already overwritten by the time the composed run arrives. Where that run moves to is
-// `edge-seat`'s suite; the mode check lives in the block (`editable-surface-composition-seat`).
+// already overwritten by the time the composed run arrives. A plain run is the block write's to
+// place, like any insertion (`insertion-route-parity`); the mode check lives in the block.
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import { screenVisibility } from '$lib/core/inline/visibility';
 import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
@@ -19,7 +17,6 @@ interface Live {
 	/** Kept at the parse from before the composition, as in production: commits are skipped
 	 *  while one runs, so the component's live read still answers with the old tree. */
 	inlines: ReturnType<typeof parseInline>;
-	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
 	range: { start: number; end: number } | null;
 	rangeEdits: Array<{ range: { start: number; end: number }; typed: string }>;
@@ -30,8 +27,6 @@ function makeSeat(live: Live, pending?: PendingMarks) {
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
 		reading: fixtureReading(),
-		getAffinity: () => live.affinity,
-		getScreen: () => screenVisibility('live', { chromePaints: false }),
 		consumePendingMarks: () => pending?.consume() ?? live.marks,
 		restorePendingMarks: (marks) => pending?.restore(marks),
 		getRawSelection: () => live.range,
@@ -42,11 +37,10 @@ function makeSeat(live: Live, pending?: PendingMarks) {
 	});
 }
 
-function liveState(display: string, affinity: EdgeAffinity | null = null): Live {
+function liveState(display: string): Live {
 	return {
 		display,
 		inlines: parseInline(display, 0, display.length),
-		affinity,
 		marks: null,
 		range: null,
 		rangeEdits: []
@@ -54,32 +48,35 @@ function liveState(display: string, affinity: EdgeAffinity | null = null): Live 
 }
 
 describe('the window is captured at noteStart, not read at the commit', () => {
-	it('relocates against the display and affinity the composition opened at', () => {
-		const live = liveState(BOLD, 'far');
+	it('wraps against the display the composition opened at', () => {
+		const live = liveState('hello');
+		live.marks = new Set<InlineMarkKind>(['strong']);
 		const seat = makeSeat(live);
 		seat.noteStart();
-		// The block's own `compositionstart` resets the arrival side, and the DOM moves too.
-		live.affinity = 'near';
 		live.display = 'unrelated';
-		expect(seat.relocate('Some **boldかん** text', 11)).toEqual({
-			raw: 'Some **bold**かん text',
-			caret: 15
-		});
+		expect(seat.relocate('helloかん', 5)).toEqual({ raw: 'hello**かん**', caret: 9 });
+	});
+
+	it('leaves a plain run to the write, which places it like any insertion', () => {
+		const seat = makeSeat(liveState(BOLD));
+		seat.noteStart();
+		expect(seat.relocate('Some **boldかん** text', 11)).toBeNull();
 	});
 
 	it('answers null outside a window: before any start, and after noteEnd', () => {
-		const live = liveState(BOLD, 'far');
+		const live = liveState('hello');
+		live.marks = new Set<InlineMarkKind>(['strong']);
 		const seat = makeSeat(live);
-		expect(seat.relocate('Some **boldかん** text', 11)).toBeNull();
+		expect(seat.relocate('helloかん', 5)).toBeNull();
 		seat.noteStart();
 		seat.noteEnd();
-		expect(seat.relocate('Some **boldかん** text', 11)).toBeNull();
+		expect(seat.relocate('helloかん', 5)).toBeNull();
 	});
 });
 
 describe('pending marks beat the arrival side', () => {
 	it('wraps the composed run in the marks the caret chain lacks', () => {
-		const live = liveState('hello', 'far');
+		const live = liveState('hello');
 		live.marks = new Set<InlineMarkKind>(['strong']);
 		const seat = makeSeat(live);
 		seat.noteStart();
@@ -91,7 +88,7 @@ describe('pending marks beat the arrival side', () => {
 // so a cancelled IME run must hand them back for the next insertion.
 describe('a composition that commits nothing returns the marks it took', () => {
 	it('hands back a set no commit spent', () => {
-		const live = liveState('hello', 'far');
+		const live = liveState('hello');
 		const pending = makePendingMarks('strong');
 		const seat = makeSeat(live, pending);
 
@@ -102,7 +99,7 @@ describe('a composition that commits nothing returns the marks it took', () => {
 	});
 
 	it('keeps a set the composition’s own commit spent', () => {
-		const live = liveState('hello', 'far');
+		const live = liveState('hello');
 		const pending = makePendingMarks('strong');
 		const seat = makeSeat(live, pending);
 
@@ -114,7 +111,7 @@ describe('a composition that commits nothing returns the marks it took', () => {
 
 	// A chord pressed while the IME was open is the newer instruction about the same caret.
 	it('declines to overwrite a set pended during the composition', () => {
-		const live = liveState('hello', 'far');
+		const live = liveState('hello');
 		const pending = makePendingMarks('strong');
 		const seat = makeSeat(live, pending);
 
@@ -127,7 +124,7 @@ describe('a composition that commits nothing returns the marks it took', () => {
 
 describe('a selection captured at noteStart routes the commit to the join', () => {
 	it('hands the join the range and the extracted run', () => {
-		const live = liveState(BOLD, 'far');
+		const live = liveState(BOLD);
 		live.range = { start: 5, end: 13 };
 		const seat = makeSeat(live);
 		seat.noteStart();
@@ -136,7 +133,7 @@ describe('a selection captured at noteStart routes the commit to the join', () =
 	});
 
 	it('declines a read that is not a replacement of the captured range', () => {
-		const live = liveState(BOLD, 'far');
+		const live = liveState(BOLD);
 		live.range = { start: 5, end: 13 };
 		const seat = makeSeat(live);
 		seat.noteStart();

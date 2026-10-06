@@ -37,7 +37,7 @@ function mount(
 	const marks = makePendingMarks(...pending);
 	return {
 		...makeEdgeDispatch(node, el, {
-			getEdgeAffinity: () => affinity,
+			side: affinity,
 			pendingMarks: marks
 		}),
 		marks
@@ -89,13 +89,14 @@ describe('a pending mark outranks every arrival rule', () => {
 		expect(h.edits).toEqual([[0, 'Some **bold*X*** text\n', 11, 13]]);
 	});
 
-	it('leaves the caret position in charge once the set is spent', () => {
+	// The next byte is the browser's again, placed by the write as any insertion is.
+	it('leaves the next byte to the side on record once the set is spent', () => {
 		const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
 		h.handleKeydown(key('X'), at(11));
 		h.edits.length = 0;
 
-		expect(h.handleKeydown(key('Y'), at(11))).toBe(true);
-		expect(h.edits).toEqual([[0, 'Some **bold**Y text\n', 11, 14]]);
+		expect(h.handleKeydown(key('Y'), at(11))).toBe(false);
+		expect(h.edits).toHaveLength(0);
 	});
 });
 
