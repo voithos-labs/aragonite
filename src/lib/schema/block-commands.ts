@@ -368,8 +368,18 @@ export function dispatchKeyCommand(
 	ctx: CommandDispatchContext
 ): boolean {
 	const binding = resolveBinding(chord, target.kind, ctx.keybindingOverrides(), ctx.activation);
-	if (!binding) return false;
+	if (!binding || leftUnderLiveRange(binding.command, target, ctx)) return false;
 	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord');
+}
+
+/** A command meant to run once a range is removed, reached by a key the range didn't claim (the
+ *  block it would land in binds the key otherwise): run here, it would write under the live range. */
+function leftUnderLiveRange(
+	id: AnyCommandId,
+	target: KindCommandTarget,
+	ctx: CommandDispatchContext
+): boolean {
+	return ctx.isCrossBlockRange() && commandOverRange(target.kind, id, ctx.activation) !== undefined;
 }
 
 /** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
@@ -382,6 +392,7 @@ export function dispatchKindCommand(
 	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
 	if (!binding || isReadingMode(ctx.getPresentationMode)) return false;
 	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
+	if (leftUnderLiveRange(binding.command, target, ctx)) return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx);
 }
