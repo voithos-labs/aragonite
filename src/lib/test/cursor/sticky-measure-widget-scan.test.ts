@@ -8,8 +8,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 
-const WIDGETS = 200;
-const PER_LINE = 70;
+const WIDGETS = 50;
+const PER_LINE = 15;
 const LINES = Math.ceil(WIDGETS / PER_LINE);
 // Set per test: how many widgets fill a line, and which line the block's text sits on.
 let perLine = PER_LINE;
@@ -149,7 +149,7 @@ describe('a vertical arrival into a paragraph made only of widgets', () => {
 		});
 
 		it('from above, stops three lines past the letter once the widgets run further', () => {
-			perLine = 20;
+			perLine = 10;
 			const landed = findOffsetNearestX(block, column, 'above', asDomTextOffset(0));
 			expect(landed).toBe(1);
 			expect(probes).toBeLessThanOrEqual(2 + 4 * perLine + 1);

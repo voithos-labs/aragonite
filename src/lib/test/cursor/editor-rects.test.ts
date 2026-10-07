@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Geometry is real only in a browser (e2e covers the pixels), but the order `scrollTo` does
 // things in is plain wiring: place before the mount, mount before the scroll. What the placement
 // then does is the scroll owner's, in `scroll-owner-placement.test.ts`.
