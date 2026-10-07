@@ -309,12 +309,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				}
 			});
 			clearSourceHistory();
-			deps.setRevealed?.(true);
+			setRevealed(true);
 		},
 		showRendered: () => {
 			endDraft();
 			clearSourceHistory();
-			deps.setRevealed?.(false);
+			setRevealed(false);
 		}
 	});
 
@@ -372,7 +372,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const edited = deps.getEl()?.textContent ?? sourceText();
 		const open = draft;
 		endDraft();
-		deps.setRevealed!(false);
+		setRevealed(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
 		// component's blur arrives, so the edit lands only where its draft still can.
 		if (open && !open.canWrite()) return;
@@ -431,6 +431,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 		anchorTrailingNewline(el);
 		noteShownSource();
+	}
+
+	// Every open and fold goes through here; a folded source is gone, so the hint judges the node.
+	function setRevealed(value: boolean): void {
+		if (!value) editableSurface.noteShownSource(null);
+		deps.setRevealed?.(value);
 	}
 
 	// A shown render-primary source reaches the node only on blur, so the empty-block hint reads it.
@@ -618,7 +624,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			) {
 				e.preventDefault();
 				endDraft();
-				deps.setRevealed?.(false);
+				setRevealed(false);
 				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;
 			}

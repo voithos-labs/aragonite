@@ -26,6 +26,9 @@ export interface MountedEditor<Seam = unknown> {
 	destroy(): Promise<void>;
 }
 
+/** The test handle's block lookup, for a test that focuses a block through its component. */
+export type BlockLookup = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
+
 const live = new Set<MountedEditor<unknown>>();
 
 export function mountEditor<Seam = unknown>(initial: EditorProps): MountedEditor<Seam> {

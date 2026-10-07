@@ -155,3 +155,33 @@ test('placeholder: an empty heading in source mode paints its hint after the vis
 	expect(paint.before).toBe('none');
 	expect(Math.abs(paint.hintLeft - paint.markerRight)).toBeLessThan(1);
 });
+
+// The preview modes draw the opening fence only on the focused block, so each mode is read focused.
+for (const mode of ['source', 'preview-block', 'live'] as const) {
+	test(`placeholder in ${mode} mode: an empty code block paints its hint on the body line`, async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto(`?presentationMode=${mode}`);
+		await editor.loadContent('```\n\n```\n');
+		await setPlaceholder(page, 'kind');
+		await page.evaluate(() => (window as any).__test.placeCaret([0], 'start'));
+		const el = surfaceAt(page, [0]);
+		await expect(el).toHaveAttribute('data-placeholder', 'Empty fencedCode');
+		const { hintTop, bodyTop } = await el.evaluate((node) => {
+			const hint = getComputedStyle(node, '::before');
+			// A positioned hint's `top` reads as its used value, against its containing block.
+			let box = node.parentElement!;
+			while (getComputedStyle(box).position === 'static') box = box.parentElement!;
+			const edge = box.getBoundingClientRect().top + box.clientTop;
+			// The empty body line is the bare line break between the two fence lines.
+			const line = document.createRange();
+			line.selectNodeContents([...node.childNodes].find((n) => n.nodeType === Node.TEXT_NODE)!);
+			return {
+				hintTop: edge + parseFloat(hint.top) + parseFloat(hint.marginTop),
+				bodyTop: line.getClientRects()[0].top
+			};
+		});
+		expect(Math.abs(hintTop - bodyTop)).toBeLessThan(2);
+	});
+}

@@ -10,6 +10,7 @@ import {
 	placeCaret,
 	pressKeyAt,
 	surfaceAt,
+	type BlockLookup,
 	typeInto,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
@@ -144,15 +145,13 @@ describe('placeholder: the function form', () => {
 });
 
 describe('placeholder: fenced blocks count their body', () => {
-	type Seam = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
-
 	it('a fence with no body line is not empty, so no hint sits over its closing fence', () => {
 		const editor = mountEditor({ source: '```\n```\n', placeholder: echo });
 		expect(hintAt(editor, [0])).toBeNull();
 	});
 
 	it('a shown math source loses its hint on the first letter, before the source commits', async () => {
-		const editor = mountEditor<Seam>({
+		const editor = mountEditor<BlockLookup>({
 			source: '$$\n\n$$\n',
 			plugins: [math],
 			placeholder: (block) => block.kind

@@ -256,8 +256,8 @@ export interface EditableSurface {
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
 	/** A shown source whose edits reach the node only on blur, for the empty-block hint to judge;
-	 *  `read` runs only while the `placeholder` prop is set. */
-	noteShownSource(read: () => string): void;
+	 *  `read` runs only while the `placeholder` prop is set, and null forgets it as the source folds. */
+	noteShownSource(read: (() => string) | null): void;
 	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
 	notePreEditOffset(offset: number): void;
 }
@@ -639,7 +639,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onCompositionEnd,
 		getPreEditOffset: () => preEditOffset,
 		noteShownSource: (read) => {
-			if (deps.placeholder()) placeholder.setShownSource(read());
+			if (!read) placeholder.setShownSource(null);
+			else if (deps.placeholder()) placeholder.setShownSource(read());
 		},
 		notePreEditOffset: (offset) => {
 			preEditOffset = offset;

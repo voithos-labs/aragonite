@@ -5,9 +5,9 @@ shows only in an empty, editable document. A function is asked about each empty 
 and answers with the text or null.
 
 The hint is painted by CSS from the block's `data-placeholder` attribute and announced as
-`aria-placeholder`. It's never written into the bytes or the undo stack, and the caret doesn't move
-for it. The prop reads live. The decision itself is covered by unit tests in
-`src/lib/test/components/placeholder.svelte.test.ts`; these rows cover what needs a browser.
+`aria-placeholder`. It's never written into the bytes, and the caret doesn't move for it. The
+decision itself is covered by unit tests in `src/lib/test/components/placeholder.svelte.test.ts`;
+these rows cover what needs a browser.
 
 ## Happy paths
 
@@ -20,6 +20,9 @@ for it. The prop reads live. The decision itself is covered by unit tests in
 
 - Reading mode never shows the string form, and switching back to source mode shows it again.
 - An empty heading in source mode paints its hint after the visible `# `, not under it.
+- An empty code block paints its hint on the body line, under the opening fence wherever that
+  fence shows: in source mode, on the focused block in a preview mode, and on the first line in
+  live mode, where the fences hide.
 - An IME composing into the empty block hides the hint and its `aria-placeholder`, since the
   composed text is in the element but not yet in the document.
 

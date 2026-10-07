@@ -7,6 +7,7 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt,
+	type BlockLookup,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
@@ -83,10 +84,8 @@ const NEVER_ASKED: Record<string, string> = {
 	mermaid: 'edited in its own textarea, which is not the shared editable element'
 };
 
-type Seam = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
-
-function mountWithEveryPlugin(source: string): MountedEditor<Seam> {
-	return mountEditor<Seam>({
+function mountWithEveryPlugin(source: string): MountedEditor<BlockLookup> {
+	return mountEditor<BlockLookup>({
 		source,
 		plugins: Object.values(BUNDLED).map((plugin) => plugin()),
 		placeholder: (block: PlaceholderBlock) => block.kind

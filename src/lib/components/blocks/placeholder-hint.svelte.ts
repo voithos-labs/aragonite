@@ -32,8 +32,9 @@ export interface PlaceholderHint {
 	track(el: HTMLElement): () => void;
 	/** Set by the surface's own composition handlers. */
 	setComposing(value: boolean): void;
-	/** A shown source whose edits reach the node only on blur, judged in place of the node. */
-	setShownSource(text: string): void;
+	/** A shown source whose edits reach the node only on blur, judged in place of the node; null
+	 *  once it folds. */
+	setShownSource(text: string | null): void;
 }
 
 /** The string form shows only on an editable empty document; a function answers for itself. */
@@ -94,8 +95,10 @@ export function createPlaceholderHint(deps: PlaceholderHintDeps): PlaceholderHin
 		setComposing: (value) => {
 			composing = value;
 		},
-		setShownSource: (source) => {
-			shown = source;
-		}
+		// Untracked: a fold can run from the focusout a source fires as it unmounts mid-render.
+		setShownSource: (source) =>
+			untrack(() => {
+				shown = source;
+			})
 	};
 }
