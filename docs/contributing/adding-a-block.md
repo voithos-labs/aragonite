@@ -172,7 +172,7 @@ Optional, each earning its place:
 - `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`. Backspace at the title's start always keeps it, so a container with one declares only `unwrapRole.middleChildBackspace`.
 - `containerPaste`: kind-specific paste routing, for a clipboard whose top block is your kind landing inside a same-kind ancestor.
 - `unwrapRole`: the Backspace-at-start strategy; see `editor-actions/unwrap-strategies.ts`.
-- `lastLineChild`: which child holds the container's last line, or `-1` when its own bytes do (a header-only table's delimiter row). Declare it only when the default (a strip's last child, a grid's last row) is wrong for your kind.
+- `lastLineChild`: which child holds the container's last line, or `-1` when its own bytes do (a header-only table's delimiter row). Declare it only when the default (a strip's last child unless an inner suffix comes after it, a grid's last row, an opaque container's own bytes) is wrong for your kind.
 - `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then moves the blank line next to the chrome into the wrap instead of into a body block.
 - `bodyWrite`: for a container with a fixed closing line (`</details>`) that a body edit could accidentally type. `normalize` escapes it out of a child's raw, and `mapOffset` says where the caret lands after the escape.
 - `contentStartSpace: 'complete-marker'`: the first space typed at the start of a child whose marker lacks its space (an empty child, or text right after a bare marker) belongs to the marker. When text already follows the marker, the editor writes that space into your container's line itself; when the child is empty it writes nothing and leaves the spelling to you. So declare it only if your `rebuildRaw` does both: keeps a line the editor wrote the space into as it is, and spells an empty line that gains text with the space.
@@ -463,7 +463,7 @@ export const containerApi = createContainerBlockComponent({
 });
 ```
 
-A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/reactivity/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it.
+A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/reactivity/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it. G4.99 fails a component that renders spacers without it.
 
 Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing).
 
