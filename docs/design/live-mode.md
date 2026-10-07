@@ -29,11 +29,13 @@ Where the same material lives elsewhere:
 
 Hiding a marker is easy. Editing next to one nobody can see is where it gets interesting.
 
-Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: the consecutive delimiter bytes of one inline construct) paints at zero width, so one screen position, the one right after `bold`, names two raw offsets: before the closing `**` and after it. Every delimiter in the document has that shape, and you can type against it, cut through it, or empty what it encloses without ever seeing it. Each rule in § 4 answers one of those cases, applied at one place every gesture crosses, so it holds for every gesture that reaches it instead of being re-implemented per entry path.
+Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: the consecutive delimiter bytes of one inline construct) paints at zero width, so one screen position, the one right after `bold`, names two raw offsets: before the closing `**` and after it. Every delimiter in the document has that shape, and you can type against it, cut through it, or empty what it encloses without ever seeing it. Each rule in § 4 answers one of those cases. Each also lives at one place every gesture crosses, rather than once per entry path, so a new gesture gets it without asking.
 
 ## 2. The discipline: candidates, verified by the painter
 
-A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). The same file holds the one rule for which spans a mode leaves on screen, `familyHidesText`, and the caret walk (the traversal in `cursor/widget-offset.ts` that maps DOM positions to raw offsets) reads that rule too; G4.30 holds the two together (a G-number is an entry in the catalog in `docs/design/invariants.md`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live drops only bytes the user never saw.
+A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live drops only bytes the user never saw.
+
+The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `cursor/widget-offset.ts` that maps DOM positions to raw offsets) reads it too, and G4.30 holds the two together (a G-number is an entry in the catalog in `docs/design/invariants.md`).
 
 The mode read and the painter, on one block (`reading` is the editor's `Reading`, from `schema/reading.ts`: its grammar, link resolver and mode in one object):
 
@@ -251,7 +253,7 @@ rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', stores); // null: a pl
 ```
 
 - Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run, and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind with content declines, and the byte-literal cut stands.
-- Each half has to re-parse to one prose block that a reload of the file would keep, read where it lands: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop. In a to-do, `# **bo**` above the cut is text behind the box, same as in the to-do it came from.
+- Each half has to re-parse to one prose block that a reload of the file would keep, read where it lands: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop. So in a to-do item, a `# **bo**` half above the cut is read behind the checkbox, where it stays text (not a heading), just as it was before the cut.
 - In a list item the second half becomes the first line of a new item, and that item takes the marker its bytes read as. `- **bo ld**` cut after `bo` writes `- **bo**` and `-  **ld**`: the space stays (live drops only what it never showed), the new item's marker is `-  `, and the tree matches a reload. Source mode does the same with `- a b` cut after `a`.
 - An autolink or an escape has no interior for a cut to land in at all. Two halves of a URL are not two URLs, and half an escape is a literal backslash, so the cut moves to its nearer edge and one half takes the construct whole, every byte kept (which is what rules out the alternative, dropping the delimiter pair). A hard break is childless and `never-extend` too, but its moved cut doesn't parse back, so there the literal cut stands.
 - A side left with no content takes the whole construct rather than a pair enclosing nothing.
@@ -350,13 +352,13 @@ Live paints no destination, so the card is the only way to read or rewrite one.
 
 - The focus model: a click on a link opens the card beside a caret that stays the document's. Keyboard entry (Mod+K with the caret inside a link, or a selection lying wholly inside one) opens it with focus trapped in the URL field. The two differ on a live selection because only one of them was asked for: an unsought click mustn't interrupt a drag, while the chord has already resolved the selection against the construct it opens, so those bytes are the card's own.
 - An edit commits one undoable step through the link's one byte-write entry (G4.34). The card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM.
-- A toolbar's pressed paint for the chord resolves that same construct, so it too is live mode's alone, and pressing what it paints enters that link.
+- A toolbar button for the chord paints pressed from that same construct, and pressing it enters that link. Like the card, that pressed state only exists in live mode.
 
 Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
 ### 4.7 The code rail
 
-The card's second client, for the one hidden run a caret can't reach at all. A fence line can't take a caret once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
+Like the link card, the rail is a way into something live hides, here the one hidden run a caret can't reach at all. A fence line can't take a caret once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
 
 - It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button still renders but opens nothing.
 - The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the content write every gesture uses, as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
