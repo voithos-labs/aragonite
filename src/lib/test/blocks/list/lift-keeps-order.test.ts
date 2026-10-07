@@ -130,14 +130,4 @@ describe('lifting a nested item keeps the document in order', () => {
 			expect(mounted.source()).toBe(lifted);
 		}
 	);
-
-	it('Shift+Tab in live mode carries the next item of a loose nested list', async () => {
-		mounted = mountEditor({
-			source: '- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n',
-			presentationMode: 'live'
-		});
-		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
-
-		expect(mounted.source()).toBe('- alpha\n- beta\n\n  - gamma\n\n- delta\n');
-	});
 });

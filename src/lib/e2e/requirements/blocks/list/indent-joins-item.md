@@ -8,7 +8,7 @@ A paragraph after a blank line under a list joins the item above once its first 
 - The same two spaces pasted: the same join
 - A pasted tab: the same join (a tab reads as code on its own, so this one always joined)
 - Four spaces under a nested item: the paragraph joins the inner item
-- Three spaces under `1. a` (the ordered item's wider content) and two under the outer of two nested items: pinned in `src/lib/test/tree-operations/indent-write-settle.test.ts`
+- Three spaces under `1. a` (the ordered item's wider content): the paragraph joins `1. a`. Two spaces under the outer of two nested items: it joins the outer item. Both pinned in `src/lib/test/tree-operations/indent-write-settle.test.ts`
 
 ## Edge cases
 

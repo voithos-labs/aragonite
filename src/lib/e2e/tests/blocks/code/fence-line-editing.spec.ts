@@ -16,8 +16,8 @@ async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
-// Every step edits, so each loads its document afresh and clicks into the block. The editor ignores
-// a source equal to the last one it was given, so a blank swap goes between.
+// Every step edits, so each loads its document afresh and clicks into the block. The test page
+// keeps its source in `$state`, which drops a load equal to the last one, so a blank swap goes first.
 async function openFence(editor: EditorPage, source = SOURCE) {
 	await editor.loadContent('');
 	await editor.loadContent(source);

@@ -30,7 +30,7 @@ const lineTopAfterCaret = (page: Page) =>
 	});
 
 // First-line steps run first, so a Home that always goes to the item's start fails at a later line.
-// Writing steps reload through a blank swap: the editor ignores a source equal to the last one given.
+// Writing steps reload through a blank swap: the test page's `$state` source drops a repeated load.
 for (const mode of ['source', 'live'] as const) {
 	test(`${mode}: Home in a list item goes to the start of its own line`, async ({ page }) => {
 		const ep = await enterPresentationMode(page, mode, BROKEN);

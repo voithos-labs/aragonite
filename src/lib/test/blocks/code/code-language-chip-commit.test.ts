@@ -68,7 +68,7 @@ describe('CodeBlock: the language chip’s commit gate', () => {
 	});
 });
 
-// The picker's field is free text, so the helper behind the commit decides what reaches the line.
+// The picker's field is free text, so `writeFenceInfo` decides what reaches the line.
 describe('CodeBlock: bytes the chip’s info string cannot hold', () => {
 	it.each([
 		[
@@ -94,8 +94,6 @@ describe('CodeBlock: bytes the chip’s info string cannot hold', () => {
 	});
 });
 
-// Miss-analysis: a browser click between typing and the commit outruns the batching window by
-// itself, so no e2e undo row failed when the commit stopped being kept apart.
 describe('CodeBlock: the language chip’s undo entry', () => {
 	it('writes through the controller’s isolated entry, and only when it writes', () => {
 		const controller = makeStubController();

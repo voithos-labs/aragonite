@@ -16,8 +16,8 @@ async function landedIn(editor: EditorPage): Promise<number | undefined> {
 	return (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 }
 
-// Each step types or deletes, so the next one loads its document afresh. The editor ignores a
-// source equal to the last one it was given, so a blank swap goes between.
+// Each step types or deletes, so the next one loads its document afresh. The test page keeps its
+// source in `$state`, which drops a load equal to the last one, so a blank swap goes first.
 async function fresh(editor: EditorPage, source: string): Promise<void> {
 	await editor.loadContent('');
 	await editor.loadContent(source);

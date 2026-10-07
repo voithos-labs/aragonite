@@ -99,10 +99,6 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
   `aria-disabled`: the mode writes nothing anywhere, the label is the useful half, and a
   disabled control cannot be reached by the gesture that proves it does nothing. The
   `aria-label` still names the language, which is what someone reading wants from it.
-- **The undo scenarios cannot tell whether the entry was kept apart.** A Playwright click
-  between the typing and the commit already outruns the 250ms batching window, so both undo
-  scenarios would pass without `isolateUndoEntry`. They pin the outcome: one Mod+Z takes the info
-  string or the character, never both. `code-language-chip-commit.test.ts` pins the call itself.
 - **Plugin fence kinds do not inherit it.** Mermaid and the math fence have their own
   components; the chip belongs to the built-in `fencedCode` component alone, with no descriptor
   field and no plugin API behind it.
@@ -137,7 +133,8 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
   leading tilde run committed into a tilde fence's info string lands without it, both pinned in
   `src/lib/test/blocks/code/code-language-chip-commit.test.ts`
 - one Mod+Z after a body character then a chip commit reverts the info string and keeps the
-  character
+  character (`src/lib/test/blocks/command-undo-entry.test.ts` checks the same for every block that
+  runs a command)
 - one Mod+Z after a chip commit then a typed character reverts the character and keeps the
   info string
 

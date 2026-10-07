@@ -17,7 +17,8 @@ async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
-// The editor ignores a source equal to the last one it was given, so a blank swap goes between.
+// The test page keeps its source in `$state`, which drops a load equal to the last one, so a blank
+// swap goes first.
 async function openLive(editor: EditorPage, source: string) {
 	await editor.loadContent('');
 	await editor.loadContent(source);
