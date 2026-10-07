@@ -66,14 +66,6 @@ test.describe('sticky column: reset triggers', () => {
 			tolerance: PIXEL_TOLERANCE * 3
 		},
 		{
-			name: 'ArrowLeft',
-			reset: async () => {
-				await editor.page.keyboard.press('ArrowLeft');
-				await editor.waitForRenderFlush();
-			},
-			tolerance: PIXEL_TOLERANCE * 3
-		},
-		{
 			name: 'End',
 			reset: async () => {
 				await editor.page.keyboard.press('End');

@@ -13,22 +13,15 @@ single block to create one in.
 
 - `Mod+B` over a whole-document range of two plain paragraphs wraps each block on
   its own, in source and in live mode
-- `Mod+B` over two already-bold paragraphs unwraps both: every span is covered, so
+- `Mod+B` over two already-bold paragraphs unwraps both (live mode here, source mode in `format-range.test.ts`): every span is covered, so
   the press is an unapply everywhere
-- one bold paragraph and one plain one is an apply, so the plain block wraps and
+- one bold paragraph and one plain one is an apply (live mode here, source mode in `format-range.test.ts`), so the plain block wraps and
   the bold one is left byte-identical: the single-block code decides what to do
   from each span alone, and without the range's direction fixed the covered block
   would toggle the other way
 
 ## Edge cases
 
-- a fenced code block between two paragraphs keeps its bytes while both paragraphs
-  wrap: whether a block takes part is the kind's own declaration (inline-bearing,
-  editable, not a container), never its name
-- a partial range, built by placing the caret mid-word and shift-clicking on a word
-  start in the block below, marks each endpoint's own span and trims the space at the
-  head span's edge: markdown cannot close a run against whitespace, so an untrimmed
-  edge writes delimiters that form no construct and the block is silently skipped
 - a document long enough to window marks the blocks the DOM never mounted too: the
   commit runs over the whole document, so a block with no mounted container is still
   a byte write on the live tree
@@ -46,12 +39,18 @@ single block to create one in.
   there, so the bytes move exactly as the default chord's do. This is the one
   gesture that proves the leaf passes the press on to that branch, since every
   default chord is taken one layer earlier
-- plain typing over the same cross-block range still replaces it, and one undo
-  restores the document, so the toggle narrowed nothing else
 - taking the bold off `**[ ] a**` in a plain list item leaves `- [ ] a`, and the editor shows the
   checkbox a reload would show: the text left at an item's first slot keeps its checkbox in step
   - Miss-analysis: the toggle wrote each leaf in place with no checkbox reconcile, and every
     toggle scenario ran over plain paragraphs, so no text ended up opening with `[ ] `
+
+## Pinned below the browser
+
+These run against the planner and the mounted editor, in `format-range.test.ts`, `format-range-edges.test.ts` and `cross-block-typed-char.test.ts`:
+
+- a fenced code block between two paragraphs keeps its bytes while both paragraphs wrap: whether a block takes part is the kind's own declaration (inline-bearing, editable, not a container), never its name
+- a partial range marks each endpoint's own span and trims the space at the head span's edge: markdown cannot close a run against whitespace, so an untrimmed edge writes delimiters that form no construct and the block is silently skipped
+- plain typing over a cross-block range still replaces it, and one undo restores the document, so the toggle narrowed nothing else (`undo-step-round-trips.spec.ts` holds the browser round trip)
 
 ## Error cases
 

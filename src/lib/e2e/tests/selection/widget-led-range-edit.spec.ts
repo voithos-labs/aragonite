@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { textRunCenter } from '../../text-runs';
+import { nextRow } from '../presentation/helpers';
 
 // An edit key over a whole-block range whose first inline node is a widget the caret cannot
 // enter (`requirements/selection/widget-led-range-edit.md`). The range is what the key edits;
@@ -24,20 +25,16 @@ async function selectWholeBlock(
 }
 
 test.describe('editing a whole-block range that opens with a widget', () => {
-	let editor: PluginsPage;
-
 	for (const mode of ['source', 'live'] as const) {
-		test.describe(`${mode} mode`, () => {
-			test.beforeEach(async ({ page }) => {
-				editor = new PluginsPage(page);
-				await editor.gotoPlugins('math');
-				await editor.loadContent(MATH_LINE);
-				await editor.setPresentationMode(mode);
-				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-			});
+		test(`${mode} mode: a formula-led block`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('math');
+			await editor.setPresentationMode(mode);
 
 			for (const rung of ['ctrl-a', 'triple-click'] as const) {
-				test(`a character typed over the ${rung} range replaces the block`, async ({ page }) => {
+				await test.step(`a character typed over the ${rung} range replaces the block`, async () => {
+					await nextRow(editor, MATH_LINE);
+					await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
 					await selectWholeBlock(editor, page, rung);
 					await page.keyboard.type('X');
 
@@ -51,7 +48,9 @@ test.describe('editing a whole-block range that opens with a widget', () => {
 				});
 			}
 
-			test('Delete over the range empties the block, never just the widget', async ({ page }) => {
+			await test.step('Delete over the range empties the block, never just the widget', async () => {
+				await nextRow(editor, MATH_LINE);
+				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
 				await selectWholeBlock(editor, page, 'ctrl-a');
 				await page.keyboard.press('Delete');
 
@@ -62,21 +61,17 @@ test.describe('editing a whole-block range that opens with a widget', () => {
 	}
 });
 
+// The glyph kind deletes whole at a caret, the rule the range has to override.
 test.describe('editing a whole-block range that opens with a glyph', () => {
-	let editor: PluginsPage;
-
-	// The glyph kind deletes whole at a caret, the rule the range has to override.
 	for (const mode of ['source', 'live'] as const) {
-		test.describe(`${mode} mode`, () => {
-			test.beforeEach(async ({ page }) => {
-				editor = new PluginsPage(page);
-				await editor.gotoPlugins('emoji');
-				await editor.loadContent(GLYPH_LINE);
-				await editor.setPresentationMode(mode);
-				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-			});
+		test(`${mode} mode: a glyph-led block`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('emoji');
+			await editor.setPresentationMode(mode);
 
-			test('a character typed over the range replaces the block', async ({ page }) => {
+			await test.step('a character typed over the range replaces the block', async () => {
+				await nextRow(editor, GLYPH_LINE);
+				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
 				await selectWholeBlock(editor, page, 'ctrl-a');
 				await page.keyboard.type('X');
 
@@ -84,7 +79,9 @@ test.describe('editing a whole-block range that opens with a glyph', () => {
 				expect(await editor.bridge.getSource()).toBe('X\n');
 			});
 
-			test('Delete over the range empties the block', async ({ page }) => {
+			await test.step('Delete over the range empties the block', async () => {
+				await nextRow(editor, GLYPH_LINE);
+				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
 				await selectWholeBlock(editor, page, 'ctrl-a');
 				await page.keyboard.press('Delete');
 

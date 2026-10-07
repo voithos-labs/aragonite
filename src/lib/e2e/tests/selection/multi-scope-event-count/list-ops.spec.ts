@@ -2,69 +2,70 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { countEditEvents } from './helpers';
+import { nextRow } from '../../presentation/helpers';
 
 test.describe('one edit event per structural list op', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
+	test('Tab, Shift+Tab, Enter mid-item and Enter at the end each emit exactly one edit event', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
 		await editor.goto();
-	});
 
-	test('Tab on list item (indentItem) emits exactly one edit event', async () => {
-		await editor.loadContent('- Item 1\n- Item 2\n');
-		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
-		await items.nth(1).click();
+		await test.step('Tab on list item (indentItem)', async () => {
+			await nextRow(editor, '- Item 1\n- Item 2\n');
+			const items = editor.page.locator('.list-item-block [contenteditable="true"]');
+			await items.nth(1).click();
 
-		const count = await countEditEvents(editor, async () => {
-			await editor.page.keyboard.press('Tab');
-			await editor.bridge.waitForSourceMatches(/^\s+- Item 2$/m);
+			const count = await countEditEvents(editor, async () => {
+				await editor.page.keyboard.press('Tab');
+				await editor.bridge.waitForSourceMatches(/^\s+- Item 2$/m);
+			});
+
+			expect(count).toBe(1);
 		});
 
-		expect(count).toBe(1);
-	});
+		await test.step('Shift+Tab on nested item (unindentItem)', async () => {
+			await nextRow(editor, '- Item 1\n  - Nested\n- Item 2\n');
+			const nested = editor.page.locator(
+				'.list-item-content .list-block .list-item-block [contenteditable="true"]'
+			);
+			await nested.first().click();
 
-	test('Shift+Tab on nested item (unindentItem) emits exactly one edit event', async () => {
-		await editor.loadContent('- Item 1\n  - Nested\n- Item 2\n');
-		const nested = editor.page.locator(
-			'.list-item-content .list-block .list-item-block [contenteditable="true"]'
-		);
-		await nested.first().click();
+			const count = await countEditEvents(editor, async () => {
+				await editor.page.keyboard.press('Shift+Tab');
+				await editor.bridge.waitForSourceMatches(/^- Nested$/m);
+			});
 
-		const count = await countEditEvents(editor, async () => {
-			await editor.page.keyboard.press('Shift+Tab');
-			await editor.bridge.waitForSourceMatches(/^- Nested$/m);
+			expect(count).toBe(1);
 		});
 
-		expect(count).toBe(1);
-	});
+		await test.step('Enter mid-item (splitItemAtOffset)', async () => {
+			await nextRow(editor, '- HelloWorld\n');
+			const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
+			await item.click();
+			await editor.page.keyboard.press('Home');
+			for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 
-	test('Enter mid-item (splitItemAtOffset) emits exactly one edit event', async () => {
-		await editor.loadContent('- HelloWorld\n');
-		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
-		await item.click();
-		await editor.page.keyboard.press('Home');
-		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
+			const count = await countEditEvents(editor, async () => {
+				await editor.page.keyboard.press('Enter');
+				await editor.bridge.waitForSourceContains('- World');
+			});
 
-		const count = await countEditEvents(editor, async () => {
-			await editor.page.keyboard.press('Enter');
-			await editor.bridge.waitForSourceContains('- World');
+			expect(count).toBe(1);
 		});
 
-		expect(count).toBe(1);
-	});
+		await test.step('Enter at end of item (insertItemAfter)', async () => {
+			await nextRow(editor, '- Alpha\n- Beta\n');
+			const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Alpha' });
+			await first.click();
+			await editor.page.keyboard.press('End');
 
-	test('Enter at end of item (insertItemAfter) emits exactly one edit event', async () => {
-		await editor.loadContent('- Alpha\n- Beta\n');
-		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Alpha' });
-		await first.click();
-		await editor.page.keyboard.press('End');
+			const count = await countEditEvents(editor, async () => {
+				await editor.page.keyboard.press('Enter');
+				await editor.bridge.waitForSourceMatches(/- Alpha\n[\s\S]+?- Beta/);
+			});
 
-		const count = await countEditEvents(editor, async () => {
-			await editor.page.keyboard.press('Enter');
-			await editor.bridge.waitForSourceMatches(/- Alpha\n[\s\S]+?- Beta/);
+			expect(count).toBe(1);
 		});
-
-		expect(count).toBe(1);
 	});
 });

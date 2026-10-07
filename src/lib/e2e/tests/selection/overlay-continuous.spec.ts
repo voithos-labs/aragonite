@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { nextRow } from '../presentation/helpers';
 import { holes, paintedBands, paintedRegion, unpaintedMiddle, type Band } from './painted-region';
 
 // A range across blocks paints one region, the way a code editor does: no hole between its first
@@ -35,32 +36,6 @@ const RANGES: [string, string, number[], number, number[], number][] = [
 	['a heading into a padded code block', CODE, [0], 6, [1], 12]
 ];
 
-for (const mode of ['source', 'live'] as const) {
-	test.describe(`selection: overlay: one continuous region (${mode})`, () => {
-		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of RANGES) {
-			test(name, async ({ page }) => {
-				const editor = new EditorPage(page);
-				await editor.goto();
-				await editor.setPresentationMode(mode);
-				await editor.loadContent(doc);
-				await editor.focusBlockAtPath(anchorPath, anchorOffset);
-				await editor.shiftClickBlock(focusPath, focusOffset);
-				await editor.waitForCrossBlock(true);
-
-				const bands = await paintedBands(page);
-				expect(bands.length).toBeGreaterThan(1);
-				expect(holes(bands)).toEqual([]);
-
-				// Nothing paints above the start block or below the end block.
-				const start = await hostBox(page, anchorPath);
-				const end = await hostBox(page, focusPath);
-				expect(Math.min(...bands.map((b) => b.top))).toBeGreaterThanOrEqual(start.top - 0.5);
-				expect(Math.max(...bands.map((b) => b.bottom))).toBeLessThanOrEqual(end.bottom + 0.5);
-			});
-		}
-	});
-}
-
 // The range grows by keys after it's painted, so the space between blocks has to follow.
 test('a range grown with Shift+ArrowDown stays one region', async ({ page }) => {
 	const editor = new EditorPage(page);
@@ -89,16 +64,46 @@ const WIDE: [string, string, number[], number, number[], number][] = [
 ];
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`selection: overlay: every middle line spans the column (${mode})`, () => {
+	test(`selection: overlay: one continuous region, every middle line spanning the column (${mode})`, async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.setPresentationMode(mode);
+
+		const select = async (
+			doc: string,
+			anchorPath: number[],
+			anchorOffset: number,
+			focusPath: number[],
+			focusOffset: number
+		): Promise<void> => {
+			await nextRow(editor, doc);
+			await editor.waitForCrossBlock(false);
+			await editor.focusBlockAtPath(anchorPath, anchorOffset);
+			await editor.shiftClickBlock(focusPath, focusOffset);
+			await editor.waitForCrossBlock(true);
+		};
+
+		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of RANGES) {
+			await test.step(name, async () => {
+				await select(doc, anchorPath, anchorOffset, focusPath, focusOffset);
+
+				const bands = await paintedBands(page);
+				expect(bands.length).toBeGreaterThan(1);
+				expect(holes(bands)).toEqual([]);
+
+				// Nothing paints above the start block or below the end block.
+				const start = await hostBox(page, anchorPath);
+				const end = await hostBox(page, focusPath);
+				expect(Math.min(...bands.map((b) => b.top))).toBeGreaterThanOrEqual(start.top - 0.5);
+				expect(Math.max(...bands.map((b) => b.bottom))).toBeLessThanOrEqual(end.bottom + 0.5);
+			});
+		}
+
 		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of WIDE) {
-			test(name, async ({ page }) => {
-				const editor = new EditorPage(page);
-				await editor.goto();
-				await editor.setPresentationMode(mode);
-				await editor.loadContent(doc);
-				await editor.focusBlockAtPath(anchorPath, anchorOffset);
-				await editor.shiftClickBlock(focusPath, focusOffset);
-				await editor.waitForCrossBlock(true);
+			await test.step(name, async () => {
+				await select(doc, anchorPath, anchorOffset, focusPath, focusOffset);
 
 				await expect.poll(async () => unpaintedMiddle(await paintedRegion(page))).toEqual([]);
 			});

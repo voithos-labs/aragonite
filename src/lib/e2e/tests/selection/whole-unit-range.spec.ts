@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
+import { nextRow } from '../presentation/helpers';
 
 /**
  * A drag inside a block with no character position selects it whole, and every destructive
@@ -44,15 +45,6 @@ test.describe('a whole-unit range: thematic break', () => {
 		// The caret sits after the character that landed, not at the block's start.
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceEquals('above\n\nxy\n\nbelow\n');
-	});
-
-	test('one undo restores the rule after a typed character', async () => {
-		await dragInside(editor, '.thematic-break-block');
-		await editor.typeSlowly('x');
-		await editor.bridge.waitForSourceContains('\nx\n');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
 	test('the undo puts the rule back held whole, so the next key replaces it again', async () => {
@@ -106,26 +98,28 @@ test.describe('a whole-unit range: where each key leaves the caret', () => {
 		{ key: 'Delete', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' },
 		{ key: 'ControlOrMeta+x', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' }
 	];
-	for (const { key, lands, typed } of SIDES) {
-		test(`${key} ${lands}`, async () => {
-			await editor.loadContent(DOC);
+	test('each key leaves the caret on the side it points', async () => {
+		for (const { key, lands, typed } of SIDES) {
+			await test.step(`${key} ${lands}`, async () => {
+				await nextRow(editor, DOC);
+				await dragInside(editor, '.thematic-break-block');
+				await editor.page.keyboard.press(key);
+				await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+
+				await editor.typeSlowly('x');
+				await editor.bridge.waitForSourceEquals(typed);
+			});
+		}
+
+		await test.step('in the first item of a list below, with nothing above', async () => {
+			await nextRow(editor, '---\n\n- a\n');
 			await dragInside(editor, '.thematic-break-block');
-			await editor.page.keyboard.press(key);
-			await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+			await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('- a\n');
 
 			await editor.typeSlowly('x');
-			await editor.bridge.waitForSourceEquals(typed);
+			await editor.bridge.waitForSourceEquals('- xa\n');
 		});
-	}
-
-	test('in the first item of a list below, with nothing above', async () => {
-		await editor.loadContent('---\n\n- a\n');
-		await dragInside(editor, '.thematic-break-block');
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('- a\n');
-
-		await editor.typeSlowly('x');
-		await editor.bridge.waitForSourceEquals('- xa\n');
 	});
 });
 

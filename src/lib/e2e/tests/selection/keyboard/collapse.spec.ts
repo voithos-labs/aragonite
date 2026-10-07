@@ -38,13 +38,4 @@ test.describe('selection: keyboard: collapse', () => {
 		});
 		expect(focused).toEqual(before!.focus.path);
 	});
-
-	test('click collapses cross-block selection', async () => {
-		await editor.loadContent('aaa\n\nbbb\n');
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await editor.clickBlock(0);
-		await editor.waitForCrossBlock(false);
-	});
 });

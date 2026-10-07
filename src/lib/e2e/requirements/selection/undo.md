@@ -8,6 +8,6 @@
 
 ## Edge cases
 
-- Undo after type-replace restores cross-block selection and removes all typed chars in one step
+- Undo after type-replace restores cross-block selection and removes all typed chars in one step (`undo-step-round-trips.spec.ts` › typing over a range)
 - Selection-only changes (Shift+Arrow) push no undo entries: stack depth unchanged
 - Post-undo, `blockRefs` realign so a drag in a downstream table column selects cells, not a paragraph past the table.
