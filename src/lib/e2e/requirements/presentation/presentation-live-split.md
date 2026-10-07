@@ -24,16 +24,19 @@ identical on screen.
   split call, so the split reads the construct the render path drew instead of a pair of brackets
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
 
-Four more are pinned below the browser, in `src/lib/test/blocks/text/live-split-rebalance.test.ts`
-(the rewrite) and `src/lib/test/tree-operations/live-split.test.ts` (the split and the merge that
-carry it). Enter in a link's text gives two links on the same destination, so the URL the user
-never saw is copied rather than lost. Enter in the italic of a bold-wrapping-italic gives two
-halves that are both bold and both italic, nesting outermost-first like the original. Enter
-outside every construct cuts where the caret is, as if the mode weren't there. And Enter then
-Backspace round-trips: the join drops the closing and reopening runs that meet there, so
-`Some **bo|ld** text` comes back byte-identical and a split link comes back as one link (the
-leftover a byte-literal merge would leave is what `live-mode.md` § 4.4 calls impossible in live
-editing).
+Four more are covered by unit tests, in `src/lib/test/blocks/text/live-split-rebalance.test.ts`
+(the rewrite) and `src/lib/test/tree-operations/live-split.test.ts` (the split, and the merge that
+carries it):
+
+1. Enter in a link's text gives two links on the same destination, so the URL the user never saw
+   is copied rather than lost.
+2. Enter in the italic of a bold-wrapping-italic gives two halves that are both bold and both
+   italic, nesting outermost first like the original.
+3. Enter outside every construct cuts where the caret is, as if the mode weren't there.
+4. Enter then Backspace round-trips. The join drops the closing and reopening runs that meet
+   there, so `Some **bo|ld** text` comes back byte-identical and a split link comes back as one
+   link. The leftover a byte-literal merge would leave is what `live-mode.md` § 4.4 calls
+   impossible in live editing.
 
 ## Edge cases
 

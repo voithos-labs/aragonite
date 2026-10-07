@@ -19,9 +19,9 @@ an escape instead, or that a second Shift+Enter escaped the first one and sent t
   third line, `abc def\` / `\` / `x`. Source and live mode.
 
 The other ways in write the break the same way: a punctuation key (`abc\` / `-`, not an escape), a
-paste and an IME commit, in source and live mode. Those are pinned below the browser, in
-`src/lib/test/blocks/text/pending-break-spend.test.ts`; the composed rows after a hidden closer
-below still drive a real composition.
+paste and an IME commit, in source and live mode. Unit tests cover those, in
+`src/lib/test/blocks/text/pending-break-spend.test.ts`. The composed rows after a hidden closer,
+further down, still drive a real composition.
 
 ## Edge cases
 

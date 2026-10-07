@@ -40,7 +40,8 @@ stability is asserted through the `window.__test` bridge.
 - typing printable characters in reading mode: source unchanged
 - Enter / Backspace / Delete with a caret or selection: source unchanged,
   block count unchanged. A code block takes no keys either, since nothing in reading mode is
-  editable; `src/lib/test/blocks/reading-mode-input-routes.test.ts` checks that for every kind
+  editable; `src/lib/test/blocks/reading-mode-input-routes.test.ts` checks that over a document
+  with a heading, a paragraph, a quote, a list, a code block and a table
 - paste (Ctrl+V) into a focused block: source unchanged
 - cut (Ctrl+X) over a selection: source unchanged (degrades to copy)
 - both again over a code block, which handles its own clipboard keys: it refuses them before

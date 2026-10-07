@@ -44,11 +44,13 @@ source.
 - End ends it: at a line's end the letter lands right after the space, mid-line at the end of
   the line
 
-A few more are pinned below the browser, in `src/lib/test/blocks/text/held-space.test.ts` and
-`insertion-route-parity.test.ts` next to it: one ArrowRight ending the hold without moving the
-caret, at a line's end and mid-line; Mod+B ending it mid-line; a soft keyboard typing outside
-after an arrow step; and source mode writing the space where the caret is, inside the visible
-closer, on every route.
+A few more are covered by unit tests, in `src/lib/test/blocks/text/held-space.test.ts` and
+`insertion-route-parity.test.ts` next to it:
+
+1. One ArrowRight ends the hold without moving the caret, at a line's end and mid-line.
+2. Mod+B ends it mid-line.
+3. After an arrow step, a soft keyboard types outside the bold.
+4. Source mode writes the space where the caret is, inside the visible closer, however it's typed.
 
 Miss-analysis: every live typing row typed a letter at a construct's edge, never whitespace, the
 one byte a closer can't follow; and every row pressed hardware keys, so the soft keyboard and paste

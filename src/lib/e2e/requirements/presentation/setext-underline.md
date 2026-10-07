@@ -13,7 +13,7 @@ line, or what a hard break at the title's end writes (GH #468).
 
 - source mode shows the underline under the title; live mode shows the title alone
 
-Shift+Enter at the title's end (GH #468) is pinned below the browser, in both modes:
+A unit test covers Shift+Enter at the title's end (GH #468), in both modes:
 `src/lib/test/blocks/text/setext-underline-drawn.test.ts` checks it writes nothing yet, and that
 the next key starts the heading's second line above the underline (`Plan\` over `x` over `===`).
 
