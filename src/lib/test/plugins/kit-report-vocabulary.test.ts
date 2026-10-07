@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // The three conformance kits report a cell in one shape, so one reader handles all their reports.
 import { describe, expect, it } from 'vitest';
 import { installPlugins } from '$lib';

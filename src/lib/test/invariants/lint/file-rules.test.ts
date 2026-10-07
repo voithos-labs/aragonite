@@ -2092,6 +2092,40 @@ const WIDGET_LIST: FileRule = {
 	]
 };
 
+// ── G4.127 every branch on whether a DOM exists is declared ─────────────────
+
+const DOM_PRESENCE: ManifestRule = {
+	id: 'G4.127 every branch on whether a DOM exists says what runs without one',
+	matches:
+		/typeof\s+(?:document|window)\s*[!=]==|globalThis\s*\.\s*(?:document|window)\b|['"](?:document|window)['"]\s+in\s+globalThis/,
+	declared: {
+		'src/lib/assert.ts':
+			'`documentForCheck`, where a dev check that would do more with a DOM reports that it skipped that part',
+		'src/lib/invariants/landing-value.ts':
+			'with no document there is no focus or selection a landing could move, so nothing to compare',
+		'src/lib/editor-actions/replacement-focus.ts':
+			'with no document nothing holds focus, so the caret goes back where the write left it',
+		'src/lib/selection/caret-landing.ts':
+			'with no window there is no selection to measure, so the caret’s box is the element’s own',
+		'src/lib/selection/native-bridge.ts':
+			'an undo snapshot taken with no DOM keeps the caret offset alone'
+	},
+	reason:
+		'a branch on whether a DOM exists decides what a test without jsdom runs: a dev check that would do more with a DOM asks `documentForCheck` in assert.ts, which reports the skip; any other branch is declared here with what it does without one',
+	reaches: [SOURCE.devChecks],
+	hits: [
+		"if (typeof document === 'undefined') return null;",
+		"const s = typeof window !== 'undefined' ? window.getSelection() : null;",
+		'const doc = globalThis.document;',
+		"if ('document' in globalThis) {}"
+	],
+	misses: [
+		"if (typeof document.elementFromPoint !== 'function') return null;",
+		'const doc = documentForCheck(name);',
+		'// typeof document === "undefined" outside a browser\nconst a = 1;'
+	]
+};
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
@@ -2118,3 +2152,4 @@ describeMeasureWrites(SOURCES);
 describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(HEIGHT_LIFETIME, SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);
+describeManifests([DOM_PRESENCE], SOURCES);

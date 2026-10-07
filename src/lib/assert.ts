@@ -22,3 +22,15 @@ export function assertInvariant(tag: string, check: () => InvariantViolation | n
 		devWarn(`invariant:${tag}`, violation.message, violation.detail ?? violation.code);
 	}
 }
+
+/** The document a dev check reads, or null where there is none. A check that would do more
+ *  with a DOM asks here, so a run without one says what it skipped instead of passing quietly. */
+export function documentForCheck(check: string): Document | null {
+	if (typeof document !== 'undefined') return document;
+	devWarn(
+		'needs-dom',
+		`${check} needs a DOM and there is none here, so it did not run. Under Vitest, give the ` +
+			'test file a `// @vitest-environment jsdom` docblock.'
+	);
+	return null;
+}

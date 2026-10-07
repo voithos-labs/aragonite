@@ -15,6 +15,7 @@ export const SOURCE = {
 	blockComponentApi: 'src/lib/block-component.ts',
 	actionContracts: 'src/lib/action-contracts.ts',
 	envFlags: 'src/lib/env.ts',
+	devChecks: 'src/lib/assert.ts',
 
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'src/lib/core/nodes.ts',
@@ -149,6 +150,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	blockComponentApi: 'export interface BlockComponent ',
 	actionContracts: 'export type CommitSnapshotArg',
 	envFlags: 'export const editorEnv',
+	devChecks: 'export function documentForCheck',
 
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'export type LeafBlockKind',

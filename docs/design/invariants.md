@@ -1185,6 +1185,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
+| G4.127 | Every branch on whether a DOM exists says what runs without one                           | L       |
 
 ### The entries
 
@@ -2350,6 +2351,15 @@ backslashes on Windows, and a glob reads a backslash as an escape, so `vite.conf
 `optimizeDeps.include` as well, so it doesn't rest on the scan following a lazy import.
 `lint/dev-prebundle.test.ts` resolves the dev config and fails when a scan glob matches no route
 file, or when a bare-package `import()` under `src/lib` or `src/routes` is missing from the list.
+
+**G4.127 · A check that skips without a DOM says so.** Most unit test files run in plain Node, with
+no `document` at all, so any code that asks whether one exists picks what those tests run. A dev
+check that would do more with a DOM (the inline kit's widget cell renders the fixture and walks it,
+say) asks `src/lib/assert.ts` :: `documentForCheck`, which fires a `needs-dom` warning when there's
+none. Under the unit suite that warning fails the test, and the fix it names is the jsdom docblock.
+Every other branch is declared with what it does without a DOM: the landing check of G1.43, for
+one, has nothing to compare when there's no focus or selection to move. `lint/file-rules.test.ts`
+fails an undeclared `typeof document` or `typeof window` test in the shipped source.
 
 ## Accessibility
 
