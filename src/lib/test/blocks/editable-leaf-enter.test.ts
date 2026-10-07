@@ -2,7 +2,7 @@
 // Miss-analysis: every editable-leaf case used a multi-line kind, so none asked a one-line leaf.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { installLayoutStubs, selectRange } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
@@ -99,6 +99,32 @@ describe('Enter in an editable leaf', () => {
 		releaseWrite();
 		await settleEditor();
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
+	});
+});
+
+// Miss-analysis: every leaf Enter case pressed at a caret, so nothing saw the leaf break the line
+// beside a selection it should have replaced.
+describe('Enter over a selection in an editable leaf', () => {
+	it('takes the selection out of a multi-line leaf, then breaks the line there', async () => {
+		mounted = mountLeaf(false);
+		const el = await mounted.revealAtEnd();
+		selectRange(el, 4, 5);
+
+		await pressKey(el, { key: 'Enter' });
+		await settleEditor();
+
+		expect(el.textContent).toBe('@@ o\ne');
+	});
+
+	it('takes the selection out of a one-line leaf, then splits there as a break', async () => {
+		mounted = mountLeaf(true);
+		const el = await mounted.revealAtEnd();
+		selectRange(el, 4, 5);
+
+		await pressKey(el, { key: 'Enter' });
+		await settleEditor();
+
+		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 4, { afterRemoval: true });
 	});
 });
 
