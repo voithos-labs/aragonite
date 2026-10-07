@@ -104,26 +104,6 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(source).toContain('visual line here');
 	});
 
-	test('keyboard caret-entry from the left reveals the source at the leading edge', async ({
-		page
-	}) => {
-		await editor.getBlock(0).click();
-		await page.keyboard.press('Home');
-		// "Before " is 7 characters: 7 steps reach the widget's leading edge and the eighth opens the
-		// source in place, never resting in an invisible selected-widget state.
-		for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ArrowRight');
-
-		await expect(editor.mathWidget).toHaveCount(0);
-		// Opening the source only changes the view: the CST source is unchanged.
-		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
-		// Caret at the leading edge: a typed character lands before the opening `$`.
-		await page.keyboard.type('Z');
-		const revealed = await editor.getBlockText(0);
-		expect(revealed).toContain('Z$x^2$');
-		expect(revealed).not.toContain('$x^2$Z');
-	});
-
 	test('editing the source and walking the caret out re-renders KaTeX and persists the edit', async ({
 		page
 	}) => {

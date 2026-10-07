@@ -47,10 +47,9 @@ prove.
 - A selection extended across the boundary of the shown source becomes a cross-block selection,
   and the source stays shown while the selection is live, since a widget the caret cannot enter
   could not be selected through
-- Undo after showing the source, editing it and committing restores the source as it was before
-  the edit, in one step, because the edit held outside the tree committed as a single undo entry
 - Undo inside the shown source walks that source's own edits back first, one keystroke per
-  press, and only then reaches the document's history, whose restore fills the source again; the
-  blur after that commits nothing stale
+  press, and only then reaches the document's history. There one step takes back the last
+  committed edit whole, since an edit held outside the tree commits as a single undo entry, and
+  fills the source again; the blur after that commits nothing stale
 - Redo after that restore is the document's: the draft's own redo entries were taken against
   bytes the document has replaced, so they are gone rather than painted back
