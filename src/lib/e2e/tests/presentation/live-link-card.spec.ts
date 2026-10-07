@@ -5,7 +5,7 @@ import { enterPresentationMode, landAt } from './helpers';
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
 import { textRunEnd, textRunStart } from '../../text-runs';
-import { freezeInPageClock } from '../../page-probes';
+import { freezeInPageClock, deferImage } from '../../page-probes';
 
 // The anchored panel that stands in for the destination live mode hides. The chord's create
 // half lives in `live-link-card-create.spec.ts`, and what it consumes in
@@ -403,17 +403,6 @@ test.describe('live-mode link card in a long document', () => {
 		'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
 		'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
 
-	/** Holds the image's response until the returned call. */
-	async function deferImage(page: Page): Promise<() => void> {
-		let release!: () => void;
-		const gate = new Promise<void>((resolve) => (release = resolve));
-		await page.route('https://e2e-deferred.test/**', async (route) => {
-			await gate;
-			await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: IMAGE_SVG });
-		});
-		return release;
-	}
-
 	const imageHeight = (page: Page) =>
 		page.evaluate(
 			(i) =>
@@ -430,7 +419,7 @@ test.describe('live-mode link card in a long document', () => {
 		}, LINK_AT);
 
 	test('a commit on a link mid-viewport leaves its line where it was', async ({ page }) => {
-		const releaseImage = await deferImage(page);
+		const releaseImage = await deferImage(page, IMAGE_SVG);
 		const ep = await enterPresentationMode(page, 'live', LONG);
 		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), LINK_AT);
 		await ep.waitForRenderFlush();

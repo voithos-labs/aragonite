@@ -22,8 +22,8 @@ The bound holds for flat docs and for a single giant blockquote / list / table c
 ## Recursive container windowing (Phase 3 / Phase 4)
 
 - Giant single blockquote (2MB, one `blockquote` node): mounted set bounded, nested spacers present.
-- Giant single list (2MB, one `list` node): mounted set bounded, spacers inside `.list-block`.
-- Giant single table (2MB, one `table` node): the mounted row set is bounded (≪ the row count), with `.vr-spacer`s present inside the `.table-block` grid; no page errors. The grid still lays out: a mounted row's cells form a single horizontal band (one shared top) spanning the table width. Deleting the spacers' `grid-column: 1 / -1` rule shifts the cells by one grid track, splitting each row across two bands, so the shared-top assertion fails.
+- Giant single list (250 KB, one `list` node of about 6,400 items): mounted set bounded, spacers inside `.list-block`.
+- Giant single table (250 KB, one `table` node of about 5,500 rows): the mounted row set is bounded (≪ the row count), with `.vr-spacer`s present inside the `.table-block` grid; no page errors. The grid still lays out: a mounted row's cells form a single horizontal band (one shared top) spanning the table width. Deleting the spacers' `grid-column: 1 / -1` rule shifts the cells by one grid track, splitting each row across two bands, so the shared-top assertion fails.
 - Normal-size containers: a small list/blockquote/table renders with no spacers (windowing inactive), covered by the small-doc path.
 
 ## Error cases

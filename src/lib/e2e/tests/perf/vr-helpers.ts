@@ -8,6 +8,10 @@ import { gotoReady, type RouteUrl } from '../../goto-ready';
 
 export const FIXTURE_BYTES = 2_000_000;
 
+/** One list or table this size still holds over 5,000 children, far past any window, and loads
+ *  in a fraction of the time `FIXTURE_BYTES` of them takes. */
+export const GIANT_LIST_OR_TABLE_BYTES = 250_000;
+
 /**
  * Below the windowing threshold, so no measure pass runs after the first: with windowing on, the
  * scroll re-asserts every pass and re-placing looks like correcting.
@@ -36,6 +40,10 @@ export function settleFrames(page: Page): Promise<void> {
 	return page.evaluate(
 		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 	);
+}
+
+export function editorScrollTop(page: Page): Promise<number> {
+	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
 export function editorScrollHeight(page: Page): Promise<number> {

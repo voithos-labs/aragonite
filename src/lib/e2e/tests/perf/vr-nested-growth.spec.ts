@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
-import { capturePageErrors } from '../../page-probes';
+import { capturePageErrors, deferImage } from '../../page-probes';
 import { spacerCount, topVisibleHostTop, TOP_LEVEL_HOSTS } from './vr-helpers';
 import {
 	BELOW,
@@ -24,19 +24,6 @@ const LATE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
 const IMAGE = `![late](${IMAGE_URL})`;
-
-/** Holds the image until the returned call, so it grows after the page has settled. */
-async function deferImage(page: Page): Promise<() => void> {
-	let release!: () => void;
-	const gate = new Promise<void>((resolve) => {
-		release = resolve;
-	});
-	await page.route('https://e2e-deferred.test/**', async (route) => {
-		await gate;
-		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_SVG });
-	});
-	return release;
-}
 
 function imageState(page: Page): Promise<'undecoded' | 'decoded' | 'gone'> {
 	return page.evaluate(() => {
@@ -68,7 +55,7 @@ test.describe('growth inside a container wholly above the viewport is corrected 
 	for (const { name, doc } of CASES) {
 		test(`an image decoding in ${name}`, async ({ page }) => {
 			const pageErrors = capturePageErrors(page);
-			const release = await deferImage(page);
+			const release = await deferImage(page, LATE_SVG);
 			const nested = await openNested(page, 'self', doc);
 			expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
 			await nested.topInside([CONTAINER]);
@@ -102,22 +89,42 @@ test.describe('growth inside a container holding the viewport’s top is correct
 	// The image is child 1 and the viewport's top sits inside child 6, so the growth is above the
 	// top and inside the same container; the caret, when there is one, is in root block 32 below it.
 	const CASES = [
-		{ name: 'a 10-item list, the caret below it', kind: 'list', count: 10, caret: true },
-		{ name: 'a 10-item list, no caret', kind: 'list', count: 10, caret: false },
-		{ name: 'a 40-item list, no caret', kind: 'list', count: 40, caret: false },
+		{
+			name: 'a 10-item list, the caret below it',
+			kind: 'list',
+			count: 10,
+			caret: true,
+			host: true
+		},
+		{ name: 'a 10-item list, no caret', kind: 'list', count: 10, caret: false, host: false },
+		{ name: 'a 40-item list, no caret', kind: 'list', count: 40, caret: false, host: false },
 		{
 			name: 'a 10-paragraph blockquote, the caret below it',
 			kind: 'quote',
 			count: 10,
-			caret: true
+			caret: true,
+			host: false
 		},
-		{ name: 'a 10-paragraph blockquote, no caret', kind: 'quote', count: 10, caret: false },
-		{ name: 'a 40-paragraph blockquote, no caret', kind: 'quote', count: 40, caret: false },
+		{
+			name: 'a 10-paragraph blockquote, no caret',
+			kind: 'quote',
+			count: 10,
+			caret: false,
+			host: false
+		},
+		{
+			name: 'a 40-paragraph blockquote, no caret',
+			kind: 'quote',
+			count: 40,
+			caret: false,
+			host: true
+		},
 		{
 			name: 'a 10-item list inside a blockquote, no caret',
 			kind: 'quotedList',
 			count: 10,
-			caret: false
+			caret: false,
+			host: true
 		}
 	] as const;
 	const containerOf = (kind: string, count: number) =>
@@ -133,34 +140,35 @@ test.describe('growth inside a container holding the viewport’s top is correct
 	const sixthOf = (kind: string) =>
 		kind === 'list' ? [CONTAINER, 6, 0] : kind === 'quote' ? [CONTAINER, 6] : [CONTAINER, 0, 6, 0];
 
-	for (const mode of ['self', 'host'] as ScrollMode[]) {
-		for (const { name, kind, count, caret } of CASES) {
-			test(`an image decoding in ${name}, scrollMode ${mode}`, async ({ page }) => {
-				const pageErrors = capturePageErrors(page);
-				const release = await deferImage(page);
-				const nested = await openNested(page, mode, docWith(containerOf(kind, count)));
-				expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
-				const sixth = sixthOf(kind);
-				await nested.topInside(sixth);
-				if (caret) {
-					await nested.editor.clickBlockAtPath([BELOW], 3);
-					await nested.editor.waitForResizeObserverFlush();
-				}
-				expect(await imageState(page)).toBe('undecoded');
-				const reference = caret || count === 10 ? [BELOW] : sixth;
-				const before = (await nested.screenTop(reference))!;
-				const writes = await nested.countWrites();
+	// A `host` row runs again with the page scrolling: one of each container shape is enough to
+	// catch a correction written to the wrong scroll container.
+	const RUNS = CASES.flatMap((row) =>
+		(row.host ? ['self', 'host'] : ['self']).map((mode) => ({ ...row, mode: mode as ScrollMode }))
+	);
+	for (const { name, kind, count, caret, mode } of RUNS) {
+		test(`an image decoding in ${name}, scrollMode ${mode}`, async ({ page }) => {
+			const pageErrors = capturePageErrors(page);
+			const release = await deferImage(page, LATE_SVG);
+			const nested = await openNested(page, mode, docWith(containerOf(kind, count)));
+			expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
+			const sixth = sixthOf(kind);
+			await nested.topInside(sixth);
+			if (caret) {
+				await nested.editor.clickBlockAtPath([BELOW], 3);
+				await nested.editor.waitForResizeObserverFlush();
+			}
+			expect(await imageState(page)).toBe('undecoded');
+			const reference = caret || count === 10 ? [BELOW] : sixth;
+			const before = (await nested.screenTop(reference))!;
+			const writes = await nested.countWrites();
 
-				await releaseAndSettle(nested.editor, release);
+			await releaseAndSettle(nested.editor, release);
 
-				const after = await nested.screenTop(reference);
-				expect(after, `${JSON.stringify(reference)} stays mounted`).not.toBeNull();
-				expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(
-					1
-				);
-				expect(await writes(), 'one scroll write').toHaveLength(1);
-				expect(pageErrors).toEqual([]);
-			});
-		}
+			const after = await nested.screenTop(reference);
+			expect(after, `${JSON.stringify(reference)} stays mounted`).not.toBeNull();
+			expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(1);
+			expect(await writes(), 'one scroll write').toHaveLength(1);
+			expect(pageErrors).toEqual([]);
+		});
 	}
 });

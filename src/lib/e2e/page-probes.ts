@@ -107,3 +107,15 @@ export async function holdClipboardRead(page: Page): Promise<void> {
 export async function releaseClipboardRead(page: Page, text: string): Promise<void> {
 	await page.evaluate((t) => (window as any).__releaseClipboardRead(t), text);
 }
+
+/** Holds every image under `https://e2e-deferred.test/` until the returned call, then serves
+ *  `svg`, so an image grows at a moment the spec picks rather than during the load. */
+export async function deferImage(page: Page, svg: string): Promise<() => void> {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => (release = resolve));
+	await page.route('https://e2e-deferred.test/**', async (route) => {
+		await gate;
+		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: svg });
+	});
+	return release;
+}

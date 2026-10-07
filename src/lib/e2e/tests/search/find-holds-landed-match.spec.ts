@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors } from '../../page-probes';
+import { capturePageErrors, deferImage } from '../../page-probes';
 import { count, findInput } from './helpers';
 
 // A bounded editor, so it scrolls inside its own box and the correction runs.
@@ -27,17 +27,6 @@ const DOC =
 const MATCH_INDEX = 43;
 const MATCH_TOP_IN_VIEW = 300;
 
-/** Holds the image's response until the returned call, so it grows after the step. */
-async function deferImage(page: Page): Promise<() => void> {
-	let release!: () => void;
-	const gate = new Promise<void>((resolve) => (release = resolve));
-	await page.route('https://e2e-deferred.test/**', async (route) => {
-		await gate;
-		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_IMAGE_SVG });
-	});
-	return release;
-}
-
 /** A block's top below the editor's visible top, or null when it isn't mounted. */
 function topInView(page: Page, selector: string): Promise<number | null> {
 	return page.evaluate((sel) => {
@@ -62,7 +51,7 @@ test('find next onto a match already on screen keeps it there while an image abo
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	const releaseImage = await deferImage(page);
+	const releaseImage = await deferImage(page, LATE_IMAGE_SVG);
 	await editor.loadContent(DOC);
 	await editor.waitForRenderFlush();
 	await page.evaluate((i) => (window as any).__test.rects.reveal([i]), MATCH_INDEX);
