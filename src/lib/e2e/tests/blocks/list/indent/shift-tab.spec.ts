@@ -58,7 +58,7 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Shift+Tab');
 
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceMatches(/- one\n.*- Xnested a\n/s);
+		await editor.bridge.waitForSourceEquals('- one\n- Xnested a\n  - nested b\n- three\n');
 	});
 
 	test('Shift+Tab of the only nested item removes the nested list and focuses the promoted item', async () => {
