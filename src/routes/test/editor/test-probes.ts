@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import type { Editor, PastedImage, PresentationMode } from '$lib';
+import type { Editor, EditorProps, PastedImage, PresentationMode } from '$lib';
 import { readBlocks } from '$lib/core/parser';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { serialize } from '$lib/core/serializer';
@@ -75,6 +75,8 @@ export interface TestProbeDeps {
 	setSource: (md: string) => void;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
 	setPresentationMode: (mode: PresentationMode) => void;
+	/** Only the editor harness takes it; another route leaves the prop alone. */
+	setPlaceholder?: (placeholder: EditorProps['placeholder']) => void;
 }
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
@@ -341,7 +343,8 @@ export function installTestProbes({
 	editor,
 	setSource,
 	setKeybindings,
-	setPresentationMode
+	setPresentationMode,
+	setPlaceholder
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
@@ -377,6 +380,11 @@ export function installTestProbes({
 		// reconciles data-focused on a mode change (the header toggles blur instead).
 		setPresentationMode: (mode: PresentationMode) => {
 			setPresentationMode(mode);
+		},
+		// A spec builds the function form inside the page, since a function cannot cross `evaluate`.
+		setPlaceholder: (placeholder: EditorProps['placeholder']) => {
+			if (!setPlaceholder) throw new Error('this route mounts no settable placeholder');
+			setPlaceholder(placeholder);
 		},
 		// getBlockCount, getBlockKind and dumpTree read the live CST: a reparse cannot see a
 		// block whose kind has left its raw text behind, or a short-lived block the serializer trims.

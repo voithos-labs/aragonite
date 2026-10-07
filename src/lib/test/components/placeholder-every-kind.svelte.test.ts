@@ -11,8 +11,7 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
-import type { EditorPluginEntry } from '$lib';
-import type { PlaceholderBlock } from '$lib/editor-props';
+import type { EditorPluginEntry, PlaceholderBlock } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { detailsPlugin } from '$lib/plugins/details';
 import { emojiPlugin } from '$lib/plugins/emoji';
@@ -27,7 +26,7 @@ import { tocPlugin } from '$lib/plugins/toc';
 installLayoutStubs();
 afterEach(destroyMountedEditors);
 
-/** Every bundled plugin, keyed by its directory, so a plugin added on disk fails until it is here. */
+/** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => EditorPluginEntry> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,

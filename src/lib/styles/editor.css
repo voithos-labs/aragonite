@@ -139,6 +139,45 @@
 	align-self: stretch;
 }
 
+/* An empty block's hint (the `placeholder` prop) paints where typing starts, out of the flow so
+   the caret and the line keep their place; `aria-placeholder` says it, so its alt text is empty. */
+:where(.editor) [data-placeholder]::before {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	float: left;
+	height: 0;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A heading's own marker sits where that float would, so its hint follows the marker instead. */
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::before {
+	content: none;
+}
+
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::after {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	position: absolute;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A float beside a code block's opening fence would push the body line along, so the hint is
+   positioned instead; source mode draws that fence first, so the body is the line below it. */
+:where(.editor) .code-block[data-placeholder]::before {
+	float: none;
+	position: absolute;
+}
+
+:where(.editor):not([data-presentation]) .code-block[data-placeholder]::before {
+	margin-top: 1lh;
+}
+
 /* A typed kind change names the new kind at the block's corner until the fade ends. The empty
    alternative text keeps it out of the accessibility tree, since the editor's announcer says it. */
 :where(.editor) .block-host[data-kind-cue]::after {

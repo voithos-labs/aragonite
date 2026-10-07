@@ -67,3 +67,20 @@ test.describe('--editor-font-size', () => {
 		expect(after.heading).toBe('48px');
 	});
 });
+
+test.describe('--md-placeholder-color', () => {
+	test('a host recolors the empty-block hint by declaring the token at .editor scope', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto('?placeholder=Start%20writing');
+		await editor.loadContent('');
+		const hint = editor.getBlock(0);
+		const colorOf = () => hint.evaluate((el) => getComputedStyle(el, '::before').color);
+		const before = await colorOf();
+		await page.addStyleTag({ content: '.editor { --md-placeholder-color: rgb(200, 30, 40); }' });
+
+		expect(await colorOf()).toBe('rgb(200, 30, 40)');
+		expect(before).not.toBe('rgb(200, 30, 40)');
+	});
+});

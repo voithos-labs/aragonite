@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type EditorProps, type PresentationMode } from '$lib';
 	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the public API a
 	// host uses (`@voithos-labs/aragonite/plugin`): one import, one call, before any editor mounts.
 	// Off by default, because the picker specs measure the language list.
@@ -94,6 +94,10 @@
 		PARAM_MODES.find((m) => m === param('presentationMode')) ?? 'source'
 	);
 
+	// `?placeholder=…` starts with that string; the prop reads live, so a spec sets the function
+	// form through `__test.setPlaceholder` with no remount.
+	let placeholder = $state<EditorProps['placeholder']>(param('placeholder') ?? undefined);
+
 	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
@@ -125,6 +129,9 @@
 			},
 			setPresentationMode: (mode) => {
 				presentationMode = mode;
+			},
+			setPlaceholder: (value) => {
+				placeholder = value;
 			}
 		});
 	});
@@ -222,6 +229,7 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}
+					{placeholder}
 					{onRunCode}
 					{codeMenuItems}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}

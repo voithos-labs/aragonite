@@ -11,7 +11,7 @@ import type { RawRange } from '../../cursor/widget-offset';
 import type { EditorProps, PlaceholderBlock } from '../../editor-props';
 import type { Reading } from '../../schema/reading';
 
-/** The prop as the editor hands it to every block, and whether the document is one top-level block. */
+/** The prop as the editor hands it down, and whether the document holds one top-level block. */
 export interface PlaceholderPolicy {
 	hint: NonNullable<EditorProps['placeholder']>;
 	singleBlock: boolean;
@@ -34,7 +34,7 @@ export interface PlaceholderHint {
 	track(el: HTMLElement): () => void;
 }
 
-/** The string form shows only on an editable empty document; the function form answers for itself. */
+/** The string form shows only on an editable empty document; a function answers for itself. */
 export function decidePlaceholder(
 	hint: PlaceholderPolicy['hint'],
 	block: PlaceholderBlock

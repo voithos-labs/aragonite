@@ -11,6 +11,7 @@ host-chrome tokens, so its default lives behind the opt-in class alone.
 
 - Setting `--editor-font-size` on `.editor` makes a paragraph's computed font-size exactly the declared value.
 - A heading scales with it in the same declaration: the type scale follows the token rather than being re-anchored per construct.
+- `--md-placeholder-color` colors an empty block's hint (the `placeholder` prop), an editor-owned token whose default follows `--color-ui-muted`: a host declaring it on `.editor` recolors the hint.
 
 ## Edge cases
 

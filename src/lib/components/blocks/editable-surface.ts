@@ -1,8 +1,8 @@
 /**
  * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring, the
- * shared keydown context, the BlockComponent caret methods, the element's attributes and empty-block
- * hint, the one write to the block's own text, input, composition and clipboard handling. Each block
- * supplies a SurfaceBackend for its offsets; state that changes is passed as functions, not values.
+ * shared keydown context, the BlockComponent caret methods, the element's attributes and its
+ * empty-block hint, the one write to the block's own text, input, composition and clipboard
+ * handling. Each block supplies a SurfaceBackend for its offsets; live state comes as functions.
  */
 
 import { tick } from 'svelte';
