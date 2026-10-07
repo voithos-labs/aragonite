@@ -6,7 +6,7 @@ import { isBlankText } from '../../../core/lines';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent, type InlineReading } from '../../../core/inline/inline-cache';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import type { GrammarView } from '../../../schema/block-openers';
+import type { Reading } from '../../../schema/reading';
 import type { WidgetTarget } from '../../../selection/primitives';
 
 export interface WidgetRange {
@@ -78,32 +78,36 @@ export function widgetSpanAt(
 	return block && widgetSpanIn(block, target.sourceStart, reading);
 }
 
-/** First widget reachable from the leading edge, skipping blank text; null once any
- *  non-blank, non-widget inline intervenes. */
-export function findFirstEdgeWidget(
-	inlines: ReadonlyArray<InlineNode>,
-	raw: string,
-	grammar: GrammarView
-): InlineNode | null {
-	for (const inline of inlines) {
-		if (isInlineWidget(inline, raw, grammar)) return inline;
-		if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
-		return null;
-	}
-	return null;
+/** What the edge readers ask: the inline reading, and whether the mode hides markers at the caret. */
+export type EdgeReading = InlineReading & Pick<Reading, 'hidesDelimitersAtCaret'>;
+
+/** The widget `node` draws first, past blank text; null once anything else draws ahead of it. */
+export function findFirstEdgeWidget(node: NodeView, reading: EdgeReading): InlineNode | null {
+	return edgeWidget(resolvedInlineContent(node, reading), node.raw, reading, 'first');
 }
 
-/** Trailing-edge counterpart of `findFirstEdgeWidget`. */
-export function findLastEdgeWidget(
+/** The widget `node` draws last, past blank text; null once anything else draws after it. */
+export function findLastEdgeWidget(node: NodeView, reading: EdgeReading): InlineNode | null {
+	return edgeWidget(resolvedInlineContent(node, reading), node.raw, reading, 'last');
+}
+
+function edgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
 	raw: string,
-	grammar: GrammarView
+	reading: EdgeReading,
+	edge: 'first' | 'last'
 ): InlineNode | null {
-	for (let i = inlines.length - 1; i >= 0; i--) {
-		const inline = inlines[i];
-		if (isInlineWidget(inline, raw, grammar)) return inline;
-		if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
-		return null;
+	let level: ReadonlyArray<InlineNode> | null = inlines;
+	while (level) {
+		const fromEdge: ReadonlyArray<InlineNode> = edge === 'first' ? level : [...level].reverse();
+		level = null;
+		for (const inline of fromEdge) {
+			if (isInlineWidget(inline, raw, reading.grammar)) return inline;
+			if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
+			// A construct whose markers stay hidden draws only its content, a picture a link wraps.
+			if (inline.children && reading.hidesDelimitersAtCaret()) level = inline.children;
+			break;
+		}
 	}
 	return null;
 }

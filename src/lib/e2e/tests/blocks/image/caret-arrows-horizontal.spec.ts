@@ -111,7 +111,7 @@ test.describe('live mode: horizontal arrows onto a picture inside a link', () =>
 
 			await page.keyboard.press(key);
 			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
-			await editor.typeText('Q');
+			await editor.typeSlowly('Q');
 
 			await editor.bridge.waitForSourceEquals('text\n\n[Q](https://x)\n\nend\n');
 		});

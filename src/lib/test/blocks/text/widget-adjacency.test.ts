@@ -1,4 +1,3 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '$lib/core/nodes';
 import {
@@ -12,10 +11,6 @@ import {
 } from '$lib/components/blocks/text/widget-adjacency';
 import { parse } from '$lib/core/parser';
 import { fixtureReading } from '../../harness/fixture-grammar';
-
-function text(start: number, end: number, value: string): InlineNode {
-	return { kind: 'text', start, end, text: value };
-}
 
 function image(start: number, end: number): InlineNode {
 	return { kind: 'image', start, end, alt: '', url: 'x.png' };
@@ -114,42 +109,41 @@ describe('widgetNodeIn', () => {
 	});
 });
 
+// Where the mode hides a construct's markers, the construct draws only its content, so a picture
+// a link or emphasis wraps is the block's edge too.
 describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
-	it('finds a leading widget after skipping blank text', () => {
-		const raw = '  ![a](x.png)\n';
-		const inlines = [text(0, 2, '  '), image(2, 13)];
-		expect(findFirstEdgeWidget(inlines, raw, defaultGrammarView)).toMatchObject({
-			start: 2,
-			end: 13,
-			kind: 'image'
-		});
-	});
+	const edges = (source: string, mode: 'source' | 'live') => {
+		const node = parse(source).children[0];
+		const reading = fixtureReading({}, mode);
+		const span = (w: InlineNode | null) => w && [w.start, w.end];
+		return [span(findFirstEdgeWidget(node, reading)), span(findLastEdgeWidget(node, reading))];
+	};
 
-	it('finds a trailing widget after skipping blank text', () => {
-		const raw = '![a](x.png)  \n';
-		const inlines = [image(0, 11), text(11, 13, '  ')];
-		expect(findLastEdgeWidget(inlines, raw, defaultGrammarView)).toMatchObject({
-			start: 0,
-			end: 11,
-			kind: 'image'
-		});
-	});
-
-	it('returns null when non-blank text precedes the first widget', () => {
-		const raw = 'hi ![a](x.png)\n';
-		const inlines = [text(0, 3, 'hi '), image(3, 14)];
-		expect(findFirstEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
-	});
-
-	it('returns null when non-blank text follows the last widget', () => {
-		const raw = '![a](x.png) hi\n';
-		const inlines = [image(0, 11), text(11, 14, ' hi')];
-		expect(findLastEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
-	});
-
-	it('returns null for empty inline content', () => {
-		expect(findFirstEdgeWidget([], '', defaultGrammarView)).toBeNull();
-		expect(findLastEdgeWidget([], '', defaultGrammarView)).toBeNull();
+	it.each([
+		['a picture then text', '![a](x.png) hi\n', 'live', [[0, 11], null]],
+		['text then a picture', 'hi ![a](x.png)\n', 'live', [null, [3, 14]]],
+		[
+			'a picture a link wraps, live',
+			'[![a](x.png)](y)\n',
+			'live',
+			[
+				[1, 12],
+				[1, 12]
+			]
+		],
+		[
+			'a picture emphasis wraps, live',
+			'*![a](x.png)*\n',
+			'live',
+			[
+				[1, 12],
+				[1, 12]
+			]
+		],
+		['a picture a link wraps, source', '[![a](x.png)](y)\n', 'source', [null, null]],
+		['a link holding a picture and text, live', '[![a](x.png) b](y)\n', 'live', [[1, 12], null]]
+	] as const)('%s', (_, source, mode, expected) => {
+		expect(edges(source, mode)).toEqual(expected);
 	});
 });
 
