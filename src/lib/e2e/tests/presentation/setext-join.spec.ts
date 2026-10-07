@@ -65,6 +65,21 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
 		});
 
+		await test.step('a range ending inside a setext title takes its underline, and one undo puts both blocks back', async () => {
+			const doc = 'Setext\n======\n\nOther\n---\n';
+			await nextRow(ep, doc);
+			await ep.focusBlockAtPath([0], 3);
+			await ep.shiftClickBlock([1], 2);
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.press('Backspace');
+			await expectSource(ep, 'Sether\n======\n');
+			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
+
+			await ep.undo();
+			await expectSource(ep, doc);
+		});
+
 		await test.step('ArrowRight at the block end moves into the next block', async () => {
 			await nextRow(ep, DOC);
 			await ep.focusBlockAtPath([0], blockEnd(mode));

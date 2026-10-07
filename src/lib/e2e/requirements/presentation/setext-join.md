@@ -29,6 +29,7 @@ on this keypress encoded its refusal as the contract, so the join it declined wa
 ## Edge cases
 
 - a range deleted from inside the title into the block below keeps the underline under the joined text, and the heading stays a heading
+- a range that ends inside a setext title takes that title's underline with it (`Setext\n======\n\nOther\n---\n` becomes `Sether\n======\n`), and one undo puts both blocks back
 - ArrowRight at the block's end moves the caret to the start of the next block in every mode
 - before a block that is not prose (a list, a table, a fenced code block), Delete at the title end does what it does at a paragraph's end there: the caret moves into that block and no byte changes
 
