@@ -5,6 +5,7 @@ import {
 	clickBlockSettled,
 	clickWordSettled,
 	enterPresentationMode,
+	focusOffset,
 	nextRow,
 	stepTo
 } from './helpers';
@@ -260,10 +261,11 @@ test('live mode: a mark is spent once and cleared by any caret move', async ({ p
 
 		await bold(page);
 		await clickWordSettled(ep, page, 'plain');
+		const at = await focusOffset(ep);
 		await page.keyboard.type('X');
 
-		await ep.bridge.waitForSourceContains('X');
-		await ep.bridge.waitForSourceNotContains('plain**');
+		const typed = `${'plain'.slice(0, at)}X${'plain'.slice(at)}`;
+		await ep.bridge.waitForSource((source) => source.startsWith(`${typed}\n`));
 	});
 });
 
