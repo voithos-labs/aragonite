@@ -96,7 +96,7 @@ Of those that touch the editing surface, by share of that set:
 | **Document lifecycle** (on load / change / save)                    | ~a third                                               | **have**: `onEditor` plus the per-instance events view             |
 | **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **have**: `BlockComponentProps.document` (the toc plugin reads it) |
 | **Context-sensitive keymap** (Tab means "next cell" inside a table) | smaller share, but the two most-loved editing plugins  | **have**                                                           |
-| **Trigger-character suggest** (`/`, `@`, `[[`)                      | table stakes                                           | **gap**                                                            |
+| **Trigger-character suggest** (`/`, `@`, `[[`)                      | table stakes                                           | **have**: inline menus (`editor.inlineMenus.addSource`)            |
 
 The custom-block-kind row is the one to sit with. It's the mechanism aragonite is _strongest_ at, and it's a third of the demand. Being excellent at a third of the demand isn't a platform.
 

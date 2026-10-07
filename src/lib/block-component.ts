@@ -242,9 +242,10 @@ export interface BlockComponent {
 	 */
 	mountedRowWindow?(): { start: number; end: number };
 	/**
-	 * True when vertical movement should pass straight through: no text positions the caret
-	 * can sit at, only widgets with no column meaning. Decided from the CST, not from mounted
-	 * refs, so a container answers the same for a child that is not mounted.
+	 * True when the block holds no text position, only widgets with no column meaning, so
+	 * ArrowUp/Down treat it as one stop: the first press selects it whole, the next moves on.
+	 * Decided from the CST, not from mounted refs, so a container answers the same for a child
+	 * that is not mounted.
 	 */
 	isVerticallyTransparent?(): boolean;
 	/**
