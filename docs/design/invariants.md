@@ -1694,17 +1694,18 @@ records what shipped under the name of the day. `lint/doc-package-name.test.ts`.
 
 **G4.56 · Iterative walks.** No function under `core/inline/`, `cursor/`, `ambient/` or
 `components/blocks/text/` that reads a node's `children` or `childNodes` may sit on a call cycle,
-its own included. Inline nesting depth is input-controlled (`**` nests one construct per pair), so a
-per-level stack frame overflows and strands the block in the failed-block fallback, which can't
-heal. The renderer and the offset walk took explicit stacks for exactly that reason, and four walks
-one call later didn't, which voided the protection (#200). The scan reads brace-matched bodies
-through the literal-aware walk, so a `{` or a call inside a string can't move the boundary it reads;
-it resolves a call to EVERY declaration bearing that name and tracks reachability per declaration,
-so a file spelling two walkers alike can't hide the recursive one behind the iterative one, and a
-second assertion fails that repeated spelling outright, which is what makes the exception map's
-`path :: name` key address one walk. The map is EMPTY by design; an entry is a stated overflow. The
-join seam's `clipNodes` REBUILDS a tree rather than reading one and still routes through the same
-pre-order, since a construct the cut crosses hands its place to its own clipped children (#226).
+its own included, even a cycle through helpers that read neither. Inline nesting depth is
+input-controlled (`**` nests one construct per pair), so a per-level stack frame overflows and
+strands the block in the failed-block fallback, which can't heal. The renderer and the offset walk
+took explicit stacks for exactly that reason, and four walks one call later didn't, which voided
+the protection (#200). The scan reads brace-matched bodies through the literal-aware walk, so a `{`
+or a call inside a string can't move the boundary it reads; it resolves a call to EVERY declaration
+bearing that name and tracks reachability per declaration, so a file spelling two walkers alike
+can't hide the recursive one behind the iterative one, and a second assertion fails that repeated
+spelling outright, which is what makes the exception map's `path :: name` key address one walk. The
+map is EMPTY by design; an entry is a stated overflow. The join seam's `clipNodes` REBUILDS a tree
+rather than reading one and still routes through the same pre-order, since a construct the cut
+crosses hands its place to its own clipped children (#226).
 `lint/inline-walk-iterative.test.ts`.
 
 **G4.57 · The lexer differential.** The source-scan lexer is held against TypeScript's: every
