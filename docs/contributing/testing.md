@@ -887,8 +887,9 @@ from the packed tarball, importing only published entry points. It's a test, not
 
 1. builds and packs `dist/`, and checks the tarball holds every published path and no test file
 2. installs the tarball into the example with `--no-save`
-3. typechecks and builds the example. A Rollup "reexported through module" warning fails the
-   build, since it means a published barrel sits inside an import cycle
+3. typechecks and builds the example. Its `vite.config.js` turns an import cycle through one of
+   the package's published entry points into a build error, since a split bundle can run that
+   entry before its own imports
 4. runs the example's own Playwright specs: the page server-renders without a 5xx, hydrates with
    no console errors and takes a keystroke, the editor's text has readable contrast against the
    page on every route, the plugins page mounts the bundled plugins through their subpaths plus a
