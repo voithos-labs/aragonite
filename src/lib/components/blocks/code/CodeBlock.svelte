@@ -105,7 +105,6 @@
 		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
 		columnWindow: () => bodyWindow(node),
 		clampLanding: (offset) => clampCaretToBody(node, offset),
-		contentRange: () => bodyWindow(node),
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,

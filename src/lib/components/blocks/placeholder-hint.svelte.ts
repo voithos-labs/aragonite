@@ -1,15 +1,15 @@
 /**
  * The hint an empty block shows from the editor's `placeholder` prop, decided here for every block
  * built on `createEditableSurface`. The hint is an attribute the stylesheet paints, so it never
- * reaches the bytes, the undo history or the caret. A block is empty when its content range is.
+ * reaches the bytes, the undo history or the caret.
  */
 
 import { untrack } from 'svelte';
 import { getContentRange } from '../../core/inline';
 import type { NodeView } from '../../core/node-views';
-import type { RawRange } from '../../cursor/widget-offset';
 import type { EditorProps, PlaceholderBlock } from '../../editor-props';
 import type { Reading } from '../../schema/reading';
+import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 /** The prop as the editor hands it down, and whether the document holds one top-level block. */
 export interface PlaceholderPolicy {
@@ -23,15 +23,17 @@ export interface PlaceholderHintDeps {
 	getNode: () => NodeView;
 	getPath: () => number[];
 	reading: Reading;
-	/** The bytes that count as the block's content; `getContentRange` when omitted. */
-	contentRange?: () => RawRange;
 }
 
 export interface PlaceholderHint {
 	/** The text the block shows now, or null. */
 	text(): string | null;
-	/** Tracks focus and composition on the editable element, attached through its spread. */
+	/** Tracks focus on the editable element, attached through its spread. */
 	track(el: HTMLElement): () => void;
+	/** Set by the surface's own composition handlers. */
+	setComposing(value: boolean): void;
+	/** A shown source whose edits reach the node only on blur, judged in place of the node. */
+	setShownSource(text: string): void;
 }
 
 /** The string form shows only on an editable empty document; a function answers for itself. */
@@ -43,17 +45,25 @@ export function decidePlaceholder(
 	return block.documentEmpty && block.editable ? hint || null : null;
 }
 
+/** Whether nothing is typed in `node`: its fenced body where the kind declares one, else its
+ *  content range. A fence with no body line has nowhere to type, so it is not empty. */
+export function isEmptyBlock(node: NodeView): boolean {
+	const { bodyRange } = getBlockKindDescriptor(node.kind);
+	const range = bodyRange ? bodyRange(node) : getContentRange(node);
+	return range !== null && range.start === range.end;
+}
+
 export function createPlaceholderHint(deps: PlaceholderHintDeps): PlaceholderHint {
 	let focused = $state(false);
 	// The composing text is in the element but not yet in the bytes, so the hint would sit over it.
 	let composing = $state(false);
+	let shown = $state<string | null>(null);
 
 	const text = $derived.by(() => {
 		const policy = deps.policy();
 		if (!policy || composing) return null;
 		const node = deps.getNode();
-		const range = deps.contentRange?.() ?? getContentRange(node);
-		if (range.start !== range.end) return null;
+		if (!isEmptyBlock(shown === null ? node : { ...node, raw: shown })) return null;
 		const path = deps.getPath();
 		return decidePlaceholder(policy.hint, {
 			kind: node.kind,
@@ -65,22 +75,27 @@ export function createPlaceholderHint(deps: PlaceholderHintDeps): PlaceholderHin
 	});
 
 	function track(el: HTMLElement): () => void {
-		const syncFocus = () => (focused = el.contains(el.ownerDocument.activeElement));
-		const writes: Record<string, () => void> = {
-			focusin: syncFocus,
-			focusout: syncFocus,
-			compositionstart: () => (composing = true),
-			compositionend: () => (composing = false)
-		};
+		// Untracked: removing a focused element mid-render fires `focusout` inside Svelte's update,
+		// where a plain state write throws.
+		const syncFocus = () =>
+			untrack(() => {
+				focused = el.contains(el.ownerDocument.activeElement);
+			});
 		const detach = new AbortController();
-		// Untracked: an element removed mid-render fires its focusout inside Svelte's update, where a
-		// plain state write throws.
-		for (const [type, write] of Object.entries(writes)) {
-			el.addEventListener(type, () => untrack(write), { signal: detach.signal });
-		}
+		el.addEventListener('focusin', syncFocus, { signal: detach.signal });
+		el.addEventListener('focusout', syncFocus, { signal: detach.signal });
 		syncFocus();
 		return () => detach.abort();
 	}
 
-	return { text: () => text, track };
+	return {
+		text: () => text,
+		track,
+		setComposing: (value) => {
+			composing = value;
+		},
+		setShownSource: (source) => {
+			shown = source;
+		}
+	};
 }

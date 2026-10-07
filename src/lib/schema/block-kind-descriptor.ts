@@ -205,6 +205,9 @@ export interface BlockKindDescriptor {
 	getContentRange?: ContentStart['range'];
 	/** The registration's `contentStart.backspace`. */
 	contentStartBackspace?: ContentStart['backspace'];
+	/** The body typed between the kind's own fence lines, or null before it has a body line; the
+	 *  empty-block hint reads it in place of the content range. */
+	bodyRange?: (node: NodeView) => { start: number; end: number } | null;
 	/**
 	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
 	 * (ignoring it is correct). Return `{ rereads: true }` to have the new bytes read whole.
@@ -272,6 +275,7 @@ export const DESCRIPTOR_FIELDS = [
 	'supportsInline',
 	'getContentRange',
 	'contentStartBackspace',
+	'bodyRange',
 	'rebuildRaw',
 	'renderImagesAsWidgets',
 	'foreignDragHitTest',

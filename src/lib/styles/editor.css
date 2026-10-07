@@ -167,14 +167,14 @@
 	user-select: none;
 }
 
-/* A float beside a code block's opening fence would push the body line along, so the hint is
+/* A float beside a fenced source's opening fence would push the body line along, so the hint is
    positioned instead; source mode draws that fence first, so the body is the line below it. */
-:where(.editor) .code-block[data-placeholder]::before {
+:where(.editor) [data-placeholder]:has(> .md-fence-line)::before {
 	float: none;
 	position: absolute;
 }
 
-:where(.editor):not([data-presentation]) .code-block[data-placeholder]::before {
+:where(.editor):not([data-presentation]) [data-placeholder]:has(> .md-fence-line)::before {
 	margin-top: 1lh;
 }
 

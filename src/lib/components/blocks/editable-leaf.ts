@@ -430,6 +430,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			el.textContent = text;
 		}
 		anchorTrailingNewline(el);
+		noteShownSource();
+	}
+
+	// A shown render-primary source reaches the node only on blur, so the empty-block hint reads it.
+	function noteShownSource(): void {
+		const el = deps.getEl();
+		if (mode === 'render-primary' && el) editableSurface.setShownSource(el.textContent ?? '');
 	}
 
 	function repaintSource(): void {
@@ -732,7 +739,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const surfaceHandlers = {
 		tabindex: 0,
 		spellcheck: 'false' as const,
-		oninput: editableSurface.onInput,
+		oninput: () => {
+			editableSurface.onInput();
+			noteShownSource();
+		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,

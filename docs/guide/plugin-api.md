@@ -201,6 +201,7 @@ Register **before mounting an editor**: a block already on screen re-tokenizes o
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence                                                                                                                           |
 | `renderFencedSource`                | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
 | `fenceBodyAsDrawn`                  | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence                                                                                                   |
+| `fencedBodyRange`                   | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange`                                                                                |
 
 ```ts
 import { registerLanguage } from '@voithos-labs/aragonite/plugin';

@@ -7,11 +7,13 @@
 import {
 	displayLines,
 	fenceBodyAsDrawn,
+	fencedBodyRange,
 	highlightCode,
 	isBlankText,
 	renderFencedSource,
 	sliceFencedSource,
-	type LineEnding
+	type LineEnding,
+	type NodeView
 } from '$lib/plugin';
 import { readMathSource, reshapeMathSource, type MathEdit, type MathSource } from './math-shape';
 
@@ -21,6 +23,11 @@ function sliceMathSource(text: string): MathSource {
 	const dollars = readMathSource(text);
 	if (dollars) return dollars;
 	return { ...(sliceFencedSource(text) ?? { opener: '', body: text, closer: '' }), after: '' };
+}
+
+/** The body a user types into, either form; null before the source has a body line. */
+export function mathBodyRange(node: NodeView): { start: number; end: number } | null {
+	return fencedBodyRange(sliceMathSource(node.raw));
 }
 
 /**

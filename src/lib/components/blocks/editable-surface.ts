@@ -132,8 +132,6 @@ export interface EditableSurfaceDeps {
 	/** The raw range `focusAtColumn` searches, for a block whose first or last visual line takes
 	 *  no caret (a code fence); the whole block when omitted. */
 	columnWindow?: () => RawRange;
-	/** The bytes the empty-block hint counts as content; `getContentRange` when omitted. */
-	contentRange?: () => RawRange;
 	/** What an offset handed to `focus` or `parkCaret` becomes before it lands. It receives the
 	 *  `CURSOR_START`, `CURSOR_END` and `CURSOR_EXACT_START` values as they are. */
 	clampLanding?: (offset: number) => number;
@@ -257,6 +255,8 @@ export interface EditableSurface {
 	onCompositionEnd: () => void;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
+	/** A shown source whose edits reach the node only on blur: the empty-block hint judges it. */
+	setShownSource(text: string): void;
 	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
 	notePreEditOffset(offset: number): void;
 }
@@ -423,6 +423,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input and composition ─────────────────────────────────────────────────
 
+	const placeholder = createPlaceholderHint({
+		policy: deps.placeholder,
+		getNode: deps.getNode,
+		getPath: deps.getMyPath,
+		reading: deps.reading
+	});
+
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
@@ -537,6 +544,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		heldForComposition = holdInsertion();
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
+		placeholder.setComposing(true);
 	}
 
 	function onCompositionEnd(): void {
@@ -545,6 +553,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
+		placeholder.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
 	}
@@ -589,13 +598,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
-	const placeholder = createPlaceholderHint({
-		policy: deps.placeholder,
-		getNode: deps.getNode,
-		getPath: deps.getMyPath,
-		reading: deps.reading,
-		contentRange: deps.contentRange
-	});
 	// Taken once: Svelte re-runs an attachment only when the function under its key changes.
 	const trackKey = createAttachmentKey();
 
@@ -635,6 +637,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onCompositionStart,
 		onCompositionEnd,
 		getPreEditOffset: () => preEditOffset,
+		setShownSource: placeholder.setShownSource,
 		notePreEditOffset: (offset) => {
 			preEditOffset = offset;
 		}

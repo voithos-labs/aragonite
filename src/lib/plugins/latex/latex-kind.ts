@@ -43,6 +43,7 @@ import {
 	opensMathBlock,
 	readMathSource
 } from './math-shape';
+import { mathBodyRange } from './math-source';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -217,6 +218,7 @@ export function registerMathBlock(): void {
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		caretTargetAtPoint: mathCaretAtPoint,
+		bodyRange: mathBodyRange,
 		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({
 			focus: {
@@ -290,6 +292,7 @@ export function registerMathFence(): void {
 		supportsInline: false,
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
+		bodyRange: mathBodyRange,
 		conformanceFixture: '```math\nx^2\n```\n',
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		closure: simpleLeafClosure({

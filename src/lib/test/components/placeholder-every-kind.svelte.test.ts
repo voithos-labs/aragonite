@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Every block kind the registries know either shows the `placeholder` hint when empty, proven by
-// mounting it, or says why it is never an empty editable block, so a new kind cannot skip it.
+// mounting it, or says why it is never asked, so a new kind cannot skip it.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -40,8 +40,9 @@ const BUNDLED: Record<string, () => EditorPluginEntry> = {
 	toc: tocPlugin
 };
 
-/** A kind that can be empty: the source holding one empty block of it, and that block's path. */
-const EMPTY_FIXTURES: Record<string, { source: string; path: number[] }> = {
+/** A kind that can be empty: the source holding one empty block of it and that block's path, and
+ *  for a block that shows its source only while edited, the caret offset that opens it. */
+const EMPTY_FIXTURES: Record<string, { source: string; path: number[]; openAt?: number }> = {
 	paragraph: { source: '\n', path: [0] },
 	heading: { source: '# \n', path: [0] },
 	fencedCode: { source: '```\n\n```\n', path: [0] },
@@ -50,19 +51,23 @@ const EMPTY_FIXTURES: Record<string, { source: string; path: number[] }> = {
 	'details-summary': {
 		source: '<details>\n<summary></summary>\n\nbody\n\n</details>\n',
 		path: [0, 0]
-	}
+	},
+	mathBlock: { source: '$$\n\n$$\n', path: [0], openAt: 3 },
+	mathFence: { source: '```math\n\n```\n', path: [0], openAt: 8 }
 };
 
 const CONTAINER = 'a container: its empty child blocks are asked under their own kinds';
-const ALL_CONTENT = 'its content range is all of its bytes, and no parse gives it none';
+const NO_BLANK_FORM = 'the grammar gives it no blank form: the bytes that open it are its content';
 
-/** A kind with no empty editable state, and why. */
-const NEVER_EMPTY: Record<string, string> = {
+/** A kind that never shows the hint, and why. */
+const NEVER_ASKED: Record<string, string> = {
 	setextHeading: 'an underline under no text is not a setext heading',
 	thematicBreak: 'all marker: nothing is typed into a divider',
-	indentedCode: ALL_CONTENT,
-	htmlBlock: ALL_CONTENT,
-	linkReferenceDefinition: ALL_CONTENT,
+	indentedCode: 'an indented code block starts at its first non-blank line',
+	htmlBlock: NO_BLANK_FORM,
+	linkReferenceDefinition: NO_BLANK_FORM,
+	toc: NO_BLANK_FORM,
+	parrot: NO_BLANK_FORM,
 	unrecognized: 'no opener produces it, and it keeps the bytes it was given',
 	table: 'its cells are not blocks and are not asked',
 	tableRow: 'rendered inside its table, whose cells are not asked',
@@ -75,15 +80,13 @@ const NEVER_EMPTY: Record<string, string> = {
 	githubAlert: CONTAINER,
 	details: CONTAINER,
 	'footnote-def': CONTAINER,
-	mathBlock: ALL_CONTENT,
-	mathFence: ALL_CONTENT,
-	mermaid: ALL_CONTENT,
-	toc: ALL_CONTENT,
-	parrot: ALL_CONTENT
+	mermaid: 'edited in its own textarea, which is not the shared editable element'
 };
 
-function mountWithEveryPlugin(source: string): MountedEditor {
-	return mountEditor({
+type Seam = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
+
+function mountWithEveryPlugin(source: string): MountedEditor<Seam> {
+	return mountEditor<Seam>({
 		source,
 		plugins: Object.values(BUNDLED).map((plugin) => plugin()),
 		placeholder: (block: PlaceholderBlock) => block.kind
@@ -95,20 +98,24 @@ describe('placeholder: every registered kind', () => {
 		expect(Object.keys(BUNDLED).sort()).toEqual(bundledPluginDirs());
 	});
 
-	it('names every registered kind once, as one that shows the hint or one never empty', () => {
+	it('names every registered kind once, as one that shows the hint or one never asked', () => {
 		mountWithEveryPlugin('\n');
-		const named = [...Object.keys(EMPTY_FIXTURES), ...Object.keys(NEVER_EMPTY)];
+		const named = [...Object.keys(EMPTY_FIXTURES), ...Object.keys(NEVER_ASKED)];
 		expect(new Set(named).size, 'a kind named in both tables').toBe(named.length);
 		expect(
 			[...getAllRegisteredKinds()].sort(),
-			'a registered kind with no empty fixture and no never-empty reason'
+			'a registered kind with no empty fixture and no reason it is never asked'
 		).toEqual(named.sort());
 	});
 
 	it.each(Object.entries(EMPTY_FIXTURES))(
 		'an empty %s block shows the hint its kind asked for',
-		(kind, { source, path }) => {
+		async (kind, { source, path, openAt }) => {
 			const editor = mountWithEveryPlugin(source);
+			if (openAt !== undefined) {
+				editor.instance.__test.getBlockComponent(path).focus?.(openAt);
+				await editor.settle();
+			}
 			const el = surfaceAt(editor, path);
 			expect(el.getAttribute('data-placeholder')).toBe(kind);
 			expect(el.getAttribute('aria-placeholder')).toBe(kind);

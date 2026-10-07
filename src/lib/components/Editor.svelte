@@ -231,9 +231,11 @@
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
-	// Worked out once here for every block; only the prop being set makes the document a dependency.
+	// Read only while the prop is set; a boolean, so a block added to a longer document leaves the
+	// policy, and every block's answer, as it was.
+	const singleBlock = $derived(doc.children.length === 1);
 	const placeholderPolicy = $derived(
-		placeholder === undefined ? null : { hint: placeholder, singleBlock: doc.children.length === 1 }
+		placeholder === undefined ? null : { hint: placeholder, singleBlock }
 	);
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.

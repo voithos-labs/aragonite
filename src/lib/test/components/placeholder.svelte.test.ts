@@ -8,14 +8,24 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	placeCaret,
+	pressKeyAt,
 	surfaceAt,
 	typeInto,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
+import { dispatchBeforeInput } from '$lib/test/harness/insertion-routes';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import type { EditorProps, PlaceholderBlock } from '$lib/editor-props';
+import { latexPlugin } from '$lib/plugins/latex';
+import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);
+
+const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
+// One definition for every row: installing a second is refused with a warning.
+const math = latexPlugin({ renderer: stubRenderer });
 
 /** The hint the block at `path` paints, checked equal to what it announces. */
 function hintAt(editor: MountedEditor, path: number[]): string | null {
@@ -104,10 +114,60 @@ describe('placeholder: the function form', () => {
 		expect(hintAt(editor, [0])).toBe('paragraph [0] document read-only');
 	});
 
+	it('asks an empty block again only when its own answer can change', async () => {
+		const asked: string[] = [];
+		const editor = mountEditor({
+			source: '\n\n\n\nlast\n',
+			placeholder: (block) => {
+				asked.push(JSON.stringify(block.path));
+				return block.kind;
+			}
+		});
+		let last = 0;
+		while (editor.instance.getBlockKindAt([last + 1]) !== null) last++;
+		asked.length = 0;
+		await pressKeyAt(editor, [last], 4, { key: 'Enter' });
+		await editor.settle();
+		expect(editor.instance.getBlockKindAt([last + 1])).toBe('paragraph');
+		expect(new Set(asked), 'only the new empty block is asked').toEqual(
+			new Set([JSON.stringify([last + 1])])
+		);
+	});
+
 	it('an answer of null or the empty string shows nothing', async () => {
 		const editor = mountEditor({ source: '\n', placeholder: () => null });
 		expect(hintAt(editor, [0])).toBeNull();
 		await setPlaceholder(editor, () => '');
+		expect(hintAt(editor, [0])).toBeNull();
+	});
+});
+
+describe('placeholder: fenced blocks count their body', () => {
+	type Seam = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
+
+	it('a fence with no body line is not empty, so no hint sits over its closing fence', () => {
+		const editor = mountEditor({ source: '```\n```\n', placeholder: echo });
+		expect(hintAt(editor, [0])).toBeNull();
+	});
+
+	it('a shown math source loses its hint on the first letter, before the source commits', async () => {
+		const editor = mountEditor<Seam>({
+			source: '$$\n\n$$\n',
+			plugins: [math],
+			placeholder: (block) => block.kind
+		});
+		editor.instance.__test.getBlockComponent([0]).focus?.(3);
+		await editor.settle();
+		expect(hintAt(editor, [0])).toBe('mathBlock');
+
+		const el = surfaceAt(editor, [0]);
+		const at = asDomTextOffset(3);
+		dispatchBeforeInput(el, 'insertText', {
+			data: 'x',
+			target: createRangeAtDomTextOffsets(el, at, at)!
+		});
+		await editor.settle();
+		expect(editor.source()).toBe('$$\n\n$$\n');
 		expect(hintAt(editor, [0])).toBeNull();
 	});
 });
