@@ -102,6 +102,11 @@ project (`deep-stack` in `vitest.config.ts`) on a 150 KB stack. That's small eno
 recursive walk overflows at a depth jsdom still renders in a few seconds, so it's the place for a
 test proving some walk never recurses.
 
+Every file gets its own VM context inside a long-lived worker, which is what keeps a jsdom file
+cheap. The one catch so far: a native addon rejects an object made in another context, so a test
+that calls vite's `resolveConfig` fails with a type error out of rolldown. A file like that goes
+in `NODE_REALM` in `vitest.config.ts`, which runs it in a plain worker instead.
+
 ### By area
 
 | Script                       | Covers                                                                                                      |
