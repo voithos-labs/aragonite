@@ -330,7 +330,7 @@ One last snarky remark to make... All these - all five styles, follow one render
 
 # License
 
-Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under compatible terms, and "ship" includes running it as a service for other people. Yes, that is the strict one. That is the point.
+Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under compatible terms, and "ship" includes running it as a service for other people.
 
 # Footnote
 
@@ -350,7 +350,7 @@ Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use i
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: Parse then serialize returns the same text every time. Editing is close: inside a quote or a list, an edit keeps every line it didn't touch byte for byte, and the line you edited keeps its spelling too, so `>b` stays `>b`. The one catch there is an indent that cuts a tab in half, which comes back as spaces on that line. Tables work the same way, an edit changes only the rows you touch. Footnote definitions and alerts still respell their own lines on the first edit; that's being fixed.
+[^9]: Parse then serialize returns the same text every time. Editing is close - usually surrounding regions are kept the same, and the local edited line keeps its spelling too. The exception is footnote definitions and alerts.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
