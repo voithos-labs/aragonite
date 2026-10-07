@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeEditorActionsDeps, mountEveryBlock } from '$lib/test/harness/editor-actions';
+import { mountEveryBlock } from '$lib/test/harness/editor-actions';
+import { makeReorderHarness } from './reorder-harness';
 import type { RecordedLanding } from '$lib/testing/headless-actions';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -17,12 +15,14 @@ import { takeDevWarns } from '../support/warn-gate';
 // sibling count, neither of which the pre-commit node can answer, since the commit copies it.
 // Miss-analysis: onReorder had no test at any level, and the caret index only at the primitive.
 
-/** Deps in `mode`, and a controller that records what the edit live region was told. */
-function announcingDeps(source: string, mode: PresentationMode) {
+/** A reorder in `mode` that records what the edit live region was told. */
+function announcingReorder(source: string, mode: PresentationMode) {
 	const announced: string[] = [];
-	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
-	const controller = createUndoController(harness.deps, (message) => announced.push(message));
-	return { harness, announced, controller };
+	const harness = makeReorderHarness(source, {
+		reading: fixtureReading({}, mode),
+		announce: (message) => announced.push(message)
+	});
+	return { harness, announced };
 }
 
 /** The leaves the caret landed in, from the position the move reported, and what the landing did. */
@@ -30,19 +30,17 @@ const landedIn = (harness: { landings: readonly RecordedLanding[] }) => () =>
 	harness.landings.map((landing) => [landing.leafPath, landing.outcome]);
 
 function makeTop(source: string, mode: PresentationMode = 'source') {
-	const { harness, announced, controller } = announcingDeps(source, mode);
+	const { harness, announced } = announcingReorder(source, mode);
 	mountEveryBlock(harness.deps);
-	const reorder = createReorderAction(harness.deps, controller);
-	return { doc: harness.doc, reorder, announced, landed: landedIn(harness) };
+	return { doc: harness.doc, reorder: harness.reorder, announced, landed: landedIn(harness) };
 }
 
 function makeContainer(source: string, mode: PresentationMode = 'source') {
-	const { harness, announced, controller } = announcingDeps(source, mode);
+	const { harness, announced } = announcingReorder(source, mode);
 	const node = () => harness.doc.children[0];
 	registerBlockListState(node(), createBlockListState(node));
 	mountEveryBlock(harness.deps);
-	const reorder = createReorderAction(harness.deps, controller);
-	return { doc: harness.doc, node, reorder, announced, landed: landedIn(harness) };
+	return { doc: harness.doc, node, reorder: harness.reorder, announced, landed: landedIn(harness) };
 }
 
 describe('reorder announcement and landing: document scope', () => {

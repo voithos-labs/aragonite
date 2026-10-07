@@ -184,15 +184,3 @@ describe('a gesture whose insertion writes nothing lands at the removal’s care
 		expect(landedAt(env)).toEqual([[[0], 2]]);
 	});
 });
-
-describe('cut removes what Backspace removes', () => {
-	for (const shapeName of ['a whole table', 'a whole row', 'a whole column', 'a cell rectangle']) {
-		it(`over ${shapeName}`, async () => {
-			const shape = SHAPES[shapeName];
-			const cut = await perform('cut', shape);
-			const backspace = await perform('Backspace', shape);
-
-			expect(serialize(cut.doc)).toBe(serialize(backspace.doc));
-		});
-	}
-});

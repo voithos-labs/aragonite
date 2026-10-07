@@ -4,7 +4,7 @@
 import type { SelectionEndpoint } from '$lib/selection/primitives';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { makeBlockListState, makeTopHarness, type TopHarness } from '../../harness/editor-actions';
-import { makeHandlers } from './typed-char-env';
+import { envOver, makeHandlers } from './typed-char-env';
 
 export interface RangeKeyEnv {
 	h: TopHarness;
@@ -23,17 +23,7 @@ export function rangeKeyEnv(source: string): RangeKeyEnv {
 }
 
 export function rangeHandlers(env: RangeKeyEnv) {
-	const { h } = env;
-	const handlerEnv = {
-		doc: h.doc,
-		deps: h.deps,
-		events: h.events,
-		selectionState: h.deps.selectionState,
-		controller: h.controller,
-		blockEdit: h.actions,
-		caretMemory: h.deps.caretMemory
-	};
-	return makeHandlers(handlerEnv as never, [0]);
+	return makeHandlers(envOver(env.h), [0]);
 }
 
 export function select(

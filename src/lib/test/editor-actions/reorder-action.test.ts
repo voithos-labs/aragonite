@@ -2,34 +2,24 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { makeReorderContainer } from './reorder-harness';
+import { makeReorderContainer, makeReorderHarness } from './reorder-harness';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
-// Built through `parse` so blank-line separators exist as real `leadingTrivia`: a
-// hand-built `{ raw }` node has none, and separator moves only show up against real ones.
+// Parsed from source, so blank-line separators are real `leadingTrivia`, which separator moves need.
 function makeTop(raws: string[]) {
-	const harness = makeEditorActionsDeps(parse(raws.join('\n\n') + '\n').children);
-	const controller = createUndoController(harness.deps);
-	const history = createHistoryActions(harness.deps, controller);
-	const reorder = createReorderAction(harness.deps, controller);
+	const h = makeReorderHarness(raws.join('\n\n') + '\n');
 	return {
-		doc: harness.doc,
-		reorder,
-		ids: harness.getBlockIds,
-		undo: history.requestUndo,
+		...h,
+		ids: h.getBlockIds,
 		assertAligned() {
-			const n = harness.doc.children.length;
-			expect(harness.getBlockIds()).toHaveLength(n);
-			expect(harness.getBlockRefs()).toHaveLength(n);
-			expect(new Set(harness.getBlockIds()).size).toBe(n);
+			const n = h.doc.children.length;
+			expect(h.getBlockIds()).toHaveLength(n);
+			expect(h.getBlockRefs()).toHaveLength(n);
+			expect(new Set(h.getBlockIds()).size).toBe(n);
 		}
 	};
 }
@@ -70,15 +60,13 @@ describe('reorder action: top level', () => {
 	// A loose list parses to separate top-level `list` nodes (the blank line is the next
 	// list's leadingTrivia), so this is the document branch, not the list branch.
 	it('reorders blank-separated top-level list nodes, separators stay positional', async () => {
-		const harness = makeEditorActionsDeps(parse('- one\n\n- two\n\n- three\n').children);
-		const controller = createUndoController(harness.deps);
-		const reorder = createReorderAction(harness.deps, controller);
+		const h = makeReorderHarness('- one\n\n- two\n\n- three\n');
 
-		await reorder.moveReorderUnit([0], 2);
+		await h.reorder.moveReorderUnit([0], 2);
 
-		const live = serialize(harness.doc);
+		const live = serialize(h.doc);
 		expect(live).toBe('- two\n\n- three\n\n- one\n');
-		expectParseConverged(harness.doc);
+		expectParseConverged(h.doc);
 		expect(serialize(parse(live))).toBe(live);
 	});
 });
@@ -152,14 +140,12 @@ describe('reorder action: plugin (opaque) container declines', () => {
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
 			]
 		};
-		const harness = makeEditorActionsDeps([
+		const harness = makeReorderHarness([
 			{ kind: 'paragraph', leadingTrivia: '', raw: 'TOP\n' },
 			container,
 			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'BOTTOM\n' }
 		]);
-		const controller = createUndoController(harness.deps);
-		const reorder = createReorderAction(harness.deps, controller);
-		return { harness, reorder };
+		return { harness, reorder: harness.reorder };
 	}
 
 	it('a body-leaf nudge is a no-op: no permutation, no undo entry, no edit event', async () => {

@@ -3,10 +3,8 @@
 // are the tree's own answers rather than a spy's.
 
 import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
 import { type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -16,18 +14,20 @@ import { commandContext } from '../../support/command-context';
 
 /** `reading` is the editor's own, which every write reads off the root. */
 export function makeEnv(source: string, reading?: Reading) {
-	const { deps, doc, events, landings } = makeEditorActionsDeps(source, { reading });
-	const controller = createUndoController(deps);
-	const blockEdit = createBlockEditActions(deps, controller);
+	return envOver(makeTopHarness(source, { reading }));
+}
+
+/** What the cross-block dispatch reads, over a top-level harness. */
+export function envOver(h: TopHarness) {
 	return {
-		doc,
-		deps,
-		events,
-		landings,
-		selectionState: deps.selectionState,
-		controller,
-		blockEdit,
-		caretMemory: deps.caretMemory
+		doc: h.doc,
+		deps: h.deps,
+		events: h.events,
+		landings: h.landings,
+		selectionState: h.deps.selectionState,
+		controller: h.controller,
+		blockEdit: h.actions,
+		caretMemory: h.deps.caretMemory
 	};
 }
 

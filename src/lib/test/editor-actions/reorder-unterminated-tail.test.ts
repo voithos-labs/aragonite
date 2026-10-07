@@ -5,16 +5,12 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { runCommandById } from '$lib/schema/block-commands';
 import { commandContext } from '$lib/test/support/command-context';
 import type { ReorderAction } from '$lib/editor-actions/reorder-action';
 import type { CommandId } from '$lib/schema/commands';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-import { makeReorderContainer } from './reorder-harness';
+import { makeReorderContainer, makeReorderHarness } from './reorder-harness';
 
 type Move = (reorder: ReorderAction) => Promise<unknown>;
 
@@ -55,16 +51,6 @@ const layoutOf = (nodes: readonly CstNode[]): Layout[] =>
 		suffix: n.innerSuffix ?? '',
 		children: n.children && layoutOf(n.children)
 	}));
-
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	return {
-		doc: harness.doc,
-		reorder: createReorderAction(harness.deps, controller),
-		undo: createHistoryActions(harness.deps, controller).requestUndo
-	};
-}
 
 const TOP_LEVEL: { label: string; before: string; after: string; move: Move }[] = [
 	{ label: 'Alt+ArrowUp on the last block', before: 'a\n# b', after: '# b\na', move: up([1]) },
@@ -156,7 +142,7 @@ const TOP_LEVEL: { label: string; before: string; after: string; move: Move }[] 
 
 describe('a top-level move keeps every line ended and the document’s final state (GH #587)', () => {
 	it.each(TOP_LEVEL)('$label', async ({ before, after, move }) => {
-		const h = makeTop(before);
+		const h = makeReorderHarness(before);
 
 		await move(h.reorder);
 

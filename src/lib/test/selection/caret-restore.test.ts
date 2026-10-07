@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createCaretRestore, type CaretRestoreDeps } from '$lib/selection/caret-restore';
 import type { EditorSelection } from '$lib/selection/primitives';
 import type { SelectionRestoreOutcome } from '$lib/selection/selection-restore';
+import { caretAt } from '$lib/test/harness/editor-selection';
 
 // What the document selection survives while a menu or overlay input borrows focus: it goes back
 // through the caret landing by path, and the editor root takes focus when it can't.
@@ -13,11 +14,6 @@ let live: EditorSelection | null;
 let restored: EditorSelection[];
 let outcome: SelectionRestoreOutcome;
 let deps: CaretRestoreDeps;
-
-const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
-});
 
 beforeEach(() => {
 	document.body.replaceChildren();

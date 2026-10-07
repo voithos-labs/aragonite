@@ -42,8 +42,3 @@ export async function mountImageSelected(
 	editor.instance.getEvents().on('selectionChange', (selection) => seen.push(selection));
 	return h;
 }
-
-export const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
-});

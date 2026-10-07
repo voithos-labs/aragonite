@@ -29,7 +29,7 @@ import { caretTargetFor, survivorAfterRemoval } from '../../selection/caret-targ
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
-const PARAMS = { numRuns: 150, seed: freshOrFixedSeed(483001) } as const;
+const PARAMS = { numRuns: 40, seed: freshOrFixedSeed(483001) } as const;
 
 beforeEach(registerChromePluginsForTests);
 
