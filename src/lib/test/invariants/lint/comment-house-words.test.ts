@@ -166,7 +166,6 @@ describe('G4.26 requirement files keep house words out of their body text', () =
 const DOC_BASELINE: Record<string, number> = {
 	'docs/design/caret-placement.md': 1,
 	'docs/design/invariants.md': 121,
-	'docs/design/performance.md': 1,
 	'docs/design/plugin-contract.md': 77,
 	'docs/contributing/anatomy-of-a-change.md': 2,
 	'docs/contributing/code-style.md': 4,
