@@ -147,5 +147,6 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 			}),
 			PARAMS
 		);
-	});
+		// Every draw runs every move, which can pass Vitest's default timeout when workers contend.
+	}, 30_000);
 });

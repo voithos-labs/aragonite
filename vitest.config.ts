@@ -1,11 +1,33 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { readFileSync } from 'fs';
 import path from 'path';
+import type { Plugin } from 'vite';
 
 const DEEP_STACK = 'src/lib/**/*.deep.test.ts';
+// Files that hand objects to a native addon, which rejects objects made in another VM context.
+const NODE_REALM = ['src/lib/test/invariants/lint/dev-prebundle.test.ts'];
+
+// The on-disk transform cache keys a file on its own bytes, this config and the lockfile; these
+// files shape a transform too (the consumer example's, for the file a unit test imports from it).
+const TRANSFORM_INPUTS = [
+	'svelte.config.js',
+	'tsconfig.json',
+	'.svelte-kit/tsconfig.json',
+	'examples/consumer/tsconfig.json',
+	'examples/consumer/.svelte-kit/tsconfig.json'
+];
+
+const keyCacheOnTransformInputs: Plugin = {
+	name: 'aragonite:key-cache-on-transform-inputs',
+	configureVitest({ defineCacheKeyGenerator }) {
+		const inputs = TRANSFORM_INPUTS.map((file) => readFileSync(file, 'utf8')).join('\n');
+		defineCacheKeyGenerator(() => inputs);
+	}
+};
 
 export default defineConfig({
-	plugins: [svelte({ compilerOptions: { hmr: false } })],
+	plugins: [svelte({ compilerOptions: { hmr: false } }), keyCacheOnTransformInputs],
 	resolve: {
 		alias: {
 			$lib: path.resolve('./src/lib')
@@ -22,16 +44,18 @@ export default defineConfig({
 		// A test file's afterEach hooks claim the dev warnings it expected, so they must run before
 		// the warn gate's verdict hook in the setup file; 'stack' runs "after" hooks in that order.
 		sequence: { hooks: 'stack' },
-		// The warn gate keeps per-file state at module scope, which stays per-file only while each
-		// test file gets a fresh module graph; pinned so a speed experiment can't quietly share it.
-		isolate: true,
+		// One VM context per test file in a long-lived worker: jsdom loads once per worker, and every
+		// file imports its modules afresh. `perf:editor` opts out, to time code outside a VM context.
+		pool: 'vmForks',
+		// Transforms persist in `node_modules/.vitest-cache`, so an area run skips most of them.
+		fsModuleCache: true,
 		projects: [
 			{
 				extends: true,
 				test: {
 					name: 'unit',
 					include: ['src/lib/test/**/*.test.ts', 'src/lib/e2e/lint/**/*.test.ts'],
-					exclude: [...configDefaults.exclude, DEEP_STACK]
+					exclude: [...configDefaults.exclude, DEEP_STACK, ...NODE_REALM]
 				}
 			},
 			{
@@ -44,6 +68,11 @@ export default defineConfig({
 					// Otherwise `vitest bench` runs every benchmark a second time, on the small stack.
 					benchmark: { include: [] }
 				}
+			},
+			{
+				extends: true,
+				// As in deep-stack, benchmarks stay in the unit project so each runs once.
+				test: { name: 'node-realm', include: NODE_REALM, pool: 'forks', benchmark: { include: [] } }
 			}
 		]
 	}

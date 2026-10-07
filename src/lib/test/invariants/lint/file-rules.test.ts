@@ -2103,6 +2103,125 @@ const WIDGET_LIST: FileRule = {
 	]
 };
 
+// ── G4.127 every branch on whether a DOM exists is declared ─────────────────
+
+/** Globals a DOM provides and plain Node lacks, so a test of one answers differently per file. */
+const DOM_GLOBAL = String.raw`(?:document|window|getSelection|getComputedStyle|requestAnimationFrame|Element|(?:HTML|SVG)\w*Element|Node|NodeFilter|Range|Selection|Text|Document|DOMParser|DOMRect|MutationObserver)\b`;
+
+/** A test of whether a DOM exists that runs quietly without one: `typeof` on a bare DOM global,
+ *  a `globalThis` read of one, or an `in globalThis` test. A bare read without `typeof` throws. */
+const DOM_PRESENCE_RE = new RegExp(
+	[
+		String.raw`\btypeof\s+${DOM_GLOBAL}(?!\s*(?:\?\.|\.|\[))`,
+		String.raw`\bglobalThis\s*(?:\?\.|\.)\s*${DOM_GLOBAL}`,
+		String.raw`\bglobalThis\s*(?:\?\.)?\s*\[\s*(['"\`])${DOM_GLOBAL}\1\s*\]`,
+		String.raw`(['"\`])${DOM_GLOBAL}\2\s+in\s+(?:globalThis|window|self)\b`
+	].join('|'),
+	'g'
+);
+
+/** Every DOM-presence test in the shipped source, keyed `path :: function` with how many it holds. */
+const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
+	[`${SOURCE.devChecks} :: documentForCheck`]: {
+		branches: 1,
+		reason: 'where a dev check that would do more with a DOM reports that it skipped that part'
+	},
+	'src/lib/invariants/landing-value.ts :: readCaretWhereabouts': {
+		branches: 1,
+		reason:
+			'with no document there is no focus or selection a landing could move, so nothing to compare'
+	},
+	'src/lib/schema/commands.ts :: warnSelectionKept': {
+		branches: 1,
+		reason: 'with no DOM a block holds no selection, so no command runs beside one'
+	},
+	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
+		branches: 1,
+		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
+	},
+	'src/lib/selection/caret-landing.ts :: caretBox': {
+		branches: 1,
+		reason:
+			'with no window there is no selection to measure, so the caret’s box is the element’s own'
+	},
+	'src/lib/selection/native-bridge.ts :: nativeRangeInFocusedBlock': {
+		branches: 2,
+		reason: 'an undo snapshot taken with no DOM keeps the caret offset alone'
+	},
+	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
+		branches: 2,
+		reason: 'with no DOM there is no element or range prototype to fill in'
+	}
+};
+
+const DOM_PRESENCE_REASON =
+	'a branch on whether a DOM exists decides what a test without jsdom runs: a dev check that would do more with a DOM calls `documentForCheck` in assert.ts, which reports the skip; any other branch is declared in G4.127’s table in this file, per function, with what it does without one';
+
+/** Each `path :: function` in `file` holding a DOM-presence test, with its count. */
+function domPresenceSites(file: SourceFile): Map<string, number> {
+	const found = new Map<string, number>();
+	const classes = fileClasses(file);
+	for (const { index, 0: read } of file.code.matchAll(DOM_PRESENCE_RE)) {
+		if (classes[index + read.length - 1] !== CODE) continue;
+		const key = `${file.relPath} :: ${enclosingFunction(file.code, index, classes)}`;
+		found.set(key, (found.get(key) ?? 0) + 1);
+	}
+	return found;
+}
+
+const DOM_PRESENCE_HITS = [
+	"if (typeof document === 'undefined') return null;",
+	"if (typeof document == 'undefined') return null;",
+	"const s = typeof window !== 'undefined' ? window.getSelection() : null;",
+	"if (typeof Element !== 'undefined') {}",
+	"if (typeof HTMLElement === 'function') {}",
+	"if (typeof Node != 'undefined') {}",
+	'const doc = globalThis.document;',
+	'if (!globalThis.window) return;',
+	'if (globalThis.getSelection?.()?.isCollapsed !== false) return;',
+	"const doc = globalThis['document'];",
+	"if ('document' in globalThis) {}"
+];
+
+const DOM_PRESENCE_MISSES = [
+	"if (typeof document.elementFromPoint !== 'function') return null;",
+	"if (typeof ResizeObserver !== 'function') return;",
+	"if (typeof CSS === 'undefined' || typeof Worker === 'undefined') return;",
+	"if (typeof TextEncoder === 'undefined' || typeof myElement === 'undefined') return;",
+	'const doc = documentForCheck(name);',
+	'if (!document) return entries;',
+	"const note = 'typeof document === undefined';",
+	'// typeof document === "undefined" outside a browser\nconst a = 1;'
+];
+
+function describeDomPresence(sources: SourceFile[]): void {
+	describe('G4.127 every branch on whether a DOM exists says what runs without one', () => {
+		const found = Object.fromEntries(sources.flatMap((file) => [...domPresenceSites(file)]));
+		const declared = Object.fromEntries(
+			Object.entries(DOM_PRESENCE).map(([site, { branches }]) => [site, branches])
+		);
+		const sitesOf = (code: string) => Object.fromEntries(domPresenceSites(probeFile(code)));
+		const hits = DOM_PRESENCE_HITS.map((code) => ({ code, sites: sitesOf(code) }));
+		const misses = DOM_PRESENCE_MISSES.map((code) => ({ code, sites: sitesOf(code) }));
+		const keyed = sitesOf(
+			"function a() {\n\tif (typeof document === 'undefined') return;\n\tif (typeof window === 'undefined') return;\n}\nfunction b() {\n\treturn globalThis.document;\n}"
+		);
+
+		it('the branches are exactly the declared ones, function by function', () => {
+			expect(found, DOM_PRESENCE_REASON).toEqual(declared);
+		});
+
+		it('the matcher flags every hit and spares every miss', () => {
+			for (const { code, sites } of hits) expect(sites, code).not.toEqual({});
+			for (const { code, sites } of misses) expect(sites, code).toEqual({});
+		});
+
+		it('the census keys each branch by its function and counts it', () => {
+			expect(keyed).toEqual({ 'probe.ts :: a': 2, 'probe.ts :: b': 1 });
+		});
+	});
+}
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
@@ -2129,3 +2248,4 @@ describeMeasureWrites(SOURCES);
 describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(HEIGHT_LIFETIME, SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);
+describeDomPresence(SOURCES);

@@ -13,6 +13,7 @@ export interface CaretWhereabouts {
 }
 
 export function readCaretWhereabouts(): CaretWhereabouts | null {
+	// With no document there is no focus or selection a landing could move, so nothing to compare.
 	if (typeof document === 'undefined') return null;
 	const selection = document.getSelection();
 	return {

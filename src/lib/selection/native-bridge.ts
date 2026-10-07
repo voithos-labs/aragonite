@@ -125,8 +125,7 @@ function collapsedSelectionAt(path: number[], offset: number): EditorSelection {
 /** The focused block's native selection as distinct raw offsets, so a within-block range is not
  *  reported collapsed to the caret. Null when collapsed or outside the active block. */
 function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
-	// Node-env callers (undo snapshot capture in unit tests) have no DOM; fall back to the
-	// single caret offset rather than touching document/window.
+	// An undo snapshot taken with no DOM keeps the caret offset alone.
 	if (typeof document === 'undefined' || typeof window === 'undefined') return null;
 	const active = document.activeElement;
 	if (!(active instanceof HTMLElement)) return null;

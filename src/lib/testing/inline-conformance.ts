@@ -43,6 +43,7 @@ import {
 	type KitCell
 } from './conformance-core';
 import { defaultGrammarView } from '../schema/block-openers';
+import { documentForCheck } from '../assert';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -434,7 +435,7 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 				`the render layer, not by the plugin, so it is not the plugin’s to get wrong`
 		};
 	}
-	if (typeof document === 'undefined') {
+	if (!documentForCheck(`the "${kind}" widget cell's island contract`)) {
 		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed: ${NO_DOM}` };
 	}
 

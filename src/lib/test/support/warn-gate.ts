@@ -158,8 +158,8 @@ export async function enforceWarnGate(): Promise<void> {
 	// without this the warning lands on the next test, or on no test at all.
 	await tick();
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
-	// The environment singleton is process-global, so a leaked override would make the next test
-	// depend on run order.
+	// The environment settings are module state every test in the file shares, so a leaked
+	// override would make the next test depend on run order.
 	resetEditorEnv();
 	const stolen = setDevWarnSink(gateSink) !== gateSink;
 	if (unclaimed.length > 0) throw new Error(formatWarnFailure(unclaimed));

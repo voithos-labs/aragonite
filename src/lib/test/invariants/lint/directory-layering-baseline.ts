@@ -156,6 +156,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'selection -> schema',
 	'selection -> tree-operations',
 	'selection -> undo',
+	'testing -> assert.ts',
 	'testing -> components',
 	'testing -> core',
 	'testing -> cursor',
