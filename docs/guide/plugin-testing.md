@@ -47,9 +47,9 @@ expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
 
 **Live.** Mount an editor over a document that uses your syntax (the [mounting section](#mounting-the-editor-under-jsdom) shows how), read it back with `editor.getSource()`, and compare with what you authored.
 
-**Uninstalled.** Author a document using your syntax, then load it with your plugin **not** registered. The generic fallback has to hand it back unchanged, so uninstalling a plugin never corrupts a saved document. A `%%parrot` file opened without the parrot plugin renders as plain text: no dancing, but no damage.
+**Uninstalled.** Author a document using your syntax, then load it with your plugin **not** registered, and check it comes back unchanged. A `%%parrot` file opened without the parrot plugin renders as plain text: no dancing, but no damage.
 
-While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a descriptor whose is-this-collapsed answer contradicts the rest of it. They all warn in dev and stay silent in production, so a clean dev console over a green round-trip is a decent sign your plugin's sound. A suite can hold that line automatically; [turning warnings into failures](#turning-warnings-into-failures) is the recipe.
+While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a descriptor whose is-this-collapsed answer contradicts the rest of it. A clean dev console over a green round-trip is a decent sign your plugin's sound, and a suite can hold that line for you ([turning warnings into failures](#turning-warnings-into-failures)).
 
 ### A blank slate per test
 
@@ -85,7 +85,7 @@ isPluginInstalled('parrot'); // false, and declaredPluginKind('parrot') throws u
 
 What that clears, and what it deliberately leaves alone:
 
-- Cleared: every non-built-in registration. Kinds, components, openers, completers, commands and keymaps, block context actions, insert entries, code languages, the inline syntax and widget registries, the paste surfaces and transform pipelines, the `:::` directive registry, the renderer a plugin set on a renderer slot, and the installed-plugin set.
+- Cleared: everything a plugin registered (kinds, components, openers, commands, languages, inline syntax, paste transforms, directive names and the rest), the renderer a plugin set on a renderer slot, and the installed-plugin set.
 - Built-in registrations survive, exactly as in production, the built-in paste surfaces and code languages included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
 - Runtime state is untouched. The undo stack, the selection, and any live document are yours to set up.
 - It's test-only and throws outside a detected test environment. Detection is Vitest-specific (it reads `process.env.VITEST`), so a suite on another runner opts in first and puts the detected defaults back after:
@@ -139,25 +139,17 @@ fires[0];
 
 `setDevWarnSink` returns the callback it replaced, so a nested harness restores rather than clears.
 
-One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a callback over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true, isTest: true })` in your setup and `resetEditorEnv()` in teardown. `isDev` alone turns both on, and `isTest` beside it keeps the test-process rules: the reset works, and a duplicate registration throws instead of being replaced in place the way a dev server does it.
+One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a callback over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true, isTest: true })` in your setup and `resetEditorEnv()` in teardown. `isDev` alone turns both on; `isTest` beside it keeps the test-process rules, so the reset works and a duplicate registration throws instead of being replaced the way a dev server does it.
 
 ### Proving a paste transform is wired
 
-`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver. `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. By default it runs every installed plugin's transforms, the way an editor with no `plugins` prop would. Pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (so a transform your plugin's setup registered runs only when your plugin is in the list):
+`applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. By default it runs every installed plugin's transforms, the way an editor with no `plugins` prop would. Pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (so a transform your plugin's setup registered runs only when your plugin is in the list).
+
+With a transform that shouts pasted headings (in a real suite it's your unit's setup that registers it, from the `beforeEach` in [a blank slate per test](#a-blank-slate-per-test)):
 
 ```ts
 import { applyPasteTransforms } from '@voithos-labs/aragonite/testing';
 
-it('converts on paste', () => {
-	expect(applyPasteTransforms(CLIPBOARD_TEXT)).toBe(CONVERTED_TEXT);
-});
-```
-
-(The plugin is installed by the `beforeEach` from [a blank slate per test](#a-blank-slate-per-test); the transform rides along with the rest of the unit's setup.)
-
-Concretely, with a transform that shouts pasted headings:
-
-```ts
 registerPasteTransform({
 	name: 'shout',
 	transform: (text) => (text.startsWith('# ') ? text.toUpperCase() : null)
@@ -214,11 +206,11 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
 - The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) rather than your closure block, so it comes last in the report and carries no `mode`:
   - With no `rawWrite`, it cuts the fixture's closing line and checks the block after it stays its own. It fails if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule.
-  - With one, it drives the rule through the closing line cut, everything past the first line cut, and an empty write, plus, for a fixture of two or more lines, the first line cut (the opener gone, the closer left behind) and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind.
+  - With one, it drives the rule through a handful of damaging writes: the closing line cut, everything past the first line cut, an empty write, and, for a fixture of two or more lines, the first line cut and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and on a fixture of three or more lines the closing line cut also has to keep your kind.
   - Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards.
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job (aragonite's repository runs a sweep like that over the kinds it registers itself, but it never sees yours). For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
 ```ts
 it('parrot conforms', async () => {
@@ -251,7 +243,7 @@ Each closure cell also carries the `mode` you declared. When something's wrong t
 Error: kind conformance failed for "parrot": conformanceFixture parses to no "parrot" node
 ```
 
-**The fixture contract.** Your `conformanceFixture` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block and ride a throwaway neighbour block the kit adds beside it (after it for the undo cell, on each side in turn for the clipboard cell). A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.
+**The fixture contract.** Your `conformanceFixture` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block, next to a throwaway neighbour block the kit adds. A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.
 
 Where a cell claims a mechanism the runner can't reach generically (a kind-specific copy, say), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. A custom check is only accepted on a cell you declared `implemented`; anywhere else it would contradict the declaration and silence the check for the mode you did declare.
 
@@ -335,7 +327,7 @@ Error: container conformance failed for "conspiracy":
 
 Two notes on those fixtures. `localIndexFixture` has to edit a non-first child **or** descend through a non-zero chain position (that's the failure above): at chain `[0, 0]`, child 0, a local path and a flat global offset are the same number and the check proves nothing (the fixture above does both, since Big Bird deserves rigor). And `terminatorCollisionFixture.bodyRaw` names the bytes a **user types**, not the bytes that reach the tree: the kit writes them through your `bodyWrite` rule, the same route a real commit uses.
 
-**`terminatorCollision` is the cell most container authors haven't considered**, and the profile type requires a declaration, so a profile written before the cell existed stops compiling until you answer it. If your container wraps body bytes between an opener and a closing line, a body line that reproduces that closing line ends it early, and everything below leaves the container the next time the document is parsed. A byte round-trip can't catch it, because the bytes come back out verbatim either way; only the live tree disagrees with them. So this cell checks convergence instead: the live tree has to agree with a fresh parse of its own bytes, block by block, on the kind, the children, and every key of the metadata.
+**`terminatorCollision` is the cell most container authors haven't considered**, and the profile type makes you declare it. If your container wraps body bytes between an opener and a closing line, a body line that reproduces that closing line ends it early, and everything below leaves the container the next time the document is parsed. A byte round-trip can't catch it, because the bytes come back out verbatim either way; only the live tree disagrees with them. So this cell checks convergence instead: the live tree has to agree with a fresh parse of its own bytes, block by block, on the kind, the children, and every key of the metadata.
 
 Whether you may excuse it, and how to fix a real collision, depends on your terminator's shape:
 
@@ -377,12 +369,12 @@ container: {
 }
 ```
 
-`normalize` runs over every byte destined for the body, at the places the editor writes body bytes into the tree, **ahead of the reparse that decides the child's kind**. That order is what makes it work where a rebuild-time rewrite can't: the kind a write lands on is the kind its committed bytes describe. Two rules bind it:
+`normalize` runs over every byte destined for the body, **ahead of the reparse that decides the child's kind**, so the kind a write lands on is the kind its committed bytes describe. Two rules bind it:
 
 - **Idempotent**: re-committing already-legal bytes changes nothing.
 - **Line-local**: it may read the whole raw to decide which lines to rewrite, but it never moves bytes across a line boundary.
 
-`mapOffset` is the rewrite's caret image: where a caret sitting at some offset in the typed bytes ends up in the committed ones. The pair ships as one object, the `WriteRule` shape a kind's own `rawWrite` shares, because a rewrite without its caret image strands the caret. `ctx.node` is the container, and a body write is always `literal`. The bundled `details` container's pair, over a body line that would close it early:
+`mapOffset` says where a caret sitting at some offset in the typed bytes ends up in the committed ones. The pair is the same `WriteRule` shape a kind's own `rawWrite` uses. `ctx.node` is the container, and a body write is always `literal`. The bundled `details` container's pair, over a body line that would close it early:
 
 ```ts
 const typed = 'exhibit A\n</details>\nexhibit B\n';
@@ -463,9 +455,9 @@ Error: overlapDecline asserts but the profile supplies no overlapFixtures
 
 `fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it. `widget` and `editingPolicy` only look at the nodes of your `kind` (built-in nodes your recognizer builds are `imageClaim`'s job), so if none of your fixtures produce your kind, an asserted `widget` fails instead of passing over some images, and so does an asserted `editingPolicy` whose policy deletes the widget in one press.
 
-**`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you're claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading unchanged bytes. A recognizer on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
+**`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you're claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit asks your recognizer at every position the scanner would, and requires a decline at each. A recognizer on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
 
-The other three cells you declare, because only you know whether they have anything to bite on. But an excuse the kit can falsify, it falsifies: declaring `imageClaim` exempt while a fixture produces a stamped built-in (a built-in node the scan marked as your recognizer's) fails, as does excusing `widget` for a kind that **is** a registered live widget, or `editingPolicy` for a kind that declares one.
+The other three declared cells are yours to excuse, since only you know whether they have anything to bite on. But an excuse the kit can falsify, it falsifies: declaring `imageClaim` exempt while a fixture produces a stamped built-in (a built-in node the scan marked as your recognizer's) fails, as does excusing `widget` for a kind that **is** a registered live widget, or `editingPolicy` for a kind that declares one.
 
 Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting**: re-scanning the slice alone must re-form the same kind over its whole length, because that slice is exactly what the widget's `data-source-*` attributes (the ones saying which bytes it stands for) hand the clipboard and a source reveal. And where your kind builds its own widget DOM (`buildWidget`), the kit renders your fixture and measures the caret walk across it, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's wrapper is built by the editor, not by you, so that half doesn't run and the cell reports `boundary` rather than claiming a pass (that's the report above). Run the suite under a DOM (`// @vitest-environment jsdom` for Vitest); without one the rendering half can't run either, and the cell again reports `boundary` naming what you lost, while the recognition and self-delimiting checks still execute.
 
