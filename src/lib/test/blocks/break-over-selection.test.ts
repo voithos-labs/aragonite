@@ -118,12 +118,14 @@ describe('live mode: a code block', () => {
 });
 
 describe('EditorInstance.runCommand over a selection in one block', () => {
+	// The code block's row reaches its removal only through the member its instance publishes.
 	it.each([
-		['block.split', 'a\n\nha\n'],
-		['block.hardBreak', 'a\\\nha\n']
-	])('%s writes the break where the selection was', async (id, written) => {
-		const editor = mountEditor({ source: 'alpha\n' });
-		selectRange(surfaceAt(editor, [0]), 1, 3);
+		['block.split', 'alpha\n', 1, 'a\n\nha\n'],
+		['block.hardBreak', 'alpha\n', 1, 'a\\\nha\n'],
+		['code.newline', '```\nalpha\n```\n', 5, '```\na\nha\n```\n']
+	])('%s writes the break where the selection was', async (id, source, start, written) => {
+		const editor = mountEditor({ source });
+		selectRange(surfaceAt(editor, [0]), start, start + 2);
 
 		editor.instance.runCommand(id);
 		await settleEditor();
