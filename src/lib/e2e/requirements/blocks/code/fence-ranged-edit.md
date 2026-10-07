@@ -42,10 +42,9 @@ No click or arrow puts a caret on a hidden fence line, so the gestures confined 
 driven against the mounted block rather than end to end. Backspace inside the closer run and a
 paste into either marker run commit nothing (`code-fence-ranged-edit.test.ts`).
 `code-fence-edit-span.test.ts` runs every route that writes over a range (Backspace, Delete,
-type-over, a typed bracket, an IME composition, cut, paste, and the removal before Enter) over
-the same ranges in both modes: a range on fence structure alone commits nothing, and a delete
-inside the body is applied by the block, since Chromium would take the hidden fence line beside
-it.
+type-over, a typed bracket, an IME composition, cut, paste and Enter) over the same ranges in
+both modes. A range on fence structure alone commits nothing on any of them. A delete inside the
+body is applied by the block, since Chromium would take the hidden fence line beside it.
 (miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
 with their source-mode tests instead of moved to the mode that still hides the lines)
 

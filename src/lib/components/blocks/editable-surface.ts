@@ -218,8 +218,8 @@ export interface EditableSurfaceDeps {
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
 	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
-	 *  bytes land. Omitted where no line break or command removes a selection first. */
-	removeSelection?: (range: RawRange) => PromiseLike<unknown> | void;
+	 *  bytes land, false when the block declines the range, so the gesture over it does nothing. */
+	removeSelection?: (range: RawRange) => PromiseLike<boolean> | boolean;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -576,7 +576,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
 		void deps.controller
 			.undoStep(seed, async () => {
-				await remove(range);
+				if (!(await remove(range))) return;
 				// The command reads the caret the removal's render puts back.
 				await tick();
 				if (!isDetached()) run(true);

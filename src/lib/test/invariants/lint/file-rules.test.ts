@@ -2118,6 +2118,33 @@ const WIDGET_LIST: FileRule = {
 const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
 const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
 
+/** Whether a file reads the fence-lines flag, or the mode check behind it, outside the flag's
+ *  derivation, `editSpan`'s last argument (which must be the flag) and an early return's end. */
+function readsFenceLinesByHand(file: SourceFile): boolean {
+	const code = file.code;
+	const spanCalls = [...code.matchAll(/(?<![\w.])editSpan\s*\(/g)].map((call) => {
+		const from = call.index + call[0].length;
+		return { from, args: balancedCall(code, from) ?? '' };
+	});
+	if (spanCalls.some(({ args }) => !/^fenceLines\w*\b/.test(callArguments(args).at(-1) ?? ''))) {
+		return true;
+	}
+	const inSpanCall = (at: number) =>
+		spanCalls.some(({ from, args }) => at >= from && at < from + args.length);
+	const flagReads = [...code.matchAll(/(?<![\w.])fenceLines\w*\b/g)].filter((read) => {
+		const before = code.slice(0, read.index);
+		const after = code.slice(read.index + read[0].length);
+		const derived = /\b(?:const|let)\s+$/.test(before);
+		const earlyReturn =
+			/(?:\|\||\bif\s*\()\s*$/.test(before) && /^\s*\)\s*return(?:\s+false)?\s*;/.test(after);
+		return !derived && !earlyReturn && !inSpanCall(read.index);
+	});
+	const modeChecks = [
+		...code.matchAll(/(?<![\w.])(?:paintsFocusedMarkers|hidesDelimitersAtCaret)\s*\(/g)
+	].filter((check) => !/\bfenceLines\w*\s*=\s*\$derived\(\s*$/.test(code.slice(0, check.index)));
+	return flagReads.length > 0 || modeChecks.length > 0;
+}
+
 const CODE_EDIT_SPAN: FileRule[] = [
 	{
 		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
@@ -2142,22 +2169,26 @@ const CODE_EDIT_SPAN: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.130 a code block write never branches on whether its fence lines show',
+		id: 'G4.130 a code block reads whether its fence lines show only for `editSpan` or an early return',
 		population: under(SOURCE_DIR.codeBlock),
-		matches:
-			/\b(?:fenceLines\w*|paintsFocusedMarkers\([^()]*\)|hidesDelimitersAtCaret\([^()]*\))\s*(?:\?(?![?.:])|&&)/,
+		matches: readsFenceLinesByHand,
+		allowed: { [EDIT_SPAN_HOME]: '`editSpan` itself, which picks the span from the flag' },
 		reaches: [SOURCE.codeBlockComponent, EDIT_SPAN_HOME],
 		reason:
-			'whether the fence lines show decides the span a code block edit rewrites, and a route that branches on it picks that span by hand: pass the flag to `editSpan`',
+			'whether the fence lines show decides the span a code block edit rewrites, and any other read of it picks that span by hand: pass the flag to `editSpan`, or return early on it before the block takes the edit',
 		hits: [
 			at(ROGUE_CODE_WRITE, 'const sel = fenceLinesShown ? range : clamp(range);'),
-			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && refused(range)) return;'),
+			at(ROGUE_CODE_WRITE, 'if (fenceLinesShown) return range;'),
+			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && crosses) write(clamp(range));'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, true);'),
 			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
-			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode) && crosses) return;')
+			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode)) return clamp(range);')
 		],
 		misses: [
 			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(\n\tnode,\n\trange,\n\tfenceLinesShown\n);'),
 			at(ROGUE_CODE_WRITE, 'if (composing || !el || fenceLinesShown) return false;'),
+			at(ROGUE_CODE_WRITE, 'if (!sel || sel.start === sel.end || fenceLinesShown) return;'),
 			at(ROGUE_CODE_WRITE, 'const fenceLinesShown = $derived(paintsFocusedMarkers(mode));'),
 			at(`${SOURCE_DIR.textBlock}x.ts`, 'const span = paintsFocusedMarkers(mode) ? range : body;')
 		]

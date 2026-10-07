@@ -49,7 +49,8 @@
 		clampEnterOffsetToBody,
 		computeRangedEdit,
 		crossesFenceBoundary,
-		editSpan
+		editSpan,
+		spanKeepsRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
@@ -117,7 +118,7 @@
 		readText: () => plainTextOf(el),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) => removeRange(range, 'selection-removal') ?? undefined
+		removeSelection: (range) => removeRange(range, 'selection-removal') !== null
 	});
 	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 
@@ -425,10 +426,8 @@
 		const span = editSpan(node, range, fenceLinesShown);
 		if (wrapsBody(e, range, span)) return false;
 		// Chromium's own replace of a range opening on a highlighted token also removes the hidden
-		// opener, and its delete of a line's last character the hidden fence line beside it.
-		if (!crossesFenceBoundary(node, range) && !replacesRange(e, range) && !deletes(e)) {
-			return false;
-		}
+		// opener. Its delete of a line's last character takes the hidden fence line beside it too.
+		if (spanKeepsRange(range, span) && !replacesRange(e, range) && !deletes(e)) return false;
 
 		e.preventDefault();
 		if (!span) return true;

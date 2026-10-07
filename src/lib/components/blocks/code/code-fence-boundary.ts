@@ -82,6 +82,12 @@ export function editSpan(
 	return body.start === body.end ? null : body;
 }
 
+/** Whether `editSpan` kept `range` whole, so the range never reached a hidden fence line. */
+export function spanKeepsRange(range: RawRange, span: RawRange | null): boolean {
+	const ordered = orderedRange(range);
+	return span !== null && span.start === ordered.start && span.end === ordered.end;
+}
+
 /**
  * Where a caret arriving from outside the block lands, in every mode: on the body. On a hidden
  * fence line it would take keystrokes the fence check refuses, so the next character disappears.

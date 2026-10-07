@@ -62,8 +62,6 @@ stack would show up as a document that moved. The six declines the code carries,
     fence lines, and any range reaching one from the body carries the line ending between them,
     so the drop never cuts a fence byte you can't see. Covered by triple-clicking the block, whose
     range takes both hidden fence lines
-  - Miss-analysis: every code drag picked a word inside the body in source mode, so no case
-    asked whether a move could reach a fence line the mode hides
 - **a drop on a block that holds no character position**: cancelled, covered twice: a drop onto a
   thematic break, and a drop onto a table cell, whose offsets are cell indices rather than
   character positions. There is no offset to insert at

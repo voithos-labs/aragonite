@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // Every route that rewrites a range in a mounted code block writes one span: the range where the
 // mode paints the fence lines, its body part where it hides them, and nothing without a body part.
-// Miss-analysis: each route kept its own copy of the span and its own tests, so no row ran one
-// shape down every route.
+// Miss-analysis: each route kept its own copy of the span and its own tests, and the removal row
+// ran a no-op command, so the line break Enter writes after a declined removal went unseen.
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
@@ -68,9 +68,9 @@ interface Route {
 	name: string;
 	/** Runs the gesture over the current selection, returning its event where it has one. */
 	act(): Event | null;
-	/** The bytes the route writes over the span it was given, and how far past the span's start
-	 *  it leaves the caret. */
+	/** The bytes the route writes over the span it was given. */
 	write(spanned: string): string;
+	/** How far past the span's start the route leaves the caret. */
 	caret: number;
 	/** Where the fence lines are shown the browser applies the gesture, so the block writes none. */
 	browserWhereShown: boolean;
@@ -127,12 +127,10 @@ const ROUTES: Route[] = [
 		browserWhereShown: false
 	},
 	{
-		// Enter, a soft break and every command over a selection remove it through this first.
-		name: 'a command over the selection',
-		act: () => {
-			mounted.instance.afterSelectionRemoved(() => true);
-			return null;
-		},
+		// Enter is a command, so the selection's removal is the first of its two writes.
+		name: 'Enter',
+		act: () =>
+			dispatch(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })),
 		write: () => '',
 		caret: 0,
 		browserWhereShown: false
@@ -178,7 +176,7 @@ describe.each(MODES)('code block write routes, fence lines $label', ({ mode, sho
 
 			const span = shown ? range : hidden;
 			if (shown && route.browserWhereShown) {
-				expect(e?.defaultPrevented).toBe(false);
+				if (e?.cancelable) expect(e.defaultPrevented).toBe(false);
 				expect(firstWrite()).toBeNull();
 				return;
 			}

@@ -277,7 +277,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) => removeRange(range)
+		removeSelection: (range) => {
+			removeRange(range);
+			return true;
+		}
 	});
 
 	const surface = editableSurface.surface;

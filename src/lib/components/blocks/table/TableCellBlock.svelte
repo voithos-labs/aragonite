@@ -232,13 +232,15 @@
 		placeInsertion: typedPlacement.insertion,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) =>
+		removeSelection: (range) => {
 			writeText({
 				...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
 				intent: 'command',
 				mode: 'authored',
 				source: 'selection-removal'
-			})
+			});
+			return true;
+		}
 	});
 	const { writeText } = editableSurface;
 

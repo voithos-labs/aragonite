@@ -2352,16 +2352,19 @@ file, or when a bare-package `import()` under `src/lib` or `src/routes` is missi
 
 **G4.130 · One span for every write over a code block range.** Where the mode shows a code
 block's fence lines, an edit over a range rewrites the range. Where it hides them, it rewrites the
-range's part inside the body (the info string counts as content too), and a range on fence
-structure alone writes nothing. `src/lib/components/blocks/code/code-fence-boundary.ts` ::
-`editSpan` answers that, and every route that writes over a range in the block asks it: the
+range's part inside the body, and a range on fence structure alone writes nothing. A range lying
+inside the info string is written as is. `src/lib/components/blocks/code/code-fence-boundary.ts`
+:: `editSpan` answers that, and every route that writes over a range in the block asks it: the
 browser's delete and type-over, an IME composition, a typed bracket's wrap, cut, paste, and the
-removal before a command over the selection. A selection drag never gets there, since a range from
-the body onto a hidden fence line carries that line's ending and the drop declines line breaks.
-Two rows in `lint/file-rules.test.ts` keep it there: `clampRangeToBody(` is called only in that
-module and in `code-indent.ts` (an indent leaves every fence line alone in every mode, a line rule
-rather than a span), and no file in the code block's folder branches on whether the fence lines
-show (`fenceLinesShown ?`, `paintsFocusedMarkers(…) &&`).
+removal before a command over the selection. When that removal declines, the editable surface
+doesn't run the command, so Enter over fence structure alone writes nothing either. A selection
+drag never gets there, since a range from the body onto a hidden fence line carries that line's
+ending and the drop declines line breaks. Two rows in `lint/file-rules.test.ts` keep it there:
+`clampRangeToBody(` is called only in that module and in `code-indent.ts` (an indent leaves every
+fence line alone in every mode, a line rule rather than a span). And in the code block's folder,
+the fence-lines flag (or the mode check behind it) is read only where it's derived, as
+`editSpan`'s last argument, or as the last condition of an early return, so `fenceLinesShown ? …`
+or `if (fenceLinesShown) return range;` fails.
 `test/blocks/code/code-fence-edit-span.test.ts` runs each route over the same ranges in both modes.
 
 **G4.131 · A grammar's bytes are read and written in its own module.** Two routes that each read
