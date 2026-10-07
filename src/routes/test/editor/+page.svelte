@@ -12,6 +12,7 @@
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
 	import InsertToolbar from '../../InsertToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
+	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
 
@@ -19,7 +20,7 @@
 	const param = (name: string): string | null =>
 		typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(name);
 
-	let source = $state(HARNESS_SHOWCASE_CONTENT);
+	const source = new HarnessSource(HARNESS_SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
@@ -30,7 +31,7 @@
 	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
-		if (editor) source = editor.getSource();
+		if (editor) source.load(editor.getSource());
 		dragHandlesOn = !dragHandlesOn;
 	}
 
@@ -117,9 +118,7 @@
 		if (!editor) return;
 		installTestProbes({
 			editor,
-			setSource: (md) => {
-				source = md;
-			},
+			source,
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
 			},
@@ -218,7 +217,7 @@
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
-					{source}
+					source={source.text}
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}

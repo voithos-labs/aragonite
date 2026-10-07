@@ -29,10 +29,9 @@ export class EditorPage {
 		await gotoReady(this.page, `/test/editor${query}`);
 	}
 
+	/** Loads `md` as a fresh document, whatever the page or the editor held before. */
 	async loadContent(md: string) {
-		await this.page.evaluate((content) => {
-			(window as any).__test.setSource(content);
-		}, md);
+		await this.page.evaluate((content) => (window as any).__test.setSource(content), md);
 		// serialize() normalizes trailing whitespace; compare on trimmed forms.
 		await this.page.waitForFunction(
 			(expected) => {
