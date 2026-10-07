@@ -1710,7 +1710,7 @@ The binding the editor reads is the one in the block the removal leaves the care
 
 **Over a selection inside your block**, your command runs at the caret with the selection still there, which is right for most commands (a toggle reads the selection, it doesn't want it gone). A command that breaks the line wants what Enter does: pass `overSelection: 'afterRemoval'` too, and the selected text goes first, then your handler runs at the caret it left, with `ctx.node` already holding the shorter text. The removal and whatever your handler writes before it returns undo as one step (a write after an `await` lands in a step of its own).
 
-Two things are different once a removal came first. `ctx.afterRemoval` is `true`, so if your command has an "Enter on an empty line" branch of its own (leaving the block, say), skip it then: the line is empty because the selection went, not because the user left it empty. That's how the built-in Enter keeps a whole-item selection inside its list. And returning `false` no longer lets the key fall through, since the removal already counts as the key's work.
+Two things are different once a removal came first. `ctx.afterRemoval` is `true`, so if your command has an "Enter on an empty line" branch of its own (leaving the block, say), skip it then: the line is empty because the selection went, not because the user left it empty. That's how the built-in Enter keeps a whole-item selection inside its list. And the key is taken once the removal runs, whatever your handler returns: `false` can't hand it on to the browser or another binding, since the selection is already gone.
 
 ```ts
 const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
