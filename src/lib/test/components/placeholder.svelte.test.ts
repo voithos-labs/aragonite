@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The `placeholder` prop through the real editor: which empty block shows a hint and with what
 // text, and that a hint never touches the bytes, the undo stack or the caret.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import {
 	destroyMountedEditors,
@@ -14,6 +14,7 @@ import {
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
 import { dispatchBeforeInput } from '$lib/test/harness/insertion-routes';
+import { makeSurface } from '$lib/test/harness/editable-surface';
 import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import type { EditorProps, PlaceholderBlock } from '$lib/editor-props';
@@ -169,6 +170,15 @@ describe('placeholder: fenced blocks count their body', () => {
 		await editor.settle();
 		expect(editor.source()).toBe('$$\n\n$$\n');
 		expect(hintAt(editor, [0])).toBeNull();
+	});
+});
+
+describe('placeholder: unset', () => {
+	it('reads no shown source while the prop is unset', () => {
+		const { surface } = makeSurface({ overrides: { placeholder: () => null } });
+		const read = vi.fn(() => '');
+		surface.noteShownSource(read);
+		expect(read).not.toHaveBeenCalled();
 	});
 });
 

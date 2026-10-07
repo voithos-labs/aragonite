@@ -436,7 +436,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// A shown render-primary source reaches the node only on blur, so the empty-block hint reads it.
 	function noteShownSource(): void {
 		const el = deps.getEl();
-		if (mode === 'render-primary' && el) editableSurface.setShownSource(el.textContent ?? '');
+		if (mode === 'render-primary' && el)
+			editableSurface.noteShownSource(() => el.textContent ?? '');
 	}
 
 	function repaintSource(): void {
