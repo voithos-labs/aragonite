@@ -20,17 +20,20 @@ identical on screen.
   carries a balanced `**` pair in each: no star reaches the screen at any point
 - the caret lands in the second block on the character that followed the cut, so typing
   continues inside the reopened construct rather than in front of its delimiters
-- Enter in the middle of a link's text yields two links, each carrying the same destination:
-  the URL the user never saw is duplicated rather than lost with the closing half
-- Enter inside the italic of a bold-wrapping-italic yields two blocks that are both bold and
-  both italic, the runs nesting outermost-first exactly as the original did
 - Enter inside a reference link's text yields two links on the same label: the resolver rides the
   split call, so the split reads the construct the render path drew instead of a pair of brackets
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
-- Enter then Backspace round-trips: the join drops the closing and reopening runs it finds meeting
-  at the join, so `Some **bo|ld** text` comes back byte-identical and a split link comes back as
-  one anchor on one destination. The residue a byte-literal merge would have left is what
-  `live-mode.md` § 4.4 declares impossible to represent in live editing
+
+Four more are pinned below the browser, in `src/lib/test/blocks/text/live-split-rebalance.test.ts`
+(the rewrite) and `src/lib/test/tree-operations/live-split.test.ts` (the split and the merge that
+carry it). Enter in a link's text gives two links on the same destination, so the URL the user
+never saw is copied rather than lost. Enter in the italic of a bold-wrapping-italic gives two
+halves that are both bold and both italic, nesting outermost-first like the original. Enter
+outside every construct cuts where the caret is, as if the mode weren't there. And Enter then
+Backspace round-trips: the join drops the closing and reopening runs that meet there, so
+`Some **bo|ld** text` comes back byte-identical and a split link comes back as one link (the
+leftover a byte-literal merge would leave is what `live-mode.md` § 4.4 calls impossible in live
+editing).
 
 ## Edge cases
 
@@ -39,7 +42,6 @@ identical on screen.
 - the content-start mirror is pinned by the unit suite, not here: the offset traversal resolves
   that pixel to the construct's outer start, so no real gesture reaches the offset where an empty
   pair could be created. The model-level check still has to exist, since a plugin can address it
-- Enter outside every construct is unchanged by the mode: the bytes cut where the caret is
 - a cut through a childless never-extend construct (`<https://ex|ample.com>`) moves to the
   construct's nearer edge, so one half takes it whole and no delimiter reaches the screen. Two
   halves of a URL are not two URLs, so close-and-reopen cannot apply; dropping the `<`/`>` pair is

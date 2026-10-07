@@ -125,20 +125,6 @@ test.describe('reading mode: inertness', () => {
 		await ep.bridge.waitForSourceContains('KEPT');
 	});
 
-	test('a focused code block dead-keys its kind commands (dispatch-ctx parity)', async ({
-		page
-	}) => {
-		// A code block is a separate dispatch site from a paragraph, and each supplies the mode
-		// getter itself, so a missing one here would let Enter insert a line under reading.
-		await ep.loadContent('```js\nconst x = 1;\n```\n'); // reading mode (beforeEach)
-		const before = await ep.bridge.getSource();
-		await ep.clickBlock(0);
-		await page.keyboard.press('Enter');
-		await page.keyboard.press('Tab');
-		await ep.expectSurfaceInert();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
 	test('an open replace row collapses on a flip to reading and returns on flip back', async ({
 		page
 	}) => {

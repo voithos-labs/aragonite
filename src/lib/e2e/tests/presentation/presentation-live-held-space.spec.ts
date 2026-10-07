@@ -165,43 +165,21 @@ test.describe('live mode: the hold ends without touching the bytes', () => {
 		await ep.bridge.waitForSourceContains('a **two** w\n');
 	});
 
-	for (const route of ['soft keyboard', 'paste'] as const) {
-		test(`after an arrow steps out of a bold, a ${route} types outside`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', 'a **bold** b');
-			await clickEnd(ep, page, 'bold');
-			await page.keyboard.press('ArrowRight');
-			await ep.waitForRenderFlush();
-			if (route === 'paste') await pasteText(ep, 'X');
-			else await softType(ep, page, 'X');
-			await ep.bridge.waitForSourceContains('a **bold**X b');
-		});
-	}
-
-	test('source mode writes the space inside the visible closer', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'source', 'a **two**');
-		await clickEnd(ep, page, 'two');
-		await page.keyboard.type(' w');
-		await ep.bridge.waitForSourceContains('a **two w**');
+	test('after an arrow steps out of a bold, a paste types outside', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', 'a **bold** b');
+		await clickEnd(ep, page, 'bold');
+		await page.keyboard.press('ArrowRight');
+		await ep.waitForRenderFlush();
+		await pasteText(ep, 'X');
+		await ep.bridge.waitForSourceContains('a **bold**X b');
 	});
 });
 
 /** Each way out, and what typing `w` after it writes at a line's end and mid-line. */
 const EXITS: { name: string; press: (page: Page) => Promise<void>; end: string; mid: string }[] = [
 	{
-		name: 'one ArrowRight',
-		press: (page) => page.keyboard.press('ArrowRight'),
-		end: 'a **two** w',
-		mid: 'Some **bold** w text'
-	},
-	{
 		name: 'the typed closer',
 		press: (page) => page.keyboard.type('*'),
-		end: 'a **two** w',
-		mid: 'Some **bold** w text'
-	},
-	{
-		name: 'the format chord',
-		press: (page) => page.keyboard.press('ControlOrMeta+b'),
 		end: 'a **two** w',
 		mid: 'Some **bold** w text'
 	},

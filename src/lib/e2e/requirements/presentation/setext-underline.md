@@ -12,9 +12,10 @@ line, or what a hard break at the title's end writes (GH #468).
 ## Happy paths
 
 - source mode shows the underline under the title; live mode shows the title alone
-- Shift+Enter at the title's end, in source and live mode, writes nothing yet, and the next key
-  starts the heading's second line under the break, above the underline (`Plan\` over `x` over
-  `===`)
+
+Shift+Enter at the title's end (GH #468) is pinned below the browser, in both modes:
+`src/lib/test/blocks/text/setext-underline-drawn.test.ts` checks it writes nothing yet, and that
+the next key starts the heading's second line above the underline (`Plan\` over `x` over `===`).
 
 ## Edge cases
 
@@ -30,7 +31,7 @@ line, or what a hard break at the title's end writes (GH #468).
 
 ## User interactions
 
-- a placed caret, then real arrow keys, Shift+Enter and a typed key
+- a placed caret or a real click, then real arrow keys, End and a typed key
 
 ## Error cases
 
