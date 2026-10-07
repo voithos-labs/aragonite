@@ -260,8 +260,8 @@ describe('G2.4 textContent chain (decoration widgets)', () => {
 					expect(readBackAfterIslands(source, specs, prefix)).toBe(source);
 				}
 			),
-			PARAMS
+			// The prefix is one fixed shift, not a shape, so a tenth of the runs above finds a wrong one.
+			{ ...PARAMS, numRuns: 100 }
 		);
-		// ~2s alone; the full battery's worker saturation blows the default 5s cap.
-	}, 20_000);
+	});
 });
