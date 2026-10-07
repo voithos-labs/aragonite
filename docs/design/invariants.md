@@ -685,9 +685,9 @@ case its own bytes do, and a grid's last row), and every walk asks
 kind, so that reader warns (`last-line-child-range`) and counts it as "nobody". The commit owns
 the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines` before the separator
 fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
-rebuild. No edit writes the tail by hand, since the walk isn't exported from that file. A move
-still calls the first step itself for now, because it checks its own joins before the commit's
-fix-up runs; that call goes once the commit settles the move's joins.
+rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
+first step itself for now, because it checks its own joins before the commit's fix-up runs; that
+call goes once the commit settles the move's joins.
 
 The check runs after every structural commit publishes and fails three shapes: an open file that
 gained a break on a line with text, a closed file that lost its break, and a line with no ending
@@ -1145,7 +1145,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.71  | An emptiness test on text reads GFM's blank, not `String.trim()`                          | L       |
 | G4.72  | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`                      | L       |
 | G4.73  | A component built on the editable leaf exports `blockApi` and no block method of its own  | L       |
-| G4.74  | _Retired upward_: the last-line walk isn't exported, so only its own file can call it     | T       |
+| G4.74  | Only the commit's open-tail steps write the document's last line ending                   | L       |
 | G4.75  | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
 | G4.76  | Every join into a leaf, and every other text built from two sources, is declared          | L       |
 | G4.77  | Only three routes register on behalf of no plugin                                         | L       |
@@ -1501,13 +1501,13 @@ permitted to name `preDelete` at all are a closed allowlist, each with its reaso
 surface is the one splicer outside the seam. `lint/manifest-rules.test.ts`.
 
 **G4.34 · Link byte-write seam.** The image seam's twin (G4.21), over the construct whose
-destination the reader never sees. The GFM link serializer isn't exported from
-`link-source-bytes.ts`, so nothing else can call it, and a scan holds the files that name
-`buildLinkEditBytes` and `buildLinkUnwrapBytes` to the documented write paths (a second write path
-is the shape that shipped for images). The seam also verifies every candidate through the render
-path (G4.33): a destination that breaks its own construct surfaces as literal source, which no walk
-over the parse can see. A link claimed by an inline plugin kind is declined outright, there being no
-`rewriteLink` hook to re-serialize it.
+destination the reader never sees. The GFM link serializer is named in code only inside
+`link-source-bytes.ts` (`lint/file-rules.test.ts`, beside G4.74's walk), and a scan holds the files
+that name `buildLinkEditBytes` and `buildLinkUnwrapBytes` to the documented write paths (a second
+write path is the shape that shipped for images). The seam also verifies every candidate through the
+render path (G4.33): a destination that breaks its own construct surfaces as literal source, which
+no walk over the parse can see. A link claimed by an inline plugin kind is declined outright, there
+being no `rewriteLink` hook to re-serialize it.
 `lint/manifest-rules.test.ts`.
 
 **G4.35 · Stamp and revealable parity.** A construct whose marker spans carry a `data-construct-*`
@@ -1891,11 +1891,12 @@ registration: once containers publish through `blockApi` too, the plugin-facing 
 accept a `{ blockApi }` export alone, keeping the flat shape for the editor's own blocks, and this
 scan retires into it. `lint/leaf-block-api-export.test.ts`.
 
-**G4.74 · Retired upward.** The rule was: only the commit's two steps (G1.41) run the walk that
-adds or drops the ending on a block's last line, down through every container holding that line.
-A route that ended the tail itself would be the rule's second copy, and the next route to place a
-block would skip it. The walk isn't exported from `tree-operations/open-tail.ts`, so an import of it
-anywhere else doesn't compile, and the scan that held its names to that file is gone.
+**G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
+block's last line, down through every container holding that line, is private to
+`tree-operations/open-tail.ts`, and only the commit's two steps call it (G1.41). A route that ended
+or released the tail itself would be the rule's second copy, and the next route to place a block
+would skip it, which is how list-end Enter and ArrowDown past the end shipped gluing their new
+block onto the last line. `lint/file-rules.test.ts`.
 
 **G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through
 `src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write,
