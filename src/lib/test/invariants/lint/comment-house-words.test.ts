@@ -173,7 +173,7 @@ const DOC_BASELINE: Record<string, number> = {
 	'docs/contributing/casebook.md': 7,
 	'docs/contributing/code-style.md': 15,
 	'docs/contributing/first-hour.md': 1,
-	'docs/contributing/rules.md': 18,
+	'docs/contributing/rules.md': 2,
 	'docs/contributing/testing.md': 10,
 	'docs/contributing/warnings.md': 1
 };
