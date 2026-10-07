@@ -1184,6 +1184,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
 | G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
+| G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
 
 ### The entries
 
@@ -2339,6 +2340,16 @@ mode hides its markers. A reader that walked the inline list somewhere else coul
 wrapped one: a click arms an edge the paint can't find, and you're left with no caret you can
 see. `lint/file-rules.test.ts` fails an `isInlineWidget(` or `flattenInlineWidgets(` call under
 `components/` or `src/lib/plugins/` outside that file.
+
+**G4.126 · Every package is bundled before a page asks for it.** Vite's dev server pre-bundles the
+packages the app imports, found by a scan that starts from the route files. A package the scan
+misses is found when a page first imports it, and Vite re-bundles and reloads every open page,
+which reds any e2e spec that was mid-load. SvelteKit hands the scan its route globs joined with
+backslashes on Windows, and a glob reads a backslash as an escape, so `vite.config.js` ::
+`posixScanEntries` swaps them for forward slashes. A package loaded with `import()` is listed in
+`optimizeDeps.include` as well, so it doesn't rest on the scan following a lazy import.
+`lint/dev-prebundle.test.ts` resolves the dev config and fails when a scan glob matches no route
+file, or when a bare-package `import()` under `src/lib` or `src/routes` is missing from the list.
 
 ## Accessibility
 

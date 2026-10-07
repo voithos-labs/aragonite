@@ -324,6 +324,16 @@ Running 6 tests using 1 worker
 Windows shell. Go through the npm script rather than calling it yourself; from a bare shell
 `playwright` isn't on the path.)
 
+**Packages are bundled before the first page loads.** Vite's dev server pre-bundles the packages
+the app imports when it starts, finding them by scanning out from the route files. A package the
+scan misses gets found the first time a page imports it, and Vite then re-bundles and reloads
+every open page, so whatever spec was mid-load goes red with `Failed to fetch dynamically
+imported module` (a spec's failure report shows the reload as a second `document loaded` line).
+Two things keep the scan whole. `vite.config.js` turns SvelteKit's route globs into forward
+slashes, since on Windows they arrive with backslashes and a glob reads those as escapes. And a
+package the app loads with `import()` goes in `optimizeDeps.include` there too. G4.126
+(`src/lib/test/invariants/lint/dev-prebundle.test.ts`) fails on either one.
+
 ### By area
 
 Specs are organized by feature area at the top level, and per block inside `tests/blocks/`.
