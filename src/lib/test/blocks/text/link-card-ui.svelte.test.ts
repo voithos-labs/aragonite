@@ -23,7 +23,20 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { dispatchKey } from '$lib/test/harness/settle';
 
+// A mounted card that an assertion left standing would leak into the next section.
+const liveApps = new Set<() => void>();
+function trackApp(app: ReturnType<typeof mount>): () => void {
+	const destroy = () => {
+		if (liveApps.delete(destroy)) void unmount(app);
+	};
+	liveApps.add(destroy);
+	return destroy;
+}
+const unmountLeftovers = () => [...liveApps].forEach((destroy) => destroy());
+
 describe('IME guard', () => {
+	afterEach(unmountLeftovers);
+
 	// The link card ignores Enter, Tab and Escape while an IME composition is open.
 	// Miss-analysis: no card key test carried `isComposing`, so IME confirm and cancel keys acted.
 
@@ -57,7 +70,7 @@ describe('IME guard', () => {
 		});
 		flushSync();
 		const input = target.querySelector('input')!;
-		return { onCommit, input, destroy: () => unmount(app) };
+		return { onCommit, input, destroy: trackApp(app) };
 	}
 
 	describe('IME keystrokes never operate the card', () => {
@@ -116,7 +129,7 @@ describe('IME guard', () => {
 		// The card takes focus a tick after its anchor is placed, so the Escape that restores the
 		// caret finds the card holding it.
 		await tick();
-		return { card, restore, destroy: () => unmount(app) };
+		return { card, restore, destroy: trackApp(app) };
 	}
 
 	describe('Escape cancelling a conversion does not close the card', () => {
@@ -136,6 +149,8 @@ describe('IME guard', () => {
 });
 
 describe('open button', () => {
+	afterEach(unmountLeftovers);
+
 	// The card's Open button hands the consumer's `onLinkActivate` the typed URL through the render's
 	// own filter (a consumer rewrite, then the scheme allowlist), so a click and Open give one answer.
 
@@ -161,7 +176,7 @@ describe('open button', () => {
 		const button = [...target.querySelectorAll('button')].find((b) =>
 			/open/i.test(b.getAttribute('aria-label') ?? '')
 		);
-		return { onOpenLink, button: button as HTMLButtonElement, destroy: () => unmount(app) };
+		return { onOpenLink, button: button as HTMLButtonElement, destroy: trackApp(app) };
 	}
 
 	describe('the link card’s Open button rides the render path’s one URL check', () => {

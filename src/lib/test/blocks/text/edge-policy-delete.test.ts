@@ -65,8 +65,6 @@ describe('ambient-marker selection delete', () => {
 		sel.addRange(range);
 	}
 
-	installEdgeDispatchCleanup();
-
 	describe('ambient-marker selection delete', () => {
 		it('Backspace over a selection reaching into the marker deletes the range via the CST', () => {
 			const h = mount('abcd\n', { start: 0, end: 2 });
@@ -132,8 +130,6 @@ describe('construct-edge delete', () => {
 		const node = parse(source).children[0];
 		return makeEdgeDispatch(node, mountSurface(trimTrailingLineEnding(node.raw), mode));
 	}
-
-	installEdgeDispatchCleanup();
 
 	describe('a destructive key past a construct edge takes the content byte', () => {
 		it('rewrites through the CST and anchors the undo entry at the pre-edit caret', () => {
@@ -219,8 +215,6 @@ describe('hidden structural suffix', () => {
 		return makeEdgeDispatch(node, mountSurface(trimTrailingLineEnding(node.raw), mode));
 	}
 
-	installEdgeDispatchCleanup();
-
 	describe('Delete at a setext heading’s content end reaches the block command', () => {
 		// `Title\n===`: the underline is structural, so content ends at 5.
 		for (const mode of [undefined, 'live', 'preview-block', 'preview-inline']) {
@@ -248,7 +242,7 @@ describe('hidden structural suffix', () => {
 	});
 });
 
-describe('landable start', () => {
+describe('first reachable offset', () => {
 	// Backspace at the first reachable offset is a block gesture, so the edge branch does nothing, even past a hidden escape.
 	// Miss-analysis: GH #108, the branch's suite never pressed at the block's first reachable offset.
 
@@ -271,8 +265,6 @@ describe('landable start', () => {
 	const mountEscapes = () =>
 		mount('\\*a\\*\n', [marker('\\'), text('*'), text('a'), marker('\\'), text('*')]);
 
-	installEdgeDispatchCleanup();
-
 	describe('the destructive branch at the block’s reachable start', () => {
 		it('declines Backspace at the first reachable offset inside a leading escape', () => {
 			const h = mountEscapes();
@@ -294,7 +286,7 @@ describe('landable start', () => {
 	});
 });
 
-describe('seam deference', () => {
+describe('deferring to the delete rules', () => {
 	// Three byte-writing branches outrank rules they must respect: step-over delete, widget insert, marker-prefix delete.
 	// Miss-analysis: those branches' suites used plain prose, never a hidden run beside the byte.
 
@@ -331,8 +323,6 @@ describe('seam deference', () => {
 			side: options.affinity ?? null
 		});
 	}
-
-	installEdgeDispatchCleanup();
 
 	// ── The decoration step-over delete ──────────────────────────────────────────
 

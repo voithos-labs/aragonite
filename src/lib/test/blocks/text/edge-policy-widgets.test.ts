@@ -33,7 +33,7 @@ import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 installEdgeDispatchCleanup();
 
-describe('decoration islands', () => {
+describe('decoration widgets', () => {
 	// Modifier chords stay with the browser, and a printable key at an element-level caret becomes a CST edit.
 
 	interface Harness extends EdgeDispatchHarness {
@@ -46,8 +46,6 @@ describe('decoration islands', () => {
 		const { node, el, island } = mountIslandBlock(source, start, end);
 		return { ...makeEdgeDispatch(node, el, { hasIslands: () => hasIslands }), island };
 	}
-
-	installEdgeDispatchCleanup();
 
 	describe('modifier chords stay native near widgets', () => {
 		const chords: Partial<KeyboardEvent>[] = [
@@ -197,8 +195,6 @@ describe('modifier chords', () => {
 		return { dispatch, widget: inlineWidgets[0], entered, edits };
 	}
 
-	installEdgeDispatchCleanup();
-
 	describe('a modifier chord at a widget edge is not a widget entry', () => {
 		const chords: Partial<KeyboardEvent>[] = [
 			{ ctrlKey: true },
@@ -287,8 +283,6 @@ describe('ranged edit', () => {
 	const IMAGE_LED = '![a](u) opens\n';
 	/** `&copy;`'s trailing edge: a range opening there is the widget's other caret-adjacent side. */
 	const ENTITY_END = 6;
-
-	installEdgeDispatchCleanup();
 
 	describe('a key over a range that opens with a CST widget', () => {
 		it('replaces the range with the typed character, through one CST edit', () => {
@@ -435,8 +429,6 @@ describe('pending cursor', () => {
 		const { node, el, island } = mountIslandBlock(source, at);
 		return { ...dispatchOver(node, el, true), island };
 	}
-
-	installEdgeDispatchCleanup();
 
 	describe('an edge-dispatch write parks the caret the write stored', () => {
 		it('typing beside a CST widget', () => {

@@ -138,7 +138,7 @@ describe('commit', () => {
 	});
 });
 
-describe('seat', () => {
+describe('composed text placement', () => {
 	// What a `compositionend` commit writes in each presentation mode, by the side the caret meant.
 	// Miss-analysis: no composition test ran outside live mode, so only keydown checked the mode.
 

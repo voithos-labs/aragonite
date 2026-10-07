@@ -49,8 +49,6 @@ describe('branch order', () => {
 		return { ...harness, node, entered };
 	}
 
-	installEdgeDispatchCleanup();
-
 	describe('the declared branch order', () => {
 		const { dispatch } = mount(false);
 
@@ -124,8 +122,6 @@ describe('marker completion', () => {
 			}
 		};
 	}
-
-	installEdgeDispatchCleanup();
 
 	describe('a container declaring contentStartSpace completes its marker', () => {
 		it('consumes the space at the content start of an empty child, writing nothing', () => {
@@ -249,8 +245,6 @@ describe('pending marks', () => {
 			marks
 		};
 	}
-
-	installEdgeDispatchCleanup();
 
 	describe('the first byte after a chord carries the mark', () => {
 		it('wraps the byte and anchors the undo entry at the pre-toggle caret', () => {
@@ -387,8 +381,6 @@ describe('pending marks', () => {
 describe('stored read cost', () => {
 	// Miss-analysis: nothing counted what a keystroke reads of the tree, so a store resolved up front
 	// would walk the document on every key in every block and no suite would notice.
-
-	installEdgeDispatchCleanup();
 
 	const SOURCE = '- Some **bold** text\n';
 	const LEAF = [0, 0, 0];
