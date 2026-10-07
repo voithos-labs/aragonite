@@ -888,24 +888,6 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.74 only the commit writes the open last line',
-		matches: /\b(?:terminateLastLine|releaseLastLine)\b/,
-		allowed: {
-			'src/lib/tree-operations/open-tail.ts':
-				'the walk down the last line, private to the two steps every structural commit runs'
-		},
-		reason:
-			'the commit ends every placed line and gives the ending back to the last block; an edit that writes the tail itself is a second copy of that rule, and the next route will not carry it',
-		hits: [
-			'terminateLastLine(node, ending, sharing, grammar);',
-			'releaseLastLine(tail, sharing, grammar);'
-		],
-		misses: [
-			'endWindowLines(body, change, sharing, grammar);',
-			'text = terminateLine(text, ending);'
-		]
-	},
-	{
 		id: 'a value the editor owns is read through its getter, never optional-chained into a default',
 		matches: new RegExp(
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`

@@ -109,41 +109,44 @@ function packGateOutput(docs: Record<string, string>): string {
 
 const DANGLING = 'docs-pack: dangling anchors';
 
-const pack = (anchors: [same: string, cross: string]): Record<string, string> => ({
-	'a.md': `# Title\n\n[here](#${anchors[0]}) and [there](b.md#${anchors[1]})\n\n## The new name\n`,
-	'b.md': '# Other\n\n## A section\n'
-});
-
 describe('in-pack anchors: the gate', () => {
 	it('reds on an anchor no heading spells, same doc or across two', () => {
-		const output = packGateOutput(pack(['the-old-name', 'the-old-section']));
+		const output = packGateOutput({
+			'a.md': '# Title\n\n[here](#the-old-name) and [there](b.md#the-old-section)\n',
+			'b.md': '# Other\n\n## A section\n'
+		});
 		expect(output).toContain(DANGLING);
 		expect(output).toContain('a.md: #the-old-name');
 		expect(output).toContain('a.md: b.md#the-old-section');
 	});
 
-	it('passes the same two links once each heading spells them', () => {
-		const output = packGateOutput(pack(['the-new-name', 'a-section']));
+	// One pack holds every passing shape, so the gate spawns once; a made-up anchor in a code
+	// example passes, since only the file it names must ship.
+	it('passes every anchor a heading spells, and a link in code on its file alone', () => {
+		const output = packGateOutput({
+			'a.md': [
+				'# Title',
+				'',
+				'[here](#the-new-name) and [there](b.md#a-section)',
+				'',
+				'[api](b.md#what-you-get-on-voithos-labsaragoniteplugin)',
+				'',
+				'```md',
+				'[see](b.md#some-heading)',
+				'```',
+				'',
+				'## The new name',
+				''
+			].join('\n'),
+			'b.md': '# Other\n\n## A section\n\n## What you get on `@voithos-labs/aragonite/plugin`\n'
+		});
 		// The summary line prints past both gates, so a green here cannot be a crash before Gate 1.
 		expect(output).toContain('docs-pack: 2 docs link-closed');
 		expect(output).not.toContain(DANGLING);
 	});
 
-	it('resolves the anchor GitHub gives a punctuated heading', () => {
-		const output = packGateOutput({
-			'a.md': '# A\n\n[api](b.md#what-you-get-on-voithos-labsaragoniteplugin)\n',
-			'b.md': '# B\n\n## What you get on `@voithos-labs/aragonite/plugin`\n'
-		});
-		expect(output).toContain('docs-pack: 2 docs link-closed');
-	});
-
-	// A guide teaching cross-references shows one in a fence; the file it names must still ship.
-	it('checks a link shown in code for its file, not its anchor', () => {
-		const example = '```md\n[see](b.md#some-heading)\n```\n';
-		expect(packGateOutput({ 'a.md': `# A\n\n${example}`, 'b.md': '# B\n' })).toContain(
-			'docs-pack: 2 docs link-closed'
-		);
-		const deadFile = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
-		expect(deadFile).toContain('docs-pack: dead pointers');
+	it('reds on a link in code whose file the pack does not ship', () => {
+		const output = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
+		expect(output).toContain('docs-pack: dead pointers');
 	});
 });

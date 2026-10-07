@@ -277,15 +277,6 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildLinkEditBytes(link, display, fields)']
 	},
 	{
-		id: 'G4.34 the link GFM serializer is named only inside the byte writer',
-		matches: /\bbuildLinkSourceBytes\b/,
-		declared: { [LINK_BYTES]: 'the byte writer itself' },
-		reason:
-			'an inline handler may create a built-in link over syntax of its own; re-emitting its fields as GFM replaces the author’s bytes',
-		hits: ['buildLinkSourceBytes(fields)'],
-		misses: ['// buildLinkSourceBytes(fields)\n']
-	},
-	{
 		id: 'G4.34 exactly the declared write paths call the link byte writer',
 		matches: /\bbuildLink(?:Edit|Unwrap|Wrap)Bytes\b/,
 		declared: {

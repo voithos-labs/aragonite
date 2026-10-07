@@ -20,13 +20,12 @@ const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 // the family check here but not the fallback and declaration checks.
 const isPluginSource = (relPath: string): boolean => relPath.startsWith(SOURCE_DIR.plugins);
 
-function editorCssSurfaces(): Array<{ rel: string; text: string }> {
-	return [
-		...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
-		{ rel: SOURCE.editorCss, text: readSource(SOURCE.editorCss).code },
-		{ rel: SOURCE.themeTokens, text: readSource(SOURCE.themeTokens).code }
-	];
-}
+// Read and comment-stripped once: three checks below walk the same corpus.
+const EDITOR_CSS_SURFACES: ReadonlyArray<{ rel: string; text: string }> = [
+	...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
+	{ rel: SOURCE.editorCss, text: readSource(SOURCE.editorCss).code },
+	{ rel: SOURCE.themeTokens, text: readSource(SOURCE.themeTokens).code }
+];
 
 // ── G4.6c: contract completeness ─────────────────────────────────────────────
 // Every editor-owned token read anywhere in the editor is declared in editor-theme.css.
@@ -34,9 +33,7 @@ function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 describe('G4.6 CSS ownership: editor-theme.css declares every editor-owned token read', () => {
 	it('every owned token read has a declaration', () => {
 		const theme = readSource(SOURCE.themeTokens).text;
-		const haystack = editorCssSurfaces()
-			.map((f) => f.text)
-			.join('\n');
+		const haystack = EDITOR_CSS_SURFACES.map((f) => f.text).join('\n');
 
 		const read = new Set<string>();
 		for (const m of haystack.matchAll(ANY_READ)) {
@@ -78,9 +75,9 @@ const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
 
 describe('G4.6 CSS ownership: host-token reads carry a fallback', () => {
 	it('no host-token var() read is missing a fallback', () => {
-		const offenders = editorCssSurfaces()
-			.filter((f) => HOST_READ_NO_FALLBACK.test(f.text))
-			.map((f) => f.rel);
+		const offenders = EDITOR_CSS_SURFACES.filter((f) => HOST_READ_NO_FALLBACK.test(f.text)).map(
+			(f) => f.rel
+		);
 		expect(offenders, `host-token reads missing a fallback in: ${offenders.join(', ')}`).toEqual(
 			[]
 		);
@@ -94,7 +91,7 @@ describe('G4.6 CSS ownership: host-token reads carry a fallback', () => {
 describe('G4.6 CSS ownership: every token read belongs to a declared family', () => {
 	it('no var() read falls outside the owned and host families', () => {
 		const offenders: string[] = [];
-		for (const f of editorCssSurfaces()) {
+		for (const f of EDITOR_CSS_SURFACES) {
 			if (isPluginSource(f.rel)) continue;
 			for (const m of f.text.matchAll(ANY_READ)) {
 				if (!OWNED_TOKEN.test(m[1]) && !HOST_TOKEN.test(m[1])) {
