@@ -1305,12 +1305,8 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 public authoring barrel (`#lib/plugin.js`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
 barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers
-through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`, which skips strings,
-templates and comments, so an import quoted in an example is no edge. They resolve a specifier with
-`src/lib/test/invariants/lint/scan-source.ts :: resolveSpecifier`, which reads the `#lib` alias out
-of package.json `imports` (via `scripts/lib-alias.mjs`), so a new scan shouldn't spell the alias
-itself. A rule row that matches an import by its module path builds its pattern with
-`src/lib/test/invariants/lint/scan-source.ts :: quotedSpecifierEnding` for the same reason.
+through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+which skips strings, templates and comments, so an import quoted in an example is no edge.
 `lint/plugin-import-boundary.test.ts`.
 
 **G4.17 · One Playwright project per spec.** No spec file is collected by two Playwright

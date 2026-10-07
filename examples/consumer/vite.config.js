@@ -1,17 +1,22 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { defineConfig } from 'vite';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-const libraryManifest = createRequire(import.meta.url).resolve(
-	'@voithos-labs/aragonite/package.json'
-);
+const require = createRequire(import.meta.url);
+const library = '@voithos-labs/aragonite';
 /** @type {Record<string, string | { default: string }>} */
-const libraryExports = JSON.parse(readFileSync(libraryManifest, 'utf8')).exports;
-const libraryEntries = Object.values(libraryExports).flatMap((target) =>
-	typeof target === 'object' ? [`@voithos-labs/aragonite/${target.default.slice(2)}`] : []
+const libraryExports = JSON.parse(
+	readFileSync(require.resolve(`${library}/package.json`), 'utf8')
+).exports;
+// Resolved the way the bundler resolves them, so a linked install's real path matches too.
+const libraryEntries = new Set(
+	Object.entries(libraryExports)
+		.filter(([, target]) => typeof target === 'object')
+		.map(([subpath]) => require.resolve(`${library}${subpath.slice(1)}`))
 );
 
 export default defineConfig({
@@ -23,7 +28,7 @@ export default defineConfig({
 			// bundle splits it across chunks, so that cycle fails the build; other cycles are noise.
 			onLog(level, log, handler) {
 				if (log.code !== 'CIRCULAR_DEPENDENCY') return handler(level, log);
-				if (libraryEntries.some((entry) => log.message.includes(entry)))
+				if (log.ids?.some((id) => libraryEntries.has(path.resolve(id))))
 					throw new Error(log.message);
 			}
 		}

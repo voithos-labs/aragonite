@@ -94,6 +94,10 @@ path it reads from `src/lib/test/invariants/lint/source-paths.ts`. Each entry th
 bit of text its file has to contain, so moving a file is one edit there, and an entry left
 pointing at the wrong file fails. Hand-write a path in a scan instead and `source-paths.test.ts`
 fails, naming the path.
+Import specifiers go through `src/lib/test/invariants/lint/scan-source.ts` the same way:
+`isLibrarySpecifier` tells library code from a package, `resolveSpecifier` finds the file behind
+one, and `quotedSpecifierEnding` builds the pattern for a rule row that matches an import by its
+path, so `#lib` (the import alias for `src/lib`) only ever gets spelled in package.json.
 
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 
@@ -913,5 +917,4 @@ again and the example sees it. `examples/consumer/src/plugins/` is generated, no
 every `dev`, `build`, `check`, and `test`, `scripts/sync-consumer-plugins.mjs` copies the callout
 fixture from `src/routes/test/plugins/callout/` with each `#lib` import of a published entry point
 (`#lib/plugin.js`, say) rewritten to the package name, and fails if a `#lib` import of any other
-file is left over. The folder is
-git-ignored and shows up on first run.
+file is left over. The folder is git-ignored and shows up on first run.

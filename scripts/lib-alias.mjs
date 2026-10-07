@@ -31,8 +31,8 @@ export function isAliasSpelling(specifier) {
 }
 
 /**
- * The repo path a `#` specifier names as written, following Node's `imports` resolution
- * (`#lib/core/parser.js` names `src/lib/core/parser.js`), or null where Node would resolve none.
+ * The repo path a `#` specifier names (`#lib/core/parser.js` names `src/lib/core/parser.js`), or
+ * null when no `imports` key matches it Node's way or its `*` part has a segment Node refuses.
  * @param {string} specifier
  * @returns {string | null}
  */
