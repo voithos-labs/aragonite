@@ -43,5 +43,5 @@ Editor re-initialization when the `source` prop changes (async document load, sh
   in a block whose blur writes; every blur write was tested against the document it came from.
 - The menu pastes landing in the next document shipped because every menu-paste row read a
   clipboard that answered at once, so nothing could happen between the pick and the write.
-- A repeated load doing nothing shipped because every row here loaded a text different from both
-  the page's last load and the editor's own text, so neither no-op ever showed.
+- The test harness's repeated load doing nothing went unnoticed because every row here loaded a text
+  different from both the page's last load and the editor's own text, so neither no-op ever showed.

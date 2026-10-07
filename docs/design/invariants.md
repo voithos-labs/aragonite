@@ -2201,7 +2201,8 @@ ask.
 
 **G4.106 · Retired upward.** The rule was: a spec reloads the editor's own text through
 `reloadContent`, since a `source` write equal to the text the editor holds changes nothing. The test
-pages' `__test.setSource` (`src/routes/test/editor/test-probes.ts`) now loads every write as a fresh
+page keeps its text in `HarnessSource` (`src/routes/test/editor/harness-source.svelte.ts`), a fresh
+object per load, because a `$state` string drops a write equal to what it holds. Its `__test.setSource` (`src/routes/test/editor/test-probes.ts`) now loads every write as a fresh
 document. When the editor already holds the text it goes through another document first, and it
 throws when the editor never replaced its document. So `loadContent(await getSource())` really
 reloads, and the lint rule and `reloadContent` are deleted.
