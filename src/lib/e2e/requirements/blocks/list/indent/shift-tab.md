@@ -4,7 +4,7 @@ How Shift+Tab promotes a nested list item to the parent list level, including ma
 
 ## Shift+Tab (unindent / promote)
 
-What the lifted item carries, and the number it ends with, are pinned in `src/lib/test/blocks/list/lift-keeps-order.test.ts`. The browser rows keep the caret and the emptied-parent cases.
+What the lifted item carries, and the marker and number it ends with, are pinned in `src/lib/test/blocks/list/lift-keeps-order.test.ts`. The browser rows keep the caret and the emptied-parent cases.
 
 - Shift+Tab on a nested item promotes it to the parent list level
 - Shift+Tab on a top-level item does nothing

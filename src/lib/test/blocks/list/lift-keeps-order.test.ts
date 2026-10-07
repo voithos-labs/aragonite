@@ -108,6 +108,29 @@ describe('lifting a nested item keeps the document in order', () => {
 		expect(mounted.source()).toBe('1. First\n2. Nested\n3. Second\n');
 	});
 
+	// Miss-analysis: only browser rows crossed bullet and ordered lists, so the lifted item's marker
+	// rewrite had no unit guard.
+	it.each([
+		[
+			'an ordered sublist in a bullet list',
+			'- P A\n  1. N1\n  2. N2\n- P B\n',
+			'- P A\n- N1\n  1. N2\n- P B\n'
+		],
+		[
+			'a bullet sublist in an ordered list',
+			'1. P A\n   - N1\n   - N2\n2. P B\n',
+			'1. P A\n2. N1\n   - N2\n3. P B\n'
+		]
+	])(
+		'lifting out of %s rewrites the lifted marker to the parent list’s',
+		async (_shape, source, lifted) => {
+			mounted = mountEditor({ source });
+			await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
+
+			expect(mounted.source()).toBe(lifted);
+		}
+	);
+
 	it('Shift+Tab in live mode carries the next item of a loose nested list', async () => {
 		mounted = mountEditor({
 			source: '- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n',

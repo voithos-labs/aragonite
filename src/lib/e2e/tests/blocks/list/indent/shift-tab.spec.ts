@@ -1,8 +1,8 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-// What the lifted item carries and how numbers settle are pinned in `lift-keeps-order.test.ts`;
-// these rows keep the caret, the marker and the emptied-parent cases.
+// What the lifted item carries and how markers and numbers settle are pinned in
+// `lift-keeps-order.test.ts`; these rows keep the caret and the emptied-parent cases.
 test.describe('list Shift+Tab', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
@@ -28,34 +28,6 @@ test.describe('list Shift+Tab', () => {
 		await items.nth(0).click();
 		await editor.pressDeclined('Shift+Tab');
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
-	});
-
-	test('ordered nested in unordered parent: promoted item takes unordered marker, nested remainder renumbers', async () => {
-		await editor.loadContent('- P A\n  1. N1\n  2. N2\n- P B\n');
-		const n1 = editor.page.locator('[contenteditable="true"]', { hasText: 'N1' });
-		await n1.click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceMatches(/^\s+1\. N2$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).not.toMatch(/^\s+2\. N2$/m);
-		expect(source).toMatch(/^- N1$/m);
-		expect(source).not.toMatch(/^\d+\. N1$/m);
-		expect(source).toMatch(/^- P A$/m);
-		expect(source).toMatch(/^- P B$/m);
-	});
-
-	test('unordered nested in ordered parent: promoted item takes ordered marker, parent renumbers', async () => {
-		await editor.loadContent('1. P A\n   - N1\n   - N2\n2. P B\n');
-		const n1 = editor.page.locator('[contenteditable="true"]', { hasText: 'N1' });
-		await n1.click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceMatches(/^2\. N1$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^\s+- N2$/m);
-		expect(source).not.toMatch(/^- N1$/m);
-		expect(source).toMatch(/^3\. P B$/m);
 	});
 
 	// Stale outer-list refs after `promoteNestedItem` would make ArrowUp do nothing.
