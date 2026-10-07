@@ -43,6 +43,8 @@ stability is asserted through the `window.__test` bridge.
   editable; `src/lib/test/blocks/reading-mode-input-routes.test.ts` checks that for every kind
 - paste (Ctrl+V) into a focused block: source unchanged
 - cut (Ctrl+X) over a selection: source unchanged (degrades to copy)
+- both again over a code block, which handles its own clipboard keys: it refuses them before
+  trying to write, so the reading-mode write guard never has to step in (and never warns)
 - undo chord (Ctrl+Z) after a pre-flip edit: source unchanged (history is inert
   in reading mode)
 - task checkbox click: source unchanged (the checkbox is visible but inert), because a toggle

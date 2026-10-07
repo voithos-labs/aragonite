@@ -16,8 +16,14 @@ const DOC = [
 	'1. one',
 	'- [ ] task',
 	'',
-	'Visit [example](https://example.com) here'
+	'Visit [example](https://example.com) here',
+	'',
+	'```js',
+	'let x = 1;',
+	'```'
 ].join('\n');
+
+const CODE = 6;
 
 test.describe('reading mode: markers', () => {
 	let ep: EditorPage;
@@ -81,15 +87,22 @@ test.describe('reading mode: inertness', () => {
 		expect(await ep.getDomBlockCount()).toBeGreaterThan(0);
 	});
 
-	test('paste and cut change nothing (cut degrades to copy)', async ({ page }) => {
-		await ep.clickBlock(1);
-		await ep.seedClipboard('PASTED');
-		await ep.paste();
-		await ep.dragFromTo([1], 0, [1], 4);
-		await page.keyboard.press('ControlOrMeta+x');
-		await ep.expectSurfaceInert();
-		expect(await ep.bridge.getSource()).toBe(baseline);
-	});
+	// A code block answers its own clipboard keys, so its reading-mode refusal is its own.
+	for (const { name, block, from, to } of [
+		{ name: 'a paragraph', block: 1, from: 0, to: 4 },
+		{ name: 'a code block', block: CODE, from: '```js\n'.length, to: '```js\nlet x'.length }
+	]) {
+		test(`paste and cut over ${name} change nothing (cut degrades to copy)`, async ({ page }) => {
+			expect(await ep.bridge.getBlockKind(CODE)).toBe('fencedCode');
+			await ep.clickBlock(block);
+			await ep.seedClipboard('PASTED');
+			await ep.paste();
+			await ep.dragFromTo([block], from, [block], to);
+			await page.keyboard.press('ControlOrMeta+x');
+			await ep.expectSurfaceInert();
+			expect(await ep.bridge.getSource()).toBe(baseline);
+		});
+	}
 
 	test('undo is inert against a pre-flip edit', async ({ page }) => {
 		await clickModeToggle(page, 'reading'); // back to source
