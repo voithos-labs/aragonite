@@ -8,36 +8,24 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	placeCaret,
-	surfaceAt
+	mountWithCaret,
+	placeCaret
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
-import { INSERTION_ROUTES, TEXT_HOSTS, insertBy } from '$lib/test/harness/insertion-routes';
-import type { PresentationMode } from '$lib/presentation-mode';
+import {
+	INSERTION_ROUTES,
+	TEXT_HOSTS,
+	dispatchBeforeInput,
+	insertBy
+} from '$lib/test/harness/insertion-routes';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-/** `source` mounted in `mode` with the caret at `at`. */
-function caretIn(source: string, at: number, mode: PresentationMode = 'live') {
-	const editor = mountEditor({ source, presentationMode: mode });
-	const el = surfaceAt(editor, [0]);
-	placeCaret(el, at);
-	return { editor, el };
-}
-
+// A space at a new bold's hidden closer, on every route, is the first table in `held-space.test.ts`.
 describe.each(INSERTION_ROUTES)('typed by %s', (route) => {
-	// A closer can't follow a space, so the space goes past the hidden `**` that would show again.
-	it('a space at a new bold’s hidden closer lands past it, keeping the bold', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7);
-
-		await insertBy(route, el, ' ');
-
-		expect(editor.source()).toBe('a **two** \n');
-	});
-
 	it('text after an arrow stepped out of a bold lands outside it', async () => {
-		const { editor, el } = caretIn('a **bold** b\n', 8);
+		const { editor, el } = mountWithCaret('a **bold** b\n', 8);
 		await pressKey(el, { key: 'ArrowRight' });
 
 		await insertBy(route, el, 'X');
@@ -46,7 +34,7 @@ describe.each(INSERTION_ROUTES)('typed by %s', (route) => {
 	});
 
 	it('source mode writes the space where the caret shows it, inside the visible closer', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7, 'source');
+		const { editor, el } = mountWithCaret('a **two**\n', 7, 'source');
 
 		await insertBy(route, el, ' ');
 
@@ -65,15 +53,8 @@ describe.each(TEXT_HOSTS)(
 			placeCaret(el, 5);
 			const target = window.getSelection()!.getRangeAt(0).cloneRange();
 			placeCaret(el, 7);
-			const e = new InputEvent('beforeinput', {
-				inputType: 'insertText',
-				data: '`',
-				bubbles: true,
-				cancelable: true
-			});
-			Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 
-			el.dispatchEvent(e);
+			dispatchBeforeInput(el, 'insertText', { data: '`', target });
 			await editor.settle();
 
 			expect(editor.source()).toMatch(/``/);

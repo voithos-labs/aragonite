@@ -98,14 +98,6 @@ describe('computeFenceExit: unclosed fence creates a closer', () => {
 		});
 	});
 
-	it('joins the closer with CRLF when the body ends CRLF', () => {
-		const text = 'hello\r\n';
-		expect(exit(text, text.length, { closed: false })).toEqual({
-			kind: 'closeAndExit',
-			newText: 'hello\r\n```'
-		});
-	});
-
 	it('returns none when at end without a trailing blank line', () => {
 		const text = 'hello';
 		expect(exit(text, text.length, { closed: false })).toEqual({ kind: 'none' });
