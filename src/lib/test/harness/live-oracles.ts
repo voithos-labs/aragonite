@@ -4,9 +4,9 @@
  * fuzzer all share these, so one reading of the rule answers for all three.
  */
 
-import { constructContentRange, parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
-import { getInlineConstructPolicy } from '$lib/schema/inline-construct-policy';
+import { constructContentRange, parseInline } from '#lib/core/inline/index.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { getInlineConstructPolicy } from '#lib/schema/inline-construct-policy.js';
 
 /** The leftovers § 4.1 forbids: an emptied construct whose row declares `autoUnwrapOnEmpty`. Read
  *  off the parse, not a delimiter spelling, so two legitimate runs meeting do not count. */

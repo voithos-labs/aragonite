@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	checkIdsChildrenLockstep,
 	checkStructuralDescriptor
-} from '$lib/invariants/structural-descriptor';
+} from '#lib/invariants/structural-descriptor.js';
 
 // A structural descriptor's window must fit the array it syncs, since the one consumer clamps a
 // negative count to an empty splice and a wrong window leaves no trace (G1.36).

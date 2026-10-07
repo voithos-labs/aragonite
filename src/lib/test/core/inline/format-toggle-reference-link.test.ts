@@ -5,17 +5,17 @@ import {
 	isInlineFormatActive,
 	toggleInlineFormat,
 	type InlineFormatEdit
-} from '$lib/core/inline/format-toggle';
+} from '#lib/core/inline/format-toggle.js';
 import {
 	buildLinkReferenceMap,
 	type LinkReferenceResolver
-} from '$lib/core/inline/link-reference-resolver';
-import { parse } from '$lib/core/parser';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
-import type { Reading } from '$lib/schema/reading';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
+} from '#lib/core/inline/link-reference-resolver.js';
+import { parse } from '#lib/core/parser.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { planCrossBlockFormat } from '#lib/selection/cross-block/format-range.js';
+import type { Reading } from '#lib/schema/reading.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 
 // The toggle reads a block with its link definitions, so a cut into a reference link is refused.
 // Miss-analysis (GH #455): every toggle fixture used inline links, never a reference link.

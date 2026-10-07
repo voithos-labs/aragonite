@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sliceFencedCode } from '$lib/components/blocks/code/code-renderer';
+import { sliceFencedCode } from '#lib/components/blocks/code/code-renderer.js';
 import { fencedCode } from './fenced-code-fixture';
 
 describe('sliceFencedCode', () => {

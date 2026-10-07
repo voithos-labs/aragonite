@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { installPlugins, parse } from '#lib';
+import { resolveReorderUnit } from '#lib/tree-operations/reorder-unit.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 
 // A strip plugin container reorders its body children among themselves, so the resolver lands on
 // the container rather than walking past it to the document position. Membership is the

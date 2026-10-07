@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createContainerExitOverrides } from '$lib/editor-actions/container-exit-overrides';
-import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { createContainerExitOverrides } from '#lib/editor-actions/container-exit-overrides.js';
+import { makeStubBlockEdit, makeStubFocus } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // The exit is one replaceBlock in the parent, so its event path and undo entry belong to
 // that commit. What the override owns is what it hands over: the trimmed container plus the

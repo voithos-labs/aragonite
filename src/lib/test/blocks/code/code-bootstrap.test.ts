@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
 import { getLanguageGrammar, listLanguages } from '../../../components/blocks/code/code-languages';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 /** Every built-in language and the spellings it answers to: canonical name first. */
 const BUILT_IN: readonly (readonly string[])[] = [

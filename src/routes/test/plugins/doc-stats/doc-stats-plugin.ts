@@ -1,6 +1,6 @@
 // An example of the per-instance context: the plugin reads the document, the editor's identity,
 // its events and its options from it.
-import { definePlugin, registerGlobalCommand, type EditorContext } from '$lib/plugin';
+import { definePlugin, registerGlobalCommand, type EditorContext } from '#lib/plugin.js';
 
 export interface DocStatsOptions {
 	label: string;

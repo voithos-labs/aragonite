@@ -6,17 +6,17 @@
  */
 
 import fc from 'fast-check';
-import { makeRng, type Rng } from '$lib/e2e/simulation/rng';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { getContentRange } from '$lib/core/inline';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { isSubsequence, keepsEveryByte } from '$lib/test/harness/live-oracles';
-import { listInlineMarks } from '$lib/schema/inline-construct-policy';
-import { arbLiveDoc } from '$lib/test/invariants/arbitraries';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { makeRng, type Rng } from '#lib/e2e/simulation/rng.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { getContentRange } from '#lib/core/inline/index.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { isSubsequence, keepsEveryByte } from '#lib/test/harness/live-oracles.js';
+import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import { arbLiveDoc } from '#lib/test/invariants/arbitraries/index.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	documentContentText,
 	hiddenEdgeOffsets,

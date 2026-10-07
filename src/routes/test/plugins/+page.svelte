@@ -26,7 +26,7 @@
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import '../../demo-tags/tag-marks.css';
-	import type { EditorPluginEntry } from '$lib';
+	import type { EditorPluginEntry } from '#lib';
 
 	// docStatsPlugin is a bare entry (no options), so it runs on its defaults.
 	const basePlugins = [
@@ -82,12 +82,12 @@
 </script>
 
 <script lang="ts">
-	import { Editor, type PresentationMode } from '$lib';
-	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import { Editor, type PresentationMode } from '#lib';
+	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { convertGithubAlertsInDocument, hasGithubAlert } from '$lib/plugins/admonitions';
+	import { convertGithubAlertsInDocument, hasGithubAlert } from '#lib/plugins/admonitions/index.js';
 
 	let { data }: { data: PageData } = $props();
 

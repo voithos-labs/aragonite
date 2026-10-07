@@ -4,7 +4,7 @@
  * which is the one GFM renders.
  */
 
-import { getPluginMetadata, walkBlocks, type DocumentView } from '$lib/plugin';
+import { getPluginMetadata, walkBlocks, type DocumentView } from '#lib/plugin.js';
 import { FOOTNOTE_DEF_KIND } from './constants';
 import type { FootnoteDefMetadata } from './footnote-definition';
 

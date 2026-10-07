@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
-import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { rebuildUnsharedAncestry } from '$lib/tree-operations/chain-rebuild';
+import { installPlugins, parse } from '#lib';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
+import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
+import { convertGithubAlertsInDocument } from '#lib/plugins/admonitions/convert-document.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { rebuildUnsharedAncestry } from '#lib/tree-operations/chain-rebuild.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

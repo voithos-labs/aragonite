@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib/core/parser.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
-} from '$lib/schema/block-component-registry';
-import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
-import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+} from '#lib/schema/block-component-registry.js';
+import { registerBlockOpener, type BlockOpener } from '#lib/schema/block-openers.js';
+import { createRegistryView, defaultRegistryView } from '#lib/schema/registry-view.js';
+import type { AnyBlockKind, PluginBlockKind } from '#lib/core/nodes.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 
 const stubComponent = {} as BlockComponentEntry;
 

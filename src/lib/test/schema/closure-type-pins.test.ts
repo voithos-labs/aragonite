@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import type { ClosureBlock } from '$lib/schema/closure';
-import { containerClosure, simpleLeafClosure } from '$lib/schema/closure';
-import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
-import { closureCoherenceEntry } from '$lib/schema/registration-checks';
-import { testClosure } from '$lib/test/support/closure';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { getBlockKindDescriptor, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
+import type { ClosureBlock } from '#lib/schema/closure.js';
+import { containerClosure, simpleLeafClosure } from '#lib/schema/closure.js';
+import { checkClosureCoherence, type ClosureCoherenceEntry } from '#lib/invariants/registry.js';
+import { closureCoherenceEntry } from '#lib/schema/registration-checks.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false } as const;
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { createFocusAttribution } from '$lib/components/editor-root-focus';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { createFocusAttribution } from '#lib/components/editor-root-focus.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 
 const teardowns: (() => void)[] = [];
 

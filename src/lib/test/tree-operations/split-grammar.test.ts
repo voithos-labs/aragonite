@@ -1,13 +1,13 @@
 // Miss-analysis: every split case reparsed in the global grammar, never an editor's filtered one.
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { splitNode } from '$lib/tree-operations';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { splitNode } from '#lib/tree-operations/index.js';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
 

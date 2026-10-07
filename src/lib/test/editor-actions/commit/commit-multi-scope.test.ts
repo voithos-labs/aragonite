@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/action-contracts';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '#lib/action-contracts.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { makeListItem, makeListNode } from '#lib/test/harness/list-fixtures.js';
 
 // The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
 // them as stale, and the one-block check reads their childless list items as emptied.

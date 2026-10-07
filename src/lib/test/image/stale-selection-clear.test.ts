@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test edited under a selected image, so an undo that moved it went unchecked.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';

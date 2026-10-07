@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mintCommandId, isPluginCommandId } from '$lib/schema/command-id';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { mintCommandId, isPluginCommandId } from '#lib/schema/command-id.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 
 /** Run `mint` inside the setup of a plugin called `name`, so the plugin owns what it creates. */
 function asPlugin(name: string, mint: () => void): void {

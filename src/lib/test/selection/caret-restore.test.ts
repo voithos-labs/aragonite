@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createCaretRestore, type CaretRestoreDeps } from '$lib/selection/caret-restore';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { SelectionRestoreOutcome } from '$lib/selection/selection-restore';
-import { caretAt } from '$lib/test/harness/editor-selection';
+import { createCaretRestore, type CaretRestoreDeps } from '#lib/selection/caret-restore.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { SelectionRestoreOutcome } from '#lib/selection/selection-restore.js';
+import { caretAt } from '#lib/test/harness/editor-selection.js';
 
 // What the document selection survives while a menu or overlay input borrows focus: it goes back
 // through the caret landing by path, and the editor root takes focus when it can't.

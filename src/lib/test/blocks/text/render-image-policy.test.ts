@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { blockNode, makeRenderHarness } from '$lib/test/harness/text-render';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import { blockNode, makeRenderHarness } from '#lib/test/harness/text-render.js';
 
 describe('text-render image-load-policy memo key', () => {
 	it('repaints an image block when imageLoadPolicy flips at runtime', () => {

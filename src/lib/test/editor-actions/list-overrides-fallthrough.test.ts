@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // The list bundle's item replace falls through to the shared block-edit core, so these test the
 // two guards the core carries through that fall-through.

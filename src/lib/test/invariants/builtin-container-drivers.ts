@@ -2,28 +2,28 @@
 // list indent, each through the kind's own context. No published API can perform either op, so
 // they live beside the built-in profiles, which hand them to the kit as `drivers`.
 
-import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { parse } from '$lib/core/parser';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createListContext } from '$lib/editor-actions/list-context';
-import { createTableMutationsContext } from '$lib/editor-actions/table-context';
-import type { EditEvent } from '$lib/editor-events';
+import type { CstNode } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { parse } from '#lib/core/parser.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createListContext } from '#lib/editor-actions/list-context.js';
+import { createTableMutationsContext } from '#lib/editor-actions/table-context.js';
+import type { EditEvent } from '#lib/editor-events.js';
 import {
 	assert,
 	assertIndices,
 	assertIs,
 	firstChildOfKind,
 	subjectNode
-} from '$lib/testing/conformance-core';
+} from '#lib/testing/conformance-core.js';
 import {
 	createHeadlessActions,
 	recordingFocus,
 	stubBlockEdit
-} from '$lib/testing/headless-actions';
-import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
-import { assertParseConverged } from '$lib/testing/parse-convergence';
+} from '#lib/testing/headless-actions.js';
+import { mountBlockListState } from '#lib/testing/headless-block-list.svelte.js';
+import { assertParseConverged } from '#lib/testing/parse-convergence.js';
 
 /** A table column op addresses cells by (rowIdx, colIdx) and emits the table's own path; the
  *  leading paragraph keeps the table off index 0, so a global index would differ. */

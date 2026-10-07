@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
-import { collectReservedChords, chordIsClaimed } from '$lib/schema/reserved-chords';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { registerGlobalCommand } from '$lib/schema/global-commands';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
+import { collectReservedChords, chordIsClaimed } from '#lib/schema/reserved-chords.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 registerBuiltInDescriptors();
 

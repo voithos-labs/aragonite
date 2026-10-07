@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { deleteAtPath } from '$lib/tree-operations/path-mutate';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { deleteAtPath } from '#lib/tree-operations/path-mutate.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { rebuildOwnedContainer } from '#lib/tree-operations/unshare.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // A splice outside a commit can merge at any depth no commit descriptor reaches, so it keeps
 // `childIds` in step itself.

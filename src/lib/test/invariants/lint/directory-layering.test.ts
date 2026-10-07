@@ -7,9 +7,11 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+	aliasSpecifier,
 	collectEditorSources,
 	EDITOR_SRC,
 	importSpecifiers,
+	isLibrarySpecifier,
 	resolveSpecifier,
 	sourceFile,
 	type SourceFile
@@ -45,7 +47,7 @@ function layerGraph(sources: SourceFile[]): LayerGraph {
 		const from = layerOf(file.relPath);
 		if (from === null) continue;
 		for (const { specifier, typeOnly } of importSpecifiers(file.code)) {
-			if (!specifier.startsWith('.') && !specifier.startsWith('$lib')) continue;
+			if (!isLibrarySpecifier(specifier)) continue;
 			const target = resolveSpecifier(file.relPath, specifier);
 			if (target === null) {
 				unresolved.push(`${file.relPath}: ${specifier}`);
@@ -133,8 +135,6 @@ describe('G4.122 the directory import graph holds to its baseline', () => {
 // ── Self-tests (non-vacuity) ─────────────────────────────────────────────────
 
 describe('G4.122 the directory graph reads each import shape', () => {
-	const libSpecifier = (relPath: string): string =>
-		`$lib/${relPath.slice(SOURCE_DIR.library.length).replace(/\.ts$/, '')}`;
 	const from = `${SOURCE_DIR.treeOperations}probe.ts`;
 	const graphOf = (code: string) => layerGraph([sourceFile(from, code)]);
 
@@ -144,24 +144,24 @@ describe('G4.122 the directory graph reads each import shape', () => {
 		expect(layerOf(SOURCE.showcaseRoute)).toBeNull();
 	});
 
-	it('reads a $lib import, a relative one and a directory barrel', () => {
-		expect(graphOf(`import { x } from '${libSpecifier(SOURCE.commands)}';`).runtime).toEqual([
+	it('reads a #lib import, a relative one and a directory barrel', () => {
+		expect(graphOf(`import { x } from '${aliasSpecifier(SOURCE.commands)}';`).runtime).toEqual([
 			edge(from, SOURCE.commands)
 		]);
 		expect(graphOf("import { x } from '../env';").runtime).toEqual([edge(from, SOURCE.envFlags)]);
-		expect(graphOf("import { x } from '$lib/editor-actions';").runtime).toEqual([
+		expect(graphOf("import { x } from '#lib/editor-actions/index.js';").runtime).toEqual([
 			edge(from, SOURCE_DIR.editorActions)
 		]);
 	});
 
 	it('marks an edge type-only until one runtime import joins it', () => {
-		const typeImport = `import type { X } from '${libSpecifier(SOURCE.commands)}';`;
+		const typeImport = `import type { X } from '${aliasSpecifier(SOURCE.commands)}';`;
 		expect(graphOf(typeImport)).toMatchObject({
 			runtime: [],
 			typeOnly: [edge(from, SOURCE.commands)]
 		});
 		expect(
-			graphOf(`${typeImport}\nimport { y } from '${libSpecifier(SOURCE.keybindings)}';`)
+			graphOf(`${typeImport}\nimport { y } from '${aliasSpecifier(SOURCE.keybindings)}';`)
 		).toMatchObject({
 			runtime: [edge(from, SOURCE.commands)],
 			typeOnly: []
@@ -170,7 +170,7 @@ describe('G4.122 the directory graph reads each import shape', () => {
 
 	it('skips an import in a comment, a package import and one within the directory', () => {
 		const code = [
-			"// import { x } from '$lib/editor-actions';",
+			"// import { x } from '#lib/editor-actions/index.js';",
 			"import { tick } from 'svelte';",
 			"import { y } from './node-ops';"
 		].join('\n');
@@ -184,14 +184,18 @@ describe('G4.122 the directory graph reads each import shape', () => {
 	});
 
 	it('names the imports behind an edge', () => {
-		const graph = graphOf("import { x } from '$lib/editor-actions';\nimport '../editor-actions';");
-		expect(withSites(graph.runtime, graph)).toContain(`${from}: $lib/editor-actions`);
+		const graph = graphOf(
+			"import { x } from '#lib/editor-actions/index.js';\nimport '../editor-actions';"
+		);
+		expect(withSites(graph.runtime, graph)).toContain(`${from}: #lib/editor-actions/index.js`);
 		expect(withSites(graph.runtime, graph)).toContain(`${from}: ../editor-actions`);
 	});
 
 	it('flags an edge outside the baseline and spares one inside it', () => {
 		const added = (code: string) => missingFrom(graphOf(code).runtime, RUNTIME_EDGES);
-		expect(added("import { x } from '$lib/editor-actions';")).toEqual(FORBIDDEN.slice(0, 1));
-		expect(added(`import { x } from '${libSpecifier(SOURCE.cstNodes)}';`)).toEqual([]);
+		expect(added("import { x } from '#lib/editor-actions/index.js';")).toEqual(
+			FORBIDDEN.slice(0, 1)
+		);
+		expect(added(`import { x } from '${aliasSpecifier(SOURCE.cstNodes)}';`)).toEqual([]);
 	});
 });

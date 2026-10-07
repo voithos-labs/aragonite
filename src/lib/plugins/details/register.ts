@@ -3,7 +3,7 @@
  * unguarded and re-registers cleanly after a schema reset.
  */
 
-import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '#lib/plugin.js';
 import { registerDetailsKind, DETAILS } from './details-kind';
 import DetailsBlock from './DetailsBlock.svelte';
 

@@ -12,7 +12,7 @@ import {
 	renderFencedSource,
 	sliceFencedSource,
 	type LineEnding
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { readMathSource, reshapeMathSource, type MathEdit, type MathSource } from './math-shape';
 
 /** Both block forms as an opener, a body and a closer: the `$$` form as `math-shape.ts` reads it,

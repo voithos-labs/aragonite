@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
-import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import type { BodyParent } from '$lib/tree-operations/node-primitives';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { mergeIntoPrevDeepLeaf, mergeWithNext } from '#lib/tree-operations/index.js';
+import { mergeListItemIntoPrevious } from '#lib/tree-operations/list/unwrap-merge.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import type { BodyParent } from '#lib/tree-operations/node-primitives.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { documentLineEnding } from '#lib/core/lines.js';
 
 // Miss-analysis: GH #166, the shape property's gestures included no merge, so none was reloaded.
 

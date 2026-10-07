@@ -11,7 +11,7 @@ import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 // Arbitrary replace spans land inside atomic widgets, and snapping outward is the behaviour under

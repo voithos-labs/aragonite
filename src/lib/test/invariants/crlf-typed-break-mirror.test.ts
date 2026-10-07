@@ -4,11 +4,11 @@
 // Miss-analysis: GH #637, the mirror check ran pure functions only, so no row ever typed a break
 // into a plugin leaf's source, the one surface that spliced a bare LF.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

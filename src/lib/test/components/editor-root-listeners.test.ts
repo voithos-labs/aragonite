@@ -6,7 +6,7 @@ import {
 	installModActiveTracker,
 	installRevealAnchorRelease,
 	installSelectionChangeBridge
-} from '$lib/components/editor-root-listeners';
+} from '#lib/components/editor-root-listeners.js';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
 const teardowns: (() => void)[] = [];

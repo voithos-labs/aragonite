@@ -2,31 +2,31 @@
 // Miss-analysis: the multi-scope tests asserted bytes and ids, which a repeated rebuild leaves
 // right, so a table rebuilt once per mounted row went unseen.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as unshare from '$lib/tree-operations/unshare';
-import type { CstNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import * as unshare from '#lib/tree-operations/unshare.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from '../table-mutations-harness';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { coverRange } from '$lib/selection/range-coverage';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/selection/cross-block/format-range.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
-vi.mock('$lib/tree-operations/unshare', async (original) => {
-	const real = await original<typeof import('$lib/tree-operations/unshare')>();
+vi.mock('#lib/tree-operations/unshare.js', async (original) => {
+	const real = await original<typeof import('#lib/tree-operations/unshare.js')>();
 	return { ...real, rebuildOwnedContainer: vi.fn(real.rebuildOwnedContainer) };
 });
 

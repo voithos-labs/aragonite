@@ -3,8 +3,8 @@
 	// hands out a fresh record, so `source` re-reads even when the text is unchanged. With `echo`
 	// it reloads the note from `getSource()` after every edit.
 	import { onMount } from 'svelte';
-	import Editor from '$lib/components/Editor.svelte';
-	import type { EditorInstance } from '$lib/editor-props';
+	import Editor from '#lib/components/Editor.svelte';
+	import type { EditorInstance } from '#lib/editor-props.js';
 
 	let { text, echo = false }: { text: string; echo?: boolean } = $props();
 

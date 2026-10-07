@@ -1,26 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // In live mode a list-item merge drops the `**` pair a split left behind, as a top-level join does.
 // Miss-analysis: the list-item merge was tested only in mode-free cases, never in live mode.

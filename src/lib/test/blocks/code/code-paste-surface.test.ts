@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
+import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import { fencedCode } from './fenced-code-fixture';
 import { topLevelStore } from '../../harness/fixture-grammar';
 

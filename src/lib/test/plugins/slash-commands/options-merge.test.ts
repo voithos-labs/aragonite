@@ -1,7 +1,7 @@
 // Miss-analysis: every slash test built its options by hand, so none sent an editor's entry
 // through the plugin, where it replaced the factory's options whole.
 import { describe, expect, it } from 'vitest';
-import { slashCommandsPlugin, type SlashCommandEntry } from '$lib/plugins/slash-commands';
+import { slashCommandsPlugin, type SlashCommandEntry } from '#lib/plugins/slash-commands/index.js';
 import { slashPluginHarness } from './slash-harness';
 
 const stamp: SlashCommandEntry = { id: 'stamp', label: 'Stamp', insert: 'ok' };

@@ -2,7 +2,7 @@
 // Miss-analysis: every caller's rows inserted a run unlike its neighbours, so the check only ever
 // tried the first offset where the texts differ, and ` m` after `bold ` failed though it holds.
 import { describe, expect, it } from 'vitest';
-import { insertsExactly, removesExactly } from '$lib/components/blocks/text/screen-diff';
+import { insertsExactly, removesExactly } from '#lib/components/blocks/text/screen-diff.js';
 
 describe('insertsExactly', () => {
 	it('finds a run that fits at more than one offset', () => {

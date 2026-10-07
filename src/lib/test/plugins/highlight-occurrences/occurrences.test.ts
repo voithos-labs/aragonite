@@ -2,13 +2,13 @@
 // own level: word-under-caret resolution (`anchorWord`) and the whole-document
 // occurrence index the caching source looks that word up in.
 import { describe, expect, it } from 'vitest';
-import { parse, type EditorSelection } from '$lib';
+import { parse, type EditorSelection } from '#lib';
 import {
 	OCCURRENCE_CLASS,
 	anchorWord,
 	buildOccurrenceIndex,
 	wordAt
-} from '$lib/plugins/highlight-occurrences/occurrences';
+} from '#lib/plugins/highlight-occurrences/occurrences.js';
 
 function caret(path: number[], offset: number, cellCoordinate?: boolean): EditorSelection {
 	const point = cellCoordinate ? { path, offset, cellCoordinate } : { path, offset };

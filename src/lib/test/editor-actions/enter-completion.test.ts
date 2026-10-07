@@ -1,21 +1,21 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
-import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
-import { registerBlockCompleter } from '$lib/schema/block-completions';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import type { BlockComponent } from '$lib/block-component';
-import type { BlockEditActions } from '$lib/action-contracts';
+import { planEnterCompletion, withEnterCompletion } from '#lib/editor-actions/enter-completion.js';
+import { createBlockEditCore } from '#lib/editor-actions/block-edit-core.js';
+import type { CommitScope } from '#lib/editor-actions/block-edit-scope.js';
+import { registerBlockCompleter } from '#lib/schema/block-completions.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
 import {
 	makeCommitScopeStub,
 	makeNestedHarness,
 	makeTopHarness,
 	parseLeaf as leaf
-} from '$lib/test/harness/editor-actions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/test/harness/editor-actions.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table

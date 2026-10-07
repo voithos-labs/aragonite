@@ -5,7 +5,7 @@
  * maps that URL back to the bytes at render time. Page-lifetime only.
  */
 
-import type { PastedImage } from '$lib';
+import type { PastedImage } from '#lib';
 
 export const PASTED_IMAGE_BASE = 'https://demo.aragonite/pasted/';
 

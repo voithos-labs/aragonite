@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canDeleteRow, canDeleteColumn } from '$lib/tree-operations/table-mutations';
+import { canDeleteRow, canDeleteColumn } from '#lib/tree-operations/table-mutations.js';
 
 // rowCount is the full row count. A header delete promotes the next row so it needs only
 // a second row; a body delete needs a second body row, or a header-only table is left.

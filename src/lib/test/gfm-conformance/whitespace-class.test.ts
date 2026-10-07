@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { scanInline } from '$lib/core/inline/scan';
-import { normalizeLinkLabel } from '$lib/core/inline/link-reference-resolver';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { parse } from '#lib/core/parser.js';
+import { scanInline } from '#lib/core/inline/scan/index.js';
+import { normalizeLinkLabel } from '#lib/core/inline/link-reference-resolver.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 import { editorOutline, referenceOutline } from './block-outline';
 
 /**

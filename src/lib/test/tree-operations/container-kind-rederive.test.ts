@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { setPluginMetadata } from '$lib/plugin';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { reclassifyContainer } from '$lib/tree-operations';
-import { rebuildContainerRaw } from '$lib/schema/container-raw';
-import { createGrammarView, defaultGrammarView } from '$lib/schema/block-openers';
-import { checkStaleRaw } from '$lib/invariants/node-shape';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { installPlugins, parse } from '#lib';
+import { setPluginMetadata } from '#lib/plugin.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { reclassifyContainer } from '#lib/tree-operations/index.js';
+import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
+import { createGrammarView, defaultGrammarView } from '#lib/schema/block-openers.js';
+import { checkStaleRaw } from '#lib/invariants/node-shape.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 // The pure half of the container kind-change path: a container whose rebuilt raw opens
 // as a different kind is replaced in its parent's children. Eligibility is the opener

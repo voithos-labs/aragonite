@@ -1,6 +1,6 @@
 // A fixture for BlockDecoration through the public API only: every heading block gets a class
 // and a badge widget, at any depth, which is what `blockDecorationsForPath` serves.
-import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView } from '#lib/plugin.js';
 import { forEachLeaf } from '../../../walk-views';
 
 export const blockBadgePlugin = definePlugin({

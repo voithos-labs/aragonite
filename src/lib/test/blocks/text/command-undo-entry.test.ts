@@ -2,7 +2,7 @@
 // A command run in the middle of a typing burst is its own undo entry.
 // Miss-analysis: GH #525, the undo suite ran only the toggle's wrapper, no other command.
 import { it, expect, beforeAll, afterEach } from 'vitest';
-import type { UndoEntry } from '$lib/undo/types';
+import type { UndoEntry } from '#lib/undo/types.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -11,8 +11,8 @@ import {
 	surfaceAt,
 	typeInFirstBlock,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 beforeAll(() => installLayoutStubs());
 afterEach(async () => {

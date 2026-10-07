@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { parse, serialize } from '#lib';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 
 // The close-scan must track fenced code in the body: inside a fence, `</details>` is
 // content and `<details>` must not inflate the depth. Bytes round-trip either way, so

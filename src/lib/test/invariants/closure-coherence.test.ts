@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
-import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
-import { closureCoherenceEntry } from '$lib/schema/registration-checks';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { ALL_BLOCK_KINDS } from '#lib/core/nodes.js';
+import { checkClosureCoherence, type ClosureCoherenceEntry } from '#lib/invariants/registry.js';
+import { closureCoherenceEntry } from '#lib/schema/registration-checks.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 // The closure-vs-descriptor cross-checks a compiler can't reach (G1.24). Whether each fixture
 // parses to its kind is swept in `closure-fixtures.test.ts`, because a `parse` import in the

@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { deleteNode, spliceChildrenSettled } from '$lib/tree-operations/settle';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { plainQuote } from '$lib/tree-operations/blockquote';
-import { liftFirstChild } from '$lib/tree-operations/container-lift';
-import { describeConvergence, layoutOf } from '$lib/test/harness/parse-converged';
-import { settled } from '$lib/test/harness/settle-funnel';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { deleteNode, spliceChildrenSettled } from '#lib/tree-operations/settle.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { plainQuote } from '#lib/tree-operations/blockquote.js';
+import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
+import { describeConvergence, layoutOf } from '#lib/test/harness/parse-converged.js';
+import { settled } from '#lib/test/harness/settle-funnel.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A table takes any line straight below its rows that opens no other block, so a block an edit
 // turns into text right under a table gets a blank line between, and stays the block it is.

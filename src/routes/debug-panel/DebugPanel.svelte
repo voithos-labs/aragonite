@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Section from './Section.svelte';
 	import { type createPanelState, MIN_PANEL_WIDTH, type SectionKey } from './panel-state.svelte';
-	import { enableInteractionTrace } from '$lib/debug/interaction-trace';
+	import { enableInteractionTrace } from '#lib/debug/interaction-trace.js';
 
 	interface Props {
 		/** Kept by the route that mounts the panel, so a header button and Ctrl+Shift+D share it. */

@@ -1,20 +1,20 @@
 // Miss-analysis: every block-command test registered the command in the plugin that declared the
 // kind, so the handler's editor and the error report reading the kind's plugin never showed.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
-import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
+import { declarePluginKind, declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerBlockCommand,
 	runCommandById,
 	type BlockCommandContext,
 	type KindCommandTarget
-} from '$lib/schema/block-commands';
-import type { AnyCommandId } from '$lib/schema/command-id';
-import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
-import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
-import { createEditorEvents, emitCommandError } from '$lib/editor-events';
-import type { CstNode } from '$lib/core/nodes';
-import { commandContext } from '$lib/test/support/command-context';
+} from '#lib/schema/block-commands.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
+import { buildLeafCommandContext } from '#lib/components/blocks/editable-leaf.js';
+import { buildContainerKindTarget } from '#lib/editor-actions/plugin/container.js';
+import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { commandContext } from '#lib/test/support/command-context.js';
 
 const KIND = 'owned-block';
 let commandId: AnyCommandId;

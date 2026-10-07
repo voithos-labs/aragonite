@@ -4,7 +4,7 @@
  * either entry point, or nothing does. See docs/design/plugin-contract.md § Inline authoring.
  */
 
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, vi } from 'vitest';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 import { parse } from '../../core/parser';

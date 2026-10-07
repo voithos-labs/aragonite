@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, type CstNode } from '$lib';
-import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
+import { parse, type CstNode } from '#lib';
+import { getPluginMetadata, setPluginMetadata } from '#lib/plugin.js';
 import {
 	registerMermaidKind,
 	rebuildMermaidRaw,
 	type MermaidMetadata
-} from '$lib/plugins/mermaid/mermaid-kind';
+} from '#lib/plugins/mermaid/mermaid-kind.js';
 
 // An opaque container serializes `raw` verbatim, so the byte round trip passes even when the
 // metadata was captured wrongly. The cases pin the rebuild instead, which is what every

@@ -5,8 +5,8 @@
  * rule under the same G-number. The scan is `file-rule.ts`.
  */
 
-import { MARKER_FAMILY_CLASSES } from '$lib/core/inline/visibility';
-import { collectEditorSources, type SourceFile } from './scan-source';
+import { MARKER_FAMILY_CLASSES } from '#lib/core/inline/visibility.js';
+import { collectEditorSources, quotedSpecifierEnding, type SourceFile } from './scan-source';
 import {
 	describeFileRules,
 	describeManifests,
@@ -360,7 +360,10 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.36 the files building a public focus from placeCaret are the declared surfaces',
-		matches: /import\s*(?:type\s*)?\{[^}]*(?<!\w)placeCaret\b[^}]*\}\s*from\s*'[^']*caret-doors'/,
+		matches: new RegExp(
+			String.raw`import\s*(?:type\s*)?\{[^}]*(?<!\w)placeCaret\b[^}]*\}\s*from\s*` +
+				quotedSpecifierEnding('caret-doors')
+		),
 		declared: {
 			'src/lib/components/blocks/editable-leaf.ts': 'the plugin leaf surface',
 			'src/lib/components/blocks/editable-surface.ts': 'the shared editable factory',
@@ -369,7 +372,10 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/editor-actions/container-block-component.ts': 'the container walk-in shim'
 		},
 		reason: 'a new surface building its focus is a new caret writer',
-		hits: ["import { placeCaret } from '../../selection/caret-doors';"],
+		hits: [
+			"import { placeCaret } from '../../selection/caret-doors';",
+			"import { placeCaret } from '#lib/selection/caret-doors.js';"
+		],
 		misses: ["import { focusAtColumn } from '../../selection/caret-doors';"]
 	},
 	{

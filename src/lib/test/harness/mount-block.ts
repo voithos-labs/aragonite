@@ -4,10 +4,10 @@
 // questions or single gestures, and mount the Editor (`mount-editor.svelte.ts`) for more.
 
 import { mount, unmount, flushSync, type Component } from 'svelte';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeStubBlockEdit } from './editor-actions';
 import { editorMountContext, type MountContextOverrides } from './mount-context';
 

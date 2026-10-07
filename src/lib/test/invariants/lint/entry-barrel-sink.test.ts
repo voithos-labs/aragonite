@@ -1,34 +1,19 @@
 /**
  * No module in a published entry barrel's own import closure may import the barrel back (G4.54):
  * Rollup splits such a cycle across chunks and breaks execution order, which only a consumer's
- * bundler sees, since in-repo `$lib` resolves to source.
+ * bundler sees, since in-repo `#lib` resolves to source.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
-import { collectEditorSources, EDITOR_SRC, resolveSpecifier } from './scan-source';
-import { SOURCE, SOURCE_DIR } from './source-paths';
-
-const LIB = SOURCE_DIR.library.slice(0, -1);
-const DIST = './dist/';
+import {
+	collectEditorSources,
+	EDITOR_SRC,
+	publishedEntrySources,
+	resolveSpecifier
+} from './scan-source';
+import { SOURCE } from './source-paths';
 
 // Type-only edges erase before bundling, so they cannot put a barrel in a chunk cycle.
 const VALUE_REEXPORT = /^\s*(?:import|export)\s+(?!type\b)[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
-
-// ── The published entry points ───────────────────────────────────────────────
-
-/** Derived from package.json `exports`, so a new subpath inherits the rule unasked. */
-function entryModules(): string[] {
-	const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8'));
-	const entries = new Set<string>();
-	for (const target of Object.values(pkg.exports ?? {})) {
-		const file = typeof target === 'string' ? target : (target as Record<string, string>).default;
-		if (typeof file !== 'string' || !file.startsWith(DIST) || !file.endsWith('.js')) continue;
-		const source = `${LIB}/${file.slice(DIST.length, -'.js'.length)}.ts`;
-		if (existsSync(path.resolve(source))) entries.add(source);
-	}
-	return [...entries].sort();
-}
 
 // ── The module graph ─────────────────────────────────────────────────────────
 
@@ -71,7 +56,7 @@ function backEdgesInto(graph: Map<string, string[]>, entry: string): string[] {
 // ── The scan ─────────────────────────────────────────────────────────────────
 
 describe('published entry barrels are import sinks', () => {
-	const entries = entryModules();
+	const entries = [...publishedEntrySources()].sort();
 	const graph = buildGraph();
 
 	it('found the entry points and their import graph', () => {

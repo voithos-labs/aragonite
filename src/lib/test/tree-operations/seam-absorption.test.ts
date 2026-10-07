@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { deleteNode, mergeWithNext, splitNode, updateNodeContent } from '../../tree-operations';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { settled } from '$lib/test/harness/settle-funnel';
-import type { SettledContent } from '$lib/tree-operations/content-write';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { settled } from '#lib/test/harness/settle-funnel.js';
+import type { SettledContent } from '#lib/tree-operations/content-write.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A splice can leave neighbours whose adjacent bytes reread as one block (a list newly above
 // indented code absorbs it), so the neighbour merge joins the pair the way the reload will.

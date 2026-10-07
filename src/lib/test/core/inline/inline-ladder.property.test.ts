@@ -1,9 +1,9 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { scanInline } from '../../../core/inline/scan';
 import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { arbInlineSource, freshOrFixedSeed } from '../../invariants/arbitraries';
 
 // Plugin-trigger tokens interleaved with adversarial content: arbInlineSource alone rarely

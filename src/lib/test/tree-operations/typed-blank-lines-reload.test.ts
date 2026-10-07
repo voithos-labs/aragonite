@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { splitNode } from '$lib/tree-operations/node-ops';
-import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
-import type { Document } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { splitNode } from '#lib/tree-operations/node-ops.js';
+import { expectParseConverged, layoutOf as layout } from '#lib/test/harness/parse-converged.js';
+import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the
 // two paths, so a shape that only the typed side holds would pass it.

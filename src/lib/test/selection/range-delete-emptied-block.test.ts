@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { splitNode } from '$lib/tree-operations/node-ops';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { splitNode } from '#lib/tree-operations/node-ops.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { expectParseConverged } from '../harness/parse-converged';
-import type { Document } from '$lib/core/nodes';
+import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // A selection covering a block's whole text leaves it blank, and a blank block is the separating
 // line of the one below it, so both delete branches must fix up the blank-line run or the reload

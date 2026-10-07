@@ -6,10 +6,10 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	destroyMountedEditors
-} from '$lib/test/harness/mount-editor.svelte';
-import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
-import type { DecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { DecorationSource, MarkDecoration } from '#lib/decorations/types.js';
+import type { DecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 interface SwapSeam {
 	getDecorationEngine(): DecorationEngine;

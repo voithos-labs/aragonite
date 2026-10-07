@@ -13,7 +13,7 @@ import {
 	type EditorContext,
 	type InlineNode,
 	type NodeView
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { FOOTNOTE_REF_KIND } from './constants';
 
 /** The inline read numbering walks with: an editor's, so a reference inside syntax that editor

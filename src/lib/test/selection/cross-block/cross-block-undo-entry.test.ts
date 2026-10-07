@@ -3,17 +3,17 @@
 // before it.
 // Miss-analysis: each gesture's suite counted commits, and none read what the undo entry recorded.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { UndoEntry } from '$lib/undo/types';
-import type { SelectionEndpoint, SelectionPoint } from '$lib/selection/primitives';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { serialize } from '#lib/core/serializer.js';
+import type { UndoEntry } from '#lib/undo/types.js';
+import type { SelectionEndpoint, SelectionPoint } from '#lib/selection/primitives.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { makeKeydownEnv, press } from './keydown-env';
 import { settleEditor } from '../../harness/settle';
 import { makeSurface } from '../../harness/editable-surface';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 const ANCHOR: SelectionPoint = { path: [0], offset: 2 };

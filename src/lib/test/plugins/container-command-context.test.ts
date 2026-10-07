@@ -1,12 +1,12 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
-import { normalizeChordStrict } from '$lib/schema/keybindings';
-import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
-import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
-import type { AnyCommandId } from '$lib/schema/command-id';
-import { commandContextWith } from '$lib/test/support/command-context';
+import { dispatchKindCommand, registerBlockCommand } from '#lib/schema/block-commands.js';
+import { normalizeChordStrict } from '#lib/schema/keybindings.js';
+import type { KeybindingOverrideMap } from '#lib/schema/keybinding-overrides.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { buildContainerKindTarget } from '#lib/editor-actions/plugin/container.js';
+import type { AnyBlockKind, CstNode, PluginBlockKind } from '#lib/core/nodes.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
+import { commandContextWith } from '#lib/test/support/command-context.js';
 
 let note: PluginBlockKind;
 let noteAlt: PluginBlockKind;

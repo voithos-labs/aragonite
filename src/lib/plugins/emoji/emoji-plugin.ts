@@ -1,4 +1,4 @@
-import { definePlugin, type EditorPlugin } from '$lib/plugin';
+import { definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { registerEmoji } from './emoji-recognizer';
 
 export function emojiPlugin(): EditorPlugin {

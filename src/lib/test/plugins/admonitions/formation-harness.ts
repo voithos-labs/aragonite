@@ -5,21 +5,21 @@
  * edit serve every nesting level.
  */
 
-import { parse, type CstNode } from '$lib';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { parse, type CstNode } from '#lib';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
-} from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+} from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 export function containerAt(source: string, path: number[]) {
 	const harness = makeEditorActionsDeps(parse(source).children);

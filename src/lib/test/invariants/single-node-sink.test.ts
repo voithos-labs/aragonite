@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { checkSingleNodeSink } from '$lib/invariants/single-node-sink';
-import { assertSingleNodeSink, mergeWithNext } from '$lib/tree-operations';
-import type { CstNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { checkSingleNodeSink } from '#lib/invariants/single-node-sink.js';
+import { assertSingleNodeSink, mergeWithNext } from '#lib/tree-operations/index.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The single-node check runs at the write, over what a one-block write target installs (G1.35).
 // Miss-analysis: both call sites passed `count <= 1` as `installed`, so the check never fired.

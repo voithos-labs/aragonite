@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { checkInlineMenuCommitAcrossSwap } from '$lib/testing';
-import { createSlashSource } from '$lib/plugins/slash-commands/slash-source';
-import type { EditorContext } from '$lib/plugin';
+import { checkInlineMenuCommitAcrossSwap } from '#lib/testing.js';
+import { createSlashSource } from '#lib/plugins/slash-commands/slash-source.js';
+import type { EditorContext } from '#lib/plugin.js';
 
 // The kit cell must pass a source that writes through the context its commit is handed, and
 // fail one that writes through the context it closed over.

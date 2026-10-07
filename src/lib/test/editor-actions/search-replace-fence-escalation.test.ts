@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import type { Document } from '$lib/core/nodes';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
+import { serialize } from '#lib/core/serializer.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import type { Document } from '#lib/core/nodes.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 
 // A replacement is literal content, so a fence run it lands in a code body must grow the
 // block's fence instead of closing it, and a replacement that consumes the closer must get

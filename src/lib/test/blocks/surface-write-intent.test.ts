@@ -3,13 +3,13 @@
 // editor's own repair ask neither.
 // Miss-analysis: every intent row drove a typed write, so a command running both stayed green.
 import { describe, expect, it, vi } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { NodeView } from '$lib/core/node-views';
-import { createSurfaceWrite, type WriteIntent } from '$lib/components/blocks/surface-write';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { stubBlockEdit } from '$lib/testing/headless-actions';
-import { settleEditor } from '$lib/test/harness/settle';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { createSurfaceWrite, type WriteIntent } from '#lib/components/blocks/surface-write.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 function writerFor() {
 	const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw: 'ab\n' };

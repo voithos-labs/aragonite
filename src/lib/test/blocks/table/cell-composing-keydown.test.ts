@@ -4,7 +4,7 @@
 // handler refuses before the chord dispatcher and the navigation plan.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mountCell, type MountedCell } from './mount-cell';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 
 let mounted: MountedCell | null = null;
 afterEach(async () => {

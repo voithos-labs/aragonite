@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
-import { isCommandCandidateKey, isIndentKey } from '$lib/selection/cross-block/keydown';
+import { isCommandCandidateKey, isIndentKey } from '#lib/selection/cross-block/keydown.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 

@@ -4,8 +4,11 @@
 // Miss-analysis: the only spec that wrote under an open toolbar was an undo, which now closes it,
 // so no test wrote while the toolbar stayed up.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, destroyMountedEditors } from '$lib/test/harness/mount-editor.svelte';
-import { dispatchKey } from '$lib/test/harness/settle';
+import {
+	installLayoutStubs,
+	destroyMountedEditors
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 import { mountImageSelected } from '../selection/image-selected-harness';
 
 beforeAll(installLayoutStubs);

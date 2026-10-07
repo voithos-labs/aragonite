@@ -1,9 +1,9 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import type { PluginBlockKind } from '$lib/core/nodes';
-import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-commands';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
+import { registerBlockCommand, getBlockCommand } from '#lib/schema/block-commands.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 let note: PluginBlockKind;
 let noteA: PluginBlockKind;

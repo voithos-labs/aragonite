@@ -4,7 +4,7 @@
 	 * reading mode, is the gesture a host turns into navigation; the harness only records it, so
 	 * a spec can check that the gesture reached the widget.
 	 */
-	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '$lib/plugin';
+	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '#lib/plugin.js';
 
 	let { source, getPresentationMode }: InlineWidgetComponentProps = $props();
 

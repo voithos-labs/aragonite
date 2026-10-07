@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBlankLine } from '$lib/core/parser';
+import { isBlankLine } from '#lib/core/parser.js';
 
 // GFM §2.1 and cmark-gfm's `is_blank` both accept only U+0020 and U+0009, so every other
 // whitespace codepoint is content — a word-processor paste artifact included.

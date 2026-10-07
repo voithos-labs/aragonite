@@ -2,14 +2,14 @@
 // Miss-analysis: the cell render was tested against raw, references and decorations, never mode.
 import { afterEach, describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
-import { createCellRender, type CellRender } from '$lib/components/blocks/table/cell-render';
-import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
-import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import type { CstNode } from '$lib/core/nodes';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { createCellRender, type CellRender } from '#lib/components/blocks/table/cell-render.js';
+import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
+import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const WIDGET_SOURCE = '%%w%%';
 

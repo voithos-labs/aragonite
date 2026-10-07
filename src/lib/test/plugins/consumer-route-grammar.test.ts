@@ -5,16 +5,16 @@
  * Miss-analysis: only `consumer-smoke` covered the consumer route, and CI never runs it on dev.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { tocPlugin } from '$lib/plugins/toc';
+import { parse } from '#lib/core/parser.js';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/seed';
 

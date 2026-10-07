@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { PluginBlockKind } from '$lib/core/nodes';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
 import {
 	declarePluginKind,
 	isDirectiveRegistered,
 	registerDirective,
 	type CstNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 // The reset function is test-only, deliberately kept off the public barrel.
 

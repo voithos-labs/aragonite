@@ -3,18 +3,18 @@
 // single gestures only: a commit replaces the node and nothing above re-renders with it.
 
 import { vi } from 'vitest';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { TableContext } from '$lib/action-contracts';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import type { EditorPolicies, EditorServices } from '$lib/editor-keys';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import TableCellBlock from '#lib/components/blocks/table/TableCellBlock.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { TableContext } from '#lib/action-contracts.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import type { EditorPolicies, EditorServices } from '#lib/editor-keys.js';
+import { TABLE_CONTEXT_KEY } from '#lib/editor-keys.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { mountBlock } from '../../harness/mount-block';
 
 /** A cell renders no decorations unless a test installs some. */

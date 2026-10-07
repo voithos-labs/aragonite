@@ -3,8 +3,8 @@
 // the real undo stack rather than a stubbed action bundle: a toolbar button must land the same
 // single entry the chord does.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { TOOLBAR_COMMANDS } from '$lib/index';
-import type { UndoEntry } from '$lib/undo/types';
+import { TOOLBAR_COMMANDS } from '#lib/index.js';
+import type { UndoEntry } from '#lib/undo/types.js';
 import { allowDevWarns } from '../support/warn-gate';
 import {
 	installLayoutStubs,
@@ -12,7 +12,7 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(() => installLayoutStubs());
 

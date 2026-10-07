@@ -3,8 +3,12 @@
 // container; `rebuildRaw` writes the fences back from metadata, so the rest stays a directive.
 // Miss-analysis: no test pressed Backspace at the start of a directive body.
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
-import { activateDirectives } from '$lib/plugin';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import { activateDirectives } from '#lib/plugin.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

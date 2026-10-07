@@ -2,14 +2,14 @@
 // only the lines it edits.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { metadataOf } from '$lib/core/nodes';
-import { splitLines } from '$lib/core/lines';
-import { walkBlocks } from '$lib/core/paths';
-import { rebuildTableRaw, rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
-import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { metadataOf } from '#lib/core/nodes.js';
+import { splitLines } from '#lib/core/lines.js';
+import { walkBlocks } from '#lib/core/paths.js';
+import { rebuildTableRaw, rebuildTableRowRaw } from '#lib/schema/container-rebuilders.js';
+import { rebuildContainerRawIfContainer } from '#lib/schema/container-raw.js';
 import {
 	arbGfmDoc,
 	arbIndentedGfmDoc,

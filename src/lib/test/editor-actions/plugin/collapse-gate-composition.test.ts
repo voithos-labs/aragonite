@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	composeCollapseGates,
 	type NestedActionsOverrides
-} from '$lib/editor-actions/plugin/container';
+} from '#lib/editor-actions/plugin/container.js';
 
 const gates = { descendToBody: vi.fn(), moveFocus: vi.fn() };
 

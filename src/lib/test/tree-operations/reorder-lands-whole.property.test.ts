@@ -4,14 +4,14 @@
 // Miss-analysis: GH #587, one LF fixture never checked the reload, and every draw ended in a break.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { parse, isBlankParagraph } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { describeConvergence } from '$lib/testing/parse-convergence';
-import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { parse, isBlankParagraph } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { MATH_BLOCK, registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 const PARAMS = { numRuns: 100, seed: freshOrFixedSeed(414141) } as const;

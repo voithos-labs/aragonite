@@ -2,7 +2,7 @@
 // the kit's marker block after it), so a plugin author learns the contract from the failure.
 // Miss-analysis: every kit suite supplied conforming fixtures, so none read the failure message.
 import { describe, it, expect } from 'vitest';
-import { checkCopyIsRawByteSlice } from '$lib/testing';
+import { checkCopyIsRawByteSlice } from '#lib/testing.js';
 
 describe('checkCopyIsRawByteSlice fixture contract', () => {
 	it('accepts a fixture whose kind parses at children[0]', () => {

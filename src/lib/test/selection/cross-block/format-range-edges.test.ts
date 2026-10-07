@@ -3,21 +3,21 @@
 // on whitespace, and a write whose delimiters form no construct. The span split and the direction
 // rule are `./format-range.test.ts`.
 // Miss-analysis: every partial span there started and ended on a word boundary, never a space.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { registerChromePluginsForTests } from '../chrome-plugins';
 import { makeKeydownEnv, press } from './keydown-env';
-import { documentBody } from '$lib/tree-operations/node-primitives';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

@@ -5,8 +5,8 @@
  * re-run on every document change, so the chip follows the bytes with no refresh of its own.
  */
 
-import { definePlugin } from '$lib/plugin';
-import type { DocumentView, EditorPlugin, InlineMenuItem, MarkDecoration } from '$lib/plugin';
+import { definePlugin } from '#lib/plugin.js';
+import type { DocumentView, EditorPlugin, InlineMenuItem, MarkDecoration } from '#lib/plugin.js';
 import { forEachLeaf } from '../walk-views';
 import { isTagOpening, isTagQuery, recognizeTag } from './tag-scan';
 

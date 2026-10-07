@@ -5,8 +5,8 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	destroyMountedEditors
-} from '$lib/test/harness/mount-editor.svelte';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 
 const BLOCKS = 200;
 // One estimated line per paragraph puts the height table several viewports past the threshold

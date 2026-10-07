@@ -2,8 +2,8 @@
 // insertion, so leading whitespace (an indented code block's opener) must survive the rebuild.
 // Miss-analysis: no test held a quoted child whose whole content is whitespace (GH #143).
 import { describe, expect, it } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 
 describe('a leading space typed into an empty quoted child reaches the source', () => {
 	it('keeps the marker space and the content space apart, one keystroke at a time', async () => {

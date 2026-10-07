@@ -1,10 +1,10 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
-import { roundTripCases } from '$lib/test/support/round-trip';
-import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
-import { latexPlugin } from '$lib/plugins/latex';
+import { installPlugins, parse, serialize } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { getInlineRungs } from '#lib/core/inline/scan/plugin-syntax.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { registerMathBlock, MATH_BLOCK } from '#lib/plugins/latex/latex-kind.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
 
 // Recognition starts only once the opener registers: with the plugin absent a `$$` fence is
 // ordinary GFM text (a paragraph), byte-identical to plain GFM.

@@ -3,8 +3,8 @@
 // prelude, so the step answers once per keydown rather than walking the block twice.
 // Miss-analysis: the cell's second ask had no test, so the double walk was invisible.
 import { describe, it, expect } from 'vitest';
-import { handleEdgeStep } from '$lib/selection/shared-keydown';
-import type { SelectionState } from '$lib/selection/selection-state.svelte';
+import { handleEdgeStep } from '#lib/selection/shared-keydown.js';
+import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 
 function asking(answer: boolean) {
 	const ctx = {

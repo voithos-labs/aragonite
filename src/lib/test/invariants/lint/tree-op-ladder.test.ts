@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, importSpecifiers } from './scan-source';
+import {
+	collectEditorSources,
+	EDITOR_SRC,
+	importSpecifiers,
+	resolveSpecifier
+} from './scan-source';
 import { SOURCE_DIR } from './source-paths';
 
 /** Lowest level first: a file may import only the levels below its own. */
@@ -23,7 +28,6 @@ const LADDER = [
 type Rung = (typeof LADDER)[number];
 
 const LAYER_DIR = SOURCE_DIR.treeOperations;
-const FULL_SPECIFIER = new RegExp(`/${LAYER_DIR.split('/').at(-2)}/([\\w-]+)$`);
 
 /** The level a listed file sits at, or -1 for every other file. */
 function rungOfFile(relPath: string): number {
@@ -32,16 +36,15 @@ function rungOfFile(relPath: string): number {
 	return name.includes('/') ? -1 : LADDER.indexOf(name as Rung);
 }
 
-/** The level a specifier names (a sibling `./name`, or a full `tree-operations/name`), or -1. */
-function rungOfSpecifier(spec: string): number {
-	const name = /^\.\/([\w-]+)$/.exec(spec)?.[1] ?? FULL_SPECIFIER.exec(spec)?.[1];
-	return name === undefined ? -1 : LADDER.indexOf(name as Rung);
+/** The level the file a specifier names sits at, or -1. */
+function rungOfSpecifier(relPath: string, spec: string): number {
+	return rungOfFile(resolveSpecifier(relPath, spec) ?? '');
 }
 
 /** Every specifier in `code` naming a level above `rung`, as `file -> specifier`. */
 function upwardEdges(relPath: string, rung: number, code: string): string[] {
 	return importSpecifiers(code)
-		.filter(({ specifier }) => rungOfSpecifier(specifier) > rung)
+		.filter(({ specifier }) => rungOfSpecifier(relPath, specifier) > rung)
 		.map(({ specifier }) => `${relPath} -> ${specifier}`);
 }
 
@@ -64,30 +67,29 @@ describe('G4.64 the tree-ops layer order', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	const settle = LADDER.indexOf('settle');
+	const SETTLE = `${LAYER_DIR}settle.ts`;
 
 	it('names an upward edge, and skips a downward or off-list one', () => {
-		expect(upwardEdges('settle.ts', settle, "import { x } from './content-write';")).toEqual([
-			'settle.ts -> ./content-write'
+		expect(upwardEdges(SETTLE, settle, "import { x } from './content-write';")).toEqual([
+			`${SETTLE} -> ./content-write`
 		]);
-		expect(upwardEdges('settle.ts', settle, "import { x } from './unshare';")).toEqual([]);
-		expect(upwardEdges('settle.ts', settle, "import { x } from '../core/lines';")).toEqual([]);
-		expect(upwardEdges('settle.ts', settle, "import { x } from './list/ordered-markers';")).toEqual(
-			[]
-		);
+		expect(upwardEdges(SETTLE, settle, "import { x } from './unshare';")).toEqual([]);
+		expect(upwardEdges(SETTLE, settle, "import { x } from '../core/lines';")).toEqual([]);
+		expect(upwardEdges(SETTLE, settle, "import { x } from './list/ordered-markers';")).toEqual([]);
 	});
 
 	it('a type-only import and a dynamic import are edges too', () => {
-		expect(upwardEdges('settle.ts', settle, "import type { T } from './node-ops';")).toEqual([
-			'settle.ts -> ./node-ops'
+		expect(upwardEdges(SETTLE, settle, "import type { T } from './node-ops';")).toEqual([
+			`${SETTLE} -> ./node-ops`
 		]);
 		expect(
-			upwardEdges('settle.ts', settle, "const m = await import('$lib/tree-operations/node-ops');")
-		).toEqual(['settle.ts -> $lib/tree-operations/node-ops']);
+			upwardEdges(SETTLE, settle, "const m = await import('#lib/tree-operations/node-ops.js');")
+		).toEqual([`${SETTLE} -> #lib/tree-operations/node-ops.js`]);
 	});
 
 	it('an import inside a comment cannot trip the scan', () => {
-		expect(
-			upwardEdges('settle.ts', settle, "// import { x } from './node-ops';\nconst a = 1;")
-		).toEqual([]);
+		expect(upwardEdges(SETTLE, settle, "// import { x } from './node-ops';\nconst a = 1;")).toEqual(
+			[]
+		);
 	});
 });

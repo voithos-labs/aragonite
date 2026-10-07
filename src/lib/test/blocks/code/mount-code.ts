@@ -1,7 +1,7 @@
 // One CodeBlock mounted from Markdown, with a stub blockEdit recording the commits the caller
 // reads back.
 
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
+import CodeBlock from '#lib/components/blocks/code/CodeBlock.svelte';
 import { mountBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';
 

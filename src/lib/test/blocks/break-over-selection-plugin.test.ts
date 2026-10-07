@@ -10,8 +10,8 @@ import {
 	mountEditor,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, settleEditor } from '#lib/test/harness/settle.js';
 import {
 	augmentBlockKind,
 	definePluginBlock,
@@ -19,7 +19,7 @@ import {
 	registerBlockOpener,
 	type BlockCommandContext,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
 import { registerRevealLeafKind } from './fixtures/reveal-leaf';
 

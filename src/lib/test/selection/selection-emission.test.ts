@@ -11,7 +11,7 @@ import { makeCaretMemory } from '../harness/editor-actions';
 import { restoreTarget } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 interface Emission {
 	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */

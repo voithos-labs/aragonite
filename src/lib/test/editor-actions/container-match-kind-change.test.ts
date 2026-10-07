@@ -4,20 +4,20 @@
 // Miss-analysis: every container-match merge joined plain text, so the bare write that kept the
 // target's kind never met bytes that read as another one.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { assignChildIdsDeep } from '$lib/block-id';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 describe('a container-matching merge that completes a code fence', () => {
 	it.each([

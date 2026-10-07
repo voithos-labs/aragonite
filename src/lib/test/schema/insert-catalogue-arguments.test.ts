@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const DEFAULT_TABLE = '| Column | Column |\n| --- | --- |\n|  |  |\n';
 

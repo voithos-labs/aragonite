@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
+import { installPlugins, parse, serialize } from '#lib';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
 
 const roundTrips = (src: string) => expect(serialize(parse(src))).toBe(src);
 

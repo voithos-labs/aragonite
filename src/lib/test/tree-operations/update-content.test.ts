@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -7,7 +7,7 @@ import type { CstNode } from '../../core/nodes';
 import { assignIds } from '../../block-id';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
 import { replacePreservingFirst } from '../../tree-operations/structural-change';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {

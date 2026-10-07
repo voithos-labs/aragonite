@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { restoreGapCaret } from '$lib/selection/selection-restore';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { GapCaretRestoreDeps } from '$lib/selection/selection-restore';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { stubBlockComponent } from '$lib/testing/headless-actions';
+import { parse } from '#lib/core/parser.js';
+import { restoreGapCaret } from '#lib/selection/selection-restore.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { GapCaretRestoreDeps } from '#lib/selection/selection-restore.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { stubBlockComponent } from '#lib/testing/headless-actions.js';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
 // lands in, and the block it sits against is mounted and brought into view before the caret.

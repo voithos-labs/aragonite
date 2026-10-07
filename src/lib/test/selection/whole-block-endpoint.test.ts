@@ -2,15 +2,15 @@
 // A cross-block endpoint inside a kind with no character positions must carry 0 or
 // displayLength(raw): anything between makes every byte consumer slice a whole block in half.
 import { describe, it, expect } from 'vitest';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import type { Document } from '$lib/core/nodes';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 const DIAGRAM = '```mermaid\ngraph TD\n```\n';

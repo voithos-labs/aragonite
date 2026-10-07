@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isBuiltinInlineKind } from '$lib/core/nodes';
+import { isBuiltinInlineKind } from '#lib/core/nodes.js';
 
 describe('AnyInlineKind', () => {
 	it('narrows built-in kinds and rejects plugin kinds', () => {

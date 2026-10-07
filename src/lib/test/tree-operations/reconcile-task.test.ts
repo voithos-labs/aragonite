@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reconcileTaskMetadata } from '../../tree-operations/list/reconcile-task';
 import type { CstNode, ListItemMetadata } from '../../core/nodes';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 function makeListItem(firstParagraphRaw: string, meta: ListItemMetadata): CstNode {
 	return {

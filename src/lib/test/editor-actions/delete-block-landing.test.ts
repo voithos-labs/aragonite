@@ -2,14 +2,14 @@
 // Miss-analysis: each delete route was tested for its bytes, never for how many carets it placed
 // or where, so a second placement after the delete and a key-blind survivor both went unseen.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { handleWholeBlockKeys } from '$lib/editor-actions/container-block-component';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import type { CstNode } from '$lib/core/nodes';
-import { recordingFocus } from '$lib/testing/headless-actions';
+import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { recordingFocus } from '#lib/testing/headless-actions.js';
 import { settleEditor } from '../harness/settle';
 import {
 	makeBlockListState,

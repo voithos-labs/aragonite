@@ -7,7 +7,7 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);

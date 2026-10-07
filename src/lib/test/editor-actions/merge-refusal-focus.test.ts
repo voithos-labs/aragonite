@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { makeTopHarness, stubBlockComponent } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
+import { makeTopHarness, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 // Miss-analysis (GH #166): no case joined across a boundary whose joined bytes read as two blocks.
 

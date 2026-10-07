@@ -2,17 +2,17 @@
 // Miss-analysis: no case rebound the chord, moved the document under a reveal, or typed twice.
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
 import { unmount, flushSync } from 'svelte';
-import type { Document } from '$lib/core/nodes';
+import type { Document } from '#lib/core/nodes.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
-} from '$lib/schema/keybinding-overrides';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
+} from '#lib/schema/keybinding-overrides.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'painted-undo-leaf';

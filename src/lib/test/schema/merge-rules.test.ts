@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { ALL_BLOCK_KINDS, type BlockKind, type CstNode } from '../../core/nodes';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { serialize } from '../../core/serializer';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 function parseBlock(src: string): CstNode {
 	const doc = parse(src);

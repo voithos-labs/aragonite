@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
+import { testLeaf, testContainer } from '#lib/test/harness/test-kinds.js';
 
 const opts = {
 	lineHeight: 24,

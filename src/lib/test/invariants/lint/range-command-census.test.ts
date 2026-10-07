@@ -10,7 +10,7 @@ import {
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	TOOLBAR_COMMANDS
-} from '$lib/schema/commands';
+} from '#lib/schema/commands.js';
 
 /**
  * Ids whose handler does not spend one block's own offsets, and why. A handler that reads the

@@ -2,13 +2,13 @@
 // refuses it at the commit like every other write, with the dev warning naming the operation.
 // Miss-analysis: no test drove a plugin component's `updateOwnMetadata` in reading mode (GH #38).
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { configureEditorEnv } from '$lib/env';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { configureEditorEnv } from '#lib/env.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const SOURCE = '> [!NOTE]\n> body\n';
 

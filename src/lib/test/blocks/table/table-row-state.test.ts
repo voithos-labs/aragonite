@@ -3,7 +3,7 @@
 // registers on mount (`editor-actions/table-context.ts :: mountedColumnScopes`), so only mounted
 // components show it. Unmounted rows need real layout, so `test:e2e:vr` covers them.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { getStateForNode } from '$lib/reactivity/state-registry';
+import { getStateForNode } from '#lib/reactivity/state-registry.js';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
 
 let restoreLayout: () => void;

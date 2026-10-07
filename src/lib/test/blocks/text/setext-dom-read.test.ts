@@ -5,18 +5,18 @@
 // Miss-analysis: prose blocks had no mount-level typing tests, and none erased a setext title.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 

@@ -5,7 +5,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import type { AncestrySeamFold } from '../../tree-operations/chain-rebuild';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Miss-analysis: only the perf gate's wall clock timed this check, where O(children) read as noise.
 it('a declined slot ask reads O(window) sibling elements, not O(children)', () => {

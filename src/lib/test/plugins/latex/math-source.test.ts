@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { mathBodySpan, renderMathSource, reshapeMathEdit } from '$lib/plugins/latex/math-source';
+import { mathBodySpan, renderMathSource, reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
 
 // The painted source's slicer, over both block shapes: the `$$` pair and GitHub's ```math fence.
 // Miss-analysis: only the `$$` block's e2e reached the slicer, never the fence shape.

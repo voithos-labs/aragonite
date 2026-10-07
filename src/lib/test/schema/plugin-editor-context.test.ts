@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
+import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import {
 	activationFor,
 	everyInstalledPlugin,
 	type PluginActivation
-} from '$lib/schema/plugin-activation';
-import { registerInsertEntry } from '$lib/schema/insert-catalogue';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { createEditorEvents, type EditorError } from '$lib/editor-events';
-import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import type { DecorationRegistry } from '$lib/decorations/types';
-import type { EditorRects } from '$lib/editor-rects';
-import type { InlineMenuRegistry } from '$lib/inline-menu/types';
+} from '#lib/schema/plugin-activation.js';
+import { registerInsertEntry } from '#lib/schema/insert-catalogue.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { createEditorEvents, type EditorError } from '#lib/editor-events.js';
+import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import type { DecorationRegistry } from '#lib/decorations/types.js';
+import type { EditorRects } from '#lib/editor-rects.js';
+import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import { noopInlineMenus, noopRects, pluginContextDeps } from '../support/plugin-context-deps';
 
 const deps = (doc: { children: unknown[] }) => ({

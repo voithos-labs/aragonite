@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A plugin container on the public `@voithos-labs/aragonite/plugin` API: `createContainerBlock`
 	// hides every editor internal, so this component supplies only the box around BlockList.
-	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

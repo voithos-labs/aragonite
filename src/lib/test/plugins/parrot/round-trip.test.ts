@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { installPlugins, parse, serialize } from '#lib';
+import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 // The parrot's registration function is module-private (the plugin keeps the guide's bytes),
 // so installing the plugin is the only way in, which is what a consumer does.

@@ -2,23 +2,23 @@
 // The clipboard branches of `createTextClipboard` for a selected inline widget (an image, a
 // `<br>`): copy writes the widget's own raw slice, cut and paste replace it as one undoable write.
 // Driven with a real parse and the real selection state, never a branch on kind.
-import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { recordingWrite } from '#lib/test/harness/editor-actions.js';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import {
 	createTextClipboard,
 	type TextClipboardDeps
-} from '$lib/components/blocks/text/text-clipboard';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/components/blocks/text/text-clipboard.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import type { Commit } from './widget-selected-fixture';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { stubCaretMemory } from '$lib/testing/headless-actions';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { stubCaretMemory } from '#lib/testing/headless-actions.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 function capturingEvent() {
 	const store = new Map<string, string>();

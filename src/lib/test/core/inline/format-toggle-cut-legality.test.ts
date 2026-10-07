@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import type { PresentationMode } from '$lib/presentation-mode';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { press } from './format-toggle-fixture';
 
 // A wrap endpoint inside an atomic construct strands a delimiter that re-pairs, so it is refused.

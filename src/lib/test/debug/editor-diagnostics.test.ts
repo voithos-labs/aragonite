@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createEditorDiagnostics } from '$lib/debug/editor-diagnostics';
-import { createOperationsLog } from '$lib/debug/operations-log';
+import { createEditorDiagnostics } from '#lib/debug/editor-diagnostics.js';
+import { createOperationsLog } from '#lib/debug/operations-log.js';
 
 // Miss-analysis: only the pure report builder had tests; the entry point feeding it needed a mount.
 

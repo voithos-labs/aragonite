@@ -9,8 +9,8 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	augmentBlockKind,
 	definePluginBlock,
@@ -18,13 +18,13 @@ import {
 	registerBlockOpener,
 	registerRangeIndent,
 	type EditorPlugin
-} from '$lib/plugin';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+} from '#lib/plugin.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import RevealLeafBlock from '../../blocks/fixtures/RevealLeafBlock.svelte';
 import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
-import { testContainer } from '$lib/test/harness/test-kinds';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import type { AnyCommandId } from '$lib/schema/command-id';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

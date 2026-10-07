@@ -4,15 +4,18 @@
 // change, the only way back since a small document never remounts the host.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { parse } from '$lib/core/parser';
-import { createEditorEvents, type EditorEvents } from '$lib/editor-events';
-import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { createEditorEvents, type EditorEvents } from '#lib/editor-events.js';
+import {
+	registerBlockComponent,
+	defineBlockComponent
+} from '#lib/schema/block-component-registry.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 beforeAll(installEditorDomStubsForTests);
 

@@ -4,8 +4,8 @@
 // host always supplies a full context.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import SelectionOverlay from '$lib/components/SelectionOverlay.svelte';
-import DecorationOverlay from '$lib/components/DecorationOverlay.svelte';
+import SelectionOverlay from '#lib/components/SelectionOverlay.svelte';
+import DecorationOverlay from '#lib/components/DecorationOverlay.svelte';
 import type { Component } from 'svelte';
 
 let dispose: (() => Promise<void>) | null = null;

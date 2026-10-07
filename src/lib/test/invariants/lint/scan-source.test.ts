@@ -6,6 +6,8 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+	aliasPath,
+	aliasSpecifier,
 	balancedCall,
 	callArguments,
 	collectEditorSources,
@@ -14,10 +16,12 @@ import {
 	enclosingFunction,
 	fileClasses,
 	importSpecifiers,
+	isLibrarySpecifier,
 	isProseSurface,
 	LEXICAL_CLASSES,
 	lexicalClasses,
 	literalSpans,
+	quotedSpecifierEnding,
 	rawAssignments,
 	regexLiteralAt,
 	REPO_WIDE_ROOTS,
@@ -105,7 +109,7 @@ describe('importSpecifiers', () => {
 	it('reads the four forms, a multi-line clause and a type-only one included', () => {
 		const code = [
 			"import { a,\n\tb } from './static';",
-			"import type * as T from '$lib/types';",
+			"import type * as T from '#lib/types.js';",
 			"import './side-effect.css';",
 			"const m = await import('./dynamic');",
 			"export { c } from './reexport';",
@@ -113,7 +117,7 @@ describe('importSpecifiers', () => {
 		].join('\n');
 		expect(specifiers(code)).toEqual([
 			{ specifier: './static', kind: 'static', typeOnly: false },
-			{ specifier: '$lib/types', kind: 'static', typeOnly: true },
+			{ specifier: '#lib/types.js', kind: 'static', typeOnly: true },
 			{ specifier: './side-effect.css', kind: 'side-effect', typeOnly: false },
 			{ specifier: './dynamic', kind: 'dynamic', typeOnly: false },
 			{ specifier: './reexport', kind: 'reexport', typeOnly: false },
@@ -164,26 +168,64 @@ describe('resolveSpecifier', () => {
 	const from = `${SOURCE_DIR.library}x.ts`;
 
 	it('resolves the spellings the library writes', () => {
-		expect(resolveSpecifier(from, '$lib/plugin')).toBe(SOURCE.pluginBarrel);
-		expect(resolveSpecifier(from, '$lib')).toBe(SOURCE.publicBarrel);
+		expect(resolveSpecifier(from, '#lib/plugin.js')).toBe(SOURCE.pluginBarrel);
+		expect(resolveSpecifier(from, '#lib')).toBe(SOURCE.publicBarrel);
 		expect(resolveSpecifier(from, './env')).toBe(SOURCE.envFlags);
-		expect(
-			resolveSpecifier(from, `$lib/${SOURCE.blockList.slice(SOURCE_DIR.library.length)}`)
-		).toBe(SOURCE.blockList);
+		expect(resolveSpecifier(from, aliasSpecifier(SOURCE.blockList))).toBe(SOURCE.blockList);
 		expect(resolveSpecifier(`${SOURCE_DIR.treeOperations}x.ts`, '.')).toBe(
+			SOURCE.treeOperationsBarrel
+		);
+		expect(resolveSpecifier(from, '#lib/tree-operations/index.js')).toBe(
 			SOURCE.treeOperationsBarrel
 		);
 	});
 
 	it('reads a `.svelte.ts` module by its `.svelte` name, and drops a query suffix', () => {
 		const layout = SOURCE.layoutState.slice(SOURCE_DIR.library.length, -'.ts'.length);
-		expect(resolveSpecifier(from, `$lib/${layout}`)).toBe(SOURCE.layoutState);
+		expect(resolveSpecifier(from, `#lib/${layout}.js`)).toBe(SOURCE.layoutState);
+		expect(resolveSpecifier(from, `./${layout}`)).toBe(SOURCE.layoutState);
 		expect(resolveSpecifier(from, './env?raw')).toBe(SOURCE.envFlags);
 	});
 
-	it('returns null for a package and for a path with no file behind it', () => {
+	it('returns null for a package, a path with no file behind it, and the retired `$lib`', () => {
 		expect(resolveSpecifier(from, 'svelte')).toBeNull();
 		expect(resolveSpecifier(from, './no-such-module')).toBeNull();
+		expect(resolveSpecifier(from, '#lib/no-such-module.js')).toBeNull();
+		expect(resolveSpecifier(from, '$lib/plugin')).toBeNull();
+	});
+});
+
+describe('the #lib alias', () => {
+	it('reads a specifier through package.json imports, and spells a file back', () => {
+		expect(aliasPath('#lib')).toBe('src/lib/index.js');
+		expect(aliasPath('#lib/core/parser.js')).toBe('src/lib/core/parser.js');
+		for (const other of ['svelte', './x', '#other/x', '$app/paths']) {
+			expect(aliasPath(other), other).toBeNull();
+		}
+		expect(aliasSpecifier(SOURCE.publicBarrel)).toBe('#lib');
+		expect(aliasSpecifier(SOURCE.layoutState)).toBe('#lib/reactivity/layout-state.svelte.js');
+		expect(aliasSpecifier(SOURCE_DIR.testSupport)).toBe('#lib/test/support/');
+	});
+
+	it('counts an alias or relative import as library source, anything else as a package', () => {
+		expect(['#lib', '#lib/plugin.js', './env', '../core/nodes'].map(isLibrarySpecifier)).toEqual([
+			true,
+			true,
+			true,
+			true
+		]);
+		expect(['svelte', 'katex/dist/katex.min.css', '$app/paths'].map(isLibrarySpecifier)).toEqual([
+			false,
+			false,
+			false
+		]);
+	});
+
+	it('matches a module named by path in either spelling, and no longer name', () => {
+		const nodes = new RegExp(quotedSpecifierEnding('core/nodes'));
+		expect(nodes.test("from '../core/nodes';")).toBe(true);
+		expect(nodes.test("from '#lib/core/nodes.js';")).toBe(true);
+		expect(nodes.test("from '#lib/core/nodes-extra.js';")).toBe(false);
 	});
 });
 

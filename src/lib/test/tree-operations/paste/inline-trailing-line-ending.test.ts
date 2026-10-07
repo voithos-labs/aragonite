@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { makeEditorActionsDeps, pasteContext } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 // A line break ending a one-paragraph clipboard is dropped, or it reloads as a blank block.
 // Miss-analysis: GH #442, no inline test pasted a clipboard ending in one line ending.

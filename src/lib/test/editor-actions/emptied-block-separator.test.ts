@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { parse } from '$lib/core/parser';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { installPlugins } from '#lib';
+import { parse } from '#lib/core/parser.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 // Emptying a block through the bundles a consumer holds: the typing write sends
 // the block's own line ending when its text goes empty, so emptying is an ordinary content commit.

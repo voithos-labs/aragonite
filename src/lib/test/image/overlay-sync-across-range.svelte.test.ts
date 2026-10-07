@@ -6,13 +6,13 @@ import {
 	installLayoutStubs,
 	destroyMountedEditors,
 	mountEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { EditorTestSurface } from '#lib/components/editor-root-test-surface.js';
 
 const syncRuns = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock('$lib/components/image/image-edit-commit', async (original) => {
-	const actual = await original<typeof import('$lib/components/image/image-edit-commit')>();
+vi.mock('#lib/components/image/image-edit-commit.js', async (original) => {
+	const actual = await original<typeof import('#lib/components/image/image-edit-commit.js')>();
 	return {
 		...actual,
 		createImageEditCommitter: (...args: Parameters<typeof actual.createImageEditCommitter>) => {

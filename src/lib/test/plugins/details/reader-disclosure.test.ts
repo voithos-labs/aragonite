@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createReaderDisclosure } from '$lib/plugins/details/details-disclosure.svelte';
+import { createReaderDisclosure } from '#lib/plugins/details/details-disclosure.svelte.js';
 
 // The reading-mode disclosure: view state only. Nothing handed in can reach a commit, which
 // is what makes a reading-mode toggle unable to write bytes; that is a type-level fact here

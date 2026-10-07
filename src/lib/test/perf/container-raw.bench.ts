@@ -10,7 +10,7 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { generateDeepNested, generateDeepProse, generateFixture } from './fixtures/generate';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Keeps the dev-only check that re-derives each splice (G1.38) out of every row's timing.
 enablePerfInstruments();

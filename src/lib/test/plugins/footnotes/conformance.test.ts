@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { declaredPluginKind } from '$lib/plugin';
-import { runKindConformance } from '$lib/testing';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
+import { installPlugins } from '#lib';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { runKindConformance } from '#lib/testing.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
 
 const ALL_CELLS = [
 	'roundTrip',

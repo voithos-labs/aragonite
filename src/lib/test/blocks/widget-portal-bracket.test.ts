@@ -4,13 +4,13 @@
 // false warning (G1.25).
 import { describe, it, expect } from 'vitest';
 
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	createWidgetPool,
 	type WidgetPool,
 	type WidgetPoolAdapter
-} from '$lib/components/blocks/widget-portal';
-import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
+} from '#lib/components/blocks/widget-portal.js';
+import type { AnyInlineKind, InlineNode } from '#lib/core/nodes.js';
 
 const KIND = 'math' as AnyInlineKind;
 const INLINE = { kind: KIND, start: 0, end: 5 } as InlineNode;

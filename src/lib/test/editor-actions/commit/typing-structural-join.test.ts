@@ -2,13 +2,13 @@
 // every depth.
 // Miss-analysis: no test ended a typing burst with a kind change inside a container.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { Document } from '$lib/core/nodes';
-import type { UndoController } from '$lib/editor-actions/deps';
-import type { UndoEntry } from '$lib/undo/types';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { UndoController } from '#lib/editor-actions/deps.js';
+import type { UndoEntry } from '#lib/undo/types.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 interface Typed {
 	actions: BlockEditActions;

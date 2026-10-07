@@ -1,13 +1,13 @@
 /**
  * A file under `src/lib/plugins/**` imports only the public authoring barrel, relative paths
- * inside its own plugin, and `svelte`, which proves the barrel is complete: a deep `$lib` import
+ * inside its own plugin, and `svelte`, which proves the barrel is complete: a deep `#lib` import
  * means the barrel is missing something, so fix the barrel, not the import. A `renderer.ts` may
  * also import its declared rendering engine, keeping the heavy dependency off the plugin's core.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources, importSpecifiers } from './scan-source';
-import { SOURCE_DIR } from './source-paths';
+import { aliasPath, collectEditorSources, importSpecifiers, resolveSpecifier } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const PLUGIN_ROOT = SOURCE_DIR.plugins;
 
@@ -25,7 +25,9 @@ function pluginOf(relPath: string): { name: string; dir: string } | null {
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
-	if (specifier === '$lib/plugin') return true;
+	if (aliasPath(specifier) !== null) {
+		return resolveSpecifier(relPath, specifier) === SOURCE.pluginBarrel;
+	}
 	if (specifier === 'svelte' || specifier.startsWith('svelte/')) return true;
 
 	const plugin = pluginOf(relPath);
@@ -53,7 +55,7 @@ describe('plugin import boundary: bundled plugins import only the public barrel'
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('no file imports outside $lib/plugin, its own dir, svelte, or its declared engine', () => {
+	it('no file imports outside #lib/plugin.js, its own dir, svelte, or its declared engine', () => {
 		const offenders: string[] = [];
 		for (const file of sources) {
 			for (const { specifier } of importSpecifiers(file.code)) {
@@ -75,14 +77,14 @@ describe('plugin import boundary: classifier non-vacuity', () => {
 	const file = `${PLUGIN_ROOT}details/register.ts`;
 
 	it('allows the public authoring barrel and svelte', () => {
-		expect(isAllowedSpecifier(file, '$lib/plugin')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/plugin.js')).toBe(true);
 		expect(isAllowedSpecifier(file, 'svelte')).toBe(true);
 		expect(isAllowedSpecifier(file, 'svelte/store')).toBe(true);
 	});
 
-	it('rejects the main barrel and any deep $lib reach-in', () => {
-		expect(isAllowedSpecifier(file, '$lib')).toBe(false);
-		expect(isAllowedSpecifier(file, '$lib/core/parser')).toBe(false);
+	it('rejects the main barrel and any deep #lib reach-in', () => {
+		expect(isAllowedSpecifier(file, '#lib')).toBe(false);
+		expect(isAllowedSpecifier(file, '#lib/core/parser.js')).toBe(false);
 	});
 
 	it('allows a relative import inside the plugin dir, rejects one that escapes it', () => {

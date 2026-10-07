@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { settleEditor } from '$lib/test/harness/settle';
-import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
+import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
 	composeWholeBlockFocusSurface,
@@ -14,9 +14,9 @@ import {
 	isEditableEventTarget,
 	isWholeBlockInputProxy,
 	type WholeBlockInputProxy
-} from '$lib/editor-actions/whole-block-focus-surface';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps, makeTopHarness } from '$lib/test/harness/editor-actions';
+} from '#lib/editor-actions/whole-block-focus-surface.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { makeShimDeps, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 // The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
 const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);

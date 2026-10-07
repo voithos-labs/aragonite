@@ -3,12 +3,12 @@
 // four buttons cost one pass over the spans. The memo is only sound while both halves of that
 // key invalidate it, which is what the two invalidation cases below pin.
 import { describe, it, expect } from 'vitest';
-import { listInlineMarks } from '$lib/schema/inline-construct-policy';
-import { crossBlockActiveFormats } from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
+import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import { crossBlockActiveFormats } from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { makeKeydownEnv } from './keydown-env';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 
 const MARKS = listInlineMarks();
 

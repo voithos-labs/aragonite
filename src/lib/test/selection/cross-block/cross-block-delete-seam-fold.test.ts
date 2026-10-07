@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { makeRangeEnv } from './range-context';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
 
 // A survivor absorbed by the neighbour above merges blocks outside the range; the ids must follow.
 // Miss-analysis: no cross-block delete case compared the state's id array with the children left.

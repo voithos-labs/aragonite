@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { parrotPlugin } from '$lib/plugins/parrot';
-	import { emojiPlugin } from '$lib/plugins/emoji';
-	import { admonitionsPlugin } from '$lib/plugins/admonitions';
+	import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+	import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+	import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
@@ -31,8 +31,8 @@
 </script>
 
 <script lang="ts">
-	import { Editor, serialize } from '$lib';
-	import { parseConverges } from '$lib/testing/parse-convergence';
+	import { Editor, serialize } from '#lib';
+	import { parseConverges } from '#lib/testing/parse-convergence.js';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 	import type { PageData } from './$types';
 

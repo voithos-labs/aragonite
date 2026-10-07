@@ -4,16 +4,16 @@
 // commit writes text based on bytes the document has since dropped.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { CstNode, Document } from '$lib';
-import { setPluginMetadata } from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { rebuildMermaidRaw, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
+import type { CstNode, Document } from '#lib';
+import { setPluginMetadata } from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { rebuildMermaidRaw, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
 import {
 	destroyMountedEditors,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 const CODE = 'graph TD\n\tA --> B\n';
 const SOURCE = `intro\n\n\`\`\`mermaid\n${CODE}\`\`\`\n\noutro\n`;

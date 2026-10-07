@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { parse, serialize } from '#lib';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 
 describe('mermaid opener claims and declines', () => {
 	beforeEach(() => {

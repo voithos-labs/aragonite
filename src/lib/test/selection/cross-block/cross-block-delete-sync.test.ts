@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { makeRangeEnv } from './range-context';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import type { EditEvent } from '$lib/editor-events';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 const makeEnv = (source: string) => makeRangeEnv(source);
 

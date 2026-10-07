@@ -1,21 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { activationFor } from '$lib/schema/plugin-activation';
-import { createRegistryView, kindEnablementFor } from '$lib/schema/registry-view';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib/core/parser.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { createRegistryView, kindEnablementFor } from '#lib/schema/registry-view.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
-} from '$lib/schema/block-component-registry';
-import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { testClosure } from '$lib/test/support/closure';
-import { blockContextActionsFor, registerBlockContextActions } from '$lib/schema/context-actions';
-import type { NodeView } from '$lib/core/node-views';
-import type { PluginBlockKind } from '$lib/core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/schema/block-component-registry.js';
+import { registerBlockOpener, type BlockOpener } from '#lib/schema/block-openers.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import {
+	blockContextActionsFor,
+	registerBlockContextActions
+} from '#lib/schema/context-actions.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const stubComponent = {} as BlockComponentEntry;
 

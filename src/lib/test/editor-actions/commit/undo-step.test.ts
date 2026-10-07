@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
 // An async run of several writes is one undo entry: an inline-menu pick that clears its query and
 // then inserts a block below undoes in one press.

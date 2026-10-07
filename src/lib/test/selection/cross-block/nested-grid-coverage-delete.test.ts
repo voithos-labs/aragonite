@@ -2,8 +2,8 @@
 // Miss-analysis: every whole-table, row and column Backspace test used a top-level table, so the
 // check that sent a nested table's coverage to the cell clear was never crossed.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { serialize } from '#lib/core/serializer.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { settleEditor } from '../../harness/settle';
 import { registerChromePluginsForTests } from '../chrome-plugins';
 import { cell, placedPaths, rangeKey, rangeKeyEnv, select } from './range-key-env';

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { renderKeySegmentDiff } from '$lib/components/blocks/text/text-render';
-import { islandRenderKeyPart } from '$lib/decorations/island-dom';
-import type { IndexedDecoration } from '$lib/decorations/buckets';
-import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
+import { renderKeySegmentDiff } from '#lib/components/blocks/text/text-render.js';
+import { islandRenderKeyPart } from '#lib/decorations/island-dom.js';
+import type { IndexedDecoration } from '#lib/decorations/buckets.js';
+import type { WidgetDecoration, ReplaceDecoration } from '#lib/decorations/types.js';
 
 // A render key is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}\0${pendingBreak}${islandPart}`,
 // with mode and pendingBreak '' when unset. These test the split directly, off the recorder path.

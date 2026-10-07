@@ -1,10 +1,10 @@
 import { describe, it, expect, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-column';
-import { eventToChord } from '$lib/schema/keybindings';
-import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '#lib/cursor/sticky-column.js';
+import { eventToChord } from '#lib/schema/keybindings.js';
+import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 
 // The sticky-column key→action decision every keydown path enacts, and the structural reset
 // policy (G2.10). The memory's own guards live in cursor/caret-memory.test.ts.

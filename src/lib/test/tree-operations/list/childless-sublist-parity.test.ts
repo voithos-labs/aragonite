@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { buildExitReplacement, unwrapFirstItemFromList } from '$lib/tree-operations';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { buildExitReplacement, unwrapFirstItemFromList } from '#lib/tree-operations/index.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 const GHOST_RAW = '1. ghost\n';
 

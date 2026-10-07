@@ -4,7 +4,7 @@
 	 * construct is a Markdown snippet passed to `insertMarkdown`, a plugin's included, so the bar
 	 * needs no API of its own per construct (consumer-guide.md § Recipe: an insert toolbar).
 	 */
-	import type { EditorInstance } from '$lib';
+	import type { EditorInstance } from '#lib';
 
 	const SNIPPETS = [
 		{

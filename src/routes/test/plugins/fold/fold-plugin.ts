@@ -1,7 +1,7 @@
 // A fixture for ReplaceDecoration.widget through the public API only: a `[>…<]` range collapses
 // to a clickable `…` widget that reopens through invalidate(). The collapsed bytes stay in the
 // CST alone; the widget stands for them in the DOM.
-import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView } from '#lib/plugin.js';
 import { forEachLeaf } from '../../../walk-views';
 
 const OPEN = '[>';

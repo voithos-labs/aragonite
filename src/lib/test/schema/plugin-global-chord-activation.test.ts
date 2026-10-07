@@ -1,17 +1,17 @@
 // Miss-analysis: GH #265; each plugin-global chord suite used one editor, never asking a second.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registerGlobalCommand } from '$lib/schema/global-commands';
+import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import {
 	isDefaultGlobalChord,
 	resolveBinding,
 	resolveGlobalBinding,
 	runGlobalChord,
 	pluginGlobalChords
-} from '$lib/schema/commands';
-import type { CommandDispatchContext } from '$lib/schema/block-commands';
-import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
+} from '#lib/schema/commands.js';
+import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
+import { chordIsClaimed, collectReservedChords } from '#lib/schema/reserved-chords.js';
+import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
 import { commandContext } from '../support/command-context';
 
 const CHORD = 'Mod+Shift+9';

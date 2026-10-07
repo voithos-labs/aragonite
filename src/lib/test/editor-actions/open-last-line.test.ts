@@ -2,32 +2,32 @@
 // every route's own suite ended its fixtures in a line break, so no route was ever run as a class.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { ensureEditableContainers } from '$lib/tree-operations/node-primitives';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { buildExitReplacement } from '$lib/tree-operations/list/exit-replacement';
-import { buildQuoteExitReplacement } from '$lib/tree-operations/blockquote';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
-import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { ensureEditableContainers } from '#lib/tree-operations/node-primitives.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
+import { buildQuoteExitReplacement } from '#lib/tree-operations/blockquote.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
+import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import {
 	makeContainerHarness,
 	makeListContextAt,
 	makeTopHarness,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
+} from '#lib/test/harness/editor-actions.js';
+import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 
 type Route = (source: string) => Promise<Document>;
 

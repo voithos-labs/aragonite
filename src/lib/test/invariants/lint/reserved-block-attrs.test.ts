@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, splitTopLevel, type SourceFile } from './scan-source';
-import { RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
+import { RESERVED_BLOCK_ATTRS } from '#lib/decorations/reserved-attrs.js';
 
 // ── Derivation ──────────────────────────────────────────────────────────────
 

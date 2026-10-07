@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
-import { mintCommandId } from '$lib/schema/command-id';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { dispatchKindCommand, registerBlockCommand } from '#lib/schema/block-commands.js';
+import { mintCommandId } from '#lib/schema/command-id.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContext, commandContextWith } from '../support/command-context';
-import type { CstNode } from '$lib/core/nodes';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.
 const listItemNode = (): CstNode => ({

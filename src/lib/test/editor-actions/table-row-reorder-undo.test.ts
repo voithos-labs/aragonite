@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeHarness, runOp } from '$lib/test/undo/restoration-ops';
+import { serialize } from '#lib/core/serializer.js';
+import { makeHarness, runOp } from '#lib/test/undo/restoration-ops.js';
 
 // A row reorder rebuilds the whole table raw with canonical padding, so a table whose
 // pre-edit raw is not canonical is what proves undo restores the original bytes.

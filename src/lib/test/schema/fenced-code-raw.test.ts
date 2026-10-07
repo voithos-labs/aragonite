@@ -3,7 +3,7 @@ import {
 	reconcileFenceWrite,
 	type FenceShape,
 	type FenceWriteMode
-} from '$lib/schema/fenced-code-raw';
+} from '#lib/schema/fenced-code-raw.js';
 
 // The one write path every route shares: the display path, pasting, and the code that reaches a
 // node's raw with no editable element. It covers what the block's syntax can hold once an edit has

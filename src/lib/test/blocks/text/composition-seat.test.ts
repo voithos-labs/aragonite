@@ -3,12 +3,12 @@
 // already overwritten by the time the composed run arrives. A plain run is the block write's to
 // place, like any insertion (`insertion-route-parity`); the mode check lives in the block.
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import type { PendingMarks } from '$lib/cursor/pending-marks';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { parseInline } from '#lib/core/inline/index.js';
+import { createCompositionSeat } from '#lib/components/blocks/text/composition-seat.js';
+import type { PendingMarks } from '#lib/cursor/pending-marks.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
+import { makePendingMarks } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const BOLD = 'Some **bold** text';
 

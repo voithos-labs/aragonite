@@ -3,17 +3,17 @@
 // A ref entry left holding the raw instance is a block the caret can never reach, failing far from
 // here, so the result is asserted at the ref entry over a real container.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
+import { parse } from '#lib/core/parser.js';
+import { resolveBlockSurface, type ContainerBlockComponent } from '#lib/block-component.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
+import { registerBlockComponent } from '#lib/schema/block-component-registry.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
 import { mountBlockHost, type MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { makeShimChildList } from '$lib/test/harness/editor-actions';
-import { componentAt } from '$lib/reactivity/child-list';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { makeShimChildList } from '#lib/test/harness/editor-actions.js';
+import { componentAt } from '#lib/reactivity/child-list.js';
 
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.

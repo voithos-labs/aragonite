@@ -2,9 +2,9 @@
 // leaked its registrations into its next test, and no test pinned the setup file doing it for all.
 
 import { beforeAll, describe, it, expect } from 'vitest';
-import { declarePluginKind, definePlugin, isBlockKindDeclared } from '$lib/plugin';
-import { installPlugins, isPluginInstalled } from '$lib/schema/plugin-install';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { declarePluginKind, definePlugin, isBlockKindDeclared } from '#lib/plugin.js';
+import { installPlugins, isPluginInstalled } from '#lib/schema/plugin-install.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 const LOADED_KIND = 'reset-probe-loaded';
 const BEFORE_ALL_KIND = 'reset-probe-before-all';

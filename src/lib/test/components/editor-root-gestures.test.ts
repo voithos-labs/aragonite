@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createRootGestures } from '$lib/components/editor-root-gestures';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { parse } from '$lib/core/parser';
-import type { BlockComponent } from '$lib/block-component';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { createRootGestures } from '#lib/components/editor-root-gestures.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { parse } from '#lib/core/parser.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
 
 // Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
 

@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { absorbWindowSeams } from '$lib/tree-operations/settle';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
-import { rebuildUnsharedChain, type AncestrySeamFold } from '$lib/tree-operations/chain-rebuild';
-import { rebuildContainerRaw } from '$lib/schema/container-raw';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { absorbWindowSeams } from '#lib/tree-operations/settle.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
+import { rebuildUnsharedChain, type AncestrySeamFold } from '#lib/tree-operations/chain-rebuild.js';
+import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 // A mutation can break a join that was already correct (a demoted heading, a reorder that pulls an
 // interrupter out), so the neighbour merge brings the siblings to the reading their reload gives.

@@ -2,9 +2,9 @@
 // Miss-analysis: every activation test filled a slot on a plugin's own kind, so a plugin's entry
 // on a built-in kind, which no plugin declares, resolving in every editor never showed.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { registerBlockCompleter, completeTypedLine } from '$lib/schema/block-completions';
-import { isInlineWidgetKind, registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { registerBlockCompleter, completeTypedLine } from '#lib/schema/block-completions.js';
+import { isInlineWidgetKind, registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { grammarListing } from './grammar-listing';
 
 const LINE = 'fill-me';

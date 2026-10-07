@@ -19,7 +19,7 @@ import {
 	scanFence,
 	OPENER_PRIORITIES,
 	type CstNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 export const MERMAID = 'mermaid';
 

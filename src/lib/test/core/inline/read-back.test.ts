@@ -2,11 +2,11 @@
 // A removing rewrite's candidate read back where it is stored, and the auto-pair's kind check
 // asked the same way.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { keepsKindAt, readBack, shownOf } from '$lib/core/inline/live-edit/read-back';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { keepsKindAt, readBack, shownOf } from '#lib/core/inline/live-edit/read-back.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 function at(source: string, path: number[]) {

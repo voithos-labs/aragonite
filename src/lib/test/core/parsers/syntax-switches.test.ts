@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import type { GrammarView } from '$lib/schema/block-openers';
-import { createRegistryView } from '$lib/schema/registry-view';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
 
 // The `syntax` prop takes indented code and setext headings out of one editor's grammar. The
 // bytes never change; only how they read does, and a nested body reads them the same way.

@@ -3,14 +3,14 @@
 // Miss-analysis: the predicates were tested only as pure functions, never through a commit.
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 function firesStaleRaw(): boolean {
 	return takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');

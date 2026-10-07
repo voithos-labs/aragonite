@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { parse } from '$lib/core/parser';
-import { normalizeCellRaw } from '$lib/schema/table-cell-raw';
-import { copyRectangleAsSubTable } from '$lib/tree-operations/sub-table-copy';
+import { parse } from '#lib/core/parser.js';
+import { normalizeCellRaw } from '#lib/schema/table-cell-raw.js';
+import { copyRectangleAsSubTable } from '#lib/tree-operations/sub-table-copy.js';
 import {
 	gridToHtmlTable,
 	parseClipboardGrid,
 	rectangleGrid,
 	tileGridTo
-} from '$lib/tree-operations/table-grid-clipboard';
+} from '#lib/tree-operations/table-grid-clipboard.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries';
 
 describe('parseClipboardGrid', () => {

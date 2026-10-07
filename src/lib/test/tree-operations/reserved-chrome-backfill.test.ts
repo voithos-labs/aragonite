@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
-import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 describe('ensureEditableContainers: reserved-chrome backfill', () => {
 	it('re-creates a chrome leaf + paragraph when a chrome-declaring container empties', () => {

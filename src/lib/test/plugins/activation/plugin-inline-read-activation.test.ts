@@ -1,32 +1,32 @@
 // @vitest-environment jsdom
 // Miss-analysis: no plugin test ran in an editor whose `plugins` prop left something out.
 import { afterEach, describe, expect, it, beforeEach } from 'vitest';
-import { parse, type DocumentView } from '$lib';
-import { installPlugins } from '$lib/schema/plugin-install';
-import { activationFor } from '$lib/schema/plugin-activation';
-import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import { latexPlugin } from '$lib/plugins/latex';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { parse, type DocumentView } from '#lib';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import {
 	assignFootnoteNumbers,
 	collectFootnoteReferences,
 	footnoteNumbersFor
-} from '$lib/plugins/footnotes/footnote-numbering';
-import { tocPlugin } from '$lib/plugins/toc';
-import { collectHeadings } from '$lib/plugins/toc/heading-outline';
-import type { EditorContext } from '$lib/plugin';
-import { inlineReaderFor } from '$lib/core/inline';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import type { GrammarView } from '$lib/schema/block-openers';
-import type { Reading } from '$lib/schema/reading';
-import { kitReading } from '$lib/testing/kit-reading';
+} from '#lib/plugins/footnotes/footnote-numbering.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { collectHeadings } from '#lib/plugins/toc/heading-outline.js';
+import type { EditorContext } from '#lib/plugin.js';
+import { inlineReaderFor } from '#lib/core/inline/index.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import type { Reading } from '#lib/schema/reading.js';
+import { kitReading } from '#lib/testing/kit-reading.js';
 import { pluginContextDeps } from '../../support/plugin-context-deps';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 import { grammarListing } from './grammar-listing';
 
 beforeEach(() => {

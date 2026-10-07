@@ -3,8 +3,8 @@
 // stack), so the simulation's corruption checks still hold while decorations recompute on
 // every keystroke. Installed only under `?seed=sim`: in the scripted decoration suite its marks
 // would upset the exact overlay counts.
-import { definePlugin } from '$lib/plugin';
-import type { DocumentView, MarkDecoration } from '$lib/plugin';
+import { definePlugin } from '#lib/plugin.js';
+import type { DocumentView, MarkDecoration } from '#lib/plugin.js';
 import { forEachLeaf } from '../../../walk-views';
 
 // Present as a whole word in both loaded-ops fixtures (PLUGIN_DOC, DIRECTIVE_DOC).

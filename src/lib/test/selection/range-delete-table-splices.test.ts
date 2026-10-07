@@ -4,7 +4,7 @@ import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { TWO_COL_FOUR_ROW, TWO_COL_THREE_ROW, findTable } from './table-fixtures';
 import { fixtureReading } from '../harness/fixture-grammar';
 

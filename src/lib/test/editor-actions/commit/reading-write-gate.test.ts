@@ -3,12 +3,12 @@
 // per byte-writing entry point.
 // Miss-analysis: no test drove a writer in reading mode, so each leaned on its caller's check.
 import { describe, expect, it } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { EditEvent } from '$lib/editor-events';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { serialize } from '#lib/core/serializer.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
 import { takeDevWarns } from '../../support/warn-gate';

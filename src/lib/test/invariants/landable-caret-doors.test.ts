@@ -3,22 +3,22 @@
 // Miss-analysis: the check ran inside one function, so no test drove a caret call it didn't make.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
-import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '$lib/plugin';
+import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '#lib/plugin.js';
 import {
 	definePluginBlock,
 	registerBlockOpener,
 	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type EditorPlugin
-} from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { mountEditor, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { mountEditor, type MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
 import MarkerSourcePlainBlock from './fixtures/MarkerSourcePlainBlock.svelte';
 import MarkerSourceRevealBlock from './fixtures/MarkerSourceRevealBlock.svelte';
 import InertSurfaceBlock from './fixtures/InertSurfaceBlock.svelte';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const ROGUE_MARKER = '@@rogue';
 const PLAIN_MARKER = '@@plain';

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 // Miss-analysis: nothing scanned an inline trigger in an editor that left its plugin out (GH #266).
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
-import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { parseInline } from '$lib/core/inline';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import type { InlineNode } from '$lib/core/nodes';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
+import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
+import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import type { InlineNode } from '#lib/core/nodes.js';
 import { grammarListing } from './grammar-listing';
 
 const MARK = 'caret-mark';

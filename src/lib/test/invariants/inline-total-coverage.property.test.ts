@@ -1,13 +1,13 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
-import { installPlugins } from '$lib';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
-import { latexPlugin, MATH_INLINE } from '$lib/plugins/latex';
+import { installPlugins } from '#lib';
+import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { latexPlugin, MATH_INLINE } from '#lib/plugins/latex/index.js';
 import {
 	arbInlineSource,
 	arbLargeDoc,

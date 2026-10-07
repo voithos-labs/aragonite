@@ -8,11 +8,11 @@ import {
 	mountEditor,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { UndoEntry } from '$lib/undo/types';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { UndoEntry } from '#lib/undo/types.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 
 beforeAll(installLayoutStubs);
 

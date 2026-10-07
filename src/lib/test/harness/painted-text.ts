@@ -4,9 +4,9 @@
  * tests that code rather than echoing it.
  */
 
-import { parseInline } from '$lib/core/inline';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import { MARKER_FAMILY_SELECTOR } from '$lib/core/inline/visibility';
+import { parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import { MARKER_FAMILY_SELECTOR } from '#lib/core/inline/visibility.js';
 import { renderOptions } from './fixture-grammar';
 
 export function paintedText(raw: string): string {

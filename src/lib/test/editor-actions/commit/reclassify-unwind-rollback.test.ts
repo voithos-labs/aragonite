@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { asDocPath } from '$lib/selection/path-math';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 // A commit that unwinds after its chain rebuild changed a container's kind has written a
 // replacement into a live nested children array, which no other rollback step reaches:

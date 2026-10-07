@@ -2,9 +2,9 @@
 // that chose the route does, so the two agree about the last blocks and the suffix stays put.
 // Miss-analysis: no test typed in place at the document's tail.
 import { describe, it, expect, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 describe('typing in place at the end of a document', () => {
 	it.each([

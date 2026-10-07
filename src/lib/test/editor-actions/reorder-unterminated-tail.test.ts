@@ -3,13 +3,13 @@
 // Miss-analysis (GH #587): every reorder fixture ended in a line break, generator included.
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { runCommandById } from '$lib/schema/block-commands';
-import { commandContext } from '$lib/test/support/command-context';
-import type { ReorderAction } from '$lib/editor-actions/reorder-action';
-import type { CommandId } from '$lib/schema/commands';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { runCommandById } from '#lib/schema/block-commands.js';
+import { commandContext } from '#lib/test/support/command-context.js';
+import type { ReorderAction } from '#lib/editor-actions/reorder-action.js';
+import type { CommandId } from '#lib/schema/commands.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { makeReorderContainer, makeReorderHarness } from './reorder-harness';
 
 type Move = (reorder: ReorderAction) => Promise<unknown>;

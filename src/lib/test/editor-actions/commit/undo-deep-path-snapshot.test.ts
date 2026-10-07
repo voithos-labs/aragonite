@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
 import {
 	makeEditorActionsDeps,
 	stubBlockComponent,
 	makeNode
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 describe('debounced undo snapshot: deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {

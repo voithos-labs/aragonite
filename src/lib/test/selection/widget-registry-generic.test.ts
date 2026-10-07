@@ -5,7 +5,7 @@
  * `<br>`-only paragraph needs content that cannot open one, hence `<br><br>`.
  */
 
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';

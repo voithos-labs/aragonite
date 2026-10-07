@@ -4,7 +4,7 @@
  * than scanning lines is what makes it fence-safe; nested alerts are skipped because
  * rewriting one would mean rebuilding its ancestors' raw.
  */
-import { documentLineEnding, parse, type PasteTransform } from '$lib/plugin';
+import { documentLineEnding, parse, type PasteTransform } from '#lib/plugin.js';
 import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
 
 export function convertGithubAlertsInDocument(source: string): AlertConversion {

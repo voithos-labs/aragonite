@@ -4,8 +4,8 @@ import {
 	groupDecorationsByPath,
 	groupDecorationsByAncestor,
 	collapseCellMarks
-} from '$lib/decorations/buckets';
-import type { Decoration, MarkDecoration } from '$lib/decorations/types';
+} from '#lib/decorations/buckets.js';
+import type { Decoration, MarkDecoration } from '#lib/decorations/types.js';
 
 const mark = (path: number[], start = 0, end = 1): Decoration => ({
 	type: 'mark',

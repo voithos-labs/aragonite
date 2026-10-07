@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 
 // A replacement into a table cell escapes the delimiters the cell's raw reserves so it cannot
 // split the row. Escaping the replacement string alone mishandles a backslash on either side of

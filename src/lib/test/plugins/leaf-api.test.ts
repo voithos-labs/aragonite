@@ -4,14 +4,14 @@
 // compiled clean and lost whatever it skipped.
 import { describe, expect, it } from 'vitest';
 import type { Component } from 'svelte';
-import { defineBlockComponent } from '$lib/schema/block-component-registry';
+import { defineBlockComponent } from '#lib/schema/block-component-registry.js';
 import {
 	createEditableLeaf,
 	type EditableLeaf,
 	type EditableLeafDeps
-} from '$lib/components/blocks/editable-leaf';
-import { resolveBlockSurface, type EditableLeafBlockApi } from '$lib/block-component';
-import type { NodeView } from '$lib/core/node-views';
+} from '#lib/components/blocks/editable-leaf.js';
+import { resolveBlockSurface, type EditableLeafBlockApi } from '#lib/block-component.js';
+import type { NodeView } from '#lib/core/node-views.js';
 
 type LeafProps = { node: NodeView; index: number };
 

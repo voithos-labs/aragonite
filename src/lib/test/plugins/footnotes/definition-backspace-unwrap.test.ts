@@ -4,9 +4,13 @@
 // is still a definition rather than the blockquote a quote lift leaves.
 // Miss-analysis: no test asserted what Backspace did, only that the bytes stayed unchanged.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import type { Document } from '$lib/plugin';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import type { Document } from '#lib/plugin.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

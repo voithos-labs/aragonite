@@ -2,16 +2,16 @@
 // registers it in the shape the registry accepts, so a suite spells out only the fields it is
 // about. Register into freshly reset registries: a registration happens once per process.
 
-import type { PluginBlockKind } from '$lib/core/nodes';
-import { registerChromeLeaf } from '$lib/plugin';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
+import { registerChromeLeaf } from '#lib/plugin.js';
 import {
 	registerBlockKind,
 	type BlockKindRegistration,
 	type CaretBlockRegistration,
 	type ContainerDescriptorGroup
-} from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/schema/block-kind-descriptor.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 /** An editable, not-mergeable leaf with no inline content and no gap stops. */
 export function testLeaf(name: string, over: Partial<BlockKindRegistration> = {}): PluginBlockKind {

@@ -4,18 +4,18 @@ import {
 	installPlugins,
 	isPluginInstalled,
 	type EditorContext
-} from '$lib/schema/plugin-install';
-import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+} from '#lib/schema/plugin-install.js';
+import { declarePluginKind, declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	componentPluginEditor,
 	defineBlockComponent,
 	registerBlockComponent
-} from '$lib/schema/block-component-registry';
-import { declareOwnedKind } from '$lib/test/support/owned-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/schema/block-component-registry.js';
+import { declareOwnedKind } from '#lib/test/support/owned-kind.js';
+import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 /** The thrown error itself, where `toThrow` only proves that something threw. */
 function captureThrow(run: () => void): unknown {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
 // Shared driver for the round-trip guarantee (serialize(parse(source)) === source),
 // so the table loops pinning it across the parser, plugin, and invariant suites

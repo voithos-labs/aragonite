@@ -4,12 +4,12 @@
 // handler has to report a throw there like every other decoration entry point does.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import DecorationOverlay from '$lib/components/DecorationOverlay.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import { createEditorEvents } from '$lib/editor-events';
-import type { EditorError } from '$lib/editor-events';
-import type { EditorServices } from '$lib/editor-keys';
-import type { MarkDecoration } from '$lib/decorations/types';
+import DecorationOverlay from '#lib/components/DecorationOverlay.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import { createEditorEvents } from '#lib/editor-events.js';
+import type { EditorError } from '#lib/editor-events.js';
+import type { EditorServices } from '#lib/editor-keys.js';
+import type { MarkDecoration } from '#lib/decorations/types.js';
 import { editorMountContext } from '../harness/mount-context';
 
 /** jsdom measures every real range at zero width, which the overlay skips as too thin to

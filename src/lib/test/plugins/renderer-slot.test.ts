@@ -10,8 +10,8 @@ import {
 	createRendererSlot,
 	renderSourceFallback,
 	type RenderContext
-} from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
+} from '#lib/plugin.js';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
 
 const DARK: RenderContext = { theme: 'dark' };
 const LIGHT: RenderContext = { theme: 'light' };

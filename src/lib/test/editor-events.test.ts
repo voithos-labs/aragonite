@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
+import { createEditorEvents, emitCommandError, type EditorError } from '#lib/editor-events.js';
 import { takeDevWarns } from './support/warn-gate';
-import { configureEditorEnv } from '$lib/env';
-import { asDocPath } from '$lib/selection/path-math';
+import { configureEditorEnv } from '#lib/env.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 import { makeNestedHarness } from './harness/editor-actions';
-import type { AnyBlockKind } from '$lib/core/nodes';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {

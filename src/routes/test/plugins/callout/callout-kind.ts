@@ -22,7 +22,7 @@ import {
 	setPluginMetadata,
 	type CstNode,
 	type ParsedDirective
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 export const CALLOUT = 'callout';
 export const CALLOUT_TITLE = 'callout-title';
@@ -133,7 +133,7 @@ export function registerCalloutKind(): void {
 		]
 	});
 
-	// The reserved title child, registered through the public API: no `$lib` component import,
+	// The reserved title child, registered through the public API: no `#lib` component import,
 	// and the leaf keeps its kind (contextDependentKind), so typing leaves it a `callout-title`.
 	registerChromeLeaf(calloutTitle, { blockClass: 'callout-title' });
 }

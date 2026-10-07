@@ -3,12 +3,12 @@
 // start as they stood before the drop, and a move that writes nothing leaves none.
 // Miss-analysis: GH #30; the drop's units covered coordinate math only, never the writes or entry.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
-import { runDrop, type DragSource, type SelectionDropDeps } from '$lib/selection/selection-drop';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import type { PasteCommitCoordinator } from '#lib/tree-operations/paste/paste-deps.js';
+import { runDrop, type DragSource, type SelectionDropDeps } from '#lib/selection/selection-drop.js';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 

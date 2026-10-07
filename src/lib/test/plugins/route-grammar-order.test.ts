@@ -1,23 +1,23 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
-import { tocPlugin } from '$lib/plugins/toc';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { parrotPlugin } from '$lib/plugins/parrot';
-import type { EditorPlugin } from '$lib/plugin';
+import { parse } from '#lib/core/parser.js';
+import { installPlugins } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import type { EditorPlugin } from '#lib/plugin.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { memoPlugin } from '../../../routes/test/plugins/memo/register';
 import { docStatsPlugin } from '../../../routes/test/plugins/doc-stats/doc-stats-plugin';
 import SHOWCASE_DOCUMENT from '../../../routes/showcase-content.md?raw';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 // Each route re-installs the same plugin set into a process-wide registry; the second install
 // onward is ignored, which is the point of this ordering check.

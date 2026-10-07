@@ -15,7 +15,7 @@ import {
 } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 

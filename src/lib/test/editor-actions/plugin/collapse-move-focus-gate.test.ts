@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { gateMoveFocusOnCollapse } from '$lib/editor-actions/plugin/container';
-import type { FocusActions } from '$lib/action-contracts';
+import { gateMoveFocusOnCollapse } from '#lib/editor-actions/plugin/container.js';
+import type { FocusActions } from '#lib/action-contracts.js';
 
 function stubParentFocus() {
 	return {

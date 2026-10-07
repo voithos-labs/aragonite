@@ -1,15 +1,11 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import path from 'path';
 
 const DEEP_STACK = 'src/lib/**/*.deep.test.ts';
 
 export default defineConfig({
 	plugins: [svelte({ compilerOptions: { hmr: false } })],
 	resolve: {
-		alias: {
-			$lib: path.resolve('./src/lib')
-		},
 		// Client svelte build, so unit tests can drive the runes graph. The default node
 		// resolution picks the server build, where effects are no-ops.
 		conditions: ['browser']

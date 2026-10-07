@@ -6,7 +6,7 @@
 		createContainerBlock,
 		isCollapsedContainer,
 		type NodeView
-	} from '$lib/plugin';
+	} from '#lib/plugin.js';
 	import { createReaderDisclosure } from './details-disclosure.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

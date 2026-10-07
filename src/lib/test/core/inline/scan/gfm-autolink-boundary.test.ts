@@ -1,7 +1,7 @@
 // Miss-analysis: no boundary case put a url right after an inline construct.
 import { describe, expect, it } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { scanInline } from '$lib/core/inline/scan';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { scanInline } from '#lib/core/inline/scan/index.js';
 import {
 	autolinkNode,
 	codeNode,

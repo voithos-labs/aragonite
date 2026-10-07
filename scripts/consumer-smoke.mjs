@@ -38,7 +38,7 @@ run('node scripts/verify-pack.mjs'); // published paths present AND no test file
 rmSync('examples/consumer/node_modules/@voithos-labs/aragonite', { recursive: true, force: true });
 run(`npm install --no-save ../../${tarball}`, { cwd: 'examples/consumer' });
 // The consumer's own check/build/test pre-hooks sync the dogfood plugin sources, so this
-// gate runs the same $lib rewrite a fresh clone does — no separate sync call to drift.
+// gate runs the same `#lib` rewrite a fresh clone does — no separate sync call to drift.
 run('npm run check', { cwd: 'examples/consumer' }); // public entry points type-resolve from outside
 buildConsumer(); // bundle + exports validation, chunk-cycle warnings fatal
 run(`npx playwright install ${withDeps}chromium`, { cwd: 'examples/consumer' });

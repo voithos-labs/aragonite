@@ -4,11 +4,11 @@
 // the browser's gesture and commits the clamped text; where it paints them, it does not. The
 // pure clamp is in `code-fence-boundary.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
 import { mountCode, type MountedCode } from './mount-code';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';

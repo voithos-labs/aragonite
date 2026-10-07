@@ -2,15 +2,15 @@
 // same rebuild reading every previous line and keeping none whole: equal bytes, spans and rereads.
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import type { CstNode } from '$lib/core/nodes';
-import { metadataOf } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { firstDisplayLine, splitLines } from '$lib/core/lines';
-import { quoteLines } from '$lib/core/parsers/blockquote';
-import { listItemLines, readItemShape } from '$lib/core/parsers/list';
-import type { LineCodec } from '$lib/core/strip-lines';
-import { rebuildConcatRaw, rebuildStripRaw } from '$lib/schema/child-spans';
-import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
+import type { CstNode } from '#lib/core/nodes.js';
+import { metadataOf } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { firstDisplayLine, splitLines } from '#lib/core/lines.js';
+import { quoteLines } from '#lib/core/parsers/blockquote.js';
+import { listItemLines, readItemShape } from '#lib/core/parsers/list.js';
+import type { LineCodec } from '#lib/core/strip-lines.js';
+import { rebuildConcatRaw, rebuildStripRaw } from '#lib/schema/child-spans.js';
+import { rebuildContainerRawIfContainer } from '#lib/schema/container-raw.js';
 import { arbRespelledContainerDoc, freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(292929) } as const;

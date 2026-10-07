@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Editor, type ImageLoadPolicy, type PresentationMode } from '$lib';
-	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import { Editor, type ImageLoadPolicy, type PresentationMode } from '#lib';
+	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import { installTestProbes } from '../editor/test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import type { PageData } from './$types';

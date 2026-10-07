@@ -2,9 +2,9 @@
 // `Ctrl+B` never collapses to a bare `B` that fires on each plain keypress.
 // Miss-analysis: no test registered a malformed chord and read the stored keymap.
 import { describe, it, expect } from 'vitest';
-import { augmentBlockKind } from '$lib/plugin';
-import { resolveBinding } from '$lib/schema/commands';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { augmentBlockKind } from '#lib/plugin.js';
+import { resolveBinding } from '#lib/schema/commands.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { testLeaf } from '../harness/test-kinds';
 
 const MALFORMED = ['Ctrl+B', 'Mod+', 'Cmd+Shift+K'];

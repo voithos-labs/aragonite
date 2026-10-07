@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '$lib/plugin';
+	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '#lib/plugin.js';
 	import { footnoteNumbersFor } from './footnote-numbering';
 	import { findFootnoteDefinitionLanding } from './footnote-lookup';
 	import { footnoteReferenceLabel } from './constants';

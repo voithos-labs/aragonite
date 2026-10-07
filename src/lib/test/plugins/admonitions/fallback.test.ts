@@ -5,8 +5,8 @@
  * directives only; never installs the admonition kind.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { activateDirectives } from '$lib/plugin';
+import { parse, serialize } from '#lib';
+import { activateDirectives } from '#lib/plugin.js';
 
 beforeEach(() => {
 	activateDirectives();

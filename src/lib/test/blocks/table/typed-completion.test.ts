@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { tryCompleteTableRow } from '$lib/core/parsers/table-completion';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
 // The completer's test for a line and the bytes it answers with. What matters is the pair of
 // checks: the parser's own row scan is the outer bound, and the leading pipe narrows it to a

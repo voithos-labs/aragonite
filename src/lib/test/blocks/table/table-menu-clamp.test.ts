@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampMenuToViewport } from '$lib/components/blocks/table/table-menu-model';
+import { clampMenuToViewport } from '#lib/components/blocks/table/table-menu-model.js';
 
 const VIEWPORT = { width: 1000, height: 800 };
 const MENU = { width: 180, height: 220 };

@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/schema/inline-construct-policy.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and paste

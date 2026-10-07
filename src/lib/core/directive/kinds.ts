@@ -2,7 +2,7 @@
  * Generic fallback kinds for the `:::name` directive primitive, so `:::anything` stays lossless
  * with no plugin installed. The container is `'opaque'`: its fence lives in the node's own
  * `raw`, not in a child, making `rebuildDirectiveContainerRaw` the single reconstruction path.
- * Imports stay core-relative because the `$lib/plugin` barrel would cycle back through core.
+ * Imports stay core-relative because the plugin barrel (`plugin.ts`) would cycle back through core.
  */
 
 import {

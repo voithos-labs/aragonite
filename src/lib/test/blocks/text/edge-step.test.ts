@@ -7,17 +7,17 @@ import {
 	resolveEdgeSeat,
 	edgeStep,
 	edgeStops
-} from '$lib/components/blocks/text/edge-seat';
-import { parseInline } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/edge-seat.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 
 const LIVE = screenVisibility('live', { chromePaints: false });
 

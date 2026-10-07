@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	resolveDelimiterAutoPair,
 	resolveEmptyPairBackspace
-} from '$lib/components/blocks/text/delimiter-autopair';
-import type { ContentRange } from '$lib/core/inline';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/delimiter-autopair.js';
+import type { ContentRange } from '#lib/core/inline/index.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // The auto-pair drops the partner of an empty pair it wrote, but a tilde pairs only as a double
 // run, so `~|~` is two bytes the user wrote and a key between them keeps both.

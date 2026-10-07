@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { splitNode, mergeIntoPrevDeepLeaf } from '$lib/tree-operations';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { parse } from '#lib/core/parser.js';
+import { splitNode, mergeIntoPrevDeepLeaf } from '#lib/tree-operations/index.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
 import {
 	registerLiveJoinSeamCleaner,
 	registerLiveSplitRebalancer,
 	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
-} from '$lib/schema/inline-construct-policy';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+} from '#lib/schema/inline-construct-policy.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Live mode sends `splitNode` through the registered rebalancer, and every other mode cuts the
 // bytes as typed; the registration is the production one, so the wiring is tested too.

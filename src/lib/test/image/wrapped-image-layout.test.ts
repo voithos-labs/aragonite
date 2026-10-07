@@ -6,10 +6,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { parseInline } from '$lib/core/inline';
-import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
-import { buildImageWidget } from '$lib/components/image/widget-dom';
-import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
+import { parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes, type RenderInlineOptions } from '#lib/core/inline-render.js';
+import { buildImageWidget } from '#lib/components/image/widget-dom.js';
+import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 function widgetOptions(): RenderInlineOptions {

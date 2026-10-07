@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type PresentationMode } from '#lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	// The whole shared set, so the host palette is judged with every plugin's own UI installed.
 	import { DEMO_PLUGINS } from '../../demo-plugins';

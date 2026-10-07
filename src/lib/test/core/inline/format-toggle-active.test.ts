@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/format-toggle';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import { inlineFormatsCovering, isInlineFormatActive } from '#lib/core/inline/format-toggle.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { whole } from './format-toggle-fixture';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // The pressed-state read answers "would a toggle unformat": the same checks the toggle routes by,
 // asked without writing. Kept beside the toggle so the toolbar state and the toggle cannot drift.

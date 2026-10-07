@@ -4,11 +4,11 @@ import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { documentBody, emptyParagraph } from '../../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../../tree-operations/settle';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { settled } from '$lib/test/harness/settle-funnel';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { settled } from '#lib/test/harness/settle-funnel.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The parser keeps a document's one trailing blank line in `doc.suffix` only while the tail block
 // is non-blank, so when a gesture blanks the tail, the fix-up turns that line into a block.

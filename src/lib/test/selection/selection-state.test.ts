@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 describe('SelectionState lifecycle', () => {
 	it('enterCrossBlock populates anchor and focus', () => {

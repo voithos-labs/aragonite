@@ -4,7 +4,7 @@
 // the CST, and after `compositionend` it splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mountCode, type MountedCode } from './mount-code';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 function lineBreak(): InputEvent {
 	return new InputEvent('beforeinput', {
