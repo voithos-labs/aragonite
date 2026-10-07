@@ -33,7 +33,7 @@ const EMPTY_BASELINE = '\n';
 
 /**
  * Loads the note's markdown first to get the end-state target (typing must match loading), then
- * clears the editor. `setSource` ignores an unchanged value, so each start step must be a change.
+ * clears the editor.
  */
 export async function runSession(
 	page: Page,
