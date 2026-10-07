@@ -37,7 +37,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 
 		expect(handled).toBe(true);
 		expect(handler).toHaveBeenCalledTimes(1);
-		expect(handler).toHaveBeenCalledWith({ node, updateMetadata, arg: 42 });
+		expect(handler).toHaveBeenCalledWith({ node, updateMetadata, arg: 42, afterRemoval: false });
 		expect(runCommand).not.toHaveBeenCalled();
 	});
 
@@ -73,7 +73,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, commandContext());
 
 		expect(handled).toBe(true);
-		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined);
+		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined, { afterRemoval: false });
 	});
 
 	it('returns false without warning when no binding resolves', () => {

@@ -1,7 +1,8 @@
 /**
  * The override every plugin container shares: Enter on an empty last child exits the
- * container. Backspace unwrap comes from the kind's declared `unwrapRole`, which picks a
- * strategy in `unwrap-strategies.ts` (`docs/design/editor.md` § Container unwrap).
+ * container, unless a selection's removal is what emptied it. Backspace unwrap comes from the
+ * kind's declared `unwrapRole`, which picks a strategy in `unwrap-strategies.ts`
+ * (`docs/design/editor.md` § Container unwrap).
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -9,6 +10,7 @@ import { displayLength, isBlankText } from '../core/lines';
 import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
 import type { Reading } from '../schema/reading';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
+import type { CommandRun } from '../schema/block-commands';
 
 export interface ContainerExitOverridesDeps {
 	scope: NodeScope;
@@ -21,14 +23,20 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 		blockEdit: {
 			// Enter on an empty last paragraph exits onto a new blank paragraph after the container,
 			// never into an existing block, so nested containers are escaped one level per Enter.
-			splitBlock: async (innerIndex: number, offset: number): Promise<boolean> => {
+			splitBlock: async (
+				innerIndex: number,
+				offset: number,
+				run?: CommandRun
+			): Promise<boolean> => {
 				const { parentBlockEdit } = deps;
 				const { node, index } = deps.scope;
 				if (!node.children) return false;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
 				const isEmpty = child.kind === 'paragraph' && isBlankText(child.raw);
-				if (!isLastChild || !isEmpty) return defaults.blockEdit.splitBlock(innerIndex, offset);
+				if (run?.afterRemoval || !isLastChild || !isEmpty) {
+					return defaults.blockEdit.splitBlock(innerIndex, offset, run);
+				}
 				if (node.children.length <= 1) {
 					return parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				}

@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './reactivity/child-list';
 import type { AnyCommandId } from './schema/command-id';
-import type { BlockCommandTarget } from './schema/block-commands';
+import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -256,9 +256,10 @@ export interface BlockComponent {
 	/**
 	 * Run a named block-local command resolved from a keybinding. `arg` passes the binding's
 	 * fixed argument as `unknown`, so the handler must check its shape and ignore anything
-	 * unexpected. False lets the caller fall through to later keydown branches.
+	 * unexpected. `run` says whether a selection was removed first. False lets the caller fall
+	 * through to later keydown branches.
 	 */
-	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
+	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
 	/** What a plugin's block command runs against at this block, for a command the editor runs
 	 *  here itself (a key over a selection, after the selection's removal). */
 	getCommandContext?(): BlockCommandTarget;
@@ -274,11 +275,11 @@ export interface BlockComponent {
 	 */
 	afterSourceCommit?(run: () => void): void;
 	/**
-	 * Remove this block's own selection, then run `run` at the caret that's left, as one undo
+	 * Remove this block's own selection, then call `run(true)` at the caret that's left, as one undo
 	 * entry: how a command that breaks the line replaces what's selected. With nothing selected,
-	 * run it at once and return its answer. A block that omits it runs every command at the caret.
+	 * return `run(false)`. A block that omits it runs every command at the caret.
 	 */
-	afterSelectionRemoved?(run: () => boolean): boolean;
+	afterSelectionRemoved?(run: (removed: boolean) => boolean): boolean;
 	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.

@@ -198,7 +198,7 @@ const RULES: CallSiteRule[] = [
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
 				'Shift+Enter types a new line',
-			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
+			'src/lib/components/blocks/editable-leaf.ts :: breakLine':
 				'Enter in a multi-line plugin source types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':
 				'a line break with no key in a painted plugin source types a new line',

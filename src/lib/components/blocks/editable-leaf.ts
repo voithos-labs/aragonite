@@ -46,7 +46,7 @@ import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace'
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type BlockCommandTarget } from '../../schema/block-commands';
+import { type BlockCommandTarget, type CommandRun } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import {
 	componentPluginEditor,
@@ -622,22 +622,27 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		if (dispatchChord(e)) return;
 
-		// Enter types a literal newline in a multiline source; a single-line leaf has nowhere to put
-		// one, so Enter splits the block instead.
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (isReading()) return;
-			// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
-			const offset = backend.getRaw() ?? (el.textContent ?? '').length;
-			if (singleLine) {
-				// `commitReveal` decides whether the shown bytes may still be written, and the split
-				// reads `node.raw` after it.
-				await commitReveal();
-				await blockEdit.splitBlock(deps.getIndex(), offset);
-				return;
-			}
-			spliceSourceText(el, offset, offset, editableSurface.lineEnding());
+			// Enter isn't a command here, so it asks for a selection's removal itself.
+			editableSurface.afterSelectionRemoved((afterRemoval) => {
+				void breakLine(el, { afterRemoval });
+				return true;
+			});
 		}
+	}
+
+	/** Enter at the caret: a literal newline in a multi-line source, while a one-line leaf has
+	 *  nowhere to put one and splits the block instead. */
+	async function breakLine(el: HTMLElement, run: CommandRun): Promise<void> {
+		// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
+		const offset = backend.getRaw() ?? (el.textContent ?? '').length;
+		if (!singleLine) return spliceSourceText(el, offset, offset, editableSurface.lineEnding());
+		// `commitReveal` decides whether the shown bytes may still be written, and the split reads
+		// `node.raw` after it.
+		await commitReveal();
+		await blockEdit.splitBlock(deps.getIndex(), offset, run);
 	}
 
 	/** A painted source applies text edits itself: the browser's insert replaces a lone `\n` text

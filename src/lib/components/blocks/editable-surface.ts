@@ -249,7 +249,7 @@ export interface EditableSurface {
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
 	/** Removes the selection through `removeSelection`, then runs `run` at the caret it leaves: a
 	 *  command target's `afterSelectionRemoved`, and how a line break typed as input replaces one. */
-	afterSelectionRemoved(run: () => boolean): boolean;
+	afterSelectionRemoved(run: (removed: boolean) => boolean): boolean;
 	/** Bound to the element's `keydown`. */
 	onKeyDown: (e: KeyboardEvent) => void;
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
@@ -569,16 +569,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// `bind:this` teardown nulls the reference a resuming handler still holds.
 	const isDetached = (): boolean => deps.getEl()?.isConnected !== true;
 
-	function afterSelectionRemoved(run: () => boolean): boolean {
+	function afterSelectionRemoved(run: (removed: boolean) => boolean): boolean {
 		const range = deps.backend.getRawSelection();
 		const remove = deps.removeSelection;
-		if (!range || range.start === range.end || !remove) return run();
+		if (!range || range.start === range.end || !remove) return run(false);
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
 		void deps.controller.undoStep(seed, async () => {
 			await remove(range);
 			// The command reads the caret the removal's render puts back.
 			await tick();
-			if (!isDetached()) run();
+			if (!isDetached()) run(true);
 		});
 		return true;
 	}

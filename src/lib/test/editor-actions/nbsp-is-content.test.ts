@@ -41,7 +41,7 @@ describe('Enter at the end of a block holding a non-breaking space', () => {
 
 		expect(parentBlockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(parentBlockEdit.splitBlock).not.toHaveBeenCalled();
-		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(last, 1);
+		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(last, 1, undefined);
 	});
 
 	it('starts the next list item instead of leaving the list', async () => {

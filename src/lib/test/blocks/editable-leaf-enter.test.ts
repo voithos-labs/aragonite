@@ -51,7 +51,9 @@ describe('Enter in an editable leaf', () => {
 
 		await pressKey(el, { key: 'Enter' });
 
-		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length);
+		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length, {
+			afterRemoval: false
+		});
 		// The split first collapses the revealed source, so the block shows its rendered view.
 		expect(mounted.source()).toBeNull();
 	});
@@ -98,7 +100,7 @@ describe('Enter in an editable leaf', () => {
 
 		releaseWrite();
 		await settleEditor();
-		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
+		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6, { afterRemoval: false });
 	});
 });
 

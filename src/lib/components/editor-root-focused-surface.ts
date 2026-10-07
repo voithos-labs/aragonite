@@ -76,7 +76,7 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			const { runCommand, isCommandActive, afterSourceCommit, afterSelectionRemoved } = component;
 			return {
 				kind: node.kind,
-				runCommand: runCommand && ((id, arg) => runCommand.call(component, id, arg)),
+				runCommand: runCommand && ((id, arg, run) => runCommand.call(component, id, arg, run)),
 				isCommandActive: isCommandActive && ((id) => isCommandActive.call(component, id)),
 				getPath: () => at,
 				afterSourceCommit: afterSourceCommit && ((run) => afterSourceCommit.call(component, run)),

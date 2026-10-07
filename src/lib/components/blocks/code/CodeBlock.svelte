@@ -59,6 +59,7 @@
 	import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 	import type { WriteIntent } from '../surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
+	import type { CommandRun } from '../../../schema/block-commands';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
@@ -518,30 +519,32 @@
 
 	// ── Commands ────────────────────────────────────────────────────────
 
-	export const runCommand = editableSurface.command((id: CommandId): boolean => {
-		switch (id) {
-			case 'format.toggleStrong':
-			case 'format.toggleEmphasis':
-			case 'format.toggleStrikethrough':
-			case 'format.toggleCode':
-			case 'link.openCard':
-				return true; // code blocks carry no inline constructs; swallow to stop the browser default
-			case 'code.newline':
-				return codeNewline();
-			case 'code.indent':
-				shiftSelection('indent');
-				return true;
-			case 'code.dedent':
-				shiftSelection('dedent');
-				return true;
-			case 'code.backspace':
-				return codeBackspace();
-			case 'code.delete':
-				return codeDelete();
-			default:
-				return false;
+	export const runCommand = editableSurface.command(
+		(id: CommandId, _arg?: unknown, run: CommandRun = { afterRemoval: false }): boolean => {
+			switch (id) {
+				case 'format.toggleStrong':
+				case 'format.toggleEmphasis':
+				case 'format.toggleStrikethrough':
+				case 'format.toggleCode':
+				case 'link.openCard':
+					return true; // code blocks carry no inline constructs; swallow to stop the browser default
+				case 'code.newline':
+					return codeNewline(run);
+				case 'code.indent':
+					shiftSelection('indent');
+					return true;
+				case 'code.dedent':
+					shiftSelection('dedent');
+					return true;
+				case 'code.backspace':
+					return codeBackspace();
+				case 'code.delete':
+					return codeDelete();
+				default:
+					return false;
+			}
 		}
-	});
+	);
 
 	function codeBackspace(): boolean {
 		if (!el || backend.getRawSelection() !== null) return false;
@@ -587,27 +590,34 @@
 
 	// The browser's insertParagraph adds <div>/<br> elements that don't affect
 	// textContent, so the CST never sees the edit; Enter goes through the CST instead.
-	function codeNewline(): boolean {
+	function codeNewline(run: CommandRun): boolean {
 		if (!el) return false;
+		// The completion and the exits answer Enter on an empty line, and a removal's empty line
+		// isn't one: a break over a selection only breaks.
+		if (!run.afterRemoval && (completeBareFence() || exitFence())) return true;
+		return writeLineBreak('normal');
+	}
+
+	function completeBareFence(): boolean {
+		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
+		// where it happens there; the marker-hiding modes did it as the caret arrived.
+		const completion = bareFenceCompletion();
+		if (!completion) return false;
+		void writeCode(completion.text, completion.caretAfter, 'complete-fence');
+		if (infoString === '' && !readOnly && !languageOffered) {
+			languageOffered = true;
+			void tick().then(() => {
+				autoOpenLanguage = true;
+			});
+		}
+		return true;
+	}
+
+	function exitFence(): boolean {
 		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
-
-		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
-		// where it happens there; the marker-hiding modes did it as the caret arrived.
-		const completion = bareFenceCompletion();
-		if (completion) {
-			void writeCode(completion.text, completion.caretAfter, 'complete-fence');
-			if (infoString === '' && !readOnly && !languageOffered) {
-				languageOffered = true;
-				void tick().then(() => {
-					autoOpenLanguage = true;
-				});
-			}
-			return true;
-		}
-
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
 			closeUnclosedFenceAndDescend(exit.newText, offset);
@@ -618,8 +628,7 @@
 			exitDownward();
 			return true;
 		}
-
-		return writeLineBreak('normal');
+		return false;
 	}
 
 	/** A line break at the caret, clamped out of the fence lines. A selection is already gone: the

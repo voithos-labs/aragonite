@@ -43,7 +43,19 @@ export interface BlockCommandContext {
 	/** The dispatching editor's `EditorContext` for the plugin that registered the command.
 	 *  Undefined when the dispatch is not wired to an editor instance. */
 	editor?: EditorContext;
+	/** True when the dispatch removed a selection before running the command, so a line the removal
+	 *  emptied isn't one the user left empty (`CommandRun`). */
+	afterRemoval: boolean;
 }
+
+/** How a command came to run. `afterRemoval`: the dispatch removed a selection first, in the
+ *  block or across blocks, so an "Enter on an empty line" exit must not read the emptiness the
+ *  removal left; a break over a selection splits and never leaves the block. */
+export interface CommandRun {
+	afterRemoval: boolean;
+}
+
+const AT_CARET: CommandRun = { afterRemoval: false };
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
@@ -57,7 +69,7 @@ export interface BlockCommandOptions {
 }
 
 /** What the focused block supplies; the dispatch adds the argument and the editor context. */
-export type BlockCommandTarget = Omit<BlockCommandContext, 'arg' | 'editor'>;
+export type BlockCommandTarget = Omit<BlockCommandContext, 'arg' | 'editor' | 'afterRemoval'>;
 
 interface RegisteredBlockCommand {
 	handler: BlockCommandHandler;
@@ -173,7 +185,7 @@ export interface KindCommandTarget {
 	kind: AnyBlockKind;
 	/** The block's own built-in commands. Absent on a block that owns none (a plugin container),
 	 *  where a built-in id declines. */
-	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
+	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
 	getCommandContext?(): BlockCommandTarget;
@@ -188,7 +200,7 @@ export interface KindCommandTarget {
 	afterSourceCommit?(run: () => void): void;
 	/** Removes the block's own selection, then runs `run` at the caret that's left, one undo entry
 	 *  with the removal; with nothing selected it returns `run`'s answer. Absent runs it at once. */
-	afterSelectionRemoved?(run: () => boolean): boolean;
+	afterSelectionRemoved?(run: (removed: boolean) => boolean): boolean;
 }
 
 /**
@@ -272,15 +284,18 @@ function runBlockLocalCommand(
 	id: AnyCommandId,
 	arg: unknown,
 	path: CommandDispatchPath,
-	ctx: CommandDispatchContext
+	ctx: CommandDispatchContext,
+	run: CommandRun
 ): boolean {
 	const target = 'target' in resolved ? resolved.target : null;
 	if (!target?.afterSelectionRemoved || !commandOverSelection(target.kind, id, ctx.activation)) {
-		return runAtCaret(resolved, id, arg, path, ctx);
+		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	// Resolved again after the removal, so a plugin's handler reads the block it left.
-	return target.afterSelectionRemoved(() =>
-		runAtCaret(resolveBlockLocalCommand(id, target, ctx.activation), id, arg, path, ctx)
+	return target.afterSelectionRemoved((removed) =>
+		runAtCaret(resolveBlockLocalCommand(id, target, ctx.activation), id, arg, path, ctx, {
+			afterRemoval: removed || run.afterRemoval
+		})
 	);
 }
 
@@ -291,18 +306,19 @@ function runAtCaret(
 	id: AnyCommandId,
 	arg: unknown,
 	path: CommandDispatchPath,
-	ctx: CommandDispatchContext
+	ctx: CommandDispatchContext,
+	run: CommandRun
 ): boolean {
 	switch (resolved.tier) {
 		case 'minted': {
 			const { owner, handler, context, target } = resolved;
 			const editor = pluginEditorFor(ctx.pluginEditor, owner);
 			return runPluginCommand(owner, { kind: target.kind, command: id }, ctx.onCommandError, () =>
-				handler({ ...context, editor, arg })
+				handler({ ...context, editor, arg, afterRemoval: run.afterRemoval })
 			);
 		}
 		case 'builtin':
-			return resolved.target.runCommand?.(id, arg) ?? false;
+			return resolved.target.runCommand?.(id, arg, run) ?? false;
 		case 'move': {
 			const { target, path, dir } = resolved;
 			const move = () => void ctx.reorder.nudgeReorderUnit(path(), dir);
@@ -346,7 +362,8 @@ function runResolvedCommand(
 	arg: unknown,
 	target: KindCommandTarget | null,
 	ctx: CommandDispatchContext,
-	path: CommandDispatchPath
+	path: CommandDispatchPath,
+	run: CommandRun
 ): boolean {
 	if (isReadingMode(ctx.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, ctx);
@@ -354,7 +371,7 @@ function runResolvedCommand(
 	if (route.kind === 'cross-block') return route.router.run(id);
 	const resolved = resolveCommand(id, target, ctx.activation);
 	if (resolved.tier === 'global') return resolved.run({ ...ctx, arg });
-	return runBlockLocalCommand(resolved, id, arg, path, ctx);
+	return runBlockLocalCommand(resolved, id, arg, path, ctx, run);
 }
 
 /**
@@ -395,18 +412,20 @@ export function runCommandById(
 	target: KindCommandTarget | null,
 	ctx: CommandDispatchContext
 ): boolean {
-	return runResolvedCommand(id, arg, target, ctx, 'door');
+	return runResolvedCommand(id, arg, target, ctx, 'door', AT_CARET);
 }
 
-/** Chord dispatch on the focused leaf: an editable block, or a container's title row. */
+/** Chord dispatch on the focused leaf: an editable block, or a container's title row. A key that
+ *  runs after a range's removal says so in `run`. */
 export function dispatchKeyCommand(
 	chord: string,
 	target: KindCommandTarget,
-	ctx: CommandDispatchContext
+	ctx: CommandDispatchContext,
+	run: CommandRun = AT_CARET
 ): boolean {
 	const binding = resolveBinding(chord, target.kind, ctx.keybindingOverrides(), ctx.activation);
 	if (!binding || leftUnderLiveRange(binding.command, target, ctx)) return false;
-	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord');
+	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord', run);
 }
 
 /** A command meant to run once a range is removed, reached by a key the range didn't claim (the
@@ -431,5 +450,5 @@ export function dispatchKindCommand(
 	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
 	if (leftUnderLiveRange(binding.command, target, ctx)) return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
-	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx);
+	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx, AT_CARET);
 }

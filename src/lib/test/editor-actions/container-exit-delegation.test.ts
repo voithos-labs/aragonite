@@ -66,6 +66,6 @@ describe('container exit delegates one parent replaceBlock', () => {
 		await overridesOver(quote, parentBlockEdit, defaults).blockEdit!.splitBlock!(0, 1);
 
 		expect(parentBlockEdit.replaceBlock).not.toHaveBeenCalled();
-		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(0, 1);
+		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(0, 1, undefined);
 	});
 });

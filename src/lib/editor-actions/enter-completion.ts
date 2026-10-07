@@ -14,6 +14,7 @@ import {
 	type LineEnding
 } from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
+import type { CommandRun } from '../schema/block-commands';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -48,9 +49,9 @@ export function withEnterCompletion(
 		);
 	return {
 		...blockEdit,
-		async splitBlock(index: number, offset: number): Promise<boolean> {
+		async splitBlock(index: number, offset: number, run?: CommandRun): Promise<boolean> {
 			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
-			if (!completion) return blockEdit.splitBlock(index, offset);
+			if (!completion) return blockEdit.splitBlock(index, offset, run);
 			return complete(index, completion, offset);
 		},
 		async completeLineOnType(index: number, caret: number): Promise<boolean> {

@@ -28,10 +28,11 @@ afterEach(destroyMountedEditors);
 
 const KIND = 'verse-leaf';
 
-/** An `@@ ` line with two commands that record the text they ran on, one asking for the removal. */
-function verseLeafPlugin(ran: string[]): EditorPlugin {
+/** An `@@ ` line with two commands that record the text they ran on and whether a removal came
+ *  first, one asking for the removal. */
+function verseLeafPlugin(ran: [string, boolean][]): EditorPlugin {
 	const handler = (ctx: BlockCommandContext) => {
-		ran.push(ctx.node.raw);
+		ran.push([ctx.node.raw, ctx.afterRemoval]);
 		return true;
 	};
 	return definePluginBlock({
@@ -67,11 +68,12 @@ describe('a plugin command over a selection inside its block', () => {
 		[
 			'with `overSelection`, after the removal',
 			{ key: 'Enter', ctrlKey: true, shiftKey: true },
-			'@@ aha\n'
+			'@@ aha\n',
+			true
 		],
-		['without it, at the caret', { key: 'L', ctrlKey: true, shiftKey: true }, '@@ alpha\n']
-	])('runs %s', async (_, key, text) => {
-		const ran: string[] = [];
+		['without it, at the caret', { key: 'L', ctrlKey: true, shiftKey: true }, '@@ alpha\n', false]
+	])('runs %s', async (_, key, text, afterRemoval) => {
+		const ran: [string, boolean][] = [];
 		const editor = mountEditor({ source: '@@ alpha\n', plugins: [verseLeafPlugin(ran)] });
 		await settleEditor();
 		selectRange(surfaceAt(editor, [0]), 4, 6);
@@ -80,6 +82,6 @@ describe('a plugin command over a selection inside its block', () => {
 		await settleEditor();
 
 		expect(editor.source()).toBe(text);
-		expect(ran).toEqual([text]);
+		expect(ran).toEqual([[text, afterRemoval]]);
 	});
 });

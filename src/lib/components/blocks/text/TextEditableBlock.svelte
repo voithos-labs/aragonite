@@ -82,6 +82,7 @@
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
+	import type { CommandRun } from '../../../schema/block-commands';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
@@ -533,12 +534,13 @@
 		id: CommandId,
 		arg: unknown,
 		offset: number,
-		selected: { start: number; end: number } | null
+		selected: { start: number; end: number } | null,
+		run: CommandRun
 	): SplitCommand | null {
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
-				return always(() => blockEdit.splitBlock(index, offset));
+				return always(() => blockEdit.splitBlock(index, offset, run));
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
@@ -621,14 +623,16 @@
 		}
 	}
 
-	export const runCommand = editableSurface.command((id: CommandId, arg?: unknown): boolean => {
-		// Read live: a command dispatched from another block arrives with no input event here.
-		const offset = cursor.getRaw() ?? 0;
-		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
-		if (!command || !command.applies()) return false;
-		afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
-		return true;
-	});
+	export const runCommand = editableSurface.command(
+		(id: CommandId, arg?: unknown, run: CommandRun = { afterRemoval: false }): boolean => {
+			// Read live: a command dispatched from another block arrives with no input event here.
+			const offset = cursor.getRaw() ?? 0;
+			const command = blockCommand(id, arg, offset, cursor.getRawSelection(), run);
+			if (!command || !command.applies()) return false;
+			afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
+			return true;
+		}
+	);
 
 	// A shown source holds this block's edit in the DOM only, so a command waits for it to be
 	// written; the user's offset stays valid, since the written text is the DOM text.

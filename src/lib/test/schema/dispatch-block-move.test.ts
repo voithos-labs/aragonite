@@ -93,7 +93,7 @@ describe('the reorder chords at the dispatch', () => {
 		);
 
 		expect(reorder.nudgeReorderUnit).not.toHaveBeenCalled();
-		expect(runCommand).toHaveBeenCalledWith('block.moveUp', undefined);
+		expect(runCommand).toHaveBeenCalledWith('block.moveUp', undefined, { afterRemoval: false });
 	});
 
 	it('moves nothing in reading mode', () => {
