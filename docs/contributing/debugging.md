@@ -1,38 +1,32 @@
 # Debugging
 
-Something broke and you want to see what the editor is thinking. There are two pages for that.
-[`codebase-map.md`](codebase-map.md) takes the behavior you watched break and names the file to
-open. This one takes "what's the editor's state right now" and hands you a dump you can actually
-read: the CST (the parsed block tree), the selection, the undo stack, the operations log. Reach
-for these before you hand-trace anything. I've spent an hour proving something the dump would've
-told me in a second, and I'd rather you didn't.
+Something broke and you want to see what the editor is thinking. This page hands you a dump of
+its state you can actually read: the CST (the parsed block tree), the selection, the undo stack,
+the operations log. Reach for these before you hand-trace anything. I've spent an hour proving
+something the dump would've told me in a second, and I'd rather you didn't. (If what you need is
+which file owns the behavior that broke, that's [`codebase-map.md`](codebase-map.md).)
 
 ## Debug panel
 
 A collapsible side panel on the `/` showcase and the `/test/editor` harness, closed until you
 toggle it open. It's for poking at a live editor and for pasting a snapshot into a bug report. It
-lives in the demo app (`src/routes/debug-panel/`), not in the published library.
+lives in the demo app (`src/routes/debug-panel/`), so an app embedding the library won't have it.
 
-**Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it while focus is inside it.
-**Resize:** drag the left edge. Minimum 300px, and the width persists in localStorage next to the
-open/expanded state (key `aragonite.debug-panel.state.v1`, should you ever want to wipe it).
+**Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it while focus is inside it. Drag the
+left edge to resize; the width sticks.
 
-| Section                     | Contents                                                                                                                                                                                                                            |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Raw source                  | Read-only view of the live source. Edit it through the editor; on `/test/editor`, `window.__test.setSource(md)` in DevTools works too                                                                                               |
-| CST tree                    | The live tree, then a reparse of `getSource()` under it, both as compact text. Where the two differ is usually the bug                                                                                                              |
-| Selection                   | The anchor and focus paths. Read off the browser's own selection while the caret sits in one block, off the editor's selection state once it spans blocks                                                                           |
-| Undo stack                  | The newest entries first, each with the selection it captured, then the undo and redo depths                                                                                                                                        |
-| Inline tree (focused block) | The inline parse (text, strong, links, and so on) of the prose block the caret is in                                                                                                                                                |
-| Operations log              | The tail of the structural-operation ring buffer: how long ago, which op, at which path, plus the op's own detail (`at=5` for a split)                                                                                              |
-| Interaction trace           | A ring buffer of inline-layer transitions (rebuild, cursor capture and restore, pending cursor, reveal open and fold, widget pool, composition, inline widgets, sticky column). Expanding the section is what turns the recorder on |
+| Section                     | Contents                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raw source                  | Read-only view of the live source. Edit it through the editor; on `/test/editor`, `window.__test.setSource(md)` in DevTools works too                             |
+| CST tree                    | The live tree, then a reparse of `getSource()` under it. Where the two differ is usually the bug                                                                  |
+| Selection                   | The anchor and focus paths                                                                                                                                        |
+| Undo stack                  | The newest entries first, each with the selection it captured, then the undo and redo depths                                                                      |
+| Inline tree (focused block) | The inline parse (text, strong, links, and so on) of the prose block the caret is in                                                                              |
+| Operations log              | The last structural operations: how long ago, which op, at which path, plus the op's own detail (`at=5` for a split)                                              |
+| Interaction trace           | A log of what the inline layer did (rebuilds, caret capture and restore, markers revealed and folded, composition). It records only while the section is expanded |
 
-**Copy all as text** puts every section on the clipboard as one Markdown snapshot: a
-`# Debug snapshot` heading with a timestamp, then each section under a `###` heading in its own
-fence. Paste it straight into a bug report or an AI conversation.
-
-The engine behind the panel is `src/lib/debug/`. It's internal and isn't exported from
-`src/lib/index.ts`.
+**Copy all as text** puts every section on the clipboard as one Markdown snapshot, each section in
+its own fence. Paste it straight into a bug report or an AI conversation.
 
 ### From the console
 
@@ -48,7 +42,7 @@ without opening the panel:
 | `__test.dumpOperationsLog(n?)`    | The last `n` structural ops, 20 by default                                |
 | `__test.dumpInteractionTrace(n?)` | The last `n` trace entries, 50 by default                                 |
 
-The test-bridge calls (`getSource`, `setSource`, `getBlockCount`, …) live alongside them.
+The rest of the test bridge (`getSource`, `setSource`, `getBlockCount`, …) lives alongside them.
 
 Here's what each one prints. The document is a heading, a paragraph with one bold word, and a
 two-item list; the caret sits in the paragraph.
@@ -87,10 +81,9 @@ block's raw. A cross-block selection adds its ordered ends:
 anchor=[0]@2 focus=[2,1,0]@3 cross-block=true start=[0]@2 end=[2,1,0]@3
 ```
 
-Those two are what `dumpSelection` from `$lib/debug/inspect` prints in a unit test, given the
-editor's selection state. On the bridge, `__test.dumpSelection()` prints the same `[path]@offset`
-pairs, with a few extra lines while the caret sits in one block: the mode, and the browser
-range's own container and offset.
+That's the unit-test version (`dumpSelection` from `$lib/debug/inspect`, given the editor's
+selection state). The bridge's `__test.dumpSelection()` prints the same pairs, plus a few lines
+while the caret sits in one block: the mode, and the browser range's own container and offset.
 
 ```
 > __test.dumpUndoStack()
@@ -121,8 +114,7 @@ Kind, then `[start,end]` offsets into the block's raw, then the text of a text n
 ```
 
 Milliseconds since the op, the op, the path it hit, and the op's own detail where there is one
-(`at` for a split, `direction` for a merge, `rowIdx` and `side` for a table row insert). These two
-were recorded a moment before the dump, hence the zeros.
+(`at` for a split, `direction` for a merge, `rowIdx` and `side` for a table row insert).
 
 ```
 > __test.dumpInteractionTrace()
@@ -133,9 +125,10 @@ were recorded a moment before the dump, hence the zeros.
 `site/kind`, then the entry's detail fields. An empty buffer prints `(no operations recorded)` or
 `(no interactions recorded)`, and no selection prints `(no selection)`.
 
-### Using the debug engine inside tests
+### Using the dumps inside tests
 
-Both runners can reach the engine; it's internal, not sealed.
+The engine behind all of this is `src/lib/debug/`. It isn't exported from the package, but both
+test runners can reach it:
 
 ```ts
 // unit test
@@ -145,9 +138,9 @@ import { dumpTree, dumpSelection } from '$lib/debug/inspect';
 const cst = await page.evaluate(() => (window as any).__test.dumpTree());
 ```
 
-**Diagnostic narration only, never an assertion target.** Put a dump in a `console.log`, an
-assertion-failure message, or a Playwright annotation, so it shows you the CST at the moment of
-failure and stays quiet otherwise:
+**Print a dump, never assert on one.** Put it in a `console.log`, an assertion's failure message,
+or a Playwright annotation, so it shows you the CST at the moment of failure and stays quiet
+otherwise:
 
 ```ts
 // unit: the dump rides the message, so it only prints when the assertion fails
@@ -157,7 +150,6 @@ expect(doc.children.length, `after the split:\n${dumpTree(doc)}`).toBe(3);
 test.info().annotations.push({ type: 'cst', description: cst });
 ```
 
-Don't write `expect(dumpTree(doc)).toBe('[0] heading …')`. The output format is internal and
-changes without notice, and every formatter tweak would then churn the whole suite. Assert on
-structured accessors instead: `getSource()`, `getBlockKind(i)`, `getSelectionPaths()`, or the CST
-itself.
+Don't write `expect(dumpTree(doc)).toBe('[0] heading …')`. The output format changes without
+notice, and every formatter tweak would then churn the whole suite. Assert on structured accessors
+instead: `getSource()`, `getBlockKind(i)`, `getSelectionPaths()`, or the CST itself.
