@@ -6,6 +6,8 @@ import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-sele
 import { PAST_TYPING_PAUSE_MS } from './page-probes';
 import { gotoReady } from './goto-ready';
 import { pointAtRaw } from './text-runs';
+import { expectPresentationMode } from './mode-switch';
+import type { PresentationMode } from '../presentation-mode';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
@@ -27,13 +29,9 @@ export class EditorPage {
 	async goto(query: '' | `?${string}` = '') {
 		await this.clipboard.install();
 		await gotoReady(this.page, `/test/editor${query}`);
-		// The route starts an unknown mode in source, where every marker paints and most live
-		// scenarios would pass without live mode, so the mode a query names is checked here.
+		// The route starts an unknown mode in source, where most live scenarios pass as well.
 		const mode = new URLSearchParams(query).get('presentationMode');
-		if (mode === null) return;
-		const root = expect(this.editorContainer);
-		if (mode === 'source') await root.not.toHaveAttribute('data-presentation');
-		else await root.toHaveAttribute('data-presentation', mode);
+		if (mode !== null) await expectPresentationMode(this.editorContainer, mode as PresentationMode);
 	}
 
 	async loadContent(md: string) {
@@ -71,15 +69,11 @@ export class EditorPage {
 		return text;
 	}
 
-	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
-	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
-	async setPresentationMode(mode: string): Promise<void> {
+	/** Sets the mode prop the way a host does, keeping focus, and waits until the editor shows it:
+	 *  a mode that never applies leaves source, where most assertions pass too. */
+	async setPresentationMode(mode: PresentationMode): Promise<void> {
 		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
-		if (mode === 'source') {
-			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
-			return;
-		}
-		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
+		await expectPresentationMode(this.editorContainer, mode);
 	}
 
 	/** `loadContent`'s full serialize times out at megabyte scale, so this waits on an in-page

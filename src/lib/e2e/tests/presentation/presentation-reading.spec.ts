@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import type { Page } from '@playwright/test';
+import { clickModeToggle } from '../../mode-switch';
 
 // Reading mode on /test/editor: markers hidden by CSS with the DOM intact, the text inert with
 // the source stable through the bridge, and selection, copy and navigation still live.
@@ -19,10 +19,6 @@ const DOC = [
 	'Visit [example](https://example.com) here'
 ].join('\n');
 
-async function toggleReadingMode(page: Page): Promise<void> {
-	await page.getByTestId('presentation-toggle').click();
-}
-
 test.describe('reading mode: markers', () => {
 	let ep: EditorPage;
 
@@ -34,16 +30,14 @@ test.describe('reading mode: markers', () => {
 
 	test('root attribute present only in reading mode', async ({ page }) => {
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
-		await toggleReadingMode(page);
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
-		await toggleReadingMode(page);
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'reading');
+		await clickModeToggle(page, 'reading');
 	});
 
 	test('markers hide from paint but their text stays in the DOM', async ({ page }) => {
 		const headingMarker = page.locator('.heading-1 .md-marker').first();
 		await expect(headingMarker).toBeVisible();
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await expect(headingMarker).toBeHidden();
 		// The coordinate-space contract: hidden, never omitted.
 		expect(await ep.getBlockText(0)).toBe('# Title');
@@ -51,7 +45,7 @@ test.describe('reading mode: markers', () => {
 	});
 
 	test('list markers: ordered stays visible, bullet becomes rendered chrome', async ({ page }) => {
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		const ambient = ".md-marker[contenteditable='false']";
 		await expect(page.locator(`[data-list-marker='ordered'] ${ambient}`).first()).toBeVisible();
 		const bulletAmbient = page.locator(`[data-list-marker='bullet'] ${ambient}`).first();
@@ -73,7 +67,7 @@ test.describe('reading mode: inertness', () => {
 		await ep.goto();
 		await ep.loadContent(DOC);
 		baseline = await ep.bridge.getSource();
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 	});
 
 	test('typing, Enter, Backspace, and Delete change nothing', async ({ page }) => {
@@ -98,11 +92,11 @@ test.describe('reading mode: inertness', () => {
 	});
 
 	test('undo is inert against a pre-flip edit', async ({ page }) => {
-		await toggleReadingMode(page); // back to source
+		await clickModeToggle(page, 'reading'); // back to source
 		await ep.clickBlock(1);
 		await ep.typeText('EDIT');
 		await ep.bridge.waitForSourceContains('EDIT');
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await ep.clickBlock(1);
 		await ep.undo();
 		await ep.expectSurfaceInert();
@@ -118,27 +112,27 @@ test.describe('reading mode: inertness', () => {
 	});
 
 	test('mode flip mid-edit commits the edit before going inert', async ({ page }) => {
-		await toggleReadingMode(page); // back to source
+		await clickModeToggle(page, 'reading'); // back to source
 		await ep.clickBlock(1);
 		await ep.typeText('KEPT');
-		await toggleReadingMode(page); // a mode change counts as a blur: the edit must survive
+		await clickModeToggle(page, 'reading'); // a mode change counts as a blur: the edit must survive
 		await ep.bridge.waitForSourceContains('KEPT');
 	});
 
 	test('an open replace row collapses on a flip to reading and returns on flip back', async ({
 		page
 	}) => {
-		await toggleReadingMode(page); // back to source
+		await clickModeToggle(page, 'reading'); // back to source
 		const replaceInput = page.getByRole('textbox', { name: 'Replace' });
 		await page.keyboard.press('ControlOrMeta+h'); // opens the bar, replace row expanded
 		await expect(replaceInput).toBeVisible();
 
 		// Reading mode disables replace (it is an edit), so the inert row must not linger.
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await expect(replaceInput).toBeHidden();
 
 		// Switching back restores it: the expanded state was kept, only hidden from view.
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await expect(replaceInput).toBeVisible();
 	});
 });
@@ -150,7 +144,7 @@ test.describe('reading mode: what stays live', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 	});
 
 	test('selection + copy yield the rendered text (markers excluded)', async ({ page }) => {
@@ -177,7 +171,7 @@ test.describe('reading mode: what stays live', () => {
 	});
 
 	test('toggling back to source restores editing', async ({ page }) => {
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await ep.clickBlock(1);
 		await ep.typeText('AGAIN');
 		await ep.bridge.waitForSourceContains('AGAIN');
@@ -190,7 +184,7 @@ test.describe('reading mode: what stays live', () => {
 		await page.keyboard.press('Enter');
 		// Back in source mode the blocks are editable, so the inert check stops applying: the last
 		// gesture here is a toggle click.
-		await toggleReadingMode(page);
+		await clickModeToggle(page, 'reading');
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});

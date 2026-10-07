@@ -55,12 +55,12 @@ test.describe('insertMarkdown: declines', () => {
 	test('reading mode declines; leaving it lets the same payload through', async () => {
 		await editor.loadContent('alpha\n');
 		await editor.focusBlockEnd(0);
-		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 
 		await expectDeclinedWithoutMutation();
 
 		// Reading clears the caret, so the control restores both the mode and a caret to insert at.
-		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('source'));
+		await editor.setPresentationMode('source');
 		await editor.focusBlockEnd(0);
 		await expectAccepted();
 	});

@@ -252,7 +252,7 @@ test.describe('selection: overlay: mid-text ends reach the line edges', () => {
 		['a quote line to a code block', [3, 0], 6, [4], 12]
 	];
 
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		for (const [name, startPath, startOffset, endPath, endOffset] of RANGES) {
 			test(`${mode}: ${name}`, async ({ page }) => {
 				const editor = new EditorPage(page);
@@ -350,7 +350,7 @@ test.describe('selection: overlay: an end paints its whole line, not its glyphs'
 		''
 	].join('\n');
 
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		test(`${mode}: a one-line end paints from its point to the line's edge, the line's full height`, async ({
 			page
 		}) => {

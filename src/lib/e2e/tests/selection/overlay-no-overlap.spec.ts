@@ -115,7 +115,7 @@ const RANGES: [string, string, number[], number, number[], number][] = [
 	['backward, from a list item up into a heading', KINDS, [2, 1, 0], 4, [0], 6]
 ];
 
-for (const mode of ['source', 'live']) {
+for (const mode of ['source', 'live'] as const) {
 	test.describe(`selection: overlay: no two painted rects overlap (${mode})`, () => {
 		let editor: EditorPage;
 

@@ -160,7 +160,7 @@ test.describe('decoration mark overlay', () => {
 
 		// Reading mode makes the text inert, with no caret, but a view-only decoration does not
 		// follow the caret: it must still paint over its range in the read-only view.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
 	});
 

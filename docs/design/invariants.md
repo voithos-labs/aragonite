@@ -1062,7 +1062,7 @@ backs it.
 
 The scans live in TWO homes, and the split decides which script runs one. Scans over the LIBRARY
 source live in `test/invariants/lint/` and ride `npm run test:editor:invariants`. Scans over the E2E
-TREE live in `e2e/lint/` (G4.22, G4.23, G4.49) and do **not** ride that script, which is
+TREE live in `e2e/lint/` (G4.22, G4.23, G4.49, G4.133) and do **not** ride that script, which is
 path-scoped; they ride `npm test` through vitest's second include glob, and you iterate on them with
 `npx vitest run src/lib/e2e/lint/` (same command in bash and PowerShell).
 
@@ -1185,6 +1185,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
+| G4.133 | An e2e spec switches the presentation mode only through a helper that waits for it        | L       |
 
 ### The entries
 
@@ -2351,6 +2352,16 @@ backslashes on Windows, and a glob reads a backslash as an escape, so `vite.conf
 `optimizeDeps.include` as well, so it doesn't rest on the scan following a lazy import.
 `lint/dev-prebundle.test.ts` resolves the dev config and fails when a scan glob matches no route
 file, or when a bare-package `import()` under `src/lib` or `src/routes` is missing from the list.
+
+**G4.133 · An e2e mode switch waits for the mode.** A mode the editor never applies leaves it in
+source mode, which paints every marker, so most live-mode assertions pass there too and a spec
+can go green without ever entering the mode it asked for. `EditorPage.goto` checks the mode its
+query names, `EditorPage.setPresentationMode` waits for the one it sets, and
+`src/lib/e2e/mode-switch.ts` holds the clicks (`clickModeToggle` for the test route's header
+checkboxes, `clickModeButton` for the showcase's and the changelog's buttons). Each waits on
+`data-presentation` on the editor root. `e2e/lint/mode-switch.test.ts` fails a bridge
+`setPresentationMode` call outside `editor-page.ts`, and any mention of a mode toggle or mode
+button outside `mode-switch.ts` and the two specs it allows by name.
 
 ## Accessibility
 

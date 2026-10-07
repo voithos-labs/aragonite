@@ -51,8 +51,9 @@ sequence.
   the widget handler sees it, and the rewrite is checked against the render path, so a splice that
   would change painted text is declined
   - Miss-analysis: these two rows opened the live URL and never checked the mode took. Source
-    mode writes the same bytes here, so they'd have passed with live mode off. `EditorPage.goto`
-    now checks the mode any URL names, for every spec.
+    mode writes the same bytes here, so they'd have passed with live mode off. Every way a spec
+    picks a mode checks it took: the URL `EditorPage.goto` loads, `EditorPage.setPresentationMode`,
+    and `clickModeToggle` for the header toggles.
 
 ## Edge cases
 

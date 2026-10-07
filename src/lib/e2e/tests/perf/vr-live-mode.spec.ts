@@ -12,6 +12,7 @@ import {
 	mountedTopLevelCount,
 	spacerCount
 } from './vr-helpers';
+import { clickModeToggle } from '../../mode-switch';
 
 // Live mode windows like every other presentation mode, and its blocks are the heavy ones
 // (highlighted code, rendered math), which is the argument for mounting only a few.
@@ -94,8 +95,7 @@ test.describe('with mounted blocks resizing at the flip', () => {
 		await editor.scrollEditorTo(WHEEL_TICKS * WHEEL_TICK_PX);
 		await expectBoundedWindow(page, blockCount, 'in source');
 
-		await page.getByTestId('live-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await clickModeToggle(page, 'live');
 		await editor.waitForRenderFlush();
 
 		await expectBoundedWindow(page, blockCount, 'in live');

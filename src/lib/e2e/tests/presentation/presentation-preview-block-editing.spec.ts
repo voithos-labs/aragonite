@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
+import { clickModeToggle } from '../../mode-switch';
 
 // preview-block is an editing mode: no edit path is blocked, and the focus mark follows the
 // caret through structural edits. Rendering lives in presentation-preview-block.spec.ts.
@@ -16,8 +17,6 @@ const DOC = [
 	'- [ ] a task'
 ].join('\n');
 
-const togglePreview = (page: Page) => page.getByTestId('preview-block-toggle').click();
-const toggleReading = (page: Page) => page.getByTestId('presentation-toggle').click();
 const hostAt = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='${JSON.stringify(path)}']`);
 
@@ -28,7 +27,7 @@ test.describe('preview-block, editing stays live', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreview(page);
+		await clickModeToggle(page, 'preview-block');
 	});
 
 	test('typing commits and the document round-trips', async ({ page }) => {
@@ -82,7 +81,7 @@ test.describe('preview-block: selection, search, mode flips', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreview(page);
+		await clickModeToggle(page, 'preview-block');
 	});
 
 	test('cross-block selection paints over a marker-hidden block', async ({ page }) => {
@@ -106,12 +105,9 @@ test.describe('preview-block: selection, search, mode flips', () => {
 
 	test('preview-block ↔ reading ↔ source is byte-stable', async ({ page }) => {
 		const before = await ep.bridge.getSource();
-		await toggleReading(page); // preview-block → reading
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
-		await toggleReading(page); // reading → source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
-		await togglePreview(page); // source → preview-block
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
+		await clickModeToggle(page, 'reading'); // preview-block → reading
+		await clickModeToggle(page, 'reading'); // reading → source
+		await clickModeToggle(page, 'preview-block'); // source → preview-block
 		// A toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
@@ -120,17 +116,17 @@ test.describe('preview-block: selection, search, mode flips', () => {
 	test('flipping to reading clears the focus mark', async ({ page }) => {
 		await ep.clickBlock(1);
 		await expect(hostAt(page, [1])).toHaveAttribute('data-focused', '');
-		await toggleReading(page); // reading blurs the active element
+		await clickModeToggle(page, 'reading'); // reading blurs the active element
 		await expect(page.locator('[data-focused]')).toHaveCount(0);
 	});
 
 	test('flipping the prop into preview-block marks the already-focused block', async ({ page }) => {
 		// The header toggles blur the editor, clearing the mark through focusout; a consumer setting
 		// the prop keeps focus, and this test drives that path directly.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
+		await ep.setPresentationMode('source');
 		await ep.clickBlock(1);
 		await expect(hostAt(page, [1])).not.toHaveAttribute('data-focused');
-		await page.evaluate(() => (window as any).__test.setPresentationMode('preview-block'));
+		await ep.setPresentationMode('preview-block');
 		await ep.waitForRenderFlush();
 		await expect(hostAt(page, [1])).toHaveAttribute('data-focused', '');
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

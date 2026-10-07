@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset } from './helpers';
+import { clickModeToggle, type ToggledMode } from '../../mode-switch';
 
 // A mode change puts the caret back but writes no scroll position: the restore just mounts the
 // block, the same path an undo swap already takes. Requirements:
@@ -27,11 +28,8 @@ async function scrollTop(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelector('.editor')!.scrollTop);
 }
 
-/** Click `testid` and wait for the mode the toggle switches to, or back to source. */
-async function flipTo(ep: EditorPage, page: Page, testid: string, mode?: string): Promise<void> {
-	await page.getByTestId(testid).click();
-	if (mode) await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode);
-	else await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+async function flipTo(ep: EditorPage, page: Page, mode: ToggledMode): Promise<void> {
+	await clickModeToggle(page, mode);
 	await ep.waitForRenderFlush();
 }
 
@@ -77,33 +75,27 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 		const parked = await scrollTop(page);
 		expect(parked, 'the fixture must be tall enough to scroll').toBeGreaterThan(100);
 
-		await flipTo(ep, page, 'presentation-toggle', 'reading');
+		await flipTo(ep, page, 'reading');
 		expect(await scrollTop(page)).toBeCloseTo(parked, 0);
 
-		await flipTo(ep, page, 'presentation-toggle');
+		await flipTo(ep, page, 'reading');
 		// Non-vacuity: a mode change that restored nothing would hold the scroll trivially.
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await scrollTop(page)).toBeCloseTo(parked, 0);
 	});
 
-	const EDITABLE_RUNGS = [
-		['preview-block', 'preview-block-toggle'],
-		['preview-inline', 'preview-inline-toggle'],
-		['live', 'live-toggle']
-	] as const;
-
-	for (const [mode, testid] of EDITABLE_RUNGS) {
+	for (const mode of ['preview-block', 'preview-inline', 'live'] as const) {
 		test(`the ${mode} round trip holds the scroll`, async ({ page }) => {
 			const ep = await enterPresentationMode(page, 'source', TALL);
 			await clickBlockSettled(ep, 1);
 			await ep.scrollEditorTo(PARKED);
 			const parked = await scrollTop(page);
 
-			await flipTo(ep, page, testid, mode);
+			await flipTo(ep, page, mode);
 			await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 			expect(await scrollTop(page), `into ${mode}`).toBeCloseTo(parked, 0);
 
-			await flipTo(ep, page, testid);
+			await flipTo(ep, page, mode);
 			await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 			expect(await scrollTop(page), `out of ${mode}`).toBeCloseTo(parked, 0);
 		});
@@ -118,12 +110,12 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 		const pinned = { mounted: true, aboveViewport: true };
 		expect(await caretBlockPlacement(page), 'held still, caret block out of sight').toEqual(pinned);
 
-		await flipTo(ep, page, 'live-toggle', 'live');
+		await flipTo(ep, page, 'live');
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await caretBlockPlacement(page), 'into live').toEqual(pinned);
 		expect(await scrollTop(page), 'into live').toBeCloseTo(parked, 0);
 
-		await flipTo(ep, page, 'live-toggle');
+		await flipTo(ep, page, 'live');
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await caretBlockPlacement(page), 'out of live').toEqual(pinned);
 		expect(await scrollTop(page), 'out of live').toBeCloseTo(parked, 0);
@@ -140,7 +132,7 @@ test.describe('mode flips: the scrollport stays where the reader left it', () =>
 			const before = await topVisibleHost(page);
 			expect(before, 'a block is in view').not.toBeNull();
 
-			await flipTo(ep, page, 'live-toggle', 'live');
+			await flipTo(ep, page, 'live');
 			const after = await topVisibleHost(page);
 			expect(after?.path, 'the same block leads the viewport').toBe(before!.path);
 			// One tolerance, not one per fence: each correction is a fraction of a pixel, and the

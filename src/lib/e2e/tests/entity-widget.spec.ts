@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 import { textOutsideMarkers } from '../text-runs';
+import { clickModeToggle } from '../mode-switch';
 
 // The decoded-entity widget (requirements/entity-widget.md). `&copy;` renders as a
 // `[data-inline-widget]` showing ©, with the raw bytes on its data-source attributes; the delete
@@ -135,8 +136,7 @@ test.describe('decoded-entity atomic widget', () => {
 
 	test('reading mode still renders the glyph', async ({ page }) => {
 		await editor.loadContent('a&copy;b\n');
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 		await expect(glyph(page)).toHaveText('©');
 	});
 

@@ -14,8 +14,7 @@ test('Backspace over a selection from inside bold out of the callout leaves no s
 	const ep = new PluginsPage(page);
 	await ep.gotoPlugins();
 	await ep.loadContent(DOC);
-	await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+	await ep.setPresentationMode('live');
 
 	await clickWordSettled(ep, page, 'bold');
 	await landAt(ep, page, 9);

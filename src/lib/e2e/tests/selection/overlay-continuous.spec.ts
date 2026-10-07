@@ -35,7 +35,7 @@ const RANGES: [string, string, number[], number, number[], number][] = [
 	['a heading into a padded code block', CODE, [0], 6, [1], 12]
 ];
 
-for (const mode of ['source', 'live']) {
+for (const mode of ['source', 'live'] as const) {
 	test.describe(`selection: overlay: one continuous region (${mode})`, () => {
 		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of RANGES) {
 			test(name, async ({ page }) => {
@@ -88,7 +88,7 @@ const WIDE: [string, string, number[], number, number[], number][] = [
 	['from a mid nested list item, its indent and markers', NESTED, [0, 0, 1, 0, 0], 3, [1], 3]
 ];
 
-for (const mode of ['source', 'live']) {
+for (const mode of ['source', 'live'] as const) {
 	test.describe(`selection: overlay: every middle line spans the column (${mode})`, () => {
 		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of WIDE) {
 			test(name, async ({ page }) => {

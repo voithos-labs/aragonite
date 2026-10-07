@@ -570,6 +570,12 @@ compile for it. Every route that mounts an editor already sets `__parityDocument
 usual value. If the specs read a global the route sets for them (`__syntax`, say), that one goes in
 instead.
 
+To switch the presentation mode, call `editor.setPresentationMode(mode)`, or click the header
+toggle with `clickModeToggle(page, mode)` from `src/lib/e2e/mode-switch.ts` (the showcase's and
+the changelog's buttons take `clickModeButton`). Each one waits until the editor shows the mode.
+A mode that never applied leaves you in source mode, where most live-mode assertions pass anyway,
+so a raw bridge call or toggle click fails `src/lib/e2e/lint/mode-switch.test.ts`.
+
 ### Patterns and gotchas
 
 **Pace per-character typing with a state settle.** Two input helpers coexist.

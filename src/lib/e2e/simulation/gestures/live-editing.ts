@@ -1,5 +1,6 @@
 import { actThenResync, settleTypedSource, type SimContext } from '../invariants';
 import { textRunCenter, textRunEnd } from '../../text-runs';
+import { clickModeToggle } from '../../mode-switch';
 
 /**
  * Live-mode editing gestures. Each switches into live mode through the header toggle, drives one
@@ -34,15 +35,11 @@ async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<vo
 	// exactly that rather than reaching back into whatever was typed before.
 	await editor.waitForUndoBatchFlush();
 	const before = await editor.bridge.getSource();
-	const toggle = page.getByTestId('live-toggle');
-
-	await toggle.click();
-	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 5000 });
+	await clickModeToggle(page, 'live');
 	try {
 		await run();
 	} finally {
-		await toggle.click();
-		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
+		await clickModeToggle(page, 'live');
 	}
 	await editor.bridge.waitForSourceEquals(before, 3000);
 	tracker.resync(before);
