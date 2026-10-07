@@ -30,7 +30,7 @@ presentation mode, so live and source behave alike here.
   "Given child" means the CST node, so a child the editor made again (typing content and
   deleting it back to empty) treats its next space as a completion once more: a bare `>` line
   always reads the same way. The middle position and the refusal on the second space are
-  pinned at the dispatcher (`test/blocks/text/edge-policy-marker-completion.test.ts`); the
+  pinned at the dispatcher (`test/blocks/text/edge-policy-typing.test.ts`); the
   bytes those keypresses leave are pinned at
   `test/blocks/blockquote/blockquote-leading-space.test.ts`
 - A space at offset 0 of a quote child that is not empty is ordinary content: `> abc` becomes

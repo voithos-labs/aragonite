@@ -38,7 +38,7 @@ leaves. The cross-block code addresses the survivor by path.
   the single-block branch, which honours the caret held when the paste fired.
 - Mirror of the above: a cross-block selection collapsed before the import lands falls
   through to the single-block path and inserts at the caret captured at paste time.
-  Pinned by `test/blocks/editable-surface-image-paste.test.ts`.
+  Pinned by `test/blocks/editable-surface-clipboard.test.ts`.
 - At the editor root there is no single-block path to fall through to: a selection
   collapsed while the import was in progress leaves the imported markdown with nowhere
   to land, and the editor reports it on the `error` channel (`origin: 'clipboard'`) so
