@@ -95,6 +95,8 @@ test.describe('live mode: a new pair keeps every word typed into it', () => {
 			await atLineEnd(ep, page);
 			await page.keyboard.type(' **two');
 			await pasteText(ep, ' ');
+			// Read before the word, which would pull a space written inside back in either way.
+			await ep.bridge.waitForSourceContains('a **two** ');
 			await pasteText(ep, 'words');
 			await ep.bridge.waitForSourceContains('a **two words**');
 		});
