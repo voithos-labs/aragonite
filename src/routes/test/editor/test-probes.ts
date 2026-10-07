@@ -87,6 +87,8 @@ interface ConformanceSweepEntry {
 	// Taken from the fixture's first text leaf, so a match can only come from this block; null
 	// when the block has no searchable text.
 	token: string | null;
+	/** Focused as one unit, so arrival puts DOM focus on the block's hidden editing host. */
+	wholeBlock: boolean;
 	cells: {
 		focus: { mode: string };
 		selectionPaint: { mode: string };
@@ -129,6 +131,7 @@ function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[
 			kind,
 			fixture,
 			token: node ? firstTextLeafToken(node) : null,
+			wholeBlock: descriptor.blockFocus === 'whole-block',
 			cells: {
 				focus: { mode: descriptor.closure.focus.mode },
 				selectionPaint: { mode: descriptor.closure.selectionPaint.mode },
