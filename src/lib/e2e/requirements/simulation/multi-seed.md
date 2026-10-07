@@ -1,12 +1,20 @@
 # Feature: Note-Taking Simulation, Multi-Seed Fuzz
 
 Fuzzes the typo / detour / undo interleavings of a full authoring session by
-running one representative note (meeting minutes) through `runSession` across many
-seeds. The seed fully determines every random draw, so each seed is a distinct,
-replayable interleaving. Runs ungated in the default simulation project:
-`capture:false` (checks only, no screenshots) keeps it fast, and only the capture
-suites stay behind `SIM_CAPTURE`. One test per seed, so failures isolate and runs go
-in parallel.
+running one representative note (meeting minutes) through `runSession` across a
+handful of seeds. The seed fully determines every random draw, so each seed is a
+distinct, replayable interleaving. The seeds aren't random picks: together they draw
+every detour and every choice inside one (each way to build a range, each way to
+destroy it, each presentation mode, each interrupting gesture the note can reach).
+`src/lib/test/simulation/seed-coverage.test.ts` replays their draws without a browser
+and goes red if a change to the draw order drops one, so the claims below stay true.
+Runs ungated in the default simulation project: `capture:false` (checks only, no
+screenshots) keeps it fast, and only the capture suites stay behind `SIM_CAPTURE`. One
+test per seed, so failures isolate and runs go in parallel.
+
+Miss-analysis: the old eight seeds were never replayed, so nobody saw that none of them
+drew Delete, type-over or paste-over as the destroy, Shift+Click as the build, or the
+margin click as the interrupt, while the bullets below said they all happen mid-session.
 
 ## Happy paths
 
@@ -48,9 +56,9 @@ in parallel.
 
 ## History
 
-- whole-session undo unwind (one seed): after the build, undoing the entire stack to
-  the bottom reaches the session's initial source byte-exact, and redoing to the top
-  reconstructs the built note
+- whole-session undo unwind (the first seed): after the build, undoing the entire stack
+  to the bottom reaches the session's initial source (an empty
+  document) byte-exact, and redoing to the top reconstructs the built note
 - selection validity after structural gestures: both selection endpoints resolve to
   live nodes with leaf offsets within raw length, checked at each checkpoint and after
   every cross-block / merge destruction

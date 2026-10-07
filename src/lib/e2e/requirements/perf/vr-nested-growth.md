@@ -38,8 +38,9 @@ host scrolling at all.
 The container holds the viewport's top here: the image is child 1 and the
 top sits inside child 6. The reference is root block 32, below the container,
 wherever it's on screen, else child 6's first block. Every row runs with the
-editor scrolling itself and with the page scrolling, and every row expects one
-scroll write.
+editor scrolling itself, and three of them (the 10-item list with the caret, the
+40-paragraph blockquote and the quoted list) run again with the page scrolling,
+one of each container shape. Every row expects one scroll write.
 
 - a 10-item list, the caret clicked into root block 32: root block 32 moves by
   at most 1px (red before the fix: +900, none; red on the first cut of this
@@ -56,8 +57,8 @@ scroll write.
   throughout, kept as the case where the container outlasts the growth)
 - a 10-item list inside a blockquote, no caret: root block 32 moves by at most
   1px (red before the fix: +900, none)
-- the 10-child rows with the page scrolling: no ResizeObserver loop error
-  (red on the second cut of this slice, whose resize callback also scrolled)
+- the 10-child rows that run with the page scrolling: no ResizeObserver loop
+  error (red on the second cut of this slice, whose resize callback also scrolled)
 
 ## Error cases
 

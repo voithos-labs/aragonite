@@ -1,4 +1,6 @@
 import type { Rng } from './rng';
+import { drawTypo } from './typos';
+import type { FlipMode } from './detour-plan';
 import { type SimContext, assertFocusBlock, settleTypedSource } from './invariants';
 import {
 	applyBold,
@@ -170,9 +172,8 @@ export class Gestures {
 			);
 		}
 		for (const ch of text) {
-			if (this.typoRate > 0 && isLetter(ch) && this.rng.chance(this.typoRate)) {
-				await this.injectCancellingTypo(ch);
-			}
+			const typo = drawTypo(this.rng, this.typoRate, ch);
+			if (typo !== null) await this.injectCancellingTypo(typo);
 			await editor.typeSlowly(ch);
 			await settleTypedSource(this.ctx, tracker.appendChar(ch));
 		}
@@ -593,9 +594,7 @@ export class Gestures {
 	// ── Presentation ────────────────────────────────────────────────────────────
 
 	/** Switches to `mode` and back mid-session; the note must come back byte for byte. */
-	flipPresentationMode(
-		mode: 'reading' | 'preview-block' | 'preview-inline' | 'live'
-	): Promise<void> {
+	flipPresentationMode(mode: FlipMode): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
 	}
 
@@ -767,35 +766,12 @@ export class Gestures {
 
 	// ── Internal ────────────────────────────────────────────────────────────────
 
-	/** A neighbouring key typed by mistake and backspaced out, leaving the bytes unchanged. */
-	private async injectCancellingTypo(intended: string): Promise<void> {
+	/** A wrong key typed and backspaced out, leaving the bytes unchanged. */
+	private async injectCancellingTypo(wrong: string): Promise<void> {
 		const { editor, tracker } = this.ctx;
-		const wrong = neighborKey(intended, this.rng);
 		await editor.typeSlowly(wrong);
 		await settleTypedSource(this.ctx, tracker.appendChar(wrong));
 		await editor.page.keyboard.press('Backspace');
 		await settleTypedSource(this.ctx, tracker.backspaceAtEnd());
 	}
-}
-
-const KEY_NEIGHBORS: Record<string, string> = {
-	a: 's',
-	e: 'r',
-	i: 'o',
-	o: 'i',
-	n: 'm',
-	t: 'y',
-	s: 'a',
-	r: 'e'
-};
-
-function neighborKey(ch: string, rng: Rng): string {
-	const lower = ch.toLowerCase();
-	const neighbor = KEY_NEIGHBORS[lower];
-	if (neighbor) return ch === lower ? neighbor : neighbor.toUpperCase();
-	return rng.pick(['x', 'z', 'q'] as const);
-}
-
-function isLetter(ch: string): boolean {
-	return /[a-z]/i.test(ch);
 }

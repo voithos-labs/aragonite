@@ -7,6 +7,7 @@
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { percentileMs } from './latency-harness';
+import { editorScrollTop } from './vr-helpers';
 
 // ── The in-page probe ───────────────────────────────────────────────────────
 
@@ -112,10 +113,6 @@ async function drainProbe(page: Page): Promise<Omit<TickSample, 'scrolled' | 'se
 		(window as any).__test?.perf.reset();
 		return out;
 	});
-}
-
-function editorScrollTop(page: Page): Promise<number> {
-	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
 /** The scroll has not moved for two frames; a smooth wheel scroll animates over several. */

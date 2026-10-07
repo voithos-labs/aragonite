@@ -7,6 +7,7 @@ import {
 	MAX_UNMOUNTED_EDGE_FRACTION,
 	TOP_LEVEL_HOSTS,
 	cstBlockCount,
+	editorScrollTop,
 	mountedViewportSpan,
 	mountedTopLevelCount,
 	spacerCount
@@ -36,12 +37,8 @@ const HEAVY = Array.from({ length: SECTIONS }, (_, i) =>
 // The ceiling on mounted blocks every windowing case shares; the check on how far they reach
 // keeps it from being met by mounting nothing.
 const MOUNTED_CEILING = 60;
-const WHEEL_TICKS = 40;
+const WHEEL_TICKS = 20;
 const WHEEL_TICK_PX = 240;
-
-async function editorScrollTop(page: Page): Promise<number> {
-	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
-}
 
 async function expectBoundedWindow(page: Page, blockCount: number, when: string): Promise<void> {
 	const mounted = await mountedTopLevelCount(page);

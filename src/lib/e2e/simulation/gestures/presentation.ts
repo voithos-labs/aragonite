@@ -1,10 +1,5 @@
 import type { SimContext } from '../invariants';
-
-/**
- * The check that the mode prop changes no bytes: the source must come back unchanged from a switch
- * out and back, whatever state the editor was in.
- */
-type FlipMode = 'reading' | 'preview-block' | 'preview-inline' | 'live';
+import type { FlipMode } from '../detour-plan';
 
 const TOGGLE_TESTID: Record<FlipMode, string> = {
 	reading: 'presentation-toggle',
@@ -13,6 +8,10 @@ const TOGGLE_TESTID: Record<FlipMode, string> = {
 	live: 'live-toggle'
 };
 
+/**
+ * The check that the mode prop changes no bytes: the source must come back unchanged from a switch
+ * out and back, whatever state the editor was in.
+ */
 export async function flipPresentationMode(ctx: SimContext, mode: FlipMode): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();

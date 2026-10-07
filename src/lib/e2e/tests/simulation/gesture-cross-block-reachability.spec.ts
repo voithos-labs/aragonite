@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { SimContext } from '../../simulation/invariants';
-import { makeSimContext } from './helpers';
+import { loadFresh, makeSimContext } from './helpers';
 import { attachIme } from '../../simulation/ime';
 import {
 	composeOverSelection,
@@ -15,9 +15,9 @@ import {
 	typeOverSelection
 } from '../../simulation/gestures/cross-block';
 
-// Each case checks that the risky state the gesture is meant to reach really happened, since a
+// Each step checks that the risky state the gesture is meant to reach really happened, since a
 // range that quietly stayed inside one block would be an invisible hole in the coverage. The
-// last case shows the gesture's own check fails loudly.
+// last step shows the gesture's own check fails loudly.
 
 function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
@@ -32,33 +32,28 @@ async function selectAcrossContent(page: Page, editor: EditorPage): Promise<SimC
 	return ctx;
 }
 
-test.describe('sim gesture reachability: cross-block', () => {
-	let editor: EditorPage;
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
+test('sim gesture reachability: every cross-block build and destroy engages, and a stuck build fails loudly', async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
 
-	// ── Build engagement ──────────────────────────────────────────────────────
-
-	test('Shift+ArrowDown engages a real cross-block selection', async ({ page }) => {
-		await editor.loadContent('alpha\n\nbeta\n');
+	await test.step('Shift+ArrowDown engages a real cross-block selection', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n');
 		await editor.focusBlockStart(0);
 		await extendSelectionAcross(await makeCtx(page, editor), 'down');
 		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 	});
 
-	test('Shift+Click into another block engages cross-block', async ({ page }) => {
-		await editor.loadContent('alpha\n\nbeta\n');
+	await test.step('Shift+Click into another block engages cross-block', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n');
 		await editor.focusBlockAtPath([0], 2);
 		await shiftClickAcross(await makeCtx(page, editor), [1], 2);
 		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 	});
 
-	test('double select-all escalates to a whole-document cross-block selection', async ({
-		page
-	}) => {
-		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+	await test.step('double select-all escalates to a whole-document cross-block selection', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n\ngamma\n');
 		await editor.focusBlockStart(1);
 		await selectWholeDocument(await makeCtx(page, editor));
 		const paths = await editor.bridge.getSelectionPaths();
@@ -66,11 +61,9 @@ test.describe('sim gesture reachability: cross-block', () => {
 		expect(paths!.focus.path[0]).toBe(2);
 	});
 
-	// ── Deleting over the covered text ────────────────────────────────────────
-
 	for (const key of ['Backspace', 'Delete'] as const) {
-		test(`${key} deletes the covered cross-block content`, async ({ page }) => {
-			await editor.loadContent('alpha\n\nbeta\n');
+		await test.step(`${key} deletes the covered cross-block content`, async () => {
+			await loadFresh(editor, 'alpha\n\nbeta\n');
 			const ctx = await selectAcrossContent(page, editor);
 			await deleteSelection(ctx, key);
 			const source = await editor.bridge.getSource();
@@ -80,8 +73,8 @@ test.describe('sim gesture reachability: cross-block', () => {
 		});
 	}
 
-	test('Cut removes the covered cross-block content', async ({ page }) => {
-		await editor.loadContent('alpha\n\nbeta\n');
+	await test.step('Cut removes the covered cross-block content', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n');
 		const ctx = await selectAcrossContent(page, editor);
 		await cutSelection(ctx);
 		const source = await editor.bridge.getSource();
@@ -90,8 +83,8 @@ test.describe('sim gesture reachability: cross-block', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
-	test('type-over replaces the covered cross-block content', async ({ page }) => {
-		await editor.loadContent('alpha\n\nbeta\n');
+	await test.step('type-over replaces the covered cross-block content', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n');
 		const ctx = await selectAcrossContent(page, editor);
 		await typeOverSelection(ctx, 'Z');
 		const source = await editor.bridge.getSource();
@@ -99,10 +92,8 @@ test.describe('sim gesture reachability: cross-block', () => {
 		expect(source).toContain('Z');
 	});
 
-	test('a composition over the range replaces the covered content in one undo entry', async ({
-		page
-	}) => {
-		await editor.loadContent('alpha\n\nbeta\n');
+	await test.step('a composition over the range replaces the covered content in one undo entry', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n');
 		await editor.focusBlockAtPath([0], 2);
 		const ctx = await makeSimContext(page, editor, 'reach', { ime: await attachIme(page) });
 		// By keyboard, so the caret stays in the first block, the one the removal keeps.
@@ -116,8 +107,8 @@ test.describe('sim gesture reachability: cross-block', () => {
 		await editor.bridge.waitForSourceEquals('alpha\n\nbeta\n');
 	});
 
-	test('paste-over replaces the covered content with the clipboard', async ({ page }) => {
-		await editor.loadContent('alpha\n\nbeta\n\nCLIP\n');
+	await test.step('paste-over replaces the covered content with the clipboard', async () => {
+		await loadFresh(editor, 'alpha\n\nbeta\n\nCLIP\n');
 		await editor.focusBlockAtPath([2], 0);
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('ControlOrMeta+c');
@@ -126,13 +117,12 @@ test.describe('sim gesture reachability: cross-block', () => {
 		await pasteOverSelection(ctx);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('pha');
-		expect(source).toContain('CLIP');
+		// The fixture's own third block is `CLIP`, so only the joined line shows a paste landed.
+		expect(source).toContain('alCLIPta');
 	});
 
-	// ── The check that fires when nothing happened ────────────────────────────
-
-	test('a build that cannot cross fails loudly (single-block document)', async ({ page }) => {
-		await editor.loadContent('lonely\n');
+	await test.step('a build that cannot cross fails loudly (single-block document)', async () => {
+		await loadFresh(editor, 'lonely\n');
 		await editor.focusBlockEnd(0);
 		await expect(extendSelectionAcross(await makeCtx(page, editor), 'down')).rejects.toThrow(
 			/did not engage/
