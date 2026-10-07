@@ -21,6 +21,8 @@ is driven directly against a controlled fixture.
 - Cut collapses the range and removes the covered text
 - type-over collapses the range and inserts the typed character
 - paste-over collapses the range and replaces it with the clipboard's contents
+- an IME composition over the range replaces the covered text with the composed text,
+  and one Ctrl+Z brings the source back
 
 ## Error cases
 

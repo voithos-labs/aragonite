@@ -41,3 +41,10 @@ export async function topLevelIndexOf(page: Page, kind: string): Promise<number>
 		kind
 	);
 }
+
+// Through an empty document first: the harness ignores a source equal to the last one it loaded,
+// even after edits, so a step reloading its fixture would otherwise keep the step before's document.
+export async function loadFresh(editor: EditorPage, source: string): Promise<void> {
+	await editor.loadContent('');
+	await editor.loadContent(source);
+}
