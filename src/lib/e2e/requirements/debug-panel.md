@@ -8,7 +8,6 @@
 - Reload with the panel closed: panel is still closed.
 - Copy-all button writes a fenced markdown blob to the clipboard containing every section's text.
 - Raw-source section is read-only (no textarea): setting the editor's `source` prop re-initializes the editor and wipes undo, selection and CST, so a repro-paste goes through `window.__test.setSource(md)` from DevTools.
-- `serializeDiagnostics()` omits the document body by default and carries it only under `{ includeSource: true }`, which adds the Source section.
 
 ## User interactions
 
@@ -23,3 +22,7 @@
 - Hotkey pressed while focus is in the editor (contenteditable): panel still toggles; editor does not receive a 'D' character.
 - Panel opens with every section rendering in document order and the CST tree section populated for the default document.
 - The inline tree populates whether the block gains focus before or after the section expands.
+
+## Pinned below the browser
+
+- `serializeDiagnostics()` omits the document body by default and carries it only under `{ includeSource: true }`, which adds the Source section (`editor-diagnostics.test.ts`).

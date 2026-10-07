@@ -326,11 +326,11 @@ $ npm run test:e2e:isolated -- --project=e2e-top smoke.spec.ts
 [WebServer] > vite dev --port 1430 --strictPort
 [WebServer]   ➜  Local:   http://localhost:1430/
 
-Running 6 tests using 1 worker
+Running 1 test using 1 worker
 
-  ✓  1 [e2e-top] › src\lib\e2e\tests\smoke.spec.ts:13:2 › editor smoke tests › editor container is visible after goto (3.2s)
-  ...
-  6 passed (7.5s)
+  ✓  1 [e2e-top] › src\lib\e2e\tests\smoke.spec.ts:6:2 › editor smoke tests › the editor mounts, the bridge answers, and loadContent replaces the document (3.9s)
+
+  1 passed (5.1s)
 ```
 
 (`scripts/run-with-env.mjs` is what sets the variable, since `KEY=1 cmd` doesn't work in a

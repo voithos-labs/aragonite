@@ -68,7 +68,9 @@ test.describe('the page object caret helpers', () => {
 		await editor.focusBlockEnd(0);
 		expect((await readCaret(editor)).editor).toEqual({ path: [0, 1, 1], offset: 2 });
 	});
+});
 
+test.describe('the page object caret helper beside an inline widget', () => {
 	test('focusBlockAtPath counts an inline widget by its raw bytes, not its glyph', async ({
 		page
 	}) => {

@@ -4,15 +4,12 @@ Undo and redo for structural and text operations.
 
 ## Happy paths
 
-- undo reverts a split: Enter then Ctrl+Z restores single block
-- redo restores a split: undo then Ctrl+Shift+Z re-applies the split
-- undo reverts typed text: type text, wait for debounce (~600ms), undo removes the typed text
+Undo reverting a split, a burst of typed text after the debounce, and redo restoring a split are walked by `undo-typing-structural.spec.ts` (type, split, type, then undo three times) and by the redo row in `text-editing/break-over-selection.spec.ts`.
 
 ## Edge cases
 
 - undo reverts a merge: Backspace merge then undo restores both original blocks
 - undo across a prose to non-prose kind change restores the rendered DOM, not just the CST: typing to turn a paragraph into an `htmlBlock` (DOM already carries the character) then undo must repaint the block to the CST; the next keystroke must not commit the undone byte back
-- undo on empty stack: Ctrl+Z when nothing to undo does not crash or corrupt state
 
 ## Undo brings an off-screen caret into view
 

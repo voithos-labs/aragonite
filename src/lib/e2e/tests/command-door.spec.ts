@@ -1,17 +1,18 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { nextRow } from './presentation/helpers';
 import type { KeybindingOverride } from '../../schema/keybinding-overrides';
 
 // editor.runCommand(): the public call a selection toolbar makes
 // (`requirements/command-door.md`). Selections are built with real gestures; the call itself is
 // programmatic, because that call is exactly what a toolbar button holds.
 
-const TOGGLES = [
-	['format.toggleStrong', 'Hello **world**'],
-	['format.toggleEmphasis', 'Hello *world*'],
-	['format.toggleStrikethrough', 'Hello ~~world~~'],
-	['format.toggleCode', 'Hello `world`']
-] as const;
+const FORMAT_IDS = [
+	'format.toggleStrong',
+	'format.toggleEmphasis',
+	'format.toggleStrikethrough',
+	'format.toggleCode'
+];
 
 test.describe('runCommand: the semantic command entry point', () => {
 	let editor: EditorPage;
@@ -34,20 +35,6 @@ test.describe('runCommand: the semantic command entry point', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 	});
-
-	for (const [commandId, expected] of TOGGLES) {
-		test(`${commandId} wraps the selected word, and one undo restores it`, async () => {
-			await editor.loadContent('Hello world\n');
-			const before = await editor.bridge.getSource();
-			await selectWorld();
-
-			expect(await run(commandId)).toBe(true);
-			await editor.bridge.waitForSourceContains(expected);
-
-			await editor.undo();
-			await editor.bridge.waitForSourceEquals(before);
-		});
-	}
 
 	test('the entry point and the chord write the same bytes over the same selection', async () => {
 		await editor.loadContent('Hello world\n');
@@ -94,39 +81,31 @@ test.describe('runCommand: the semantic command entry point', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// The card belongs to live mode alone; every other mode already shows the destination bytes.
-	test('the link-edit id opens the card Mod+K opens', async () => {
-		await editor.goto('?presentationMode=live');
-		await editor.loadContent('Hello world\n');
-		await selectWorld();
-
-		expect(await run('link.openCard')).toBe(true);
-		await expect(editor.page.locator('[data-link-card]')).toBeVisible();
-	});
-
-	test('a collapsed caret takes the toggle: the pair lands where the caret stood', async () => {
-		await editor.loadContent('Hello world\n');
-		await editor.focusBlock(0, 'Hello '.length);
-
-		expect(await run('format.toggleStrong')).toBe(true);
-		await editor.bridge.waitForSourceContains('Hello ****world');
-	});
-
-	// Live mode shows no delimiters, so the mark waits for the next typed text instead of writing an
-	// invisible pair; either way the command reports the click handled, for the toolbar's sake.
-	test('a collapsed caret in live mode pends the mark instead of writing a pair', async () => {
+	// Live mode shows no delimiters, so a collapsed caret pends the mark instead of writing an
+	// invisible pair, and the link card exists in live mode alone.
+	test('in live mode a collapsed caret pends the mark, and the link-edit id opens the card', async () => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('Hello world\n');
 		const before = await editor.bridge.getSource();
 		await editor.focusBlock(0, 'Hello '.length);
 
-		expect(await run('format.toggleStrong')).toBe(true);
-		// The `runCommand` call, with no keystroke behind it.
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe(before);
+		await test.step('a collapsed caret pends the mark instead of writing a pair', async () => {
+			expect(await run('format.toggleStrong')).toBe(true);
+			// The `runCommand` call, with no keystroke behind it.
+			await editor.waitForNoSourceMutation();
+			expect(await editor.bridge.getSource()).toBe(before);
 
-		await editor.page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('**X**');
+			await editor.page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('**X**');
+		});
+
+		await test.step('the link-edit id opens the card Mod+K opens', async () => {
+			await nextRow(editor, 'Hello world\n');
+			await selectWorld();
+
+			expect(await run('link.openCard')).toBe(true);
+			await expect(editor.page.locator('[data-link-card]')).toBeVisible();
+		});
 	});
 
 	test('a table cell takes the entry point through its published ref slot', async () => {
@@ -158,20 +137,6 @@ test.describe('runCommand: the semantic command entry point', () => {
 		await editor.bridge.waitForSourceEquals(before, 3000);
 	});
 
-	test('the link editor is the one range command the entry point still declines', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-		const before = await editor.bridge.getSource();
-
-		await editor.focusBlock(0, 'alp'.length);
-		await editor.shiftClickBlock([1], 'be'.length);
-		await editor.waitForCrossBlock(true);
-
-		expect(await run('link.openCard')).toBe(false);
-		// The `runCommand` call, with no keystroke behind it.
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe(before);
-	});
-
 	// A caret in a gap focuses a hidden host, not a block, so every block-local command declines.
 	// Nested, since a gap at the root resolves to no path anyway.
 	test('a gap caret declines every block-local id and keeps the gap', async () => {
@@ -182,42 +147,11 @@ test.describe('runCommand: the semantic command entry point', () => {
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForGapCaret(atQuoteEnd);
 
-		for (const [commandId] of TOGGLES) expect(await run(commandId)).toBe(false);
+		for (const commandId of FORMAT_IDS) expect(await run(commandId)).toBe(false);
 
 		// The `runCommand` call, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(quotedFence);
 		expect(await editor.bridge.getGapCaret()).toEqual(atQuoteEnd);
-	});
-
-	// A key that does nothing quietly looks the same as one that worked, so what the dispatch
-	// reports is the other half of this check.
-	test.describe('an unknown id', () => {
-		test.use({ expectWarns: ['commands'] });
-
-		test('declines and mutates nothing', async () => {
-			await editor.loadContent('Hello world\n');
-			const before = await editor.bridge.getSource();
-			await selectWorld();
-
-			expect(await run('format.toggleRainbow')).toBe(false);
-			// The `runCommand` call, with no keystroke behind it.
-			await editor.waitForNoSourceMutation();
-			expect(await editor.bridge.getSource()).toBe(before);
-		});
-	});
-
-	test('reading mode declines every published id', async () => {
-		await editor.goto('?presentationMode=reading');
-		await editor.loadContent('Hello world\n');
-		const before = await editor.bridge.getSource();
-		await editor.page.locator('.text-editable-block').first().click();
-
-		for (const [commandId] of TOGGLES) expect(await run(commandId)).toBe(false);
-		expect(await run('link.openCard')).toBe(false);
-
-		// The `runCommand` call, with no keystroke behind it.
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

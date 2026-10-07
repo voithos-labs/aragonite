@@ -13,8 +13,6 @@ is its only user.
 
 - a word selected by keyboard extend, then the strong toggle through `runCommand`: the
   source gains `**` around exactly that word, and one undo restores it
-- the same word through the emphasis, strikethrough and inline-code ids: each writes
-  its own delimiter pair and nothing else moves
 - the call's bytes match the chord's byte for byte: toggle through `runCommand`, undo,
   then press the chord over the same re-selected range
 - the selection survives the toggle, so a second call on the same range strips
@@ -26,8 +24,6 @@ is its only user.
   `runCommand` unchanged: the id still runs, and the rebound chord still runs, so the
   toolbar button is not rewired by a host's keymap
 - the link-edit id opens the link card over a selection, the same card `Mod+K` opens
-- a caret with no selection, in a mode that paints the delimiters: the toggle writes
-  an empty pair at the caret, matching the chord's collapsed-caret behavior
 - the same caret in `'live'`, which paints no delimiter and so may write no empty
   pair: the call reports it handled the key (`true`), no bytes move, and the mark waits
   until the next typed character carries it (`live-mode.md` § 4.3)
@@ -43,13 +39,18 @@ is its only user.
   anchor block's tail, the focus block's head) and one undo restores the whole range. This
   is the `runCommand` half of #127: the chord path is taken at the cross-block keydown
   handler, which a `runCommand` call never reaches, so this is where that route is proven
-- the link editor over that same range is the one range command still declined: it
-  writes over one block's offsets and a range gives it none, so the call returns
-  `false` and the source is byte-identical
-- an unknown id declines and mutates nothing
-- reading mode declines every published id, source byte-identical
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared
   e2e fixture)
+
+## Pinned below the browser
+
+These run against the mounted editor in `command-door.test.ts`, `format-command-arms.test.ts`, `command-undo-caret.test.ts` and `command-door-seam.test.ts`:
+
+- the emphasis, strikethrough and inline-code ids each write their own delimiter pair, and nothing else moves
+- a caret with no selection, in a mode that paints the delimiters, takes the toggle as an empty pair
+- the link editor over a range spanning blocks is the one range command still declined: it writes over one block's offsets and a range gives it none, so the call returns `false` and the source is byte-identical
+- an unknown id declines and mutates nothing
+- reading mode declines every published id, source byte-identical
 
 ## Miss-analysis
 

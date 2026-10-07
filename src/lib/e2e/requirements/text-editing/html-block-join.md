@@ -10,7 +10,7 @@ An HTML block can change what it reads as without changing kind, and when it doe
 - source mode, `foo\n<div>\n`, a real click into the `<div>` line, End, ArrowLeft, three Shift+ArrowLefts to select `div`, then `span` typed over it: the source is `foo\n<span>\n`, one block on screen and in the tree, a paragraph, and a reload reads the same tree. Typing over the selection matters, since Backspacing `div` away passes through `<>`, which isn't HTML at all and joins the paragraph for a different reason.
 - source mode, `<!-- note -->\n\nText\n`, a click into the comment, End, Backspace: the source is `<!-- note --\n\nText\n`, one HTML block on screen and in the tree, and the reload agrees.
 - source mode, `<div>\n\nfoo\n`, `div` selected the same way and `pre` typed over it: the source is `<pre>\n\nfoo\n`, one HTML block, and the reload agrees.
-- live mode, each of the three above with the same keys: the same source, the same one block.
+- live mode, each of the three above with the same keys: the same source, the same one block. These run against the tree in `same-kind-write-joins.test.ts`, which is mode-independent.
 
 ## Edge cases
 
