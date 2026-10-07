@@ -2,7 +2,7 @@
  * What a plugin's block component builds on: the caret, IME, undo and selection behaviour the
  * built-in blocks have, in one factory, so a plugin never touches an editor context key. `plain`
  * commits on every keystroke; `render-primary` shows its source and commits on blur. Call it
- * synchronously during initialisation; the contract is plugin-guide § The editable leaf.
+ * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
 import { getContext, onDestroy } from 'svelte';

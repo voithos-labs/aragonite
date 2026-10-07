@@ -14,21 +14,24 @@ import {
 	githubAnchors,
 	headingsOf
 } from '../../../../../scripts/check-codebase-map.mjs';
+import { pluginGuidePages } from './scan-source';
 
 const ROOT = path.resolve('.');
 
 // ── The heading index ────────────────────────────────────────────────────────
 
 describe('in-pack anchors: the index', () => {
-	const guide = readFileSync(path.join(ROOT, 'docs/guide/plugin-guide.md'), 'utf8');
+	// The guide is an entry page plus the pages beside it, and a heading may sit on any of them.
+	const pages = pluginGuidePages().map((relPath) => readFileSync(path.join(ROOT, relPath), 'utf8'));
+	const closurePage = pages.find((page) => /^#+ The closure block$/m.test(page)) ?? '';
 
 	it('indexes a real pack doc rather than an empty set', () => {
-		expect(anchorsOf(guide).size).toBeGreaterThan(20);
-		expect(anchorsOf(guide)).toContain('the-closure-block');
+		expect(pages.flatMap((page) => [...anchorsOf(page)]).length).toBeGreaterThan(20);
+		expect(anchorsOf(closurePage)).toContain('the-closure-block');
 	});
 
 	it('drops the anchor a renamed heading no longer defines', () => {
-		const renamed = guide.replace(/^#+ The closure block$/m, '## The closure');
+		const renamed = closurePage.replace(/^#+ The closure block$/m, '## The closure');
 		expect(anchorsOf(renamed).has('the-closure-block')).toBe(false);
 		expect(anchorsOf(renamed)).toContain('the-closure');
 	});

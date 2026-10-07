@@ -2,7 +2,7 @@
  * The one place a plugin's injected renderer (KaTeX, mermaid) is set and cached. The editor's
  * theme is part of every cache key, so a render is never reused under another theme, and a
  * missing or throwing renderer comes back as the plugin's own fallback output, never an exception.
- * `docs/guide/plugin-guide.md` § Recipe: a render-primary block.
+ * `docs/guide/plugin-guide/render-primary.md` § Recipe: a render-primary block.
  */
 
 import { createBoundedMemo } from './bounded-memo';

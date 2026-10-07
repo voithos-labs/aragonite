@@ -197,7 +197,7 @@ Conformance here means: your kind behaves the way the built-in kinds are require
 
 **`runKindConformance(kind, profile?)`**
 
-Takes your kind (the value `declaredPluginKind` returns) and executes the headless half of its `closure` block, the descriptor field where every kind answers the cross-cutting editor systems ([the closure block](plugin-guide.md#the-closure-block)). One cell per system, derived from your declarations and your `conformanceFixture`. What runs now, with no browser:
+Takes your kind (the value `declaredPluginKind` returns) and executes the headless half of its `closure` block, the descriptor field where every kind answers the cross-cutting editor systems ([the closure block](plugin-guide/container-walkthrough.md#the-closure-block)). One cell per system, derived from your declarations and your `conformanceFixture`. What runs now, with no browser:
 
 - The fixture round-trips, and a kind declaring `rebuildRaw` also has it checked twice over: it keeps the parsed bytes exactly, and it emits the same bytes on every run.
 - Backspace-merge eligibility is held to your declared `mergeRole`.
@@ -265,7 +265,7 @@ The harness the built-in containers are held to, pointed at your own container k
 | `titleRow`            | Always on, and excused for a kind with no title row (`reservedChrome`) or one that isn't opaque. It needs your kind's own `conformanceFixture` to type in: it types into your title row the way a keystroke does, then checks your block against a fresh parse of its bytes, metadata included. The editor doesn't re-read your metadata on a title keystroke, so none of it may come from the title's bytes                                                                                                                                                                                                                                                                                              |
 | `declarations`        | The kit's own cell, always on, and it also needs your kind's `conformanceFixture` (a top-level block of your kind; a grid container needs none). Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` keeps the parsed bytes and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, the child your `lastLineChild` names (or the default one) really ends on your last line (and when the answer is -1, your own last line can give its ending up without a rebuild writing it back), and a declared `contentStartSpace` writes the space it took as your marker's when an empty line gains text |
 
-You supply the fixtures, on top of the `conformanceFixture` your descriptor already carries. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
+You supply the fixtures, on top of the `conformanceFixture` your descriptor already carries. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
 
 ```ts
 import { declaredPluginKind } from '@voithos-labs/aragonite/plugin';
@@ -409,7 +409,7 @@ The cells:
 | `imageClaim`     | A recognizer that builds built-in nodes comes with the `rewriteImage` hook the write paths need                                                                       |
 | `registration`   | Your recognizer is registered the way your profile says, alone at its prefix and priority                                                                             |
 
-`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed like the [guide's](plugin-guide.md#inline-kinds), in a variant that declares its own `EMBED` kind and renders it with a Svelte component (the guide's own builds built-in images instead):
+`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed like the [guide's](plugin-guide/inline-kinds.md#inline-kinds), in a variant that declares its own `EMBED` kind and renders it with a Svelte component (the guide's own builds built-in images instead):
 
 ```ts
 import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';

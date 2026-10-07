@@ -133,7 +133,10 @@ export const SOURCE = {
 	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte',
 
 	// ── Build config ────────────────────────────────────────────────────────
-	viteConfig: 'vite.config.js'
+	viteConfig: 'vite.config.js',
+
+	// ── Docs ────────────────────────────────────────────────────────────────
+	pluginGuide: 'docs/guide/plugin-guide.md'
 } as const;
 
 /** Text each file must hold, so an entry pointed at the wrong real file fails too. */
@@ -264,7 +267,10 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	consumerQuickstartRoute: "const source = '# Hello\\n';",
 
 	// ── Build config ────────────────────────────────────────────────────────
-	viteConfig: 'optimizeDeps:'
+	viteConfig: 'optimizeDeps:',
+
+	// ── Docs ────────────────────────────────────────────────────────────────
+	pluginGuide: '## The first fifteen minutes'
 };
 
 /** The directories the scans walk or bind by prefix. */
@@ -307,7 +313,8 @@ export const SOURCE_DIR = {
 	e2eRequirements: 'src/lib/e2e/requirements/',
 	routes: 'src/routes/',
 	referencePlugins: 'src/routes/test/plugins/',
-	consumerExample: 'examples/consumer/src/'
+	consumerExample: 'examples/consumer/src/',
+	pluginGuidePages: 'docs/guide/plugin-guide/'
 } as const;
 
 /** An entry each directory must hold directly, so a directory entry pointed at a sibling fails. */
@@ -350,5 +357,6 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	e2eRequirements: 'block-error-boundary.md',
 	routes: '+layout.svelte',
 	referencePlugins: 'callout',
-	consumerExample: 'plugin-probe.ts'
+	consumerExample: 'plugin-probe.ts',
+	pluginGuidePages: 'parrot-frames.md'
 };

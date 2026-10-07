@@ -35,16 +35,28 @@ One spec per subsystem, for anyone changing the editor's insides. Start with `ed
 
 The published pack. This folder ships inside the npm package (the only docs folder that does), so whatever's in a plugin author's `node_modules` matches the version they installed.
 
-| Doc                                                                          | Scope                                                                                                                         |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| [`guide/consumer-guide.md`](guide/consumer-guide.md)                         | Embedding the editor: props, events, theming, and everything else a host app touches                                          |
-| [`guide/plugin-guide.md`](guide/plugin-guide.md)                             | Teaching the editor your own blocks and inline syntax, from a first working plugin to full recipes                            |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md)                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours |
-| [`guide/plugin-api.md`](guide/plugin-api.md)                                 | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                             |
-| [`guide/directives.md`](guide/directives.md)                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                  |
-| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two                                                         |
+| Doc                                                                                          | Scope                                                                                                                                   |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md)                                         | Embedding the editor: props, events, theming, and everything else a host app touches                                                    |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md)                                             | Teaching the editor your own blocks and inline syntax: a first working plugin, the model behind it, and a map of the recipe pages below |
+| [`guide/plugin-guide/per-editor.md`](guide/plugin-guide/per-editor.md)                       | Per-editor state, events and options, for a page with more than one editor on it                                                        |
+| [`guide/plugin-guide/container-walkthrough.md`](guide/plugin-guide/container-walkthrough.md) | The biggest worked example, a `:::conspiracy` box end to end, then the `closure` checklist every block kind fills in                    |
+| [`guide/plugin-guide/parser.md`](guide/plugin-guide/parser.md)                               | Openers in full: what one returns, where it sits in the order, multi-line constructs, document position                                 |
+| [`guide/plugin-guide/editable-content.md`](guide/plugin-guide/editable-content.md)           | The four ways a block hosts editable content, and the text-leaf factory in depth                                                        |
+| [`guide/plugin-guide/render-primary.md`](guide/plugin-guide/render-primary.md)               | A diagram-shaped block: a rendered picture, edited through the plugin's own UI                                                          |
+| [`guide/plugin-guide/presentation-modes.md`](guide/plugin-guide/presentation-modes.md)       | Rendering right in reading, preview and live modes                                                                                      |
+| [`guide/plugin-guide/reading-the-document.md`](guide/plugin-guide/reading-the-document.md)   | A block built from the rest of the document, like a table of contents                                                                   |
+| [`guide/plugin-guide/inline-kinds.md`](guide/plugin-guide/inline-kinds.md)                   | Your own syntax inside a paragraph, rendered as a widget                                                                                |
+| [`guide/plugin-guide/decorations.md`](guide/plugin-guide/decorations.md)                     | View-only highlights, ghost text and badges over content a plugin doesn't own                                                           |
+| [`guide/plugin-guide/commands.md`](guide/plugin-guide/commands.md)                           | Keyboard shortcuts, commands and right-click rows, for one block kind or the whole editor                                               |
+| [`guide/plugin-guide/paste-transforms.md`](guide/plugin-guide/paste-transforms.md)           | Rewriting pasted text before it parses                                                                                                  |
+| [`guide/plugin-guide/menu-only-kinds.md`](guide/plugin-guide/menu-only-kinds.md)             | A block that comes from a menu instead of typing, and still survives a reload                                                           |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md)                                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours           |
+| [`guide/plugin-api.md`](guide/plugin-api.md)                                                 | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                                       |
+| [`guide/directives.md`](guide/directives.md)                                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                            |
+| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md)                 | All ten party-parrot frames, ready to paste over the quickstart's two                                                                   |
 
-The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it), so a markdown link inside it may only point at a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that'd dangle once the pack leaves the repo.
+The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it, and so do the plugin guide's recipe pages), so a markdown link inside it may only point at a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that'd dangle once the pack leaves the repo.
 
 ## `contributing/`: how we work
 
