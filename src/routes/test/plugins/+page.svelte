@@ -25,7 +25,6 @@
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
-	import { HELD_SLASH_ENTRIES } from './inline-menu/held-slash-entries';
 	import '../../demo-tags/tag-marks.css';
 	import type { EditorPluginEntry } from '$lib';
 
@@ -64,12 +63,7 @@
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarks],
 		// Every inline-menu source at once: `#`, `[[`, `@` and `/` must not take each other's keys.
-		'inline-menu': [
-			tagMarks,
-			docLinkMenuPlugin(),
-			heldCommitMenuPlugin(),
-			{ plugin: DEMO_SLASH_COMMANDS, options: { entries: HELD_SLASH_ENTRIES } }
-		],
+		'inline-menu': [tagMarks, docLinkMenuPlugin(), heldCommitMenuPlugin(), DEMO_SLASH_COMMANDS],
 		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
