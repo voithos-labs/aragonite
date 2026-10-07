@@ -1,6 +1,6 @@
 // A dev check that would do more with a DOM says so when a test file without jsdom reaches it,
-// instead of passing with its DOM half skipped. Miss: every test of the inline kit's widget cell
-// ran under jsdom, so none saw the no-DOM branch report a quiet `boundary`.
+// instead of passing with its DOM half skipped. Miss: `kit-report-vocabulary` ran the widget cell
+// without a DOM and checked only that its status was a valid word, so a quiet `boundary` passed.
 import { describe, expect, it } from 'vitest';
 import { installPlugins } from '$lib';
 import { declaredPluginInlineKind, INLINE_PRIORITIES } from '$lib/plugin';

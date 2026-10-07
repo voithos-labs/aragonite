@@ -2357,9 +2357,11 @@ no `document` at all, so any code that asks whether one exists picks what those 
 check that would do more with a DOM (the inline kit's widget cell renders the fixture and walks it,
 say) asks `src/lib/assert.ts` :: `documentForCheck`, which fires a `needs-dom` warning when there's
 none. Under the unit suite that warning fails the test, and the fix it names is the jsdom docblock.
-Every other branch is declared with what it does without a DOM: the landing check of G1.43, for
-one, has nothing to compare when there's no focus or selection to move. `lint/file-rules.test.ts`
-fails an undeclared `typeof document` or `typeof window` test in the shipped source.
+Any other branch gets a row in G4.127's table in `lint/file-rules.test.ts`, keyed by file and
+function, saying what it does without a DOM (the landing check of G1.43, for one, has nothing to
+compare when there's no focus or selection to move). The test fails when a function's count of
+DOM tests in the shipped source moves off its row, whether it's `typeof document`, a DOM class
+like `typeof Element`, or a `globalThis.document` or `'document' in globalThis` read.
 
 ## Accessibility
 

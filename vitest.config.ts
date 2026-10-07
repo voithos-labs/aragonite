@@ -9,8 +9,14 @@ const DEEP_STACK = 'src/lib/**/*.deep.test.ts';
 const NODE_REALM = ['src/lib/test/invariants/lint/dev-prebundle.test.ts'];
 
 // The on-disk transform cache keys a file on its own bytes, this config and the lockfile; these
-// files shape a transform too, so an edit to one has to miss the cache.
-const TRANSFORM_INPUTS = ['svelte.config.js', 'tsconfig.json', '.svelte-kit/tsconfig.json'];
+// files shape a transform too (the consumer example's, for the file a unit test imports from it).
+const TRANSFORM_INPUTS = [
+	'svelte.config.js',
+	'tsconfig.json',
+	'.svelte-kit/tsconfig.json',
+	'examples/consumer/tsconfig.json',
+	'examples/consumer/.svelte-kit/tsconfig.json'
+];
 
 const keyCacheOnTransformInputs: Plugin = {
 	name: 'aragonite:key-cache-on-transform-inputs',

@@ -51,10 +51,10 @@ $ npm run test:editor:undo
 > @voithos-labs/aragonite@… test:editor:undo
 > vitest run src/lib/test/undo
 
- Test Files  6 passed (6)
-      Tests  32 passed (32)
-   Start at  14:46:02
-   Duration  2.51s (transform 5.30s, setup 3.63s, import 3.70s, tests 110ms, environment 1.38s)
+ Test Files  … passed (…)
+      Tests  … passed (…)
+   Start at  16:28:08
+   Duration  1.91s (environment 33%, transform 32%, setup 17%, import 11%, worker 5%, tests 2%)
 ```
 
 ## Unit tests (Vitest)
@@ -102,10 +102,13 @@ project (`deep-stack` in `vitest.config.ts`) on a 150 KB stack. That's small eno
 recursive walk overflows at a depth jsdom still renders in a few seconds, so it's the place for a
 test proving some walk never recurses.
 
-Every file gets its own VM context inside a long-lived worker, which is what keeps a jsdom file
-cheap. The one catch so far: a native addon rejects an object made in another context, so a test
-that calls vite's `resolveConfig` fails with a type error out of rolldown. A file like that goes
-in `NODE_REALM` in `vitest.config.ts`, which runs it in a plain worker instead.
+Test files take turns in a shared Node process, so if your test changes `process.env` or patches
+a Node built-in module (`fs`, say), restore it in that same test, or the next file on the worker
+inherits it. Values Node itself makes, like an `fs` error or a `structuredClone` result, aren't
+`instanceof` your test file's own `Error` or `Array`, so check them some other way
+(`Array.isArray`, the error's `code`). Native addons are picky the other way round: a test that
+calls vite's `resolveConfig` fails with a type error out of rolldown. A file like that goes in
+`NODE_REALM` in `vitest.config.ts`, which runs it in a plain worker instead.
 
 ### By area
 

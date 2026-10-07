@@ -1,8 +1,7 @@
 /**
- * Where a dev-mode invariant check reports: it sends a violation to `devWarn` and never
- * throws, since a false positive must not crash a real editor. Outside a dev build, unless
- * `configureEditorEnv` turned dev on, the check is not even run. Tests call the predicates
- * directly rather than going through here.
+ * Where a dev-mode check reports, through `devWarn`: a violation it found, or that it had no DOM
+ * to run against. Neither throws, since a false positive must not crash a real editor, and
+ * `assertInvariant` skips its check outside a dev build unless `configureEditorEnv` turned dev on.
  */
 import { isDevChecks } from './env';
 import { devWarn } from './dev-warn';
