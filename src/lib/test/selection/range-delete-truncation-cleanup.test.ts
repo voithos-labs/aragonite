@@ -61,7 +61,9 @@ const CROSSINGS: { name: string; head: Cut; headPath: number[]; tail: Cut }[] = 
 		name: 'a table',
 		head: { source: PROSE_THEN_TABLE, start: { path: [0], offset: 9 }, end: cellPoint([1], 1) },
 		headPath: [0],
-		tail: { source: TABLE_THEN_PROSE, start: cellPoint([0], 0), end: { path: [1], offset: 9 } }
+		// Miss-analysis: the tail row started at cell 0, which deletes the whole table and so skips the
+		// table route; its end cleanup had no row. Starting at cell 2 keeps the header row.
+		tail: { source: TABLE_THEN_PROSE, start: cellPoint([0], 2), end: { path: [1], offset: 9 } }
 	}
 ];
 
