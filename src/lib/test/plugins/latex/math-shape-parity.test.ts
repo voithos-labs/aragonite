@@ -15,8 +15,13 @@ import {
 } from '$lib/plugin';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { MATH_BLOCK, mathDisplaySource, registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { mathBodySpan, renderMathSource, reshapeMathEdit } from '$lib/plugins/latex/math-source';
+import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import {
+	mathBodySpan,
+	mathDisplaySource,
+	renderMathSource,
+	reshapeMathEdit
+} from '$lib/plugins/latex/math-source';
 import { awaitsMathCloser, readMathSource, type MathSource } from '$lib/plugins/latex/math-shape';
 
 beforeEach(registerMathBlock);

@@ -27,40 +27,51 @@ export interface MathEdit {
 export const isMathFenceLine = (text: string): boolean => text === BLOCK_FENCE;
 
 /** A whole block on one line; at four characters or more, its two fences can't overlap. */
-export const isOneLineMath = (text: string): boolean =>
+const isOneLineMath = (text: string): boolean =>
 	text.length >= 4 && text.startsWith(BLOCK_FENCE) && text.endsWith(BLOCK_FENCE);
 
 export const opensMathBlock = (text: string): boolean =>
 	isOneLineMath(text) || isMathFenceLine(text);
 
+/** The index of the line closing the block `lines[from]` opens: `from` itself for a one-line
+ *  block, -1 when that line opens none or no line before `end` closes it. */
+export function mathCloserLine(
+	lines: readonly { text: string }[],
+	from = 0,
+	end = lines.length
+): number {
+	const opener = lines[from].text;
+	if (isOneLineMath(opener)) return from;
+	if (!isMathFenceLine(opener)) return -1;
+	for (let i = from + 1; i < end; i++) if (isMathFenceLine(lines[i].text)) return i;
+	return -1;
+}
+
 /** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
  *  became a paragraph, and a closer typed below still makes it math. */
 export function awaitsMathCloser(raw: string): boolean {
 	if (!raw.startsWith(BLOCK_FENCE)) return false;
-	const [opener, ...rest] = displayLines(raw);
-	return isMathFenceLine(opener.text) && !rest.some((line) => isMathFenceLine(line.text));
+	const lines = displayLines(raw);
+	return isMathFenceLine(lines[0].text) && mathCloserLine(lines) === -1;
 }
 
 // ── The reading ────────────────────────────────────────────────────────────
 
-/** Line 0 decides, as for the parser: a one-line block, or a fence line the next one closes. Else
+/** Line 0 decides, as for the parser: a one-line block, or a fence line a later one closes. Else
  *  a source ending `$$` is a one-line form holding a line break, and one that doesn't is open. */
 export function readMathSource(text: string): MathSource | null {
 	if (!text.startsWith(BLOCK_FENCE)) return null;
 	const lines = displayLines(text);
 	const [first] = lines;
-	if (isOneLineMath(first.text)) {
-		return cut(text, BLOCK_FENCE.length, first.text.length - BLOCK_FENCE.length);
-	}
-	const fenceLine = isMathFenceLine(first.text) && lines.length > 1;
-	const closer = fenceLine ? lines.findIndex((line, i) => i > 0 && isMathFenceLine(line.text)) : -1;
-	if (closer !== -1) {
-		return cut(text, first.text.length + first.ending.length, lineStart(lines, closer));
-	}
+	const closer = mathCloserLine(lines);
+	if (closer === 0) return cut(text, BLOCK_FENCE.length, first.text.length - BLOCK_FENCE.length);
+	const bodyStart = isMathFenceLine(first.text)
+		? first.text.length + first.ending.length
+		: BLOCK_FENCE.length;
+	if (closer > 0) return cut(text, bodyStart, lineStart(lines, closer));
 	if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) {
 		return cut(text, BLOCK_FENCE.length, text.length - BLOCK_FENCE.length);
 	}
-	const bodyStart = fenceLine ? first.text.length + first.ending.length : BLOCK_FENCE.length;
 	return { opener: text.slice(0, bodyStart), body: text.slice(bodyStart), closer: '', after: '' };
 }
 

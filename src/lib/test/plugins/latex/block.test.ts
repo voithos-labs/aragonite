@@ -16,25 +16,9 @@ describe('block math is dormant until registered', () => {
 	});
 });
 
-// A closed single line (`$$…$$`) at column 0 is a one-line block, and a bare `$$` opens one a
-// later bare `$$` closes; any other `$$` line, or an unterminated fence, stays a paragraph.
+// Which lines open a block is `math-shape-parity.test.ts`'s; these pin the node and its neighbours.
 describe('block math recognition', () => {
 	beforeEach(registerMathBlock);
-
-	const recognition: Array<[string, string, boolean]> = [
-		['multi-line fence', '$$\nx^2\n$$\n', true],
-		['single-line fence', '$$x^2$$\n', true],
-		['single-line with interior padding', '$$ x^2 $$\n', true],
-		['blank line inside the fence', '$$\nx\n\ny\n$$\n', true],
-		['unterminated fence', '$$\nx^2\n', false],
-		['bare $$ at end of input', '$$\n', false],
-		['content on the opener line, unclosed', '$$ x\ny\n', false]
-	];
-	for (const [name, src, recognized] of recognition) {
-		it(`${name} → ${recognized ? 'mathBlock' : 'paragraph'}`, () => {
-			expect(parse(src).children[0].kind).toBe(recognized ? MATH_BLOCK : 'paragraph');
-		});
-	}
 
 	it('parses a fence to a single source-holding leaf (no children)', () => {
 		const node = parse('$$\nx^2\n$$\n').children[0];

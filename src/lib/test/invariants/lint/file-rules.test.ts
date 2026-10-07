@@ -1920,43 +1920,53 @@ const REF_FOCUS: FileRule = {
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };
 
-// ── G4.113 one reading of a `$$` math block's shape ────────────────────────
+// ── G4.131 a grammar's bytes are read and written in its own module only ──────
 
 const MATH_SHAPE_HOME = SOURCE.mathShape;
 const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
 const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
+// A source split into lines, or a fence test handed a line read off one: a closer search by hand.
+const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
 
-const MATH_SHAPE: FileRule = {
-	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
-	population: under(SOURCE_DIR.latexPlugin),
-	matches: new RegExp(
-		String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}`
-	),
-	allowed: {
-		[MATH_SHAPE_HOME]:
-			'reads opener, body and closer for the parser, the write rule and the painter'
-	},
-	reaches: [MATH_SHAPE_HOME],
-	reason:
-		'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: read it through `math-shape.ts`',
-	hits: [
-		at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
-		at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
-		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
-		at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
-		at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
-		at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
-		at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
-		at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');")
-	],
-	misses: [
-		at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
-		at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
-		at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
-	]
-};
+/** One row per grammar: where its bytes are read and written, and the shapes a copy takes. */
+const GRAMMAR_MODULES: FileRule[] = [
+	{
+		id: 'G4.131 a `$$` block’s opener, body and closer are read in `math-shape.ts` only',
+		population: under(SOURCE_DIR.latexPlugin),
+		matches: new RegExp(
+			String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`
+		),
+		allowed: {
+			[MATH_SHAPE_HOME]:
+				'the closer search and the split the parser, the write rule and the painter all ask'
+		},
+		reaches: [MATH_SHAPE_HOME],
+		reason:
+			'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, or `mathCloserLine` over a line array',
+		hits: [
+			at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
+			at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
+			at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
+			at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
+			at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
+			at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
+			at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
+			at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');"),
+			at(ROGUE_MATH_READER, 'while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;'),
+			at(ROGUE_MATH_READER, 'return rest.some((line) => isMathFenceLine(line.text));'),
+			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);')
+		],
+		misses: [
+			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+			at(ROGUE_MATH_READER, 'if (!isMathFenceLine(trimWhitespace(line))) return null;'),
+			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
+			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
+			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+		]
+	}
+];
 
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
@@ -2160,11 +2170,11 @@ describeFileRules(
 		...RULES,
 		...LEAF_RANGE_RULES,
 		REF_FOCUS,
-		MATH_SHAPE,
 		RANGE_PAINT,
 		PIECES_UNDER_ORDER_CHECK,
 		WIDGET_LIST,
-		...CODE_EDIT_SPAN
+		...CODE_EDIT_SPAN,
+		...GRAMMAR_MODULES
 	],
 	SOURCES
 );
