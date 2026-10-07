@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '$lib';

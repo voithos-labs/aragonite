@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Miss-analysis: the auto-pair and completer suites never ran with their owning plugin left out.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

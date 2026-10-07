@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';

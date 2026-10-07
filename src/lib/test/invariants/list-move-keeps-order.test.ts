@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // G1.61: the check passes a list move that keeps the text in order and fails one that reorders it.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

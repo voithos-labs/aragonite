@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parseInline, type InlineNode } from '$lib';
 import { activateDirectives } from '$lib/plugin';

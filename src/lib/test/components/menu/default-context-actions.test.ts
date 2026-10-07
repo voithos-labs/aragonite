@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { NodeView } from '$lib/core/node-views';

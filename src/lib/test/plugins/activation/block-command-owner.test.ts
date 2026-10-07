@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Miss-analysis: every block-command test registered the command in the plugin that declared the
 // kind, so the handler's editor and the error report reading the kind's plugin never showed.
 import { beforeEach, describe, expect, it } from 'vitest';

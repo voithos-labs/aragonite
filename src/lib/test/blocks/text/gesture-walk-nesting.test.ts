@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // The gesture paths that read the inline tree walk a deeply nested chain without recursing.
 // Miss-analysis: GH #200's depth tests stopped at render and caret; gesture paths still recursed.
 import { describe, expect, it } from 'vitest';

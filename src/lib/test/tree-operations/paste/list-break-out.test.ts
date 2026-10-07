@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';

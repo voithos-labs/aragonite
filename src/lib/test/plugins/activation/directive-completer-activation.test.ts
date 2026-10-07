@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Miss-analysis: no test parsed a fence or pressed Enter with the owning plugin left out (GH #266).
 import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
