@@ -204,6 +204,12 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'nothing published applies a rawWrite the way a leaf commit does (an authored write), and ' +
 			'the fixed property seed is the suite’s own helper, with no published counterpart'
 	},
+	'src/lib/test/plugins/latex/math-shape-parity.test.ts': {
+		specifiers: ['$lib/tree-operations/content-write', '$lib/schema/block-kind-descriptor'],
+		reason:
+			'nothing published applies a rawWrite the way a leaf commit does (an authored write), nor ' +
+			'reads a kind’s rule back to ask it for the block’s text'
+	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
 		specifiers: ['$lib/cursor/widget-offset'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
