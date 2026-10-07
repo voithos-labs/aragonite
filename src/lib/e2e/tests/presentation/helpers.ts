@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { textRunCenter } from '../../text-runs';
+import { textRunCenter, textRunEnd } from '../../text-runs';
 
 // Shared pointer and caret helpers for the presentation specs.
 
@@ -14,6 +14,34 @@ export async function enterPresentationMode(
 	await ep.loadContent(doc);
 	return ep;
 }
+
+/** Loads `doc` for the next step of a test that walks several rows, as a fresh page would have it:
+ *  nothing focused, and a new document, since the editor ignores a source equal to its own. */
+export async function nextRow(ep: EditorPage, doc: string): Promise<void> {
+	await ep.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+	await ep.loadContent('\n');
+	await ep.loadContent(doc);
+}
+
+export async function clickEnd(ep: EditorPage, page: Page, word: string): Promise<void> {
+	const point = await textRunEnd(page, word);
+	await page.mouse.click(point.x, point.y);
+	await ep.waitForRenderFlush();
+}
+
+/** Presses each key in turn, letting the render settle after every press. */
+export async function keys(ep: EditorPage, page: Page, ...pressed: string[]): Promise<void> {
+	for (const key of pressed) {
+		await page.keyboard.press(key);
+		await ep.waitForRenderFlush();
+	}
+}
+
+/** The constructs the edge ring (`md-edge-held`) is on, by tag name. */
+export const held = (page: Page): Promise<string[]> =>
+	page.evaluate(() =>
+		[...document.querySelectorAll('.md-edge-held')].map((el) => el.tagName.toLowerCase())
+	);
 
 export async function focusOffset(ep: EditorPage): Promise<number> {
 	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
