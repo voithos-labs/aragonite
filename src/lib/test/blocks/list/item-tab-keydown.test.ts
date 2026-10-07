@@ -56,4 +56,17 @@ describe('list item Tab dispatch', () => {
 		expect(reachedItemHandler).toBe(true);
 		expect(mounted.source()).toBe('- alpha\n- beta\n');
 	});
+
+	// Miss-analysis: every override row drove a leaf block, so none saw the list item's own key
+	// handler, which resolves Tab against the overrides as the key travels up.
+	it.each([
+		['a global disable', [{ chord: 'Tab', command: null }]],
+		['a listItem-scoped disable', [{ chord: 'Tab', command: null, kind: 'listItem' }]]
+	] as const)('%s stops the indent', async (_, keybindings) => {
+		mounted = mountEditor({ source: '- alpha\n- beta\n', keybindings: [...keybindings] });
+
+		await pressKeyAt(mounted, [0, 1, 0], 0, TAB);
+
+		expect(mounted.source()).toBe('- alpha\n- beta\n');
+	});
 });
