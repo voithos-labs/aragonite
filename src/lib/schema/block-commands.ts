@@ -31,7 +31,7 @@ import type { KeybindingOverrideMap } from './keybinding-overrides';
 import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
-export interface BlockCommandContext {
+export interface BlockCommandContext extends CommandRun {
 	/** A read-only view of the node; metadata edits go through `updateMetadata`. */
 	node: NodeView;
 	arg: unknown;
@@ -44,14 +44,11 @@ export interface BlockCommandContext {
 	/** The dispatching editor's `EditorContext` for the plugin that registered the command.
 	 *  Undefined when the dispatch is not wired to an editor instance. */
 	editor?: EditorContext;
-	/** True when the dispatch removed a selection before running the command, so a line the removal
-	 *  emptied isn't one the user left empty (`CommandRun`). */
-	afterRemoval: boolean;
 }
 
 /** How a command came to run. `afterRemoval`: the dispatch removed a selection first, in the
- *  block or across blocks, so an "Enter on an empty line" exit must not read the emptiness the
- *  removal left; a break over a selection splits and never leaves the block. */
+ *  block or across blocks, so neither an "Enter on an empty line" exit nor a line completion may
+ *  read the line the removal left. A break over a selection only splits. */
 export interface CommandRun {
 	afterRemoval: boolean;
 }

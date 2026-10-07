@@ -50,7 +50,10 @@ export function withEnterCompletion(
 	return {
 		...blockEdit,
 		async splitBlock(index: number, offset: number, run?: CommandRun): Promise<boolean> {
-			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
+			// A line a selection's removal left isn't one the user finished: the break only breaks.
+			const completion = run?.afterRemoval
+				? null
+				: planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
 			if (!completion) return blockEdit.splitBlock(index, offset, run);
 			return complete(index, completion, offset);
 		},
