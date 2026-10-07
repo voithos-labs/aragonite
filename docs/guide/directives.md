@@ -113,7 +113,7 @@ registerDirective('container', 'note', {
 		};
 		setPluginMetadata(node, {
 			name: parsed.fence.name,
-			// the four fence fields createDirectiveRebuild needs, under these exact names
+			// the four fence fields (the end of this page says why)
 			colonCount: parsed.fence.colonCount,
 			closerColonCount: parsed.closerColonCount,
 			closerNewline: parsed.closerNewline,
