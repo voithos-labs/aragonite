@@ -117,7 +117,8 @@ test('sim gesture reachability: every cross-block build and destroy engages, and
 		await pasteOverSelection(ctx);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('pha');
-		expect(source).toContain('CLIP');
+		// The fixture's own third block is `CLIP`, so only the joined line shows a paste landed.
+		expect(source).toContain('alCLIPta');
 	});
 
 	await test.step('a build that cannot cross fails loudly (single-block document)', async () => {

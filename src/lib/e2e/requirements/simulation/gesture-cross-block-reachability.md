@@ -20,7 +20,10 @@ is driven directly against a controlled fixture.
   cross-block state clears
 - Cut collapses the range and removes the covered text
 - type-over collapses the range and inserts the typed character
-- paste-over collapses the range and replaces it with the clipboard's contents
+- paste-over collapses the range and replaces it with the clipboard's contents: the
+  two halves join around the pasted text (`alCLIPta`). Miss-analysis: the fixture's
+  third block is the clipboard text itself, so checking that the source holds `CLIP`
+  passed even when the gesture pressed Delete and pasted nothing.
 - an IME composition over the range replaces the covered text with the composed text,
   and one Ctrl+Z brings the source back
 
