@@ -2,6 +2,7 @@
 // block survives the move is `reorder-lands-whole.property.test.ts`.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
 import { documentBody } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -51,5 +52,7 @@ describe('a reorder separates only the joins that need it', () => {
 			defaultGrammarView
 		);
 		expect(doc.children.length).toBe(before);
+		// A separator lands in the next block's leading trivia, where only the bytes show it.
+		expect(serialize(doc).length).toBe(DOC.length);
 	});
 });
