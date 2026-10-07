@@ -76,6 +76,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 		reason: 'compound test: the dark→light→dark flip must observe memoized re-renders in sequence'
 	},
 	{
+		spec: 'blocks/code/live-navigation.spec.ts',
+		reason:
+			'one test per describe walks that group of bullets as test.step rows, one step per bullet, each on a fresh load'
+	},
+	{
 		spec: 'presentation/presentation-showcase.spec.ts',
 		reason: 'compound test: the mode toggle round-trip is one session over one mounted document'
 	}

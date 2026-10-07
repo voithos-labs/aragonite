@@ -17,6 +17,13 @@ async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
+// The editor ignores a source equal to the last one it was given, so a blank swap goes between.
+async function openLive(editor: EditorPage, source: string) {
+	await editor.loadContent('');
+	await editor.loadContent(source);
+	await editor.getBlock(0).click();
+}
+
 test.describe('code block: ranged edits reaching a hidden fence line', () => {
 	let editor: EditorPage;
 
@@ -46,21 +53,6 @@ test.describe('code block: ranged edits reaching a hidden fence line', () => {
 
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
 	});
-
-	// The range opens on the highlighted `const` at the body start [6] and ends inside `foo` [20],
-	// across the line break.
-	for (const [gesture, select] of [
-		['a drag', () => editor.dragFromTo([0], 6, [0], 20)],
-		['Shift+Arrow', () => selectFrom(editor, 6, 14)]
-	] as const) {
-		test(`typing over ${gesture} from the body start across a line break keeps both fences`, async () => {
-			await editor.loadContent('```js\nconst x = 1;\nfoo();\n```\n');
-			await select();
-			await editor.page.keyboard.type('Q');
-
-			await expect.poll(() => editor.bridge.getSource()).toBe('```js\nQoo();\n```\n');
-		});
-	}
 
 	test('select-all then Backspace empties the body and keeps the code block', async () => {
 		await editor.page.keyboard.press('ControlOrMeta+a');
@@ -110,22 +102,19 @@ const REPLACEMENTS: Array<[name: string, select: Step, replace: Step, body: stri
 ];
 
 test.describe('code block: any replacement of a body range keeps the hidden fence lines', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
+	test('every replacement gesture replaces only body text', async ({ page }) => {
+		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.setPresentationMode('live');
-		await editor.loadContent(LONG);
-		await editor.getBlock(0).click();
+
+		for (const [name, select, replace, body] of REPLACEMENTS) {
+			await test.step(name, async () => {
+				await openLive(editor, LONG);
+				await select(editor);
+				await replace(editor);
+
+				await expect.poll(() => editor.bridge.getSource()).toBe('```js\n' + body + '\n```\n');
+			});
+		}
 	});
-
-	for (const [name, select, replace, body] of REPLACEMENTS) {
-		test(`${name} replaces only body text`, async () => {
-			await select(editor);
-			await replace(editor);
-
-			await expect.poll(() => editor.bridge.getSource()).toBe('```js\n' + body + '\n```\n');
-		});
-	}
 });

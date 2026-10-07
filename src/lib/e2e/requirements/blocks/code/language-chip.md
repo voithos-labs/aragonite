@@ -118,7 +118,7 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
   `fencedCode`. The preview modes are the interesting ones: the open field makes the block
   count as focused, so they show the fence while the chip is committing over it
 - typing an alias (`rs`) filters to its language, listed once under its canonical name, and
-  Enter lands the alias as typed
+  Enter lands the alias as typed (`src/lib/test/blocks/code/code-language-picker.test.ts`)
 - clearing the field and committing empties the info string
 - typing a character after a commit lands it at the first body offset
 
@@ -128,15 +128,14 @@ the typed and pasted routes already share (`fence-content-validity.md`), so all 
 - a content-empty fence in live gets the side gutter with its markers hidden; clicking into it
   completes the fence, opens the picker, and Escape returns the caret to the new body line
 - a bare Enter on a padded fence line leaves the source byte-identical, and the one Mod+Z after
-  it reverts the edit made before the chip was opened
+  it reverts the edit made before the chip was opened (`src/lib/test/blocks/code/code-language-chip-commit.test.ts`)
 - a container's hover leaves its nested block's chip hidden; hovering that block shows it
 - Escape after typing into the field leaves the source byte-identical
 - clicking away after typing into the field leaves the source byte-identical
 - reading mode: a click on the chip opens no field
-- a backtick committed into an unclosed backtick fence's info string lands without it, and
-  the block stays `fencedCode`
-- a leading tilde run committed into a tilde fence's info string lands without it, and the
-  heading below stays a sibling
+- a backtick committed into an unclosed backtick fence's info string lands without it, and a
+  leading tilde run committed into a tilde fence's info string lands without it, both pinned in
+  `src/lib/test/blocks/code/code-language-chip-commit.test.ts`
 - one Mod+Z after a body character then a chip commit reverts the info string and keeps the
   character
 - one Mod+Z after a chip commit then a typed character reverts the character and keeps the

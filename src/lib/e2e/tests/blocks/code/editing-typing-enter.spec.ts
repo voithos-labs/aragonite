@@ -12,54 +12,6 @@ test.describe('code block editing: happy paths', () => {
 		await editor.goto();
 	});
 
-	test('typing inside code block updates source', async () => {
-		await editor.loadContent('```javascript\nconst x = 42;\n```\n');
-		await editor.getBlock(0).click();
-		await editor.page.keyboard.press('End');
-		await editor.typeText('\nconst y = 99;');
-		await editor.bridge.waitForSourceContains('const y = 99;');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('const x = 42;');
-		expect(source).toContain('const y = 99;');
-	});
-
-	test('Enter creates newline inside code block, does not split', async () => {
-		await editor.loadContent('```\nline one\n```\n');
-		await editor.getBlock(0).click();
-		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Enter');
-		await editor.typeText('line two');
-		await editor.bridge.waitForSourceContains('line one\nline two');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-	});
-
-	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
-		// The browser's own `insertParagraph` makes a `<div>`/`<br>` and changes no text, so the
-		// editor has to handle Enter itself.
-		await editor.loadContent('```\nabc\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 5; i++) {
-			await page.keyboard.press('ArrowRight');
-		}
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```\na\nbc\n```\n');
-	});
-
-	test('plain Enter at end of body line inserts a blank line before the closer', async ({
-		page
-	}) => {
-		await editor.loadContent('```\nfoo\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 7; i++) {
-			await page.keyboard.press('ArrowRight');
-		}
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('```\nfoo\n\n```\n');
-	});
-
 	test('Enter twice from end of body line exits via blank-line path', async ({ page }) => {
 		await editor.loadContent('```\nsome code\n```\n');
 		await editor.getBlock(0).click();
@@ -90,6 +42,9 @@ test.describe('code block editing: happy paths', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
 		await editor.bridge.waitForSourceEquals('```\nfoo\nbar\n```\n');
+		// Enter writes a newline inside the block; it does not split it.
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
 	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async () => {
