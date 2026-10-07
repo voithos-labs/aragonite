@@ -49,7 +49,7 @@ expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
 
 **Uninstalled.** Author a document using your syntax, then load it with your plugin **not** registered. The generic fallback has to hand it back unchanged, so uninstalling a plugin never corrupts a saved document. A `%%parrot` file opened without the parrot plugin renders as plain text: no dancing, but no damage.
 
-While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a collapse probe (the descriptor's is-this-collapsed answer) that contradicts the rest of the descriptor. All of them warn in dev and are silent in production, so a clean dev console over a green round-trip is a decent sign your plugin's sound. A suite can hold that line automatically; [turning warnings into failures](#turning-warnings-into-failures) is the recipe.
+While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) only fire there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a descriptor whose is-this-collapsed answer contradicts the rest of it. They all warn in dev and stay silent in production, so a clean dev console over a green round-trip is a decent sign your plugin's sound. A suite can hold that line automatically; [turning warnings into failures](#turning-warnings-into-failures) is the recipe.
 
 ### A blank slate per test
 
@@ -212,7 +212,7 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
 - An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell, which reads your descriptor's `rawWrite` rule rather than your closure block (so it comes last in the report and carries no `mode`):
+- The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) rather than your closure block, so it comes last in the report and carries no `mode`:
   - With no `rawWrite`, it cuts the fixture's closing line and checks the block after it stays its own. It fails if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule.
   - With one, it drives the rule through the closing line cut, everything past the first line cut, and an empty write, plus, for a fixture of two or more lines, the first line cut (the opener gone, the closer left behind) and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind.
   - Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards.
@@ -358,7 +358,7 @@ It has to be `true` for a container whose `rebuildRaw` reads only its direct chi
 
 A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`, and the `declarations` cell probes your parse in both directions, failing a declaration that doesn't match what the parse actually does. Why the editor needs telling at all:
 
-- The parse moves the blank line against your opener into `innerPrefix` (the node field that holds it), so that line belongs to the wrap rather than being an empty first row. The editor's blank-line bookkeeping has to know that, or a delete that frees a blank line above your body's first block eats the line the peel owns, and that block disappears on the next load.
+- The parse moves the blank line against your opener into `innerPrefix` (the node field that holds it), so that line belongs to the wrap rather than being an empty first row. The editor's blank-line bookkeeping has to know that, or a delete that frees a blank line above your body's first block eats the line the wrap owns, and that block disappears on the next load.
 - A strip container whose body starts at its own first line declares nothing, and then carries no `innerPrefix` either; a dev-mode check on the node's shape fails a wrap-less container that fills that slot.
 - A childless container whose body lives in metadata has no body child to take a line from, so it declares nothing too, and the kit fails a declaration there as well.
 
@@ -481,7 +481,7 @@ Two things worth knowing about `widget`. It asserts your claimed slice is **self
 
 **`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
 
-One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait, without checking `documentGeneration` first, is the bug this cell catches. A source that compares the generation across its wait passes.
+One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait is the bug this cell catches, unless you check `documentGeneration` (how many times the host has replaced the document, read off the context) first. A source that reads it before the wait and compares after passes.
 
 Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
 
