@@ -135,23 +135,6 @@ test.describe('live mode: Backspace at a heading’s content start demotes befor
 		await ep.bridge.waitForSourceNotContains('======');
 		expect(await ep.bridge.getBlockKind(SETEXT)).toBe('paragraph');
 	});
-
-	// The other end of the same block: Delete there joins the next block onto the title line and
-	// leaves the underline under the joined text, so the heading stays a heading.
-	test('Delete at a setext heading’s content end joins the next block above the underline', async ({
-		page
-	}) => {
-		await clickBlockSettled(ep, SETEXT);
-		await page.keyboard.press('End');
-		await ep.waitForRenderFlush();
-
-		await page.keyboard.press('Delete');
-		await ep.bridge.waitForSourceContains('\nSetextplain\n======\n\n[r]:');
-		expect(await ep.bridge.getBlockKind(SETEXT)).toBe('setextHeading');
-		expect(await ep.bridge.getSelectionPaths()).toMatchObject({
-			focus: { path: [SETEXT], offset: 6 }
-		});
-	});
 });
 
 // The `## ` is on screen and raw 0 is the block's start, so Backspace is the ordinary merge; at

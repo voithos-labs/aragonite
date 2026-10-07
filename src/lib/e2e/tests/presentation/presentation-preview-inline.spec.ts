@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import type { Page } from '@playwright/test';
 import { textRunCenter } from '../../text-runs';
+import { clickModeToggle } from '../../mode-switch';
 
 // Inline-granular live preview: inside the focused block, each construct's markers stay hidden
 // until the caret enters its range, edges included. Editing scenarios live in
@@ -20,8 +20,6 @@ const DOC = [
 	'*a* b `c`'
 ].join('\n');
 
-const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
-
 test.describe('preview-inline: markers by caret proximity', () => {
 	let ep: EditorPage;
 
@@ -29,13 +27,12 @@ test.describe('preview-inline: markers by caret proximity', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreviewInline(page);
+		await clickModeToggle(page, 'preview-inline');
 	});
 
 	test('root attribute present only in preview-inline', async ({ page }) => {
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'preview-inline');
-		await togglePreviewInline(page); // back to source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'preview-inline'); // back to source
 	});
 
 	test('unfocused blocks render like preview-block; focus alone reveals no construct', async ({
@@ -185,14 +182,12 @@ test.describe('preview-inline: markers by caret proximity', () => {
 		await page.mouse.click(point.x, point.y);
 		await expect(ep.getBlock(1).locator('[data-construct-start]').first()).toBeVisible();
 
-		await togglePreviewInline(page); // → source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'preview-inline'); // → source
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeVisible();
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();
 
-		await togglePreviewInline(page); // → preview-inline
-		await page.getByTestId('presentation-toggle').click(); // → reading
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'preview-inline'); // → preview-inline
+		await clickModeToggle(page, 'reading'); // → reading
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeHidden();
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeHidden();
 	});

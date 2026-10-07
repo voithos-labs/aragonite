@@ -92,7 +92,7 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 			await editor.clickBlockAtPath([0], 0);
 			await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 
-			await page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
+			await editor.setPresentationMode(mode);
 			await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 		});
 	}
@@ -103,7 +103,7 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		await editor.clickBlockAtPath([0], 0);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
 	});
 });

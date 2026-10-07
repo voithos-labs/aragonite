@@ -133,7 +133,7 @@ test.describe('scroll hitch: a wheel tick in live mode over heavy blocks', () =>
 		await gotoReady(page, '/test/plugins');
 		const editor = new EditorPage(page);
 		await editor.loadContent(MATH_CODE_DIAGRAMS);
-		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await editor.setPresentationMode('live');
 		await measure(page, editor, 'math-code-diagrams', DOWN_UP);
 	});
 

@@ -30,21 +30,27 @@ source.
   off
 - a click away after `a **two** ` leaves those bytes as they are, and typing back at the line's
   end types plain text
-- after an arrow steps out of a bold, a soft keyboard and a paste both type outside it, like a
-  hardware key does
-- source mode writes the space where the caret is, inside the visible closer
+- after an arrow steps out of a bold, a paste types outside it, like a hardware key does
 
 ## Ways out (easy to leave without a new line)
 
-- one ArrowRight ends the hold without moving the caret, at a line's end and mid-line
 - the typed closer ends it, at a line's end and mid-line
-- the construct's own chord (Mod+B in a bold) ends it, at a line's end and mid-line
+- the construct's own chord (Mod+B in a bold) ends it: `a **two** ` then Mod+B then `x` gives
+  `a **two** x`
 - another mark's chord ends it too, and still arms its mark for the next letter, which lands past
   the bold: Mod+I after `a **two** ` then `x` gives `a **two** *x*`, the same bytes as with no
   space held. Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord the hold
   swallowed whole passed
 - End ends it: at a line's end the letter lands right after the space, mid-line at the end of
   the line
+
+A few more are covered by unit tests, in `src/lib/test/blocks/text/held-space.test.ts` and
+`insertion-route-parity.test.ts` next to it:
+
+1. One ArrowRight ends the hold without moving the caret, at a line's end and mid-line.
+2. Mod+B ends it mid-line.
+3. After an arrow step, a soft keyboard types outside the bold.
+4. Source mode writes the space where the caret is, inside the visible closer, however it's typed.
 
 Miss-analysis: every live typing row typed a letter at a construct's edge, never whitespace, the
 one byte a closer can't follow; and every row pressed hardware keys, so the soft keyboard and paste

@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { gotoReady } from '../../goto-ready';
+import { clickModeButton } from '../../mode-switch';
 
 // The `/` showcase's presentation-mode toggle. This route has no `window.__test` bridge, so the
 // assertions read the rendered DOM only, like showcase-route.spec.ts, and nothing here names a
@@ -31,10 +32,8 @@ test.describe('/ showcase presentation toggle', () => {
 	});
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {
-		const editor = page.locator('.editor');
 		// Live is the showcase's default and paints no marker: the round trip starts from source.
-		await page.locator('.showcase-mode[data-mode="source"]').click();
-		await expect(editor).not.toHaveAttribute('data-presentation');
+		await clickModeButton(page, 'source');
 		// The tour's inline widgets sit well below the fold, and asserting "the widgets survived"
 		// where none are mounted is the empty pass this scenario exists to avoid.
 		await scrollToEnd(page);
@@ -47,13 +46,11 @@ test.describe('/ showcase presentation toggle', () => {
 		await expect(page.locator(`${MARKER}:visible`).first()).toBeVisible();
 		const before = await settledBlockText(page);
 
-		await page.locator('.showcase-mode[data-mode="reading"]').click();
-		await expect(editor).toHaveAttribute('data-presentation', 'reading');
+		await clickModeButton(page, 'reading');
 		await expect(page.locator(`${MARKER}:visible`)).toHaveCount(0);
 		await expect.poll(() => widgets.count()).toBeGreaterThan(0);
 
-		await page.locator('.showcase-mode[data-mode="source"]').click();
-		await expect(editor).not.toHaveAttribute('data-presentation');
+		await clickModeButton(page, 'source');
 		await expect(page.locator(`${MARKER}:visible`).first()).toBeVisible();
 		// Hiding markers shortens the document, so the window after the round trip need not be
 		// the window before it: compare block by block over the blocks mounted both times.

@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures';
 import { gotoReady } from '../goto-ready';
 import { SHOWCASE_MD, scanShowcase } from '../showcase-document';
+import { clickModeButton } from '../mode-switch';
 
 // The `/` showcase header: theme, drag handles, the debug panel, and the table of contents as
 // navigation. This route has no `window.__test` bridge, so the cases read rendered DOM only.
@@ -68,7 +69,7 @@ test.describe('/ showcase chrome', () => {
 
 		// The editor turns drag handles off in reading mode; a toggle that stayed enabled would
 		// look active while doing nothing.
-		await page.locator('.showcase-mode[data-mode="reading"]').click();
+		await clickModeButton(page, 'reading');
 		await expect(toggle).toBeDisabled();
 	});
 
@@ -95,10 +96,10 @@ test.describe('/ showcase chrome', () => {
 		// Both toolbars belong to live mode, which the showcase opens in: a markdown-first mode
 		// mounts neither, and switching back brings the strip in once something is selected.
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
-		await page.locator('.showcase-mode[data-mode="source"]').click();
+		await clickModeButton(page, 'source');
 		await expect(toolbar).toHaveCount(0);
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(0);
-		await page.locator('.showcase-mode[data-mode="live"]').click();
+		await clickModeButton(page, 'live');
 		await expect(page.getByTestId('insert-toolbar')).toHaveCount(1);
 
 		const intro = page.locator('.block-host [contenteditable]').first();
@@ -125,7 +126,7 @@ test.describe('/ showcase chrome', () => {
 	test('the insert strip creates a table once the live document holds a caret', async ({
 		page
 	}) => {
-		await page.locator('.showcase-mode[data-mode="live"]').click();
+		await clickModeButton(page, 'live');
 		const table = page.getByTestId('insert-table');
 		await expect(table).toBeDisabled();
 

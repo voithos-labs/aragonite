@@ -1,12 +1,12 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode, focusOffset, stepTo } from './helpers';
+import { clickBlockSettled, enterPresentationMode, focusOffset, nextRow, stepTo } from './helpers';
 
 // "Mod+B over a selection": the half of the chord that writes bytes at once, in the mode that
 // paints none of them. The source is the reference; the rendered element is what the user
-// actually sees change.
-// Requirements: e2e/requirements/presentation/presentation-live-selection-toggle.md.
+// actually sees change. Each test walks its rows as steps, every step on a fresh copy of the
+// document. Requirements: e2e/requirements/presentation/presentation-live-selection-toggle.md.
 
 const DOC = [
 	'plain words here',
@@ -52,94 +52,108 @@ async function selectFrom(
 }
 
 test.describe('live mode: a toggle over a selection writes its bytes at once', () => {
-	let ep: EditorPage;
+	test('a wrap', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', DOC);
-	});
+		for (const [format, wrapped] of [
+			['strong', '**words**'],
+			['strikethrough', '~~words~~'],
+			['inlineCode', '`words`']
+		] as const) {
+			await test.step(`${format} wraps the selection and one undo takes it back`, async () => {
+				await nextRow(ep, DOC);
+				await selectFrom(ep, page, PLAIN, 6, 5);
+				await page.keyboard.press(CHORD[format]);
+				await ep.bridge.waitForSourceContains(wrapped);
 
-	for (const [format, wrapped] of [
-		['strong', '**words**'],
-		['strikethrough', '~~words~~'],
-		['inlineCode', '`words`']
-	] as const) {
-		test(`${format} wraps the selection and one undo takes it back`, async ({ page }) => {
+				await page.keyboard.press('ControlOrMeta+z');
+				await ep.bridge.waitForSourceContains('plain words here');
+				expect(await ep.bridge.getSource()).toContain('plain words here');
+			});
+		}
+
+		await test.step('the wrap renders as the construct, with its delimiters unpainted', async () => {
+			await nextRow(ep, DOC);
 			await selectFrom(ep, page, PLAIN, 6, 5);
-			await page.keyboard.press(CHORD[format]);
-			await ep.bridge.waitForSourceContains(wrapped);
+			await page.keyboard.press(CHORD.strong);
+			await ep.bridge.waitForSourceContains('**words**');
 
-			await page.keyboard.press('ControlOrMeta+z');
+			await expect(ep.getBlock(PLAIN).locator('strong')).toHaveText('words');
+			await expect(ep.getBlock(PLAIN).locator('.md-marker').first()).toHaveCSS('display', 'none');
+		});
+	});
+
+	test('a strip', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+
+		await test.step('a selection over an already-bold word strips the pair', async () => {
+			await nextRow(ep, DOC);
+			// `**already bold**`: the whole construct, delimiters included, is offsets 0..16.
+			await selectFrom(ep, page, BOLD, 2, 12);
+			await page.keyboard.press(CHORD.strong);
+			await ep.bridge.waitForSourceContains('already bold tail');
+			expect(await ep.bridge.getSource()).not.toContain('**already bold**');
+		});
+
+		// The strip half for the other two runs: `~~` is two bytes and a code fence sizes itself, so
+		// the pair each one takes back off is read off its own parse rather than off the chord.
+		for (const [format, block, from, length, stripped] of [
+			['strikethrough', STRUCK, 2, 14, 'already struck tail'],
+			['inlineCode', CODE, 1, 12, 'already code tail']
+		] as const) {
+			await test.step(`a selection over an already-${format} word strips the pair`, async () => {
+				await nextRow(ep, DOC);
+				await selectFrom(ep, page, block, from, length);
+				await page.keyboard.press(CHORD[format]);
+				await ep.bridge.waitForSourceContains(stripped);
+			});
+		}
+	});
+
+	test('the edges of the selection', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+
+		// A run closes against a word, so wrapping the space would print four asterisks the user
+		// cannot see to delete. The word goes in the run and the space stays beside it.
+		await test.step('a selection ending on a space wraps the word alone', async () => {
+			await nextRow(ep, DOC);
+			await selectFrom(ep, page, PLAIN, 6, 6);
+			await page.keyboard.press(CHORD.strong);
+			await ep.bridge.waitForSourceContains('**words** here');
+
+			await expect(ep.getBlock(PLAIN).locator('strong')).toHaveText('words');
+			expect(await ep.bridge.getSource()).not.toContain('**words **');
+		});
+
+		// The wrap above put the space outside the delimiters, so the selection that applied the
+		// mark still reaches past the run it made: the same on-screen selection has to take it back.
+		await test.step('a selection carrying its boundary space takes its own wrap back', async () => {
+			await nextRow(ep, DOC);
+			await selectFrom(ep, page, PLAIN, 5, 6);
+			await page.keyboard.press(CHORD.strong);
+			await ep.bridge.waitForSourceContains('plain **words** here');
+
+			await selectFrom(ep, page, PLAIN, 5, 6);
+			await page.keyboard.press(CHORD.strong);
 			await ep.bridge.waitForSourceContains('plain words here');
-			expect(await ep.bridge.getSource()).toContain('plain words here');
+			expect(await ep.bridge.getSource()).not.toContain('**words**');
 		});
-	}
 
-	test('the wrap renders as the construct, with its delimiters unpainted', async ({ page }) => {
-		await selectFrom(ep, page, PLAIN, 6, 5);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('**words**');
-
-		await expect(ep.getBlock(PLAIN).locator('strong')).toHaveText('words');
-		await expect(ep.getBlock(PLAIN).locator('.md-marker').first()).toHaveCSS('display', 'none');
-	});
-
-	test('a selection over an already-bold word strips the pair', async ({ page }) => {
-		// `**already bold**`: the whole construct, delimiters included, is offsets 0..16.
-		await selectFrom(ep, page, BOLD, 2, 12);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('already bold tail');
-		expect(await ep.bridge.getSource()).not.toContain('**already bold**');
-	});
-
-	// The strip half for the other two runs: `~~` is two bytes and a code fence sizes itself, so
-	// the pair each one takes back off is read off its own parse rather than off the chord.
-	for (const [format, block, from, length, stripped] of [
-		['strikethrough', STRUCK, 2, 14, 'already struck tail'],
-		['inlineCode', CODE, 1, 12, 'already code tail']
-	] as const) {
-		test(`a selection over an already-${format} word strips the pair`, async ({ page }) => {
-			await selectFrom(ep, page, block, from, length);
-			await page.keyboard.press(CHORD[format]);
-			await ep.bridge.waitForSourceContains(stripped);
+		await test.step('a toggle inside a heading leaves the unpainted prefix alone', async () => {
+			await nextRow(ep, DOC);
+			// Home lands past the hidden `## `, so the selection can only start in content.
+			await selectFrom(ep, page, HEADING, 3, 7);
+			await page.keyboard.press(CHORD.strong);
+			await ep.bridge.waitForSourceContains('## **Heading**');
 		});
-	}
-
-	// A run closes against a word, so wrapping the space would print four asterisks the user
-	// cannot see to delete. The word goes in the run and the space stays beside it.
-	test('a selection ending on a space wraps the word alone', async ({ page }) => {
-		await selectFrom(ep, page, PLAIN, 6, 6);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('**words** here');
-
-		// The space is beside the run, not in it, so the literal wrap's four asterisks never appear.
-		await expect(ep.getBlock(PLAIN).locator('strong')).toHaveText('words');
-		expect(await ep.bridge.getSource()).not.toContain('**words **');
-	});
-
-	// The wrap above put the space outside the delimiters, so the selection that applied the mark
-	// still reaches past the run it made: the same on-screen selection has to take it back.
-	test('a selection carrying its boundary space takes its own wrap back', async ({ page }) => {
-		await selectFrom(ep, page, PLAIN, 5, 6);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('plain **words** here');
-
-		await selectFrom(ep, page, PLAIN, 5, 6);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('plain words here');
-		expect(await ep.bridge.getSource()).not.toContain('**words**');
-	});
-
-	test('a toggle inside a heading leaves the unpainted prefix alone', async ({ page }) => {
-		// Home lands past the hidden `## `, so the selection can only start in content.
-		await selectFrom(ep, page, HEADING, 3, 7);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('## **Heading**');
 	});
 });
 
 // The DOM reads a range ending on a hidden run back as any boundary of that run, so each chord
 // must read the selection the last one left the way the user sees it.
-test.describe('live mode: chords chained on one selection', () => {
+test('live mode: chords chained on one selection', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
 	for (const [name, block, from, formats, states] of [
 		[
 			'bold, italic, then each back off',
@@ -168,8 +182,8 @@ test.describe('live mode: chords chained on one selection', () => {
 			['**already *bold*** tail', '**already bold** tail']
 		]
 	] as const) {
-		test(name, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', DOC);
+		await test.step(name, async () => {
+			await nextRow(ep, DOC);
 			await selectFrom(ep, page, block, from, block === PLAIN ? 5 : 4);
 			for (const [i, format] of formats.entries()) {
 				await page.keyboard.press(CHORD[format]);
@@ -179,28 +193,28 @@ test.describe('live mode: chords chained on one selection', () => {
 	}
 });
 
-test.describe('live mode: the toggle is its own undo entry', () => {
-	test('one undo after typing then toggling keeps the typed bytes', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
-		await clickBlockSettled(ep, PLAIN);
-		await page.keyboard.press('End');
-		await page.keyboard.type(' typed');
-		await ep.bridge.waitForSourceContains('plain words here typed');
+test('live mode: one undo after typing then toggling keeps the typed bytes', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	await clickBlockSettled(ep, PLAIN);
+	await page.keyboard.press('End');
+	await page.keyboard.type(' typed');
+	await ep.bridge.waitForSourceContains('plain words here typed');
 
-		await selectFrom(ep, page, PLAIN, 6, 5);
-		await page.keyboard.press(CHORD.strong);
-		await ep.bridge.waitForSourceContains('**words**');
+	await selectFrom(ep, page, PLAIN, 6, 5);
+	await page.keyboard.press(CHORD.strong);
+	await ep.bridge.waitForSourceContains('**words**');
 
-		await page.keyboard.press('ControlOrMeta+z');
-		await ep.bridge.waitForSourceContains('plain words here typed');
-		// The batch the chord interrupted survives: the toggle owns its entry alone.
-		expect(await ep.bridge.getSource()).not.toContain('**words**');
-	});
+	await page.keyboard.press('ControlOrMeta+z');
+	await ep.bridge.waitForSourceContains('plain words here typed');
+	// The batch the chord interrupted survives: the toggle owns its entry alone.
+	expect(await ep.bridge.getSource()).not.toContain('**words**');
 });
 
-test.describe('source mode: the same chord writes the same bytes', () => {
-	test('the delimiters are painted, and the source is identical', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'source', DOC);
+test('source mode: the same chord writes the same bytes', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'source', DOC);
+
+	await test.step('the delimiters are painted, and the source is identical', async () => {
+		await nextRow(ep, DOC);
 		await selectFrom(ep, page, PLAIN, 6, 5);
 		await page.keyboard.press(CHORD.strong);
 		await ep.bridge.waitForSourceContains('**words**');
@@ -209,10 +223,8 @@ test.describe('source mode: the same chord writes the same bytes', () => {
 
 	// A run closes against a word in every mode, painted or not, so the space stays outside the
 	// delimiters here too, and the run the wrap leaves selected is what the next chord takes off.
-	test('a selection ending on a space wraps the word, and a second press takes it back', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'source', DOC);
+	await test.step('a selection ending on a space wraps the word, and a second press takes it back', async () => {
+		await nextRow(ep, DOC);
 		await selectFrom(ep, page, PLAIN, 6, 6);
 		await page.keyboard.press(CHORD.strong);
 		await ep.bridge.waitForSourceContains('plain **words** here');

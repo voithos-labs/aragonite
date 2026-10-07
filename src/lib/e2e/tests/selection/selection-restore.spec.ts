@@ -288,7 +288,7 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		const snapshot = await editor.bridge.getSelection();
 		await editor.clickBlockAtPath([2], 0);
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 		await editor.waitForRenderFlush();
 
 		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);

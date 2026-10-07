@@ -14,7 +14,7 @@ test.describe('preview-block: directive-body containment', () => {
 		ep = new PluginsPage(page);
 		await ep.gotoPlugins();
 		await ep.loadContent(DOC);
-		await page.evaluate(() => (window as any).__test.setPresentationMode('preview-block'));
+		await ep.setPresentationMode('preview-block');
 		await ep.waitForRenderFlush();
 	});
 

@@ -90,14 +90,14 @@ test.describe('a presentation-mode flip ends the gap', () => {
 
 		// Change mode without moving DOM focus: a toggle click blurs the proxy, and `onFocusOut`
 		// then clears the gap before the shared check runs, and the mode change must be alone.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 
 		await editor.bridge.waitForGapCaret(null);
 		// The shared check is what clears the gap; this read is a backup, since a cleared gap renders
 		// no proxy either way.
 		await expect(page.locator('[data-gap-caret] [contenteditable="true"]')).toHaveCount(0);
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
+		await editor.setPresentationMode('source');
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});

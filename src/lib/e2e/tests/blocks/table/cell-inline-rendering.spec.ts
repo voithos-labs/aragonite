@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { clickModeToggle } from '../../../mode-switch';
 
 const HEADER = '| H |\n| :- |\n';
 
@@ -86,7 +87,7 @@ test.describe('table cell: inline rendering', () => {
 		await expect(markers).toHaveCount(2);
 		await expect(markers.first()).toBeVisible();
 
-		await page.getByTestId('presentation-toggle').click();
+		await clickModeToggle(page, 'reading');
 		await expect(markers.first()).toBeHidden();
 		await expect(markers.last()).toBeHidden();
 		expect(await cell.innerText()).toBe('alt');

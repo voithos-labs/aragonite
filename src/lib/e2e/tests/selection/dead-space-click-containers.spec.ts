@@ -77,7 +77,7 @@ async function aimX(page: Page, aim: Aim, row: Case, y: number): Promise<number>
 }
 
 for (const row of CASES) {
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		for (const aim of row.aims) {
 			test(`${mode}: a click ${aim} beside ${row.name}'s later line lands on it`, async ({
 				page
