@@ -7,7 +7,6 @@
 import { describe, it, expect } from 'vitest';
 import {
 	balancedBlock,
-	callsAnywhere,
 	callsTo,
 	collectEditorSources,
 	EDITOR_SRC,
@@ -145,10 +144,10 @@ function codeRunAtLoad(body: string): string {
 	);
 }
 
-/** Each describe call's last argument list, so `describe.each(rows)(name, fn)` and
- *  `describe.skip(name, fn)` yield their callback as `describe(name, fn)` does. */
-function describeArguments(code: string): string[] {
-	return [...code.matchAll(/(?<![\w$.])describe\b/g)].flatMap((m) => {
+/** Each `name` call chain's last argument list, so `name.each(rows)(title, fn)` and
+ *  `name.skip(title, fn)` yield their callback as `name(title, fn)` does. */
+function lastCallArguments(code: string, name: string): string[] {
+	return [...code.matchAll(new RegExp(`(?<![\\w$.])${name}\\b`, 'g'))].flatMap((m) => {
 		const step = /\s*(?:\.\s*[\w$]+|(\())/y;
 		let last: string | null = null;
 		step.lastIndex = m.index + m[0].length;
@@ -173,7 +172,7 @@ const blankLiterals = (code: string): string =>
 /** What a file runs as it loads: its top level, and each describe callback's own statements. */
 function loadTimeCode(code: string): string[] {
 	const bare = blankLiterals(code);
-	const bodies = describeArguments(bare).flatMap((args) => {
+	const bodies = lastCallArguments(bare, 'describe').flatMap((args) => {
 		const open = /=>\s*\{/.exec(args);
 		const body = open && balancedBlock(args, open.index + open[0].length);
 		return body ? [body] : [];
@@ -190,13 +189,13 @@ function loadTimeRegistration(code: string): boolean {
 const hookCall = (hook: string, body: string) => `${hook}(() => ${body});`;
 
 const TREE_WALKERS = ['collectEditorSources', 'collectFiles'];
+// A member or spread call (`scan.collectFiles(`, `...collectFiles(`) walks as much as a bare one.
+const TREE_WALK = new RegExp(`(?<![\\w$])(?:${TREE_WALKERS.join('|')})\\s*\\(`);
 
-/** Whether a test's own callback walks a source tree. */
+/** Whether a test's own callback walks a source tree, through any `it` or `test` form. */
 const walksInsideATest = (code: string): boolean =>
 	['it', 'test'].some((name) =>
-		callsTo(blankLiterals(code), name).some((args) =>
-			TREE_WALKERS.some((walker) => callsAnywhere(args, walker))
-		)
+		lastCallArguments(blankLiterals(code), name).some((args) => TREE_WALK.test(args))
 	);
 
 const SUITE_DIRS = [SOURCE_DIR.unitTests, SOURCE_DIR.e2e];
@@ -329,7 +328,10 @@ const RULES: FileRule[] = [
 				'src/lib/test/b.test.ts',
 				`test('reads', () => expect(${TREE_WALKERS[0]}()).toEqual([]));`
 			),
-			at(`${LINT_DIRS[1]}c.test.ts`, `it('reads', () => [...${TREE_WALKERS[0]}(dir)], 30_000);`)
+			at(`${LINT_DIRS[1]}c.test.ts`, `it('reads', () => [...${TREE_WALKERS[0]}(dir)], 30_000);`),
+			at('src/lib/test/d.test.ts', `it.each(rows)('reads %s', (dir) => ${TREE_WALKERS[1]}(dir));`),
+			at('src/lib/test/e.test.ts', `it.skip('reads', () => ${TREE_WALKERS[1]}(dir));`),
+			at('src/lib/test/f.test.ts', `test.concurrent('reads', () => scan.${TREE_WALKERS[1]}(dir));`)
 		],
 		misses: [
 			at(
@@ -339,6 +341,10 @@ const RULES: FileRule[] = [
 			at(
 				`${LINT_DIRS[0]}e.test.ts`,
 				`it('names it', () => expect(${quoted("'", TREE_WALKERS[1] + '(x)')}).toBe(''));`
+			),
+			at(
+				'src/lib/test/g.test.ts',
+				`it.each(${TREE_WALKERS[1]}(dir))('reads %s', (f) => expect(${TREE_WALKERS[1]}Count(f)).toBe(1));`
 			)
 		]
 	},
