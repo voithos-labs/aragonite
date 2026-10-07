@@ -1,12 +1,10 @@
 # The casebook
 
 Eight times this editor corrupted something, or came close enough that the difference was luck.
-Each incident is headed by the rule it bought. Nobody would've believed the rule without the
-incident, which is the whole reason this file exists.
-
-[`rules.md`](rules.md) is the short version and the one to read first; this file is the evidence
-behind it, so the rules don't read as superstition. Read it before your first structural change,
-because these are the ways the codebase actually breaks, not the ways I imagined it might.
+Each incident is headed by the rule it bought. [`rules.md`](rules.md) is the short version and the
+one to read first; this file is the evidence behind it, so the rules don't read as superstition.
+Read it before your first structural change. These are the ways the codebase actually breaks, not
+the ways I imagined it might.
 
 Every entry ends the same way: the guard that now catches the mistake (guards carry G-numbers,
 catalogued in `docs/design/invariants.md`), shown as the line that fires or the type error it
@@ -24,19 +22,19 @@ the one Svelte watches.
 kept the pre-splice reference wrote into an object nobody was rendering.
 
 **Guard:** G1.9's copy-path-on-write discipline (before a write, copy the parents from the root
-down to the target, splice the copies in, then re-read them through the tree). The unshare seam (a
-seam: a boundary where responsibility changes hands from one piece of code to another; this one is
-where a shared node gets copied before a write) does the copy and the re-read for you, and Svelte
-reports a kept copy the moment something compares it against the proxy, as
+down to the target, splice the copies in, then re-read them through the tree). The functions in
+`src/lib/tree-operations/unshare.ts` (the one module that turns a shared node into a writable copy)
+do the copy and the re-read for you, and Svelte reports a kept copy the moment something compares
+it against the proxy, as
 `[svelte] state_proxy_equality_mismatch` ([`warnings.md`](warnings.md) § The proxy-versus-raw
 one). **Spec:** the `src/lib/tree-operations/unshare.ts` header. ([rule 1](rules.md#the-five-rules))
 
 ## Snapshot-shared nodes are read-only on their bytes
 
 An undo entry doesn't clone the document; it references the same nodes the live tree holds. So
-copy the path before any byte write. The commit steps own
-that copying and hands each mutation an owned view of its scope, so never write through a node
-reference captured before the commit.
+copy the path before any byte write. The commit steps do that copying and hand each mutation an
+owned view of its scope, which means you never write through a node reference captured before the
+commit.
 
 **Incident.** A mutation wrote serialized bytes through a node an undo entry still shared, which
 rewrote history in place, and the corruption surfaced only at the undo that exposed it, far from
@@ -45,7 +43,7 @@ re-verifies at every commit and restore) now catches the violation at the offend
 instead.
 
 **Guard:** G1.9, and since 0.9.24 mostly a type: readers hold bytes-readonly views (G3.8), and
-the unshare seam is the only way back to mutable (G4.13). The check stays as the runtime
+`unshare.ts` is the only way back to a writable node (G4.13). The check stays as the runtime
 backstop, because running JS bypasses types. The type half, as `tsc` reports it:
 
 ```ts
@@ -112,11 +110,12 @@ it('TextEditableBlock render $effect does not call getInlineContent', () => {
 ## Only `await tick()` for sequencing
 
 Reaching for `setTimeout`, `rAF`, or a microtask trick means the operation flow underneath is
-wrong and the timer is hiding it. The predecessor editor, the pre-aragonite attempt at this same
-editor (the README's Origin section), died of exactly that.
+wrong and the timer is hiding it. The predecessor editor (an earlier attempt at this same editor,
+before aragonite) died of exactly that.
 
-**Guard:** G4.4, a source scan whose allowlist holds the five genuine wall-clock uses, each with
-the reason it isn't sequencing. Any other timer call reds the scan.
+**Guard:** G4.4, a source scan whose allowlist holds the few timers that order nothing (an
+animation cadence, an undo debounce, a deadline), each with the reason it isn't sequencing. Any
+other timer call reds the scan.
 
 ```ts
 // src/lib/test/invariants/lint/file-rules.test.ts, the G4.4 row
@@ -133,19 +132,19 @@ died). ([rule 3](rules.md#the-five-rules))
 
 ## Rules live at choke points, not call sites
 
-Two seams exist precisely because their call-site versions kept missing sites. Cross-block
-selection endpoints normalize INSIDE the selection state's own `enterCrossBlock` / `extendFocus`,
-and commit event/snapshot paths are doc-absolute (resolved from the document root, not from
+Two choke points exist precisely because their call-site versions kept missing sites. Cross-block
+selection endpoints normalize inside the selection state's own `enterCrossBlock` / `extendFocus`,
+and commit event and snapshot paths are doc-absolute (resolved from the document root, not from
 whatever scope the caller was in), built by the scope factories. Never construct endpoints around
-the seam, and never compose a path in a caller.
+those two, and never compose a path in a caller.
 
 **Incident.** Two of the three corruption Criticals in the audit (Critical: the audit's top
 severity) were entry paths that skipped a wrap five of their siblings carried.
 
-**Guard:** G1.16 for commit paths. Since 0.9.24 the factories mint the `DocPath` brand (minted:
-created only by the one authorized place) and the op-family composers build through the branded
-helpers, with G1.16 as the runtime backstop for the JS callers the type can't reach. The two
-halves:
+**Guard:** G1.16 for commit paths. Since 0.9.24 a commit path is a `DocPath`, a branded type
+(a plain number array doesn't type-check as one) built only through its named constructors
+(`asDocPath`, `extendDocPath`, `docPathFrom`), which the scope factories call. G1.16 is the
+runtime backstop for the JS callers the type can't reach. The two halves:
 
 ```ts
 const composed: DocPath = [0, 1];
@@ -190,6 +189,7 @@ The conversions that are allowed are named functions in `src/lib/cursor/coordina
 (`toRawOffset`, `toDomTextOffset`, and friends), one per direction. And a source scan (G4.36)
 fails any native selection write outside `widget-offset.ts`, apart from a few declared files that
 select nodes they already hold.
+
 **Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
@@ -215,14 +215,17 @@ The same no-unregister rule reaches the public API. A plugin author's suite can'
 cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
 `resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public registries
 (block context actions, code languages) were never on it: a suite resetting in `beforeEach` saw one
-more copy of its context-menu row per case, and kept the first case's grammar for the rest. Now
-every registry is built in `src/lib/schema/plugin-registry.ts`, which signs the store up for the
-reset as it builds it, so there's no list to forget. The same store knows which plugin each entry
-belongs to: whoever registered it, unless it's keyed by a kind some plugin declared, in which case
-that plugin. It only lets an entry through to an editor that lists that plugin. What the store can't
-reach is a copy kept outside it: highlight.js holds its own table of grammars, and the first cut of
-this fix left the first case's grammar there after the reset had cleared the registry. So that copy
-now checks itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
+more copy of its context-menu row per case, and kept the first case's grammar for the rest. The fix
+has three parts:
+
+- Every registry is now built in `src/lib/schema/plugin-registry.ts`, which signs the store up for
+  the reset as it builds it, so there's no list to forget.
+- The same store knows which plugin each entry belongs to (whoever registered it, unless it's keyed
+  by a kind some plugin declared, in which case that plugin), and only lets an entry through to an
+  editor that lists that plugin.
+- A copy kept outside the store checks itself against the store on every read. highlight.js holds
+  its own table of grammars, and the first cut of this fix left the first case's grammar there
+  after the reset had cleared the registry (`code-renderer.ts :: tokenizeBody` is the check now).
 
 **Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `buildRegistry`, the one
 function behind every registry constructor, and `src/lib/test/plugins/testing-barrel.test.ts` reads
