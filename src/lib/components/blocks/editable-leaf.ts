@@ -20,7 +20,6 @@ import { asRawOffset } from '../../cursor/coordinate-spaces';
 import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
-	editableSurfaceAttributes,
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
@@ -762,7 +761,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// never shown in reading mode, so its `contenteditable` stays true.
 	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
 		...surfaceHandlers,
-		...editableSurfaceAttributes(deps.getNode(), inlineMenuCombobox(deps.getPath())),
+		...editableSurface.attributes(inlineMenuCombobox(deps.getPath())),
 		contenteditable: mode === 'render-primary' || !isReading() ? 'true' : 'false',
 		[syncKey]: syncAttachment,
 		[parkKey]: parkAttachment

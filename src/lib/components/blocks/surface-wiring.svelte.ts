@@ -9,10 +9,12 @@ import type { BlockEditActions, FocusActions, HistoryActions } from '../../actio
 import {
 	BLOCK_EDIT_KEY,
 	EDITOR_DOC_KEY,
+	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
 	HISTORY_KEY,
 	type EditorDoc,
+	type EditorPolicies,
 	type EditorServices
 } from '../../editor-keys';
 import { eventToChord } from '../../schema/keybindings';
@@ -45,6 +47,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'kindCue'
 	| 'reading'
 	| 'commands'
+	| 'placeholder'
 >;
 
 export interface SurfaceWiring {
@@ -80,6 +83,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		lifetime: editorLifetime,
 		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { placeholder } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 
 	const deps: SharedSurfaceDeps = {
 		selection,
@@ -100,7 +104,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		events,
 		kindCue,
 		reading,
-		commands
+		commands,
+		placeholder
 	};
 
 	const dispatchChord = (e: KeyboardEvent, target: KindCommandTarget): boolean => {

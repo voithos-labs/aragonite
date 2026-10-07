@@ -37,6 +37,7 @@ import type { ListTree } from './reactivity/list-tree';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 import type { KindCue } from './components/kind-cue.svelte';
+import type { PlaceholderPolicy } from './components/blocks/placeholder-hint.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -193,6 +194,9 @@ export interface EditorPolicies {
 	/** Read live, so a prop change reaches built blocks: render the mouse-only hover controls,
 	 *  the block drag handle and the table's handles. False renders neither; keyboard stays. */
 	blockDragHandles: () => boolean;
+	/** Read live, so a prop change repaints built blocks: the `placeholder` prop and whether the
+	 *  document is one top-level block, or null while the prop is unset. */
+	placeholder: () => PlaceholderPolicy | null;
 	presentationMode: PresentationModeGetter;
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored
 	 *  markup (a diagram SVG) cannot pick the theme up from CSS, so it needs the name. */

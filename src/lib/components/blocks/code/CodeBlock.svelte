@@ -21,8 +21,7 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore,
-		editableSurfaceAttributes
+		consumePendingRestore
 	} from '../editable-surface';
 	import { writeShownSelection, type ClipboardCopy } from '../clipboard-step';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
@@ -106,6 +105,7 @@
 		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
 		columnWindow: () => bodyWindow(node),
 		clampLanding: (offset) => clampCaretToBody(node, offset),
+		contentRange: () => bodyWindow(node),
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -790,7 +790,7 @@
 	class="code-block"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	{...editableSurfaceAttributes(node, null)}
+	{...editableSurface.attributes(null)}
 	spellcheck="false"
 	oninput={onInput}
 	onfocus={onSurfaceFocus}

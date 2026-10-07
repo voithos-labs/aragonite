@@ -59,6 +59,11 @@ export interface EditorProps {
 	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
 	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
+	/** Faint text an empty block shows until something is typed, read live. A string shows only in
+	 *  an empty document, never in reading mode; a function is asked for each mounted empty block
+	 *  and returns the text or null. It is painted by CSS from `data-placeholder` and announced as
+	 *  `aria-placeholder`, so it never enters the document, the undo history or the caret. */
+	placeholder?: string | ((block: PlaceholderBlock) => string | null);
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode
 	 *  never shows it). A host with its own bar over `runCommand` passes false. */
@@ -95,6 +100,19 @@ export interface EditorProps {
 	 *  `setextHeading: false` reads `===` or `---` under text as prose or a divider. Only the
 	 *  reading changes: a loaded file keeps every byte, and saves as it came. */
 	syntax?: SyntaxOptions;
+}
+
+/** The empty block a function `placeholder` is asked about. */
+export interface PlaceholderBlock {
+	kind: string;
+	/** Child indices from the document root. */
+	path: number[];
+	/** The whole document is this one empty block. */
+	documentEmpty: boolean;
+	/** The caret is in this block. */
+	focused: boolean;
+	/** False in reading mode. */
+	editable: boolean;
 }
 
 export interface InsertMarkdownOptions {

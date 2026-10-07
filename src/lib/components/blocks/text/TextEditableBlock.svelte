@@ -65,11 +65,7 @@
 	import { assertInvariant } from '../../../assert';
 	import { widgetElByStart, widgetsIn } from './widget-adjacency';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
-	import {
-		editableSurfaceAttributes,
-		createEditableSurface,
-		consumePendingRestore
-	} from '../editable-surface';
+	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
 	import { rangeWrite, withOwnEnding } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
@@ -1129,7 +1125,7 @@
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	{...editableSurfaceAttributes(node, combobox)}
+	{...editableSurface.attributes(combobox)}
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
