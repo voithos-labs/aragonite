@@ -147,5 +147,6 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 			}),
 			PARAMS
 		);
-	});
+		// 300 draws of every move take seconds alone, past Vitest's default when workers contend.
+	}, 30_000);
 });
