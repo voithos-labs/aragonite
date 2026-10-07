@@ -39,7 +39,8 @@ function typeInCell(doc: Document, row: number, col: number, text: string): void
 		},
 		col,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	rebuildUnsharedChain(doc, [table, holder], createSharingState(), null, defaultGrammarView);
 }
@@ -68,12 +69,12 @@ describe('the cells past the header’s count', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	it('survive a write to another row, through the whole table’s rebuild', () => {
+	it('survive a write to another row, their row kept as it was written', () => {
 		const { doc } = tableOf('| H0 |\n| --- |\n|x|y|z \\| w|\n| 1 |\n');
 
 		typeInCell(doc, 2, 0, '12');
 
-		expect(serialize(doc)).toBe('| H0 |\n| --- |\n| x | y | z \\| w |\n| 12 |\n');
+		expect(serialize(doc)).toBe('| H0 |\n| --- |\n|x|y|z \\| w|\n| 12 |\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 

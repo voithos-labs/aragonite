@@ -18,6 +18,7 @@ import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
 import type { RemovalGesture } from './selection/caret-target';
+import type { CommandRun } from './schema/block-commands';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -42,11 +43,11 @@ export type DiscardIfNoop = boolean;
  */
 export type CommitLanding = () => Landing | null;
 
-/**
- * A callback that places the caret itself after the tick, left only for the delete and the typing
- * over a range that spans blocks, not yet on {@link CommitLanding}. Awaited, before the landing.
- */
-export type CommitAfterTick = () => void | Promise<void>;
+/** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
+ *  undo or a document swap came in since the commit. */
+export interface HeldLanding {
+	place(): Promise<void>;
+}
 
 /**
  * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
@@ -88,7 +89,8 @@ export interface BlockCaret {
 /** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
  *  that writes nothing resolves false. */
 export interface BlockEditActions {
-	splitBlock(blockIndex: number, offset: number): Promise<boolean>;
+	/** A split after a selection's removal (`run.afterRemoval`) never takes an empty line's exit. */
+	splitBlock(blockIndex: number, offset: number, run?: CommandRun): Promise<boolean>;
 	/**
 	 * Focus the block after `blockIndex` in this list, creating an empty paragraph when it is
 	 * the last child. If the next block is not mounted the caret stays put, key consumed.
@@ -111,6 +113,12 @@ export interface BlockEditActions {
 		preEditOffset: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
+	/** Write the space that finishes the container's marker in front of the block (`>abc` becomes
+	 *  `> abc`) as one write of the container's line; false where its kind or bytes take none. */
+	completeMarker(blockIndex: number): Promise<boolean>;
+	/** Replace the block with the structure an on-type completer makes of its line (a typed `$$`),
+	 *  with `caret` where the typing left it; false when no completer takes the line. */
+	completeLineOnType(blockIndex: number, caret: number): Promise<boolean>;
 	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no
 	 *  parse gives back is dropped at the next re-read; a heading's level goes through the text. */
 	updateBlockMetadata(
@@ -203,7 +211,6 @@ export interface CommitMultiScopeArgs<
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
 	landing?: CommitLanding;
 	/** How far the landing moves the viewport; `'into-view'` when absent. */
@@ -219,7 +226,6 @@ export interface CommitStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -244,7 +250,6 @@ export interface CommitContainerStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
@@ -276,8 +281,8 @@ export interface CommitController {
 	/** The document root as a `MultiScopeTarget`, so a multi-scope commit can include root-level
 	 *  changes (a cross-block delete whose common ancestor is the root). */
 	getDocScope(): MultiScopeTarget;
-	/** Flush the pending keystroke batch (emit its `input` event and clear the debounce
-	 *  timer) before an undo or redo, so the batch's bytes aren't lost. */
+	/** End the keystroke batch and its pause timer, so the next keystroke opens its own undo
+	 *  entry. */
 	flushDebouncedCheckpoint(): void;
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
@@ -288,6 +293,17 @@ export interface CommitController {
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
+	/** Runs `run` with each commit's caret kept rather than put down, and resolves to `run`'s
+	 *  result and the last caret kept, so a gesture of several commits places one. */
+	holdLandings<T>(run: () => Promise<T>): Promise<[result: T, landing: HeldLanding | null]>;
+	/** The next typing write joins the last commit's entry while it is the newest, until
+	 *  `endContinuedBurst`: a composition's text joins the removal its start made. */
+	continueTypingBurst(): void;
+	/** Ends what `continueTypingBurst` armed, written to or not; called at compositionend. */
+	endContinuedBurst(): void;
+	/** Whether a gesture may write now: false in reading mode, or for a document a `source` swap
+	 *  replaced. A reading-mode refusal names `op` in a dev warning; a null `op` is refused quietly. */
+	admitsGesture(op: string | null): boolean;
 }
 
 /** What a container reaches the editor root for, forwarded unchanged through nested containers.
@@ -347,8 +363,8 @@ export interface LeafWriteLanded extends Relanding {
 export interface LeafTextOptions {
 	caret: number;
 	snapshotOffset: number;
-	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
-	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
+	/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
+	landing?: (landed: LeafWriteLanded) => Landing | null;
 }
 
 // ── Replace ─────────────────────────────────────────────────────────────────

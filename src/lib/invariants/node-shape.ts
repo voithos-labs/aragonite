@@ -279,8 +279,8 @@ function isPrimitive(value: unknown): boolean {
 
 // ── G1.42: a list item says what its reload reads ─────────────────────────────
 
-/** G1.42: every list item under `node` holds the checkbox a reload of `node`'s own bytes gives it,
- *  and a to-do the reload's block kinds too. Dev only: it reparses the touched node. */
+/** G1.42: every list item under `node` holds the checkbox and the block kinds a reload of
+ *  `node`'s own bytes gives it. Dev only: it reparses the touched node. */
 export function checkTaskMarkerSlot(
 	node: NodeView,
 	grammar: GrammarView
@@ -292,7 +292,7 @@ export function checkTaskMarkerSlot(
 	return reloaded ? itemDrift(node, reloaded) : null;
 }
 
-/** The first list item whose checkbox or first block kind differs between the two trees, walked
+/** The first list item whose checkbox or block kinds differ between the two trees, walked
  *  together only where they have the same shape (other drift is another check's). */
 function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null {
 	if (tree.kind === 'listItem' && reload.kind === 'listItem') {
@@ -300,8 +300,9 @@ function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null 
 		const reloadTask = metadataOf(reload, 'listItem')?.taskItem === true;
 		const blocks = kindsOf(tree);
 		const reloadBlocks = kindsOf(reload);
-		// A to-do's blocks are compared whole; a plain item's block drift is no checkbox question.
-		if (task !== reloadTask || (task && blocks !== reloadBlocks)) {
+		// An item holding no block is the empty-container check's.
+		const drifted = blocks !== reloadBlocks && (tree.children?.length ?? 0) > 0;
+		if (task !== reloadTask || drifted) {
 			return {
 				code: 'task-marker-slot',
 				message: `a list item holds ${task ? 'a' : 'no'} checkbox before [${blocks}], where its reload reads ${reloadTask ? 'a' : 'no'} checkbox before [${reloadBlocks}]`,

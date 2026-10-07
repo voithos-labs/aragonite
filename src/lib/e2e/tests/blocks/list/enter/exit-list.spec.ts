@@ -148,6 +148,21 @@ test.describe('list Enter: exit list on empty item', () => {
 		expect(source).not.toMatch(/^ {2,}1\. NestedOrdered$/m);
 	});
 
+	test('Enter on an empty item keeps its children in the order they read', async () => {
+		await editor.loadContent('- zeta\n- alpha\n  - x\n\n  p\n\n  - y\n- beta\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' }).click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('- \n');
+		await editor.page.keyboard.press('Enter');
+		await editor.typeText('lead');
+
+		await editor.bridge.waitForSourceContains('lead');
+		expect(await editor.bridge.getSource()).toBe(
+			'- zeta\n- alpha\n\nlead\n\n- x\n\np\n\n- y\n- beta\n'
+		);
+	});
+
 	// Trailing non-list children of a loose item must be lifted out, not dropped.
 	test('Enter on emptied loose item lifts trailing paragraph as top-level block', async () => {
 		await editor.loadContent('- First\n\n  second\n');

@@ -52,6 +52,7 @@ async function removeFenceAfterSwitchToReading() {
 		insertCatalogue: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
+		stamps: editor.deps.stamps,
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

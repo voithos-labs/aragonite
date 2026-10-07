@@ -6,7 +6,7 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// Emptying a block through the bundles a consumer holds: `TextEditableBlock.commitInput` sends
+// Emptying a block through the bundles a consumer holds: the typing write sends
 // the block's own line ending when its text goes empty, so emptying is an ordinary content commit.
 // Miss-analysis: the blank-line fix-ups were tested at the tree level, never through a bundle.
 

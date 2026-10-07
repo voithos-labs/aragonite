@@ -8,7 +8,7 @@ You prob want to read this page before your first edit, and the casebook before 
 
 - [The five rules](#the-five-rules): the list, each rule linking to the incident that bought it.
 - [The enforcement ladder](#the-enforcement-ladder): where a rule should live, so nobody has to remember it.
-- [The bug shape to fear: sibling-path parity](#the-bug-shape-to-fear-sibling-path-parity): the pattern behind most of the audit's findings, and the habits that kill it.
+- [The bug shape to fear: sibling-path parity](#the-bug-shape-to-fear-sibling-path-parity): the pattern behind most of the corruption bugs found so far, and the habits that kill it.
 - [Fixing bugs](#fixing-bugs): how a fix lands here, test first.
 - [Testing shape](#testing-shape): where tests have to sit to catch anything.
 - [Working the gates](#working-the-gates): the check commands, what green looks like, and the one way to fool yourself.
@@ -27,26 +27,27 @@ You prob want to read this page before your first edit, and the casebook before 
 3. **`await tick()` is the only sequencing primitive.** No `setTimeout`, no `rAF`, no microtask
    tricks. ([the predecessor editor](casebook.md#only-await-tick-for-sequencing))
 4. **Rules live at choke points, not call sites.** A choke point is the one place every path
-   already crosses, a seam (a boundary where responsibility changes hands from one piece of code
-   to another). If a rule can move into the seam, it moves into the seam.
+   already goes through (the function every commit calls, say). If a rule can move there, it
+   moves there.
    ([endpoints and paths](casebook.md#rules-live-at-choke-points-not-call-sites),
    [one offset home](casebook.md#dom-to-raw-offset-translation-has-one-home),
    [registries](casebook.md#registries-are-code-not-state))
 5. **A bug fix closes the class and adds the guard.** Fixing only the instance you found is half a
-   fix. (the ladder below, and [§ Fixing bugs](#fixing-bugs))
+   fix. (guards are the next section; the habit is [§ Fixing bugs](#fixing-bugs))
 
 ## The enforcement ladder
 
-**Unrepresentable > guarded > documented.** A contract climbs as high up that ladder as it can.
-First choice is types and seams that make the violation impossible to write down. Where types
-can't reach, a dev-mode guard that fails a test gate. Prose only for what neither can hold. When
-you touch a convention, ask whether it can climb a rung (one level up the ladder). The audit's
-most durable fixes were exactly such promotions: a tree operation that threw became a nullable
-return, and a path convention that lived in a comment became factory-built arguments plus a guard.
+**Unrepresentable > guarded > documented.** A contract climbs as high up that list as it can.
+First choice is types and shared entry points that make the violation impossible to write down.
+Where types can't reach, a dev-mode guard that fails a test gate. Prose only for what neither can
+hold. When you touch a convention, ask whether it can move up a step. The audit (a 2026-07
+internal review that turned up most of [`casebook.md`](casebook.md)) got its most durable fixes
+exactly that way: a tree operation that threw became a nullable return, and a path convention
+that lived in a comment became factory-built arguments plus a guard.
 
-A guard, concretely, is one call at the seam the contract belongs to: a tag and a predicate. The
-predicates live in `src/lib/invariants/`, and `docs/design/invariants.md` catalogs every guard by
-its G-number.
+A guard, concretely, is one call at the choke point the contract belongs to: a tag and a
+predicate. The predicates live in `src/lib/invariants/`, and `docs/design/invariants.md` catalogs
+every guard by its G-number.
 
 ```ts
 // src/lib/invariants/install.ts, run before every commit's mutation
@@ -57,8 +58,7 @@ assertInvariant('commit-path-dialect', () =>
 
 In a dev build a violation prints `[aragonite:invariant:commit-path-dialect] ...` and reds the
 test that provoked it ([`warnings.md`](warnings.md) has the channels). In production the predicate
-isn't even called. Rule 5 is this ladder read from the far end: when you fix a bug, close the
-class rather than the instance, and add the guard that would've caught it.
+isn't even called. That guard is what rule 5 asks a bug fix to add.
 
 ## The bug shape to fear: sibling-path parity
 
@@ -72,9 +72,11 @@ keymap dispatch. Habits that kill it:
   grep for the rules its siblings carry.
 - When you find one violation, **enumerate all siblings before fixing any**. The instance you
   found is rarely alone.
-- Prefer moving the rule into the seam and deleting the call-site copies over adding copy N+1.
+- Prefer moving the rule into the choke point and deleting the call-site copies over adding copy
+  N+1.
 - A diff that adds an entry path gets one standing review question: **can the rule move into the
-  seam instead of being carried?** Carrying is the exception, and the diff says why.
+  choke point instead of being carried by each path?** Carrying is the exception, and the diff
+  says why.
 - Where the one shared route can't be built yet, write the parity rule as a source-scan guard
   (`src/lib/test/invariants/lint/`): "every entry path matching X routes through Y", which fails
   the day path N+1 is born instead of at the next audit.
@@ -90,8 +92,8 @@ the snippets the matcher must flag or spare. A red names the offending file and 
 	matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
 	allowed: { 'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering' /* ... */ },
 	reason: '`await tick()` is the only sequencing primitive; ...',
-	hits: ['setTimeout(() => x, 0)'],
-	misses: ['clearTimeout(id);']
+	hits: ['setTimeout(() => x, 0)' /* ... */],
+	misses: ['clearTimeout(id);\n...']
 }
 ```
 
@@ -107,15 +109,14 @@ the snippets the matcher must flag or spare. A red names the offending file and 
 - **Coverage claims get revert-checked.** "This is already pinned by existing tests" is disproven
   by reverting the change and watching the suites stay green; this exact claim has failed review
   once already.
-- **Every fix records a miss-analysis**, a line or three: what test should have caught this, and
-  why none did. It lives in the regression test's requirement file (e2e) or as that test's own
-  header line (unit). The generalized answers are what reshape the suite; three of them explained
-  all ten audit bugs. One from the tree, so you know the size of the thing:
+- **Every fix records a miss-analysis**, one line: what test should have caught this, and why
+  none did. It lives in the regression test's requirement file (e2e) or as that test's own header
+  line (unit). The generalized answers are what reshape the suite; three of them explained all ten
+  audit bugs. One from the tree, so you know the size of the thing:
 
   ```ts
   // src/lib/test/blocks/code/code-language-chip-commit.test.ts
-  // Miss-analysis: every commit test typed a new language, so no test ever pressed Enter on
-  // an untouched field, and the byte comparison passed for the unpadded fence they all used.
+  // Miss-analysis: every commit test typed a new language on an unpadded fence, never a bare Enter.
   ```
 
 [`anatomy-of-a-change.md`](anatomy-of-a-change.md) walks one feature from design to ship,
@@ -206,10 +207,10 @@ list is that you hear it from the terminal instead of from the review.
    `playwright test --list` shows for the spec needs a reason in the scan's allowlist (a test
    generated in a loop counts once per row).
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
-2. **Every comment fits the budget** (G4.26): no directory gains a block over two text lines (five
-   for a header), no block anywhere goes past six (seven for a header), and no house word (seam,
-   door, funnel, mint, and the rest of [`glossary.md`](glossary.md)) in any comment. A requirement file carries none in its body
-   text either.
+2. **Every comment fits the budget** (G4.26): no comment block over two text lines (five for a
+   header), and none of the repo's banned private words in any comment or in a requirement file's
+   body text ([`glossary.md`](glossary.md) says what to write instead). [`code-style.md`](code-style.md)
+   § Comments has the rule and what counts as a header.
    `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
 3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
    host token it reads has a fallback, and `src/app.css` holds no editor rule (G4.6).
@@ -233,12 +234,12 @@ e2e specs, so it keeps its own line.
 
 ## Records
 
-**The GitHub issue tracker is the defect ledger.** Three conventions carry all the metadata, and
-the body carries none of it:
+**The GitHub issue tracker is the defect ledger.** An issue's type and labels carry all its
+metadata, and its body holds only the defect:
 
-- An issue's **type** says what it is: `Bug`, `Feature`, or `Task`, one issue form each. The form
-  sets the type at creation, and [`scripts/issue-type.mjs`](../../scripts/issue-type.mjs) sets it
-  afterwards, for an issue the forms didn't type:
+- An issue's **type** says what it is: `Bug`, `Feature`, or `Task`. The bug and feature forms set
+  it when the issue is opened; a task or a blank issue gets it afterwards from
+  [`scripts/issue-type.mjs`](../../scripts/issue-type.mjs):
 
   ```
   $ node scripts/issue-type.mjs
@@ -263,10 +264,12 @@ the body carries none of it:
 
   OPEN, untyped                0  none
   OPEN, no area:               0  none
+
+  ok: every open issue carries a type and an area:
   ```
 
-- The body holds the thing and nothing else: what's wrong, the repro, the files, the fix
-  direction, and why it's deferred. No provenance, no process notes.
+- The body is what's wrong, the repro, the files, the fix direction, and why it's deferred. No
+  provenance, no process notes.
 - **A `good first issue` body names one edit site and one acceptance signal**, and keeps the
   architectural shape as background. The rest of the ledger wants the shape first, which is why
   this one needs saying: a newcomer reading a shape can't tell which file to open or when
@@ -279,11 +282,11 @@ $ gh label list --limit 8
 good first issue      Good for newcomers                                  #7057ff
 help wanted           Extra attention is needed                           #008672
 dependencies          Pull requests that update a dependency file         #0366d6
-javascript            Pull requests that update javascript code           #168700
 github_actions        Pull requests that update GitHub Actions code       #000000
 severity: important   byte corruption or contract-breaking defect         #d73a4a
 severity: minor       real defect, bounded harm                           #fbca04
 severity: watch       observed signal, no confirmed defect or no repro    #0969da
+severity: nit         cosmetic or hygiene                                 #d4d4d4
 ```
 
 A label that seems missing is usually a duplicate spelling of one that exists; only create a

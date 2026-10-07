@@ -33,6 +33,9 @@ export function createHistoryActions(
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
+		// Before the awaits below, so a host that loads another document meanwhile never hears
+		// this undo after its own swap.
+		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
@@ -47,11 +50,10 @@ export function createHistoryActions(
 				deps.selectionState.announceSelection();
 			});
 		}
-		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Flush, not discard: the pending batch's `input` event must still be emitted, and its timer
-	// must not push a stale snapshot after the stack moves.
+	// Ends the typing batch, so the next keystroke snapshots the restored tree rather than joining
+	// an entry that has moved to the other stack.
 	function beginHistorySwap(): void {
 		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();
@@ -59,7 +61,7 @@ export function createHistoryActions(
 
 	return {
 		async requestUndo(): Promise<void> {
-			if (!admitsWrite(deps.reading, 'undo')) return;
+			if (!admitsWrite(deps, 'undo')) return;
 			beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
@@ -70,7 +72,7 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
-			if (!admitsWrite(deps.reading, 'redo')) return;
+			if (!admitsWrite(deps, 'redo')) return;
 			beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());

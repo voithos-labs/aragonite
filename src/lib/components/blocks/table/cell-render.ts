@@ -116,7 +116,10 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
 				resolveLinkUrl: deps.resolveLinkUrl,
 				buildPortalWidget,
-				grammar: deps.reading.grammar
+				grammar: deps.reading.grammar,
+				// Live mode only: a cell has no per-construct reveal, so in preview-inline its markers
+				// show with the cell's focus, which only an untagged marker does (`widget-offset.ts`).
+				tagConstructMarkers: deps.reading.mode() === 'live'
 			})
 		);
 		islandDestroys = applyIslandDecorations(el, node.raw, islands, {

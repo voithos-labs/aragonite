@@ -30,8 +30,8 @@ function committedCalls(cell: MountedCell): unknown[][] {
 	return vi.mocked(cell.blockEdit.updateBlockContent).mock.calls;
 }
 
-// The cut from `createClipboardHandlers` and `handleSharedBeforeInput` both await before
-// committing, so the commit lands several microtasks after dispatch.
+// The cut from `createClipboardHandlers` awaits before committing, so the commit lands several
+// microtasks after dispatch.
 async function settleCommit(cell: MountedCell): Promise<void> {
 	await settleEditor(() => committedCalls(cell).length > 0);
 }

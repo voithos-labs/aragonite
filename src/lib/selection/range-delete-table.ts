@@ -31,6 +31,7 @@ import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/ch
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretWhereRangeResumes } from './range-delete-chrome';
+import type { RemovalLanding } from './removal-landing';
 import { assertInvariant } from '../assert';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -75,7 +76,8 @@ export function tableAwareRangeDelete(
 	doc: Document,
 	coverage: RangeCoverage,
 	sharing: SharingState,
-	reading: Reading
+	reading: Reading,
+	landing: RemovalLanding
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = coverage.range;
@@ -140,18 +142,19 @@ export function tableAwareRangeDelete(
 		...(startTable && startSplice ? [{ table: startTable, ...startSplice }] : []),
 		...(endTable && endSplice ? [{ table: endTable, ...endSplice }] : [])
 	];
-	const kept: SelectionPoint | null =
-		startTable && startCells
+	if (landing.at === 'resume' || landing.at === 'beside') {
+		const { root } = landing;
+		return {
+			newDoc: doc,
+			caret: (committed) => caretWhereRangeResumes(committed, root),
+			tableRowSplices
+		};
+	}
+	const kept: SelectionPoint =
+		landing.at === 'cell' && startTable && startCells
 			? survivingAnchorCellCaret(startTable, start.path, startCells.from)
-			: seam !== null
-				? { path: start.path.slice(), offset: seam }
-				: null;
-	const resumeFrom = coverage.rootHolding(start.path) ?? start.path;
-	return {
-		newDoc: doc,
-		caret: kept ? () => kept : (committed) => caretWhereRangeResumes(committed, resumeFrom),
-		tableRowSplices
-	};
+			: { path: start.path.slice(), offset: seam ?? 0 };
+	return { newDoc: doc, caret: () => kept, tableRowSplices };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

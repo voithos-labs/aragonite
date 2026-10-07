@@ -8,6 +8,7 @@ import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -63,6 +64,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

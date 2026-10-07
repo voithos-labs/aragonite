@@ -1,11 +1,6 @@
-# GitHub reads this file from the default branch, so it activates when it
-# lands on main. Version updates target dev to ride the normal dev -> main
-# flow; security updates (a repo setting, not configured here) always
-# target main regardless.
-#
-# No `commit-message` block anywhere below: dependabot's default `Bump ...`
-# subject is the shape scripts/lint-commit-message.mjs exempts, and a prefix
-# of ours turns every bot PR red at the commit-message door.
+# GitHub reads this file from the default branch, so it takes effect once it lands on main.
+# Version updates target dev; security updates (a repo setting) always target main.
+# No `commit-message` block: dependabot's default `Bump ...` subject is one the commit linter exempts.
 version: 2
 updates:
   - package-ecosystem: 'npm'

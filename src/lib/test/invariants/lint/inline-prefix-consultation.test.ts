@@ -4,10 +4,11 @@
  * are held to the trigger table by `test/core/inline/scan/builtin-trigger-dispatch.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
 function indexSource(): string {
-	return readEditorFile('core/inline/scan/index.ts').code;
+	return readSource(SOURCE.inlineScanLoop).code;
 }
 
 function switchOffset(): number {

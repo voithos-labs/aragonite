@@ -2,19 +2,28 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, focusOffset, focusPath } from './helpers';
 
-// A hard break whose bytes do not show draws a dimmed return glyph where they are, so the line
-// under it has a visible cause; the glyph is no text, so the caret and the bytes ignore it.
+// Where markers are hidden, a hard break is a line break and nothing more. Source mode marks the
+// trailing-space form, whose bytes are blank there too.
 // Requirements: e2e/requirements/presentation/presentation-live-hard-break.md.
 
-/** What the break's mark draws before itself: the glyph, or `none`. */
-const glyphOf = (page: Page) =>
-	page
-		.locator('.md-hard-break')
-		.first()
-		.evaluate((el) => getComputedStyle(el, '::before').content);
+const RETURN_GLYPH = '↵';
 
-test.describe('the hidden hard break shows a mark', () => {
-	test('a pasted two-space break shows the glyph after `one`, and the caret steps over it once', async ({
+/** Every return glyph the stylesheet draws in the editor, generated content included. */
+const drawnGlyphs = (page: Page) =>
+	page
+		.locator('.editor')
+		.evaluate(
+			(root, glyph) =>
+				[root, ...root.querySelectorAll('*')].filter((el) =>
+					['::before', '::after'].some((at) => getComputedStyle(el, at).content.includes(glyph))
+				).length,
+			RETURN_GLYPH
+		);
+
+const BOTH_FORMS = 'slash\\\nnext\n\nspaces  \nnext\n';
+
+test.describe('a hard break where markers are hidden', () => {
+	test('a pasted two-space break draws nothing, and the caret steps over it once', async ({
 		page
 	}) => {
 		const ep = await enterPresentationMode(page, 'live', 'start\n');
@@ -25,7 +34,7 @@ test.describe('the hidden hard break shows a mark', () => {
 		await page.keyboard.press('ControlOrMeta+v');
 		await ep.bridge.waitForSourceContains('one  \ntwo');
 
-		expect(await glyphOf(page)).toContain('↵');
+		expect(await drawnGlyphs(page)).toBe(0);
 		// The clipboard's closing line ending ends the paragraph; it is not a line inside it.
 		expect(await ep.getBlockText(1)).toBe('one  \ntwo');
 		expect(await ep.bridge.getSource()).toBe('start\n\none  \ntwo\n');
@@ -44,25 +53,43 @@ test.describe('the hidden hard break shows a mark', () => {
 
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceContains('onetwo');
-		await expect(page.locator('.md-hard-break')).toHaveCount(0);
 	});
 
-	test('source mode draws the glyph for trailing spaces, not beside a visible backslash', async ({
-		page
-	}) => {
-		await enterPresentationMode(page, 'source', 'spaces  \nnext\n\nslash\\\nnext\n');
-		const marks = page.locator('.md-hard-break');
-		await expect(marks).toHaveCount(2);
-		expect(await marks.nth(0).evaluate((el) => getComputedStyle(el, '::before').content)).toContain(
-			'↵'
-		);
-		expect(await marks.nth(1).evaluate((el) => getComputedStyle(el, '::before').content)).toBe(
-			'none'
-		);
-	});
+	for (const mode of ['live', 'preview-block'] as const) {
+		test(`${mode}: neither the backslash nor the trailing-space form draws a glyph`, async ({
+			page
+		}) => {
+			await enterPresentationMode(page, mode, BOTH_FORMS);
+			expect(await drawnGlyphs(page)).toBe(0);
+		});
+	}
 
-	test('live mode draws the glyph for the backslash form too', async ({ page }) => {
-		await enterPresentationMode(page, 'live', 'slash\\\nnext\n');
-		expect(await glyphOf(page)).toContain('↵');
-	});
+	for (const mode of ['live', 'source'] as const) {
+		test(`${mode}: the line Shift+Enter opens at the end draws no glyph`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, mode, 'abc\n');
+			await clickBlockSettled(ep, 0);
+			await page.keyboard.press('End');
+			await page.keyboard.press('Shift+Enter');
+			await ep.waitForRenderFlush();
+
+			await expect(page.locator('[data-caret-anchor="break"]')).not.toHaveCount(0);
+			expect(await drawnGlyphs(page)).toBe(0);
+		});
+	}
+});
+
+test('source mode marks the trailing-space break, not the visible backslash', async ({ page }) => {
+	await enterPresentationMode(page, 'source', BOTH_FORMS);
+	expect(await drawnGlyphs(page)).toBe(1);
+	const marked = await page
+		.locator('.block-host')
+		.nth(1)
+		.evaluate(
+			(block, glyph) =>
+				[...block.querySelectorAll('*')].some((el) =>
+					getComputedStyle(el, '::before').content.includes(glyph)
+				),
+			RETURN_GLYPH
+		);
+	expect(marked).toBe(true);
 });

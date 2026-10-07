@@ -9,6 +9,7 @@ import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../cursor/caret-memory';
+import { createInsertionRecords } from '../cursor/next-insertion';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
@@ -25,6 +26,7 @@ import {
 import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
+import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +46,15 @@ export function stubCaretMemory(): CaretMemory {
 		column: () => null,
 		side: () => null,
 		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
+		pendingBreak: {
+			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
+		},
+		heldSpace: { forBlock: () => ({ at: () => null, inside: () => null }) },
+		holdInsertion: (block, place) => createInsertionRecords([]).hold(block, null, place),
 		noteKey: () => {},
 		noteTyping: () => {},
 		noteExtreme: () => {},
+		pin: () => {},
 		captureColumn: () => {},
 		forget: () => {}
 	};
@@ -65,6 +73,8 @@ export function stubBlockEdit(): BlockEditActions {
 		deleteBlock: wroteNothing,
 		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
 			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset),
+		completeLineOnType: wroteNothing,
+		completeMarker: wroteNothing,
 		updateBlockMetadata: wroteNothing,
 		replaceBlock: wroteNothing
 	};
@@ -176,7 +186,8 @@ export function createHeadlessActions(
 		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
-		reading: options.reading ?? kitReading()
+		reading: options.reading ?? kitReading(),
+		stamps: createDocumentStamps()
 	};
 	// No render window: nothing mounts later, so an empty entry counts as out of range.
 	const rootList: ChildList = {

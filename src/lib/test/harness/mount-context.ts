@@ -19,9 +19,10 @@ import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/
 import type { Document } from '$lib/core/nodes';
 import type { DocumentView } from '$lib/core/node-views';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
+import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
@@ -60,6 +61,7 @@ export interface MountContextOverrides {
  *  when a component reaches one more member; the rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
+	const stamps = createDocumentStamps();
 	return {
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
@@ -72,9 +74,6 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],
-		// Real: every keydown on an editable block asks it what is selected.
-		widgetSelection: createWidgetSelectionState(selection),
-		selectedWidget: { range: () => null, clear: () => {} },
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
 		linkCard: createLinkCardState({
@@ -85,12 +84,17 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		}),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
-		// Real: a table or code block opening its menu counts itself in.
-		menuPresence: createMenuPresence(),
-		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
+		// Filled in by `editorMountContext`, which reads the mode off the document group.
+		menuPresence: {} as EditorServices['menuPresence'],
+		stamps,
+		drafts: createDraftRegistry(stamps),
+		// The members a format toggle or a compositionend reaches on a bare mount; the rest keep the
+		// cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},
-			isolateUndoEntry: (write: () => void) => write()
+			isolateUndoEntry: (write: () => void) => write(),
+			undoStep: async (_seed: unknown, run: () => Promise<unknown>) => void (await run()),
+			endContinuedBurst: () => {}
 		} as EditorServices['controller'],
 		caretLanding: {} as EditorServices['caretLanding'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
@@ -182,6 +186,10 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 			getClipBounds: () => []
 		});
 	if (!overrides.doc?.scrollport) doc.scrollport = services.scrollOwner.port;
+	// Real: a table or code block opening its menu counts itself in.
+	services.menuPresence =
+		overrides.services?.menuPresence ??
+		createMenuPresence({ isReading: () => doc.reading.mode() === 'reading' });
 	// Read off the selection the test handed in, the way the editor derives it.
 	services.rangeCoverage =
 		overrides.services?.rangeCoverage ??

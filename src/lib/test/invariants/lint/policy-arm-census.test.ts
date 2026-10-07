@@ -8,26 +8,27 @@
 
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { EDITOR_SRC, collectEditorSources, type SourceFile } from './scan-source';
+import { collectEditorSources, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Where a live gesture can live: the block components and the layers they dispatch into. `core/`
  *  and `schema/` sit outside, since the parser and the table's registration name every kind. */
 const GESTURE_ROOTS = [
-	'components',
-	'cursor',
-	'selection',
-	'tree-operations',
-	'decorations',
-	'search',
-	'ambient'
+	SOURCE_DIR.components,
+	SOURCE_DIR.cursor,
+	SOURCE_DIR.selection,
+	SOURCE_DIR.treeOperations,
+	SOURCE_DIR.decorations,
+	SOURCE_DIR.search,
+	SOURCE_DIR.ambient
 ];
 
 /** Gesture code under `core/`: the link card's byte writer sits beside the link grammar it inverts. */
-const GESTURE_FILES = ['src/lib/core/inline/link-source-bytes.ts'];
+const GESTURE_FILES: string[] = [SOURCE.linkSourceBytes];
 
-const POLICY_TABLE = 'src/lib/schema/inline-construct-policy.ts';
-const WIDGET_REGISTRY = 'src/lib/core/inline/inline-widgets.ts';
+const POLICY_TABLE = SOURCE.inlineConstructPolicy;
+const WIDGET_REGISTRY = SOURCE.inlineWidgets;
 
 // ── Matchers ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,8 @@ const POLICY_ARMS: Record<string, string> = {
 		'the destructive arm: autoUnwrapOnEmpty, and the mark column to say which unwrapped construct a chord can write again',
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
+	'src/lib/components/blocks/text/edge-step.ts':
+		'the ring at a hidden edge: edgeAffinity, since a never-extend construct has no inside to show',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',
 	'src/lib/components/blocks/text/live-join-seam.ts':
 		'the join cleaner: splitBehavior, and autoUnwrapOnEmpty for a construct the cut emptied',
@@ -94,9 +97,8 @@ const POLICY_ARMS: Record<string, string> = {
 /** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline
  *  kind at once; anything below a block asking both blurs the boundary between the tables. */
 const BOTH_TABLE_READERS: Record<string, string> = {
-	'src/lib/components/blocks/text/TextEditableBlock.svelte':
-		'the prose surface: which mark a format command toggles, and whether a node is an island',
-	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface',
+	'src/lib/components/blocks/table/TableCellBlock.svelte':
+		'the cell surface: which mark a format command toggles, and whether a node is an island',
 	'src/lib/inline-menu/inline-menu-session.ts':
 		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose'
 };
@@ -193,7 +195,7 @@ const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kin
 describe('inline-construct policy branch census', () => {
 	const allSources = collectEditorSources();
 	const gestureSources = [
-		...GESTURE_ROOTS.flatMap((root) => collectEditorSources(path.join(EDITOR_SRC, root))),
+		...GESTURE_ROOTS.flatMap((root) => collectEditorSources(path.resolve(root))),
 		...allSources.filter((file) => GESTURE_FILES.includes(file.relPath))
 	];
 	const paths = (files: SourceFile[]) => files.map((file) => file.relPath).sort();

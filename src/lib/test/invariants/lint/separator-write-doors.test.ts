@@ -6,13 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-	balancedBlock,
-	collectEditorSources,
-	readEditorFile,
-	type SourceFile
-} from './scan-source';
+import { balancedBlock, collectEditorSources, readSource, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE } from './source-paths';
 
 /**
  * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
@@ -34,11 +30,9 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/item-partition.ts':
-		'same head normalization, per promoted item and lifted body, at the partition U1 and the item exit share',
-	'src/lib/tree-operations/list/unwrap-merge.ts':
-		'same head normalization, on the shrunk list’s new head item',
-	'src/lib/tree-operations/list/exit-replacement.ts':
-		'the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
+		'same head normalization, per promoted item and the item’s first block, plus the lines a dissolving item’s blocks take where no splice probe can infer them: above each list it leaves, which the paragraph above decides, above a paragraph under the items before it, and one blank line shared by a blank paragraph and its follower',
+	'src/lib/tree-operations/list/item-moves.ts':
+		'a block carried in after a lifted item’s sublist takes the line it needs to read back where it now stands',
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',
@@ -60,7 +54,8 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
 	'src/lib/editor-actions/block-edit-core.ts':
 		'the gap-caret paragraph is a block of its own on both sides, which a splice window cannot say',
-	'src/lib/editor-actions/list-context.ts': 'the nesting mint writes the sublist it just built',
+	'src/lib/tree-operations/list/item-moves.ts':
+		'the nesting move settles the sublist it creates, and a lift the blocks it carries in',
 	'src/lib/selection/range-delete.ts':
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
@@ -128,14 +123,14 @@ describe('separator-write entry-point census', () => {
 
 /** A function writing a separator rewrites bytes the owner's child spans describe, so it must drop
  *  those spans (`schema/child-spans.ts`); the lists above fix the files, this one the functions. */
-const DOORS_FILE = 'tree-operations/settle.ts';
+const DOORS_FILE = SOURCE.settle;
 
 /** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
-	'tree-operations/node-ops.ts',
-	'tree-operations/content-write.ts',
-	'tree-operations/node-primitives.ts',
-	'tree-operations/chain-rebuild.ts'
+	SOURCE.nodeOps,
+	SOURCE.contentWrite,
+	SOURCE.nodePrimitives,
+	SOURCE.chainRebuild
 ];
 
 /** Every `function name(` body in `code`, braces balanced. */
@@ -156,25 +151,16 @@ const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix)
 
 describe('every separator entry point retires the child spans it invalidates', () => {
 	const doors = [DOORS_FILE, ...CARRY_FILES]
-		.flatMap((file) => functionBodies(readEditorFile(file).code))
+		.flatMap((file) => functionBodies(readSource(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/** The separator writers in the shared file, each of which drops the spans first, since a drop
-	 *  below an early return is skipped on the paths that take it. */
-	const DOORS = [
-		'clearRedundantSeparator',
-		'dropDoubledSeparator',
-		'restoreSeparatorOnFill',
-		'restoreSeparatorAfterBlank',
-		'settleSeparatorOnBlank',
-		'releaseWrapPeel',
-		'materializeTailSuffix',
-		'handDownVacatedSeparator'
-	];
+	/** The two writers in the shared file, each of which drops the spans first, since a drop below
+	 *  an early return is skipped on the paths that take it. */
+	const DOORS = ['writeSeparator', 'writeWrapSlot'];
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
-			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
+			functionBodies(readSource(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
 		);
 		const forgot = DOORS.filter(
 			(name) => !/^\s*retireChildSpans\s*\(/.test(bodies.get(name) ?? '')
@@ -187,31 +173,29 @@ describe('every separator entry point retires the child spans it invalidates', (
 	});
 
 	it('found the entry points (not vacuous)', () => {
-		expect(doors.map((fn) => fn.name).sort()).toEqual(
-			expect.arrayContaining([
-				'clearRedundantSeparator',
-				'dropDoubledSeparator',
-				'mintSeparator',
-				'settleSeparatorOnBlank'
-			])
-		);
+		expect(doors.map((fn) => fn.name).sort()).toEqual(expect.arrayContaining(DOORS));
 	});
 
-	/** Writers that account for the spans some other way, each with its reason: a caller drops them
-	 *  first, the node is new, or a splice changes the child count, refusing a region rewrite. */
+	/** Writers that account for the spans some other way, each with its reason: the node is new,
+	 *  or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
-		mintSeparator:
-			'reached only from the three entry points and separateTableFollower, which all retire first',
-		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',
-		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
-		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
 		installReplacement: 'carries the line onto the replacement, byte for byte',
 		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
+
+	// A second writer in the shared file could write a shared node or skip the span drop, which the
+	// one writer does for every fix-up.
+	it('the shared file writes an existing node’s separator through its two writers alone', () => {
+		const writers = functionBodies(readSource(DOORS_FILE).code)
+			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
+			.map((fn) => fn.name)
+			.filter((name) => !(name in ANSWERED_ELSEWHERE));
+		expect(writers.sort()).toEqual([...DOORS].sort());
+	});
 
 	it('each one calls the retire, or is answered for elsewhere', () => {
 		const missing = doors

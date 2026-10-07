@@ -29,11 +29,13 @@ Where the same material lives elsewhere:
 
 Hiding a marker is easy. Editing next to one nobody can see is where it gets interesting.
 
-Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: the consecutive delimiter bytes of one inline construct) paints at zero width, so one screen position, the one right after `bold`, names two raw offsets: before the closing `**` and after it. Every delimiter in the document has that shape, and you can type against it, cut through it, or empty what it encloses without ever seeing it. Each rule in § 4 answers one of those cases, applied at one place every gesture crosses, so it holds for every gesture that reaches it instead of being re-implemented per entry path.
+Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: the consecutive delimiter bytes of one inline construct) paints at zero width, so one screen position, the one right after `bold`, names two raw offsets: before the closing `**` and after it. Every delimiter in the document has that shape, and you can type against it, cut through it, or empty what it encloses without ever seeing it. Each rule in § 4 answers one of those cases. Each also lives at one place every gesture crosses, rather than once per entry path, so a new gesture gets it without asking.
 
 ## 2. The discipline: candidates, verified by the painter
 
-A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). The same file holds the one rule for which spans a mode leaves on screen, `familyHidesText`, and the caret walk (the traversal in `cursor/widget-offset.ts` that maps DOM positions to raw offsets) reads that rule too; G4.30 holds the two together (a G-number is an entry in the catalog in `docs/design/invariants.md`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live drops only bytes the user never saw.
+A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live drops only bytes the user never saw.
+
+The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `cursor/widget-offset.ts` that maps DOM positions to raw offsets) reads it too, and G4.30 holds the two together (a G-number is an entry in the catalog in `docs/design/invariants.md`).
 
 The mode read and the painter, on one block (`reading` is the editor's `Reading`, from `schema/reading.ts`: its grammar, link resolver and mode in one object):
 
@@ -125,11 +127,23 @@ The wiring, for the curious:
 
 A byte typed where a marker run sits is placed by the edge resolver (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and how the caret arrived second.
 
+It doesn't matter how the text got there. A hardware key, a soft keyboard, an autocorrect replacement, an IME commit, a paste and a character typed over a selection across blocks all end in the same write, and that write is where the text gets moved (`cursor/next-insertion.ts`). The browser (or the paste) puts the text in wherever it likes, the editor reads it back, and the write moves it to the side the caret means. So an IME run, which can't be stopped per keystroke, is just moved once at its commit like everything else. A composition and a paste both wipe the caret memory before they write, so each grabs the caret's side at its first event and brings it along. Two places decide earlier, though: the auto-pair asks the same question at `beforeinput` (what a delimiter writes depends on where it lands), and a character typed over a selection inside one block goes wherever the join puts it (§ 4.5).
+
 - A `never-extend` kind (link, autolink, image, escape, hard break) places the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
 - A `symmetric-pair` kind follows how the caret arrived (the caret memory in `cursor/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
 - A caret placed at an end rather than stepped there (Home, End, a range across blocks collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it, since the caret took no step. A selection inside one block collapsed by an arrow is a step, and records that arrow's side.
+- Crossing a hidden edge takes an arrow press of its own (`components/blocks/text/edge-step.ts`). Where the caret's spot offers more than one offset a byte could land at, a plain ArrowLeft or ArrowRight moves the typing offset one boundary that way and leaves the caret where it is. Only once there's no boundary left that way does the press move the caret. It's the two-press boundary Notion and Slack give inline code, applied to every symmetric pair.
+  - `**bold**` ending a line: one ArrowRight and the next byte lands past the `**`, still on that line, and the second press moves on to the next block. `***both***` takes a press per run, since inside both, inside the emphasis alone and outside are three typing offsets.
+  - Shift extends a range, and Ctrl, Alt and Meta jump a word or the whole line, so none of them stops here. A `never-extend` construct offers only its outside, so a link costs no extra press.
+  - Both offsets sit on one pixel, so the side shows another way: each construct the next byte would join wears `md-edge-held`, a faint ring (`--md-edge-held-ring`).
+  - A code span's backticks stay hidden like every other marker, in prose and in table cells, so its edge takes the same extra press and wears the same ring.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
-- An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and the marks captured at `compositionstart` (`composition-seat.ts`).
+- A space can't sit right before a closer (`**two **` isn't bold, and its markers would show up again), so a space typed at a hidden closer goes past it: `a **two** `. The caret still means inside though, and the next letter takes the space back in with it, giving `a **two w**`. That's the held space (`cursor/held-space.ts`), and it's what lets you type a whole bold phrase without the bold stopping after the first word.
+  - A second space joins the first. A letter after it brings both in.
+  - Anything that moves the caret or picks a side ends the hold: an arrow, End, a click, the closer typed over, the construct's own chord (Mod+B in a bold). The bytes were valid the whole time, so ending it changes nothing on screen, and the next letter types outside.
+  - Another mark's chord ends the hold too, and still arms its mark, so Mod+I after `a **two** ` then `x` gives `a **two** *x*`, the same bytes as with no space held. (Arming the italic inside the bold would mean a second place deciding where marked text lands, so it doesn't.)
+  - One ArrowRight ends it without moving the caret, the same extra press any hidden edge takes. The ring stays on the construct while the hold lasts.
+  - It only happens where the markers are hidden. Source mode and the preview modes show the closer, so the space goes where you typed it.
 - A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` handler every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer.
   - The closer typed over that twin steps past it, and a closer typed by hand completes the construct. After either, the caret means outside the construct, whatever arrival preceded it, which is how you leave a construct without a toggle.
   - A first body byte that makes the pair no construct (`$5`) drops the twin, and Backspace between the twins takes both.
@@ -148,6 +162,10 @@ resolveEdgeSeat(11, inlines, 'far', raw, live, 'X', reading); // { offset: 13, k
 resolveEdgeSeat(11, inlines, 'near', raw, live, 'X', reading); // null: inside, which is where native typing lands anyway
 resolveEdgeSeat(11, inlines, null, raw, live, 'X', reading); // null: nothing on record, so the near side wins
 
+// at `bold|` arrived from inside, a plain ArrowRight moves the typing offset, not the caret
+edgeStep(11, inlines, 'near', raw, live, reading, 'forward'); // 13: the byte now lands past the `**`
+edgeStep(11, inlines, { offset: 13 }, raw, live, reading, 'forward'); // null: nothing further, the caret moves
+
 // a link never extends, whatever the arrival
 const link = 'see [here](https://x.example) now';
 resolveEdgeSeat(9, parseInline(link, 0, link.length), 'near', link, live, 'X', reading); // { offset: 29, kind: 'link' }
@@ -155,10 +173,11 @@ resolveEdgeSeat(9, parseInline(link, 0, link.length), 'near', link, live, 'X', r
 
 What the resolver chooses from is the caret's screen position, not one construct's run. A hidden run's hidden neighbours name the same position, so a byte the construct's own edge would break can still land at the boundary of the run beside it. The candidates are tried in order, and a later one is asked only when the painter refuses the ones before it:
 
-1. the side the kind's policy names,
-2. the same run's other end,
-3. the byte-literal write,
-4. the neighbouring boundaries nearest the policy's side.
+1. the offset an arrow press chose, while the position still holds it,
+2. the side the kind's policy names,
+3. the same run's other end,
+4. the byte-literal write,
+5. the neighbouring boundaries nearest the policy's side.
 
 The byte-literal write is verified like every other candidate rather than ending the list, so a parse it rebinds is no reason to stop looking. Where it holds, native typing already lands it and the resolver stands down (that's the `null` above). The resolver never picks an offset inside a run's own bytes, and a `never-extend` construct admits none inside its own bytes at all, whichever run of the position would have offered it. A byte lands inside a run only through the fallback, when the caret was already handed an offset there and nothing else survives.
 
@@ -215,25 +234,27 @@ Over a selection the same chord writes bytes at once, in every mode. Its questio
 What happens to delimiters an edit cuts through or empties. Splits first:
 
 ```ts
-// reading as in § 2
+// stores: where each half lands (§ 4.5 says what a store is). The first half stays in the block's own
+// slot and the second goes in after it, so here both read as top-level paragraphs.
 const node = parse('Some **bold** text\n').children[0];
-rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', reading);
+rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', stores);
 // { firstRaw: 'Some **bo**\n', secondRaw: '**ld** text\n' }: closed before the cut, reopened after
 
 const link = parse('see [here](https://x.example) now\n').children[0];
-rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', reading);
+rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', stores);
 // { firstRaw: 'see [h](https://x.example)\n', secondRaw: '[ere](https://x.example) now\n' }
 
 const auto = parse('see <https://x.example> now\n').children[0];
-rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', reading);
+rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', stores);
 // { firstRaw: 'see \n', secondRaw: '<https://x.example> now\n' }: the cut moved to the nearer edge
 
 const image = parse('a ![alt](i.png) b\n').children[0];
-rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', reading); // null: a plain kind, so the literal cut stands
+rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', stores); // null: a plain kind, so the literal cut stands
 ```
 
 - Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run, and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind with content declines, and the byte-literal cut stands.
-- Each half has to re-parse to one prose block that a reload of the file would keep: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop.
+- Each half has to re-parse to one prose block that a reload of the file would keep, read where it lands: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop. So in a to-do item, a `# **bo**` half above the cut is read behind the checkbox, where it stays text (not a heading), just as it was before the cut.
+- In a list item the second half becomes the first line of a new item, and that item takes the marker its bytes read as. `- **bo ld**` cut after `bo` writes `- **bo**` and `-  **ld**`: the space stays (live drops only what it never showed), the new item's marker is `-  `, and the tree matches a reload. Source mode does the same with `- a b` cut after `a`.
 - An autolink or an escape has no interior for a cut to land in at all. Two halves of a URL are not two URLs, and half an escape is a literal backslash, so the cut moves to its nearer edge and one half takes the construct whole, every byte kept (which is what rules out the alternative, dropping the delimiter pair). A hard break is childless and `never-extend` too, but its moved cut doesn't parse back, so there the literal cut stands.
 - A side left with no content takes the whole construct rather than a pair enclosing nothing.
 
@@ -312,7 +333,7 @@ How the join reads its bytes:
 
 What arrives here:
 
-- Backspace merges, a Delete merge (a Delete at a hidden run inside one block is § 4.4's press instead), range deletes, typing over a selection, cut, a drag's cut, a paste or an IME composition over a selection, and a widget or a decoration taken out whole.
+- Backspace merges, a Delete merge (a Delete at a hidden run inside one block is § 4.4's press instead), range deletes, typing over a selection, cut, a drag's cut, a paste or an IME composition over a selection, the removal a line break over a selection makes first, and a widget or a decoration taken out whole.
 - Inside one block they're all one function, `tree-operations/leaf-range.ts` :: `replaceRangeInLeaf(node, range, text, store)`, which re-expresses the edit as a join of what survives on either side with `text` between them. The range delete is the exception for now: it still builds its own join and calls `cleanJoinedRaw` itself, until it moves onto the same function. A merge's join of two blocks is `replaceRangeInLeaf`'s sibling in the same file, `joinLeaves`.
 - The range it rewrites comes off the event, since a word or line delete reports one at a collapsed caret where the selection is empty, and every editable prose surface takes that branch (G4.44) rather than keeping its own list of input types.
 
@@ -331,13 +352,13 @@ Live paints no destination, so the card is the only way to read or rewrite one.
 
 - The focus model: a click on a link opens the card beside a caret that stays the document's. Keyboard entry (Mod+K with the caret inside a link, or a selection lying wholly inside one) opens it with focus trapped in the URL field. The two differ on a live selection because only one of them was asked for: an unsought click mustn't interrupt a drag, while the chord has already resolved the selection against the construct it opens, so those bytes are the card's own.
 - An edit commits one undoable step through the link's one byte-write entry (G4.34). The card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM.
-- A toolbar's pressed paint for the chord resolves that same construct, so it too is live mode's alone, and pressing what it paints enters that link.
+- A toolbar button for the chord paints pressed from that same construct, and pressing it enters that link. Like the card, that pressed state only exists in live mode.
 
 Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
 ### 4.7 The code rail
 
-The card's second client, for the one hidden run a caret can't reach at all. A fence line can't take a caret once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
+Like the link card, the rail is a way into something live hides, here the one hidden run a caret can't reach at all. A fence line can't take a caret once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
 
 - It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button still renders but opens nothing.
 - The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the content write every gesture uses, as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
@@ -349,14 +370,16 @@ Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
 Some keystrokes change what a block is, and in source mode the markers on screen say why: a tab at the start of a line makes indented code, `# ` makes a heading. With the markers hidden, all the reader sees is a new font. So a typed keystroke that turns its block into another kind names the new kind at the block's top-right corner for about a second, a dimmed label that fades, and the editor's screen-reader announcer says the same name once. The name is the block's accessible name ("Heading level 2"), the one its editable surface's label carries.
 
-- Only typed text cues. Tab counts, since the key types its own character; a command, a paste or a menu pick already named what it made.
+- Only typed text cues, in any editable block. Tab counts, since the key types its own character, and so does a key the editor writes for you (the auto-pair's partner, a byte placed at a hidden run); a command, a paste or a menu pick already named what it made.
 - Source mode shows the markers, so it cues nothing, and reading mode can't type.
 - A bare `#` still paints as the paragraph it was (the `#tag` rule), so nothing cues until the space lands.
 - The fade's end removes the label, so no timer runs (G4.4). `src/lib/components/kind-cue.svelte.ts` holds the comparison.
 
 Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-kind-cue.md`.
 
-A hard break has the same problem with no kind change at all. Its backslash hides, and two trailing spaces are blank in any mode, so the next line starts under the previous one inside the same paragraph for no visible reason. Where the break's bytes don't show, the stylesheet draws a dimmed `↵` in their place: generated content on a mark that wraps the break's marker and holds no text of its own, so the caret walk, a selection and a copy read only the bytes, and the hiding rule (§ 2) is untouched. Source mode draws it for the trailing-space form only, reading mode draws none since nobody edits there, and a focused preview block that shows the backslash draws none. A soft break (a bare newline) already shows as the line break it is, so it gets no mark.
+A hard break looks like it has the same problem. Its backslash hides, and two trailing spaces are blank in any mode, so the next line just starts under the previous one inside the same paragraph. Except that's what a line break looks like in every editor that doesn't show you its markup, so live mode leaves it alone. Wherever markers are hidden, a hard break is just a line break. Whether a break is soft or hard only matters to whatever renders the Markdown later, and source mode shows you which one you've got. Same for the empty line Shift+Enter opens at the end of a block: it's an empty line with the caret on it, like in Google Docs.
+
+Source mode keeps one mark, for the trailing-space form. Its bytes are on screen there but blank, so the stylesheet draws a dimmed `↵` after them, as generated content on a wrapper around the spaces that holds no text of its own (the caret walk, a selection and a copy read only the bytes). A backslash shows itself in source mode, so it gets nothing, and reading mode draws nothing at all.
 
 Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.md`.
 

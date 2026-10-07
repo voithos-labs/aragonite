@@ -13,12 +13,7 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
-import {
-	documentLineEnding,
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding
-} from '$lib/core/lines';
+import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
@@ -29,10 +24,11 @@ import {
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
+import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
 import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
-import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
+import { createTypedPlacement, type TypedPlacement } from '$lib/components/blocks/text/edge-seat';
 import { resolveLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -54,6 +50,7 @@ import {
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 import { documentBody } from '$lib/tree-operations/node-primitives';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 export type GestureKind =
 	| 'type'
@@ -369,8 +366,26 @@ async function pressEdgeKey(
 	const key =
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
 	const el = mountBlock(leaf.node, mode);
+	const node = () => nodeAt(h.doc, leaf.path) as CstNode;
+	const placement = createTypedPlacement({
+		getEl: () => el,
+		getNode: node,
+		reading: fixtureReading(),
+		caretMemory: { side: () => gesture.affinity },
+		heldSpace: () => ({ at: () => null, inside: () => null })
+	});
+	// The block anchors a key's write at the caret it recorded when the key arrived.
+	const writeText = createSurfaceWrite({
+		getNode: node,
+		getIndex: () => leaf.index,
+		getPath: () => leaf.path,
+		blockEdit: leaf.blockEdit,
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+		getPreEditOffset: () => offset,
+		requestCaret: () => {},
+		holdInsertion: () => createInsertionRecords([]).hold({}, gesture.affinity, placement.insertion)
+	});
 	const dispatch = createEdgePolicyDispatch({
-		getLineEnding: () => documentLineEnding(h.doc),
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},
@@ -387,54 +402,65 @@ async function pressEdgeKey(
 		storedAs: () => storeOf(h, leaf, mode),
 		hasIslands: () => false,
 		getRawSelection: () => null,
-		blockEdit: leaf.blockEdit,
-		setPendingCursor: () => {},
+		writeText,
+		completeMarker: () => void leaf.blockEdit.completeMarker(leaf.index),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		getEdgeAffinity: () => gesture.affinity,
-		pendingMarks: makePendingMarks(),
-		ownPairs: createAutoPairRecord().forBlock()
+		pendingMarks: makePendingMarks()
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;
-	await nativePress(h, leaf, offset, gesture.kind, key, mode);
+	if (gesture.kind === 'type') await nativeType(h, leaf, offset, key, mode, writeText, placement);
+	else await nativePress(h, leaf, offset, gesture.kind);
 	return false;
 }
 
-/** What the browser does with a keypress no branch took. */
+/** What the browser does with a typed key no branch took: the auto-pair decides at the offset the
+ *  key lands at, else the browser's insert goes through the block's write, which places it. */
+async function nativeType(
+	h: Harness,
+	leaf: LeafAt,
+	offset: number,
+	key: string,
+	mode: PresentationMode | undefined,
+	writeText: ReturnType<typeof createSurfaceWrite>,
+	placement: TypedPlacement
+): Promise<void> {
+	const { node } = leaf;
+	const display = trimTrailingLineEnding(node.raw);
+	const typed = { intent: 'typed', mode: 'authored', source: 'simulation' } as const;
+	// Every typed byte goes through the delimiter auto-pair handler in every mode (G4.65); a drawn
+	// document holds no pair that handler wrote.
+	const paired = resolveDelimiterAutoPair(
+		display,
+		getContentRange(node),
+		placement.offsetFor(offset, key),
+		key,
+		fixtureReading(),
+		{ ownPair: null, keepsKind: (line) => keepsKindAt(node, line, storeOf(h, leaf, mode)) }
+	);
+	if (paired?.kind === 'step-over') return;
+	if (paired) {
+		await writeText({ ...typed, text: paired.text, caretAfter: paired.caret, inPlace: true });
+		return;
+	}
+	const text = display.slice(0, offset) + key + display.slice(offset);
+	await writeText({ ...typed, text, caretAfter: offset + key.length });
+}
+
+/** What the browser does with a destructive keypress no branch took. */
 async function nativePress(
 	h: Harness,
 	leaf: LeafAt,
 	offset: number,
-	kind: GestureKind,
-	key: string,
-	mode: PresentationMode | undefined
+	kind: GestureKind
 ): Promise<void> {
 	const { node, index } = leaf;
 	const { start, end } = getContentRange(node);
 	const write = (raw: string, caret: number) =>
 		leaf.blockEdit.updateBlockContent(index, raw, 'authored', offset, caret);
-	if (kind === 'type') {
-		// Every typed byte goes through the delimiter auto-pair handler in every mode (G4.65); a
-		// drawn document holds no pair that handler wrote.
-		const paired = resolveDelimiterAutoPair(
-			trimTrailingLineEnding(node.raw),
-			{ start, end },
-			offset,
-			key,
-			fixtureReading(),
-			{ ownPair: null, keepsKind: (line) => keepsKindAt(node, line, storeOf(h, leaf, mode)) }
-		);
-		if (paired?.kind === 'step-over') return;
-		if (paired) {
-			await write(paired.text + trailingLineEnding(node.raw, '\n'), paired.caret);
-			return;
-		}
-		await write(splice(node.raw, offset, offset, key), offset + key.length);
-		return;
-	}
 	// At the start or end of the content the keypress becomes a block gesture: the merge it aims at.
 	// A container's own merge rules are not modelled here, so its edge presses do nothing.
 	const topLevel = leaf.path.length === 1;

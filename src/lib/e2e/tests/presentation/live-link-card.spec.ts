@@ -5,6 +5,7 @@ import { enterPresentationMode, landAt } from './helpers';
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
 import { textRunEnd, textRunStart } from '../../text-runs';
+import { freezeInPageClock } from '../../page-probes';
 
 // The anchored panel that stands in for the destination live mode hides. The chord's create
 // half lives in `live-link-card-create.spec.ts`, and what it consumes in
@@ -194,6 +195,35 @@ test.describe('live-mode link card', () => {
 			.poll(async () => (await page.locator(CARD).boundingBox())!.y)
 			.toBeGreaterThan(beforeBox.y);
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com/docs');
+	});
+
+	test('the card re-anchors at each key, with no wait for the typing pause', async ({ page }) => {
+		await openCardOn(ep, page, 'docs');
+		const beforeBox = (await page.locator(CARD).boundingBox())!;
+
+		await stepToBlockStart(ep, page, 0);
+		await freezeInPageClock(page);
+		await ep.typeText('padding words '.repeat(60));
+
+		await expect
+			.poll(async () => (await page.locator(CARD).boundingBox())!.y)
+			.toBeGreaterThan(beforeBox.y);
+	});
+
+	test('the card keeps its distance from the link through an undo and a redo', async ({ page }) => {
+		await openCardOn(ep, page, 'docs');
+		const link = page.locator('a.md-link-content', { hasText: 'docs' });
+		const gap = async () =>
+			(await page.locator(CARD).boundingBox())!.y - (await link.boundingBox())!.y;
+		const before = await gap();
+		await stepToBlockStart(ep, page, 0);
+		await ep.typeText('padding words '.repeat(60));
+		await ep.waitForRenderFlush();
+
+		await ep.undo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
+		await ep.redo();
+		await expect.poll(async () => Math.abs((await gap()) - before)).toBeLessThan(2);
 	});
 
 	test('a reference link’s URL edit inlines the destination and leaves the definition alone', async ({

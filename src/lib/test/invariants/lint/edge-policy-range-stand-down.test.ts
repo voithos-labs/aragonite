@@ -5,9 +5,10 @@
  * selection instead answers about a range another block holds.
  */
 import { describe, it, expect } from 'vitest';
-import { balancedRegion, readEditorFile } from './scan-source';
+import { balancedRegion, readSource } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const DISPATCH = 'components/blocks/text/edge-policy-dispatch.ts';
+const DISPATCH = SOURCE.edgePolicyDispatch;
 
 /** One spelling, and it reads this block's own raw offsets. */
 const ASKS_ABOUT_A_RANGE = /\bheldRange\s*\(/;
@@ -54,7 +55,7 @@ function sourceOfFunction(code: string, name: string): string {
 }
 
 describe('every caret-edge branch asks whether a range is held', () => {
-	const { code } = readEditorFile(DISPATCH);
+	const { code } = readSource(DISPATCH);
 	const arms = armsOf(code);
 
 	it('read the branch manifest', () => {

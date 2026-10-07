@@ -83,7 +83,7 @@ const ROWS: AbsorbRow[] = [
 		clip: '1. first\n2. Ordered second\n3. Ordered',
 		focus: [0, 2, 0],
 		offset: 'Ordered'.length,
-		settle: /^7\. third$/m,
+		settle: /^7\. {2}third$/m,
 		expected: [
 			/^1\. Ordered first$/m,
 			/^2\. Ordered second$/m,
@@ -91,7 +91,7 @@ const ROWS: AbsorbRow[] = [
 			/^4\. first$/m,
 			/^5\. Ordered second$/m,
 			/^6\. Ordered$/m,
-			/^7\. third$/m
+			/^7\. {2}third$/m
 		],
 		rejected: [/^6\. Ordered7\./m]
 	},
@@ -159,6 +159,6 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 			const items = document.querySelectorAll('.list-item-block');
 			return Array.from(items).map((it) => it.querySelector('.md-marker')?.textContent ?? '?');
 		});
-		expect(domMarkers).toEqual(['1. ', '2. ', '3. ', '4. ', '5. ', '6. ', '7. ']);
+		expect(domMarkers).toEqual(['1. ', '2. ', '3. ', '4. ', '5. ', '6. ', '7.  ']);
 	});
 });

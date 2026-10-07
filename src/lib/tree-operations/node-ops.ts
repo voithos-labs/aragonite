@@ -8,7 +8,8 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
+import { getLiveSplitRebalancer, type SplitStores } from '../schema/inline-construct-policy';
+import type { StoredAs } from '../schema/stored-as';
 import type { Reading } from '../schema/reading';
 import {
 	displayLength,
@@ -35,6 +36,7 @@ import { assertInvariant } from '../assert';
 import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import {
 	NEXT_PROSE_LINE,
+	asBody,
 	ensureEditableContainers,
 	forBody,
 	parentLineEnding,
@@ -43,7 +45,7 @@ import {
 import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
 import { cutKeepingStructure } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
@@ -57,6 +59,9 @@ import { joinLeaves } from './leaf-range';
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
+	/** Where the caret lands in the second half: inside a construct the split reopened there, so
+	 *  typing carries on in it, else at the start like any structural landing (outside). */
+	landingOffset: typeof CURSOR_EXACT_START | typeof CURSOR_START;
 }
 
 /**
@@ -69,26 +74,35 @@ export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]
 
 /**
  * Split the node at `blockIndex` at `offset`; the first half keeps the ID and any setext underline.
- * A caller moving the second half elsewhere passes `readSecondHalf` for that position.
+ * A caller moving the second half elsewhere passes `secondHalfAt`, where it will be stored.
  */
 export function splitNode(
 	parent: BodyParentArg,
 	blockIndex: number,
 	offset: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading,
-	readSecondHalf: FragmentReader = fragmentReaderAt(
-		ownerAt(parent, [blockIndex]),
-		blockIndex + 1,
-		reading.grammar
-	)
+	secondHalfAt?: StoredAs
 ): SplitResult {
 	const { grammar } = reading;
-	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
+	const noop: SplitResult = {
+		change: { op: 'noop' },
+		secondHalfIndex: blockIndex + 1,
+		landingOffset: CURSOR_START
+	};
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
 
 	const node = parent.children[blockIndex];
 	const descriptor = getBlockKindDescriptor(node.kind);
+	const holder = {
+		children: parent.children,
+		owner: ownerAt(parent, [blockIndex]),
+		lineEnding: parentLineEnding(parent)
+	};
+	const stores: SplitStores = {
+		first: storedAsIn(holder, blockIndex, reading),
+		second: secondHalfAt ?? storedAsIn(holder, blockIndex + 1, reading, node.kind)
+	};
 
 	// A context-dependent kind (a table cell, a container's title child) has no standalone
 	// recognizer, so the reparse would destroy both halves.
@@ -103,12 +117,14 @@ export function splitNode(
 
 	firstRaw = terminateLine(firstRaw, lineEnding);
 	secondRaw = terminateLine(secondRaw, lineEnding);
+	let reopened = false;
 
 	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
 	// user never saw; the rebalancer declines when its bytes do not parse back.
 	if (reading.hidesDelimitersAtCaret()) {
-		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, reading);
+		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, stores);
 		if (rebalanced) {
+			reopened = true;
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
 			// The rewrite verifies each half on its own, where a missing final line ending is
@@ -125,15 +141,15 @@ export function splitNode(
 		parent.children[blockIndex + 1],
 		grammar
 	);
-	const first = reparseAsNodes(
-		firstRaw,
-		node.leadingTrivia,
-		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar),
-		lineEnding
-	);
+	const first = reparseAsNodes(firstRaw, node.leadingTrivia, stores.first.readWritten, lineEnding);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf, lineEnding);
+	const second = reparseAsNodes(
+		secondRaw,
+		first.suffix + separator,
+		stores.second.readWritten,
+		lineEnding
+	);
 	if (isDevChecks() && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
@@ -150,10 +166,11 @@ export function splitNode(
 	const seamLeft = blockIndex + nodes.length - 1;
 	const eaten = splitTail
 		? 0
-		: absorbSeamReading(parent, seamLeft, seamLeft, grammar, sharing).eaten;
+		: absorbSeamReading(asBody(parent), seamLeft, seamLeft, grammar, sharing).eaten;
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
-		secondHalfIndex: blockIndex + first.nodes.length
+		secondHalfIndex: blockIndex + first.nodes.length,
+		landingOffset: reopened ? CURSOR_EXACT_START : CURSOR_START
 	};
 }
 
@@ -278,7 +295,7 @@ export function joinIntoLeaf(
 	path: readonly number[],
 	absorbed: NodeView,
 	reading: Reading,
-	sharing: SharingState | undefined
+	sharing: SharingState
 ): { joinOffset: number } | null {
 	const slot = path[path.length - 1];
 	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
@@ -306,7 +323,7 @@ export function joinIntoLeaf(
 
 	// The join writes the leaf's raw plus every ancestor's rebuilt raw, so copy the whole
 	// ancestor chain first and resolve through the owned copies (`unshare.ts` header).
-	if (sharing) ensureUnsharedPath(parent, [...path], sharing);
+	ensureUnsharedPath(parent, [...path], sharing);
 	const children = holderChildrenAt(parent.children, path);
 	// The task state is reconciled before the ancestors' rebuild writes the list item's marker.
 	writeKeepingTaskMarker(ownerAt(parent, path), children, slot, sharing, () =>
@@ -323,7 +340,7 @@ export function joinIntoLeaf(
 export function mergeIntoPrevDeepLeaf(
 	parent: BodyParentArg,
 	blockIndex: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
@@ -400,7 +417,7 @@ function installMergedLeaf(
 	holderChildren: CstNode[],
 	slot: number,
 	merged: MergedLeaf,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	ending: LineEnding
 ): void {
 	const target = holderChildren[slot];
@@ -413,7 +430,7 @@ function installMergedLeaf(
 		parsed.raw = written;
 		parsed.leadingTrivia = target.leadingTrivia;
 		ensureEditableContainers(parsed, ending);
-		if (sharing) sharing.stamp(parsed);
+		sharing.stamp(parsed);
 		assignChildIdsDeep(parsed);
 		holderChildren[slot] = parsed;
 		return;
@@ -431,7 +448,7 @@ export function mergeWithNext(
 	parent: BodyParentArg,
 	blockIndex: number,
 	reading: Reading,
-	sharing: SharingState | undefined
+	sharing: SharingState
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };

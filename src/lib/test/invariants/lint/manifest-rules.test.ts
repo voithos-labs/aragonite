@@ -5,6 +5,7 @@
  * rule under the same G-number. The scan is `file-rule.ts`.
  */
 
+import { MARKER_FAMILY_CLASSES } from '$lib/core/inline/visibility';
 import { collectEditorSources, type SourceFile } from './scan-source';
 import {
 	describeFileRules,
@@ -14,6 +15,7 @@ import {
 	type ManifestRule,
 	type Probe
 } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -24,9 +26,9 @@ const inKeys = (...groups: Record<string, string>[]) => {
 
 // ── G4.21 / G4.34 the image and link byte writers ────────────────────────────
 
-const IMAGE_BYTES = 'src/lib/core/inline/image-source-bytes.ts';
-const LINK_BYTES = 'src/lib/core/inline/link-source-bytes.ts';
-const IMAGE_POPOVER = 'src/lib/components/image/ImageProperties.svelte';
+const IMAGE_BYTES = SOURCE.imageSourceBytes;
+const LINK_BYTES = SOURCE.linkSourceBytes;
+const IMAGE_POPOVER = SOURCE.imageProperties;
 
 // ── G4.36 caret writes ───────────────────────────────────────────────────────
 
@@ -65,9 +67,9 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'handlePaste',
 		why: 'the image-import handler reads the attachment payload and hands the hook’s markdown to the cross-block paste route'
 	},
-	'src/lib/selection/cross-block/paste.ts': {
-		handoff: 'applyPasteTransforms',
-		why: 'a declared route itself: runs the transforms before parsing the pasted slice'
+	'src/lib/selection/cross-block/dispatch.ts': {
+		handoff: 'replaceRange',
+		why: 'a paste over a range hands its text to the range replace, which runs the transforms or hands it to the paste tree-op'
 	}
 };
 
@@ -133,23 +135,36 @@ const CLASSIFICATION_HOMES: Record<string, string> = {
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
  *  or content-empty attributes, a marker class tested by selector, or a call to the rule itself. */
-const CLASSIFICATION_RE =
-	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)|(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(/;
+const HIDING_SELECTORS = [
+	...MARKER_FAMILY_CLASSES,
+	'md-construct-reveal',
+	'data-construct-',
+	'data-presentation',
+	'data-focused',
+	'data-content-empty'
+];
+const QUOTE = '[\'"`]';
+const CLASSIFICATION_RE = new RegExp(
+	[
+		String.raw`(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*` +
+			`${QUOTE}[^'"\`]*(?:${HIDING_SELECTORS.join('|')})`,
+		String.raw`(?:get|has)Attribute\s*\(\s*` +
+			`${QUOTE}data-(?:presentation|construct-|focused|content-empty)`,
+		String.raw`(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(`
+	].join('|')
+);
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
-		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer'
+		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
+	'src/lib/components/blocks/text/edge-step.ts':
+		'reads the construct tags only to find the content element a typed byte would join; whether markers hide is `revealsNoMarkers`, asked of the home'
 };
 
-const MARKER_CLASSES = [
-	'md-marker',
-	'md-fence-line',
-	'md-ref-label',
-	'md-construct-reveal',
-	'directive-marker'
-];
+// Read off the families themselves, so a new one is scanned the day it is added.
+const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/cursor/widget-offset.ts': 'the classification home',
@@ -171,8 +186,8 @@ const codeOutsideStyleBlocks = (file: SourceFile): string =>
 
 // ── G4.33 live byte rewrites ─────────────────────────────────────────────────
 
-const ORACLE_HOME = 'src/lib/core/inline/visibility.ts';
-const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
+const ORACLE_HOME = SOURCE.inlineVisibility;
+const SLOT_HOME = SOURCE.inlineConstructPolicy;
 
 /** The modules building live-mode byte candidates, each verifying through the render path. */
 const REWRITE_MODULES: Record<string, string> = {
@@ -213,8 +228,6 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',
 	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
-	'src/lib/cursor/widget-offset.ts':
-		'identifies the marker-prefix widget, whose contenteditable="false" marker is no family of the rule',
 	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
@@ -226,15 +239,17 @@ const ORACLE_CALL = /(?<![\w.])(?:renderedText|visibleRuns)\s*\(/;
 
 // ── G4.12 caret-edge destructive keys ────────────────────────────────────────
 
-const TEXT_BLOCK_DIR = 'src/lib/components/blocks/text/';
+const TEXT_BLOCK_DIR = SOURCE_DIR.textBlock;
 const DESTRUCTIVE_KEY_RE = /(['"])(?:Backspace|Delete)\1/;
 const PREVENT_DEFAULT_RE = /\.preventDefault\s*\(/;
 
 const EDGE_INTERCEPTORS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-		'the one caret-edge dispatch: CST widget, decoration widget and marker-prefix overlap, each routed to updateBlockContent',
+		'the one caret-edge dispatch: CST widget, decoration widget and marker-prefix overlap, each routed to the block’s surface write',
 	'src/lib/components/blocks/text/widget-interaction.ts':
-		'the selected-widget second-press delete, a selected-state handler ordered before the shared keymap'
+		'the selected-widget second-press delete, a selected-state handler ordered before the shared keymap',
+	'src/lib/components/blocks/text/pending-break-keys.ts':
+		'Backspace on the line a pending break opened ends the break and deletes nothing, ahead of the edge-policy dispatch'
 };
 
 // ── The manifests ────────────────────────────────────────────────────────────
@@ -280,7 +295,7 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		reason: 'a new name is a new link write path: add it with its reason',
 		// The card takes the writer's answer as a prop, which this file-set scan cannot see.
-		reaches: ['src/lib/components/link-card/LinkCard.svelte'],
+		reaches: [SOURCE.linkCard],
 		hits: [
 			'buildLinkEditBytes(link, display, fields)',
 			'buildLinkUnwrapBytes(link, display)',
@@ -382,15 +397,13 @@ const MANIFESTS: ManifestRule[] = [
 	{
 		id: 'G4.83 every fragment read in the edit layers is declared, with why it needs no slot reader',
 		population: (file) =>
-			['src/lib/tree-operations/', 'src/lib/selection/', 'src/lib/editor-actions/'].some((dir) =>
+			[SOURCE_DIR.treeOperations, SOURCE_DIR.selection, SOURCE_DIR.editorActions].some((dir) =>
 				file.relPath.startsWith(dir)
 			),
 		matches: /(?<![\w.])readBlocks\s*\(/,
 		declared: {
 			'src/lib/tree-operations/list/task-paragraph.ts':
 				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through, and `readThroughItemMarker`, which reads a list item’s first slot through its marker line',
-			'src/lib/tree-operations/list/list-builders.ts':
-				'reads a whole built list item back, whose bytes carry their own marker',
 			'src/lib/tree-operations/node-ops.ts':
 				'counts the blocks joined or split bytes read as, to refuse a join or place a split; what it installs is read at the slot',
 			'src/lib/tree-operations/node-primitives.ts':
@@ -426,8 +439,8 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/components/editor-root-menus.ts':
 				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
-			'src/lib/selection/cross-block/paste.ts':
-				'cross-block selection paste parses the pasted slice',
+			'src/lib/selection/cross-block/range-replace.ts':
+				'a paste over a block a range holds whole parses the pasted text in its place',
 			'src/lib/selection/selection-drop.ts':
 				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite',
 			'src/lib/tree-operations/paste/dispatch.ts':
@@ -461,7 +474,7 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.45 the files importing a bare tree-op primitive are the declared callers',
-		population: notUnder('src/lib/tree-operations/'),
+		population: notUnder(SOURCE_DIR.treeOperations),
 		matches: IMPORTS_BARE_PRIMITIVE,
 		declared: BARE_PRIMITIVE_CALLERS,
 		reason: 'a new caller of the bare primitives: name the commit that settles its writes',
@@ -547,7 +560,7 @@ const MANIFESTS: ManifestRule[] = [
 	{
 		id: 'G4.33 every file naming an inline marker family is declared with what it does with it',
 		population: (file) => !file.relPath.endsWith('.svelte'),
-		matches: /['"][^'"]*md-(marker|ref-label)/,
+		matches: new RegExp(`${QUOTE}[^'"\`]*(?:${MARKER_FAMILY_CLASSES.join('|')})`),
 		declared: MARKER_FAMILY_NAMERS,
 		reason:
 			'a file started naming marker classes: route the drop question through `visibility.ts`, or declare what it does instead',
@@ -652,17 +665,15 @@ const OBLIGATIONS: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.12 each declared interceptor routes through updateBlockContent',
+		id: 'G4.12 each declared interceptor writes through the CST',
 		population: inKeys(EDGE_INTERCEPTORS),
-		matches: (file) => !/\bupdateBlockContent\s*\(/.test(file.code),
+		matches: (file) => !/\b(?:writeText|updateBlockContent)\s*\(/.test(file.code),
 		reason: 'a caret-edge interceptor commits through the CST, never native mutation',
 		reaches: keys(EDGE_INTERCEPTORS),
-		hits: [at(`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`, 'range.deleteContents();')],
+		hits: [at(SOURCE.edgePolicyDispatch, 'range.deleteContents();')],
 		misses: [
-			at(
-				`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`,
-				'deps.blockEdit.updateBlockContent(index, raw, a, b);'
-			)
+			at(SOURCE.edgePolicyDispatch, 'deps.blockEdit.updateBlockContent(index, raw, a, b);'),
+			at(SOURCE.edgePolicyDispatch, 'deps.writeText({ text, caretAfter });')
 		]
 	}
 ];

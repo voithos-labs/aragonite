@@ -47,6 +47,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	commands: CommandDispatchContext;
 	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
 	reading: Reading;
+	/** A plain horizontal arrow at a hidden construct edge: true when the press moved which side
+	 *  of the edge the caret means instead of moving the caret (live-mode.md § 4.2). */
+	stepEdge?(e: KeyboardEvent): boolean;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -55,6 +58,9 @@ export async function handleSharedKeydown(
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
 	if (endsSelectAllRun(e)) ctx.selection.resetSelectAllCount();
+
+	// Before the cross-block dispatch and the caret memory, which would record the press as a step.
+	if (handleEdgeStep(e, ctx)) return true;
 
 	if (await ctx.crossBlock.handleKeyDown(e)) return true;
 
@@ -79,12 +85,12 @@ export async function handleSharedKeydown(
 	let cachedBounds: LandableBounds | null = null;
 	const bounds = () => (cachedBounds ??= caretLandableBounds(ctx, el));
 
-	// Read the focus offset (not the anchor) for Shift+Arrow: after a forward extension the
+	// The selection's moving end, which the line check measures: after a forward extension the
 	// anchor stays mid-block while the focus sits at the boundary.
-	const shiftOffset = e.shiftKey ? ctx.getFocusOffset() : null;
+	const verticalOffset = () => ctx.getFocusOffset() ?? ctx.getCursorOffset() ?? 0;
 
 	if (e.key === 'ArrowUp') {
-		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
+		const offset = verticalOffset();
 		if (isAtFirstVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's first reachable
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
@@ -110,7 +116,7 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowDown') {
-		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
+		const offset = verticalOffset();
 		if (isAtLastVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's last reachable
 			// offset, so native Shift+ArrowDown extension has nowhere left to go.
@@ -170,6 +176,25 @@ export async function handleSharedKeydown(
 	return false;
 }
 
+/** A plain arrow at a hidden construct edge moves the side the caret means, not the caret
+ *  (live-mode.md § 4.2). Runs ahead of everything that reads the press as a step; true if claimed. */
+export function handleEdgeStep(
+	e: KeyboardEvent,
+	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
+): boolean {
+	if (ctx.selection.isCrossBlock || !ctx.stepEdge) return false;
+	let stepped = edgeStepByEvent.get(e);
+	if (stepped === undefined) {
+		stepped = ctx.stepEdge(e);
+		edgeStepByEvent.set(e, stepped);
+	}
+	if (stepped) e.preventDefault();
+	return stepped;
+}
+
+// A table cell asks ahead of its navigation plan as well as here, so each event is read once.
+const edgeStepByEvent = new WeakMap<KeyboardEvent, boolean>();
+
 // ── Block bounds ───────────────────────────────────────────────────────────
 
 export interface LandableBounds {
@@ -188,26 +213,4 @@ export interface LandableBoundsContext {
  *  markers put bytes out of reach, so every block-edge check reads this, not 0 and length. */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
 	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
-}
-
-// ── Shared beforeinput prelude ─────────────────────────────────────────────
-
-/** Routes historyUndo/historyRedo through the undo controller and delegates cross-block paste
- *  and typing; true when the caller should return early from its own `onBeforeInput`. */
-export async function handleSharedBeforeInput(
-	e: InputEvent,
-	ctx: { history: HistoryActions; crossBlock: CrossBlockHandlers }
-): Promise<boolean> {
-	if (e.inputType === 'historyUndo') {
-		e.preventDefault();
-		void ctx.history.requestUndo();
-		return true;
-	}
-	if (e.inputType === 'historyRedo') {
-		e.preventDefault();
-		void ctx.history.requestRedo();
-		return true;
-	}
-	if (await ctx.crossBlock.handleBeforeInput(e)) return true;
-	return false;
 }

@@ -1,7 +1,7 @@
 /**
  * The occurrence mark source: the word index is rebuilt only when `editEpoch` changes, and a caret
- * move is one map read. The marks hide while you type: an `editEpoch` with no `edit` or
- * `sourceSwap` event before it is a keystroke, and either event shows them again.
+ * move is one map read. The marks hide while you type: an `editEpoch` that no structural `edit` or
+ * `sourceSwap` announced is a keystroke, and either event, or a pause in the typing, shows them again.
  */
 
 import type {
@@ -29,9 +29,11 @@ export interface OccurrenceSourceDeps {
 export interface OccurrenceSource {
 	readonly source: DecorationSource;
 	setSelection(selection: EditorSelection | null): void;
-	/** Report an `edit` op: any op shows the marks again, and only `input` (a typing burst's flush)
-	 *  leaves the next `editEpoch` a keystroke. Returns whether the caller must invalidate. */
+	/** Report an `edit` op: `input` is a keystroke, which leaves its `editEpoch` hidden, and any
+	 *  other op shows the marks again. Returns whether the caller must invalidate. */
 	noteEdit(op: string): boolean;
+	/** Report that typing paused: the marks show again. Returns whether the caller must invalidate. */
+	noteTypingPause(): boolean;
 	/** Report a `sourceSwap`: the next `editEpoch` is the new document, never a keystroke.
 	 *  Returns whether the caller must invalidate, as `noteEdit` does. */
 	noteSourceSwap(): boolean;
@@ -55,8 +57,8 @@ export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): Occurre
 			index = scan.index;
 			tokens = scan.tokens;
 			deps.onScan?.({ tokenizedLeaves: scan.tokenizedLeaves });
-			// A keystroke says nothing on the edit event until its burst flushes; every other
-			// document change announced itself before its `editEpoch` arrived.
+			// A keystroke announces only `input`; every other document change announced a
+			// structural op or a swap before its `editEpoch` arrived.
 			typing = !structuralSinceScan;
 			structuralSinceScan = false;
 		}
@@ -77,11 +79,12 @@ export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): Occurre
 			selection = next;
 		},
 		noteEdit(op) {
-			// Undo bumps the content version before it emits, so a structural op can arrive
-			// after the `editEpoch` it caused; turning marks back on here covers both orders.
-			if (op !== 'input') structuralSinceScan = true;
+			if (op === 'input') return false;
+			structuralSinceScan = true;
+			// A replace-all names its op after its commits' epochs, which may have hidden the marks.
 			return showMarks();
 		},
+		noteTypingPause: showMarks,
 		noteSourceSwap() {
 			structuralSinceScan = true;
 			return showMarks();

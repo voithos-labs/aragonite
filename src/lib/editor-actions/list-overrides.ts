@@ -9,6 +9,7 @@ import type { BlockEditActions, ListContext } from '../action-contracts';
 import { refusedWrite } from './stored-caret';
 import { displayLength, isBlankText } from '../core/lines';
 import type { NestedActionsOverrideFactory, NodeScope } from './nested/nested-actions';
+import type { CommandRun } from '../schema/block-commands';
 
 export interface ListOverridesDeps {
 	scope: NodeScope;
@@ -40,19 +41,23 @@ export interface ListItemOverridesDeps {
 	listContext: ListContext;
 }
 
-/** A list item's Enter: an empty item leaves the list, at the item's end it starts the next
- *  item, anywhere else it splits the item. Backspace keeps the default. */
+/** A list item's Enter: an empty item leaves the list (not one a selection's removal emptied), at
+ *  the item's end it starts the next item, anywhere else it splits the item. */
 export function createListItemOverrides(deps: ListItemOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {
-			splitBlock: async (innerIndex: number, offset: number): Promise<boolean> => {
+			splitBlock: async (
+				innerIndex: number,
+				offset: number,
+				run?: CommandRun
+			): Promise<boolean> => {
 				const { node, index } = deps.scope;
 				if (!node.children) return false;
 
 				// Looser than `isItemUserEmpty`: trailing structural children stay until
 				// `exitListAtItem` moves them.
 				const firstChild = node.children[0];
-				if (firstChild?.kind === 'paragraph' && isBlankText(firstChild.raw)) {
+				if (!run?.afterRemoval && firstChild?.kind === 'paragraph' && isBlankText(firstChild.raw)) {
 					return deps.listContext.exitListAtItem(index);
 				}
 

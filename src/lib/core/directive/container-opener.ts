@@ -10,7 +10,13 @@ import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
 import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parseContainerBody, joinRaw } from '../parser';
-import { trailingLineEnding, type LineEnding, type ParsedLine } from '../lines';
+import {
+	firstDisplayLine,
+	splitLines,
+	trailingLineEnding,
+	type LineEnding,
+	type ParsedLine
+} from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import {
@@ -31,6 +37,7 @@ export function registerDirectiveOpeners(): void {
 		// moves this with it. A colon fence collides with no built-in matcher; it only needs a gap.
 		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
+		readingNotFinal: directiveReadingNotFinal,
 		tryOpen(ctx) {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
@@ -164,6 +171,15 @@ function firstCloserAtLeast(index: CloserIndex, from: number, min: number): numb
 		return left !== -1 ? left : descend(node * 2 + 1, mid, hi);
 	};
 	return descend(1, 0, index.leafBase);
+}
+
+/** Whether a block with these bytes opens a container fence its own lines never close: it read on
+ *  for the closer, became a paragraph, and a closer typed below still completes it. */
+function directiveReadingNotFinal(raw: string): boolean {
+	const fence = matchDirectiveOpener(firstDisplayLine(raw).text);
+	if (!fence || fence.tier === 'leaf') return false;
+	const lines = splitLines(raw);
+	return findDirectiveCloser(lines, 0, lines.length, fence.colonCount) === -1;
 }
 
 /** Equivalent to scanning `isDirectiveCloser` forward from `afterIndex`, over the index. */

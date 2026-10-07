@@ -1,6 +1,10 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
-import { classifyBlockForSelection, normalize } from '../../selection/primitives';
+import {
+	blockPaintsWholeBox,
+	classifyBlockForSelection,
+	normalize
+} from '../../selection/primitives';
 import { coverRange, rangeCoverage, walkBetween } from '../../selection/range-coverage';
 import {
 	comparePaths,
@@ -14,9 +18,10 @@ import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { countsCells } from '../../schema/block-kind-descriptor';
 
-// The overlay's classes come off the one coverage, and that coverage splits the range cleanly:
-// every block strictly between the endpoints sits in exactly one whole root, inside a kept edge,
-// or is an ancestor of the end's block. Endpoints are real block paths, so no case is vacuous.
+// The overlay's paint comes off the one coverage: a block it covers whole paints one box and
+// nothing under a box paints. The coverage splits the range cleanly: every block strictly between
+// the endpoints sits in exactly one whole root, inside a kept edge, or is an ancestor of the end's
+// block. Endpoints are real block paths, so no case is vacuous.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -26,6 +31,8 @@ const opensOnto = (doc: DocumentView, path: number[]): boolean => {
 };
 
 describe('G2.7 selection partition', () => {
+	// Miss-analysis: the class was checked against the whole roots alone, so an end block the range
+	// covers byte for byte was never asked to paint the box its covered neighbours paint.
 	it('classifyBlockForSelection reads the coverage, and the coverage partitions the range', () => {
 		fc.assert(
 			fc.property(arbDocWithSelection, ({ doc, selection }) => {
@@ -45,10 +52,10 @@ describe('G2.7 selection partition', () => {
 				);
 
 				for (const path of allBlockPaths(doc)) {
-					const root = coverage.rootHolding(path);
+					const root = coverage.coveredRootHolding(path);
 					const expected = root
 						? pathsEqual(root, path)
-							? 'middle'
+							? 'whole'
 							: 'outside'
 						: coverage.startEdge && pathsEqual(path, start.path)
 							? 'start'
@@ -57,6 +64,16 @@ describe('G2.7 selection partition', () => {
 								: 'outside';
 					const cls = classifyBlockForSelection(path, coverage);
 					if (cls !== expected) throw new Error(`${path} classified ${cls}, expected ${expected}`);
+					// One box per covered subtree, and nothing painted under it.
+					const box = blockPaintsWholeBox(path, coverage, null);
+					if (box !== (cls === 'whole')) throw new Error(`${path} classified ${cls}, box ${box}`);
+					if (cls === 'outside') continue;
+					for (let depth = 1; depth < path.length; depth++) {
+						const above = path.slice(0, depth);
+						if (blockPaintsWholeBox(above, coverage, null)) {
+							throw new Error(`${path} paints under the box at ${above}`);
+						}
+					}
 				}
 				for (const path of walkBetween(doc, start.path, end.path)) {
 					const roots = coverage.wholeRoots.filter((root) => pathHasPrefix(path, root));

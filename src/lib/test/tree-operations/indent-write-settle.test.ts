@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A write that keeps its block's kind skips the neighbour merge, but a new first-line indent moves
 // a paragraph under a loose list item into it, so that write asks anyway.
@@ -17,14 +18,14 @@ describe('a write that indents its first line settles the join above', () => {
 		['four spaces under the inner item', '- a\n  - b\n\nzz\n', '    zz\n']
 	])('joins the paragraph to the item on %s', (_label, source, text) => {
 		const doc = parse(source);
-		updateNodeContent(doc, 1, text, defaultGrammarView);
+		updateNodeContent(doc, 1, text, defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['list']);
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
 	it('keeps a paragraph its own one space short of the item', () => {
 		const doc = parse('1. a\n\nzz\n');
-		updateNodeContent(doc, 1, '  zz\n', defaultGrammarView);
+		updateNodeContent(doc, 1, '  zz\n', defaultGrammarView, createSharingState());
 		expect(serialize(doc)).toBe('1. a\n\n  zz\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 		expect(describeConvergence(doc)).toBeNull();
@@ -37,7 +38,7 @@ describe('a write that leaves the indent alone skips the join', () => {
 	it('does not ask the list above about a paragraph it would absorb', () => {
 		const doc = parse('- a\n\nzz\n');
 		doc.children[1].raw = '  zz\n';
-		updateNodeContent(doc, 1, '  zzx\n', defaultGrammarView);
+		updateNodeContent(doc, 1, '  zzx\n', defaultGrammarView, createSharingState());
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 	});
 });

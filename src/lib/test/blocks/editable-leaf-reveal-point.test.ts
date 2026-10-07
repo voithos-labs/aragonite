@@ -64,7 +64,7 @@ describe('a reveal click on a render-primary leaf', () => {
 
 		await mounted.clickRendered(40, 12);
 
-		expect(mounted.instance.getCursorOffset()).toBe(6);
+		expect(mounted.instance.blockApi.getCursorOffset()).toBe(6);
 	});
 
 	it('hands the hook the block host and the pressed point', async () => {
@@ -81,7 +81,7 @@ describe('a reveal click on a render-primary leaf', () => {
 
 		await mounted.clickRendered(40, 12);
 
-		expect(mounted.instance.getCursorOffset()).toBe(0);
+		expect(mounted.instance.blockApi.getCursorOffset()).toBe(0);
 	});
 
 	it('reveals at the source start when the hook declines the point', async () => {
@@ -89,7 +89,7 @@ describe('a reveal click on a render-primary leaf', () => {
 
 		await mounted.clickRendered(40, 12);
 
-		expect(mounted.instance.getCursorOffset()).toBe(0);
+		expect(mounted.instance.blockApi.getCursorOffset()).toBe(0);
 	});
 });
 

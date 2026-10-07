@@ -110,6 +110,91 @@ test.describe('keybinding-override prop', () => {
 	});
 });
 
+// Over a selection spanning blocks, a command key removes the selection and then runs at the caret
+// that's left, so the selection goes only for a key the keymap binds to such a command.
+test.describe('a command key over a selection spanning blocks', () => {
+	let editor: EditorPage;
+
+	async function selectAcross(overrides: KeybindingOverride[]): Promise<void> {
+		await editor.loadContent('alpha\n\nbeta\n');
+		await setKeybindings(editor, overrides);
+		await editor.focusBlockAtPath([0], 2);
+		await editor.shiftClickBlock([1], 2);
+		await editor.waitForCrossBlock(true);
+	}
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	for (const [chord, key] of [
+		['Mod+2', 'ControlOrMeta+2'],
+		['Enter', 'Enter']
+	] as const) {
+		test(`${chord} disabled removes nothing and the selection stays`, async () => {
+			await selectAcross([{ chord, command: null }]);
+
+			await editor.pressDeclined(key);
+
+			expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
+			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		});
+	}
+
+	for (const [chord, key] of [
+		['Mod+2', 'ControlOrMeta+2'],
+		['Enter', 'Enter']
+	] as const) {
+		test(`${chord} disabled on paragraphs removes nothing and the selection stays`, async () => {
+			await selectAcross([{ chord, command: null, kind: 'paragraph' }]);
+
+			await editor.pressDeclined(key);
+
+			expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
+			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		});
+	}
+
+	test('Enter disabled on paragraphs does nothing from a heading the selection ends in', async () => {
+		await editor.loadContent('alpha\n\n# beta\n');
+		await setKeybindings(editor, [{ chord: 'Enter', command: null, kind: 'paragraph' }]);
+		await editor.focusBlockAtPath([0], 2);
+		await editor.shiftClickBlock([1], 4);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressDeclined('Enter');
+
+		expect(await editor.bridge.getSource()).toBe('alpha\n\n# beta\n');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+	});
+
+	test('a split bound to Mod+J on headings does nothing over paragraphs', async () => {
+		await selectAcross([{ chord: 'Mod+J', command: 'block.split', kind: 'heading' }]);
+
+		await editor.pressDeclined('ControlOrMeta+j');
+
+		expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+	});
+
+	test('the heading command rebound to Mod+Alt+2 makes the heading', async () => {
+		await selectAcross([{ chord: 'Mod+Alt+2', command: 'heading.cycle', arg: 2 }]);
+
+		await editor.page.keyboard.press('ControlOrMeta+Alt+2');
+
+		await editor.bridge.waitForSourceEquals('## alta\n', 3000);
+	});
+
+	test('the split rebound to Alt+Enter splits', async () => {
+		await selectAcross([{ chord: 'Alt+Enter', command: 'block.split' }]);
+
+		await editor.page.keyboard.press('Alt+Enter');
+
+		await editor.bridge.waitForSourceEquals('al\n\nta\n', 3000);
+	});
+});
+
 // A caret in a gap focuses a hidden host, so the root handler declines and the host resolves the
 // binding itself; with no block or kind to fall back on, nothing else can run the rebound command.
 test.describe('override fires where no block holds focus', () => {

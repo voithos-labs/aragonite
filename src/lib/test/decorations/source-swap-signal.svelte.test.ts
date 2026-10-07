@@ -86,7 +86,7 @@ describe('a `source` prop swap moves the content version', () => {
 		const afterSwap = editor.__test.getContentVersion();
 		expect(afterSwap).not.toBe(before);
 
-		// The `source !== lastSource` check: writing the same prop replaces no bytes.
+		// Writing the text the editor already holds replaces no bytes.
 		props.source = 'only\n';
 		await settleEditor();
 		expect(editor.__test.getContentVersion()).toBe(afterSwap);

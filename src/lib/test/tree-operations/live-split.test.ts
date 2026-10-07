@@ -12,6 +12,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Live mode sends `splitNode` through the registered rebalancer, and every other mode cuts the
 // bytes as typed; the registration is the production one, so the wiring is tested too.
@@ -28,7 +29,7 @@ afterEach(() => {
 
 const rawsAfterSplit = (source: string, offset: number, mode: 'live' | 'source' | undefined) => {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, undefined, fixtureReading({}, mode));
+	splitNode(doc, 0, offset, createSharingState(), fixtureReading({}, mode));
 	return doc.children.map((child) => child.raw);
 };
 
@@ -108,23 +109,23 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 describe('Backspace merging the halves back', () => {
 	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, fixtureReading({}, 'live'));
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'));
+		splitNode(doc, 0, 9, createSharingState(), fixtureReading({}, 'live'));
+		mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading({}, 'live'));
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
 	it('a merged split link is one link again', () => {
 		const doc = parse('Visit [example](https://example.com) here\n');
-		splitNode(doc, 0, 11, undefined, fixtureReading({}, 'live'));
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'));
+		splitNode(doc, 0, 11, createSharingState(), fixtureReading({}, 'live'));
+		mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading({}, 'live'));
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
 	// The byte-literal split merges back the same in every mode, so the cleanup belongs to the join.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, fixtureReading());
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
+		splitNode(doc, 0, 9, createSharingState(), fixtureReading());
+		mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading());
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
@@ -132,8 +133,8 @@ describe('Backspace merging the halves back', () => {
 	// were painted and the user could see what the two halves carried.
 	it('a modeless merge keeps the halves byte-literal', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, fixtureReading({}, 'live'));
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
+		splitNode(doc, 0, 9, createSharingState(), fixtureReading({}, 'live'));
+		mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading());
 		expect(doc.children[0].raw).toBe('Some **bo****ld** text\n');
 	});
 });
@@ -152,7 +153,7 @@ describe('rebalanced halves keep their line endings', () => {
 	it('a half the rewrite left unterminated takes the block ending back', () => {
 		const doc = parse('\\\n[**bold**](u`)`)  \n&notreal;\\\n[text](u`x`)foo\n\n\\*\n');
 
-		splitNode(doc, 0, 32, undefined, fixtureReading({}, 'live'));
+		splitNode(doc, 0, 32, createSharingState(), fixtureReading({}, 'live'));
 
 		for (const child of doc.children) expect(child.raw.endsWith('\n')).toBe(true);
 		expectParseConverged(doc);

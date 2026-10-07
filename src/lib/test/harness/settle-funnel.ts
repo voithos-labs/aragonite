@@ -11,6 +11,7 @@ import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /** Runs `mutate` over the body parent, recomputes the separators around it, returns the change.
  *  `grammar` is the editor's, which the recompute reads blocks with. */
@@ -20,5 +21,11 @@ export function settled(
 	grammar: GrammarView = defaultGrammarView
 ): StructuralChange {
 	const before: CstNode[] = [...doc.children];
-	return settleSeparator(documentBody(doc), before, mutate(documentBody(doc)), grammar);
+	return settleSeparator(
+		documentBody(doc),
+		before,
+		mutate(documentBody(doc)),
+		grammar,
+		createSharingState()
+	);
 }

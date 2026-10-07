@@ -25,7 +25,13 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('absorbs the neighbour a typed character turned into a continuation', () => {
 		const doc = parse('# h\nb\n');
 
-		const { change } = updateNodeContent(doc, 0, 'x# h\n', defaultGrammarView);
+		const { change } = updateNodeContent(
+			doc,
+			0,
+			'x# h\n',
+			defaultGrammarView,
+			createSharingState()
+		);
 
 		expect(serialize(doc)).toBe('x# h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -37,7 +43,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('absorbs when the marker is deleted instead', () => {
 		const doc = parse('# h\nb\n');
 
-		updateNodeContent(doc, 0, ' h\n', defaultGrammarView);
+		updateNodeContent(doc, 0, ' h\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe(' h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -49,7 +55,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('leaves a separated neighbour standing', () => {
 		const doc = parse('# h\n\nb\n');
 
-		updateNodeContent(doc, 0, 'x# h\n', defaultGrammarView);
+		updateNodeContent(doc, 0, 'x# h\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('x# h\n\nb\n');
 		expect(doc.children.map((c) => c.raw)).toEqual(['x# h\n', 'b\n']);
@@ -66,7 +72,8 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 			{ children: quote.children!, owner: quote, lineEnding: '\n' },
 			0,
 			'x# h\n',
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 		rebuildContainerRaw(quote, fixtureGrammar);
 
@@ -81,7 +88,13 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('asks at the last block a multi-block write created', () => {
 		const doc = parse('# h\nb\n');
 
-		const { change } = updateNodeContent(doc, 0, '---\nx\n', defaultGrammarView);
+		const { change } = updateNodeContent(
+			doc,
+			0,
+			'---\nx\n',
+			defaultGrammarView,
+			createSharingState()
+		);
 
 		expect(serialize(doc)).toBe('---\nx\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -183,7 +196,15 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 		const block = (source: string): CstNode => parse(source, { scope: 'fragment' }).children[0];
 		const children = ['a\n', 'b\n', '# h\n', 'c\n', 'd\n'].map(block);
 
-		const settled = absorbWindowSeams({ children }, 0, 5, 4, { op: 'noop' }, defaultGrammarView);
+		const settled = absorbWindowSeams(
+			{ children, owner: undefined, lineEnding: '\n' },
+			0,
+			5,
+			4,
+			{ op: 'noop' },
+			defaultGrammarView,
+			createSharingState()
+		);
 
 		expect(children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n', 'c\nd\n']);
 		expect(settled.change).toEqual({
@@ -239,7 +260,8 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 			{ children: quote.children!, owner: quote, lineEnding: '\n' },
 			1,
 			'h\n',
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 		const folds: AncestrySeamFold[] = [];
 		rebuildUnsharedChain(doc, chain, share, folds, defaultGrammarView);

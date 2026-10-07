@@ -75,16 +75,15 @@ it('ensureUnsharedChild unshares one child of an already-unshared parent', () =>
 	expect(ensureUnsharedChild(list, 1, sharing)).toBe(fresh);
 });
 
-// The check reads the container contract, not the `table` kind. `tableRow` is the in-repo
-// grid that is not `table`, standing in for the plugin grids a kind test would miss.
-it('rebuildOwnedContainer unshares the children of any grid, not just table', () => {
-	const { doc, sharing } = sharedDoc('| a | b |\n| --- | --- |\n| c | d |\n');
-	const [, row] = ensureUnsharedPath(doc, [0, 0], sharing);
-	expect(row.children!.every((cell) => sharing.isShared(cell))).toBe(true);
+it('rebuildOwnedContainer leaves a table’s rows shared when it keeps their bytes', () => {
+	const { doc, sharing } = sharedDoc('|a|b|\n|-|-|\n|c|d|\n');
+	const [table] = ensureUnsharedPath(doc, [0], sharing);
+	const rows = [...table.children!];
 
-	rebuildOwnedContainer(row, sharing);
+	rebuildOwnedContainer(table);
 
-	expect(row.children!.some((cell) => sharing.isShared(cell))).toBe(false);
+	table.children!.forEach((row, i) => expect(row).toBe(rows[i]));
+	expect(table.children!.every((row) => sharing.isShared(row))).toBe(true);
 });
 
 // Without the range check its sibling walk carries (G1.22), an off-the-end index is a crash

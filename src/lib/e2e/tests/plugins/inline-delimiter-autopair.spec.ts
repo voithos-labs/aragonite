@@ -72,6 +72,24 @@ test.describe('inline delimiter auto-pair', () => {
 		await expect.poll(() => editor.bridge.getSource()).toBe('pay $ $b\n');
 	});
 
+	// Delete takes the auto-pair's partner apart, so the pair a paste rebuilds is the user's own.
+	test('a pair rebuilt by Delete and a paste keeps both stars under a space', async ({ page }) => {
+		await editor.setPresentationMode('source');
+		await editor.loadContent('a \n');
+		await editor.focusBlock(0, 2);
+		await page.keyboard.type('*');
+		await editor.bridge.waitForSourceContains('a **');
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals('a *\n');
+		await editor.seedClipboard('*');
+		await editor.paste();
+		await editor.bridge.waitForSourceEquals('a **\n');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.type(' ');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('a * *\n');
+	});
+
 	// The emphasis delimiters: `**` typed ahead of an existing bold run pairs with its own
 	// partner, and the byte after the run just closed lands outside it.
 	test('** and ~~ pair with their own paired closers and close cleanly', async ({ page }) => {

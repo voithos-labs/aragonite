@@ -1,7 +1,8 @@
 /**
  * Enter completion: a lone typed line a registered completer recognises becomes the structure
  * it opens instead of splitting. `planEnterCompletion` is pure; `withEnterCompletion` is the
- * one place the plan is applied, wrapped around a composed `splitBlock`.
+ * one place a plan is applied, on Enter and, for the completers that answer as you type, after
+ * a keystroke's write.
  */
 
 import { readBlocks } from '../core/parser';
@@ -13,7 +14,7 @@ import {
 	type LineEnding
 } from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
-import { withStoredCaret } from './stored-caret';
+import type { CommandRun } from '../schema/block-commands';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -29,54 +30,36 @@ export interface EnterCompletion {
 	caret: { path: number[]; offset: number };
 }
 
-/** Wraps a composed `splitBlock` with the completer check, above the container overrides so a
- *  container replacing `splitBlock` keeps the completion for its subtree. */
+/** Adds the completer check to a composed `splitBlock`, and the on-type completion, above the
+ *  container overrides so a container replacing `splitBlock` keeps the completion for its subtree. */
 export function withEnterCompletion(
-	blockEdit: BlockEditActions,
+	blockEdit: Omit<BlockEditActions, 'completeLineOnType'>,
 	childAt: (index: number) => NodeView | undefined,
 	grammar: GrammarView,
 	getLineEnding: () => LineEnding
 ): BlockEditActions {
+	/** `snapshotOffset` is where the caret was, so one undo restores the typed line with the caret
+	 *  at its end rather than in front of it. */
+	const complete = (index: number, completion: EnterCompletion, snapshotOffset: number) =>
+		blockEdit.replaceBlock(
+			index,
+			completion.replacement,
+			{ replacementIndex: 0, ...completion.caret },
+			{ snapshotOffset }
+		);
 	return {
 		...blockEdit,
-		async splitBlock(index: number, offset: number): Promise<boolean> {
-			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
-			if (!completion) return blockEdit.splitBlock(index, offset);
-			// `snapshotOffset` is where the caret was, so one undo restores the typed line with the
-			// caret at its end rather than in front of it.
-			return blockEdit.replaceBlock(
-				index,
-				completion.replacement,
-				{ replacementIndex: 0, ...completion.caret },
-				{ snapshotOffset: offset }
-			);
+		async splitBlock(index: number, offset: number, run?: CommandRun): Promise<boolean> {
+			// A line a selection's removal left isn't one the user finished: the break only breaks.
+			const completion = run?.afterRemoval
+				? null
+				: planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
+			if (!completion) return blockEdit.splitBlock(index, offset, run);
+			return complete(index, completion, offset);
 		},
-		// A line an on-type completer recognises forms its structure at once. The write lands
-		// first, so the typed line is its own undo step and the replacement covers the stored bytes.
-		updateBlockContent(index, text, mode, preEditOffset, postEditFocusOffset) {
-			const write = blockEdit.updateBlockContent(
-				index,
-				text,
-				mode,
-				preEditOffset,
-				postEditFocusOffset
-			);
-			if (!write.admitted) return write;
-			const plan = () => planTypedCompletion(childAt(index), write.caret, grammar, getLineEnding());
-			// A write that keeps the caret landed in place already, so its completion is known now.
-			const keepsCaret = write.keepsCaret && plan() === null;
-			const completed = write.then(async (wrote) => {
-				const completion = plan();
-				if (!completion) return wrote;
-				const replaced = await blockEdit.replaceBlock(
-					index,
-					completion.replacement,
-					{ replacementIndex: 0, ...completion.caret },
-					{ snapshotOffset: write.caret }
-				);
-				return wrote || replaced;
-			});
-			return withStoredCaret(completed, write.caret, write.storedOffset, keepsCaret);
+		async completeLineOnType(index: number, caret: number): Promise<boolean> {
+			const completion = planTypedCompletion(childAt(index), caret, grammar, getLineEnding());
+			return completion ? complete(index, completion, caret) : false;
 		}
 	};
 }

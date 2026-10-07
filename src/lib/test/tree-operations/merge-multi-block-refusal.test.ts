@@ -34,7 +34,7 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	it('declines the forward join rather than dropping every block past the first', () => {
 		const doc = parse(HEADING_OVER_TWO_LINES);
 
-		const { change } = mergeWithNext(doc, 0, fixtureReading(), undefined);
+		const { change } = mergeWithNext(doc, 0, fixtureReading(), createSharingState());
 
 		expect(change).toEqual({ op: 'noop' });
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
@@ -44,7 +44,7 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	it('declines the backward join rather than writing a leaf its own reload disagrees with', () => {
 		const doc = parse(HEADING_OVER_TWO_LINES);
 
-		expect(mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading())).toBeNull();
+		expect(mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading())).toBeNull();
 
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
 		expect(doc.children).toHaveLength(2);
@@ -55,14 +55,16 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	// the reload are what a truncation would break.
 	it('declines both directions inside a blockquote body', () => {
 		const forward = quotedBody();
-		expect(mergeWithNext(forward.body, 0, fixtureReading(), undefined).change).toEqual({
+		expect(mergeWithNext(forward.body, 0, fixtureReading(), createSharingState()).change).toEqual({
 			op: 'noop'
 		});
 		expect(forward.body.children).toHaveLength(2);
 		expectParseConverged(forward.doc);
 
 		const backward = quotedBody();
-		expect(mergeIntoPrevDeepLeaf(backward.body, 1, undefined, fixtureReading())).toBeNull();
+		expect(
+			mergeIntoPrevDeepLeaf(backward.body, 1, createSharingState(), fixtureReading())
+		).toBeNull();
 		expect(backward.body.children).toHaveLength(2);
 		expectParseConverged(backward.doc);
 	});
@@ -72,11 +74,15 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 describe('a join whose bytes stay one block still merges', () => {
 	it('joins two paragraphs forward and backward', () => {
 		const forward = parse('alpha\n\nbeta\n');
-		expect(mergeWithNext(forward, 0, fixtureReading(), undefined).change.op).toBe('replace');
+		expect(mergeWithNext(forward, 0, fixtureReading(), createSharingState()).change.op).toBe(
+			'replace'
+		);
 		expect(serialize(forward)).toBe('alphabeta\n');
 
 		const backward = parse('alpha\n\nbeta\n');
-		expect(mergeIntoPrevDeepLeaf(backward, 1, undefined, fixtureReading())).not.toBeNull();
+		expect(
+			mergeIntoPrevDeepLeaf(backward, 1, createSharingState(), fixtureReading())
+		).not.toBeNull();
 		expect(serialize(backward)).toBe('alphabeta\n');
 	});
 });

@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Filling a blank line runs the neighbour merge, so a fill that an indentation-delimited block
 // above absorbs leaves the same tree its reload reads.
@@ -15,7 +16,7 @@ const SOURCE = '- a\n\n\nzz\n';
 function filled(text: string) {
 	const doc = parse(SOURCE);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph', 'paragraph']);
-	updateNodeContent(doc, 1, text, defaultGrammarView);
+	updateNodeContent(doc, 1, text, defaultGrammarView, createSharingState());
 	return doc;
 }
 

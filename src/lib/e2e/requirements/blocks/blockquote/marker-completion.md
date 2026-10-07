@@ -3,8 +3,8 @@
 The blockquote opener fires on a bare `>`, so typing it in an empty paragraph creates the
 quote at once and the caret lands in its empty child. The space a user types next is part
 of the marker they are still writing, not content: it is swallowed, no byte moves and no
-undo entry is pushed. `rebuildBlockquoteRaw` writes `> ` on every content line, so the
-space appears on its own the moment content arrives. Lists already work this way: `-`
+undo entry is pushed. A quote line that was empty gets the quote's own `> ` when content
+arrives, so the space appears on its own the moment you type. Lists already work this way: `-`
 alone stays a paragraph, and the switch to a list writes `- ` whole.
 
 The same holds in every mode: a blockquote's marker is drawn as a border in every

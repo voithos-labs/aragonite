@@ -64,7 +64,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			getEl: () => el,
 			getEditorContentWidth: trap,
 			cursor: new Proxy({}, { get: trap }),
-			widgetSelection: new Proxy({}, { get: trap }),
+			selection: new Proxy({}, { get: trap }),
 			blockEdit: new Proxy({}, { get: trap }),
 			focusActions: new Proxy({}, { get: trap }),
 			setSnapTarget: trap,

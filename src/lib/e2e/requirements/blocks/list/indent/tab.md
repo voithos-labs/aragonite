@@ -6,8 +6,11 @@ How Tab changes a list item's nesting level, including ordered-list numbering wh
 
 - Tab on non-first item nests it under the previous sibling
 - Tab on first item does nothing (no previous sibling to nest under)
-- If previous sibling already has a nested list of the same type, item is appended to it
-- If previous sibling has no nested list, a new one is created
+- Tab over a selection inside one item nests the item, as at a caret (over a selection in a plain
+  paragraph Tab does nothing)
+- If the previous sibling ends with a nested list of the same type, the item is appended to it
+- Otherwise a new nested list is created at the end of the previous sibling, after everything it
+  holds, so a paragraph below its sublist stays above the moved item
 - Cursor stays in the indented item at offset 0 (not at end of nested content)
 - When the moved item has several paragraphs, the caret lands at the start of its last one
 - Focus follows the item through the container mutation, for both nested-list paths (appended to an existing list, or placed in a freshly created one): typing straight after Tab lands at the start of the moved item, never at the position it held before the move

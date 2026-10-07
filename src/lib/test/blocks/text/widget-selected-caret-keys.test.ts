@@ -26,21 +26,21 @@ describe('handleSelectedWidgetKeydown: a plain caret-moving key leaves the widge
 		['End', 7],
 		['PageDown', 7]
 	])('%s puts the caret at offset %i, clears the selection and declines', async (key, edge) => {
-		const { interaction, widgetSelection, carets } = selectedImage();
+		const { interaction, selection, carets } = selectedImage();
 		const e = press(key);
 		expect(await interaction.handleSelectedWidgetKeydown(e)).toBe(false);
 		expect(carets).toEqual([edge]);
-		expect(widgetSelection.getSelected()).toBeNull();
+		expect(selection.widget).toBeNull();
 		// The shared move runs next, from that caret, and owns the default.
 		expect(e.defaultPrevented).toBe(false);
 	});
 
 	it('Shift+ArrowDown stays swallowed with the widget still selected', async () => {
-		const { interaction, widgetSelection, carets } = selectedImage();
+		const { interaction, selection, carets } = selectedImage();
 		const e = press('ArrowDown', true);
 		expect(await interaction.handleSelectedWidgetKeydown(e)).toBe(true);
 		expect(carets).toEqual([]);
-		expect(widgetSelection.getSelected()).not.toBeNull();
+		expect(selection.widget).not.toBeNull();
 		expect(e.defaultPrevented).toBe(true);
 	});
 });

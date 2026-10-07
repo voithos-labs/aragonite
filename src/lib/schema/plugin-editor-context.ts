@@ -13,6 +13,7 @@ import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import { insertCatalogue } from './insert-catalogue';
 import type { Reading } from './reading';
+import type { Draft, DraftSpec } from './drafts';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
 	installedPlugin,
@@ -31,6 +32,9 @@ export interface EditorPluginContexts {
 	get(pluginName: string): EditorContext | undefined;
 	/** Also receives any options error reported before it was called. */
 	attachAll(onError: (report: ErrorReport) => void): void;
+	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
+	 *  sources; undefined outside one. */
+	attaching(): EditorContext | undefined;
 	dispose(): void;
 }
 
@@ -55,6 +59,7 @@ export function createEditorPluginContexts(deps: {
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (commandId: string, arg?: unknown) => boolean;
+	openDraft: (spec: DraftSpec) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
 	reading: Reading;
 }): EditorPluginContexts {
@@ -63,6 +68,7 @@ export function createEditorPluginContexts(deps: {
 	// A block reads its options while it renders, which is before `attachAll` sets a handler.
 	const early: ErrorReport[] = [];
 	let report: (r: ErrorReport) => void = (r) => void early.push(r);
+	let attaching: EditorContext | undefined;
 
 	function optionsFor(pluginName: string): unknown {
 		const plugin = installedPlugin(pluginName) ?? {};
@@ -101,6 +107,7 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
+				openDraft: (spec) => deps.openDraft(spec),
 				get computeInlineContent() {
 					return inlineReaderFor(deps.reading);
 				},
@@ -118,17 +125,21 @@ export function createEditorPluginContexts(deps: {
 
 	return {
 		get,
+		attaching: () => attaching,
 		attachAll(onError) {
 			report = onError;
 			for (const r of early.splice(0)) onError(r);
 			for (const plugin of installedPluginNames()) {
 				if (!resolvesIn(deps.activation, plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
+					attaching = get(plugin)!;
 					try {
-						const dispose = cb(get(plugin)!);
+						const dispose = cb(attaching);
 						if (typeof dispose === 'function') disposers.push({ plugin, dispose });
 					} catch (error) {
 						onError({ plugin, error });
+					} finally {
+						attaching = undefined;
 					}
 				}
 			}

@@ -34,7 +34,8 @@ import { mermaidPlugin, MERMAID } from '$lib/plugins/mermaid';
 import { parrotPlugin } from '$lib/plugins/parrot';
 import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '$lib/plugins/slash-commands';
 import { tocPlugin } from '$lib/plugins/toc';
-import { readEditorFile } from './scan-source';
+import { readSource } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // Every bundled plugin, so its kinds' keymaps and its global chords join the sweep. Third-party
 // chords stay out: the gate only sees code this repo ships.
@@ -155,6 +156,11 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	// The typed closer the row's prose names is no chord, so only Enter resolves here.
 	'Leave a code block': { kind: 'fencedCode', commands: ['code.newline'] },
 	'Insert a tab in prose': { kind: 'paragraph', commands: ['block.insertTab'] },
+	// Over a selection each block answers by its own binding; a list item's is the row's target.
+	'Indent / outdent a selection': {
+		kind: 'listItem',
+		commands: ['list.indent', 'list.unindent']
+	},
 	Undo: { kind: 'paragraph', commands: ['history.undo'] },
 	Redo: { kind: 'paragraph', commands: ['history.redo'] },
 	'Move block up / down': { kind: 'paragraph', commands: ['block.moveUp', 'block.moveDown'] },
@@ -231,11 +237,7 @@ const IMAGE_RESIZE = "e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRi
 const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	// The reserved Ctrl+F / Ctrl+H pair single-sources from schema/commands.ts.
 	'Find / replace': {
-		files: [
-			'components/editor-root-keydown.ts',
-			'components/SearchBar.svelte',
-			'schema/commands.ts'
-		],
+		files: [SOURCE.editorRootKeydown, SOURCE.searchBar, SOURCE.commands],
 		tokens: {
 			'Mod+F': ["'Mod+F'"],
 			'Mod+H': ["'Mod+H'"],
@@ -247,25 +249,22 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	// One token from the whole-block branch and one from the widget branch, so deleting either
 	// dispatch fails the row it documents.
 	Clipboard: {
-		files: [
-			'editor-actions/container-block-component.ts',
-			'components/blocks/text/text-clipboard.ts'
-		],
+		files: [SOURCE.containerBlockComponent, SOURCE.textClipboard],
 		tokens: {
 			'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
 			'Mod+X': [
 				'(e.ctrlKey || e.metaKey)',
 				"e.key === 'x'",
-				'deps.node.raw.slice(inline.start, inline.end)'
+				"replaceSelectedWidget(deps, inline, ''"
 			]
 		}
 	},
 	Images: {
-		files: ['components/image/image-widget-editing.ts'],
+		files: [SOURCE.imageWidgetEditing],
 		tokens: { 'Shift+ArrowLeft': [IMAGE_RESIZE], 'Shift+ArrowRight': [IMAGE_RESIZE] }
 	},
 	'Mermaid diagrams': {
-		files: ['plugins/mermaid/MermaidBlock.svelte'],
+		files: [SOURCE.mermaidBlock],
 		tokens: { 'Mod+Enter': ["e.key === 'Enter' && (e.ctrlKey || e.metaKey)", 'commitEdit(true)'] }
 	}
 };
@@ -273,7 +272,7 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 const TOKEN_RESOLVERS = Object.fromEntries(
 	Object.entries(TOKEN_FAMILIES).map(([family, { files, tokens }]) => [
 		family,
-		{ source: files.map((file) => readEditorFile(file).code).join('\n'), tokens }
+		{ source: files.map((file) => readSource(file).code).join('\n'), tokens }
 	])
 );
 
@@ -352,7 +351,9 @@ function rowCoversKind(rowKind: AnyBlockKind, ownerKind: AnyBlockKind | undefine
  * that reads the claiming file. Such a claim needs no hand-written entry.
  */
 export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
-	const [chord, file] = key.split(' @ ');
+	const [chord, owner] = key.split(' @ ');
+	// A file owner is named from the library root, as the chord manifest names it.
+	const file = `${SOURCE_DIR.library}${owner}`;
 	const row = docRows.find(
 		(candidate) =>
 			TOKEN_FAMILIES[candidate.family]?.files.includes(file) && candidate.chords.includes(chord)
@@ -407,6 +408,8 @@ export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRo
 
 const SELECTION_PREAMBLE = 'selection: the section preamble names it and says it is unlisted';
 const FOCUS_TRAP = 'the backward step of an open popup focus trap, which a bare Tab mirrors';
+const CARET_MOTION =
+	"caret motion: the section preamble names it, the browser's move kept off a marker";
 const SHIFT_ARROWS = ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'];
 
 const unlisted = (chords: string[], owner: string, reason: string) =>
@@ -436,6 +439,7 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 		SELECTION_PREAMBLE
 	),
 	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
+	...unlisted(['Shift+Home', 'Mod+Home'], 'components/blocks/text/home-key.ts', CARET_MOTION),
 	...unlisted(
 		['Shift+ArrowUp', 'Shift+ArrowDown'],
 		'components/blocks/table/TableCellBlock.svelte',

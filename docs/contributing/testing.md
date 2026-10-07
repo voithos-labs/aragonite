@@ -12,8 +12,8 @@ Where to jump:
 - [Unit tests (Vitest)](#unit-tests-vitest): where a file goes, the area scripts, mounting a
   block without the whole editor, and the console-warning gate.
 - [E2E tests (Playwright)](#e2e-tests-playwright): the fixture import rule, the test bridge, the
-  area scripts, the plugins route and what's installed on it, the WebKit lane, the requirement
-  files, and the gotchas.
+  dev server, the area scripts, the plugins route and what's installed on it, the WebKit lane, the
+  requirement files, and the gotchas.
 - [The conformance differ](#the-conformance-differ): our inline parser diffed against
   commonmark.js.
 - [Property suites and fresh seeds](#property-suites-and-fresh-seeds): why the random tests
@@ -21,7 +21,7 @@ Where to jump:
 - [The live-mode gesture fuzzer](#the-live-mode-gesture-fuzzer): seeded destructive gestures at
   hidden construct edges.
 - [The note-taking simulation](#the-note-taking-simulation): whole documents typed keystroke by
-  keystroke, the strongest corruption oracle in the repo.
+  keystroke, the best test this repo has at catching a corrupted document.
 - [The consumer smoke](#the-consumer-smoke): the example app that installs the packed tarball,
   what CI checks with it, and how to run it yourself.
 - The performance harness (fixtures, instruments, threshold policy) lives in
@@ -60,17 +60,18 @@ $ npm run test:editor:undo
 ## Unit tests (Vitest)
 
 No browser. Node by default, with a file opting into jsdom via a
-`// @vitest-environment jsdom` docblock where it needs a DOM. About a third of the suite does,
+`// @vitest-environment jsdom` docblock where it needs a DOM. Roughly two files in five do,
 including the `*.svelte.test.ts` files that mount real components through the harness. The
-round-trip promise (`serialize(parse(source)) === source` for all valid GFM) is asserted
-directly by the round-trip tests at `test/` root, so if you touch the parser or the serializer,
-that's the suite to watch first.
+round-trip tests at `test/` root check that parsing then serializing gives back the exact input,
+so if you touch the parser or the serializer, that's the suite to watch first.
 
 ### Where a test file goes
 
 `src/lib/test/` mirrors the source tree one-for-one, with the leading `components/` segment
-elided, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. When the module
-under test moves into a subdirectory, its test follows.
+dropped for its subfolders, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`.
+The files sitting directly in `components/` (`BlockHost.svelte`, the `editor-root-*` modules)
+test under `test/components/`. When the module under test moves into a subdirectory, its test
+follows.
 
 Mirror **import depth**, not just the module's directory: a test importing
 `tree-operations/list/ordered-markers` directly (rather than the `tree-operations` barrel) lives
@@ -88,45 +89,51 @@ Four deliberate exceptions, and no, a fifth isn't on offer:
 - **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside
   `src/lib/`, so it has no in-library module to mirror.
 
+A source scan (a test under `lint/` that reads source files and fails on a pattern) takes every
+path it reads from `src/lib/test/invariants/lint/source-paths.ts`. Each entry there also names a
+bit of text its file has to contain, so moving a file is one edit there, and an entry left
+pointing at the wrong file fails. Hand-write a path in a scan instead and `source-paths.test.ts`
+fails, naming the path.
+
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 
 ### By area
 
-| Script                       | Covers                                                                                              |
-| ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| `test:editor:core`           | Parser, serializer, inline scanner, directive grammar, round-trip invariants                        |
-| `test:editor:tree-ops`       | Tree mutation helpers                                                                               |
-| `test:editor:editor-actions` | Editor action bundles and commit primitives                                                         |
-| `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                  |
-| `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                           |
-| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                           |
-| `test:editor:reactivity`     | Block-list state and state registry                                                                 |
-| `test:editor:selection`      | Selection-state logic                                                                               |
-| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, widget model                     |
-| `test:editor:blocks`         | Per-block unit tests                                                                                |
-| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                            |
-| `test:editor:plugins`        | Plugin authoring surfaces and dogfood kinds: container round-trips, chrome leaves, paste transforms |
-| `test:editor:undo`           | Undo stack and entry management                                                                     |
-| `test:editor:search`         | Find/replace engine: document scan and search state                                                 |
-| `test:editor:simulation`     | Simulation-engine internals: seeded RNG, expectation tracker                                        |
-| `test:editor:conformance`    | commonmark.js differ slice: spec examples + seeded corpus vs the committed baseline                 |
-| `test:editor:invariants`     | Invariant catalog: property/fuzz tests + source-scan guards                                         |
-| `test:editor:debug`          | Debug engine helpers and operations log                                                             |
-| `test:editor:perf`           | Perf commit gate: counter ceilings, amplification report, fixture goldens                           |
+| Script                       | Covers                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `test:editor:core`           | Parser, serializer, inline scanner, directive grammar, round-trip invariants                                |
+| `test:editor:tree-ops`       | Tree mutation helpers                                                                                       |
+| `test:editor:editor-actions` | Editor action bundles and commit primitives                                                                 |
+| `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                          |
+| `test:editor:ambient`        | A container's marker prefix in the DOM, and offset translation across it                                    |
+| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                                   |
+| `test:editor:reactivity`     | Block-list state and state registry                                                                         |
+| `test:editor:selection`      | Selection-state logic                                                                                       |
+| `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, widget model                             |
+| `test:editor:blocks`         | Per-block unit tests                                                                                        |
+| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                                    |
+| `test:editor:plugins`        | Plugin authoring APIs and the plugins built on them: container round-trips, chrome leaves, paste transforms |
+| `test:editor:undo`           | Undo stack and entry management                                                                             |
+| `test:editor:search`         | Find/replace engine: document scan and search state                                                         |
+| `test:editor:simulation`     | Simulation-engine internals: seeded RNG, expectation tracker                                                |
+| `test:editor:conformance`    | commonmark.js differ slice: spec examples + seeded corpus vs the committed baseline                         |
+| `test:editor:invariants`     | Invariant catalog: property/fuzz tests + source-scan guards                                                 |
+| `test:editor:debug`          | Debug engine helpers and operations log                                                                     |
+| `test:editor:perf`           | Perf commit gate: counter ceilings, amplification report, fixture goldens                                   |
 
 The inline-scanner suite (`test/core/inline/scan/`) and the directive suite
-(`test/core/directive/`) fold under `test:editor:core`. Root-level cross-cutting tests without
-their own script run in the full `test:editor` suite. A new area is cheap to create once a
-directory earns one: it's one `vitest run src/lib/test/<dir>` line in `package.json`, nothing
-else.
+(`test/core/directive/`) fold under `test:editor:core`. Anything without a script of its own
+(the root-level tests, `test/components/`, `test/inline-menu/`) runs in the full `test:editor`
+suite. A new area is cheap once a directory earns one: it's one `vitest run src/lib/test/<dir>`
+line in `package.json`, nothing else.
 
 ### Mounting a block in isolation
 
 A block component reads its wiring from the editor's context tree, so a bare
 `mount(SomeBlock, …)` needs that context present. `src/lib/test/harness/mount-block.ts :: mountBlock`
 mounts one block over a parsed document under the standard context from
-`test/harness/mount-context.ts`, which pre-stubs the action triple, history, and the three editor
-facets (services, policies, document). A test states only what it asserts on and takes sensible
+`test/harness/mount-context.ts`, which pre-stubs the three action bundles (block edit, container
+edit, focus), history, and the three editor facets (services, policies, document). A test states only what it asserts on and takes sensible
 stubs for the rest. From `test/blocks/text/text-crlf-commit.test.ts`, which mounts a real prose
 block and hands it a decoration engine that reports no widgets:
 
@@ -160,16 +167,18 @@ resets only part of the platform, or one hidden behind a helper, counts too), an
 load, in a `describe` body or in `beforeAll`. A test about the reset itself calls
 `resetPluginPlatformForTests` in the test body.
 
+The editor's environment flags (`editorEnv`: is this a dev build, is this a test process) get
+the same treatment. The warning gate (next section) resets them after every test, so a suite
+that configures them does it per test; a `beforeAll` override is gone by the second case.
+
 ### A dev warning fails its test
 
 Every `devWarn` fire reaches a structured sink the unit setup registers, and a fire no test
 claims fails that test. The sink takes reporting over, so under the unit runner the console line
 never happens and a `console.warn` spy sees nothing. Svelte's own runtime warnings have no sink
 to register, so the setup wraps `console.warn` and files them into the same records under
-`svelte:<code>`; they claim through the same calls. The same per-test hook resets `editorEnv`,
-so a suite that configures the environment configures it per test; a `beforeAll` override is
-gone by the second case. Which console channel a fire belongs to, and what each one means, is
-[`warnings.md`](warnings.md).
+`svelte:<code>`; they claim through the same calls. Which console channel a fire belongs to, and
+what each one means, is [`warnings.md`](warnings.md).
 
 An unclaimed fire reads like this at the test's verdict, one line per fire in the middle (its
 tag, the file that emitted it, and the message):
@@ -203,8 +212,8 @@ The machinery, for when you're inside it:
 - There's no exemption. A file that `vi.mock`s `$lib/dev-warn` deletes the emitter outright,
   and a file that spies `console.warn` reads a channel the sink silences, while a spy that
   swallows the call takes the Svelte channel off the gate too; either one blinds the gate for
-  that whole file, so a source scan (G4.41) fails on both. The one file that pins a warning
-  channel itself is named in its allowlist with the reason.
+  that whole file, so a source scan (G4.41 in `invariants.md`) fails on both. The one file that
+  pins a warning channel itself is named in its allowlist with the reason.
 
 ## E2E tests (Playwright)
 
@@ -212,12 +221,16 @@ The editor component driven in real Chromium. No backend needed; it's self-conta
 
 **Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from
 `@playwright/test` directly.** This isn't a style preference, and I will be tedious about it in
-review. Every `devWarn` reaches the browser console under the `[aragonite:…]` prefix and every
-Svelte runtime warning under `[svelte] <code>`, and the shared `test` fails any spec whose page
-emitted one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing
-silently and turning up a release later. An uncaught page error or rejection fails it the same way,
-under the tag `pageerror`, and so does an error only `window.onerror` sees (Chromium reports a
-ResizeObserver loop there and nowhere else), which the fixture relays under `onerror:<message>`.
+review. The shared `test` watches the page and fails the spec that caused a problem, so a dev
+guard firing surfaces right there instead of passing silently and turning up a release later.
+What it fails a spec on:
+
+- a dev warning, which reaches the browser console under the `[aragonite:…]` prefix
+- a Svelte runtime warning, under `[svelte] <code>`
+- an uncaught page error or rejection, under the tag `pageerror`
+- an error only `window.onerror` sees (Chromium reports a ResizeObserver loop there and nowhere
+  else), which the fixture relays under `onerror:<message>`
+
 The verdict lands at teardown and names the fire:
 
 ```
@@ -225,13 +238,16 @@ Error: unexpected [aragonite:…] / [svelte] console fires or uncaught errors:
 warning: [aragonite:demo] a fire the spec did not declare
 ```
 
-A spec that deliberately trips one names its tags,
-`test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire,
-`test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning, or
-`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, or
-`test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message, and the
-fire above would have passed under `test.use({ expectWarns: ['demo'] })`. All four run in both
-directions: a named tag that stops firing fails too.
+A spec that trips one on purpose names it up front, with the option for its kind:
+
+```ts
+test.use({ expectInvariants: ['late-opener-registration'] }); // a guard (an invariant fire)
+test.use({ expectWarns: ['demo'] }); // a plain dev warning: the fire above would have passed
+test.use({ expectSvelteWarns: ['derived_inert'] }); // a Svelte warning code
+test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] }); // a window.onerror message
+```
+
+All four cut both ways: a named tag that stops firing fails the spec too.
 
 ### Architecture
 
@@ -252,15 +268,16 @@ Editor.svelte (production component, unchanged)
 - **`editor.bridge`** is the _state_ accessor: `getSource` / `getBlockCount` / `getBlockKind`,
   plus the `waitForSource*` / `waitForBlockCount` settling predicates. Reach for these instead
   of `waitForTimeout` whenever you're waiting on document state.
-- **Absence oracles** prove a gesture changed nothing, which no predicate can observe as a
-  delta. A keyboard gesture has a positive signal: the editable surfaces record one interaction
-  trace entry per keydown once the handler's own await chain settles, so `pressDeclined(key)`
-  and `typeDeclined(text)` dispatch the keys and return on that verdict. A count that never
-  advances fails naming the key — the press reached no editor surface, which is a finding, not
-  a timeout to widen. Reading mode takes no keystrokes, so `expectSurfaceInert()` asserts the
-  structural fact instead (no editable surface under the root) and drains a tick.
-  `waitForNoSourceMutation` is the fallback for a gesture with no verdict — a click, a drag, a
-  paste, a menu item, the `runCommand` entry — and each remaining call says which.
+- **Absence checks** prove a gesture changed nothing, which no wait-for predicate can see, since
+  there's no change to wait for. A keyboard gesture has a positive signal: the editable elements
+  record one trace entry per keydown once the handler's own await chain finishes, so
+  `pressDeclined(key)` and `typeDeclined(text)` send the keys and return on that record. A count
+  that never moves fails naming the key, since the press reached no editable element, and that's
+  a finding, not a timeout to widen. Reading mode takes no keystrokes, so
+  `expectSurfaceInert()` asserts that no editable element exists under the root instead, and
+  waits a tick. `waitForNoSourceMutation` is the fallback for a gesture with no keydown to record
+  (a click, a drag, a paste, a menu item, the `runCommand` entry), and each remaining call says
+  which one it is.
 
 The two halves side by side, on a two-block document with the caret parked at the end of the
 paragraph:
@@ -276,15 +293,17 @@ await editor.bridge.getSelectionPaths(); // { anchor: { path: [1], offset: 6 }, 
 await editor.getBlockText(0); // '# Hello', the dimmed marker included
 ```
 
-**Every project shares one dev server**, started by the Playwright config on port 1420 and
-reused when something is already listening there. That reuse is the convenience and the trap: an
-interrupted run leaves a server alive, and the next run serves whatever that tree was mid-edit.
-`E2E_ISOLATED=1` starts the run's own servers instead, on 1430 (and 1431 for the `PERF_PROD`
-preview), reusing neither, so a run can only measure the checkout it was launched from.
-`npm run test:e2e:isolated` runs the whole suite that way, and anything narrower is the same
-script with Playwright's own arguments appended. `E2E_PORT=1440` picks the isolated port (the
-preview takes the next one), so two isolated runs on one machine, from two worktrees say, never
-race for 1430:
+### One dev server, and isolated runs
+
+Every Playwright project shares one dev server, started by the Playwright config on port 1420
+and reused when something is already listening there. That reuse is the convenience and the
+trap: an interrupted run leaves a server alive, and the next run serves whatever that tree was
+mid-edit. `E2E_ISOLATED=1` starts the run's own servers instead, on 1430 (and 1431 for the
+`PERF_PROD` preview), reusing neither, so a run can only measure the checkout it was launched
+from. `npm run test:e2e:isolated` runs the whole suite that way, and anything narrower is the
+same script with Playwright's own arguments appended. `E2E_PORT=1440` picks the isolated port
+(the preview takes the next one), so two isolated runs on one machine, from two worktrees say,
+never race for 1430:
 
 ```
 $ npm run test:e2e:isolated -- --project=e2e-top smoke.spec.ts
@@ -305,12 +324,9 @@ Running 6 tests using 1 worker
 Windows shell. Go through the npm script rather than calling it yourself; from a bare shell
 `playwright` isn't on the path.)
 
-Specs are organized by feature area at the top level, and per-block inside `tests/blocks/`. They
-cover the harness smoke test, text editing (typing / split / merge / kind change), keyboard
-navigation (arrows, container traversal, sticky column), undo/redo, inline editing, container
-editing, and selection + clipboard.
-
 ### By area
+
+Specs are organized by feature area at the top level, and per block inside `tests/blocks/`.
 
 | Script                    | Covers                                                                                                                                                                                                                                                                                                           |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -341,11 +357,11 @@ ship: the package's own plugins live in `src/lib/plugins/`, and these install on
 nowhere else. `?seed=<name>` picks the document and, for some seeds, adds a plugin that only
 installs under that seed (callout is the default). The always-on set is callout, memo, and
 doc-stats, plus the bundled details, latex, admonitions, mermaid, and toc. The rest are scoped
-to their seed because they'd change what every other seed's test sees, by claiming a common
-character (`:` for emoji, `!` for wiki-embed, `[^` for footnotes), by painting decorations a
-sibling test is counting, or, in the parrot's case, by animating on a timer. The seed table is
-in `+page.svelte`, and `+page.ts` reads the query so server and client render the same document.
-What each fixture is for:
+to their seed because they'd change what every other seed's test sees: by claiming a common
+character (`:` for emoji, `!` for wiki-embed, `[^` for footnotes, `#` for tags), by painting
+decorations a sibling test is counting, or, in the parrot's case, by animating on a timer. The
+seed table is in `+page.svelte`, and `+page.ts` reads the query so server and client render the
+same document. What each fixture is for:
 
 - `callout/`: `:::callout Title` (and `:::aside`, so a kind switch has somewhere to go), a
   container with a title line the block always keeps, which the editor calls reserved chrome
@@ -375,6 +391,13 @@ What each fixture is for:
 - `wiki-embed/`: `![[path|width]]` recognized as a built-in image, resize handles and all;
   covers an inline syntax producing a built-in kind, and `rewriteImage`, without which a resize
   would write GFM over the embed. Seed `wiki-embed`.
+- `tags/`: tags inside the text on a bare `#` trigger, registered value for value the way
+  limestone (the app aragonite was extracted from) registers them, so these specs hold what that
+  app gets. Seed `tags`.
+- `inline-menu/`: menus under the caret for the inline-menu specs: a document picker on `[[`, a
+  mention menu on `@` whose commit waits until the spec releases it, and slash rows that wait the
+  same way. Seed `inline-menu` installs them with the demo tag menu, so all four triggers have to
+  stay out of each other's way.
 - `hloccur-scan/`: the bundled highlight-occurrences plugin configured with an `onScan` counter
   on `window`, so its spec can count how often it rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section
@@ -442,12 +465,12 @@ which side it got. WebKit rejects the clipboard permissions at **context creatio
 spec-level guard can reach, and its `writeText` resolves into a clipboard the synthetic paste
 chord can't see; so the WebKit side seeds, pastes and reads through a dispatched clipboard event
 carrying a `DataTransfer`, which is where the editor's own handlers already read and write.
-WebKit exposes no CDP session, so the IME driver hand-fires the composition sequence: the one
-exemption G4.49 grants, which no spec may copy.
+WebKit exposes no CDP session, so the IME driver hand-fires the composition sequence. That's the
+one exemption a source scan (G4.49 in `invariants.md`) grants, and no spec may copy it.
 
 What the lane proves: editor behavior survives a second engine, and the commit path survives a
 WebKit-shaped composition without double-applying at `compositionend`. What it doesn't: event
-ORDER, which only the CDP side can assert, and the paste chord itself, which the dispatched
+order, which only the CDP side can assert, and the paste chord itself, which the dispatched
 event bypasses. Both stay pinned in Chromium.
 
 **The engine is not the host.** A second engine says nothing about the webview host boundary,
@@ -457,7 +480,7 @@ class of bug is found by a real host or by a user.
 
 **The caveat, wherever this lane is described.** Playwright's WebKit build isn't Safari and
 isn't a WKWebView. It's the closest available proxy, so a green run is weaker evidence than its
-pass count suggests, and #37 stays open until something runs on Apple hardware.
+pass count suggests, and nothing in this repo runs on Apple hardware yet.
 
 ### Requirements pair one-to-one with specs
 
@@ -476,14 +499,15 @@ The details:
   directions, the stem collision two specs could hide behind, per-file shape, and a requirement
   list that ran 3× ahead of its spec's test count. The test count is what
   `playwright test --list` reports for the spec, so a test generated in a loop counts once per
-  row. That last rule is allowlisted, and an entry there states its reason: count
-  EQUALITY is refuted by measurement (one test routinely walks several bullets), so padding the
+  row. That last rule is allowlisted, and an entry there states its reason: an equal
+  count is refuted by measurement (one test routinely walks several bullets), so padding the
   suite to satisfy a count is never the fix.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong
   family and it silently stops running in the suite you meant. The lockstep scan fails a
-  spec no project lists, and G4.17 fails one that two projects list. Requirement files pair by the stem with the `.perf` suffix stripped.
+  spec no project lists, and G4.17 fails one that two projects list. Requirement files pair by
+  the stem with the `.perf` suffix stripped.
 - **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a
   `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the
   parent category.
@@ -553,8 +577,9 @@ blockquote, `$effect`s and post-tick commits must flush before `getSource()` ref
 change. Wait on `editor.bridge.waitForSourceContains('expected')` or a sibling predicate; they
 poll until the assertion would pass and stop immediately. `waitForTimeout` is reserved for
 genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard verification,
-the absence oracle of a gesture with no keydown verdict) and gets an inline comment when used. The raw rebuild itself is synchronous; you're waiting on
-reactivity and render flush, not a debouncer.
+proving a gesture with no keydown changed nothing) and gets an inline comment when used. The
+raw rebuild itself is synchronous; you're waiting on reactivity and render flush, not a
+debouncer.
 
 **Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
 through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
@@ -610,7 +635,7 @@ only as a full-suite flake.
 composing gate, the end path, offset capture), use the unit harness:
 `test/harness/editable-surface.ts` drives the real surface skeleton with synthetic event calls,
 simulating the IME's writes by assigning `el.textContent` before firing the end. For browser
-event ORDER and full wiring, drive real sequences in e2e via CDP:
+event order and full wiring, drive real sequences in e2e via CDP:
 `page.context().newCDPSession(page)`, then `Input.imeSetComposition` per update and
 `Input.insertText` to commit; see `tests/ime-composition.spec.ts`. Mid-composition there's no
 source change to settle on; settle on the composed text arriving in the focused element's DOM
@@ -687,12 +712,12 @@ adjacencies (nesting, a flanking-killing space, an enclosed autolink, a code spa
 delimiter run), because the byte shapes say nothing about how constructs meet. It keeps a fixed
 seed for the same reason the other reachability self-tests do.
 
-A shape a guard's own oracle can't survive belongs in that guard's fixed corpus rather than in a
-shared generator; but shedding the shape is the second answer, and teaching the oracle to
-CLASSIFY it is the first. Asterisk delimiter nesting is the standing example, both ways round:
-it rebinds under a neighbouring byte, so the typing-position net once read that as its own failure
-and the generator shed it; the net now separates a typing position that missed an answer from a parse that
-offers none, and the shape is back in `arbInlineSource`.
+Sometimes a guard's own check can't cope with a shape a shared generator draws. The first answer
+is to teach the check to tell that shape apart; moving the shape out of the shared generator and
+into that guard's fixed corpus is the second. Asterisk delimiter nesting went both ways: it
+rebinds when a neighbouring byte changes, so the typing-position check once read that as its own
+failure and the generator dropped the shape. The check now tells a typing position that missed
+an answer apart from a parse that offers none, and the shape is back in `arbInlineSource`.
 
 **Reproducing a fresh find.** The seed line above is the reproduction: pin that seed as the
 site's fixed default and the same draw comes back. fast-check also echoes the failing seed and
@@ -705,38 +730,37 @@ Scripted flows only ever cover the gestures somebody thought of.
 `src/lib/test/simulation/live-gesture-fuzz.property.test.ts` searches the space between them: a
 seeded stream of typing and destructive gestures at positions biased toward hidden construct
 edges, driven through the real caret-edge, split, join and range-delete code and judged after
-every gesture against the live-mode license (`docs/design/live-mode.md` § 2). Each gesture also
-runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit
-already has is reported rather than gated.
+every gesture against what live mode is allowed to write (`docs/design/live-mode.md` § 2).
+Each gesture also runs on a byte-literal twin from the same starting bytes, so a divergence the
+source-mode edit already has is reported rather than gated.
 
 Findings sort into two buckets. `seam` is a divergence live has and the twin does not, and fails
 the sweep. `ambiguous` is both twins failing the same claim: markdown's own rebinding, or the
-byte-literal fallback § 4.4 declares; it is held to a ceiling rather than gated, so a new class
-can't grow there unwatched. The shapes that once needed an exclusion are pinned as deterministic
+byte-literal fallback live-mode.md § 4.4 declares. It's held to a ceiling rather than gated, so
+a new class can't grow there unwatched. The shapes that once needed an exclusion are pinned as deterministic
 cases in the same file, each naming the issue whose fix made it byte-literal.
 
-One oracle stands outside that sort: UTF-16 well-formedness. A gesture that writes a lone
+One check stands outside that sort: UTF-16 well-formedness. A gesture that writes a lone
 surrogate its input didn't hold fails the sweep whether or not the twin writes one too, because
 no rebinding excuses bytes that no UTF-8 boundary round-trips and no inverse gesture restores.
-It's why the two gestures whose offset a caller computes rather than the engine reporting it,
-the split and the range delete, reach their entry points unsnapped: the production snap is the
-thing under test, and a harness that snapped first would be asserting the invariant instead of
-checking it.
+That's also why the split and the range delete, the two gestures whose offset the harness
+computes rather than the engine reporting it, hand their offsets over without snapping them to a
+character boundary first: the editor's own snap is what's under test.
 
 It rides `npm test` at a bounded default and joins fresh mode, minus its surrogate-pair coverage
-floor, which is the fixed seed's alone: a thin draw there is not a find, and a red over one
-buries the finds the fresh lane exists for. `LIVE_FUZZ_DOCS` and
-`LIVE_FUZZ_STEPS` raise the sweep for an overnight run, and every budgeted claim it makes is a
-RATE over applied gestures rather than a count, so raising them changes what the sweep searches
-and not what it asserts.
+floor, which only the fixed seed checks: a random draw that happens to be thin on surrogate pairs
+isn't a find, and a red over it would bury the finds fresh mode exists for. `LIVE_FUZZ_DOCS` and
+`LIVE_FUZZ_STEPS` raise the sweep for an overnight run, and every budget it checks is a rate over
+applied gestures rather than a count, so raising them changes what the sweep searches and not
+what it asserts.
 
 ## The note-taking simulation
 
 Long, realistic note-taking sessions driven through real input, the complement to the short
 per-feature specs. A session types a full GFM note from an empty document, character by
 character, with all the messy human behavior (typos and corrections, click-back edits,
-select/delete, copy/paste, image resize, undo/redo), checking strong correctness oracles
-continuously.
+select/delete, copy/paste, image resize, undo/redo), held to strong correctness checks the
+whole way.
 
 Where a spec exercises one operation, a session accumulates state across hundreds of gestures
 and surfaces interaction bugs no isolated test reaches. Its very first run caught a list-exit
@@ -746,7 +770,7 @@ per-feature specs are worth on their own.
 ```
 seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/editor)
                           │                                      │
-                  Gestures · ExpectationTracker          window.__test oracles
+                  Gestures · ExpectationTracker          window.__test reads
                           │
                   invariants (per-keystroke equality, undo/redo differential,
                   end-state equality, nested-state audit, no-errors, round-trip)
@@ -757,14 +781,14 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
 The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`, with
 requirements one-to-one in `requirements/simulation/`. The note set spans genres: a class note,
 a feature tour, a project plan, a three-level outline, reading notes, meeting minutes, a README,
-plus a short smoke. Several deliberately place a previously-blind-spot construct in their
-**equality spine** (the constructs whose typing ≡ loading equality is asserted on every run):
-deep bullet nesting in the outline, a nested `> >` blockquote in the reading notes.
+plus a short smoke. Every run asserts that typing a note gives the same document as loading it,
+and several notes deliberately include a construct no test used to reach: deep bullet nesting in
+the outline, a nested `> >` blockquote in the reading notes.
 
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
 expectation tracker seeded from the current source, and the error collector into the one
-context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, every
+context every check reads; `assertCheckpoint` is the one checkpoint sweep (no errors, every
 container's child ids in step, nested state, round-trip, a valid selection, and parse convergence
 unless the note waives it). From `tests/simulation/table-ops.spec.ts`:
 
@@ -809,7 +833,7 @@ timing-independent source. The full capture suite finishes in seconds.
 
 | Command                                                                                       | Scope                                                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`                                                                 | The ungated oracle sessions: smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`.                                    |
+| `npm run test:e2e:simulation`                                                                 | The sessions that need no extra variable: smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`.                       |
 | `node scripts/run-with-env.mjs SIM_CAPTURE=1 -- npx playwright test --project=e2e-simulation` | Adds the two capture suites (every note, screenshotted), writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review. On bash, `SIM_CAPTURE=1 npm run test:e2e:simulation` is the same thing. |
 
 One session on its own, to see the shape of a run (the full script runs them all, four at a
@@ -825,9 +849,9 @@ Running 1 test using 1 worker
   1 passed (12.7s)
 ```
 
-New feature surface gets a new simulation gesture. The simulation is the strongest corruption
-oracle in the repo, and its coverage has to track the product: the plugin surface once went a
-full minor version without it looking, which isn't a stretch I'd like to repeat.
+A new feature gets a new simulation gesture. The simulation is the best test this repo has at
+catching a corrupted document, and its coverage has to track the product: the plugin API once
+went a full minor version without it looking, which isn't a stretch I'd like to repeat.
 
 ### Agentic visual review
 
@@ -850,14 +874,17 @@ review needs them for.
 `examples/consumer/` is a tiny SvelteKit app that installs aragonite the way a stranger would:
 from the packed tarball, importing only published entry points. It's a test, not documentation
 (if something is only learnable from that folder, that's a docs bug; file it). CI's
-`consumer-smoke` job runs `scripts/consumer-smoke.mjs`, which builds and packs `dist/`, checks
-the tarball holds every published path and no test file, installs it into the example with
-`--no-save`, typechecks and builds the example (a Rollup "reexported through module" warning
-fails the build, since it means a published barrel sits inside an import cycle), then runs the
-example's own Playwright specs: the page server-renders without a 5xx, hydrates with no console
-errors and takes a keystroke, the plugins page mounts the bundled plugins through their subpaths
-plus a copy of the callout fixture, and the editor's dev-only warnings still fire under a
-consumer's `vite dev`.
+`consumer-smoke` job runs `scripts/consumer-smoke.mjs`, which:
+
+1. builds and packs `dist/`, and checks the tarball holds every published path and no test file
+2. installs the tarball into the example with `--no-save`
+3. typechecks and builds the example. A Rollup "reexported through module" warning fails the
+   build, since it means a published barrel sits inside an import cycle
+4. runs the example's own Playwright specs: the page server-renders without a 5xx, hydrates with
+   no console errors and takes a keystroke, the editor's text has readable contrast against the
+   page on every route, the plugins page mounts the bundled plugins through their subpaths plus a
+   copy of the callout fixture, and the editor's dev-only warnings still fire under a consumer's
+   `vite dev`
 
 To run the example yourself, from a fresh clone (same commands in bash and PowerShell):
 

@@ -16,12 +16,14 @@ import {
 	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildTableRaw,
-	rebuildTableRowRaw
+	rebuildTableRowRaw,
+	tableLastLineChild
 } from './container-rebuilders';
 import { tableCellWrite } from './table-cell-raw';
 import { fencedCodeWrite } from './fenced-code-raw';
 import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
+import { registerBuiltInRangeIndent } from './range-indent-forms';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
 import {
 	containerEstimate,
@@ -366,7 +368,6 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '<div>\nhtml\n</div>\n',
-		readsFollowingLines: true,
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
@@ -378,7 +379,6 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '[id]: /url "title"\n',
-		readsFollowingLines: true,
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {
@@ -389,7 +389,11 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		// Enter inside a cell stays in the grid, so neither edge can grow a sibling.
 		gapEdges: 'both',
-		container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
+		container: {
+			contract: 'grid',
+			rebuildRaw: rebuildTableRaw,
+			lastLineChild: tableLastLineChild
+		},
 		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRaw' },
@@ -608,4 +612,7 @@ export function registerBuiltInDescriptors(): void {
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (list item edits)' }
 		})
 	});
+	// Over a range, the item holding each covered line nests or lifts, as at a caret.
+	registerBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
+	registerBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
 }

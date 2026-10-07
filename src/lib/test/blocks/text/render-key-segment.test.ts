@@ -4,8 +4,8 @@ import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 
-// A render key is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, with
-// mode '' in source. These test the split directly, off the recorder path, which never asserts.
+// A render key is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}\0${pendingBreak}${islandPart}`,
+// with mode and pendingBreak '' when unset. These test the split directly, off the recorder path.
 function key(parts: {
 	ambient?: string;
 	raw: string;
@@ -13,9 +13,10 @@ function key(parts: {
 	img?: string;
 	mode?: string;
 	kind?: string;
+	pending?: string;
 	islands?: string;
 }) {
-	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}\0${parts.mode ?? ''}\0${parts.kind ?? 'paragraph'}${parts.islands ?? ''}`;
+	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}\0${parts.mode ?? ''}\0${parts.kind ?? 'paragraph'}\0${parts.pending ?? ''}${parts.islands ?? ''}`;
 }
 
 const island = (offset: number): IndexedDecoration<WidgetDecoration | ReplaceDecoration> => ({
@@ -53,6 +54,12 @@ describe('renderKeySegmentDiff', () => {
 	it('names kind when the block kind flips under an unchanged raw', () => {
 		expect(renderKeySegmentDiff(key({ raw: '# a' }), key({ raw: '# a', kind: 'heading' }))).toBe(
 			'kind'
+		);
+	});
+
+	it('names pendingBreak when Shift+Enter opens a line at the end', () => {
+		expect(renderKeySegmentDiff(key({ raw: 'x' }), key({ raw: 'x', pending: '1' }))).toBe(
+			'pendingBreak'
 		);
 	});
 

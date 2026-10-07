@@ -9,6 +9,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
 
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(717171) } as const;
@@ -248,6 +249,8 @@ describe('container child spans', () => {
 				if (at >= (container().children?.length ?? 0)) return;
 				const text = c.prose ? 'edited\n' : c.text;
 				await h.bundle.blockEdit.updateBlockContent(at, text, 'authored', 0, text.length);
+				// Bytes with no line ending, written into a quote's first block, join the line below.
+				if (text === '') allowDevWarns(['invariant:reads-back']);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;

@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { callSites, collectEditorSources, fileClasses, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** The rebuilds that name no kind: one node, one node's ancestry, a copied chain. */
 const KIND_FREE = [
@@ -28,11 +29,7 @@ const BUILT_IN_REBUILDERS = [
 ];
 
 /** Where the rebuilds themselves live. */
-const HOMES = [
-	'src/lib/schema/',
-	'src/lib/tree-operations/chain-rebuild.ts',
-	'src/lib/tree-operations/unshare.ts'
-];
+const HOMES = [SOURCE_DIR.schema, SOURCE.chainRebuild, SOURCE.unshare];
 
 interface Pin {
 	/** Calls per rebuild name: `.rebuild` is `ContainerScope.rebuild`, `.rebuildRaw` a descriptor call. */
@@ -46,9 +43,9 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildUnsharedChain: 1, rebuildOwnedContainer: 1 },
 		why: 'the commit’s own chain rebuild, and the scope’s `rebuild` it hands the mutation'
 	},
-	'src/lib/editor-actions/list-context.ts': {
-		calls: { '.rebuild': 1 },
-		why: 'a Tab’s new sublist sits below the commit’s chain, which never rebuilds it, and the blank-line rule reads its bytes before the commit returns'
+	'src/lib/tree-operations/list/item-moves.ts': {
+		calls: { '.rebuild': 2 },
+		why: 'a Tab’s new sublist and a lifted item that took the blocks after it sit below the commit’s chain, which never rebuilds them, and the blank-line rule reads their bytes before the commit returns'
 	},
 	'src/lib/editor-actions/leaf-write.ts': {
 		calls: { rebuildUnsharedChain: 1 },
@@ -68,19 +65,19 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/selection/range-delete.ts': {
 		calls: { rebuildUnsharedAncestry: 2 },
-		why: 'the range delete rebuilds the joined start’s chain: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one (T29 slice 2)'
+		why: 'the range delete rebuilds the joined start’s chain: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one, which keeps bytes and so writes the same (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		calls: { rebuildUnsharedChain: 2 },
-		why: 'the same range delete, for what is left of each removed subtree’s parents and a cleared title line’s container (T29 slice 2)'
+		why: 'the same range delete, for what is left of each removed subtree’s parents and a cleared title line’s container (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
 		calls: { rebuildUnsharedChain: 2 },
-		why: 'the same range delete, for the endpoints it truncates without joining them (T29 slice 2)'
+		why: 'the same range delete, for the endpoints it truncates without joining them (T18 slice 5 retires it)'
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		calls: { rebuildUnsharedChain: 2, rebuildTableRowRaw: 2 },
-		why: 'the same range delete, for the rows a table edge clears and each kept edge’s chain (T29 slice 6)'
+		why: 'the same range delete, for the rows a table edge clears (which keep their bytes) and each kept edge’s chain (T18 slice 5)'
 	},
 	'src/lib/selection/selection-drop.ts': {
 		calls: { rebuildAncestryRaw: 1 },
@@ -91,7 +88,7 @@ const PINNED: Record<string, Pin> = {
 			rebuildUnsharedAncestry: 2,
 			rebuildUnsharedChain: 1,
 			rebuildContainerRawIfContainer: 1,
-			'.rebuildRaw': 5
+			'.rebuildRaw': 7
 		},
 		why: 'the conformance kit drives rebuilds directly, outside any commit'
 	},
@@ -120,20 +117,20 @@ const PINNED: Record<string, Pin> = {
 		why: 'a reparse that backfilled an empty container, a new node below the scope'
 	},
 	'src/lib/tree-operations/list/list-builders.ts': {
-		calls: { rebuildListItemRaw: 2, rebuildListRaw: 1 },
-		why: 'builds new items and list halves, nodes no commit has seen'
+		calls: { rebuildListItemRaw: 3, rebuildListRaw: 1 },
+		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item whose first line widens its marker or opens below an empty one'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
 		calls: { rebuildListItemRaw: 4 },
-		why: 'a renumber rewrites items below the scope (T29 slice 2 keeps their lines)'
+		why: 'a renumber rewrites items below the scope, keeping each line its new number still reads'
 	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {
 		calls: { rebuildListItemRaw: 1 },
 		why: 'a trial item, read back once and dropped'
 	},
 	'src/lib/tree-operations/list/unwrap-merge.ts': {
-		calls: { rebuildListRaw: 4, rebuildAncestryRaw: 1 },
-		why: 'an item merge leaves its list current for callers outside a commit, so the Backspace commit rebuilds that list again (T29 slice 2)'
+		calls: { rebuildListRaw: 1 },
+		why: 'an unwrap of an empty first item rebuilds the shrunk list, a clone no commit chain holds'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
 		calls: { rebuildAncestryRaw: 1 },
@@ -141,7 +138,7 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/tree-operations/paste/container-match.ts': {
 		calls: { rebuildUnsharedChain: 2, rebuildContainerRaw: 1 },
-		why: 'the merged leaf’s whole chain, which the paste’s commit rebuilds again from the scope up, and the last pasted item (T29 slice 2)'
+		why: 'the merged leaf’s whole chain, which the paste’s commit rebuilds again from the scope up, writing the same bytes now that rebuilds keep them, and the last pasted item (T18 slice 6 retires it)'
 	},
 	'src/lib/tree-operations/paste/table-slice.ts': {
 		calls: { rebuildTableRaw: 2 },
@@ -261,7 +258,7 @@ describe('G4.96 a container is rebuilt where rebuilds live, or at a pinned site'
 		expect(flagged('const rebuild = descriptor.rebuildRaw;\nif (descriptor.rebuildRaw) {}')).toBe(
 			false
 		);
-		expect(flagged('rebuildTableRaw(t);', 'src/lib/schema/probe.ts')).toBe(false);
+		expect(flagged('rebuildTableRaw(t);', `${SOURCE_DIR.schema}probe.ts`)).toBe(false);
 	});
 
 	it('one more call in a pinned file fails its count', () => {

@@ -10,7 +10,7 @@ import { devWarn } from '../dev-warn';
 import { devReplacesRegistration } from './register-once';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { eventToChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
@@ -75,6 +75,29 @@ export type CommandId = GlobalCommandId | BlockCommandId;
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'link.openCard',
 	'heading.cycle'
+]);
+
+/**
+ * Built-in commands a key over a range runs after removing it, at the caret that's left; a plugin
+ * command opts in at registration. A toolbar removes nothing first, so it declines `heading.cycle`.
+ */
+export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	'block.split',
+	'block.hardBreak',
+	'heading.cycle',
+	'code.newline',
+	'cell.enter',
+	'chrome.descendToBody'
+]);
+
+/**
+ * Built-in commands that put a line break at the caret. Over a selection inside one block they
+ * run after its removal, as typing over it would; a plugin command opts in at registration.
+ */
+export const AFTER_SELECTION_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	'block.split',
+	'block.hardBreak',
+	'code.newline'
 ]);
 
 /** Built-in commands that move the block or row holding the caret rather than the caret. */
@@ -202,9 +225,25 @@ export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath):
 	devWarn('commands', `command "${id}" reached no handler on the ${path} path; key is dead`);
 }
 
-/** Test-only. Clears the dead-key warn memo so each test sees a first-time warn. */
+const warnedSelectionKept = new Set<string>();
+
+/** Dev-warn once per (kind, id) that a command asking for a selection's removal reached a block that
+ *  can't remove one while a selection is live, so the command runs beside the selection. */
+export function warnSelectionKept(kind: AnyBlockKind, id: AnyCommandId): void {
+	if (globalThis.getSelection?.()?.isCollapsed !== false) return;
+	const key = `${kind} ${id}`;
+	if (warnedSelectionKept.has(key)) return;
+	warnedSelectionKept.add(key);
+	devWarn(
+		'commands',
+		`command "${id}" asks for a selection's removal, but a ${kind} block has no afterSelectionRemoved; it runs beside the selection`
+	);
+}
+
+/** Test-only. Clears the warn memos so each test sees a first-time warn. */
 function __resetCommandWarningsForTests(): void {
 	warnedDeadKeys.clear();
+	warnedSelectionKept.clear();
 }
 enrollTestReset(__resetCommandWarningsForTests);
 
@@ -396,6 +435,29 @@ export function commandForKey(
 			? resolveGlobalBinding(chord, overrides, ctx.activation)
 			: resolveBinding(chord, kind, overrides, ctx.activation);
 	return binding?.command ?? null;
+}
+
+/** Every chord any keymap here binds to one of `commands`, overrides and every kind's included,
+ *  read on each call so a rebinding is never missed; a disabled chord may still be in it. */
+export function chordsBoundTo(
+	commands: ReadonlySet<AnyCommandId>,
+	ctx: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): Set<string> {
+	const chords = new Set<string>();
+	const take = (binding: KeyBinding | 'disabled', chord: string) => {
+		if (binding !== 'disabled' && commands.has(binding.command)) chords.add(chord);
+	};
+	const takeEach = (bindings: readonly KeyBinding[]) => {
+		for (const binding of bindings) take(binding, binding.chord);
+	};
+	for (const kind of getAllRegisteredKinds()) takeEach(kindKeymap(kind));
+	takeEach(GLOBAL_KEYMAP);
+	takeEach(pluginGlobalBindings(ctx.activation));
+	// An override map is keyed by its normalized chord.
+	const overrides = ctx.keybindingOverrides();
+	overrides?.global.forEach(take);
+	overrides?.byKind.forEach((scoped) => scoped.forEach(take));
+	return chords;
 }
 
 /**

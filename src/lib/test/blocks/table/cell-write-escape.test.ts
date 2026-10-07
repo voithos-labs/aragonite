@@ -4,13 +4,14 @@
 // is read after the kind's escaping has run, not at the component's own call.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
-import { splitRowCells } from '$lib/core/parsers/table';
+import { splitRowCells } from '$lib/core/parsers/table-line';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
 import { settleEditor } from '$lib/test/harness/settle';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
@@ -30,8 +31,7 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 	return calls[calls.length - 1][1];
 }
 
-// The beforeinput handler awaits `handleSharedBeforeInput` before committing, so the
-// commit lands several microtasks after dispatch.
+// A write can land after the block's own awaits (a shown source hides first), so wait for it.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
 	await settleEditor(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
@@ -48,7 +48,7 @@ function reparsedCells(committed: string): string[] {
 			{ kind: 'tableCell', leadingTrivia: '', raw: 'keep' }
 		]
 	};
-	updateNodeContent(asBody(row), 0, committed, defaultGrammarView);
+	updateNodeContent(asBody(row), 0, committed, defaultGrammarView, createSharingState());
 	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }

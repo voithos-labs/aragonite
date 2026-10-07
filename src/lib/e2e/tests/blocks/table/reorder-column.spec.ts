@@ -85,19 +85,20 @@ test.describe('table block: keyboard column reorder', () => {
 		expect(pageErrors).toEqual([]);
 	});
 
-	// The column edit canonicalizes a table whose bytes are not canonical, so undo must restore the
-	// exact original tight bytes; the row spec has the matching case.
-	test('column move → undo restores a non-canonical table byte-exactly', async ({ page }) => {
-		const NONCANON = '|A|B|C|\n|---|---|---|\n|1|2|3|\n';
-		await editor.loadContent(NONCANON);
+	// The row spec has the matching case.
+	test('column move keeps a tight table tight, and undo restores it byte-exactly', async ({
+		page
+	}) => {
+		const TIGHT = '|A|B|C|\n|---|---|---|\n|1|2|3|\n';
+		await editor.loadContent(TIGHT);
 		// Compare against the loaded source, not the literal: `getSource()` normalizes trailing
-		// whitespace. The `toContain` proves the load did not canonicalize the cells.
+		// whitespace. The `toContain` proves the load kept the tight cells.
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|3|');
 
 		await page.locator('.table-cell').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');
-		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
+		await editor.bridge.waitForSourceMatches(/^\|B\|A\|C\|\n\|---\|---\|---\|\n\|2\|1\|3\|/);
 
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(original);

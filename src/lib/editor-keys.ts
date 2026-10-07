@@ -6,6 +6,8 @@
  */
 
 import type { MenuPresence } from './components/menu/menu-presence.svelte';
+import type { DraftRegistry } from './components/draft-registry';
+import type { DocumentStamps } from './editor-actions/commit/document-stamp';
 import type { Document } from './core/nodes';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
@@ -24,7 +26,6 @@ import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
 import type { CaretLanding } from './selection/caret-landing';
-import type { SelectedWidgetHandle } from './selection/primitives';
 import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
@@ -34,7 +35,6 @@ import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { ListTree } from './reactivity/list-tree';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
-import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 import type { KindCue } from './components/kind-cue.svelte';
 
@@ -136,6 +136,8 @@ export const EDITOR_SERVICES_KEY = Symbol('editor-services');
 export interface EditorServices {
 	events: EditorEvents;
 	decorations: DecorationEngine;
+	/** The selection the editor owns (a range, a gap caret or a widget selected whole), which
+	 *  every reader of a selected widget asks. */
 	selection: SelectionState;
 	/** What the live range covers, read once per selection change so every overlay paints the
 	 *  answer the delete and the copy read; null with no range. */
@@ -149,9 +151,6 @@ export interface EditorServices {
 	autoPairs: AutoPairRecord;
 	/** The one writer of the scroll position; every scroll a module wants goes through it. */
 	scrollOwner: ScrollOwner;
-	widgetSelection: WidgetSelectionState;
-	/** The image `widgetSelection` holds, as a raw span read from the live document. */
-	selectedWidget: SelectedWidgetHandle;
 	/** Which link the live-mode card is editing; `link.openCard` opens it from a kind's keymap. */
 	linkCard: LinkCardState;
 	/** What the editable at `path` says about the inline menu's list while one shows in it, or
@@ -176,6 +175,10 @@ export interface EditorServices {
 	commands: CommandDispatchContext;
 	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
 	menuPresence: MenuPresence;
+	/** Edits held outside the document until they commit; a swap drops them (`draft-registry.ts`). */
+	drafts: DraftRegistry;
+	/** Which document each write was made for; `BlockHost` stamps its block's write handles. */
+	stamps: DocumentStamps;
 	/** The label a typed kind change leaves on its block for a moment (`kind-cue.svelte.ts`). */
 	kindCue: KindCue;
 }

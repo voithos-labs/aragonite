@@ -97,6 +97,156 @@ const table = fc
 		return header + delim + rows + pipelessRow;
 	});
 
+// ── Respelled tables ────────────────────────────────────────────────────────
+
+const cellPad = fc.constantFrom('', ' ', '  ', '   ', '\t');
+const cellText = fc.constantFrom('a', '1', '', 'x \\| y', '汉字', 'é', '**b**', '`c`');
+const delimiterCell = fc.constantFrom('-', '---', ':-', ':--', '-:', ':-:', ':---:', '---:');
+
+/** One table line in any spelling GFM reads the same: pipes at either end or not, cells padded
+ *  with nothing, spaces or a tab, and an indent or trailing whitespace around the line. */
+function spelledLine(cell: fc.Arbitrary<string>, count: number): fc.Arbitrary<string> {
+	return fc
+		.tuple(
+			fc.array(fc.tuple(cellPad, cell, cellPad), { minLength: count, maxLength: count }),
+			fc.boolean(),
+			fc.boolean(),
+			fc.constantFrom('', ' ', '   '),
+			fc.constantFrom('', ' ', '\t')
+		)
+		.map(
+			([cells, lead, trail, indent, tail]) =>
+				indent +
+				(lead ? '|' : '') +
+				cells.map(([before, text, after]) => before + text + after).join('|') +
+				(trail ? '|' : '') +
+				tail +
+				'\n'
+		);
+}
+
+/** A table whose rows are spelled every way GFM allows, some of them short or with surplus. */
+const respelledTable = fc.integer({ min: 1, max: 3 }).chain((cols) =>
+	fc
+		.tuple(
+			spelledLine(cellText, cols),
+			spelledLine(delimiterCell, cols),
+			fc.array(
+				fc
+					.integer({ min: Math.max(1, cols - 1), max: cols + 1 })
+					.chain((n) => spelledLine(cellText, n)),
+				{ maxLength: 3 }
+			)
+		)
+		.map(([header, delimiter, rows]) => header + delimiter + rows.join(''))
+);
+
+/** Respelled tables at the top level and inside a quote, a blank line apart. */
+export const arbRespelledTableDoc = withDrawnLineEnding(
+	fc
+		.array(
+			fc.oneof(
+				{ arbitrary: respelledTable, weight: 3 },
+				{
+					arbitrary: respelledTable.map((t) => t.replace(/^(?=.)/gm, '> ')),
+					weight: 1
+				}
+			),
+			{ minLength: 1, maxLength: 3 }
+		)
+		.map((tables) => tables.join('\n'))
+);
+
+// ── Respelled quotes and lists ──────────────────────────────────────────────
+
+/** A body line before its container's prefix: `lazy` marks a paragraph line after its first,
+ *  the only kind GFM lets go without a prefix. */
+interface DrawnLine {
+	text: string;
+	lazy: boolean;
+}
+
+const bodyWord = fc.constantFrom('a', 'word', 'x y', '汉字', '**b**', '`c`', '- x', '> q', '1. n');
+
+const drawnParagraph = fc
+	.array(bodyWord, { minLength: 1, maxLength: 3 })
+	.map((lines): DrawnLine[] => lines.map((text, i) => ({ text, lazy: i > 0 })));
+
+/** A line in any spelling a quote reads the same: the marker's optional space or a tab, up to
+ *  three spaces before it, a lazy paragraph line with none at all. */
+function quoteSpelling(line: DrawnLine): fc.Arbitrary<string> {
+	if (line.text === '') return fc.constantFrom('>', '> ', ' >', '>\t');
+	const marked = fc
+		.constantFrom('>', '> ', '>\t', ' > ', '   > ')
+		.map((marker) => marker + line.text);
+	return line.lazy ? fc.oneof(marked, fc.constant(line.text)) : marked;
+}
+
+/** A continuation line of an item whose content starts at `column`: the indent in spaces, in a
+ *  tab, past the content column, and for a lazy line none. */
+function itemSpelling(line: DrawnLine, column: number): fc.Arbitrary<string> {
+	const pads = [' '.repeat(column), ' '.repeat(column + 1)];
+	if (column <= 4) pads.push('\t');
+	if (line.text === '') return fc.constantFrom('', ' ', '\t', ...pads);
+	const padded = fc.constantFrom(...pads).map((pad) => pad + line.text);
+	return line.lazy ? fc.oneof(padded, fc.constant(line.text)) : padded;
+}
+
+const itemMarker = fc.constantFrom(
+	'- ',
+	'-\t',
+	'-  ',
+	'* ',
+	'1. ',
+	'1.\t',
+	'2) ',
+	'- [ ] ',
+	'- [x]\t'
+);
+
+const spelledLines = (lines: fc.Arbitrary<string>[]): fc.Arbitrary<string[]> =>
+	lines.length === 0 ? fc.constant([]) : fc.tuple(...lines);
+
+const { container } = fc.letrec<{ body: DrawnLine[]; container: DrawnLine[] }>((tie) => ({
+	// Blocks a blank line apart.
+	body: fc
+		.array(fc.oneof({ arbitrary: drawnParagraph, weight: 3 }, tie('container')), {
+			minLength: 1,
+			maxLength: 3
+		})
+		.map((blocks) =>
+			blocks.flatMap((block, i) => (i === 0 ? block : [{ text: '', lazy: false }, ...block]))
+		),
+	container: fc.oneof(
+		{ depthSize: 'small', maxDepth: 2 },
+		tie('body').chain((body) =>
+			spelledLines(body.map(quoteSpelling)).map((lines): DrawnLine[] =>
+				lines.map((text, i) => ({ text, lazy: body[i].lazy }))
+			)
+		),
+		fc
+			.tuple(fc.constantFrom('', ' ', '   '), itemMarker, tie('body'))
+			.chain(([indent, marker, body]) =>
+				spelledLines(
+					body.map((line, i) =>
+						i === 0
+							? fc.constant(indent + marker + line.text)
+							: itemSpelling(line, indent.length + marker.length)
+					)
+				).map((lines): DrawnLine[] => lines.map((text, i) => ({ text, lazy: body[i].lazy })))
+			)
+	)
+}));
+
+/** Quotes and lists spelled every way GFM reads the same, a blank line apart. */
+export const arbRespelledContainerDoc = withDrawnLineEnding(
+	fc
+		.array(container, { minLength: 1, maxLength: 3 })
+		.map((blocks) =>
+			blocks.map((lines) => lines.map((line) => line.text + '\n').join('')).join('\n')
+		)
+);
+
 /** Blank runs, since one blank line separates and each later one is a block of its own; the
  *  whitespace-only lines are blank under GFM §2.1 and must survive verbatim. */
 const blankLine = fc.constantFrom('\n', ' \n', '  \n', '\t\n', ' \t \n');

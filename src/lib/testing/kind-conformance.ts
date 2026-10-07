@@ -17,7 +17,6 @@ import { serialize } from '../core/serializer';
 import { CLOSURE_COLUMNS, type ClosureCell, type ClosureColumn } from '../schema/closure';
 import {
 	getBlockKindDescriptor,
-	isGridDescriptor,
 	type BlockKindDescriptor,
 	type MergeRole,
 	type WriteRule
@@ -36,7 +35,7 @@ import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
 	assert,
 	assertIs,
-	assertRebuildIsParseCanonical,
+	assertRebuildKeepsParsedBytes,
 	fail,
 	nodeAtPath,
 	runCells,
@@ -236,10 +235,8 @@ function execRoundTrip(
 		const first = rebuildRawOf(ctx, descriptor);
 		const second = rebuildRawOf(ctx, descriptor);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
-		assertRebuildIsParseCanonical(descriptor, freshSubject(ctx), `"${kind}"`);
-		return isGridDescriptor(descriptor)
-			? 'byte round-trip + rebuildRaw determinism'
-			: 'byte round-trip + rebuildRaw parse-identity + determinism';
+		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
+		return 'byte round-trip + rebuildRaw parse-identity + determinism';
 	}
 	return 'byte round-trip';
 }

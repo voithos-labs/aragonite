@@ -5,7 +5,12 @@ import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import { endWindowLines } from './open-tail';
 import type { BodyParent } from './node-primitives';
-import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
+import {
+	absorbWindowSeams,
+	settleSeparatorOnBlank,
+	widenForTailMint,
+	type SettledSplice
+} from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 import type { GrammarView } from '../schema/block-openers';
@@ -77,11 +82,14 @@ export function reorderChildrenWithTrivia(
 		if (at !== vacated || !flushAround) separateSeam(children, at, sharing, grammar);
 	}
 	// A blank block moved by position can hold a line its follower holds too; the run needs
-	// exactly one, and none at the document head, where the reload reads each as a block.
+	// exactly one, and none at the body head, where the reload reads each as a block.
+	const beforeMint = children.length;
 	for (let at = lo; at <= hi; at++) {
-		if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
+		if (isBlankParagraph(children[at])) settleSeparatorOnBlank(body, at, sharing);
 	}
-	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, grammar, sharing);
+	// A blank block moved to the tail can turn the body's trailing line into a block of its own.
+	const widened = widenForTailMint(change, beforeMint, children.length);
+	return absorbWindowSeams(body, lo, hi - lo + 1, to, widened, grammar, sharing);
 }
 
 /**

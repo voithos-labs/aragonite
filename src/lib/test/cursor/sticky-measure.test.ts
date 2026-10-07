@@ -123,6 +123,14 @@ describe('sticky-measure geometry', () => {
 			// to the editor.
 			expect(getCurrentCursorEditorRelativeX(block)).toBe(5 * CHAR_WIDTH - EDITOR_LEFT);
 		});
+
+		// Miss-analysis: every row measured a caret, so a selection's start and moving end never differed.
+		it('over a selection, measures the moving end, not the start', () => {
+			window.getSelection()!.setBaseAndExtent(text, 1, text, 9);
+			expect(getCurrentCursorEditorRelativeX(block)).toBe(9 * CHAR_WIDTH - EDITOR_LEFT);
+			window.getSelection()!.setBaseAndExtent(text, 9, text, 1);
+			expect(getCurrentCursorEditorRelativeX(block)).toBe(1 * CHAR_WIDTH - EDITOR_LEFT);
+		});
 	});
 
 	describe('caretBoxAt', () => {

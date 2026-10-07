@@ -10,8 +10,8 @@ A paste of several blocks splits the paragraph at the caret. Everything after th
 ## Caret placement
 
 - After the paste, a typed character lands at the end of the pasted `y`, before the line break that leads to `After`.
-- After the `> q` paste, a typed character lands after `q`, where the pasted text ends, and not after `After`, the line the quote took in: the source reads `abc\n\n> qZ\n> After\n`.
-- The same with `- q`: the item takes `After` in, and a typed character lands after `q`, giving `abc\n\n- qZ\n  After\n`.
+- After the `> q` paste, a typed character lands after `q`, where the pasted text ends, and not after `After`, the line the quote took in, which keeps its bytes: the source reads `abc\n\n> qZ\nAfter\n`.
+- The same with `- q`: the item takes `After` in, and a typed character lands after `q`, giving `abc\n\n- qZ\nAfter\n`.
 
 ## Undo
 

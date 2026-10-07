@@ -6,7 +6,8 @@
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import { keepOpenTail } from '../tree-operations/open-tail';
 import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { ancestorsOf } from '../core/paths';
@@ -30,7 +31,11 @@ import {
 	isGridDescriptor,
 	type BlockKindDescriptor
 } from '../schema/block-kind-descriptor';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import {
+	childHoldingLastLine,
+	lastLine,
+	rebuildContainerRawIfContainer
+} from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { walkUnsharing } from '../tree-operations/unshare';
@@ -46,7 +51,7 @@ import {
 	assert,
 	assertIndices,
 	assertIs,
-	assertRebuildIsParseCanonical,
+	assertRebuildKeepsParsedBytes,
 	assertReasonDocumented,
 	fail,
 	findFirstOfKind,
@@ -60,6 +65,7 @@ import {
 	type ConformanceCoverage,
 	type KitCell
 } from './conformance-core';
+import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -287,6 +293,7 @@ export async function checkStripLocalIndexAddressing(
 			},
 			caretMemory: stubCaretMemory(),
 			reading: kitReading(),
+			stamps: createDocumentStamps(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
 				focus: parentBundle?.focus ?? recordingFocus(),
@@ -390,6 +397,7 @@ export async function checkFocusBubbleTermination(
 				path: [index],
 				caretMemory: stubCaretMemory(),
 				reading: kitReading(),
+				stamps: createDocumentStamps(),
 				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
 			}
 		);
@@ -543,10 +551,46 @@ export function checkDeclarationSanity(
 
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
-	assertRebuildIsParseCanonical(descriptor, node, kind);
+	assertLastLineChildHoldsIt(kind, node);
+	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
+	assertRebuildKeepsParsedBytes(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
+}
+
+/** The child `lastLineChild` names (or its contract's default) ends on the container's own last
+ *  line, which the open last line's release walks down to. */
+function assertLastLineChildHoldsIt(kind: AnyBlockKind, node: CstNode): void {
+	const holder = childHoldingLastLine(node);
+	if (holder < 0) return;
+	const childLine = lastLine(node.children![holder].raw);
+	assert(
+		lastLine(node.raw).endsWith(childLine),
+		`${kind} names child ${holder} as holding its last line, but that child's last line ` +
+			`"${childLine}" is not the end of the container's "${lastLine(node.raw)}"`
+	);
+}
+
+/** A -1 answer says the container's own bytes hold its last line, so giving that line's ending up
+ *  there alone must survive a rebuild; a child that really holds it writes the ending back. */
+function assertOwnLastLineHoldsIt(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor,
+	source: string
+): void {
+	const node = subjectNode(parse(source), kind, 'first', 'deepNesting');
+	if (childHoldingLastLine(node) >= 0) return;
+	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
+	keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
+	const released = doc.children[0].raw;
+	descriptor.rebuildRaw!(doc.children[0]);
+	assertIs(
+		doc.children[0].raw,
+		released,
+		`${kind} answers that its own bytes hold its last line, but a rebuild after that line ` +
+			`gives its ending up writes the ending back`
+	);
 }
 
 /** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
@@ -578,8 +622,8 @@ function assertHintedRebuildMatchesFull(
  *  ends in it by accident. */
 const CONTENT_START_PROBE = 'probe';
 
-/** `container.contentStartSpace` swallows the user's space, so the rebuild must write it back on a
- *  content line or the keystroke is lost. */
+/** `container.contentStartSpace` swallows the user's space, so a line that was empty and gains
+ *  text must be written with the marker's space, or the keystroke is lost. */
 function assertContentStartSpaceIsRebuilt(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor
@@ -596,7 +640,11 @@ function assertContentStartSpaceIsRebuilt(
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
 	const last = node.children[node.children.length - 1];
-	last.raw = CONTENT_START_PROBE + trailingLineEnding(last.raw, documentLineEnding(doc));
+	const ending = trailingLineEnding(last.raw, documentLineEnding(doc));
+	// Emptied first, the way a bare marker opens its container with an empty child.
+	last.raw = ending;
+	descriptor.rebuildRaw!(node);
+	last.raw = CONTENT_START_PROBE + ending;
 	descriptor.rebuildRaw!(node);
 
 	const lines = splitLines(node.raw)
@@ -606,9 +654,9 @@ function assertContentStartSpaceIsRebuilt(
 	const line = lines[0];
 	assert(
 		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
-		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for a body ` +
-			`child holding "${CONTENT_START_PROBE}" — the consumed space is only deferred where the ` +
-			`rebuild re-emits the marker's own trailing space on a content line`
+		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for an ` +
+			`empty body child given "${CONTENT_START_PROBE}": the consumed space only appears where ` +
+			`the rebuild writes the marker's own space on a line that gains text`
 	);
 }
 

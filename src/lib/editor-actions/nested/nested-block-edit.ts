@@ -14,6 +14,8 @@ import { createContainerScope } from '../block-edit-scope';
 import { contentUpdate, createBlockEditCore } from '../block-edit-core';
 import { refusedWrite } from '../stored-caret';
 import { removeEmptiedContainer } from './emptied-container';
+import { writeMarkerSpace } from '../../schema/child-spans';
+import { markerSpaceAt } from '../../tree-operations/container-offsets';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -101,7 +103,27 @@ export function createNestedBlockEdit(
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			if (!deps.node.children) return refusedWrite();
 			return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
-		}
+		},
+
+		async completeMarker(innerIndex) {
+			const at = markerSpaceAt(deps.node, innerIndex);
+			if (at === null) return false;
+			return scope.commit({
+				snapshot: { index: innerIndex, offset: 0 },
+				eventTarget: innerIndex,
+				op: { kind: 'updateContent', detail: { length: 0 } },
+				// The rebuild after this keeps the container line it finds, space and all.
+				mutate: (view) => {
+					writeMarkerSpace(view.body.owner!, at);
+					return { op: 'noop' };
+				},
+				landing: () => scope.at(innerIndex, [], 0)
+			});
+		},
+
+		// Unwrapped, this bundle completes no line, as its `splitBlock` doesn't; `withEnterCompletion`
+		// adds both above the container's overrides.
+		completeLineOnType: async () => false
 	};
 
 	return blockEdit;

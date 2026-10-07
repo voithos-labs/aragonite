@@ -26,17 +26,25 @@ import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-p
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { allowDevWarns } from '../support/warn-gate';
 import {
 	registerLiveJoinSeamCleaner,
-	__resetLiveJoinSeamCleanerForTests
+	registerLiveSplitRebalancer,
+	__resetLiveJoinSeamCleanerForTests,
+	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import {
+	makeBlockListState,
 	makeContainerHarness,
 	makeEditorActionsDeps,
+	makeListContextAt,
 	makeStubBlockEdit,
-	pasteContext,
-	recordingWrite
+	pasteContext
 } from '../harness/editor-actions';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
@@ -51,7 +59,7 @@ import {
 import { registerCalloutForTests } from '../selection/chrome-plugins';
 import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
 import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
@@ -72,6 +80,7 @@ const LIVE = fixtureReading({}, 'live');
 
 beforeAll(() => {
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
+	registerLiveSplitRebalancer(rebalanceLiveSplit);
 	ensurePasteSurface(tableCellPasteSurface);
 });
 beforeEach(() => {
@@ -86,7 +95,10 @@ afterEach(() => {
 	delete document.body.dataset.presentation;
 	window.getSelection()?.removeAllRanges();
 });
-afterAll(() => __resetLiveJoinSeamCleanerForTests());
+afterAll(() => {
+	__resetLiveJoinSeamCleanerForTests();
+	__resetLiveSplitRebalancerForTests();
+});
 
 // ── Where the bytes go ───────────────────────────────────────────────────────
 
@@ -130,13 +142,13 @@ const HASH_RUN = { start: 3, end: 6 };
 type Mounted = { el: HTMLElement; blockEdit: ReturnType<typeof makeStubBlockEdit> };
 
 /** The block the editor renders at `place`, and what it commits. */
-function mountText(place: Place): Mounted {
+function mountText(place: Place, caretMemory?: CaretMemory): Mounted {
 	const mounted = mountBlock(TextEditableBlock, {
 		source: place.source,
 		path: place.leaf,
 		overrides: {
 			policies: { presentationMode: () => 'live' },
-			services: { decorations: noIslands }
+			services: { decorations: noIslands, ...(caretMemory ? { caretMemory } : {}) }
 		}
 	});
 	const el = mounted.target.querySelector('.text-editable-block') as HTMLElement;
@@ -200,6 +212,16 @@ const backspaceAfterX = (m: Mounted) => () => {
 	m.el.dispatchEvent(
 		new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
 	);
+};
+const enterOverX = (m: Mounted) => () => {
+	select(m.el, X.start, X.end);
+	m.el.dispatchEvent(
+		new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+	);
+};
+const lineBreakOverX = (m: Mounted) => () => {
+	select(m.el, X.start, X.end);
+	beforeInput(m.el, 'insertLineBreak');
 };
 const typeAt = (m: Mounted, caret: number, typed: string) => () => {
 	select(m.el, caret);
@@ -265,13 +287,16 @@ function typedAtWidget(place: Place, range: typeof X, typed: string): string[] {
 	return h.edits.map((edit) => edit[1]);
 }
 
-/** A delimiter typed where the caret stands just inside a hidden closing run. */
-function typedBesideHiddenRun(place: Place, caret: number, typed: string): string[] {
-	const h = dispatchAt(place, [document.createTextNode(textOf(place))], {
-		getEdgeAffinity: () => 'far'
-	});
-	h.handleKeydown(key(typed), asRawOffset(caret));
-	return h.edits.map((edit) => edit[1]);
+/** A delimiter typed after an arrow stepped the caret past a hidden closing run, without moving. */
+async function typedPastHiddenRun(place: Place, caret: number, typed: string): Promise<string[]> {
+	const mounted = mountText(place, createCaretMemory());
+	mounted.el.focus();
+	select(mounted.el, caret);
+	mounted.el.dispatchEvent(
+		new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+	);
+	await settleEditor();
+	return commitsAfter(mounted, () => beforeInput(mounted.el, 'insertText', typed));
 }
 
 /** Backspace right after the entity that opens the leaf's bold word. */
@@ -285,23 +310,20 @@ function backspaceAfterEntity(place: Place): string[] {
 async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
 	const doc = parse(place.source);
 	const written: string[] = [];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
-	widgetSelection.select({ paragraphPath: place.leaf, sourceStart: 2, preSelectOffset: 2 });
+	const selection = createSelectionState();
+	selectWidgetWhole(selection, { paragraphPath: place.leaf, sourceStart: 2, preSelectOffset: 2 });
 	await replaceSelectedWidget(
 		{
 			node: nodeAt(doc, place.leaf) as CstNode,
-			index: 0,
-			blockEdit: {
-				updateBlockContent: recordingWrite(({ raw }) => void written.push(raw))
-			} as never,
-			widgetSelection,
-			setPendingCursor: () => {},
+			selection,
 			storedAs: () => storedAsAt(doc, place.leaf, LIVE)
 		},
 		{ start: 2, end: 13 },
-		2,
 		'',
-		'authored'
+		(edit) => {
+			written.push(edit.raw);
+			return withStoredCaret(Promise.resolve(true), edit.caret);
+		}
 	);
 	return written;
 }
@@ -310,6 +332,20 @@ async function mergeNext(source: string, containerPath: number[]): Promise<strin
 	const h = makeContainerHarness(source, containerPath, { reading: LIVE });
 	await h.bundle.blockEdit.mergeWithNext(0);
 	return serialize(h.deps.doc);
+}
+
+/** Enter at `offset` in the first item's text, through the list's own split. */
+async function enterInFirstItem(source: string, offset: number): Promise<string> {
+	const list = parse(source).children[0];
+	const { deps } = makeEditorActionsDeps([list], { reading: LIVE });
+	const liveItem = () => deps.doc.children[0].children![0];
+	registerBlockListState(list.children![0], makeBlockListState(liveItem, ['text']) as never);
+	const { listContext } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+	await listContext.splitItemAtOffset(0, 0, offset);
+	// A top-level store installs a to-do's `# ` text as a heading behind the box, which the
+	// read-back checks catch.
+	if (TOP.on) allowDevWarns(['invariant:task-marker-slot', 'invariant:reads-back']);
+	return serialize(deps.doc);
 }
 
 function deleteRange(source: string, from: [number[], number], to: [number[], number]): string {
@@ -372,7 +408,8 @@ interface Family {
 	name: string;
 	/** Each file's calls that make or fetch a store, which this family's rows run through. */
 	stores: Record<string, number>;
-	/** Files that hand a store they were given to a rewrite, and make none. */
+	/** Files that make no store but call a route taking one: they hand on a store they were given,
+	 *  or leave the route to make its own. */
 	passesOn?: string[];
 	rows: Row[];
 }
@@ -418,8 +455,7 @@ const FAMILIES: Family[] = [
 		name: 'a delimiter typed where it may pair',
 		stores: {
 			'components/blocks/text/TextEditableBlock.svelte': 1,
-			'components/blocks/table/TableCellBlock.svelte': 1,
-			'components/blocks/text/edge-policy-dispatch.ts': 1
+			'components/blocks/table/TableCellBlock.svelte': 1
 		},
 		rows: [
 			{
@@ -435,7 +471,7 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'a to-do, beside a hidden run',
 				run: () =>
-					typedBesideHiddenRun({ source: '- [ ] # **bold** text\n', leaf: [0, 0, 0] }, 8, '`'),
+					typedPastHiddenRun({ source: '- [ ] # **bold** text\n', leaf: [0, 0, 0] }, 8, '`'),
 				want: ['# **bold**`` text\n']
 			}
 		]
@@ -446,13 +482,24 @@ const FAMILIES: Family[] = [
 		rows: [
 			{ shape: 'a to-do', run: () => withText(TODO, backspaceAfterX), want: ['# y\n'] },
 			{ shape: 'a plain item', run: () => withText(ITEM, backspaceAfterX), want: [] },
-			{ shape: 'a table cell', run: () => withCell('**x**# y', backspaceAfterX), want: ['# y\n'] }
+			{ shape: 'a table cell', run: () => withCell('**x**# y', backspaceAfterX), want: ['# y'] }
 		]
 	},
 	{
-		name: 'a key over a selection the browser would not edit',
-		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 2 },
+		// One range replace serves both: a selection the browser would not edit, and a whole widget.
+		name: 'a key the block writes over a range',
+		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 1 },
 		rows: [
+			{
+				shape: 'a to-do, a whole widget',
+				run: () => backspaceAfterEntity({ source: '- [ ] **&copy;**# y\n', leaf: [0, 0, 0] }),
+				want: ['# y\n']
+			},
+			{
+				shape: 'a plain item, a whole widget',
+				run: () => backspaceAfterEntity({ source: '- **&copy;**[ ] y\n', leaf: [0, 0, 0] }),
+				want: ['****[ ] y\n']
+			},
 			{ shape: 'a to-do, from its marker', run: () => deleteFromMarker(TODO), want: ['# y\n'] },
 			{
 				shape: 'a plain item, from its marker',
@@ -474,6 +521,23 @@ const FAMILIES: Family[] = [
 		]
 	},
 	{
+		// The removal is the first write; the break after it runs at the caret the removal left.
+		name: 'a line break over a selection',
+		stores: {
+			'components/blocks/text/TextEditableBlock.svelte': 1,
+			'components/blocks/table/TableCellBlock.svelte': 1
+		},
+		rows: [
+			{ shape: 'a to-do', run: () => withText(TODO, enterOverX), want: ['# y\n'] },
+			{ shape: 'a plain item', run: () => withText(ITEM, enterOverX), want: ['****[ ] y\n'] },
+			{
+				shape: 'a table cell',
+				run: async () => (await withCell('**x**# y', lineBreakOverX)).slice(0, 1),
+				want: ['# y']
+			}
+		]
+	},
+	{
 		name: 'a cut',
 		stores: {
 			'components/blocks/text/text-clipboard.ts': 1,
@@ -485,22 +549,6 @@ const FAMILIES: Family[] = [
 			{ shape: 'a to-do in a quote', run: () => withText(QUOTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a nested to-do', run: () => withText(NESTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a table cell', run: () => withCell('**x**# y', cutX), want: ['# y'] }
-		]
-	},
-	{
-		name: 'a key that takes a whole widget',
-		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 1 },
-		rows: [
-			{
-				shape: 'a to-do',
-				run: () => backspaceAfterEntity({ source: '- [ ] **&copy;**# y\n', leaf: [0, 0, 0] }),
-				want: ['# y\n']
-			},
-			{
-				shape: 'a plain item',
-				run: () => backspaceAfterEntity({ source: '- **&copy;**[ ] y\n', leaf: [0, 0, 0] }),
-				want: ['****[ ] y\n']
-			}
 		]
 	},
 	{
@@ -518,6 +566,20 @@ const FAMILIES: Family[] = [
 				run: () =>
 					backspaceOnSelectedImage({ source: '- **![a](b.png)**[ ] y\n', leaf: [0, 0, 0] }),
 				want: ['****[ ] y\n']
+			}
+		]
+	},
+	{
+		// After a to-do's box, `# **bo**` is text; at the top level it is a heading.
+		name: 'a split',
+		stores: { 'tree-operations/node-ops.ts': 2, 'editor-actions/list-context.ts': 1 },
+		// A block's own Enter, whose halves stay in its holder: the split makes both stores itself.
+		passesOn: ['editor-actions/block-edit-core.ts'],
+		rows: [
+			{
+				shape: 'a to-do',
+				run: () => enterInFirstItem('- [ ] # **bo ld**\n', 6),
+				want: '- [ ] # **bo**\n- [ ]  **ld**\n'
 			}
 		]
 	},
@@ -593,7 +655,7 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'a table cell',
 				run: () => dragXAway(CELL, true),
-				want: '| h |\n| --- |\n| # y |\n\nxz\n'
+				want: '| h |\n| - |\n| # y |\n\nxz\n'
 			}
 		]
 	},
@@ -658,15 +720,34 @@ const REWRITES = [
 	'components/blocks/text/live-selection-edit.ts',
 	'components/blocks/text/construct-edge-delete.ts',
 	'components/blocks/text/live-join-seam.ts',
+	'components/blocks/text/live-split-rebalance.ts',
 	'core/inline/live-edit/read-back.ts'
 ];
 
 /** A store made from the tree, or fetched from the getter a block hands its helpers. */
 const MAKES_A_STORE = /(?<![\w$])(?<!function\s)(?:storedAsAt|storedAsIn)\s*\(|\bstoredAs\(\)/g;
 
-/** A call that hands a store to a rewrite that removes bytes, or asks one what a line reads as. */
-const HANDS_ON_A_STORE =
-	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
+/** The calls that hand a store to a rewrite that removes bytes, or ask one what a line reads as. */
+const STORE_TAKERS = [
+	'cleanJoinedRaw',
+	'joinLeaves',
+	'replaceRangeInLeaf',
+	'applyLiveRangeEdit',
+	'resolveEdgeDeletion',
+	'keepsKindAt',
+	'cleanTruncatedProse',
+	'readBack',
+	'splitNode'
+];
+
+/** Whether `code` calls a store taker, by its own name or by a name it imports it as. */
+function handsOnAStore(code: string): boolean {
+	const aliases = [...code.matchAll(/\b(\w+)\s+as\s+(\w+)/g)]
+		.filter(([, name]) => STORE_TAKERS.includes(name))
+		.map(([, , alias]) => alias);
+	const names = [...STORE_TAKERS, ...aliases].join('|');
+	return new RegExp(`(?<![\\w$.])(?<!function\\s)(?:${names})\\s*\\(`).test(code);
+}
 
 describe('the route list', () => {
 	const sources = collectEditorSources(EDITOR_SRC);
@@ -698,10 +779,13 @@ describe('the route list', () => {
 		expect(found, why).toEqual(claimed);
 	});
 
+	it('matches a store taker called by a name it was imported as', () => {
+		expect(handsOnAStore("import { splitNode as cut } from './x';\ncut(a);")).toBe(true);
+		expect(handsOnAStore("import { cut } from './x';\ncut(a);")).toBe(false);
+	});
+
 	it('every file that hands a store on is a family’s, or a rewrite', () => {
-		const found = sources
-			.filter((file) => HANDS_ON_A_STORE.test(file.code))
-			.map((f) => inLib(f.relPath));
+		const found = sources.filter((file) => handsOnAStore(file.code)).map((f) => inLib(f.relPath));
 		const named = FAMILIES.flatMap(({ stores, passesOn }) => [
 			...Object.keys(stores),
 			...(passesOn ?? [])

@@ -7,6 +7,7 @@
 
 import type { Component } from 'svelte';
 import type { MenuIconName } from '../menu-icons';
+import type { EditorContext } from '../schema/plugin-install';
 
 export interface InlineMenuItem {
 	/** The row's key, unique within one result list. Where two rows share one, the first is kept
@@ -34,6 +35,15 @@ export interface InlineMenuQuery {
 	signal: AbortSignal;
 }
 
+/**
+ * The `EditorContext` a pick's `onCommit` gets: the context of the plugin that added the source,
+ * live like it, except that `insertMarkdown` and `runCommand` refuse (write nothing, answer false,
+ * as reading mode does) once the host has loaded another document, which `signal` reports too.
+ */
+export interface InlineMenuCommit extends EditorContext {
+	readonly signal: AbortSignal;
+}
+
 export interface InlineMenuRowProps {
 	item: InlineMenuItem;
 	active: boolean;
@@ -57,8 +67,12 @@ export interface InlineMenuSource {
 	 *  session; a rejected promise reads as empty and is reported on the `error` event. */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	/** Runs after the pick's bytes land, with the caret at `start + insert.length`. Writes made while
-	 *  a returned promise is pending join the pick's undo entry, so await them. */
-	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void | Promise<void>;
+	 *  a returned promise is pending join the pick's undo entry; make them through `editor`. */
+	onCommit?(
+		item: InlineMenuItem,
+		query: Omit<InlineMenuQuery, 'signal'>,
+		editor: InlineMenuCommit
+	): void | Promise<void>;
 	/** Paints one row's content in place of the default label and detail. */
 	row?: Component<InlineMenuRowProps>;
 }
@@ -73,6 +87,8 @@ export interface InlineMenuOpenOptions {
 }
 
 export interface InlineMenuRegistry {
+	/** Add from `onEditor` itself, not after an `await` in it: a pick's commit context is built on
+	 *  the context whose callback added the source, and a late one gets the editor's own `options`. */
 	addSource(source: InlineMenuSource): InlineMenuSourceHandle;
 	/** Types the source's trigger and `options.query` at the caret as one undo entry and opens the
 	 *  menu. False, writing nothing, for an unknown name, reading mode, no prose caret, or a newline. */

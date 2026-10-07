@@ -1,22 +1,26 @@
 /**
- * Every editable block publishes `insertMarkdown` (G4.38). Svelte 5 instance exports cannot be
- * spread and `BlockComponent` declares the member optional, so a block missing it would compile
- * and quietly ignore every `editor.insertMarkdown`. The scan reads whichever route the component
- * uses: an instance export, or the object it hands `publishRefSlot`.
+ * Every editable block publishes each of `EDITABLE_SURFACE_MEMBERS` (G4.38). `BlockComponent`
+ * declares them optional, so a block missing one compiles and quietly drops its route. A leaf built
+ * on `createEditableLeaf` exports `blockApi` (G4.73), whose type requires them, so the scan reads the
+ * components that build their own text area, by whichever route each uses.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
+import { SOURCE } from './source-paths';
+import { EDITABLE_SURFACE_MEMBERS } from '$lib/block-component';
 
-/** A component owning an editable element: the two factories that create one. */
-const SURFACE_FACTORY_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(/;
+/** A component building its own editable element. */
+const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
 
-/** The exported step: an instance export, not a mention. */
-const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+insertMarkdown\b/;
+/** The exported member: an instance export, not a mention. */
+const exportOf = (member: string) =>
+	new RegExp(String.raw`\bexport\s+(?:const|function)\s+${member}\b`);
+const PUBLISHES_DOOR_RE = exportOf('insertMarkdown');
 
-const RULE =
-	'every component mounting an editable surface must publish `insertMarkdown` where its own ' +
-	'mount reads it — an instance export, or the literal it hands publishRefSlot when it is ' +
-	'mounted with no bind:this; without that hop editor.insertMarkdown() declines on that block';
+const rule = (member: string) =>
+	`every component mounting an editable surface must publish \`${member}\` where its own ` +
+	'mount reads it: an instance export, or the literal it hands publishRefSlot when it is ' +
+	'mounted with no bind:this; without that hop the block drops the route';
 
 function surfaceComponents(): Array<{ relPath: string; code: string }> {
 	return collectEditorSources()
@@ -44,41 +48,45 @@ function publishedSurfaceMembers(code: string): string[] | null {
 	return null;
 }
 
-function publishesDoor(code: string): boolean {
+function publishes(code: string, member: string): boolean {
 	const published = publishedSurfaceMembers(code);
-	return published ? published.includes('insertMarkdown') : PUBLISHES_DOOR_RE.test(code);
+	return published ? published.includes(member) : exportOf(member).test(code);
 }
+
+const publishesDoor = (code: string) => publishes(code, 'insertMarkdown');
 
 describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
 
 	it('found the editable-surface components to inspect', () => {
-		expect(components.length).toBeGreaterThanOrEqual(4);
+		expect(components.length).toBeGreaterThanOrEqual(3);
 	});
 
-	it('every editable-surface component publishes insertMarkdown', () => {
-		const silent = components.filter((f) => !publishesDoor(f.code)).map((f) => f.relPath);
-		expect(silent, RULE).toEqual([]);
+	it.each(EDITABLE_SURFACE_MEMBERS)('every editable-surface component publishes %s', (member) => {
+		const silent = components.filter((f) => !publishes(f.code, member)).map((f) => f.relPath);
+		expect(silent, rule(member)).toEqual([]);
 	});
 
 	// The cell is the only component on the published-object route, so losing it would leave this
 	// scan reading instance exports alone.
 	it('the table cell is scanned through the literal its row actually mounts', () => {
-		const cell = components.find((f) => f.relPath.endsWith('TableCellBlock.svelte'));
+		const cell = components.find((f) => f.relPath === SOURCE.tableCell);
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();
-		expect(publishedSurfaceMembers(cell!.code)).toContain('insertMarkdown');
-		expect(
-			PUBLISHES_DOOR_RE.test(cell!.code),
-			'the cell is mounted with no bind:this, so an instance export is a hop with no reader'
-		).toBe(false);
+		for (const member of EDITABLE_SURFACE_MEMBERS) {
+			expect(publishedSurfaceMembers(cell!.code)).toContain(member);
+			expect(
+				exportOf(member).test(cell!.code),
+				'the cell is mounted with no bind:this, so an instance export is a hop with no reader'
+			).toBe(false);
+		}
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the factory matcher covers both surface factories and nothing else', () => {
+	it('the factory matcher covers the surface factory and nothing else', () => {
 		expect(SURFACE_FACTORY_RE.test('const s = createEditableSurface({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(true);
-		expect(SURFACE_FACTORY_RE.test('import type { EditableLeaf } from')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('const leaf = createEditableLeaf({')).toBe(false);
+		expect(SURFACE_FACTORY_RE.test('import type { EditableSurface } from')).toBe(false);
 	});
 
 	it('the publish matcher demands an export, not a mention', () => {
@@ -87,6 +95,8 @@ describe('G4.38 insertion entry-point surface parity', () => {
 			true
 		);
 		expect(PUBLISHES_DOOR_RE.test('const x = clipboard.insertMarkdown;')).toBe(false);
+		expect(exportOf('typeText').test('export const typeText = surface.typeText;')).toBe(true);
+		expect(exportOf('typeText').test('export const typeTextLater = x;')).toBe(false);
 	});
 
 	it('the literal reader takes members by shorthand and by key, past a nested value', () => {

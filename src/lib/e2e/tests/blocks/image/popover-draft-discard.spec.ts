@@ -31,6 +31,25 @@ test.describe('image popover draft discard', () => {
 		expect(await editor.bridge.getSource()).toBe(incoming);
 	});
 
+	// The same image in the same place keeps its widget mounted, so only the swap's own menu close
+	// can drop the draft.
+	test('a source swap to a document holding the same image leaves the new document alone', async ({
+		page
+	}) => {
+		await editor.loadContent(`![one](${IMAGE})\n\nbelow.\n`);
+		await waitForAllImagesLoaded(page);
+		await page.locator('[data-image-widget]').first().click();
+		await (await openImageField(page)).fill('draft');
+
+		const incoming = `![one](${IMAGE})\n\nnew below.\n`;
+		await page.evaluate((md) => (window as any).__test.setSource(md), incoming);
+		await expect(page.locator('.md-image-properties input')).toHaveCount(0);
+		await page.locator('.paragraph-block').last().click();
+
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(incoming);
+	});
+
 	test('an undo that takes the image away under an open alt draft discards the draft', async ({
 		page
 	}) => {

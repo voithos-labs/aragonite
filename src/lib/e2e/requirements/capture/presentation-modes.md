@@ -32,7 +32,7 @@ so the bullets below are the picture's contract.
 - drag handles are off in every panel, so a control that appears on hover cannot read as a
   difference between modes
 - the pointer is moved away from the text before each shot
-- panels are cropped to one common height, since hidden markers reflow the text and natural heights differ
+- every panel is shot at the tallest mode's height, the editor sized to its note first, since hidden markers reflow the text and natural heights differ; nothing is cropped
 - each caption names the mode and where the caret is
 
 ## Failure cases

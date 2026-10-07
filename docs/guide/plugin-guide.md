@@ -137,7 +137,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Most of 
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
 - `conformanceFixture` is optional, but the conformance kits ([plugin-testing.md](plugin-testing.md)) need it: it's the Markdown their headless checks parse and round-trip. Without one, the kind checkup reports those cells `boundary` (unchecked), and the container checkup fails outright.
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
-- `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click on the folded view reveals the source at its first byte, which is a letdown when you clicked halfway into the caption.
+- `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click anywhere on the parrot shows the source with the caret on its first byte, which is a letdown when you clicked halfway into the caption.
 
 The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on the character under it. The arithmetic between the two strings is yours. The parrot's caption is its line minus the marker and the whitespace around the text, so the component works out where the caption starts in the source, puts that on the caption element as `data-caption-start`, and the hook adds it to the offset. (Hardcoding `'%%parrot '.length` works right up until someone types two spaces.)
 
@@ -225,17 +225,7 @@ cNo.....................................oc
 
 	const caption = $derived(parrotCaption(node.raw));
 
-	export const editable = true;
-	export const focusable = true;
-	export const focus = leaf.focus;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
+	export const blockApi = leaf.blockApi;
 </script>
 
 <div
@@ -344,11 +334,11 @@ cNo.....................................oc
 
 The component has an editing half and a parrot half, and the parrot half never touches the editor.
 
-The editing half is the factory call, the `revealed` flag, two spreads, and the one-line re-exports:
+The editing half is the factory call, the `revealed` flag, two spreads, and one export:
 
 - `revealed` is yours. The factory flips it through `setRevealed` (on when a click or an arrow lands in the block, off when the caret leaves), and the `{#if}` swaps the two views on it.
 - `surfaceProps` goes on the source line. `renderProps` goes on the block wrapper, so a click anywhere in the block reveals, bird included, and lands where `caretTargetAtPoint` said. Spread both; a folded view that takes the click but not the keys swallows undo while it holds focus.
-- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The next six are how `insertMarkdown` and a selection landing reach your block, and `afterSourceCommit` writes the open source before a move, so `editor.runCommand('block.moveDown')` with the caret in your source doesn't leave the edit behind. Keep all of them.
+- `blockApi` is everything the editor calls on your block: focus, the caret and selection reads, `insertMarkdown`, and the hook that writes your open source before `editor.runCommand('block.moveDown')` moves the block. It's one object, so when the factory grows a method your parrot gets it without an edit. Forget the export and the component doesn't typecheck where it's registered.
 - The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
 - `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](#the-editable-leaf) explains.
 
@@ -553,6 +543,7 @@ setup(ctx) {
 | `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                                                                                                                                        |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would                                                                                     |
 | `runCommand(id, arg?)`         | Run a command by id the way the instance's own call does; false where that would be                                                                                                                                                                                                  |
+| `openDraft(spec)`              | Hold an edit outside the document (a textarea's text) so a host loading another note can't land it in the wrong one ([What your own editing surface has to do](#what-your-own-editing-surface-has-to-do))                                                                            |
 | `computeInlineContent(node)`   | Parse a prose block's inline content the way this editor draws it: syntax from a plugin its `plugins` prop left out comes back as plain text, and reference links resolve against the document's link definitions (its `[r]: /x` lines). Reach for it wherever you walk inline nodes |
 | `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))                                                                                                                                                    |
 | `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                                                                                                                                        |
@@ -923,7 +914,7 @@ Your component supplies only its own chrome: the border, the title styling, an i
 
 Three rules for that file, each earned the hard way:
 
-- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
+- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as a leaf surface (a hand-built leaf's own members, or a factory leaf's `blockApi`) or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read (`var(--color-ui-muted, #93938d)`), so the block still renders outside the editor's own style scope. Match the fallback to the token's dark value; dark is the base theme. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
@@ -938,6 +929,7 @@ The factory returns more than the walkthrough destructures:
 | `getOptions`            | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown` (it's shorthand for `getEditor()?.options`). It's how a value differs per editor, which a factory argument can't do ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                                                                                                                                                                                                                         |
 | `getEditor`             | This editor's `EditorContext` for the plugin that owns your kind, undefined only in a bare test harness. Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it `getEditor()?.computeInlineContent` and it still parses in a bare harness (the bundled toc and footnotes do exactly this)                                                                                                                                                                                                                    |
 | `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between                                                                                                                                                                                                                                                                               |
+| `openDraft`             | Your component holds an edit outside the document, like a textarea's text. It's `EditorContext.openDraft`, passed through so a component needs no context ([What your own editing surface has to do](#what-your-own-editing-surface-has-to-do))                                                                                                                                                                                                                                                                                                                                                   |
 
 ```ts
 const { updateOwnMetadata, getPresentationMode, getTheme, getOptions, captureScrollPosition } =
@@ -1069,7 +1061,11 @@ A container that synthesizes content on copy overrides the baked `clipboard` cel
 
 ## Teaching the parser
 
-The parrot opener at the top of this guide left two numbers unexplained (`priority: 25` and `consumed: 1`), and skipped two questions every real grammar eventually meets: how an opener knows where in the document it is, and how a construct whose lines must sit adjacent ever gets typed. This section is all four.
+The parrot opener at the top of this guide left two numbers unexplained (`priority: 25` and `consumed: 1`). This section explains both, then takes the three questions a real grammar meets sooner or later:
+
+1. what an opener that reads ahead and then backs out has to tell the editor,
+2. how an opener knows where in the document it is,
+3. and how a construct whose lines must sit together ever gets typed.
 
 ### What an opener returns
 
@@ -1118,6 +1114,35 @@ Ties break by kind name, never by registration order. A shared priority is a sme
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 
+### A reading that isn't final
+
+Some openers read past their first line looking for something and decline when it isn't there. The `$$` math block hunts down the page for its closing `$$` and gives up without one, so its line ends up a plain paragraph, which a `$$` typed further down can still turn into math. If yours works like that, give it `readingNotFinal`. It gets a block's own bytes and answers one question: is my reading of these bytes final, or could more lines below change it?
+
+An opener that reads on and never backs out doesn't need one. A fence left open just runs to the end of the document, like the built-in code block's, and nothing typed below changes that.
+
+```ts
+registerBlockOpener(mathBlock, {
+	priority: OPENER_PRIORITIES.fencedCode + 5,
+	interruptsParagraph: (text) => text === '$$',
+	// A lone `$$` with no closing `$$` under it is still waiting
+	readingNotFinal: (raw) => {
+		const [first, ...rest] = displayLines(raw);
+		return first.text === '$$' && !rest.some((line) => line.text === '$$');
+	},
+	tryOpen(ctx) {
+		// scans for the closing `$$`, and returns null when there isn't one
+	}
+});
+```
+
+Here's why the editor cares. After each edit it makes sure the blocks around the edit read the way a reload would read them, joining two blocks into one where the bytes now say so. To keep that cheap, it reads only the first line of the block below each join (the boundary between two neighbouring blocks). That's fine until the block above is a `$$` still waiting, because the line that makes it a math block after all can be anywhere further down. Leave `readingNotFinal` out on an opener like that and typing the closing `$$` a few lines below leaves two blocks on screen where a reload shows one.
+
+Answer true only while the reading really isn't final:
+
+- A closed `$$` block is done, and so is any block whose first line isn't yours, so check the first line before scanning the rest.
+- Keep it a string scan, never a parse.
+- Every true costs a full read of the blocks on both sides of the join instead of one line, and the editor looks past blank lines to find the block above, so a true that should've been false is paid for on every edit next to that block.
+
 ### Openers and document position
 
 `OpenContext.isDocumentParse` tells an opener whether the parse it's dispatching in was handed a whole document or one block's bytes:
@@ -1141,7 +1166,7 @@ Three habits complete the gate:
 - **Declare `interruptsParagraph: false`**: a line that interrupts a paragraph has a paragraph before it, so it's never at line 0.
 - **Pair the opener with a paste transform** ([Paste transforms](#paste-transforms)): pasted text reaches `parse` as a fragment, so your opener declines it, and the transform is where you decide what pasted front matter should become (a fenced block, say) instead of leaving the syntax live mid-document.
 
-The residual, stated plainly. A fragment edit that should dissolve the kind does dissolve it: break the closing fence and the block becomes whatever blocks its bytes now warrant. Restoring those bytes doesn't put the kind back in the live tree, because nothing reparses across a block boundary after a commit. `getSource()` returns the correct bytes and a reload restores the block. That limit isn't specific to position-scoped kinds (it's the general case of two blocks whose bytes jointly reparse as one), and it has a sibling: typing the syntax at the document top also needs a reload before the kind appears, since the commit reparse sees one block's bytes and declines by design.
+One limit, stated plainly. A fragment edit that should dissolve the kind does dissolve it: break the closing fence and the block becomes whatever blocks its bytes now warrant. Restoring those bytes doesn't put the kind back in the live tree, because every reparse after a commit is a fragment parse (the one that joins neighbouring blocks included), and your opener declines those. `getSource()` returns the correct bytes and a reload restores the block. Typing the syntax at the document top hits the same wall: the kind only appears after a reload.
 
 ### Typing a multi-line construct into existence
 
@@ -1207,13 +1232,14 @@ const leaf = createEditableLeaf({
 	getEl: () => sourceEl ?? null, // null while a render-primary view is folded
 	mode: 'render-primary', // 'plain' is the default
 	singleLine: true, // a one-line kind: Enter splits the block instead of typing a newline
-	isRevealed: () => revealed, // render-primary only, and required there: you own the swap flag
+	isRevealed: () => revealed, // render-primary only; leaving it out there won't compile, or throws
 	setRevealed: (next) => (revealed = next)
 	// optional too: commandHooks, handed to your block commands as ctx.hooks (see Block commands)
 });
+leaf.blockApi; // everything the editor calls on your block: your component's one export
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
-leaf.getOptions(); // this editor's options for your plugin, defaults included, typed unknown
+leaf.getOptions<MyOptions>(); // this editor's options for your plugin, defaults included
 leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a bare harness
 ```
 
@@ -1223,14 +1249,29 @@ leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a
 
 That text carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the offset walk goes on counting them, and the caret sits nowhere near where it looks.
 
-**A painted source.** By default the source is one text node. A `renderSource(text)` dep paints it as DOM instead (fence lines the marker-hiding modes collapse, highlight tokens; `renderFencedSource` draws a fenced source the way the code block does, and `highlightCode` is its tokenizer), and the factory asserts `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit. A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint, each reported through `onSourceEdit(text)` so a live preview can follow the draft, and undo inside the open reveal walks those edits back before it reaches the document's history. `repaintSource()` re-runs the painter after a native edit (an IME commit), and `completeBareSource(text)` lets a kind complete a chrome-only source (a `$$` straight over `$$`) to the shape a caret can sit in, asked as the source is revealed and again after any edit that empties it, so a one-line `$$x^2$$` that loses its `x^2` never shows bare fences. Block math is the worked example.
+**A painted source.** By default the source is one text node. Give the factory a `renderSource(text)` dep and it paints the source as DOM instead: fence lines the marker-hiding modes collapse, highlight tokens, whatever your kind draws. `renderFencedSource` draws a fenced source the way the code block does, with `highlightCode` as its tokenizer. The factory checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
-A leaf whose bytes are one line (the parrot's opener claims exactly one) declares `singleLine: true` and needs none of that. Enter in one of those ends the block: the text after the caret becomes a paragraph below and the caret goes with it, which is what Enter does in a heading. With the flag off, the default, Enter types a newline.
+A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. Undo inside the open reveal walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. Three more pieces go with a painter:
+
+- **`onSourceEdit(text)`**, a dep, hears each of those edits, so a live preview can follow the text before it's committed.
+- **`leaf.repaintSource()`** re-runs the painter after an edit the browser made itself (an IME commit).
+- **`reshapeSource(text, caret, lineEnding)`**, a dep, lets your kind put an edited source back in the shape it keeps. It's asked as the source is revealed and again after every edit, the browser's included, with `caret` where the caret sits in `text` right then. Answer the new text and the caret's place in it, or null to leave both alone.
+
+Block math uses `reshapeSource` twice:
+
+```ts
+reshapeSource('$$\n$$', 2, '\n'); // { text: '$$\n\n$$', caret: 3 }: an empty body line for the caret
+reshapeSource('$$x\n^2$$', 4, '\n'); // { text: '$$\nx\n^2\n$$', caret: 5 }: Enter in a one-line block
+```
+
+The first means a one-line `$$x^2$$` that loses its `x^2` never shows bare fences, and the second turns a one-line block you press Enter in into the multi-line form right away. Keep it in step with your `rawWrite`, the rule every write of your bytes goes through (the commit on blur included), so what the user sees while typing is what lands. A line you add with no ending to copy (a one-line `$$$$` has none) takes the `lineEnding` you're handed, the block's own or else the document's, so a CRLF file stays CRLF.
+
+A leaf whose bytes are one line (the parrot's opener claims exactly one) declares `singleLine: true` and needs none of that. Enter in one of those ends the block: the text after the caret becomes a paragraph below and the caret goes with it, which is what Enter does in a heading. With the flag off, the default, Enter types a newline in the block's own line ending (the document's, on a last line with none), so a CRLF file stays CRLF.
 
 Beyond the spread you add only your own `class` / `aria-label`, plus **`bind:this` in both modes**: the factory reaches your element only through `getEl()`, so both modes read it the same way, and they differ only in that render-primary's `getEl()` returns null while the view is folded. The two modes:
 
 - **`'plain'`**: the source is always the editable view, and every keystroke commits to the tree (with prose-like undo batching). The spread's sync mirrors external rewrites (an undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret quirk and the caret restore.
-- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it. A move while the source is up writes it first. A move chord your keymap binds does that on its own; a host's `editor.runCommand('block.moveDown')` only does it if your component re-exports `afterSourceCommit`.
+- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it. A move while the source is up writes it first, whether it came from a chord or from a host's `editor.runCommand('block.moveDown')`.
 
 **Render-primary gets a second spread.** `renderProps` goes on the folded view, and it carries the reveal click and the chord dispatch together; a view that takes the click but not the keys swallows undo while it holds focus. Put it on a wrapper the reveal never unmounts (both handlers do nothing while the source is up) and the whole folded surface, chrome included, is one click target. Where in the source that click lands is your kind's `caretTargetAtPoint`; declare none and every click reveals at the first byte.
 
@@ -1246,9 +1287,9 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the round-trip holds through every commit.
 
-**Per-instance configuration.** `leaf.getOptions()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. It's typed `unknown`, so cast it to your options type, and it's `undefined` only with no editor around (a component mounted bare in a unit test). It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
+**Per-instance configuration.** `leaf.getOptions<MyOptions>()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. You name the type, and nothing checks it against your plugin, so pass the one your `defaults` has. With no editor around (a component mounted bare in a unit test) it's just your `defaults`, once your plugin is installed. The container factory's `getOptions()` reads the same options, but it's typed `unknown` and comes back `undefined` with no editor around. The rule for what belongs in options is the same for both ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
-Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `completeBareSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `reshapeSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and the one `blockApi` export. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 
 ## Presentation modes
 
@@ -1316,9 +1357,9 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
 ```
 
 - **Claim your grammar, decline everything else.** The opener accepts exactly the fences the built-in `fencedCode` would, gated on the info string's first word, and must price **ahead** of `fencedCode` ([Opener priority](#opener-priority)). Declining returns the fence to `fencedCode`, which is also your uninstall story: without the plugin the same bytes parse as a plain code block and round-trip unchanged. Pin both states with round-trip tests. Claim the fence with `matchFenceInfo('mermaid')` and read its extent with `scanFence`, which closes where the parser does, and never carry your own copy of the CommonMark fence rules.
-- **Declare the fence's write rule.** A find/replace or a range delete writes your block's bytes without your component, and a fence is one byte away from swallowing the document: a body line that reads as the closer ends the block early, and an opener removed while the closer stays opens a fence over everything below. `rawWrite: fenceRawWrite(fenceShapeOfRaw)` is the code block's own rule: it grows both runs past a body line that reads as the closer, puts the closer back when a write deleted it, and drops a closer whose opener a write deleted.
+- **Declare the fence's write rule.** Every write to your block's bytes runs through its kind's `rawWrite`, and some never pass your component at all (a find/replace, a range delete). A fence is one byte away from swallowing the document: a body line that reads as the closer ends the block early, and an opener removed while the closer stays opens a fence over everything below. `rawWrite: fenceRawWrite(fenceShapeOfRaw)` is the code block's own rule: it grows both runs past a body line that reads as the closer, puts the closer back when a write deleted it, and drops a closer whose opener a write deleted.
 - **Code in metadata, an empty container around it.** Register the kind with `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed plugin metadata, primitive values only, and `rebuildRaw` re-emits the exact bytes from them. Build the parsed node's `raw` by calling your own rebuild, so opener and rebuild agree by construction. If the rebuild lengthens the fence past a body line (`escalatedFenceLength`), leave the stored length alone: when a rebuild moves the opener or closing line, the editor re-reads your metadata from the new bytes through your opener.
-- **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the container factory's `updateOwnMetadata`, which is one undoable entry, with your `rebuildRaw` re-emitting the fence so `getSource()` reflects the edit byte-exactly. Ctrl+Enter also passes `{ caret: { path: [], offset: 0 } }`, so the diagram gets focus back once the new code renders; a blur passes none, since you clicked somewhere else on purpose. Escape cancels without touching the tree.
+- **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the container factory's `updateOwnMetadata`, which is one undoable entry, with your `rebuildRaw` re-emitting the fence so `getSource()` reflects the edit byte-exactly. Ctrl+Enter also passes `{ caret: { path: [], offset: 0 } }`, so the diagram gets focus back once the new code renders; a blur passes none, since you clicked somewhere else on purpose. Escape cancels without touching the tree. The textarea's text is a copy of the document's, and a copy can go stale, so hold it as a draft ([What your own editing surface has to do](#what-your-own-editing-surface-has-to-do)).
 - **Inject the renderer into a slot, and own its CSS.** The engine (the library that actually draws, KaTeX or mermaid) is the consumer's dependency, so take it as a plugin option (`mermaidPlugin({ renderer })`) and put it in a **renderer slot**: a module-level `createAsyncRendererSlot` (or `createRendererSlot`, for an engine that answers right away) that your setup fills and your component renders through. The slot caches each render, and it never throws at you: with no renderer set you get your `missing` output, and a throw or a rejection gets your `failed` output, cached like a success. For anything drawn from source text, `renderSourceFallback(source, message)` makes a decent `missing` or `failed`. There's a slot in the snippet below. The engine's stylesheet travels with the renderer module, so import it there, where no route can forget it: a KaTeX-based renderer needs `katex/dist/katex.min.css`, or its MathML accessibility tree lays out unclipped and every equation paints twice.
 - **If the engine paints its own colors, the theme is a render input.** An engine that emits markup carrying color literals (a diagram SVG) can't be rethemed by a stylesheet after the fact, so the diagram has to be redrawn. The slot does most of that for you: `render` won't take a call without the theme, hands it to your renderer, and keys the cache on it, so a switch misses and a switch back is still a hit. The part left is yours. Read the theme with `getTheme()` (off the container or leaf factory, or an inline widget's props) inside the effect that renders, because that read is what re-runs the effect on a switch. Mermaid's engine adapter maps the editor theme name to a mermaid theme and re-initializes when it changes, serializing renders because that config is process-global. An engine styled by CSS variables can ignore the theme it's handed.
 - **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays: put `POINTER_GESTURE_ATTR` on the element whose drags are yours (only while the gesture is armed, if it isn't always), or the editor reads the press as the start of a selection and paints a range over your pan. `stopPropagation()` on pointerdown can't do this, since Svelte delivers pointer events from the app root and the editor's listener has already run. A focus view is just a fixed-position overlay in the component's own tree, so mount it in place, focus it on open, close on Escape.
@@ -1364,7 +1405,25 @@ Supply a focus element for **every steady state** (error, loading, and static fa
 
 **First: an arrow that runs off your surface has to leave it.** A textarea swallows every arrow at its own boundaries, so a caret that walks in is stuck, and it's worst when your surface is the block's only view and the caret lands in it on creation, which leaves the mouse as the only way out. Call the factory's `moveFocusOut(event)` when the caret sits at the edge the key points at: first line for ArrowUp, last line for ArrowDown, offset 0 for ArrowLeft, the end for ArrowRight. It declines a modified or non-arrow key and moves nothing when it declines, so gate your own `preventDefault` on its return value and a Shift-extend or a mid-text arrow stays native. Logical lines (the newlines around the caret) are enough: a plugin surface has to provide an exit, not full column-keeping parity. And an exit is a blur, so a surface that commits on `focusout` already commits through it; don't add a second commit path for the arrow.
 
-**Next: your draft is a copy, so keep it fresh.** A draft seeded once at open goes stale the moment the document changes underneath it (a host undo, a structural replace, a collaborative write), and the commit on blur then writes bytes the tree has already moved past, silently reverting the change. Derive the code from the node, watch that derivation while your surface is open, and re-seed the draft when it changes to something you didn't just commit; discarding an in-flight draft is the cheap loss, reverting a committed change is the expensive one. The editable leaf does this for you (both modes mirror external raw changes into the source); a plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
+**Next: your text is a copy, so keep it fresh.** A box seeded once at open goes stale the moment the document changes underneath it (a host undo, a structural replace, a collaborative write), and the commit on blur then writes bytes the tree has already moved past, silently reverting the change. Derive the code from the node, watch that derivation while your surface is open, and re-seed the box when it changes to something you didn't just commit. Throwing away an edit in progress is the cheap loss; reverting a committed change is the expensive one.
+
+**And hold it as a draft, so it can't land in the wrong note.** A host loading another note tears your block down, and the textarea's blur arrives after the new document is in, so a plain blur commit writes the old note's text into the new one. A **draft** is the editor's record of an edit you're holding outside the document. Open one when the box seeds:
+
+```ts
+const draft = openDraft({
+	seed: code, // the code you filled the box with
+	current: () => codeOf(node), // that code now
+	close: (cause) => {
+		if (cause === 'mode-change') commit(); // 'document-swap' writes nothing
+	}
+});
+draft.canWrite(); // true; false once a `source` swap or a write to those bytes dropped it
+draft.end(); // your box closed, so the editor stops tracking it
+```
+
+`openDraft` is on `EditorContext`, and the container factory passes it through. Ask `canWrite()` before every commit and `end()` the draft when the box closes. Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch may still save it, a document swap never.
+
+The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
 
 Want a source view with a native caret instead? That's [the editable-leaf tier](#the-editable-leaf), and rebuilding a render-primary block on `createEditableLeaf` (block math's shape) is this recipe's upgrade path.
 
@@ -1590,7 +1649,7 @@ setup(ctx) {
 
 **Two contracts to build against:**
 
-- **`invalidate()` is synchronous.** Your new decorations are applied before the call returns, so an event handler can invalidate and immediately trust the view. The exception is an `edit` handler, which the editor calls mid-commit: an invalidate from there waits for the commit to publish, so your source reads a finished document rather than a half-applied one. Several of them in one commit are one re-run.
+- **`invalidate()` is synchronous.** Your new decorations are applied before the call returns, so an event handler can invalidate and immediately trust the view. The exception is an `edit` handler, which the editor calls mid-commit: an invalidate from there waits for the commit to finish, so your source reads a finished document rather than a half-applied one. Several of them in one commit are one re-run.
 - **Widget identity is untracked.** The renderer compares decorations by position and class, not by widget object, so swapping in a new `component` or `buildDom` at the same position with the same class re-renders nothing. Vary `class` when the widget's content changes.
 
 ### The four decoration types
@@ -1642,7 +1701,7 @@ editor.events.on('selectionChange', (sel) => {
 });
 ```
 
-Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind`, the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor. It carries a second memo inside the rebuild, because routine typing bumps the epoch on every keystroke: each leaf's token list is keyed on that leaf's own text, so a rebuild re-tokenizes only the block you are typing in and rebuilds the word map from the cached lists. And it steps its marks aside while you're typing, since a word lighting up under your own caret mid-sentence is maddening. The tell is an epoch that arrives with no `edit` or `sourceSwap` event ahead of it (a keystroke announces nothing until its burst flushes), so the source serves nothing until the batched `input` event lands at the end of the burst. That's the editor's own typing pause, not a timer of the plugin's.
+Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind`, the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor. It carries a second memo inside the rebuild, because routine typing bumps the epoch on every keystroke: each leaf's token list is keyed on that leaf's own text, so a rebuild re-tokenizes only the block you are typing in and rebuilds the word map from the cached lists. And it steps its marks aside while you're typing, since a word lighting up under your own caret mid-sentence is maddening. How does it know you're typing? A new epoch with no `edit` event ahead of it except `input` ones is a keystroke, and the source serves nothing for it. Any other `edit` op, or a `sourceSwap`, means the document changed some other way and brings the marks straight back. Otherwise a timer of the plugin's own, restarted on each `input`, brings them back once you've stopped typing for a quarter second.
 
 A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen, so a throw never blanks the view.
 
@@ -1654,9 +1713,9 @@ editor.rects.rangeRects([2], 4, 9); // [DOMRect { x: 96, y: 412, width: 38, heig
 
 ## Block commands
 
-**`registerBlockCommand(kind, name, handler)`**
+**`registerBlockCommand(kind, name, handler, options?)`**
 
-Creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. It's process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped, so your plugin may reuse one command name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
+Creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The optional `options` say what the command does over a selection (**Over a selection**, below). The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. It's process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped, so your plugin may reuse one command name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
 
 ```ts
 const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {
@@ -1682,6 +1741,40 @@ The consumer route `editor.runCommand(id)` reaches neither of those tiers: it re
 
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
+**Over a selection.** The examples here use a made-up `poem` kind whose verses start with `~ `, and a `splitVerse` handler, bound to Enter, that breaks a verse in two at the caret.
+
+Over a selection spanning blocks, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as the built-in Enter and Mod+1 do. The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
+
+Over a selection inside your block, your command runs at the caret with the selection still there, which is right for most commands (a toggle reads the selection, it doesn't want it gone). A command that breaks the line wants what Enter does: pass `overSelection: 'afterRemoval'` too, and the selected text goes first, then your handler runs at the caret it left, with `ctx.node` already holding the shorter text. The removal and whatever your handler writes before it returns undo as one step (a write after an `await` lands in a step of its own).
+
+```ts
+const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
+	overRange: 'afterRemoval',
+	overSelection: 'afterRemoval'
+});
+// in the descriptor: keymap: [{ chord: 'Enter', command: newVerse }]
+// select from '~ ro|ses' into 'vio|lets', press Enter: '~ rolets' is left, then splitVerse runs between 'ro' and 'lets'
+// in '~ roses', select 'se' and press Enter: '~ ros' is left, then splitVerse runs between 'ro' and 's'
+```
+
+Two things are different once a removal came first. `ctx.afterRemoval` is `true`, so if your command has an "Enter on an empty line" branch of its own (leaving the block, say), skip it then: the line is empty because the selection went, not because the user left it empty. That's how the built-in Enter keeps a whole-item selection inside its list. And the key is taken once the removal runs, whatever your handler returns: `false` can't hand it on to the browser or another binding, since the selection is already gone.
+
+**`registerRangeIndent(kind, command, shift)`**
+
+Tab over a selection that spans blocks indents what it covers: list items nest, code lines shift. Your kind joins in when its keymap binds an indent key to your own command and you tell the editor what that command does over a range. `shift` gets one of your blocks and the stretch of its text the selection covers, and hands back the new text plus where the selection now sits in it, or `null` when nothing changes. The text is the block's raw without its final line ending. Skip the registration and your blocks just sit there under a range (Tab is still taken, so focus doesn't wander off the editor).
+
+```ts
+const indent = registerBlockCommand(poem, 'poem.indent', indentAtCaret);
+// in the descriptor: keymap: [{ chord: 'Tab', command: indent }]
+registerRangeIndent(poem, indent, (node, range) => ({
+	text: '~ \t' + node.raw.replace(/\r?\n$/, '').slice(2),
+	selection: { start: range.start + 1, end: range.end + 1 }
+}));
+// a selection from the paragraph above into '~ roses are red', then Tab: '~ \troses are red'
+```
+
+Every block of your kind the selection reaches gets one call, and the whole press is one undo entry, list moves and code shifts included. Only add whitespace. In development the editor checks that an indent over a range adds and drops no text, and it warns if you register a line shift on a container kind, since a range indent only asks the leaf holding the text.
+
 **`registerGlobalCommand(name, handler, { chord }?)`**
 
 The editor-wide sibling: it creates a process-wide command whose handler receives the dispatching instance's `EditorContext` rather than a block, so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Its second argument is whatever `runCommand(id, arg)` or the chord's binding passed, `undefined` when neither did. The chord is optional; without one the command runs only through `runCommand`. Call it from `setup`:
@@ -1702,6 +1795,8 @@ setup(ctx) {
 	ctx.onEditor(/* … */);
 }
 ```
+
+A handler that waits on something before it writes (a fetch, a dialog) should read `editor.documentGeneration` before the wait and compare it after: if the host loaded another note meanwhile, a write through `editor` lands in that one.
 
 The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](consumer-guide.md#rebinding-chords) lays out. Three consequences:
 
@@ -1802,7 +1897,7 @@ A plugin **may**:
 
 A plugin **may not**:
 
-- Treat its DOM as authoritative, or mutate the tree from the view layer. Boundary events flow up, and the tree always wins. Type-enforced since the readonly views: every plugin-visible node type is deep-readonly on its bytes ([Views](#views-what-you-read-what-you-own)).
+- Treat its DOM as authoritative, or mutate the tree from the view layer. Boundary events flow up, and the tree always wins. The types enforce it: every plugin-visible node type is deep-readonly on its bytes ([Views](#views-what-you-read-what-you-own)).
 - Write bytes through a node reference captured before an edit. After any change, read the node back from the tree; the old reference is stale.
 - Pass reactive tree state by value across a module boundary. Hand it through a live read instead (a getter, or a `() =>` thunk as the factory deps take).
 - Invent merge-role, unwrap, or container-contract values. Those are closed sets.

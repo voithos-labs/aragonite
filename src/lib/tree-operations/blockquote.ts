@@ -9,13 +9,14 @@ import { firstLineEnding } from '../core/lines';
 import type { RemainderBuilder } from './container-lift';
 
 /** A quote-shaped container's remainder is always a plain blockquote, since a marker like
- *  `[!TYPE]` lives only on the opener line the lift drops. Its depth is its own first line's. */
+ *  `[!TYPE]` lives only on the opener line the lift drops. It starts from the container's bytes,
+ *  so the lines it keeps keep their spelling. */
 export function plainQuote(grammar: GrammarView): RemainderBuilder {
 	return (container, children) => {
 		const remaining: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',
-			raw: '',
+			raw: container.raw,
 			metadata: { quoteDepth: 1 },
 			children,
 			childIds: assignIds(children),

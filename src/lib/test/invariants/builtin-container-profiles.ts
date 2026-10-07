@@ -92,10 +92,8 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, BuiltinContainerProfi
 		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
 	table: {
-		deepNesting: {
-			source: '| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n',
-			leafPath: [0, 2, 1]
-		},
+		// Tight on purpose: a rebuild that respells the padding fails the kit's rebuild cell.
+		deepNesting: { source: '|h1|h2|\n|-|:-|\n|a|b|\n|c|d|\n', leafPath: [0, 2, 1] },
 		localIndex: { mode: 'assert' },
 		ancestry: {
 			mode: 'boundary',
@@ -119,7 +117,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, BuiltinContainerProfi
 		terminatorCollision: GRID_TERMINATOR_BOUNDARY
 	},
 	tableRow: {
-		deepNesting: { source: '| h1 |\n| --- |\n| a |\n', leafPath: [0, 1, 0] },
+		deepNesting: { source: '|h1|\n|-|\n|a|\n', leafPath: [0, 1, 0] },
 		wholeProfileExemption:
 			'tableRow owns no author action bundle, no terminator and no rebuild of its own: every ' +
 			'row/column op runs through the enclosing table scope and its raw is re-derived wholesale ' +

@@ -27,6 +27,7 @@ import {
 	makeTopHarness,
 	pasteContext
 } from '$lib/test/harness/editor-actions';
+import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
 
 type Route = (source: string) => Promise<Document>;
 
@@ -65,6 +66,15 @@ const inContainer =
 	async (source) => {
 		const h = makeContainerHarness(source, path);
 		await edit(h.bundle);
+		return h.deps.doc;
+	};
+
+/** A table menu action on the document's first table, through the table's own commit. */
+const tableOp =
+	(op: Op): Route =>
+	async (source) => {
+		const h = makeHarness(source);
+		await runOp(h, op);
 		return h.deps.doc;
 	};
 
@@ -196,6 +206,19 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		source: 'intro\n\n- a\n- b',
 		after: 'intro\n\n- a\n- b\n- one\n- two',
 		route: paste([1, 1, 0], 1, '- one\n- two\n')
+	},
+	// ── a table row that stops being the last line takes an ending ──
+	{
+		name: 'blocks pasted into a cell of a last table leave the rows below a table',
+		source: 'intro\n\n|a|b|\n|-|:-|\n|1|2|\n|3|4|',
+		after: 'intro\n\n|a|b|\n|-|:-|\n|1|2|\n\nx\n\ny\n\n|3|4|\n|-|:-|',
+		route: paste([1, 1, 0], 1, 'x\n\ny\n')
+	},
+	{
+		name: 'deleting the header of a last table ends the row that replaces it',
+		source: 'intro\n\n|a|\n|-|\n|1|',
+		after: 'intro\n\n|1|\n|-|',
+		route: tableOp({ t: 'tableDeleteRow', i: 0 })
 	},
 	// ── a blank last line stays whole ──
 	{

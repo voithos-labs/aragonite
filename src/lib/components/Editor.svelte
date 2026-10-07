@@ -34,6 +34,7 @@
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
+	import { createCurrentSource } from '../reactivity/current-source';
 	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { createListTree } from '../reactivity/list-tree';
 	import { createLayoutState } from '../reactivity/layout-state.svelte';
@@ -46,16 +47,15 @@
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
+	import { createDraftRegistry } from './draft-registry';
+	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import type { EditorSelection } from '../selection/primitives';
-	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
-	import { imageAtTarget } from './image/image-edit-commit';
-	import type { SelectedWidgetHandle } from '../selection/primitives';
+	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
-	import { serialize } from '../core/serializer';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
+	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
@@ -133,6 +133,7 @@
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
+	import SelectionGapFill from './SelectionGapFill.svelte';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import InlineMenuHost from './menu/InlineMenuHost.svelte';
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
@@ -232,6 +233,7 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
+	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
@@ -279,8 +281,8 @@
 			else selectionAnnouncer.announce();
 		},
 		getDoc: () => doc,
-		// Read off the live document, since an image's own commits move its end byte.
-		widgetSpan: (target) => imageAtTarget(doc, target, reading)
+		// Read off the live document, since a widget's own commits move its end byte.
+		widgetSpan: (target) => widgetSpanAt(doc, target, reading)
 	});
 	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
 	const coverage = $derived.by(() => {
@@ -288,11 +290,6 @@
 		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
 		return rangeCoverage(doc, coverRange(doc, anchor, focus));
 	});
-	const widgetSelection = createWidgetSelectionState(selectionState);
-	const selectedWidget: SelectedWidgetHandle = {
-		range: () => selectionState.widgetRange(),
-		clear: widgetSelection.clear
-	};
 
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
@@ -338,8 +335,8 @@
 		return () => dispose();
 	});
 
-	// The one place `editEpoch` is bumped, off the content version because the `edit` event
-	// batches a typing burst; the tick keeps decoration sources off a half-applied tree.
+	// The one place `editEpoch` is bumped: off the content version, since a swap changes bytes with
+	// no `edit`; the tick keeps decoration sources off a half-applied tree.
 	let notifiedVersion = contentVersion.read();
 	$effect(() => {
 		const version = contentVersion.read();
@@ -348,8 +345,24 @@
 		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 	});
 
+	// ── Open menus ──────────────────────────────────────────────────────
+
+	const menuPresence = createMenuPresence({ isReading: () => effectiveMode === 'reading' });
+	const stamps = createDocumentStamps();
+	// Apart from the menus, so a shown source fires no `menuChange`.
+	const drafts = createDraftRegistry(stamps);
+	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
+	let menuWasOpen = false;
+	$effect(() => {
+		const open = menuPresence.isOpen;
+		if (open === menuWasOpen) return;
+		menuWasOpen = open;
+		events.emit('menuChange', open);
+	});
+
 	const documentSwap = createDocumentSwap({
 		grammar: registryView.grammar,
+		currentSource: currentSource.readUnchecked,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		noteTreeSwap: () => caretLanding.noteTreeSwap(),
@@ -366,8 +379,9 @@
 		},
 		undoManager,
 		caretMemory,
-		closeMenus,
-		widgetSelection,
+		menus: menuPresence,
+		stamps,
+		drafts,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
 		// refreshes regardless.
@@ -380,13 +394,16 @@
 		events
 	});
 
-	// The equality check is required: `docs/design/editor.md` § Reactive state plumbing.
+	// The mount parsed `source` already, so the first run swaps only for a write made since.
 	// svelte-ignore state_referenced_locally
-	let lastSource = source;
+	let parsedAtMount: string | undefined = source;
 	$effect(() => {
-		if (source === lastSource) return;
-		lastSource = source;
-		documentSwap.swapTo(source);
+		const next = source;
+		const unchangedSinceMount = next === parsedAtMount;
+		parsedAtMount = undefined;
+		if (unchangedSinceMount) return;
+		// Untracked so typing never re-runs it: `docs/design/editor.md` § Reactive state plumbing.
+		untrack(() => documentSwap.swapTo(next));
 	});
 
 	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
@@ -401,16 +418,6 @@
 	// formatting popover stays in charge, and tables run their own cell menu.
 	let blockMenu = $state<BlockMenuModel | null>(null);
 
-	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
-	const menuPresence = createMenuPresence();
-	let menuWasOpen = false;
-	$effect(() => {
-		const open = menuPresence.isOpen;
-		if (open === menuWasOpen) return;
-		menuWasOpen = open;
-		events.emit('menuChange', open);
-	});
-
 	// ── Link card ───────────────────────────────────────────────────────
 
 	// The caret snapshot and entry checks live on the link card state so no entry path skips
@@ -421,18 +428,6 @@
 		canEnter: () => !selectionState.isCrossBlock,
 		canOpenCreate: () =>
 			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
-	});
-
-	function closeMenus(): void {
-		blockMenu = null;
-		inlineMenu.close();
-		linkCard.close();
-	}
-
-	// A menu opened in one mode offers that mode's edits, so a mode change closes every menu.
-	$effect(() => {
-		void effectiveMode;
-		untrack(closeMenus);
 	});
 
 	// ── Hidden-run class check ──────────────────────────────────────────
@@ -564,7 +559,8 @@
 		getBlockElByPath,
 		caretLanding,
 		events,
-		reading
+		reading,
+		stamps
 	};
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
 		editorActionsDeps,
@@ -606,7 +602,10 @@
 		reading,
 		commitRange: (path, start, end, bytes, caretAfter) =>
 			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
-		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
+		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
+		// A source added outside any plugin's `onEditor` is the editor's own: the base context.
+		ownerOfNewSource: () => pluginContexts.attaching() ?? pluginContexts.get('')!,
+		drafts
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
@@ -627,6 +626,7 @@
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
 		runCommand: (commandId, arg) => runCommand(commandId, arg),
+		openDraft: drafts.open,
 		reading
 	});
 
@@ -646,7 +646,7 @@
 	// Aborted on unmount; document-level listeners observe it to cancel mid-operation work.
 	const lifetimeController = new AbortController();
 	$effect(() => () => {
-		// A pending checkpoint timer would otherwise emit for a document that is gone.
+		// Cancels the typing batch's pause timer, which would outlive the editor.
 		controller.flushDebouncedCheckpoint();
 		lifetimeController.abort();
 	});
@@ -742,8 +742,6 @@
 		caretMemory,
 		autoPairs,
 		scrollOwner,
-		widgetSelection,
-		selectedWidget,
 		linkCard,
 		inlineMenuCombobox: inlineMenu.comboboxFor,
 		controller,
@@ -755,6 +753,8 @@
 		rects,
 		commands,
 		menuPresence,
+		drafts,
+		stamps,
 		kindCue
 	} satisfies EditorServices);
 
@@ -802,6 +802,8 @@
 		get layout() {
 			return layout;
 		},
+		menus: menuPresence,
+		drafts,
 		events,
 		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {
@@ -830,8 +832,7 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		reading,
-		widgetSelection
+		reading
 	});
 	$effect(() => {
 		if (!editorEl) return;
@@ -869,6 +870,7 @@
 		insertCatalogue: getInsertCatalogue,
 		activation: activePlugins,
 		reading,
+		stamps,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -943,7 +945,6 @@
 		getDoc,
 		getBlockElByPath,
 		caretLanding,
-		revealPath: (path) => caretLanding.mount(path),
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
 		scrollOwner,
@@ -955,9 +956,7 @@
 		commands,
 		pasteCoordinator,
 		activePlugins,
-		events,
-		selectedWidget,
-		afterReactivity: () => tick()
+		events
 	});
 
 	// Every handler checks for this instance: the document listener sees every editor's keys,
@@ -999,10 +998,7 @@
 			return onPasteImage;
 		},
 		events,
-		getSelectedWidgetBlock: () => {
-			const selected = selectionState.widget;
-			return selected ? getBlockComponent(selected.paragraphPath) : null;
-		}
+		getBlockComponent
 	});
 
 	$effect(() => {
@@ -1126,7 +1122,7 @@
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
-		return serialize(doc);
+		return currentSource.read();
 	}
 
 	// The kind alone, never the node, so a host holds no handle into the tree.
@@ -1329,6 +1325,7 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
 	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
@@ -1358,13 +1355,11 @@
 		/>
 	{/if}
 	<ImageOverlayHost
-		{widgetSelection}
 		{inlineRange}
 		{events}
 		{getDoc}
 		getContentVersion={contentVersion.read}
 		getEditorEl={() => editorEl ?? null}
-		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		lifetime={lifetimeController.signal}
 		{menuPresence}
 	/>

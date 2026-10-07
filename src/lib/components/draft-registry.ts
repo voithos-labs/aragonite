@@ -1,0 +1,36 @@
+/**
+ * The editor's open drafts: edits held outside the document until they commit (a shown source, a
+ * diagram's edit box). Each is opened on the bytes it edits, and its commit asks `canWrite()`
+ * first: a `source` swap or an outside write to those bytes drops it, and a block the swap tore
+ * down still blurs, and so still tries to commit, after the swap has returned.
+ */
+
+import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
+import type { Draft, DraftCloseCause, DraftSpec } from '../schema/drafts';
+
+export interface DraftRegistry {
+	open(spec: DraftSpec): Draft;
+	/** A document swap and a mode change call it. */
+	closeAll(cause: DraftCloseCause): void;
+}
+
+/** A draft is opened on the document `stamps` has in place, and dies with it. */
+export function createDraftRegistry(stamps: Pick<DocumentStamps, 'current'>): DraftRegistry {
+	const open = new Set<DraftSpec>();
+	return {
+		open(spec) {
+			const openedOn = stamps.current();
+			open.add(spec);
+			return {
+				canWrite: () => openedOn.live && spec.current() === spec.seed,
+				end: () => void open.delete(spec)
+			};
+		},
+		closeAll(cause) {
+			for (const spec of [...open]) {
+				open.delete(spec);
+				spec.close(cause);
+			}
+		}
+	};
+}

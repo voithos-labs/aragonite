@@ -7,7 +7,7 @@
 <script lang="ts">
 	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
 	// this component owns only how the render and the source are laid out.
-	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 	// The layout toggle cycles through these, and its label names the layout it switches to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
@@ -22,7 +22,7 @@
 	};
 	import { mathSlot } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
-	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
+	import { mathBodySpan, renderMathSource, reshapeMathEdit } from './math-source';
 	import type { MathBlockLayout } from './math-layout';
 	import type { LatexEditorOptions } from './register';
 
@@ -51,7 +51,7 @@
 			draft = null;
 		},
 		renderSource: renderMathSource,
-		completeBareSource: completeBareMathSource,
+		reshapeSource: reshapeMathEdit,
 		onSourceEdit: (text) => {
 			draft = text;
 		}
@@ -63,10 +63,8 @@
 		if (revealed) e.preventDefault();
 	}
 
-	// Per block and per session, from this editor's options: undefined only for a block mounted with
-	// no editor, as the unit tests mount it.
-	const options = leaf.getOptions() as LatexEditorOptions | undefined;
-	let layout = $state<MathLayout>(options?.blockLayout ?? 'split');
+	// Per block and per session, starting from this editor's options.
+	let layout = $state<MathLayout>(leaf.getOptions<LatexEditorOptions>().blockLayout);
 	const previewOpen = $derived(layout !== 'source');
 
 	// The browser's own edits (an IME composition committing) skip `onSourceEdit`, so the
@@ -102,34 +100,7 @@
 		renderEl.dataset.renderCount = String(renderCount);
 	});
 
-	// ── BlockComponent interface ────────────────────────────────────────────────
-
-	export const editable = true;
-	export const focusable = true;
-
-	export const focus = leaf.focus;
-	export const parkCaret = leaf.parkCaret;
-	export const focusAtColumn = leaf.focusAtColumn;
-	export const getCursorOffset = leaf.getCursorOffset;
-	export const getSelectedText = leaf.getSelectedText;
-	export const setSelection = leaf.setSelection;
-	export const measurePartialRects = leaf.measurePartialRects;
-	export const insertMarkdown = leaf.insertMarkdown;
-	export const afterSourceCommit = leaf.afterSourceCommit;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		focusAtColumn,
-		getCursorOffset,
-		getSelectedText,
-		setSelection,
-		measurePartialRects,
-		insertMarkdown,
-		afterSourceCommit
-	} satisfies BlockComponent);
+	export const blockApi = leaf.blockApi;
 </script>
 
 <!-- While editing, the source and the live preview are two cards; the toggle sits in the

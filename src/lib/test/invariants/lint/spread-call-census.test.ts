@@ -24,6 +24,10 @@ interface Declaration {
 }
 
 const ALLOWLIST: Record<string, Declaration> = {
+	'src/lib/components/blocks/editable-surface.ts :: recorded': {
+		mode: 'bounded',
+		reason: 'a block command’s own arguments: an id and its value, or one clipboard payload'
+	},
 	'src/lib/components/blocks/text/live-join-seam.ts :: cleanLiveJoinSeam': {
 		mode: 'bounded',
 		reason: 'a Math.min over the two readings the join offers, deduplicated to one when they agree'

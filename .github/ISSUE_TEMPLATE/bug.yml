@@ -1,0 +1,31 @@
+name: Bug
+description: Something in the editor is broken
+type: Bug
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The markdown you started with and the keys you pressed. The smaller the better.
+      placeholder: |
+        - one
+          - two
+
+        Caret at the end of "two", press Backspace twice: the text is gone but the bullet stays.
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Version, browser, mode
+      description: Optional, but it saves a round trip. Only Chromium is tested so far, so Firefox and Safari reports are extra welcome.
+      placeholder: 0.10.8, Firefox 145 on Windows 11, live mode

@@ -28,6 +28,7 @@
 	import { useMeasuredChild } from '../reactivity/use-measured-child.svelte';
 	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
+	import { stampBlockContexts } from './stamp-block-contexts';
 
 	let {
 		node,
@@ -50,6 +51,7 @@
 	// The services and document contexts are optional here and in both overlays, for a partial
 	// test mount; the policies carry the editor's own getters, so a mount always has them.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	if (services?.stamps) stampBlockContexts(services);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
 	// A bare mount reads the global registry view.
@@ -162,7 +164,7 @@
 <div
 	class={[
 		'block-host',
-		{ 'reorder-host': reorderable && dragHandles, 'handle-host': showsHandle },
+		{ 'reorder-host': reorderable, 'handle-host': showsHandle },
 		...blockDecorations.classes
 	]}
 	data-block-path={JSON.stringify(myPath)}

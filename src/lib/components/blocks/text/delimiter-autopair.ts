@@ -162,14 +162,19 @@ export interface AutoPairSurface {
 	text(): string;
 	content(): ContentRange;
 	caret(): number | null;
+	/** Where a byte typed at `caret` lands, across a hidden edge the caret means; the caret itself
+	 *  where the block draws every marker. */
+	placeTyped?(caret: number, typed: string): number;
 	hasSelection(): boolean;
 	isRevealing(): boolean;
 	foldReveal(): { settled: Promise<void> } | null;
 	setCaret(offset: number): void;
 	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
 	seatOutside(): void;
-	/** One CST write plus the caret it leaves behind. */
-	write(text: string, caretBefore: number, caretAfter: number): void;
+	/** Whether a marker run the screen paints nothing for touches `caret`. */
+	hiddenRunAt(caret: number): boolean;
+	/** One CST write plus the caret it leaves behind; the block picks the undo caret. */
+	write(text: string, caretAfter: number): void;
 	/** Whether a step-over leaves the line one an on-type completer takes (`$$`); only a content
 	 *  write asks. */
 	completesLine?(caret: number): boolean;
@@ -190,9 +195,10 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const typing = e.inputType === 'insertText';
 	if (!typing && e.inputType !== 'deleteContentBackward') return false;
 	if (e.isComposing || surface.hasSelection()) return false;
-	const caret = surface.caret();
-	if (caret === null) return false;
+	const at = surface.caret();
+	if (at === null) return false;
 	const text = surface.text();
+	const caret = typing ? typedAt(text, at, e.data ?? '', surface) : at;
 	const ownPair = surface.ownPairs.consult(text, caret);
 	if (surface.isRevealing()) {
 		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.reading.grammar)) {
@@ -214,18 +220,33 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
-			if (edit.overConstruct && surface.reading.hidesDelimitersAtCaret()) surface.seatOutside();
-			else if (surface.completesLine?.(edit.caret)) surface.write(text, caret, edit.caret);
+			// A hidden closer shares the caret's pixel, so only the arrival side moves; a shown one is
+			// passed like any byte.
+			if (edit.overConstruct && surface.hiddenRunAt(caret)) surface.seatOutside();
+			else if (surface.completesLine?.(edit.caret)) surface.write(text, edit.caret);
 			else surface.setCaret(edit.caret);
 			return true;
 		case 'close':
-			surface.write(edit.text, caret, edit.caret);
+			surface.write(edit.text, edit.caret);
 			surface.seatOutside();
 			return true;
 		case 'write':
-			surface.write(edit.text, caret, edit.caret);
+			surface.write(edit.text, edit.caret);
 			return true;
 	}
+}
+
+/** Where a typed delimiter is decided: the caret, when the byte under it is the closer it steps
+ *  over, else where the byte will land, since what it writes depends on what is there. */
+function typedAt(text: string, caret: number, typed: string, surface: AutoPairSurface): number {
+	if (!surface.placeTyped || policyOf(typed, surface.reading.grammar) === null) return caret;
+	if (
+		text[caret] === typed &&
+		closingRunAt(text, surface.content(), caret, typed, surface.reading)
+	) {
+		return caret;
+	}
+	return surface.placeTyped(caret, typed);
 }
 
 /** Keep the record in step with an edit the auto-pair made to `text`: a pair it wrote or stepped

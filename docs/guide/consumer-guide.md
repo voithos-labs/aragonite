@@ -61,7 +61,7 @@ The editor owns the caret, the tree, and the undo stack. You own load, save, and
 
 A few things in the above example snippet are decently important; you might want to pay attention to them.
 
-1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It's not a two way bound: the editor never writes back into it, so the document you read is always `getSource()`.
+1. **`source` seeds the document at mount**, and a later write loads the new text ([Loading another document](#loading-another-document) has the one Svelte catch). It's not a two way bound: the editor never writes back into it, so the document you read is always `getSource()`.
 2. **`bind:this` is how you talk to a mounted editor.** For example, you might want to use important read functions like `getSource()` and `getSelection()`, or important write functions like `setSelection()` and `runCommand()`. [The instance surface](#the-instance-surface) covers all of it.
 3. **The editor paints no background of its own.** It inherits your page, so its mode has to match the page it lands on, and it says `light` twice because there are two things to match: the wrapper carries the built-in look (font, colors) for everything inside it, and the `theme` prop keys the editor's own surfaces. A fresh app's page is white, hence `light`; on a dark page write `dark` in both spots, or write nothing, dark being the default. Skip the wrapper if your app already declares the tokens; [Theming](#theming) has the two tiers and how to customize yours.
 
@@ -115,7 +115,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 | Prop               | What it does                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source`           | Seeds the document at mount, and re-seeds it whenever the prop changes; never two-way bound                                                                                                                                                                                                                                                                       |
+| `source`           | Seeds the document at mount; a later write replaces it only when it differs from `getSource()` (see [Loading another document](#loading-another-document)); never two-way bound                                                                                                                                                                                   |
 | `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                                                                                                                                                                                   |
 | `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes))                                                                                                                                                               |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                                                                                                                                                                                           |
@@ -138,6 +138,33 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 **Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `scrollMode`, `plugins`, and `syntax`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
 **Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
+
+### Loading another document
+
+Switching notes is a `source` write: hand it the new text and the editor replaces the document, clears undo, and says so on `sourceSwap` (not on `edit`). It compares the write with `getSource()`, not with whatever the prop held last, so writing the text it already holds does nothing and undo survives.
+
+One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor at all. Say `source` still holds the text you loaded and the user has typed since. Writing that same text back (to revert, say) does nothing, because as far as Svelte's concerned nothing changed. Hold the loaded document in an object you replace on each load, and the prop re-reads on every load, same text or not:
+
+```svelte
+<script>
+	let note = $state({ text: '# Hello\n' });
+
+	function load(text) {
+		note = { text }; // a new object every time, so the editor hears every load
+	}
+</script>
+
+<Editor source={note.text} />
+```
+
+Echoing `getSource()` back into `source` on every `edit` works too. It reads the whole document every keystroke though, so the object is cheaper.
+
+Either way, anything still in flight when you load belongs to the note you left, so it's dropped rather than written into the new one:
+
+- a formula whose source is showing
+- a diagram's edit box
+- a paste waiting on the clipboard
+- a menu pick waiting on its commit
 
 ### Switching a syntax off
 
@@ -385,15 +412,15 @@ off();
 
 Seven channels:
 
-| Channel                  | Fires                                                                                                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `edit`                   | After every applied edit: a structural operation, a batch of typing (consecutive keystrokes flush as one), an undo or redo                                                                  |
-| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                                                                                      |
-| `error`                  | On a failure the editor contained rather than threw                                                                                                                                         |
-| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                                                                  |
-| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                                                                                 |
-| `sourceSwap`             | After a `source` prop write replaces the whole document; the payload is `{ generation }` (never at mount, and never on `edit`)                                                              |
-| `menuChange`             | `true` when an editor-owned menu or popover opens and `false` when the last one closes (not the selection toolbar's own flyout, nor a view a plugin draws); hide selection chrome meanwhile |
+| Channel                  | Fires                                                                                                                                                                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every applied edit: a structural operation, a keystroke (each one, as it's written), an undo or redo                                                                                                                                     |
+| `selectionChange`        | Whenever the selection changes; the payload is the snapshot, or `null`                                                                                                                                                                         |
+| `error`                  | On a failure the editor contained rather than threw                                                                                                                                                                                            |
+| `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                                                                                                                     |
+| `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                                                                                                                                    |
+| `sourceSwap`             | After a `source` prop write replaces the whole document (a write of the text the editor already holds replaces nothing); the payload is `{ generation }` (never at mount, and never on `edit`)                                                 |
+| `menuChange`             | `true` when an editor-owned menu or popover opens and `false` when the last one closes (not the selection toolbar's own flyout, nor a view a plugin draws); hide selection chrome meanwhile. A mode change or a `source` swap closes them all. |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
 
@@ -403,14 +430,14 @@ What each channel hands you:
 
 ```ts
 events.on('edit', (e) => e);
-// { op: 'input', path: [2], detail: { byteLength: 1 }, timestamp: 1788390000412 }
+// { op: 'input', path: [2], timestamp: 1788390000412 }
 // { op: 'split', path: [2], detail: { at: 14 }, timestamp: 1788390001033 }
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 ```
 
-A typing flush's `byteLength` counts every keystroke in the burst, at any depth. That includes a last key that changed its block's kind (the space that makes `#` a heading, say), which also fires its own `updateContent` right after the flush.
+A keystroke fires its `input` as it's written, one per key, with no `detail` (read the block if you need its text). A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end. So if you save on `edit`, that's a save per keystroke: debounce your own, say a second after the last `edit`.
 
-`path` is document-absolute for every operation, nested ones and the typing flush included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
+`path` is document-absolute for every operation, nested ones and typing included: it walks from the document root to the block that was operated on. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
 **`selectionChange`** carries the `EditorSelection` snapshot, or `null` when nothing is focused. While an image is selected whole, the snapshot is a collapsed caret at the image's edge (its end, after a click): the next `insertMarkdown` or keystroke still replaces the image, and `setSelection` of that snapshot puts a caret back without selecting the image again.
 
@@ -489,7 +516,6 @@ events.on('error', (err) => err);
 
 - A construct with no content (a bare `# `, an empty fence) keeps its markers dimmed so the block stays visible and editable, and the first character of content folds them away.
 - A keystroke that turns its block into another kind (a tab that makes a code block, `# ` that makes a heading) names the new kind at the block's corner for a moment, and a screen reader hears it once. The preview modes do the same.
-- A hard line break whose backslash or trailing spaces don't show draws a dimmed `↵` where they are.
 
 Three things behave differently from what the screen might suggest:
 
@@ -500,9 +526,11 @@ Three things behave differently from what the screen might suggest:
 <details>
 <summary>How live mode edits behind markers you can't see</summary>
 
-Hiding every marker means one screen position can mean two raw offsets wherever a construct's delimiters sit. Live answers that with five rules, each applied in one place so it holds for every gesture:
+Hiding every marker means one screen position can mean two raw offsets wherever a construct's delimiters sit. Live answers that with seven rules, each applied in one place so it holds for every gesture, and for every way text arrives (a key, a soft keyboard, an IME, a paste):
 
 - **A character typed at a hidden edge follows how the caret got there.** Arriving from outside a construct types outside it; walking into it types inside. A construct that never grows at its edges (a link) always takes the outside. A delimiter you type closes itself (`*`, `**`, `` ` ``, `~~`, and a plugin's `$`), typing the closer over its twin steps past it, and the next character after a closer you typed lands outside the construct.
+- **A space keeps you inside what you're typing.** A closer can't follow a space, so the space goes past the hidden `**`, but the next letter brings it back in: typing `**two words` gives `**two words**`, not `**two** words`. One `→`, `End`, the closer, or the bold's own chord (`Mod+B`) takes you out, and the space stays where it is. Another chord takes you out too and arms its format for the next character, which lands after the bold.
+- **An arrow crosses a hidden edge in a press of its own.** At the end of `**bold**`, the first `→` moves where the next character goes, from inside the bold to past it, and the second moves the caret. A faint ring (`--md-edge-held-ring`) marks the construct the next character would join, since the caret itself doesn't move. Shift, Ctrl, Alt and Cmd arrows skip the stop, and a link, which always takes the outside, costs no extra press.
 - **A caret placed at an extreme lands outside.** `Home`, `End`, and collapsing a selection put the caret past the delimiters, not between them. Placing a caret isn't a step, so the direction of the key that placed it doesn't decide the side.
 - **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one stranded delimiter in each half, and a split link carries its destination into both halves. Where no balanced rewrite shows what the screen showed (a code span whose reopened backticks would collide with its own, say), the split falls back to a plain byte cut.
 - **A join cleans up after itself.** `Backspace`, `Delete`, a range delete, typing over a selection, and a paste all go through the same code: a delimiter run the cut orphaned goes with the cut instead of appearing on screen, and a closer meeting an opener around nothing is dropped. Every candidate cleanup is checked against what the two sides showed, and the byte-literal join stands when it can't be.
@@ -663,7 +691,7 @@ Two editors in one process can list different depths this way; the factory form,
 
 The two options:
 
-- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the plugin's editor context and, if the row sets `takesArgument: true`, the word typed after a space). A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
+- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the editor's context for that pick and, if the row sets `takesArgument: true`, the word typed after a space). A `run` may be async: if it opens a picker and waits, the context it was handed writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
 - `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `getInsertCatalogue()` (`math`, `note`).
 
 Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it on the `error` event and keeps the factory's options.
@@ -753,6 +781,8 @@ A live change is supported, and virtual rendering re-estimates the document at t
 
 Outside this contract sits the editor's own visual language: the syntax and code-token palettes, the marker colors, the selection, search, and reorder tints (derived from `--color-selection`, above), and the surfaces windowing paints where blocks aren't mounted yet. Those are dark-based or mode-independent; read `editor-theme.css` if you mean to retheme them.
 
+One corner of it you'll prob want anyway is inline code, which reads three tokens, overridden at `.editor` like the rest. `--syntax-code` is the code text (it defaults to the text around it), `--md-inline-code-bg` is the chip's fill, and `--md-inline-code-border` is its outline (transparent until you give it a color). The fill and the outline each have a light and a dark default.
+
 **Plugin fallbacks.** A plugin reading a token keeps an inline fallback (`var(--color-text-muted, #aaaaaa)`) so it renders with no host. The rule for a fallback is the token's dark base value in `editor-theme.css`, never the light one (a few bundled plugins don't follow it yet). The one exception is the primary text color, `--color-text-primary`: it falls back to `currentColor`, so an editor with no host tokens and no wrapper inherits the page's own text instead of painting white on whatever the page is. Which scopes a fallback fires in follows the tier: an editor-owned token defaults on `.editor`, so its fallback only fires outside the editor, while a host-chrome token defaults behind the opt-in class alone, so in a host that skips the class the fallback fires inside `.editor` too.
 
 ## Keyboard shortcuts
@@ -761,7 +791,12 @@ Two terms before the table. A **chord** is one key plus its modifiers, written a
 
 Shifted symbols aren't modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-This table is for a reader. Bundled plugins list their chords here under their own family; a third-party plugin documents its own. An app deriving an accelerator map should read `editor.reservedChords()` instead, since that set is composed from the live keymaps and covers chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)). The selection chords are one example: Shift+Arrow to extend a selection, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code rather than the keymap, so they aren't rebindable and aren't listed here.
+This table is for a person reading it. Bundled plugins list their chords here under their own family; a third-party plugin documents its own. An app deriving an accelerator map should read `editor.reservedChords()` instead, since that set is composed from the live keymaps and covers chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)).
+
+A few chords aren't in the table because no keymap holds them, so they aren't rebindable either:
+
+- **The selection chords.** Shift+Arrow to extend a selection, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code.
+- **`Home`, `Shift+Home` and `Mod+Home`.** They move the caret the way they do in any text box. The editor only steps in where a block's text starts behind something you can't put a caret in: a marker (a list item's, a footnote's) or an inline widget (an image, a formula). There `Home` on the block's first line stops where the text starts, and `Mod+Home` goes there from any line.
 
 Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips: its one drag handle, in the editor's gutter, moves the whole table.
 
@@ -781,7 +816,8 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Indent / outdent a list item        | `Tab` / `Shift+Tab`                                                             |
 | Check / uncheck a task item         | `Mod+Enter`                                                                     |
 | Indent / dedent a code line         | `Tab` / `Shift+Tab`                                                             |
-| Insert a tab in prose               | `Tab`                                                                           |
+| Insert a tab in prose               | `Tab` (at a caret; over a selection it does nothing)                            |
+| Indent / outdent a selection        | `Tab` / `Shift+Tab` (its list items and fenced code lines)                      |
 | Undo                                | `Mod+Z`                                                                         |
 | Redo                                | `Mod+Y` or `Mod+Shift+Z`                                                        |
 | **Block reorder**                   |                                                                                 |
@@ -844,6 +880,8 @@ The `keybindings` prop rebinds (or disables, with `command: null`) chords that g
 ```
 
 An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command but the press is still consumed, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
+
+**Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a heading level), it first removes the selection, the way `Backspace` would, then does its thing where that leaves the caret. So rebind the heading to `Mod+Alt+1` and that chord makes a heading over a selection too, while a disabled `Mod+1` leaves the selection alone. The binding that counts is the one in the block the caret lands in after the removal, so a binding scoped to one kind works here too. The indent keys follow the same rule: a chord you bind to `list.indent` indents a selection's list items, like Tab. That's the keyboard, mind you; `runCommand` with a heading level still declines over a selection spanning blocks, as [Toolbar commands](#toolbar-commands) says.
 
 Scoping by kind is what makes the shared structural chords reachable, since a chord like `Tab` is bound separately on every kind that wants it. The first entry above frees `Tab` inside list items (for focus traversal in a form-embedded editor, say) and leaves `Tab` alone in code blocks and prose.
 
@@ -1209,13 +1247,16 @@ editor.getInlineMenus().open('doc-links');
 ```
 
 1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
-2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block. An empty `insert` is fine and just removes the trigger and the query, which is the shape for a `/` command: the pick clears what was typed, and `onCommit` inserts the block through `insertMarkdown`, which puts it in as a paste would. Make `onCommit` async and await the insert there: every write that lands while its promise is pending, up to the author's next input in this editor, is part of the pick's undo entry, so the block and the cleared query come back in one press. The bundled slash-commands plugin is that shape.
-3. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
-4. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. `open(name, { query })` types a query after the trigger too, so the list opens narrowed.
-5. **Some places never open a list, whatever your grammar says.** A trigger you type only opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, so a `#` in a URL fragment stays a fragment, and a destination still being typed (its closing `)` hasn't arrived yet) counts as a destination too. A link's own text is prose, and a trigger there opens. And no list opens at all in a table cell, in reading mode, or over a selection.
-6. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
-7. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `row` component; it receives the `item`, whether it is `active`, and the `query`.
-8. **From a plugin, the same registry is `editor.inlineMenus`** on your `onEditor` context; return the handle's `dispose` from the callback.
+2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block.
+3. **A pick that inserts a block goes through `onCommit`.** That's the shape for a `/` command: give the row an empty `insert`, which just removes the trigger and the query, and have `onCommit` call `insertMarkdown` on the editor context it gets as its third argument, which puts the block in the way a paste would. The bundled slash-commands plugin works exactly like this. Two things about that context:
+   - Make `onCommit` async and await the insert. Every write that lands while its promise is pending, up to the author's next input in this editor, joins the pick's undo entry, so one undo takes back the block and the cleared query together.
+   - It's scoped to the pick. If your commit waits on something (a fetch for a title, say) and the host loads another note meanwhile, its writes land nowhere instead of in the new one.
+4. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
+5. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. `open(name, { query })` types a query after the trigger too, so the list opens narrowed.
+6. **Some places never open a list, whatever your grammar says.** A trigger you type only opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, so a `#` in a URL fragment stays a fragment, and a destination still being typed (its closing `)` hasn't arrived yet) counts as a destination too. A link's own text is prose, and a trigger there opens. And no list opens at all in a table cell, in reading mode, or over a selection.
+7. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
+8. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `row` component; it receives the `item`, whether it is `active`, and the `query`.
+9. **From a plugin, the same registry is `editor.inlineMenus`** on your `onEditor` context; return the handle's `dispose` from the callback. Add your source in `onEditor` itself, not after an `await` there: a pick's context is built on the context of the plugin that added the source, and a source added late gets the editor's own context instead, which belongs to no plugin, so its `options` reads as `{}`. A source you add through `editor.getInlineMenus()` gets that same context.
 
 The tag source in `src/routes/demo-tags/tag-marks-plugin.ts` is this recipe over a synchronous list, `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` over a late one, and `src/lib/plugins/slash-commands/slash-source.ts` over picks that insert blocks.
 
@@ -1240,7 +1281,7 @@ For rewriting a whole document (converting legacy syntax, migrating content, app
 <Editor bind:this={editor} {source} />
 ```
 
-The replacement is one document swap, so undo history and the caret don't survive it, and it's announced on `sourceSwap` rather than `edit`.
+The replacement is one document swap, so undo history and the caret don't survive it, and it's announced on `sourceSwap` rather than `edit`. A rewrite that changed nothing (no `*` bullets to begin with) hands the editor its own text, which isn't a swap at all, so undo survives that one.
 
 A transformer working over `parse`'s output can lean on how the document is put back together: `serialize` is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children, so a rewrite can replace individual blocks' bytes and reassemble without touching the rest.
 

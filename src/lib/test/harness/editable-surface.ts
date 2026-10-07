@@ -4,36 +4,41 @@ import {
 	createEditableSurface,
 	type EditableSurfaceDeps
 } from '$lib/components/blocks/editable-surface';
+import type { BlockEditActions } from '$lib/action-contracts';
+import type { NodeView } from '$lib/core/node-views';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import { createSurfaceBackend } from '$lib/cursor/surface-backend';
 import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { fixtureReading } from './fixture-grammar';
-import { stubCaretMemory } from '$lib/testing/headless-actions';
+import { stubBlockEdit, stubCaretMemory } from '$lib/testing/headless-actions';
 import type { CaretMemory } from '$lib/cursor/caret-memory';
 import { commandContext } from '../support/command-context';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
-	/** Recorded by the default commitInput; empty when a custom one is passed. */
-	commits: Array<{ text: string; preEdit: number; saved: number }>;
+	/** Every content write, as the block's list received it; empty when a real `blockEdit` is passed. */
+	commits: Array<{ text: string; preEdit: number; saved: number | undefined }>;
 	/** Where each `backend.setRaw` put the caret, read back as a raw offset, in order. */
 	seats: number[];
 	el: HTMLElement;
 	setCaret: (offset: number) => void;
 }
 
-/**
- * An editable block over a real contenteditable: a test simulates the IME by assigning
- * `el.textContent`, as the browser does, and sets the caret by hand because jsdom has none.
- */
+/** An editable block over a real contenteditable: a test assigns `el.textContent` as an IME does,
+ *  and sets the caret by hand since jsdom has none. The block is an empty last line by default. */
 export function makeSurface(
-	commitInput?: EditableSurfaceDeps['commitInput'],
-	relocateComposedText?: EditableSurfaceDeps['relocateComposedText'],
 	options: {
+		relocateComposedText?: EditableSurfaceDeps['relocateComposedText'];
 		presentationMode?: string;
 		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
+		handleKeydown?: EditableSurfaceDeps['handleKeydown'];
 		/** Inert by default; pass a real memory to see what an input does to it. */
 		caretMemory?: CaretMemory;
+		blockEdit?: BlockEditActions;
+		getNode?: () => NodeView;
+		/** Real collaborators in place of the stubs, for a block wired to a live document. */
+		overrides?: Partial<EditableSurfaceDeps>;
 	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
@@ -52,6 +57,13 @@ export function makeSurface(
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
 	const writer = createSurfaceBackend({ getEl: () => el });
+	const recording: BlockEditActions = {
+		...stubBlockEdit(),
+		updateBlockContent: (_index, text, _mode, preEdit, saved) => {
+			commits.push({ text, preEdit, saved });
+			return withStoredCaret(Promise.resolve(true), saved ?? preEdit);
+		}
+	};
 
 	const deps = {
 		getEl: () => el,
@@ -63,25 +75,27 @@ export function makeSurface(
 				seats.push(sel?.focusNode ? rawOffsetAt(el, sel.focusNode, sel.focusOffset) : offset);
 			}
 		},
+		getNode: options.getNode ?? (() => ({ kind: 'paragraph', leadingTrivia: '', raw: '' })),
 		getMyPath: () => [0],
 		getIndex: () => 0,
 		getComposing: () => composing,
 		setComposing: (value: boolean) => {
 			composing = value;
 		},
-		setPendingCursor: () => {},
+		requestCaret: () => {},
 		selection: { isCrossBlock: false },
 		caretMemory: options.caretMemory ?? stubCaretMemory(),
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		focusActions: {},
 		caretLanding: { mount: async () => null },
-		getDoc: () => null,
+		getDoc: () => ({ kind: 'document', prefix: '', children: [], suffix: '' }),
 		getBlockElByPath: () => null,
 		scrollOwner: { place: () => ({ scroll: async () => true }) },
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		containerEdit: {},
-		blockEdit: {},
-		controller: {},
+		blockEdit: options.blockEdit ?? recording,
+		controller: { endContinuedBurst: () => {} },
 		history: {},
 		getPresentationMode: () => 'source' as const,
 		reading: fixtureReading(),
@@ -90,13 +104,10 @@ export function makeSurface(
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
-		relocateComposedText,
+		relocateComposedText: options.relocateComposedText,
+		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,
-		commitInput:
-			commitInput ??
-			((text: string, preEdit: number, saved: number) => {
-				commits.push({ text, preEdit, saved });
-			})
+		...options.overrides
 	} as unknown as EditableSurfaceDeps;
 
 	return {

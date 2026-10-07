@@ -29,7 +29,7 @@ describe('details terminator escape at the split entry point', () => {
 			...detailsOwner(),
 			lineEnding: '\n' as const
 		};
-		splitNode(parent, 0, 3, undefined, fixtureReading());
+		splitNode(parent, 0, 3, createSharingState(), fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
 	});
@@ -44,7 +44,7 @@ describe('details terminator escape at the split entry point', () => {
 		};
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
-		splitNode(parent, 0, 10, undefined, fixtureReading());
+		splitNode(parent, 0, 10, createSharingState(), fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
 	});
@@ -55,7 +55,7 @@ describe('details terminator escape at the split entry point', () => {
 			owner: undefined,
 			lineEnding: '\n' as const
 		};
-		splitNode(parent, 0, 3, undefined, fixtureReading());
+		splitNode(parent, 0, 3, createSharingState(), fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
 	});
@@ -118,9 +118,13 @@ describe('details terminator escape at the join entry points', () => {
 	it.each([
 		[
 			'Backspace',
-			(parent: BodyParent) => mergeIntoPrevDeepLeaf(parent, 2, undefined, fixtureReading())
+			(parent: BodyParent) =>
+				mergeIntoPrevDeepLeaf(parent, 2, createSharingState(), fixtureReading())
 		],
-		['Delete', (parent: BodyParent) => mergeWithNext(parent, 1, fixtureReading(), undefined)]
+		[
+			'Delete',
+			(parent: BodyParent) => mergeWithNext(parent, 1, fixtureReading(), createSharingState())
+		]
 	])('%s escapes a terminator the join forms', (_key, join) => {
 		const { doc, details } = joinInBody(join);
 

@@ -95,3 +95,10 @@ export type {
 	InlineConformanceProfile,
 	InlineConformanceReport
 } from './testing/inline-conformance';
+
+// ── Inline-menu commit conformance cell ──────────────────────────────────────
+// What a source's `onCommit` is held to: a commit that waits writes nothing into a note the host
+// loaded meanwhile.
+
+export { checkInlineMenuCommitAcrossSwap } from './testing/inline-menu-conformance';
+export type { InlineMenuCommitCase } from './testing/inline-menu-conformance';

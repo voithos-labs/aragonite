@@ -8,6 +8,7 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /**
  * The document's bytes, since per-half raws can't show a dropped block; the shape must also reload
@@ -15,7 +16,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
  */
 function splitBytes(source: string, offset: number): string {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, undefined, fixtureReading());
+	splitNode(doc, 0, offset, createSharingState(), fixtureReading());
 	expect(describeConvergence(doc), `${JSON.stringify(source)} @${offset}`).toBeNull();
 	return serialize(doc);
 }
@@ -107,7 +108,7 @@ describe('a split cutting on a line ending', () => {
 	// A second half parsing to two blocks lands both, so the document holds three.
 	it('a second half of two blocks splices both in', () => {
 		const doc = parse('<div>\nabc\n</div>\n');
-		splitNode(doc, 0, 5, undefined, fixtureReading());
+		splitNode(doc, 0, 5, createSharingState(), fixtureReading());
 		expect(doc.children.length).toBe(3);
 		expect(doc.children.map((c) => c.kind)).toEqual(['htmlBlock', 'paragraph', 'htmlBlock']);
 		expect(serialize(doc)).toBe('<div>\n\nabc\n</div>\n');

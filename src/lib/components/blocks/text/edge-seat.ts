@@ -6,7 +6,7 @@
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import type { EdgeAffinity, PinnedOffset } from '../../../cursor/edge-affinity';
 import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -22,6 +22,13 @@ import {
 import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
+import type { CaretMemory } from '../../../cursor/caret-memory';
+import type { PlacedEdit, PlaceInsertion } from '../../../cursor/next-insertion';
+import type { HeldSpaceView } from '../../../cursor/held-space';
+import type { NodeView } from '../../../core/node-views';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { withOwnEnding } from '../surface-write';
+import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
 
 export interface EdgeSeat {
 	/** Raw offset the byte must be written at. */
@@ -76,25 +83,100 @@ export function resolveEdgeSeat(
 	return null;
 }
 
-/** The bytes an IME composition's commit should have written. `insertCompositionText` cannot be
- *  cancelled, so the composed run is moved once, on the commit that lands it. */
-export function relocateComposedRun(
+/** `typed`, inserted at `at` in `before`, written where the edge resolver puts it, or null where
+ *  it already lands there. `caret` counts only where it names the same screen position as `at`. */
+export function relocateInsertion(
 	before: string,
-	after: string,
-	composedAt: number,
+	at: number,
+	typed: string,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	screen: VisibilityContext,
-	reading: Reading
-): { raw: string; caret: number } | null {
-	const composed = plainInsertionAt(before, after, composedAt);
-	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, reading);
-	if (!seat) return null;
+	reading: Reading,
+	caret = at
+): PlacedEdit | null {
+	const samePosition =
+		caret === at || seatOffsetsAt(at, inlines, before, screen, reading.grammar).includes(caret);
+	const from = samePosition ? caret : at;
+	const seat = resolveEdgeSeat(from, inlines, affinity, before, screen, typed, reading);
+	if (!seat || seat.offset === at) return null;
+	const lo = Math.min(seat.offset, at);
+	const hi = Math.max(seat.offset, at);
+	const crossed = [...inlineDescendants(inlines)].flatMap((node) => {
+		const content = constructContentRange(node);
+		const edge = (offset: number) => offset >= lo && offset <= hi;
+		return content && (edge(content.start) || edge(content.end)) ? [node.kind] : [];
+	});
 	return {
-		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
-		caret: seat.offset + composed.length
+		text: before.slice(0, seat.offset) + typed + before.slice(seat.offset),
+		caretAfter: seat.offset + typed.length,
+		crossed
 	};
+}
+
+// ── One block's placement of what is typed ──────────────────────────────────
+
+export interface TypedPlacementDeps {
+	getEl: () => HTMLElement | null;
+	/** The block, whose displayed text an insertion goes into. */
+	getNode: () => NodeView;
+	reading: Reading;
+	caretMemory: Pick<CaretMemory, 'side'>;
+	/** The block's held space (`cursor/held-space.ts`), read lazily: the block makes it later. */
+	heldSpace: () => HeldSpaceView;
+}
+
+/** Where text typed into a block lands while its screen hides markers, for the two places that
+ *  ask: the write every insertion passes, and the auto-pair, which decides at `beforeinput`. */
+export interface TypedPlacement {
+	/** The block's step in every insertion's write (`next-insertion.ts`). */
+	insertion: PlaceInsertion;
+	/** The offset a byte typed at `caret` now lands at. */
+	offsetFor(caret: number, typed: string): number;
+}
+
+export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
+	const hidingScreen = (): VisibilityContext | null => {
+		const el = deps.getEl();
+		return el && revealsNoMarkers(el) ? screenVisibilityOf(el) : null;
+	};
+	// The tree of `text`, which is the block's own unless a held space was lifted out of it.
+	const inlinesOf = (text: string): InlineNode[] => {
+		const node = deps.getNode();
+		const raw = withOwnEnding(node, text);
+		return resolvedInlineContent(raw === node.raw ? node : { ...node, raw }, deps.reading);
+	};
+	return {
+		insertion: (before, edit, at, side, caret) => {
+			const screen = hidingScreen();
+			if (!screen) return null;
+			const typed = edit.text.slice(at, at + edit.text.length - before.length);
+			const inlines = inlinesOf(before);
+			return relocateInsertion(before, at, typed, inlines, side, screen, deps.reading, caret);
+		},
+		offsetFor: (caret, typed) => {
+			const screen = hidingScreen();
+			if (!screen) return caret;
+			const node = deps.getNode();
+			// The closer a held space was written past is still the caret's to type over.
+			const inside = deps.heldSpace().at() === caret ? deps.heldSpace().inside() : null;
+			if (inside !== null && node.raw[inside] === typed) return inside;
+			const reading = deps.reading;
+			const inlines = resolvedInlineContent(node, reading);
+			const side = deps.caretMemory.side();
+			const seat = resolveEdgeSeat(caret, inlines, side, node.raw, screen, typed, reading);
+			return seat?.offset ?? caret;
+		}
+	};
+}
+
+/** A prose block's `beforeinput` steps for typed text: the auto-pair first, since the live range
+ *  edit writes a delimiter at a collapsed caret as a lone byte. True when a step took the event. */
+export function applyTypedInput(
+	e: InputEvent,
+	steps: { autoPair: (e: InputEvent) => boolean; rangeEdit: (e: InputEvent) => boolean }
+): boolean {
+	return steps.autoPair(e) || steps.rangeEdit(e);
 }
 
 /** The text a commit's reading added at `at`, or null when that reading is not a plain insertion
@@ -125,6 +207,60 @@ export function seatOffsetsAt(
 		: offsets;
 }
 
+/** The offsets a plain arrow press stops at, ascending: each boundary of the caret's position a
+ *  typed byte can be written at. Fewer than two means there is no choice, so the arrow moves. */
+export function edgeStops(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading
+): number[] {
+	const typedAt = (offset: number) =>
+		typingOffset(caretOffset, inlines, { offset }, raw, screen, reading);
+	return seatOffsetsAt(caretOffset, inlines, raw, screen, reading.grammar)
+		.filter((offset) => typedAt(offset) === offset)
+		.sort((a, b) => a - b);
+}
+
+/** The raw offset the next byte would be written at under `affinity`. */
+export function typingOffset(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading
+): number {
+	const edge = resolveEdgeSeat(caretOffset, inlines, affinity, raw, screen, PROBE_BYTE, reading);
+	return edge?.offset ?? caretOffset;
+}
+
+/** The stop a plain arrow press moves the typing offset to, one past the current one in its
+ *  direction, or null when the press moves the caret as usual (live-mode.md § 4.2). */
+export function edgeStep(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null,
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading,
+	direction: 'backward' | 'forward'
+): number | null {
+	const stops = edgeStops(caretOffset, inlines, raw, screen, reading);
+	if (stops.length < 2) return null;
+	const current = typingOffset(caretOffset, inlines, affinity, raw, screen, reading);
+	const ahead =
+		direction === 'forward'
+			? stops.filter((offset) => offset > current)
+			: stops.filter((offset) => offset < current).reverse();
+	return ahead[0] ?? null;
+}
+
+/** A byte stands in for whatever the user types next: a letter, which pairs with nothing, so the
+ *  render's verdict is about the offset and not about the byte. */
+const PROBE_BYTE = 'a';
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 interface MarkerRun {
@@ -137,17 +273,20 @@ interface MarkerRun {
 	span: ContentRange;
 }
 
-function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
+/** An arrival side, the pinned case set aside: a pin is an offset, not a side. */
+type Side = Exclude<EdgeAffinity, PinnedOffset>;
+
+function offsetForSide(run: MarkerRun, side: Side): number {
 	if (side === 'near') return run.start;
 	if (side === 'far') return run.end;
 	return run.leading ? run.start : run.end;
 }
 
-const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
+const otherEnd = (run: MarkerRun, side: Side): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
-/** The offsets to try, best first: the policy's side, the run's other end, the caret itself, then
- *  the rest of the screen position, nearest the policy's side first. */
+/** The offsets to try, best first: a pin the position still holds, the policy's side, the run's
+ *  other end, the caret, then the rest of the position, nearest the policy's side first. */
 function candidateOffsets(
 	run: MarkerRun,
 	edgeAffinity: InlineConstructPolicy['edgeAffinity'],
@@ -157,10 +296,23 @@ function candidateOffsets(
 ): number[] {
 	// `never-extend` lands past the construct's delimiters; a symmetric pair follows the side the
 	// caret arrived from, else the near side (`docs/design/live-mode.md` § 4.2).
-	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
+	const position = screenPositionOffsets(run, runs);
+	// A pin is the offset an edge step chose among the ones this resolver accepts (`edgeStops`), so
+	// it outranks the policy while the caret's position still holds it.
+	const pinned =
+		typeof affinity === 'object' && affinity !== null && position.includes(affinity.offset)
+			? affinity.offset
+			: null;
+	const recorded = typeof affinity === 'string' ? affinity : null;
+	const side: Side = edgeAffinity === 'never-extend' ? 'outside' : (recorded ?? 'near');
 	const preferred = offsetForSide(run, side);
-	const ranked = [preferred, otherEnd(run, side), caretOffset];
-	const rest = screenPositionOffsets(run, runs)
+	const ranked = [
+		...(pinned === null ? [] : [pinned]),
+		preferred,
+		otherEnd(run, side),
+		caretOffset
+	];
+	const rest = position
 		.filter((offset) => !ranked.includes(offset))
 		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
 	const offsets = [...new Set([...ranked, ...rest])];

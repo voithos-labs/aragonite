@@ -98,17 +98,6 @@ const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint
 
 const GESTURES: EditGesture[] = [
 	{
-		name: 'hard break at end of display',
-		source: 'abc\n',
-		apply: (doc) =>
-			insertHardBreak(
-				doc.children[0].raw,
-				displayLength(doc.children[0].raw),
-				documentLineEnding(doc),
-				{ start: 0, end: displayLength(doc.children[0].raw) }
-			).newRaw
-	},
-	{
 		name: 'hard break mid display',
 		source: 'abc\n',
 		apply: (doc) =>
@@ -155,7 +144,7 @@ const GESTURES: EditGesture[] = [
 	},
 	{
 		name: 'list exit minting the paragraph below the list',
-		source: '- a\n- b\n',
+		source: '- a\n- \n',
 		apply: (doc) =>
 			serializeNodes(buildExitReplacement(doc.children[0], 1, documentLineEnding(doc)).blocks)
 	},

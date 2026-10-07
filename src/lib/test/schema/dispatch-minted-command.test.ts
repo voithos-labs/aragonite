@@ -40,7 +40,7 @@ describe('leaf-path dispatch of a created block command', () => {
 		);
 
 		expect(handled).toBe(true);
-		expect(handler).toHaveBeenCalledWith({ node, updateMetadata, arg: 7 });
+		expect(handler).toHaveBeenCalledWith({ node, updateMetadata, arg: 7, afterRemoval: false });
 		expect(runCommand).not.toHaveBeenCalled();
 	});
 });

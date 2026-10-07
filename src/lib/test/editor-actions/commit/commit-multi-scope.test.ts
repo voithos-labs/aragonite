@@ -6,9 +6,11 @@ import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/edi
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are hand-built, not parser output: the stale-raw check reads them as stale,
-// and the one-block check reads their childless list items as emptied.
-afterEach(() => allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block']));
+// The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
+// them as stale, and the one-block check reads their childless list items as emptied.
+afterEach(() =>
+	allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block', 'invariant:reads-back'])
+);
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -69,6 +69,7 @@ import {
 	type HeadlessActionsOptions,
 	type RecordedLanding
 } from '$lib/testing/headless-actions';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -133,6 +134,16 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 	return mountBlockListState(getNode, { ids, refAt: () => undefined });
 }
 
+/** The state of the table at top-level `index`, following the copy a commit puts there; once a
+ *  removal takes the table, it keeps the one it was built on, as an unmounted table's state would. */
+export function makeTableStateAt(getDoc: () => Document, index: number): BlockListState {
+	const built = getDoc().children[index];
+	return makeBlockListState(() => {
+		const live = getDoc().children[index];
+		return live?.kind === 'table' ? live : built;
+	});
+}
+
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
 /** Runs the real mutate against a live children array, recording commits and landing each one's
@@ -149,6 +160,7 @@ export function makeCommitScopeStub(
 	const scope: CommitScope = {
 		path: asDocPath([]),
 		reading: fixtureReading(),
+		stamps: createDocumentStamps(),
 		caretMemory: stubCaretMemory(),
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
@@ -164,7 +176,6 @@ export function makeCommitScopeStub(
 				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});
-			await args.afterTick?.();
 			const landing = args.landing?.();
 			if (landing && 'path' in landing) await scope.land(landing);
 			return true;
@@ -482,6 +493,7 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 		},
 		caretMemory: input.caretMemory ?? makeCaretMemory(),
 		reading: input.reading ?? fixtureReading(),
+		stamps: createDocumentStamps(),
 		parent: input.parent
 	};
 }

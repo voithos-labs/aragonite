@@ -22,6 +22,7 @@ import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';
 import type { Reading } from '../../schema/reading';
+import type { DocumentStamps } from '../commit/document-stamp';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -50,6 +51,8 @@ export interface NestedActionsDeps {
 	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
 	 *  switched on and a split's rebalance knows what its mode shows. */
 	reading: Reading;
+	/** The editor's document stamps, which the write gate reads. */
+	stamps: DocumentStamps;
 	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	/** This container's children as a descent reads them, so a move onto a windowed-out child
@@ -96,6 +99,7 @@ export function createStandardNestedActions(
 		},
 		caretMemory: input.caretMemory,
 		reading: input.reading,
+		stamps: input.stamps,
 		parentListContext: input.parentListContext,
 		childList: input.childList,
 		parent: input.parent

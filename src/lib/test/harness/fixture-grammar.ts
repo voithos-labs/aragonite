@@ -7,6 +7,7 @@ import type { Reading } from '$lib/schema/reading';
 import type { ChildSlot } from '$lib/tree-operations/list/task-paragraph';
 import type { NodeView } from '$lib/core/node-views';
 import type { StoredAs } from '$lib/schema/stored-as';
+import type { SplitStores } from '$lib/schema/inline-construct-policy';
 import { storedAsIn } from '$lib/tree-operations/stored-as';
 import { hidesDelimitersAtCaret, type PresentationMode } from '$lib/presentation-mode';
 
@@ -43,4 +44,13 @@ export const TOP_SLOT: ChildSlot = { owner: undefined, index: 0 };
 /** Where `node` keeps its bytes standing alone at a document's top level, in `reading`. */
 export function topLevelStore(node: NodeView, reading: Reading = fixtureReading()): StoredAs {
 	return storedAsIn({ owner: undefined, children: [node], lineEnding: '\n' }, 0, reading);
+}
+
+/** Where the two halves of `node` are kept when a split cuts it standing alone at the top level. */
+export function topLevelSplit(node: NodeView, reading: Reading = fixtureReading()): SplitStores {
+	const holder = { owner: undefined, children: [node], lineEnding: '\n' as const };
+	return {
+		first: storedAsIn(holder, 0, reading),
+		second: storedAsIn(holder, 1, reading, node.kind)
+	};
 }

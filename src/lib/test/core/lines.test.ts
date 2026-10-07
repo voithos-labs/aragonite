@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
 import {
 	displayLines,
 	documentLineEnding,
@@ -120,4 +121,31 @@ describe('splitLines', () => {
 		const lines = splitLines('hello');
 		expect(lines).toEqual([{ raw: 'hello', text: 'hello', lineEnding: '', start: 0, end: 5 }]);
 	});
+
+	it('splits as a walk over every character does, lone CRs included', () => {
+		const unit = fc.constantFrom('a', ' ', '\t', '\n', '\r', '\r\n', '汉');
+		fc.assert(
+			fc.property(fc.array(unit, { maxLength: 30 }), (units) => {
+				const source = units.join('');
+				expect(splitLines(source)).toEqual(splitEachCharacter(source));
+			})
+		);
+	});
 });
+
+function splitEachCharacter(source: string): ReturnType<typeof splitLines> {
+	const lines: ReturnType<typeof splitLines> = [];
+	let start = 0;
+	for (let i = 0; i < source.length; i++) {
+		if (source[i] !== '\n') continue;
+		const lineEnding = source[i - 1] === '\r' ? '\r\n' : '\n';
+		const raw = source.slice(start, i + 1);
+		lines.push({ raw, text: raw.slice(0, -lineEnding.length), lineEnding, start, end: i + 1 });
+		start = i + 1;
+	}
+	if (start < source.length) {
+		const raw = source.slice(start);
+		lines.push({ raw, text: raw, lineEnding: '', start, end: source.length });
+	}
+	return lines;
+}

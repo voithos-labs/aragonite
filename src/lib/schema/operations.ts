@@ -9,7 +9,8 @@ export interface OperationDetailMap {
 	merge: { direction: 'prev' | 'next' };
 	reorder: { from: number; to: number };
 	delete: { crossBlock?: true; table?: 'whole' } | undefined;
-	input: { byteLength: number };
+	/** A write into one block that kept its kind (a keystroke, mostly); read the block for its text. */
+	input: undefined;
 	/** `crossBlock` marks a write that also covered the range's other blocks. `length` is the named
 	 *  block's, or for an endpoint carrying a cell index, its table's length before the write. */
 	updateContent: { length: number; crossBlock?: true };

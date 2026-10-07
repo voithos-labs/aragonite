@@ -2,22 +2,21 @@
  * The one place a caret-edge key is decided in a prose block. A plain Backspace, Delete or
  * printable key at a caret edge resolves against a declared policy (the inline construct's beside
  * the caret, or the ancestor container's at the content start), never native editing, which would
- * corrupt the bytes those constructs stand for (G4.12).
+ * corrupt the bytes those constructs stand for (G4.12). Which side of a hidden delimiter a typed
+ * byte lands on is the write's question, not a key's (`cursor/next-insertion.ts`).
  */
 
-import type { BlockEditActions } from '../../../action-contracts';
+import type { ContentWrite } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-import { getContentRange, sameLineSuffix } from '../../../core/inline';
+import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
-import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
-	hiddenSuffixLength,
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
@@ -31,17 +30,12 @@ import {
 	type DeleteDirection,
 	type EdgeDeletion
 } from './construct-edge-delete';
-import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
-import { openHardBreakLine } from './text-keydown';
 import { resolveMarkedInsertion } from './pending-mark-insert';
-import { widgetAtCursor } from './widget-adjacency';
-import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
-import type { BlockAutoPairs } from './auto-pair-record';
-import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
+import { widgetAtCursor, widgetsIn } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
-import { hidesMarkers } from '../../../presentation-mode';
+import { rangeWrite, type TextWrite } from '../surface-write';
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
  *  terms but without widening the public API. */
@@ -64,8 +58,6 @@ interface IslandSpan {
 export interface EdgePolicyDispatchDeps {
 	get node(): NodeView;
 	get index(): number;
-	/** The document's line ending, which a rewrite takes where the block has none of its own. */
-	getLineEnding: () => LineEnding;
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
@@ -80,10 +72,11 @@ export interface EdgePolicyDispatchDeps {
 	hasIslands: () => boolean;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
-	blockEdit: BlockEditActions;
-	/** Remember a caret offset, counted in the stored bytes, for the restore after the next
-	 *  render, tagged with the gesture for the debug trace. */
-	setPendingCursor: (offset: number | null, source: string) => void;
+	/** The block's one write to its own text, which anchors undo and puts the caret back. */
+	writeText: (write: TextWrite) => ContentWrite;
+	/** Write the space that finishes the container's marker in front of this block, as one write
+	 *  of the container's own line. */
+	completeMarker: () => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -104,17 +97,9 @@ export interface EdgePolicyDispatchDeps {
 	/** Reading mode: the decoration-widget and marker-prefix branches do nothing at all, and the
 	 *  widget branch writes nothing, though it still selects. */
 	isReading: () => boolean;
-	/** Which side the caret arrived from, which decides where a typed byte lands; null when
-	 *  nothing recorded one. */
-	getEdgeAffinity: () => EdgeAffinity | null;
-	/** Typing a closing delimiter leaves the caret meaning outside the construct it finished. */
-	noteOutside?: () => void;
 	/** The constructs a toggle at a collapsed caret promised the next insertion. Read and spent
 	 *  here: the first byte after the chord is the insertion they were waiting for. */
 	pendingMarks: PendingMarks;
-	/** The editor's record of the pair the auto-pair last wrote, as this block sees it; a pair
-	 *  written here renews it. */
-	ownPairs: BlockAutoPairs;
 }
 
 export interface EdgePolicyDispatch {
@@ -145,12 +130,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			reason:
 				'an explicit instruction about the very next byte, so it outranks every classification below, which decide by where the caret happens to be',
 			claims: handlePendingMarks
-		},
-		{
-			id: 'transitional-hard-break',
-			reason:
-				'a hard break at the end of a block has no following line yet, so its own position is where the next byte starts that line',
-			claims: handleTransitionalHardBreak
 		},
 		{
 			id: 'cst-widget',
@@ -186,11 +165,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			id: 'marker-completion',
 			reason: 'the container re-emits this space itself, so writing it here would double it',
 			claims: handleMarkerCompletion
-		},
-		{
-			id: 'construct-seat',
-			reason: 'the DOM caret cannot express which side of a zero-width run a typed byte belongs on',
-			claims: handleConstructSeat
 		}
 	];
 
@@ -209,42 +183,24 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return trimTrailingLineEnding(deps.node.raw);
 	}
 
-	/** One rewrite of the displayed text, one CST commit. `caretBefore` anchors the undo entry, so
-	 *  it is the caret before the edit: the rewrite's own start, unless a hidden run moved it. */
-	function writeDisplay(
-		next: string,
-		caretAfter: number,
-		source: string,
-		caretBefore: number
-	): void {
-		const write = deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
-			'authored',
-			caretBefore,
-			caretAfter
-		);
-		if (write.admitted) deps.setPendingCursor(write.caret, source);
+	/** One rewrite of the displayed text a key makes, one CST commit, its bytes already where the
+	 *  key put them. */
+	function writeDisplay(text: string, caretAfter: number, source: string): void {
+		void deps.writeText({
+			text,
+			caretAfter,
+			intent: 'typed',
+			mode: 'authored',
+			source,
+			inPlace: true
+		});
 	}
 
 	/** `[start, end)` replaced by `insert` through the in-leaf range replace, the store read at the
 	 *  key. */
-	function editDisplay(
-		start: number,
-		end: number,
-		insert: string,
-		source = 'island',
-		caretBefore = start
-	): void {
+	function editDisplay(start: number, end: number, insert: string, source = 'island'): void {
 		const edit = replaceRangeInLeaf(deps.node, { start, end }, insert, deps.storedAs());
-		const write = deps.blockEdit.updateBlockContent(
-			deps.index,
-			edit.raw,
-			'authored',
-			caretBefore,
-			edit.caret
-		);
-		if (write.admitted) deps.setPendingCursor(write.caret, source);
+		void deps.writeText({ ...rangeWrite(edit), intent: 'typed', mode: 'authored', source });
 	}
 
 	/** The selected range, or null at a plain caret; every branch reads it here. Empty when both ends
@@ -276,52 +232,20 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	/** A keypress with no safe rewrite writes nothing: the browser's version would show the
 	 *  delimiters the rule was hiding. */
-	function applyEdgeDeletion(deletion: EdgeDeletion, caretBefore: number): void {
+	function applyEdgeDeletion(deletion: EdgeDeletion): void {
 		if ('swallow' in deletion) return;
-		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretBefore);
+		writeDisplay(deletion.raw, deletion.caret, 'construct-delete');
 		// Pended after the write, since the write clears pending marks; the caret has not moved, so
 		// the format waits for the next insertion (live-mode.md § 4.4).
 		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
 	}
 
-	/** Where a printable byte belongs when the caret sits at a hidden delimiter run
-	 *  (live-mode.md § 4.2), or null when no run is touched and the caret's own offset stands. */
-	function typingSeatAt(el: HTMLElement, caret: number, typed: string): EdgeSeat | null {
-		if (!revealsNoMarkers(el)) return null;
-		return resolveEdgeSeat(
-			caret,
-			inlinesOf(deps.node),
-			deps.getEdgeAffinity(),
-			deps.node.raw,
-			screenVisibilityOf(el),
-			typed,
-			deps.reading
-		);
-	}
-
-	/** A printable byte the browser would drop at an element-level caret. Over a range it replaces
-	 *  through the join rules; at a caret the hidden-run rules pick which side it lands on. */
-	function writeTypedByte(
-		el: HTMLElement,
-		caretOffset: number,
-		typed: string,
-		source: string
-	): void {
+	/** A printable byte the browser would drop at an element-level caret: over a range through the
+	 *  join rules, at a caret as an insertion the write places like any other. */
+	function writeTypedByte(caretOffset: number, typed: string, source: string): void {
 		const range = heldRange();
-		if (range && range.end > range.start) {
-			const edit = replaceRangeInLeaf(deps.node, range, typed, deps.storedAs());
-			const write = deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
-			);
-			if (write.admitted) deps.setPendingCursor(write.caret, source);
-			return;
-		}
-		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
-		editDisplay(seatedAt, seatedAt, typed, source, caretOffset);
+		if (range && range.end > range.start) editDisplay(range.start, range.end, typed, source);
+		else editDisplay(caretOffset, caretOffset, typed, source);
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -333,8 +257,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Forward keys enter the widget after the caret, backward keys the one before, so
 		// a caret between two adjacent widgets enters the one the key is aimed at.
 		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
-		const { grammar } = deps.reading;
-		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction, grammar);
+		const widgetAt = widgetAtCursor(caretOffset, widgetsIn(node, deps.reading), direction);
 		if (!widgetAt) return false;
 		// Past the early return: every keystroke in every prose block reaches the line above, so
 		// the work below stays off that path.
@@ -350,16 +273,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (enterFromRight || enterFromLeft) {
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
 			const policy =
-				deps.widgetEdgePolicy?.(widgetAt) ?? getInlineWidgetEditing(widgetAt.kind, grammar);
+				deps.widgetEdgePolicy?.(widgetAt) ??
+				getInlineWidgetEditing(widgetAt.kind, deps.reading.grammar);
 			// A step-over widget reads as one character to navigation, so the browser carries the
 			// caret across; a destructive key still runs the atomic-delete branch below.
 			if (!isDestructive && policy?.onEdge === 'step-over') return false;
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
-				// One keypress takes the whole construct, anchored at the caret before the delete
-				// so Ctrl+Z lands there.
-				editDisplay(widgetAt.start, widgetAt.end, '', 'widget', caretOffset);
+				// One keypress takes the whole construct.
+				editDisplay(widgetAt.start, widgetAt.end, '', 'widget');
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -378,7 +301,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
-			writeTypedByte(el, caretOffset, e.key, 'widget');
+			writeTypedByte(caretOffset, e.key, 'widget');
 			return true;
 		}
 		return false;
@@ -481,7 +404,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			// Beside a hidden delimiter run the construct-edge rule decides which byte a key takes
 			// (`docs/design/live-mode.md` § 4.4), and this branch outranks it, so it asks that rule.
 			const deletion = edgeDeletionAt(el, caretOffset, direction);
-			if (deletion) applyEdgeDeletion(deletion, caretOffset);
+			if (deletion) applyEdgeDeletion(deletion);
 			else if (direction === 'backward') editDisplay(caretOffset - 1, caretOffset, '');
 			else editDisplay(caretOffset, caretOffset + 1, '');
 			return true;
@@ -490,7 +413,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Chromium types them, so a unit test, not e2e, covers this branch.
 		if (isTyping && !caretIsInTextContent(el, window.getSelection())) {
 			e.preventDefault();
-			writeTypedByte(el, caretOffset, e.key, 'island');
+			writeTypedByte(caretOffset, e.key, 'island');
 			return true;
 		}
 		return false;
@@ -520,15 +443,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range.end > range.start) {
 			// Handled at keydown, so this branch asks the join rules itself, or a literal splice would
 			// print the delimiter runs the cut stranded (`docs/design/live-mode.md` § 4.5).
-			const edit = replaceRangeInLeaf(deps.node, range, '', deps.storedAs());
-			const write = deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
-			);
-			if (write.admitted) deps.setPendingCursor(write.caret, 'ambient-delete');
+			editDisplay(range.start, range.end, '', 'ambient-delete');
 		}
 		return true;
 	}
@@ -557,42 +472,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!deletion) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		applyEdgeDeletion(deletion, caretOffset);
+		applyEdgeDeletion(deletion);
 		return true;
 	}
 
-	// ── Hard break at the block end, pending marks ─────────────────────────────
-
-	/** A key typed on a hard break at the end of a block's content goes on the new line, not
-	 *  between the backslash and its line ending, where it would undo the break. */
-	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (deps.isReading()) return false;
-		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
-		const d = display();
-		const contentEnd = getContentRange(deps.node).end;
-		// A heading's closing run stays on the heading's line, so the new line starts past it.
-		const lineEnd = contentEnd + sameLineSuffix(deps.node).length;
-		const el = deps.getEl();
-		// The caret past the backslash, or where the new line is drawn (`paintPendingBreak`, past
-		// the run); a hidden run draws its whole span at that one spot.
-		const onBreak =
-			el !== null && hiddenSuffixLength(el) > 0
-				? caretOffset >= contentEnd && caretOffset <= lineEnd
-				: caretOffset === contentEnd ||
-					(hidesMarkers(deps.reading.mode()) && caretOffset === lineEnd);
-		const text = d.slice(0, contentEnd);
-		if (!onBreak || !text.endsWith('\\')) return false;
-		// An escaped backslash (`\\\\`) is content, not a break.
-		if (text.endsWith('\\\\')) return false;
-		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
-		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
-		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
-		e.preventDefault();
-		deps.setSnapTarget(null);
-		const opened = openHardBreakLine(d, lineEnd, ending, e.key);
-		writeDisplay(opened.display, opened.caret, 'transitional-hard-break', caretOffset);
-		return true;
-	}
+	// ── Pending marks ──────────────────────────────────────────────────────────
 
 	/** A printable key while a toggle at a collapsed caret has marks pending. The marks are the newer
 	 *  instruction, so they outrank the arrival side (`docs/design/live-mode.md` § 4.3). */
@@ -617,58 +501,22 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!marked) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		writeDisplay(marked.raw, marked.caret, 'pending-marks', caretOffset);
+		writeDisplay(marked.raw, marked.caret, 'pending-marks');
 		return true;
 	}
 
 	// ── Container marker completion ────────────────────────────────────────────
 
 	/** A bare space at a child's content start, while its container's marker lacks its space, is
-	 *  consumed once: the container's `rebuildRaw` writes it back, so writing it here would double it. */
+	 *  the marker's, once: written into the container's line, or left for an empty line's text. */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
 		if (!bareSpace || caretOffset === null || heldRange()) return false;
 		const { node, containerParent, index } = deps;
-		if (!markerCompletion.claimSpace(node, containerParent, index, caretOffset)) return false;
+		const claim = markerCompletion.claimSpace(node, containerParent, index, caretOffset);
+		if (claim === null) return false;
 		e.preventDefault();
-		return true;
-	}
-
-	// ── Hidden construct edge (typing) ─────────────────────────────────────────
-
-	/** A printable key at a hidden delimiter run is written through the CST, since Chromium moves a
-	 *  collapsed caret back across a run it does not render (`docs/design/live-mode.md` § 4.2). */
-	function handleConstructSeat(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
-		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
-		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
-		const content = getContentRange(deps.node);
-		const { reading, ownPairs } = deps;
-		const text = display();
-		const autoPair = resolveDelimiterAutoPair(text, content, caretOffset, e.key, reading, {
-			ownPair: ownPairs.consult(text, caretOffset)
-		});
-		if (autoPair?.kind === 'step-over') return false;
-		const el = deps.getEl();
-		const seat = el && typingSeatAt(el, caretOffset, e.key);
-		if (!seat) return false;
-		e.preventDefault();
-		deps.setSnapTarget(null);
-		// The hidden-run rules decide where the byte lands; the auto-pair still decides what a delimiter
-		// writes there, or it would arrive without its closing partner.
-		const store = deps.storedAs();
-		const paired = resolveDelimiterAutoPair(text, content, seat.offset, e.key, reading, {
-			ownPair: ownPairs.consult(text, seat.offset),
-			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
-			keepsKind: (line) => keepsKindAt(deps.node, line, store)
-		});
-		if (paired && paired.kind !== 'step-over') {
-			noteOwnPair(ownPairs, text, paired);
-			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);
-			if (paired.kind === 'close') deps.noteOutside?.();
-			return true;
-		}
-		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
+		if (claim === 'bare-marker') deps.completeMarker();
 		return true;
 	}
 

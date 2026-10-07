@@ -8,9 +8,9 @@ inline-prose blocks only (paragraph, heading, table cell: the ones with
 `supportsInline`); a fenced code block is not prose and is out of scope. Marks are
 view-only, so they survive a presentation-mode switch.
 
-The marks also step aside while you type. An edit epoch that arrives with no `edit`
-event ahead of it is a keystroke, so the source serves nothing until the typing
-burst flushes its batched `input` event a quarter-second after the last character.
+The marks also step aside while you type. An edit epoch that only an `input` edit
+came before is a keystroke, so the source serves nothing until the plugin's own
+typing pause runs out, a quarter-second after the last character.
 The index still rebuilds underneath, which is why the counter scenarios below and
 the visible-mark scenario can disagree about what is on screen.
 

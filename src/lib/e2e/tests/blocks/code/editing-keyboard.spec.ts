@@ -93,4 +93,23 @@ test.describe('code block keyboard: beyond parity', () => {
 
 		expect(await editor.getBlock(0).locator('br').count()).toBe(0);
 	});
+
+	for (const [key, source, keyed, typed] of [
+		['Tab', '```\nabc\n```\n', '```\nab\tc\n```\n', '```\nabXc\n```\n'],
+		['Shift+Tab', '```\n\tabc\n```\n', '```\nabc\n```\n', '```\n\tabXc\n```\n']
+	]) {
+		test(`${key} then Ctrl+Z puts the caret back where it was`, async ({ page }) => {
+			await editor.loadContent(source);
+			await editor.getBlock(0).click();
+			// Between the `b` and the `c`.
+			await editor.focusBlock(0, source.indexOf('abc') + 2);
+			await page.keyboard.press(key);
+			await editor.bridge.waitForSourceEquals(keyed);
+			await page.keyboard.press('ControlOrMeta+z');
+			await editor.bridge.waitForSourceEquals(source);
+			// The typed character lands wherever undo left the caret.
+			await editor.typeText('X');
+			await editor.bridge.waitForSourceEquals(typed);
+		});
+	}
 });

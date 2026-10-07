@@ -26,7 +26,9 @@ import {
 	toggleTaskByKeyboard,
 	typeFreshItem,
 	typeFenceOpener,
-	exitFence
+	exitFence,
+	breakAtEndThen,
+	type BreakFollow
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
@@ -81,6 +83,7 @@ import { flipPresentationMode } from './gestures/presentation';
 import {
 	liveDemoteHeading,
 	liveEdgeBackspace,
+	liveEdgeStep,
 	liveExtendIntoTablePark,
 	liveLinkCardEdit,
 	liveListHomeSeat,
@@ -411,8 +414,8 @@ export class Gestures {
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
-	// Each resyncs, because the table pads its cells. A cell is named by its rendered index across
-	// rows, which shifts after an insert or delete, so the caller works from the current grid.
+	// Each resyncs, since a row the editor adds takes the padded spelling. A cell is named by its
+	// index across rows, which shifts after an insert or delete, so the caller works from the grid.
 
 	editCell(cellIndex: number, text: string): Promise<void> {
 		return editCell(this.ctx, cellIndex, text);
@@ -612,6 +615,11 @@ export class Gestures {
 		return liveEdgeBackspace(this.ctx, blockIndex, content);
 	}
 
+	/** A plain ArrowRight at a construct's text end moves the next byte past the hidden closer. */
+	liveEdgeStep(blockIndex: number, content: string, closer: string): Promise<void> {
+		return liveEdgeStep(this.ctx, blockIndex, content, closer);
+	}
+
 	/** Backspace at a heading's content start demotes it before any merge. */
 	liveDemoteHeading(blockIndex: number): Promise<void> {
 		return liveDemoteHeading(this.ctx, blockIndex);
@@ -750,6 +758,11 @@ export class Gestures {
 
 	composeAbort(blockIndex: number, composition: CompositionCase): Promise<void> {
 		return composeAbort(this.ctx, blockIndex, composition);
+	}
+
+	/** Shift+Enter at the end of a plain paragraph, then a key, a paste or a composed run there. */
+	breakAtEndThen(blockIndex: number, follow: BreakFollow): Promise<void> {
+		return breakAtEndThen(this.ctx, blockIndex, follow);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────

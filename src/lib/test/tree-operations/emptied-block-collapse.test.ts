@@ -8,6 +8,7 @@ import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-defi
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Backspace on an emptied middle block collapses its line on the merge route as on the delete
 // route, whatever kind of block follows it.
@@ -42,7 +43,7 @@ describe('an emptied middle block takes its own blank line with it', () => {
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {
 			const doc = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, fixtureReading());
+				mergeIntoPrevDeepLeaf(d, 1, createSharingState(), fixtureReading());
 			});
 
 			expect(serialize(doc)).toBe(`above\n\n${tail}`);
@@ -52,9 +53,11 @@ describe('an emptied middle block takes its own blank line with it', () => {
 
 		it('deletes to the same shape the merge reaches', () => {
 			const merged = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, fixtureReading());
+				mergeIntoPrevDeepLeaf(d, 1, createSharingState(), fixtureReading());
 			});
-			const deleted = collapsed(tail, (d) => deleteNode(d, 1, defaultGrammarView));
+			const deleted = collapsed(tail, (d) =>
+				deleteNode(d, 1, defaultGrammarView, createSharingState())
+			);
 
 			expect(serialize(deleted)).toBe(serialize(merged));
 			expect(describeConvergence(deleted)).toBeNull();

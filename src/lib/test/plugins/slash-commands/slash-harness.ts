@@ -25,8 +25,7 @@ import { normalizePluginEntries } from '$lib/schema/plugin-install';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { pluginContextDeps } from '../../support/plugin-context-deps';
 
-const typedEdit = (path: number[]): EditEvent =>
-	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
+const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
 /** What a harness hands the code that attaches the `/` source. */
 interface HarnessHost {
@@ -35,6 +34,8 @@ interface HarnessHost {
 	inlineMenus: InlineMenuRegistry;
 	insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (id: string, arg?: unknown) => boolean;
+	/** The context the sources added next belong to, as an editor's `onEditor` hands it. */
+	ownSources: (editor: EditorContext) => void;
 }
 
 export function slashHarness(initial: string, options: SlashCommandsOptions = {}) {
@@ -53,6 +54,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			insertMarkdown: host.insertMarkdown,
 			runCommand: host.runCommand
 		} as unknown as EditorContext<SlashCommandsOptions>;
+		host.ownSources(editor);
 		host.inlineMenus.addSource(createSlashSource(editor));
 		return editor;
 	});
@@ -74,6 +76,7 @@ export function slashPluginHarness(
 			...host,
 			optionsFor: (name) => optionsByName.get(name)
 		});
+		host.ownSources(contexts.get(plugins[0].name)!);
 		contexts.attachAll(({ error }) => onError(error));
 		return contexts.get(plugins[0].name)!;
 	});
@@ -95,6 +98,12 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 	const raw = () => doc.children[0]?.raw ?? '';
 	write(initial);
 
+	const insertMarkdown = (markdown: string, opts?: InsertMarkdownOptions) => {
+		inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
+		return Promise.resolve(true);
+	};
+
+	let owner: EditorContext | undefined;
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
 		getSelection: () => ({
@@ -114,18 +123,19 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 			await tick();
 			return true;
 		},
-		undoStep: async (_path, _offset, run) => void (await run())
+		undoStep: async (_path, _offset, run) => void (await run()),
+		ownerOfNewSource: () => owner!,
+		// No swap happens here, so a pick's draft can always write.
+		drafts: { open: () => ({ canWrite: () => true, end: () => {} }) }
 	});
 
 	const editor = attach({
 		getDoc: () => doc,
 		events,
 		inlineMenus: menu.registry,
-		insertMarkdown: (markdown, opts) => {
-			inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
-			return Promise.resolve(true);
-		},
-		runCommand: (id, arg) => (ran.push({ id, arg }), true)
+		insertMarkdown,
+		runCommand: (id, arg) => (ran.push({ id, arg }), true),
+		ownSources: (context) => (owner = context)
 	});
 
 	let arrived = false;

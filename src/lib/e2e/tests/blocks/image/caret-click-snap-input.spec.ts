@@ -114,7 +114,7 @@ test.describe('typing and paste after click-snap', () => {
 
 	// The click-snap caret does not survive Chromium's yield before keydown, so keydown cannot
 	// re-read `cursor.getRaw()` for `preEditOffset`, or Shift+Enter inserts the break at offset 0.
-	test('Shift+Enter at image.end inserts the hard break after the image, not at offset 0', async ({
+	test('Shift+Enter at image.end puts the hard break after the image, not at offset 0', async ({
 		page
 	}) => {
 		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n- text\n');
@@ -124,6 +124,7 @@ test.describe('typing and paste after click-snap', () => {
 		if (!ib) throw new Error('image missing');
 		await page.mouse.click(ib.x + ib.width + 20, ib.y + ib.height / 2);
 		await page.keyboard.press('Shift+Enter');
+		await page.keyboard.press('x');
 		await editor.bridge.waitForSourceContains(')\\');
 		const src = await editor.bridge.getSource();
 		// The hard-break marker belongs after the image source, not at the start of the inner
@@ -143,6 +144,7 @@ test.describe('typing and paste after click-snap', () => {
 		await dropNativeCaret(page);
 
 		await page.keyboard.press('Shift+Enter');
+		await page.keyboard.press('x');
 		await editor.bridge.waitForSourceContains(')\\');
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);

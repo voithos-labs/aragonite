@@ -303,3 +303,63 @@ test.describe('slash commands', () => {
 		});
 	});
 });
+
+// A host's `run` that waits (a picker) belongs to the note it was picked in: a host that loads
+// another note first must find it untouched, and must still be able to write there itself.
+test.describe('slash commands: a waiting run across a source swap', () => {
+	let editor: PluginsPage;
+	const next = 'note b one\n\nnote b two\n';
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('inline-menu');
+		await editor.focusBlockEnd(TARGET);
+		await page.keyboard.press('Enter');
+		await editor.typeText('/held');
+		await menu(editor).waitFor({ state: 'visible' });
+	});
+
+	async function swapWithCaretInB(page: PluginsPage['page']): Promise<void> {
+		await page.evaluate((md) => (window as any).__test.setSource(md), next);
+		await editor.bridge.waitForSourceEquals(next);
+		await editor.focusBlockEnd(1);
+	}
+
+	async function release(page: PluginsPage['page']): Promise<void> {
+		await page.evaluate(() => window.__releaseHeldRun?.());
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+	}
+
+	test('a run that inserts after its wait writes nothing into the next note', async ({ page }) => {
+		await page.keyboard.press('Enter');
+		await swapWithCaretInB(page);
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
+		await release(page);
+
+		expect(await editor.bridge.getSource()).toBe(next);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture())).toEqual([]);
+	});
+
+	test('a run that runs a command after its wait changes nothing in the next note', async ({
+		page
+	}) => {
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Enter');
+		await swapWithCaretInB(page);
+		await release(page);
+
+		expect(await editor.bridge.getSource()).toBe(next);
+	});
+
+	test('a host write made after the swap still lands', async ({ page }) => {
+		await page.keyboard.press('Enter');
+		await swapWithCaretInB(page);
+		await page.evaluate(() => (window as any).__test.insertMarkdown('> host'));
+		await editor.bridge.waitForSourceContains('> host');
+		await release(page);
+
+		expect(await editor.bridge.getSource()).toContain('> host');
+		expect(await editor.bridge.getSource()).not.toContain('> embed');
+	});
+});

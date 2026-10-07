@@ -57,6 +57,18 @@ export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 
 	return content + '\n';
 }
 
+/** {@link generateDeepNested} with prose-length lines: each level's siblings are paragraphs of
+ *  wrapped lines of about 66 bytes, where the deep fixture writes each level as one long line. */
+export function generateDeepProse(depth: number, bytesPerLevel: number, seed = 42): string {
+	const rand = mulberry32(seed);
+	let content = words(rand, 3);
+	for (let level = depth; level >= 1; level--) {
+		const inner = paragraphs(rand, bytesPerLevel) + '\n\n' + content;
+		content = level % 2 === 1 ? wrapBlockquote(inner) : wrapListItem(inner);
+	}
+	return content + '\n';
+}
+
 export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as const;
 export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
 
@@ -137,6 +149,17 @@ const WORDS = [
 	'oscar',
 	'papa'
 ];
+
+/** Five-line paragraphs of ten words a line, a blank line apart, up to `bytes`. */
+function paragraphs(rand: () => number, bytes: number): string {
+	const out: string[] = [];
+	for (let size = 0; size < bytes;) {
+		const paragraph = Array.from({ length: 5 }, () => words(rand, 10)).join('\n');
+		out.push(paragraph);
+		size += paragraph.length + 2;
+	}
+	return out.join('\n\n');
+}
 
 function words(rand: () => number, n: number): string {
 	const out: string[] = [];

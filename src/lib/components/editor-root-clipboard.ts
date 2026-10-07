@@ -12,11 +12,8 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { createImagePasteArm } from './paste-image-arm';
-import {
-	writeCrossBlockCopy,
-	writeCrossBlockCut,
-	type CrossBlockClipboardDeps
-} from '../selection/cross-block/clipboard';
+import { runClipboardCut, takeCopy } from './blocks/clipboard-step';
+import { crossBlockClipboardArm } from '../selection/cross-block/clipboard';
 
 export interface EditorRootClipboardDeps {
 	selection: SelectionState;
@@ -26,8 +23,8 @@ export interface EditorRootClipboardDeps {
 	 *  blocks do; `undefined` means no hook. */
 	onPasteImage: PasteImageHook | undefined;
 	events: EditorEvents;
-	/** The block owning the selected inline widget, or null when none is selected. */
-	getSelectedWidgetBlock(): BlockComponent | null;
+	/** The mounted block at `path`, which takes a selected widget's clipboard events. */
+	getBlockComponent(path: number[]): BlockComponent | null;
 }
 
 export interface EditorRootClipboard {
@@ -41,11 +38,13 @@ export interface EditorRootClipboard {
 type RootClipboardTarget = { arm: 'widget'; block: BlockComponent } | { arm: 'cross-block' };
 
 export function createEditorRootClipboard(deps: EditorRootClipboardDeps): EditorRootClipboard {
-	const crossDeps: CrossBlockClipboardDeps = {
-		selection: deps.selection,
-		getDoc: deps.getDoc,
-		crossBlock: deps.crossBlock
-	};
+	const crossBlockArms = [
+		crossBlockClipboardArm({
+			selection: deps.selection,
+			getDoc: deps.getDoc,
+			crossBlock: deps.crossBlock
+		})
+	];
 	const imageArm = createImagePasteArm({
 		onPasteImage: deps.onPasteImage,
 		events: deps.events,
@@ -59,12 +58,13 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		return (target === null || target === root.ownerDocument.body) && claimsBodyChord(root);
 	}
 
-	/** A block marks an event it handled with `defaultPrevented`. The two states cannot coexist,
-	 *  so their order does not matter. */
+	/** A block marks an event it handled with `defaultPrevented`. The selection state holds a
+	 *  widget or a range, never both, so their order does not matter. */
 	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
 		if (event.defaultPrevented) return null;
 		if (!landedNowhere(root, event.target)) return null;
-		const block = deps.getSelectedWidgetBlock();
+		const widget = deps.selection.widget;
+		const block = widget && deps.getBlockComponent(widget.paragraphPath);
 		if (block) return { arm: 'widget', block };
 		return deps.selection.isCrossBlock ? { arm: 'cross-block' } : null;
 	}
@@ -74,13 +74,13 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			const target = targetOf(event, root);
 			if (!target) return;
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
-			else writeCrossBlockCopy(event, crossDeps);
+			else if (takeCopy(event, crossBlockArms)) event.preventDefault();
 		},
 		handleCut(event, root) {
 			const target = targetOf(event, root);
 			if (!target) return;
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
-			else void writeCrossBlockCut(event, crossDeps);
+			else void runClipboardCut(event, crossBlockArms);
 		},
 		handlePaste(event, root) {
 			const target = targetOf(event, root);

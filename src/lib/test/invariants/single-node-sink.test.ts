@@ -5,6 +5,7 @@ import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The single-node check runs at the write, over what a one-block write target installs (G1.35).
 // Miss-analysis: both call sites passed `count <= 1` as `installed`, so the check never fired.
@@ -38,13 +39,15 @@ describe('G1.35 single-node sink', () => {
 	// node, however many arrived (a join whose bytes read as two blocks is declined).
 	it('stays silent through the merge entry points, refused join included', () => {
 		const plural = parse('# h\ntext\nmore\n');
-		expect(mergeWithNext(plural, 0, fixtureReading(), undefined).change).toEqual({
+		expect(mergeWithNext(plural, 0, fixtureReading(), createSharingState()).change).toEqual({
 			op: 'noop'
 		});
 		expect(takeDevWarns()).toEqual([]);
 
 		const ordinary = parse('alpha\n\nbeta\n');
-		expect(mergeWithNext(ordinary, 0, fixtureReading(), undefined).change.op).toBe('replace');
+		expect(mergeWithNext(ordinary, 0, fixtureReading(), createSharingState()).change.op).toBe(
+			'replace'
+		);
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

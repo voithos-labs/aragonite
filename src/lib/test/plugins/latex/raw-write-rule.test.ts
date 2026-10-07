@@ -3,6 +3,7 @@ import { parse } from '$lib';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
 import { documentLineEnding } from '$lib/plugin';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 // Both math kinds declare a raw-write rule that puts back a closer a truncating write dropped, so
 // bytes written past the block's editable element (a range delete, a paste, a search-replace)
@@ -24,6 +25,9 @@ describe('a truncating write of a $$ block gets its closer back', () => {
 	it.each([
 		['the one-line form closes on line 0', '$$x^2$$\n', '$$After\n', '$$After$$\n'],
 		['lines a join brought along stay their own', '$$x^2$$\n', '$$a\nb\n', '$$a$$\nb\n'],
+		// A literal write's last line ending `$$` is a foreign line, not the formula's closer.
+		['even a last one ending in $$', '$$x^2$$\n', '$$xoo\nprice 10$$\n', '$$xoo$$\nprice 10$$\n'],
+		['a literal break mid-body', '$$x^2$$\n', '$$x\n^2$$\n', '$$x$$\n^2$$\n'],
 		[
 			'the multi-line form closes on a line of its own',
 			'$$\nx^2\n$$\n',
@@ -52,6 +56,33 @@ describe('a truncating write of a $$ block gets its closer back', () => {
 	it('is idempotent', () => {
 		const once = write('$$x^2$$\n', '$$After\n');
 		expect(write('$$x^2$$\n', once)).toBe(once);
+	});
+});
+
+// Miss-analysis: every row wrote a one-line form still on one line, so none handed the rule a
+// one-line form a line break went into, which it read as a join and gave a second closer.
+describe('a $$ write reads the shape the painter and the parser read', () => {
+	it.each([
+		['a break at the body’s end', '$$x^2$$\n', '$$x^2\n$$\n', '$$\nx^2\n\n$$\n'],
+		['a CRLF break', '$$x^2$$\r\n', '$$x^2\r\n$$\r\n', '$$\r\nx^2\r\n\r\n$$\r\n']
+	])('gives a one-line form holding %s the multi-line form', (_case, source, written, expected) => {
+		expect(write(source, written)).toBe(expected);
+	});
+
+	it('moves an offset past each line ending it adds', () => {
+		const doc = parse('$$x^2$$\n');
+		const rule = tryGetBlockKindDescriptor(doc.children[0].kind)!.rawWrite!;
+		const ctx = { node: doc.children[0], mode: 'authored' as const, lineEnding: '\n' as const };
+		expect(rule.mapOffset('$$x^2\n$$\n', 6, ctx)).toBe(7);
+		expect(rule.mapOffset('$$x^2\n$$\n', 2, ctx)).toBe(3);
+	});
+
+	// As text, a lone `$$` line opens a block that runs to the next `$$` anywhere below.
+	it.each([
+		['the opener’s dollar deleted', '$$\nx^2\n$$\n', '$\nx^2\n$$\n', '$\nx^2\n'],
+		['a closer typed mid-body', '$$\nx\n$$\n', '$$\nx\n$$\nb\n$$\n', '$$\nx\n$$\nb\n']
+	])('drops the closer stranded by %s', (_case, source, written, expected) => {
+		expect(write(source, written)).toBe(expected);
 	});
 });
 
@@ -89,5 +120,24 @@ describe('a closer restored into the unterminated last block of a CRLF document 
 		['a ```math fence', '```math\r\nx^2\r\n```', '```math\r\nAfter', '```math\r\nAfter\r\n```']
 	])('%s', (_case, source, written, expected) => {
 		expect(write(source, written)).toBe(expected);
+	});
+});
+
+// Miss-analysis: the order checks read a math leaf's raw, so the closer this rule puts back read
+// as added text, and no row asked what the rule calls the block's text.
+describe('the rule reads a $$ block’s text without its fences', () => {
+	// Whitespace aside, as the order checks read it.
+	const textOf = (raw: string) => {
+		const rule = tryGetBlockKindDescriptor(parse('$$x$$\n').children[0].kind)?.rawWrite;
+		return rule?.text?.(raw).replace(/\s+/g, ' ').trim();
+	};
+
+	it('reads the same text before and after it puts the closer back', () => {
+		expect(textOf('$$\nx\n')).toBe('x');
+		expect(textOf(write('$$\nx\n$$\n', '$$\nx\n'))).toBe('x');
+	});
+
+	it('keeps what follows a one-line closer', () => {
+		expect(textOf('$$x^2$$\nmore\n')).toBe('x^2 more');
 	});
 });

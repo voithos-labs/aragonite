@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
+import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -20,6 +20,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // In live mode a list-item merge drops the `**` pair a split left behind, as a top-level join does.
 // Miss-analysis: the list-item merge was tested only in mode-free cases, never in live mode.
@@ -33,7 +34,13 @@ const SPLIT_BOLD = '- Some **bo**\n- **ld** text\n';
 const rejoined = (mode: 'live' | undefined) => {
 	const doc = parse(SPLIT_BOLD);
 	const list = doc.children[0];
-	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading({}, mode));
+	mergeListItemIntoPrevious(
+		list,
+		list.children!.slice(),
+		1,
+		createSharingState(),
+		fixtureReading({}, mode)
+	);
 	return serialize(doc);
 };
 

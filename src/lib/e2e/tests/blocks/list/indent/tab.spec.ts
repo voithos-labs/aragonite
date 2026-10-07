@@ -16,6 +16,15 @@ test.describe('list Tab', () => {
 		await editor.bridge.waitForSourceContains('- Item 1\n  - Item 2\n');
 	});
 
+	test('Tab over a selection inside an item nests the item', async () => {
+		await editor.loadContent('- Item 1\n- Item 2\n');
+		await editor.focusBlockAtPath([0, 1, 0], 1);
+		await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Tab');
+		await editor.bridge.waitForSourceContains('- Item 1\n  - Item 2\n');
+	});
+
 	test('Tab on first item is no-op', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');

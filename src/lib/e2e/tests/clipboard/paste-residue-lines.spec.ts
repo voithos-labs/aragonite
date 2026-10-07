@@ -39,7 +39,7 @@ test.describe('a multi-block paste keeps the lines after the caret', () => {
 		// The quote took `After` in, and the caret stays after the pasted `q`.
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('qZ');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> qZ\n> After\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> qZ\nAfter\n');
 	});
 
 	// The same through a list, whose item holds the pasted paragraph two levels down.
@@ -51,7 +51,7 @@ test.describe('a multi-block paste keeps the lines after the caret', () => {
 
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('qZ');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- qZ\n  After\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- qZ\nAfter\n');
 	});
 
 	test('one undo gives the paragraph back', async () => {

@@ -7,7 +7,7 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import { hidesMarkers } from '../../../presentation-mode';
+import { tagsConstructMarkers } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import {
@@ -20,7 +20,7 @@ import {
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import {
-	PENDING_BREAK_ANCHOR,
+	PENDING_BREAK_START,
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
@@ -58,6 +58,9 @@ export interface TextRenderDeps {
 	get ambientPrefix(): AmbientPrefix;
 	get ambientPrefixText(): string;
 	getDisplayText: () => string;
+	/** The lines a pending break opened past the text, 0 for none. Read inside the render pass, so
+	 *  opening or ending the break re-renders the block. */
+	pendingBreakLines: () => number;
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	get imageLoadPolicy(): ImageLoadPolicy;
@@ -99,6 +102,7 @@ const RENDER_KEY_SEGMENTS = [
 	'imgPolicy',
 	'mode',
 	'kind',
+	'pendingBreak',
 	'islands'
 ] as const;
 
@@ -151,7 +155,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 
 	// The render path computes inline content on the pure path, never the caching
 	// accessor: the cache is non-reactive and would skip render-relevant changes (G4.2).
-	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
+	function buildInlineDOM(content: InlineNode[], pendingBreaks: number): DocumentFragment {
 		const node = deps.node;
 		const frag = document.createDocumentFragment();
 		if (deps.ambientPrefixText) {
@@ -174,10 +178,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
 				grammar: deps.reading.grammar,
-				// Data attributes only, for the code that shows construct markers; set in this
-				// mode alone so the other modes' DOM stays byte-identical.
-				tagConstructMarkers: deps.reading.mode() === 'preview-inline',
-				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
+				tagConstructMarkers: tagsConstructMarkers(deps.reading.mode()),
+				pendingBreaks
 			})
 		);
 		// The bytes past the content (a setext underline, a heading's closing run) are block markers
@@ -188,7 +190,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
 			// A closing run on the text's own line stays there when a pending break draws a new one.
 			const onTextLine = sameLineSuffix(node) === suffix;
-			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_ANCHOR) : null);
+			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_START) : null);
 		}
 		return frag;
 	}
@@ -251,9 +253,10 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
+		const pendingBreaks = deps.pendingBreakLines();
 		// The kind is part of the key: two prose kinds can share a raw once the registry gains an
 		// opener for bytes already in the document.
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}\0${pendingBreaks || ''}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
 		let carriedCaret: RawOffset | null = null;
@@ -275,7 +278,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			// previous DOM held and this build did not reuse. Decoration widgets are not pooled.
 			widgetPool.beginPass();
 			destroyIslands();
-			el.replaceChildren(buildInlineDOM(content));
+			el.replaceChildren(buildInlineDOM(content, pendingBreaks));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 				contentLength: contentLengthOf(node),
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),

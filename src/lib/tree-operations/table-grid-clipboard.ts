@@ -7,7 +7,7 @@
 
 import type { NodeView } from '../core/node-views';
 import { isBlankText, trimWhitespace } from '../core/lines';
-import { matchTableDelimiterRow, splitRowCells } from '../core/parsers/table';
+import { matchTableDelimiterRow, splitRowCells } from '../core/parsers/table-line';
 import { unescapeCellPipes } from '../schema/table-cell-raw';
 import { rectangleCellRaws, type CellPos } from './sub-table-copy';
 

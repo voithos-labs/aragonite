@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import {
 		CODE_COPY_LABEL,
 		CODE_COPIED_LABEL,
@@ -11,6 +11,8 @@
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
 	import type { MenuPresence } from '../../menu/menu-presence.svelte';
+	import type { DraftRegistry } from '../../draft-registry';
+	import type { Draft } from '../../../schema/drafts';
 	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
 	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
@@ -28,7 +30,8 @@
 		onRun,
 		onCopy,
 		menuItems,
-		menuPresence
+		menuPresence,
+		drafts
 	}: {
 		/** The opener's full info string; the button shows its first token. */
 		info: string;
@@ -51,12 +54,16 @@
 		/** Consulted on each open, so items read live state. Empty renders no affordance. */
 		menuItems?: () => readonly CodeMenuItem[];
 		menuPresence: MenuPresence;
+		/** The open field is a draft of the info string, dropped by a swap or a write to the block. */
+		drafts: Pick<DraftRegistry, 'open'>;
 	} = $props();
 
 	const language = $derived(fenceLanguage(info) || 'text');
 
 	let editing = $state(false);
 	let draft = $state('');
+	let fieldDraft: Draft | null = null;
+	onDestroy(() => fieldDraft?.end());
 	// Filtering waits for a keystroke: the field opens empty, and until then the whole list
 	// shows with the block's own language leading it, which is what a bare Enter re-commits.
 	let filtering = $state(false);
@@ -127,6 +134,9 @@
 		highlightMoved = false;
 		menuOpen = false;
 		editing = true;
+		fieldDraft?.end();
+		// The field never saves on its own, so a close for either cause just closes it.
+		fieldDraft = drafts.open({ seed: info, current: () => info, close });
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
 		// a bare Enter re-commits what is already set.
 		activeIndex = 0;
@@ -149,10 +159,14 @@
 
 	function close(): void {
 		editing = false;
+		fieldDraft?.end();
+		fieldDraft = null;
 	}
 
 	function commit(value: string): void {
+		const writable = fieldDraft?.canWrite() ?? true;
 		close();
+		if (!writable) return;
 		// `text` is the picker's way of saying "no language"; the info string says it with ''.
 		onCommit(value.trim() === 'text' ? '' : value);
 	}
@@ -416,7 +430,7 @@
 		bind:this={pickerEl}
 		class="md-menu code-rail-popout code-lang-picker"
 		style={popoutStyle(listAt)}
-		{@attach menuPresence.track}
+		{@attach menuPresence.track(close, { edits: true })}
 	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
@@ -477,6 +491,7 @@
 	</div>
 {/if}
 
+<!-- Not marked as editing: a host's items may only read, so the menu opens in reading mode too. -->
 {#if menuOpen}
 	<ul
 		bind:this={menuEl}
@@ -484,7 +499,7 @@
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
-		{@attach menuPresence.track}
+		{@attach menuPresence.track(() => (menuOpen = false))}
 	>
 		{#each openMenuItems as item (item.id)}
 			<li role="none">

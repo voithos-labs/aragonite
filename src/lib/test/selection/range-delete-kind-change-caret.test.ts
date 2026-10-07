@@ -46,7 +46,7 @@ describe('rangeDelete caret after a merge that re-parses into a container', () =
 			{ path: [1], offset: 0 }
 		);
 
-		expect(source).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
+		expect(source).toBe('| a | b |\n|---|---|\n| 1 | 2 |\n');
 		expect(doc.children[0].kind).toBe('table');
 		expect(isLeafAt(doc, caret.path)).toBe(true);
 	});

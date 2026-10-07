@@ -8,6 +8,7 @@ import { updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 describe('a content write that empties a setext title', () => {
 	it.each([
@@ -19,7 +20,7 @@ describe('a content write that empties a setext title', () => {
 	])('%s leaves a paragraph and no underline', (_label, source, written, result) => {
 		const doc = parse(source);
 
-		updateNodeContent(doc, 0, written, defaultGrammarView);
+		updateNodeContent(doc, 0, written, defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe(result);
 		expect(doc.children.map((c) => c.kind)).not.toContain('thematicBreak');
@@ -39,7 +40,8 @@ describe('a content write that empties a setext title', () => {
 			},
 			0,
 			'\n---\n',
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 
 		expect(quote.children!.map((c) => c.kind)).toEqual(['paragraph']);
@@ -52,7 +54,7 @@ describe('a content write that empties a setext title', () => {
 	])('keeps the underline under %s', (_label, source, written) => {
 		const doc = parse(source);
 
-		updateNodeContent(doc, 0, written, defaultGrammarView);
+		updateNodeContent(doc, 0, written, defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe(written);
 		expect(doc.children.map((c) => c.kind)).toEqual(['setextHeading']);

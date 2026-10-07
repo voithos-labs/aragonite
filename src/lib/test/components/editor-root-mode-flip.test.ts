@@ -2,6 +2,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createModeFlip } from '$lib/components/editor-root-mode-flip';
 import { createEditorEvents } from '$lib/editor-events';
+import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
 import { settleEditor } from '$lib/test/harness/settle';
@@ -31,14 +33,21 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	const calls = {
 		caretForgets: 0,
 		measuredDrops: 0,
+		menuCloses: 0,
 		gapClears: 0,
 		selectionEmits: 0,
 		modeEmits: [] as PresentationMode[],
-		restores: [] as [number[], number][]
+		restores: [] as [number[], number][],
+		/** The post half's steps in the order they ran. */
+		order: [] as string[]
 	};
 	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	events.on('presentationModeChange', (next) => calls.modeEmits.push(next));
+	const drafts = createDraftRegistry(createDocumentStamps());
+	events.on('presentationModeChange', (next) => {
+		calls.modeEmits.push(next);
+		calls.order.push('mode');
+	});
 	const flip = createModeFlip({
 		get editorEl() {
 			return root;
@@ -51,11 +60,34 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		announceSelection: () => calls.selectionEmits++,
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
-		caretMemory: { forget: () => calls.caretForgets++ },
-		layout: { forgetMeasuredHeights: () => calls.measuredDrops++ },
+		caretMemory: {
+			forget: () => {
+				calls.caretForgets++;
+				calls.order.push('caret');
+			}
+		},
+		layout: {
+			forgetMeasuredHeights: () => {
+				calls.measuredDrops++;
+				calls.order.push('heights');
+			}
+		},
+		menus: {
+			closeAll: (cause) => {
+				calls.menuCloses++;
+				calls.order.push(`menus:${cause}`);
+			}
+		},
+		drafts: {
+			closeAll: (cause) => {
+				calls.order.push(`drafts:${cause}`);
+				drafts.closeAll(cause);
+			}
+		},
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
+			calls.order.push('restore');
 		},
 		holdOutgoingMode: (next) => {
 			held = next;
@@ -72,6 +104,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	return {
 		leaf,
 		headerField,
+		drafts,
 		flip,
 		calls,
 		selection,
@@ -102,7 +135,12 @@ describe('editor-root mode flip: the two halves', () => {
 		const h = harness();
 		h.flip.beforeFlip('source');
 		h.flip.afterFlip('source');
-		expect(h.calls).toMatchObject({ caretForgets: 0, measuredDrops: 0, modeEmits: [] });
+		expect(h.calls).toMatchObject({
+			caretForgets: 0,
+			measuredDrops: 0,
+			menuCloses: 0,
+			modeEmits: []
+		});
 	});
 
 	it('the pre half blurs a focused leaf and announces the dropped selection', () => {
@@ -121,10 +159,50 @@ describe('editor-root mode flip: the two halves', () => {
 		expect(h.calls.selectionEmits).toBe(0);
 	});
 
-	it('the post half forgets the caret memory, drops measured heights and announces the mode', () => {
+	it('the post half closes the menus, forgets the mode’s geometry and announces the mode', () => {
 		const h = harness();
 		h.flipTo('live');
-		expect(h.calls).toMatchObject({ caretForgets: 1, measuredDrops: 1, modeEmits: ['live'] });
+		expect(h.calls).toMatchObject({
+			caretForgets: 1,
+			measuredDrops: 1,
+			menuCloses: 1,
+			modeEmits: ['live']
+		});
+	});
+});
+
+// The blur in the first half commits a focused draft and ends it; the drafts close in the second
+// half then reaches only one nothing focused, so no draft is written twice.
+describe('editor-root mode flip: the drafts', () => {
+	function draftOnLeaf(h: ReturnType<typeof harness>) {
+		const writes: string[] = [];
+		const draft = h.drafts.open({
+			seed: 'x',
+			current: () => 'x',
+			close: (cause) => commit(`close:${cause}`)
+		});
+		function commit(how: string) {
+			draft.end();
+			writes.push(how);
+		}
+		h.leaf.addEventListener('blur', () => commit('blur'), { once: true });
+		return writes;
+	}
+
+	it('a focused draft is written once, by its blur', () => {
+		const h = harness();
+		const writes = draftOnLeaf(h);
+		h.leaf.focus();
+		h.flipTo('live');
+		expect(writes).toEqual(['blur']);
+	});
+
+	it('a draft nothing focused is written once, by the close', () => {
+		const h = harness();
+		const writes = draftOnLeaf(h);
+		h.flipTo('live');
+		h.flipTo('source');
+		expect(writes).toEqual(['close:mode-change']);
 	});
 });
 
@@ -134,6 +212,21 @@ describe('editor-root mode flip: the caret carry', () => {
 		h.flipTo('live');
 		await settleEditor();
 		expect(h.calls.restores).toEqual([[[1], 3]]);
+	});
+
+	// Miss-analysis: the post half's steps were only counted, and a menu's close can write.
+	it('closes the menus before anything else, so the restore reads the tree a close left', async () => {
+		const h = harness({ selection: caretAt([1], 3) });
+		h.flipTo('live');
+		await settleEditor();
+		expect(h.calls.order).toEqual([
+			'menus:mode-change',
+			'drafts:mode-change',
+			'caret',
+			'heights',
+			'mode',
+			'restore'
+		]);
 	});
 
 	it('entering reading clears the gap caret and restores nothing', async () => {

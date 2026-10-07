@@ -1,13 +1,14 @@
 /**
  * The two parts of a keystroke only the editor root can do: grouping it with its typing burst in
- * the undo history, and writing the leaf in place outside a commit. Containers reach both through
- * `ContainerEditActions`.
+ * the undo history, and writing the leaf in place outside a commit, which announces its own
+ * `input` edit. Containers reach both through `ContainerEditActions`.
  */
 
 import type { ContainerEditActions, InPlaceResult, Relanding } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import { assertInvariant } from '../assert';
+import { assertReadsBack } from '../invariants/install';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { caretTargetFor } from '../selection/caret-target';
 import type { CaretPosition } from '../selection/primitives';
@@ -46,7 +47,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 		writeLeafInPlace(leafPath, write, caret) {
 			const kindOf = () => blockNodeAt(deps.doc, leafPath)?.kind;
 			// A backstop: the keystroke asks the reading-mode check before it picks this route.
-			if (!admitsWrite(deps.reading, 'updateContent', kindOf)) return { wrote: false };
+			if (!admitsWrite(deps, 'updateContent', kindOf)) return { wrote: false };
 			const chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 			// A shorter chain would leave the leaf's container shared with an undo entry, and
 			// writing it would rewrite that entry.
@@ -90,11 +91,17 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 					{ path: leafPath, leafPreviousRaw }
 				);
 				publishAncestryFolds(deps, folds);
+				// The block now in the chain's top slot: a kind change there swaps the node, and a join
+				// can fold the last one into the block above.
+				const top = deps.doc.children[leafPath[0]];
+				if (top) assertReadsBack([top], deps.reading.grammar);
 				// Raw written outside a commit reaches the view once Svelte re-reads doc.children.
 				deps.doc.children = [...deps.doc.children];
 			}
-			// The content version bumps after the tree write, in the order a commit uses.
+			// The content version bumps after the tree write, and the `edit` after that, in the
+			// order a commit uses; the trial reparse kept the leaf's kind, which `input` promises.
 			deps.bumpContentVersion();
+			deps.events.emit('edit', { op: 'input', path: [...leafPath], timestamp: Date.now() });
 			const moved = settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 			return {
 				wrote: true,

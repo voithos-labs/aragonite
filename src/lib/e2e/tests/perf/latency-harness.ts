@@ -19,7 +19,7 @@ const LOAD_TIMEOUT_MS = 480_000;
 const KEYSTROKE_TIMEOUT_MS = 60_000;
 
 // A container-first fixture gets a paragraph in front, since block 0 is always mounted:
-// `focusBlockEnd(0)` would aim at an unmounted last child, and a table cell edit re-pads the table.
+// `focusBlockEnd(0)` would aim at an unmounted last child.
 const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set([
 	'nested-containers',
 	'table-heavy',
@@ -109,12 +109,21 @@ async function loadFixture(page: Page, editor: EditorPage, fixture: string): Pro
 /** A keystroke into an unmounted block lands on `<body>`, so the wait would time out instead of
  *  reporting. */
 async function assertMounted(page: Page, path: number[], what: string): Promise<void> {
-	const pathAttr = JSON.stringify(path);
 	const mounted = await page.evaluate(
-		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
-		pathAttr
+		(path) => (window as any).__test.isBlockMounted(path) as boolean,
+		path
 	);
-	if (!mounted) throw new Error(`${what} ${pathAttr} is not mounted, windowing left it off-window`);
+	if (!mounted) {
+		throw new Error(`${what} ${JSON.stringify(path)} is not mounted, windowing left it off-window`);
+	}
+}
+
+function leafRawLength(page: Page, path: number[]): Promise<number> {
+	return page.evaluate((path) => {
+		let node = (window as any).__test.getDocument();
+		for (const index of path) node = node.children[index];
+		return node.raw.length as number;
+	}, path);
 }
 
 async function block0Length(page: Page): Promise<number> {
@@ -221,8 +230,17 @@ export async function measureContainerInteriorTyping(
 	// focusBlockAtPath, so the caret sits at that child's end whatever it contains.
 	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
 	const base0 = await block0Length(page);
+	const leafBefore = await leafRawLength(page, leafPath);
 	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 
+	// Block 0 grows wherever in the container a key lands, so only the target leaf proves the row
+	// timed typing there.
+	const typed = (await leafRawLength(page, leafPath)) - leafBefore;
+	if (samples.length === 0 || typed !== keystrokes) {
+		throw new Error(
+			`container interior ${JSON.stringify(leafPath)} took ${typed} of ${keystrokes} keystrokes`
+		);
+	}
 	return {
 		loadMs,
 		samples,

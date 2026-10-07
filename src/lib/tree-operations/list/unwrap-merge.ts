@@ -1,35 +1,36 @@
 /**
  * Unwrapping a list's first item, and merging a later item into the deepest text leaf of the one
- * before it. Both keep each block's absolute indent and the ordered-marker sequence.
+ * before it. Both rewrite the item's marker line only; every other line keeps its bytes, and the
+ * ordered-marker sequence runs on (`docs/design/editor.md` § Container unwrap).
  */
 
-import type { CstNode, ListMetadata } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import { splitLines, trailingLineEnding } from '../../core/lines';
 import { joinIntoLeaf } from '../node-ops';
 import type { SharingState } from '../sharing';
-import { cloneMetadata, cloneNode } from '../clone';
-import { rebuildAncestryRaw } from '../../schema/container-raw';
+import { cloneNode } from '../clone';
+import { parseContainerRaw } from '../../schema/container-raw';
+import type { GrammarView } from '../../schema/block-openers';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
-import { partitionItemChildren } from './item-partition';
-import { ensureUnsharedChild, ensureUnsharedNode } from '../unshare';
-import { assignIds } from '../../block-id';
-import { pushChild } from '../children';
+import { renumberOrderedList } from './ordered-markers';
+import { dissolveItem } from './item-partition';
+import { keepingListOrder } from '../../invariants/list-move-keeps-order';
+import { leafTextAround, leafTexts } from '../../invariants/leaf-text';
+import { assignChildIdsDeep } from '../../block-id';
+import { replacePreservingFirst, type StructuralChange } from '../structural-change';
 
 /**
- * Unwrap a list's first item without mutating the input: the item's other children lifted out,
- * then the rest of the list with the promoted sub-list items first.
+ * Unwrap a list's first item without mutating the input: its children in the order they read, then
+ * the rest of the list, which joins the sublist items when they come last.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
-
-	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
 	const firstItem = list.children[0];
 	if (!firstItem.children || firstItem.children.length === 0) {
@@ -44,37 +45,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		return [clonedList];
 	}
 
-	const { promotedItems, liftedBlocks } = partitionItemChildren(firstItem.children, parentOrdered);
-
-	const restItems = list.children.slice(1).map(cloneNode);
-	const remainingItems = [...promotedItems, ...restItems];
-
-	if (remainingItems.length === 0) {
-		return liftedBlocks;
-	}
-
-	remainingItems[0].leadingTrivia = '';
-
-	const remainingList: CstNode = {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: '',
-		metadata: list.metadata
-			? (cloneMetadata(list.metadata) as ListMetadata)
-			: { ordered: parentOrdered },
-		children: remainingItems,
-		childIds: assignIds(remainingItems),
-		innerPrefix: list.innerPrefix ?? '',
-		innerSuffix: list.innerSuffix ?? ''
-	};
-
-	// Preserve the original list's starting number.
-	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem));
-
-	rebuildListRaw(remainingList);
-
-	liftedBlocks.push(remainingList);
-	return liftedBlocks;
+	return dissolveItem(list, 0).blocks;
 }
 
 /** The merge target's path; null when no prose leaf is reachable. */
@@ -87,73 +58,15 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 	return result ? result.path : null;
 }
 
-/**
- * The last list child of the merge target's top-level item, where a deep target's nested items
- * go to keep their indent. Unshares the list it resolves.
- */
-function depthOneListFor(
-	list: CstNode,
-	targetPath: number[],
-	sharing?: SharingState
-): CstNode | null {
-	if (targetPath.length < 4) return null;
-	const depthOneParent = list.children![targetPath[0]];
-	if (!depthOneParent.children) return null;
-	const idx = depthOneParent.children.findLastIndex((c) => c.kind === 'list');
-	if (idx === -1) return null;
-	const depthOneList = sharing
-		? ensureUnsharedChild(depthOneParent, idx, sharing)
-		: depthOneParent.children[idx];
-	return depthOneList.children ? depthOneList : null;
-}
-
-/**
- * Move the merged item's remaining children to where they keep their absolute indent, copying each
- * first so the undo entry's deleted item stays intact.
- */
-function relocateRemainingChildren(
-	list: CstNode,
-	targetPath: number[],
-	targetItem: CstNode,
-	currentItem: CstNode,
-	sharing?: SharingState
-): void {
-	const remainingChildren = currentItem
-		.children!.slice(1)
-		.map((c) => (sharing ? ensureUnsharedNode(c, sharing) : c));
-
-	for (const child of remainingChildren) {
-		if (child.kind === 'list' && child.children) {
-			const depthOneList = depthOneListFor(list, targetPath, sharing);
-			if (depthOneList) {
-				for (let i = 0; i < child.children.length; i++) {
-					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
-					item.leadingTrivia = '';
-					// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
-					pushChild(depthOneList, item);
-				}
-				rebuildListRaw(depthOneList);
-				continue;
-			}
-			// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
-			pushChild(targetItem, child);
-		} else {
-			// The child keeps its own blank line: the joined text above it ends the way the text it
-			// followed did. An in-place write on a descendant, see the `node-primitives.ts` header.
-			pushChild(targetItem, child);
-		}
-	}
-}
-
 /** Merge the item at `currentIndex` into the preceding item's last prose leaf, mutating `list`;
  *  null when there is nothing to join, and the caller falls back. A bad `currentIndex` throws. */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	reading: Reading
-): { mergePoint: { targetPath: number[]; offset: number } } | null {
+): MergeResult | null {
 	// Targeting may read `list.children`, but the final splice must land in `children`
 	// (`node-primitives.ts` header).
 	if (
@@ -164,12 +77,43 @@ export function mergeListItemIntoPrevious(
 	) {
 		throw new Error(`mergeListItemIntoPrevious: invalid currentIndex ${currentIndex}`);
 	}
-
 	const targetPath = findDeepestVisibleTextTarget(list, currentIndex - 1);
-	if (!targetPath) return null;
+	const target = targetPath ? nodeAt(list, targetPath) : null;
+	const absorbed = children[currentIndex].children?.[0] ?? null;
+	// The join rewrites the lines it joins (a live-mode join can drop markers, a line below can
+	// continue the joined paragraph), so the order check reads the text around them.
+	let around: readonly string[] = [];
+	return keepingListOrder(
+		() => (around = leafTextAround([list], target, absorbed)),
+		() => mergeMarkerLine(list, children, currentIndex, targetPath, sharing, reading),
+		() => {
+			const text = leafTexts([list]).join('');
+			return [text.slice(0, around[0].length), text.slice(text.length - around[1].length)];
+		}
+	);
+}
+
+type MergeResult = {
+	mergePoint: { targetPath: number[]; offset: number };
+	change: StructuralChange;
+};
+
+function mergeMarkerLine(
+	list: CstNode,
+	children: CstNode[],
+	currentIndex: number,
+	targetPath: number[] | null,
+	sharing: SharingState,
+	reading: Reading
+): MergeResult | null {
+	if (!targetPath || !list.children) return null;
 	const currentItem = children[currentIndex];
 	const absorbed = currentItem.children?.[0];
 	if (absorbed?.kind !== 'paragraph') return null;
+	// Lines that would read outside the list have nowhere to go, so the merge declines.
+	if (!readAsList(bytesWithoutMarkerLine(children, currentIndex), list, reading.grammar)) {
+		return null;
+	}
 
 	// The target has the current item below it, so it closes its line with the document's ending.
 	const lineEnding = trailingLineEnding(nodeAt(list, targetPath).raw, '\n');
@@ -177,25 +121,71 @@ export function mergeListItemIntoPrevious(
 	const joined = joinIntoLeaf(body, targetPath, absorbed, reading, sharing);
 	if (!joined) return null;
 
-	const targetItem = nodeAt(list, targetPath.slice(0, -1));
-	relocateRemainingChildren(list, targetPath, targetItem, currentItem, sharing);
-
-	children.splice(currentIndex, 1);
-
-	// So the post-splice reads below see the new shape; idempotent with the commit's
-	// final write to state.
+	// Only the marker line goes; every line under it keeps its bytes and reads where it now stands.
+	const reread = readAsList(bytesWithoutMarkerLine(children, currentIndex), list, reading.grammar);
+	if (!reread?.children)
+		throw new Error('mergeListItemIntoPrevious: the joined list no longer reads as one');
+	assignChildIdsDeep(reread);
+	const change = changeAcross(children, reread.children);
+	children.length = 0;
+	for (const item of reread.children) {
+		sharing.stamp(item);
+		children.push(item);
+	}
+	// So the reads below see the new shape; idempotent with the commit's final write to state.
 	list.children = children;
-
-	rebuildAncestryRaw(list, targetPath, reading.grammar);
 
 	if (metadataOf(list, 'list')?.ordered) {
 		// The merge only removes a non-first item, so children[0] keeps the list's starting number;
 		// renumber from 1 to continue it rather than resetting the sequence.
 		renumberOrderedList(list, 1, sharing);
-		rebuildListRaw(list);
 	}
 
-	return { mergePoint: { targetPath, offset: joined.joinOffset } };
+	return { mergePoint: { targetPath, offset: joined.joinOffset }, change };
+}
+
+/** The list's bytes with item `index`'s marker line and its own text gone, the lines under it as
+ *  they stood; its blank line above goes with the marker line. */
+function bytesWithoutMarkerLine(items: readonly NodeView[], index: number): string {
+	let bytes = '';
+	for (let i = 0; i < items.length; i++) {
+		bytes += i === index ? linesBelowOwnText(items[i]) : items[i].leadingTrivia + items[i].raw;
+	}
+	return bytes;
+}
+
+/** An item's lines below its own first block, as they stand in the list. */
+function linesBelowOwnText(item: NodeView): string {
+	const own = splitLines(item.children![0].raw).length;
+	const lines = splitLines(item.raw);
+	return lines.length > own ? item.raw.slice(lines[own - 1].end) : '';
+}
+
+/** The list `bytes` read as, when they still read as one list of `list`'s kind. */
+function readAsList(bytes: string, list: NodeView, grammar: GrammarView): CstNode | null {
+	const blocks = parseContainerRaw(bytes, grammar);
+	const ordered = (node: NodeView) => metadataOf(node, 'list')?.ordered ?? false;
+	const [reread] = blocks;
+	const one = blocks.length === 1 && reread.kind === 'list' && ordered(reread) === ordered(list);
+	return one ? reread : null;
+}
+
+/** The items the merge changed, from the first that differs to the last: the first keeps its id,
+ *  since the merged text joined it. */
+function changeAcross(before: readonly NodeView[], after: readonly NodeView[]): StructuralChange {
+	const same = (a: NodeView, b: NodeView) =>
+		a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
+	const shorter = Math.min(before.length, after.length);
+	let head = 0;
+	while (head < shorter && same(before[head], after[head])) head++;
+	let tail = 0;
+	while (
+		tail < shorter - head &&
+		same(before[before.length - 1 - tail], after[after.length - 1 - tail])
+	) {
+		tail++;
+	}
+	return replacePreservingFirst(head, before.length - head - tail, after.length - head - tail);
 }
 
 /** The node at `path` below `root`, re-read through the tree. */

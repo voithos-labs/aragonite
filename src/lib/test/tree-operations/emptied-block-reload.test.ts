@@ -9,19 +9,21 @@ import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/pars
 import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A block that turns blank joins the blank run around it, and the run carries exactly the one
 // separating line its reload produces; the reverse of `typed-blank-lines-reload.test.ts`.
 // Miss-analysis: every blank-line case drove the fill direction, so no case emptied a block.
 
-/** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw, '\n')`, so an
- *  emptied block sends the line ending alone. */
+/** The gesture: typing sends the text plus the block's own line ending, so an emptied block sends
+ *  the line ending alone. */
 function empty(doc: Document, index: number): void {
 	updateNodeContent(
 		doc,
 		index,
 		trailingLineEnding(doc.children[index].raw, '\n'),
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 }
 
@@ -53,9 +55,9 @@ describe('emptying a block settles the run it joins', () => {
 	// past the block being emptied: a fix-up reaching only `index + 1` finds a blank block with none.
 	it('reaches past a blank follower to the separator a split left below it', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, fixtureReading());
-		splitNode(doc, 1, 0, undefined, fixtureReading());
-		updateNodeContent(doc, 1, 'x\n', defaultGrammarView);
+		splitNode(doc, 0, 5, createSharingState(), fixtureReading());
+		splitNode(doc, 1, 0, createSharingState(), fixtureReading());
+		updateNodeContent(doc, 1, 'x\n', defaultGrammarView, createSharingState());
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'Hello\n'],
 			['paragraph', '\n', 'x\n'],
@@ -83,7 +85,7 @@ describe('emptying a block settles the run it joins', () => {
 	it('settles the last block a multi-block commit created', () => {
 		const doc = parse('alpha\n\nx\n\ndelta\n');
 
-		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView);
+		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView, createSharingState());
 
 		expectReloadsAsItStands(doc, 'alpha\n\np\n\n\ndelta\n');
 	});
@@ -126,7 +128,7 @@ describe('emptying a block that must supply nothing', () => {
 	it('leaves a fill whose own last block is blank converged', () => {
 		const doc = parse('alpha\n\n\ndelta\n');
 
-		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView);
+		updateNodeContent(doc, 1, 'p\n\n\n', defaultGrammarView, createSharingState());
 
 		expectReloadsAsItStands(doc, 'alpha\n\np\n\n\ndelta\n');
 	});
@@ -181,7 +183,7 @@ describe('emptying a block beside indentation-delimited content', () => {
 	it('materializes the trailing blank line on the delete entry point too', () => {
 		const doc = parse('1.   # **b**\n\nmid\n\n     code\n\t\n\n```\n```\n');
 
-		deleteNode(doc, 1, defaultGrammarView);
+		deleteNode(doc, 1, defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe('1.   # **b**\n\n     code\n\t\n\n```\n```\n');
 		expectParseConverged(doc);

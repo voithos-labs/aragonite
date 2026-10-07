@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { textRunEnd } from '../../text-runs';
 import type { Page } from '@playwright/test';
 import {
 	clickBlockSettled,
@@ -72,7 +73,7 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// Keydown decides where a byte lands at a hidden edge; auto-pairing still adds the pair.
+	// The byte lands past the closer, and the auto-pair still writes its partner there.
 	test('a delimiter typed at the trailing edge from outside lands its paired closer past the closer', async ({
 		page
 	}) => {
@@ -82,8 +83,28 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 	});
 });
 
-// A backtick typed at a hidden closer is written by the keydown path, which records the pair as
-// the auto-pair's own just as the `beforeinput` path does: Backspace between the two takes both.
+// Where the screen paints the closer, typing it steps past the closer the user sees.
+test.describe('every mode that paints the closer: typing it steps past it', () => {
+	for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+		for (const [word, closer, after] of [
+			['strong', '**', 'Some **strong**X text'],
+			['code', '`', 'Some `code`X text']
+		] as const) {
+			test(`${mode}, ${word}: the next byte lands after the construct`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, DOC);
+				const end = await textRunEnd(page, word);
+				await page.mouse.click(end.x, end.y);
+				await ep.waitForRenderFlush();
+				await page.keyboard.type(closer);
+				await page.keyboard.type('X');
+				await ep.bridge.waitForSourceContains(after);
+			});
+		}
+	}
+});
+
+// A backtick typed at a hidden closer pairs where it lands, and the auto-pair records the pair as
+// its own: Backspace between the two takes both.
 test('live mode: Backspace takes both of a pair written at a hidden closer', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', 'x **b** y\n');
 	await ep.focusBlock(0, 7);

@@ -18,6 +18,7 @@ import {
 	sectionFragment,
 	stripFencedBlocks
 } from '../../../../../scripts/check-codebase-map.mjs';
+import { SOURCE } from './source-paths';
 
 const ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
 
@@ -58,9 +59,7 @@ describe('§ pointer corpus: non-vacuity', () => {
 
 	it('finds the pointers it exists to check', () => {
 		expect(pointers.length).toBeGreaterThan(100);
-		const activation = pointers.filter(
-			(pointer) => pointer.file === 'src/lib/schema/plugin-activation.ts'
-		);
+		const activation = pointers.filter((pointer) => pointer.file === SOURCE.pluginActivation);
 		expect(activation).toHaveLength(1);
 		expect(activation[0].doc).toBe('docs/design/plugin-contract.md');
 		expect(activation[0].fragment).toBe('per-instance-enablement');
@@ -115,8 +114,8 @@ describe('§ pointer resolution: self-tests', () => {
 	});
 
 	it('reds when the heading a live pointer names is renamed', () => {
-		const source = readFileSync('src/lib/components/Editor.svelte', 'utf8');
-		const cited = pointersIn('src/lib/components/Editor.svelte', source).find((pointer) =>
+		const source = readFileSync(SOURCE.editorShell, 'utf8');
+		const cited = pointersIn(SOURCE.editorShell, source).find((pointer) =>
 			pointer.doc.endsWith('editor.md')
 		);
 		expect(cited, 'Editor.svelte no longer cites an editor.md section').toBeDefined();
@@ -158,10 +157,10 @@ describe('path and symbol references: still enforced', () => {
 			'x.md: src/lib/nope.ts — no such file or directory'
 		]);
 		expect(
-			referenceFailures([{ file: 'x.md', path: 'src/lib/core/nodes.ts', symbol: 'NotAThing' }])
-		).toEqual(['x.md: src/lib/core/nodes.ts :: NotAThing — symbol not found in that file']);
+			referenceFailures([{ file: 'x.md', path: SOURCE.cstNodes, symbol: 'NotAThing' }])
+		).toEqual([`x.md: ${SOURCE.cstNodes} :: NotAThing — symbol not found in that file`]);
 		expect(
-			referenceFailures([{ file: 'x.md', path: 'src/lib/core/nodes.ts', symbol: 'AnyBlockKind' }])
+			referenceFailures([{ file: 'x.md', path: SOURCE.cstNodes, symbol: 'AnyBlockKind' }])
 		).toEqual([]);
 	});
 

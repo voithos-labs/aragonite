@@ -35,17 +35,11 @@ export interface WidgetTarget {
 	preSelectOffset: number;
 }
 
-/** An inline widget selected whole (an image), as the raw span of the block at `path`. */
+/** An inline widget selected whole, as the raw span of the block at `path`. */
 export interface SelectedWidgetRange {
 	path: number[];
 	start: number;
 	end: number;
-}
-
-/** The widget selected whole, read live, and the way to end that selection. */
-export interface SelectedWidgetHandle {
-	range(): SelectedWidgetRange | null;
-	clear(): void;
 }
 
 /** Cell-space endpoint: `offset` is a row-major table cell index; `path` addresses the table block. */
@@ -159,20 +153,26 @@ export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 
 // ── Overlay classification ─────────────────────────────────────────────────
 
-export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
+export type BlockSelectionClass = 'outside' | 'start' | 'whole' | 'end' | 'single-block';
 
-/** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
- *  browser, and a subtree the range holds whole is 'middle' with nothing inside it painting. */
+/** Whether a range paints as one region across blocks, the space between them included, rather
+ *  than inside one block (its own text, one table's cell rectangle, or the block held whole). */
+export function rangeSpansBlocks(coverage: RangeCoverage): boolean {
+	return !pathsEqual(coverage.range.start.path, coverage.range.end.path);
+}
+
+/** Where a block stands in a range, which decides how it paints: a subtree the range covers end to
+ *  end is 'whole' even when it holds an endpoint, and nothing inside it paints. */
 export function classifyBlockForSelection(
 	path: readonly number[],
 	coverage: RangeCoverage
 ): BlockSelectionClass {
 	const { start, end } = coverage.range;
-	if (pathsEqual(start.path, end.path)) {
+	if (!rangeSpansBlocks(coverage)) {
 		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	const root = coverage.rootHolding(path);
-	if (root) return pathsEqual(root, path) ? 'middle' : 'outside';
+	const root = coverage.coveredRootHolding(path);
+	if (root) return pathsEqual(root, path) ? 'whole' : 'outside';
 	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
 	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
@@ -186,25 +186,28 @@ export function blockPaintsWholeBox(
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const { start, end } = coverage.range;
-	if (pathsEqual(start.path, end.path)) return false;
-	const root = coverage.rootHolding(path);
-	return root !== null && pathsEqual(root, path);
+	return classifyBlockForSelection(path, coverage) === 'whole';
 }
 
-/** The end-exclusive offsets an endpoint block measures its highlight between: a kept table
- *  edge's cells, or its text from the start or up to the end. */
+/** The end-exclusive offsets an endpoint block measures its highlight between, a kept table edge's
+ *  cells or its text; `textSide` is set for text, whose paint runs out to its line edges. */
 export function endpointMeasureSpan(
 	classification: BlockSelectionClass,
 	coverage: RangeCoverage
-): { from: number; to: number } {
+): { from: number; to: number; textSide: 'start' | 'end' | null } {
 	const { startEdge, endEdge, startCells, endCells } = coverage;
 	const from = classification === 'end' ? 0 : (startCells?.from ?? textOffset(startEdge, 0));
 	const to =
 		classification === 'start'
 			? SELECTION_END
 			: (endCells?.to ?? textOffset(endEdge, SELECTION_END));
-	return { from, to };
+	const textSide =
+		classification === 'start' && !startCells
+			? 'start'
+			: classification === 'end' && !endCells
+				? 'end'
+				: null;
+	return { from, to, textSide };
 }
 
 // A cell pair inside one table measures its rectangle, which reads no offset.

@@ -1,8 +1,7 @@
 /**
- * Reading mode writes no bytes, and every entry point that writes the document asks here first.
- * A write in reading mode is declined, and a dev build names the operation and its caller, since
- * the gesture that reached it offered a write the mode should not have. Ask synchronously, before
- * the first await, or the report loses the caller.
+ * Every entry point that writes the document asks here first. A write in reading mode is declined,
+ * and a dev build names it; one made for a document a `source` swap replaced is declined quietly.
+ * Ask synchronously, before the first await, or the report loses the caller and the write's stamp.
  */
 
 import { splitLines } from '../../core/lines';
@@ -10,21 +9,27 @@ import { devWarn } from '../../dev-warn';
 import { editorEnv } from '../../env';
 import { isReadingMode } from '../../presentation-mode';
 import type { Reading } from '../../schema/reading';
+import type { DocumentStamps } from './document-stamp';
 
 export const READING_WRITE_TAG = 'reading-write';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * Whether a write naming `op` may land: false in reading mode, with a dev warning that names the
- * block kind `kindOf` answers, so a plugin author can tell which of their blocks asked.
- */
+/** What the gate reads: the mode, and the document the write being made was stamped with. */
+export interface WriteGate {
+	readonly reading: Reading;
+	readonly stamps: DocumentStamps;
+}
+
+/** Whether a write naming `op` may land: quietly false for a document a swap replaced, and false
+ *  in reading mode, with a dev warning naming the block kind `kindOf` answers. */
 export function admitsWrite(
-	reading: Reading,
+	gate: WriteGate,
 	op: string,
 	kindOf?: () => string | undefined
 ): boolean {
-	if (!isReadOnly(reading)) return true;
+	if (gate.stamps.active()?.live === false) return false;
+	if (!isReadOnly(gate.reading)) return true;
 	if (editorEnv.isDev) {
 		const kind = kindOf?.();
 		const on = kind ? `on a '${kind}' block, ` : '';
@@ -37,11 +42,11 @@ export function admitsWrite(
 }
 
 /**
- * For an undo snapshot pushed ahead of a write: declined in reading mode so no empty entry is
- * left on the stack, and silent, because the write that follows reports itself.
+ * For an undo snapshot pushed ahead of a write: declined wherever the write will be, so no empty
+ * entry is left on the stack, and silent, because the write that follows reports itself.
  */
-export function admitsSnapshot(reading: Reading): boolean {
-	return !isReadOnly(reading);
+export function admitsSnapshot(gate: WriteGate): boolean {
+	return gate.stamps.active()?.live !== false && !isReadOnly(gate.reading);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

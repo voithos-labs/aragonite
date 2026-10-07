@@ -37,14 +37,18 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/plugins/mermaid/mermaid-kind.ts': "the mermaid leaf's own rebuildRaw, fence and code",
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		"moves the task marker between the item's metadata and its own first line — one node's bytes, re-split",
+	'src/lib/tree-operations/list/list-builders.ts':
+		'a new item writes its opener line from its own indent and marker: one node’s bytes, re-split',
+	'src/lib/tree-operations/list/task-paragraph.ts':
+		'the first-slot reader gives back the spaces a marker line takes from the bytes it was handed: one write’s bytes, re-split',
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':
 		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete`, cut by `replaceRangeInLeaf` before the container routes run',
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
-	'src/lib/selection/cross-block/type-replace.ts':
-		'a key typed over a selection across blocks is a range delete, then the character at the caret it left: the delete cleans its join without the typed text in it, a known gap until the cross-block replace carries the text into the join (T18 slice 4)'
+	'src/lib/selection/cross-block/range-replace.ts':
+		'a key typed over a selection across blocks is a range removal, then the character at the caret it left: the removal cleans its join without the typed text in it, a known gap until the range replace carries the text into the join (T18 slice 5)'
 };
 
 /** Operand names that terminate a line rather than contribute a source's bytes. */

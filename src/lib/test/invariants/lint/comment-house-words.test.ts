@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { collectEditorSources, collectFiles, EDITOR_SRC, ROUTES_SRC } from './scan-source';
 import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
 import { findCommentBlocks } from './comment-lines';
+import { SOURCE_DIR } from './source-paths';
 
 const HOUSE_WORDS = [
 	'seam',
@@ -75,7 +76,7 @@ describe('G4.26 no house word in a comment', () => {
 
 	it('read the library, its tests and the demo routes', () => {
 		expect(sources.length).toBeGreaterThan(1000);
-		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
+		expect(sources.some((f) => f.relPath.startsWith(SOURCE_DIR.routes))).toBe(true);
 	});
 
 	it('no comment under src/lib or src/routes holds a house word', () => {
@@ -109,7 +110,7 @@ describe('G4.26 no house word in a comment', () => {
 
 // ── Requirement files ───────────────────────────────────────────────────────
 
-const REQUIREMENTS = 'src/lib/e2e/requirements';
+const REQUIREMENTS = SOURCE_DIR.e2eRequirements;
 
 /** House words in a requirement file's body text. Headings stay as written (specs and docs
  *  point at them), and code spans and fenced samples are code, not vocabulary. */
@@ -135,18 +136,20 @@ const NAMED_BY_A_LISTED_WORD = new Set([
 
 describe('G4.26 requirement files keep house words out of their body text', () => {
 	const files = collectFiles(REQUIREMENTS, { extensions: ['.md'] });
+	// Counted at collection, like the docs below: a 300-file scan can outlast a test's timeout under load.
+	const counted = files.map((f) => ({
+		file: f.slice(REQUIREMENTS.length),
+		hits: countHouseWordsInRequirement(readFileSync(f, 'utf8'))
+	}));
 
 	it('found the requirement files', () => {
 		expect(files.length).toBeGreaterThan(300);
 	});
 
 	it('no requirement file holds a house word outside its headings and code', () => {
-		const offenders = files
-			.map((f) => ({
-				file: f.slice(REQUIREMENTS.length + 1),
-				hits: countHouseWordsInRequirement(readFileSync(f, 'utf8'))
-			}))
-			.filter((row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file));
+		const offenders = counted.filter(
+			(row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file)
+		);
 		expect(offenders).toEqual([]);
 	});
 
@@ -164,16 +167,11 @@ describe('G4.26 requirement files keep house words out of their body text', () =
  *  Lower a number when a rewrite lands; never raise one. */
 const DOC_BASELINE: Record<string, number> = {
 	'docs/design/caret-placement.md': 1,
-	'docs/design/invariants.md': 122,
-	'docs/design/performance.md': 1,
-	'docs/design/plugin-contract.md': 77,
-	'docs/contributing/adding-a-block.md': 1,
+	'docs/design/invariants.md': 97,
 	'docs/contributing/anatomy-of-a-change.md': 2,
-	'docs/contributing/casebook.md': 7,
-	'docs/contributing/code-style.md': 15,
+	'docs/contributing/code-style.md': 4,
 	'docs/contributing/first-hour.md': 1,
-	'docs/contributing/rules.md': 18,
-	'docs/contributing/testing.md': 10,
+	'docs/contributing/rules.md': 2,
 	'docs/contributing/warnings.md': 1
 };
 

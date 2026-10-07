@@ -20,6 +20,14 @@ test.describe('list Backspace: M1 merge on non-first item', () => {
 		await editor.bridge.waitForSourceEquals('- Item oneItem two\n');
 	});
 
+	test('the lines under the merged item keep their bytes: a sublist then a paragraph stay in order', async () => {
+		await editor.loadContent('- i0\n  - i1\n    - i2\n  - i3\n    - i4\n\n    p5\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'i3' }).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('- i0\n  - i1\n    - i2i3\n    - i4\n\n    p5\n');
+	});
+
 	test('M1 row 2: current item has nested sub-list; nested absorbed into target', async () => {
 		await editor.loadContent('- A\n- B\n  - C\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).first();

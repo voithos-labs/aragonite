@@ -8,7 +8,11 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
-import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
+import {
+	blockReadingNotFinal,
+	isBlockOpenerRegistered,
+	type GrammarView
+} from '../schema/block-openers';
 import {
 	lineOpensAs,
 	parseContainerRaw,
@@ -39,9 +43,9 @@ import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-t
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
+	asBody,
 	ensureEditableContainers,
 	installOwnRaw,
-	parentLineEnding,
 	type BodyParent,
 	type BodyParentArg,
 	type NodeParent
@@ -145,23 +149,23 @@ export function updateNodeContent(
 	blockIndex: number,
 	text: string | LegalWrite,
 	grammar: GrammarView,
-	sharing?: SharingState
+	sharing: SharingState
 ): SettledContent {
+	const body = asBody(parent);
 	const legal =
-		typeof text === 'string' ? legalizeWrite(parent, blockIndex, text, 'literal').text : text.text;
+		typeof text === 'string' ? legalizeWrite(body, blockIndex, text, 'literal').text : text.text;
 	// Reconciled before the container's raw rebuild writes the list item's marker.
-	const owner = 'owner' in parent ? parent.owner : undefined;
-	return writeKeepingTaskMarker(owner, parent.children, blockIndex, sharing, () =>
-		writeAndSettleContent(parent, blockIndex, legal, grammar, sharing)
+	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () =>
+		writeAndSettleContent(body, blockIndex, legal, grammar, sharing)
 	);
 }
 
 function writeAndSettleContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	grammar: GrammarView,
-	sharing?: SharingState
+	sharing: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const indentMoved = leadingIndent(parent.children[blockIndex].raw) !== leadingIndent(text);
@@ -173,7 +177,7 @@ function writeAndSettleContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastWritten);
-		return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
 	}
 	// The reverse transition: the block is the separating line now, so the run it joins gives
 	// back the second one. The last block created is the one that meets the follower.
@@ -181,54 +185,75 @@ function writeAndSettleContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
+		return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing skips the neighbour reparse unless the first line's indent moved, a blank line
-	// stays blank, or this block or the one above reads the lines below it (editor.md § 8).
-	if (change.op === 'noop' && !wasBlank && !indentMoved && !readerBeside(parent, blockIndex)) {
-		return { change, textStart: 0 };
+	// Same-kind typing asks the join above only when it's flush, the block above's reading isn't
+	// final, the indent moved, or a blank line stays blank (editor.md § 8).
+	if (
+		change.op === 'noop' &&
+		!wasBlank &&
+		!indentMoved &&
+		!flushAbove(parent.children, blockIndex) &&
+		!unfinishedAbove(parent.children, blockIndex, grammar)
+	) {
+		// The join below is asked whatever parts it: an HTML block left open reads on past blank lines.
+		if (blockIndex + 1 >= parent.children.length) return { change, textStart: 0 };
+		return settleWriteSeams(
+			parent,
+			blockIndex,
+			blockIndex + 1,
+			lastWritten,
+			change,
+			sharing,
+			grammar
+		);
 	}
-	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
+	return settleWriteSeams(parent, blockIndex, blockIndex, lastWritten, change, sharing, grammar);
 }
 
 const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 
-const readsFollowingLines = (node: NodeView | undefined): boolean =>
-	node !== undefined && tryGetBlockKindDescriptor(node.kind)?.readsFollowingLines === true;
+/** Whether no blank line parts the block from the one above it; a first child has none above. */
+const flushAbove = (children: readonly CstNode[], index: number): boolean =>
+	index > 0 && children[index].leadingTrivia === '';
 
-/** Whether the written block or the one right above it reads the lines below it with no blank
- *  line between, where a write that kept its kind can still move the join. */
-function readerBeside(parent: BodyParentArg, blockIndex: number): boolean {
-	const { children } = parent;
-	const below = children[blockIndex + 1];
-	return (
-		(children[blockIndex].leadingTrivia === '' && readsFollowingLines(children[blockIndex - 1])) ||
-		(below?.leadingTrivia === '' && readsFollowingLines(children[blockIndex]))
-	);
+/** Whether the nearest block above may still read differently (an unclosed `$$`), which a closer
+ *  written below can complete across blank lines. */
+function unfinishedAbove(
+	children: readonly CstNode[],
+	index: number,
+	grammar: GrammarView
+): boolean {
+	let above = index - 1;
+	while (above >= 0 && isBlankParagraph(children[above])) above--;
+	return above >= 0 && blockReadingNotFinal(children[above].raw, grammar);
 }
 
 /**
- * Merge across every join the write disturbed, and report where the written text ended up, since
- * a merge into the block above puts that block's bytes in front of it.
+ * Merge across the joins from the one above `firstJoin` to the one below the last written block,
+ * and report where the written text ended up once a merge above put bytes in front of it.
  */
 function settleWriteSeams(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
+	firstJoin: number,
 	lastWritten: number,
 	change: StructuralChange,
-	sharing: SharingState | undefined,
+	sharing: SharingState,
 	grammar: GrammarView
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
 		parent,
-		blockIndex,
-		lastWritten - blockIndex + 1,
+		firstJoin,
+		lastWritten - firstJoin + 1,
 		blockIndex,
 		change,
 		grammar,
 		sharing,
-		tracked
+		tracked,
+		// One written block lets a join beside it be refused on a single line of the neighbour.
+		lastWritten === blockIndex ? blockIndex : undefined
 	);
 	return {
 		change: settled.change,
@@ -270,7 +295,7 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
  * the neighbour merge would read every block below it as its body.
  */
 function closeWrittenConstruct(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	oldKind: AnyBlockKind,
@@ -309,7 +334,7 @@ function openConstructTerminator(
 }
 
 function writeParsedContent(
-	parent: BodyParentArg,
+	parent: BodyParent,
 	blockIndex: number,
 	text: string,
 	grammar: GrammarView
@@ -317,7 +342,7 @@ function writeParsedContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	const lineEnding = parentLineEnding(parent);
+	const { lineEnding } = parent;
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it.
 	if (oldDescriptor.contextDependentKind) {
@@ -330,7 +355,7 @@ function writeParsedContent(
 		blockIndex,
 		text,
 		oldKind,
-		fragmentReaderAt('owner' in parent ? parent.owner : undefined, blockIndex, grammar)
+		fragmentReaderAt(parent.owner, blockIndex, grammar)
 	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];

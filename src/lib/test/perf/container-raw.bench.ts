@@ -9,7 +9,7 @@ import { enablePerfInstruments } from '../../perf/instruments';
 import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
-import { generateDeepNested, generateFixture } from './fixtures/generate';
+import { generateDeepNested, generateDeepProse, generateFixture } from './fixtures/generate';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Keeps the dev-only check that re-derives each splice (G1.38) out of every row's timing.
@@ -138,4 +138,25 @@ describe('ancestry rebuild: combined depth × bytes axis', () => {
 			iterations: 20
 		}
 	);
+});
+
+// The same nesting with prose-length lines, where the deep-nested rows write each level as one
+// long line: the rebuild's per-line work shows here, the per-byte work there.
+describe('ancestry rebuild: prose lines', () => {
+	const SHAPES: Array<[depth: number, label: string, bytes: number]> = [
+		[4, '10KB', 10_000],
+		[8, '10KB', 10_000],
+		[8, '50KB', 50_000],
+		[12, '10KB', 10_000]
+	];
+	for (const [depth, byteLabel, bytes] of SHAPES) {
+		const doc = parse(generateDeepProse(depth, bytes));
+		benchAncestryRebuild(
+			`rebuild deep prose: depth ${depth} × ${byteLabel}/level`,
+			doc.children[0],
+			{
+				iterations: 30
+			}
+		);
+	}
 });

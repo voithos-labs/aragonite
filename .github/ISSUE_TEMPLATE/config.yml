@@ -1,5 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
   - name: Questions and discussion
     url: https://github.com/voithos-labs/aragonite/discussions
-    about: Questions and anything that is not a defect, a proposal, or a task.
+    about: Anything that isn't a bug or a feature request.

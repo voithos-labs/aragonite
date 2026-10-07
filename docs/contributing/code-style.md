@@ -1,6 +1,6 @@
 # Code Style
 
-How we name, shape, comment, and format code. Nothing exotic; most decent codebases converge on roughly this list, and it's written down so you don't have to guess which dialect of it we speak. You can absorb this page as you go; you've probably absorbed most of it already.
+How we name, shape, comment, and format code. Nothing exotic; most decent codebases converge on roughly this list, and it's written down so you don't have to guess which flavour of it we speak. You can absorb this page as you go; you've probably absorbed most of it already.
 
 There's one rule that outranks the rest of the page: **when you touch messy code, improve what you touch.** Don't conform to bad patterns already in the file. Renaming a bad local, adding a section divider, pruning a stale comment are part of the edit, not a chore you file for later and never do.
 
@@ -14,11 +14,13 @@ Every function, file, and module does one thing you can state in a short sentenc
 
 A few adjacent habits:
 
-- No abstraction until the third repetition. Abstraction is a cost; pay it when repetition forces your hand, not when you get a feeling.
+- At the second copy, ask whether both enforce one rule. If they do, pull it into one place now. If they only look alike, leave them (a third copy settles it when you can't tell).
 - Prefer flat control flow.
 - Delete dead code. Git remembers.
 
-Now, the one place this rule looks broken on purpose: block components. The editor renders a document as blocks (a paragraph, a table, a code fence, each kind its own Svelte component), and a block's `.svelte` file is a **composition root**: its one job is wiring together state, lifecycle, and the per-concern modules sitting beside it. Wiring is a single responsibility no matter how many wires, so line count alone never forces a split there. A split is forced when new logic arrives that neither touches lifecycle nor needs the whole component's state. That logic never goes inline: it becomes a `createX(deps)` factory in a sibling `.ts` module. Hand the factory its reactive values as getters (`() => value`, not `value`), so it always reads the live value instead of a snapshot from mount time. The table and text block folders (`src/lib/components/blocks/table`, `src/lib/components/blocks/text`) are the pattern to copy.
+Now, the one place this rule looks broken on purpose: block components. The editor renders a document as blocks (a paragraph, a table, a code fence, each kind its own Svelte component), and a block's `.svelte` file is a **composition root**: its one job is wiring together state, lifecycle, and the per-concern modules sitting beside it. Wiring is a single responsibility no matter how many wires, so line count alone never forces a split there.
+
+A split is forced when new logic arrives that neither touches lifecycle nor needs the whole component's state. That logic never goes inline: it becomes a `createX(deps)` factory in a sibling `.ts` module. Hand the factory its reactive values as getters (`() => value`, not `value`), so it always reads the live value instead of a snapshot from mount time. The table and text block folders (`src/lib/components/blocks/table`, `src/lib/components/blocks/text`) are the pattern to copy.
 
 ## Inside a file
 
@@ -52,12 +54,12 @@ Neither says what the code does or how (names and types already do), and neither
 
 The budget alone didn't stop the essays. The rules that do:
 
-- **Plain words.** Write the English you'd use out loud to a colleague from another team. The repo grew a private vocabulary (seam, door, funnel, rung, ceremony, mint, peel, settle, seat, island, oracle, ladder, landable, and a few dozen more), and a comment written in it reads as encrypted to anyone who didn't grow up here. Use the plain phrase: "the module boundary", "the one entry point", "the estimated height", "where the caret sits". Where a symbol forces the word (`heightOracle` is the type's name), gloss it in three words or fewer: "the height oracle (estimates block heights)". [`glossary.md`](glossary.md) is there so you can read the comments that still use them, not so you can write more.
-- **Name the subject.** "Least destructive first:" is not a sentence. Least destructive _what_? Say the thing: the paragraph block, the scroll container, the undo stack, the caret. A comment about "the seam", "the surface" or "this" makes the reader reconstruct the subject from the code, which was the comment's job.
+- **Plain words.** Write the English you'd use out loud to a colleague from another team. The repo grew a private vocabulary (seam, door, oracle, and a few dozen more), and a comment written in it reads as encrypted to anyone who didn't grow up here. Use the plain phrase: "the module boundary", "the one entry point", "the estimated height", "where the caret sits". Where a symbol forces the word (`heightOracle` is the type's name), gloss it in three words or fewer: "the height oracle (estimates block heights)". [`glossary.md`](glossary.md) is there so you can read the comments that still use them, not so you can write more.
+- **Name the subject.** "Least destructive first:" is not a sentence. Least destructive _what_? Say the thing: the paragraph block, the scroll container, the undo stack, the caret. A comment about "the surface", "the layer" or "this" makes the reader reconstruct the subject from the code, which was the comment's job.
 - **A code is not a reason.** `G1.28` and `VR-15` are catalogue numbers. Say what holds ("a `<br>` adds no text, so the offset walk stays exact") and put the number after it if you like.
 - **No shouting.** ON, CURRENT, OWN and BEFORE in capitals mean the sentence is carrying too much. Rewrite the sentence.
 
-Before and after, from the tree as it stands (the afters are what the rewrite passes will land):
+Three before-and-afters, from the passes that rewrote the repo's comments:
 
 ```ts
 // before: two private words per line, and "owes" doing the work of a sentence
@@ -116,7 +118,6 @@ Delete on sight:
 - Naming callers or the current task (`used by the X flow`, `added for #123`). That belongs in the commit or the issue.
 - Multi-paragraph docstrings on internal functions. The name and the signature carry the load.
 - Design-rationale essays (incidents, rejected alternatives, review history). That context lives in git log, issues, and `docs/`; the code keeps one line of why, at most.
-- A claim with no subject (`// Rows before columns.`, `// Least destructive first:`). Say what the sentence is about, or delete it.
 - Past-state narration (`used to`, `previously`, `no longer`, `the old X did Y`). The reader needs the current rule, not the diff. Git has the diff.
 
 ### The gate
@@ -150,7 +151,9 @@ The same test holds the requirement files under `src/lib/e2e/requirements/` to z
 
 ## Directories
 
-A directory reflects a decision, not an accident. Name the concept that lives there (`parser/`, `selection/`, `undo/`), never the role (`utils/`, `helpers/`, `managers/`). Anything ending in `-ers` is usually a shelf rather than a boundary, and a shelf is where code goes when its author didn't know where else to put it. Beyond the names: what changes together lives together, and directory dependencies form a DAG (arrows flow one way, no cycles), with volatile code depending on stable code and never the reverse.
+A directory reflects a decision, not an accident. Name the concept that lives there (`selection/`, `undo/`, `search/`), never the role (`utils/`, `helpers/`, `managers/`). A role name is a shelf rather than a boundary, and a shelf is where code goes when its author didn't know where else to put it. (A plural of the domain, like `core/parsers/`, is fine: it still says what's inside.) Beyond the names, what changes together lives together, and imports between directories should flow one way, volatile code depending on stable code and never the reverse.
+
+The tree isn't all the way there yet: `src/lib`'s top-level directories still hold two import cycles. G4.122 (`src/lib/test/invariants/lint/directory-layering.test.ts`) holds the graph to today's edges, listed in `directory-layering-baseline.ts`. An import that adds a new edge between two directories fails the suite and names the imports behind it, and an edge that's gone fails until you delete its line. Adding a line there is a reviewer's call, not yours alone.
 
 ## Formatting
 

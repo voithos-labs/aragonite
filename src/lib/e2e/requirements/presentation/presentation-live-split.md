@@ -57,6 +57,14 @@ identical on screen.
   identically on screen and parse back, where the literal `**a **` would print its stars
 - source mode is unaffected: the same gesture over the same bytes splits byte-literally, because
   there the delimiters are painted and the user aimed at them
+- Enter just before a construct (a code span, a bold run, a code span opening a list item's text)
+  cuts no construct, so nothing reopens and the landing is structural: the next byte lands before
+  the construct in live and in preview-inline (``Y`code` z``, `Y**bold** z`). Miss-analysis:
+  every landing row split inside a construct, where typing continues inside the reopened one, so
+  no row asked where a split that reopened nothing puts the next byte
+- in a list item, `- **bo ld**` cut after `bo` writes `- **bo**` and `-  **ld**`. The space the
+  second half starts with stays, and the new item reads it the way a reload does, as part of a
+  wider `-  ` marker, so the tree matches the reload and `ld` is still bold
 
 ## User interactions
 
@@ -75,3 +83,7 @@ identical on screen.
 Nothing pinned the split against markers leaking before this file: the earlier requirements in
 this batch cover typing, toggling and destructive keys at hidden runs, and every one of them
 leaves the block boundary where it was. A gesture that moves the boundary was the one hole.
+
+The list item row: every split here cut a top-level paragraph, where both halves read the same as
+a fragment, so nothing split inside a list item, where the second half becomes a new item's first
+line and a leading space widens its marker.

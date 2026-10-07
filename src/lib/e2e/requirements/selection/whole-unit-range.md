@@ -48,6 +48,7 @@ not only Backspace.
 
 ## Edge cases
 
-- The table's version of this (two `Mod+A` presses from inside a cell) reaches the same paste
-  branch; `blocks/table/clipboard-in.spec.ts` owns it and must stay green beside these.
+- The table's version of this (two `Mod+A` presses from inside a cell) reaches the same
+  replace, typing and cut included; `blocks/table/clipboard-in.spec.ts` and
+  `blocks/table/cross-block-delete.spec.ts` own it and must stay green beside these.
 - The range is gone after the gesture: no stale overlay stays painted over the landed caret.

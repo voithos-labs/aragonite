@@ -17,12 +17,18 @@ export interface PerfSnapshot {
 	containerReparseBytes: number;
 	/** Reads of a rebuilt container's first line alone, to re-derive its kind or metadata. */
 	openerLineReads: number;
+	/** Lines a quote or list item rebuild read through its line syntax, each reading counted. */
+	stripLinesRead: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
+	/** Bytes every block parse read; what a keystroke's join ask costs. */
+	parseBytes: number;
 	inlineComputeCount: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
+	/** Renders of inline content read back for what the screen shows: what a hidden edge costs. */
+	screenReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -52,11 +58,14 @@ function emptySnapshot(): PerfSnapshot {
 		containerKindReparses: 0,
 		containerReparseBytes: 0,
 		openerLineReads: 0,
+		stripLinesRead: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
+		parseBytes: 0,
 		inlineComputeCount: 0,
 		formatCoverageReads: 0,
+		screenReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -125,11 +134,17 @@ export function recordOpenerLineRead(): void {
 	counters.openerLineReads++;
 }
 
-export function recordParse(ms: number, blockCount: number): void {
+export function recordStripLinesRead(lines: number): void {
+	if (!enabled) return;
+	counters.stripLinesRead += lines;
+}
+
+export function recordParse(ms: number, blockCount: number, bytes: number): void {
 	if (!enabled) return;
 	counters.parseCount++;
 	counters.parseMsTotal += ms;
 	counters.parseBlockCount += blockCount;
+	counters.parseBytes += bytes;
 }
 
 export function recordInlineCompute(): void {
@@ -140,6 +155,11 @@ export function recordInlineCompute(): void {
 export function recordFormatCoverageRead(): void {
 	if (!enabled) return;
 	counters.formatCoverageReads++;
+}
+
+export function recordScreenRead(): void {
+	if (!enabled) return;
+	counters.screenReads++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

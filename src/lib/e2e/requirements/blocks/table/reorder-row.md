@@ -24,7 +24,8 @@ the plain ArrowUp/ArrowDown caret move).
   then a press at the boundary, then Ctrl+Z restores the _typing_, not a move that
   never happened.
 - Alt+ArrowDown on the last body row does nothing.
-- A single undo after a reorder restores the source byte-for-byte as it was before the move.
+- A row move on a tight table (no padding in the cells) keeps every row as it was written, and a
+  single undo restores the source byte-for-byte as it was before the move.
 - Reorder → undo → reorder leaves the CST and the DOM in step and logs no page
   error (node identity and per-row state survive the undo round-trip).
 

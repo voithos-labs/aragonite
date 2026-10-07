@@ -237,6 +237,27 @@ test.describe('live mode: a reference form splits like any other link', () => {
 	});
 });
 
+// A list item's first line sits behind its bullet, so the space the reopened half starts with
+// joins the new item's bullet, as a reload reads it.
+test.describe('live mode: a cut through a construct in a list item', () => {
+	test('the new item takes the wider bullet its bytes read as', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '- **bo ld**\n');
+		await clickWordSettled(ep, page, 'ld');
+		await landAt(ep, page, 4);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceEquals('- **bo**\n-  **ld**\n');
+
+		expect(await ep.parseConverged()).toBe(true);
+		const marker = await page.evaluate(
+			() => (window as any).__test.getDocument().children[0].children[1].metadata.marker
+		);
+		expect(marker).toBe('-  ');
+		const items = ep.editorContainer.locator('.list-item-content');
+		await expect(items.nth(1).locator('strong')).toHaveText('ld', { useInnerText: true });
+	});
+});
+
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
 test.describe('source mode: the same gesture stays byte-literal', () => {
 	test('Enter inside a bold word splits the pair open', async ({ page }) => {
@@ -249,4 +270,26 @@ test.describe('source mode: the same gesture stays byte-literal', () => {
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Some **bo\n\nld** text');
 	});
+});
+
+// A split that cuts no construct reopens nothing, so its landing is a structural one like Home's:
+// the caret means outside the construct the second half opens with, in every mode that hides it.
+test.describe('Enter just before a construct leaves the caret outside it', () => {
+	for (const mode of ['live', 'preview-inline'] as const) {
+		for (const [what, doc, word, typed] of [
+			['a code span', 'ab `code` z', 'code', 'Y`code` z'],
+			['a bold run', 'ab **bold** z', 'bold', 'Y**bold** z'],
+			['a code span in a list item', '- ab `code` z', 'code', '- Y`code` z']
+		] as const) {
+			test(`${mode}, ${what}: the next byte lands before it`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, doc);
+				await clickWordSettled(ep, page, word);
+				await landAt(ep, page, 3);
+				await page.keyboard.press('Enter');
+				await ep.waitForRenderFlush();
+				await page.keyboard.type('Y');
+				await ep.bridge.waitForSourceContains(typed);
+			});
+		}
+	}
 });

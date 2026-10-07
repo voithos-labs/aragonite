@@ -148,7 +148,11 @@
 	{@const target = card.getTarget()!}
 	{@const resolved = linkCard.resolve(target)}
 	{#if resolved}
-		<div bind:this={cardEl} class="md-link-card-anchor" {@attach menuPresence.track}>
+		<div
+			bind:this={cardEl}
+			class="md-link-card-anchor"
+			{@attach menuPresence.track(() => card.close(), { edits: true })}
+		>
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
 					url={resolved.url}
@@ -165,7 +169,11 @@
 	{/if}
 {:else if card.getCreateTarget()}
 	{@const create = card.getCreateTarget()!}
-	<div bind:this={cardEl} class="md-link-card-anchor" {@attach menuPresence.track}>
+	<div
+		bind:this={cardEl}
+		class="md-link-card-anchor"
+		{@attach menuPresence.track(() => card.close(), { edits: true })}
+	>
 		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
 			<LinkCard
 				url=""

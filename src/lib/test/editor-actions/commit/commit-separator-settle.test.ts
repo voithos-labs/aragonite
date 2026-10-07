@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { performCrossBlockDeleteSync } from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from '../../selection/cross-block/range-context';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import {
 	makeBlockListState,
@@ -14,6 +15,7 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The commit's blank-line fix-up must change nothing over a range its mutate already fixed up.
 // Miss-analysis: the fix-up lived at each splice site, so no case ran a second one over one range.
@@ -64,13 +66,9 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			{ path: anchor, offset: offsets[0] },
 			{ path: focus, offset: offsets[1] }
 		);
-		performCrossBlockDeleteSync({
-			selection: harness.deps.selectionState,
-			getDoc: () => harness.deps.doc,
-			getBlockElByPath: () => null,
-			revealPath: (path) => harness.deps.caretLanding.mount(path),
-			controller,
-			reading: fixtureReading()
+		// A composition's removal, which commits before the replace's first await.
+		void replaceRange(rangeContext(harness.deps, controller, fixtureReading()), {
+			kind: 'composition'
 		});
 		return harness;
 	}
@@ -85,7 +83,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 	// The split shape: the blank block holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, undefined, fixtureReading());
+		splitNode(split, 0, 5, createSharingState(), fixtureReading());
 		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
 
 		expectParseConverged(h.deps.doc);

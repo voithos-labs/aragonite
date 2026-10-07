@@ -11,6 +11,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Inside a container whose parse strips the blank line after its opener into `innerPrefix`, the
 // fix-up keeps the line the reload strips, and reads a reserved title child as above the body.
@@ -31,7 +32,7 @@ function deleteBodyChild(
 	at: number
 ): { doc: ReturnType<typeof parse>; raw: string } {
 	const doc = parse(source);
-	deleteNode(bodyParentOf(doc.children[0]), at, defaultGrammarView);
+	deleteNode(bodyParentOf(doc.children[0]), at, defaultGrammarView, createSharingState());
 	rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 	return { doc, raw: serialize(doc) };
 }
@@ -63,7 +64,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
-		deleteNode(bodyParentOf(doc.children[0]), 1, defaultGrammarView);
+		deleteNode(bodyParentOf(doc.children[0]), 1, defaultGrammarView, createSharingState());
 		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.[1].leadingTrivia).toBe('');
@@ -75,7 +76,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
-		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView, createSharingState());
 		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
@@ -90,7 +91,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		registerCalloutKind();
 	});
 
-	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
+	/** The emptied-block gesture through the container write: typing sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {
 		updateNodeContent(
 			{
@@ -100,7 +101,8 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 			},
 			at,
 			trailingLineEnding(container.children![at].raw, '\n'),
-			defaultGrammarView
+			defaultGrammarView,
+			createSharingState()
 		);
 		rebuildAncestryRaw(container, [], fixtureGrammar);
 	}
@@ -178,7 +180,7 @@ describe('separator settle inside a strip container', () => {
 	it('drops the freed separator: a blockquote strips nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
-		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView, createSharingState());
 		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].innerPrefix).toBe('');

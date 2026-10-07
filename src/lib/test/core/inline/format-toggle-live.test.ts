@@ -100,3 +100,35 @@ describe('source mode reads a run through the space beside it', () => {
 		expect(source('a **b** c', { start: 2, end: 8 })?.newDisplay).toBe('a b c');
 	});
 });
+
+// The DOM reads a range ending on a hidden run back as any boundary of that run.
+// Miss-analysis: no test chained live toggles, each fed the range the one before handed back.
+describe('a chain of live toggles, each on the range the last one handed back', () => {
+	function chain(raw: string, word: string, formats: InlineMarkKind[]): string[] {
+		let display = raw;
+		let selection = { start: raw.indexOf(word), end: raw.indexOf(word) + word.length };
+		return formats.map((format) => {
+			const result = live(display, selection, format);
+			if (!result) return 'declined';
+			display = result.newDisplay;
+			selection = { start: result.newSelStart, end: result.newSelEnd };
+			return `${display} [${display.slice(selection.start, selection.end)}]`;
+		});
+	}
+
+	it.each([
+		[
+			'a word b',
+			['strong', 'emphasis', 'strong', 'emphasis'],
+			['a **word** b', 'a ***word*** b', 'a *word* b', 'a word b']
+		],
+		[
+			'a word b',
+			['strong', 'strikethrough', 'strong', 'strikethrough'],
+			['a **word** b', 'a ~~**word**~~ b', 'a ~~word~~ b', 'a word b']
+		],
+		['a **bold word** b', ['emphasis', 'emphasis'], ['a **bold *word*** b', 'a **bold word** b']]
+	] as const)('%s: %j', (raw, formats, displays) => {
+		expect(chain(raw, 'word', [...formats])).toEqual(displays.map((d) => `${d} [word]`));
+	});
+});

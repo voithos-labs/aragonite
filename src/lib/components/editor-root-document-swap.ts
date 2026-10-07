@@ -17,7 +17,9 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
 import type { EditorEvents } from '../editor-events';
-import type { WidgetSelectionState } from './image/widget-selection-state.svelte';
+import type { MenuPresence } from './menu/menu-presence.svelte';
+import type { DraftRegistry } from './draft-registry';
+import type { DocumentStamps } from '../editor-actions/commit/document-stamp';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -41,9 +43,14 @@ export function initDocument(source: string, grammar: GrammarView): ParsedDocume
 
 export interface DocumentSwapDeps {
 	grammar: GrammarView;
-	/** A pending typing batch belongs to the outgoing document, so it flushes while its path
-	 *  still resolves; left running, the timer would apply note A's path to note B. */
+	/** The text the editor holds now, the same string `getSource()` returns. */
+	currentSource(): string;
+	/** Ends the typing batch: it groups the outgoing document's undo steps, which go with it. */
 	flushDebouncedCheckpoint(): void;
+	/** Retired first: from here on, a write made for the outgoing document is refused. */
+	stamps: Pick<DocumentStamps, 'retire'>;
+	/** Then dropped, so a block the swap tears down blurs without trying to commit its draft. */
+	drafts: Pick<DraftRegistry, 'closeAll'>;
 	/** Called before the tree changes, so a caret landing still waiting gives up. */
 	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
@@ -53,10 +60,9 @@ export interface DocumentSwapDeps {
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
 	caretMemory: Pick<CaretMemory, 'forget'>;
-	/** Every menu Editor owns acts on a block or bytes of the outgoing document; a block's own
-	 *  menus unmount with it. Closed before the blocks unmount, which a menu may react to. */
-	closeMenus(): void;
-	widgetSelection: Pick<WidgetSelectionState, 'clear'>;
+	/** Every open menu acts on a block or bytes of the outgoing document. Closed before the
+	 *  blocks unmount, which a menu may react to. */
+	menus: Pick<MenuPresence, 'closeAll'>;
 	selection: Pick<SelectionState, 'batch' | 'clear' | 'announceSelection'>;
 	/** Unconditional: the outgoing resolver closes over the swapped-out document. */
 	adoptLinkReferences(resolver: LinkReferenceResolver, signature: string): void;
@@ -64,6 +70,8 @@ export interface DocumentSwapDeps {
 }
 
 export interface DocumentSwap {
+	/** Replaces the document, unless `source` is the text it already holds: a host echoing
+	 *  `getSource()` back keeps its undo history. */
 	swapTo(source: string): void;
 	/** Counts whole-document replacements, which `editEpoch` cannot tell from a keystroke. */
 	generation(): number;
@@ -76,29 +84,35 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 
 	return {
 		swapTo(source) {
-			deps.flushDebouncedCheckpoint();
-			deps.noteTreeSwap();
-			const reset = initDocument(source, deps.grammar);
-			deps.adoptDocument(reset.doc);
-			deps.bumpContentVersion();
-			deps.clearBlockRefs();
-			// Block ids never recur, so every measured height belongs to a block that can't come back.
-			deps.layout.forgetMeasuredHeights();
-			deps.undoManager.clear();
-			deps.caretMemory.forget();
-			deps.closeMenus();
-			deps.widgetSelection.clear();
-			// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
-			// would keep the outgoing document's selection. Batched, so a real range emits once.
-			deps.selection.batch(() => {
-				deps.selection.clear();
-				deps.selection.announceSelection();
-			});
-			generation++;
-			deps.adoptLinkReferences(reset.resolver, reset.signature);
+			if (source === deps.currentSource()) return;
+			replace(source);
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
 		},
 		generation: () => generation
 	};
+
+	function replace(source: string): void {
+		deps.stamps.retire();
+		deps.drafts.closeAll('document-swap');
+		deps.flushDebouncedCheckpoint();
+		deps.noteTreeSwap();
+		const reset = initDocument(source, deps.grammar);
+		deps.adoptDocument(reset.doc);
+		deps.bumpContentVersion();
+		deps.clearBlockRefs();
+		// Block ids never recur, so every measured height belongs to a block that can't come back.
+		deps.layout.forgetMeasuredHeights();
+		deps.undoManager.clear();
+		deps.caretMemory.forget();
+		deps.menus.closeAll('document-swap');
+		// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
+		// would keep the outgoing document's selection. Batched, so a real range emits once.
+		deps.selection.batch(() => {
+			deps.selection.clear();
+			deps.selection.announceSelection();
+		});
+		generation++;
+		deps.adoptLinkReferences(reset.resolver, reset.signature);
+	}
 }

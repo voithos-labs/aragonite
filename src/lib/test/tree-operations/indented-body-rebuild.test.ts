@@ -9,6 +9,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A rebuild writes a body's blank lines the way the parser reads them: the separator after a
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.
@@ -37,7 +38,8 @@ function typeX(doc: Document, path: number[]): void {
 		},
 		index,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
@@ -70,26 +72,28 @@ describe('typing into a body that ends in an empty paragraph after a bare separa
 	});
 });
 
-// The tree does not record whether a separator line was indented, so an indented one is
-// written bare; the reload reads the same blocks.
+// A list item rebuild keeps the indented separator's bytes; the footnote still writes it bare.
 describe('typing into a body whose separator line was indented', () => {
 	it.each([
-		['a list item', '- a\n  \n  \n- c\n', [0, 0, 0], '- ax\n\n  \n- c\n'],
+		['a list item', '- a\n  \n  \n- c\n', [0, 0, 0], '- ax\n  \n  \n- c\n'],
 		['a footnote', '[^1]: a\n    \n    \nnext\n', [0, 0], '[^1]: ax\n\n    \nnext\n'],
 		[
 			'a nested item',
 			'- a\n  - b\n    \n    \n- c\n',
 			[0, 0, 1, 0, 0],
-			'- a\n  - bx\n\n    \n- c\n'
+			'- a\n  - bx\n    \n    \n- c\n'
 		]
-	])('%s writes the separator bare and reloads as the same blocks', (_, source, path, after) => {
-		const doc = parse(source);
+	])(
+		'%s keeps or writes the separator and reloads as the same blocks',
+		(_, source, path, after) => {
+			const doc = parse(source);
 
-		typeX(doc, path);
+			typeX(doc, path);
 
-		expect(serialize(doc)).toBe(after);
-		expect(describeConvergence(doc)).toBeNull();
-	});
+			expect(serialize(doc)).toBe(after);
+			expect(describeConvergence(doc)).toBeNull();
+		}
+	);
 });
 
 describe('typing into a body whose trailing indented line is its separator', () => {

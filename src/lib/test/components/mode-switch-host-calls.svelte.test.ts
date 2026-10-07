@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// What a `presentationMode` switch means for the host calls and menus around it: a call acts in
-// the mode just asked for (the outgoing mode is held only while the switch commits its edits), a
-// menu closes, and `insertMarkdown` answers true only when bytes moved.
+// What a `presentationMode` switch means for the host calls around it: a call acts in the mode
+// just asked for (the outgoing mode is held only while the switch commits its edits), and
+// `insertMarkdown` answers true only when bytes moved. `menu-close-all.test.ts` has the menus.
 
 // Miss-analysis: every mode-switch test settled between the prop write and the next call.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -12,8 +12,9 @@ import {
 	placeCaret,
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
-import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 beforeEach(() => {
 	installLayoutStubs();
@@ -74,24 +75,6 @@ describe('a call in the same task as a mode switch', () => {
 	});
 });
 
-// Miss-analysis (GH #517): no test left a menu open across a mode switch.
-describe('a menu open across a switch to reading', () => {
-	it('closes, so none of its rows is offered in reading mode', async () => {
-		registerDefaultContextActions();
-		const mounted = mountEditor({ source: '```\ncode\n```\n\nprose\n' });
-		await mounted.settle();
-		const fence = mounted.target.querySelector('pre') ?? surfaceAt(mounted, [0]);
-		fence.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-		await mounted.settle();
-		expect(document.querySelector('[role="menu"]'), 'the block menu opened').not.toBeNull();
-
-		mounted.props.presentationMode = 'reading';
-		await mounted.settle();
-
-		expect(document.querySelector('[role="menu"]')).toBeNull();
-	});
-});
-
 // Miss-analysis: every insertMarkdown test wrote or was refused before its first await.
 describe('insertMarkdown across a switch to reading', () => {
 	it('answers false when the switch lands before its write, which is refused', async () => {
@@ -106,5 +89,7 @@ describe('insertMarkdown across a switch to reading', () => {
 
 		expect(mounted.source()).toBe('para\n');
 		expect(inserted).toBe(false);
+		// The block's own check ran before its await, so the write gate is what refuses it.
+		allowDevWarns([READING_WRITE_TAG]);
 	});
 });

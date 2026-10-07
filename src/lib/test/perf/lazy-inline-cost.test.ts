@@ -14,6 +14,7 @@ import {
 	resetPerfInstruments
 } from '../../perf/instruments';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The measurement edits a node an undo snapshot shares by writing raw directly rather than
 // through a commit, which is what the shared-node check reports.
@@ -22,8 +23,9 @@ afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 // Only `computeInlineContent` bumps `inlineComputeCount`, so an eager inline parse reintroduced
 // anywhere shows up where these checks expect zero.
 
+/** A paragraph a blank line below the one before it, so the write asks no join. */
 function para(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
+	return { kind: 'paragraph', leadingTrivia: '\n', raw };
 }
 
 beforeEach(() => {
@@ -42,7 +44,7 @@ describe('lazy inline: common keystroke computes once', () => {
 			lineEnding: '\n' as const
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView);
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView, createSharingState());
 		// The content-update path parses the block but must not build its inline tree.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 
@@ -57,7 +59,7 @@ describe('lazy inline: common keystroke computes once', () => {
 			lineEnding: '\n' as const
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView);
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView, createSharingState());
 		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 

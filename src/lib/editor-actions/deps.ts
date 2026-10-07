@@ -10,6 +10,7 @@ import type { CommitController } from '../action-contracts';
 import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
 import type { CaretLanding } from '../selection/caret-landing';
+import type { DocumentStamps } from './commit/document-stamp';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -36,6 +37,9 @@ export interface EditorActionsDeps {
 	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
 	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
 	reading: Reading;
+	/** Which document each write was made for: the write gate refuses one made for a document a
+	 *  `source` swap replaced. */
+	stamps: DocumentStamps;
 }
 
 /**

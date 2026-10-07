@@ -481,10 +481,77 @@
 	color: var(--syntax-code, currentColor);
 }
 
+/* Inline code is a chip, its backticks (the markers either side of it) drawn as the chip's two
+   ends wherever they show. The lines are inset shadows, since a selection paints no padding. */
+:where(.editor)
+	:is(
+		.inline-code-content,
+		.md-marker:has(+ .inline-code-content),
+		.inline-code-content + .md-marker
+	) {
+	font-family: var(--font-code, ui-monospace, monospace);
+	font-size: 0.9em;
+	background: var(--md-inline-code-bg);
+	border-radius: 4px;
+	padding: 2px 0;
+	box-shadow: inset 0 0 0 1px var(--md-inline-code-border);
+}
+
+:where(.editor) .inline-code-content {
+	padding-inline: 1px;
+}
+
+/* With its backticks hidden the content is the whole chip, so it takes the chip's own room. */
+:where(.editor)[data-presentation] .inline-code-content {
+	padding-inline: 4px;
+}
+
+/* Where the backticks show, as the marker rules below show them: source mode, a focused
+   preview-block block, and preview-inline's revealed or untagged markers in a focused block. */
+:where(.editor):not([data-presentation]) .md-marker + .inline-code-content,
+:where(.editor)[data-presentation='preview-block']
+	.block-host[data-focused]
+	.md-marker
+	+ .inline-code-content,
+:where(.editor)[data-presentation='preview-inline']
+	.block-host[data-focused]
+	:is(.md-marker.md-construct-reveal, .md-marker:not([data-construct-start]))
+	+ .inline-code-content {
+	padding-inline: 1px;
+	border-radius: 0;
+}
+
+:where(.editor) :is(.md-marker:has(+ .inline-code-content), .inline-code-content + .md-marker) {
+	color: var(--color-ui-muted, #93938d);
+}
+
+:where(.editor) .md-marker:has(+ .inline-code-content) {
+	border-radius: 4px 0 0 4px;
+	box-shadow:
+		inset 1px 0 0 var(--md-inline-code-border),
+		inset 0 1px 0 var(--md-inline-code-border),
+		inset 0 -1px 0 var(--md-inline-code-border);
+}
+
+:where(.editor) .inline-code-content + .md-marker {
+	border-radius: 0 4px 4px 0;
+	box-shadow:
+		inset -1px 0 0 var(--md-inline-code-border),
+		inset 0 1px 0 var(--md-inline-code-border),
+		inset 0 -1px 0 var(--md-inline-code-border);
+}
+
 /* An inline widget's source shown for editing (`$x$`) takes the inline-code tint so it reads as
    one span, but keeps the prose typeface so the line does not reflow. */
 ::highlight(md-inline-reveal) {
 	background-color: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+}
+
+/* The construct a typed byte would join at its hidden edge (`edge-step.ts`), where both sides
+   share a pixel. An outline, which never reflows the line and which no construct styles itself. */
+:where(.editor) .md-edge-held {
+	border-radius: 3px;
+	outline: 1px solid var(--md-edge-held-ring);
 }
 
 /* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
@@ -614,21 +681,12 @@
 	padding-bottom: 24px;
 }
 
-/* A hard break whose bytes are hidden or blank (trailing spaces) draws a dimmed return glyph, so
-   the line break has a visible cause; generated content adds no text to a copy or screen reader. */
-:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	.md-hard-break::before,
-:where(.editor):not([data-presentation]) .md-hard-break[data-trailing-spaces]::before {
+/* Source mode marks a trailing-space hard break with a dimmed return glyph, since its bytes are
+   blank; where markers hide, a hard break is a line break and nothing more. */
+:where(.editor):not([data-presentation]) .md-hard-break::before {
 	content: '↵';
 	content: '↵' / '';
 	opacity: var(--syntax-marker-dim, 0.65);
-}
-
-/* A focused preview block paints the backslash itself, so the glyph would say it twice. */
-:where(.editor)[data-presentation^='preview-']
-	.block-host[data-focused]
-	.md-hard-break:not([data-trailing-spaces])::before {
-	content: none;
 }
 
 /* A list item's leading marker owns the hanging indent (padding and text-indent are keyed to

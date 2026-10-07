@@ -206,8 +206,9 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		const ep = await enterPresentationMode(page, 'preview-block', DOC);
 		await ep.focusBlockAtPath([0], 4);
 		await page.keyboard.press('Shift+Enter');
-		await ep.bridge.waitForSourceEquals('# Hi\\ #\n\nnext\n');
-		expect((await ep.getBlock(0).innerText()).split('\n')[0]).toBe('# Hi\\ #');
+		await expect.poll(() => caretStartsNewLine(page)).toBe(true);
+		expect((await ep.getBlock(0).innerText()).split('\n')[0]).toBe('# Hi #');
+		expect(await ep.bridge.getSource()).toBe('# Hi #\n\nnext\n');
 		await ep.typeSlowly('w');
 		await ep.bridge.waitForSourceEquals('# Hi\\ #\nw\n\nnext\n');
 	});

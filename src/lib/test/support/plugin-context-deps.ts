@@ -5,6 +5,8 @@ import type { EditorRects } from '$lib/editor-rects';
 import type { InlineMenuRegistry } from '$lib/inline-menu/types';
 import type { InsertMarkdownOptions } from '$lib/editor-props';
 import { kitReading } from '$lib/testing/kit-reading';
+import { createDraftRegistry } from '$lib/components/draft-registry';
+import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -43,5 +45,6 @@ export const pluginContextDeps = (
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
+	openDraft: createDraftRegistry(createDocumentStamps()).open,
 	reading: kitReading()
 });

@@ -4,9 +4,11 @@
 	import type { BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
+		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		LIST_CONTEXT_KEY,
+		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
@@ -51,6 +53,7 @@
 	const { selection, decorations, events, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { blockDragHandles: getDragHandles } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	const {
@@ -201,7 +204,7 @@
 		// A key a nested item declined is still that item's: the task toggle must not reach the
 		// task it sits in.
 		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;
-		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands);
+		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands, { selection, getDoc });
 	}
 </script>
 

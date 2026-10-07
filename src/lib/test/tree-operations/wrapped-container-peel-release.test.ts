@@ -12,6 +12,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A blank run reaching a body's tail borrows a line into `innerSuffix` so the reload keeps the
 // block, and a tail that stops being blank gives it back.
@@ -26,7 +27,8 @@ function writeBody(container: CstNode, at: number, text: string): void {
 		},
 		at,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	rebuildAncestryRaw(container, [], fixtureGrammar);
 }

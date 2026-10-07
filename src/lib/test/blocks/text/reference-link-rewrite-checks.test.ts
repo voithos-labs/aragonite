@@ -60,8 +60,6 @@ describe('a pending mark beside a reference link', () => {
 			getDisplayText: () => display,
 			getInlines: () => inlines,
 			reading: fixtureReading({ resolver: resolver }),
-			getAffinity: () => null,
-			getScreen: () => LIVE,
 			consumePendingMarks: () => new Set<InlineMarkKind>(['strong']),
 			restorePendingMarks: () => {}
 		});

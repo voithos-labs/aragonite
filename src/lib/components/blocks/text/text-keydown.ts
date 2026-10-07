@@ -1,14 +1,13 @@
 /**
- * Pure raw and caret transforms for TextEditableBlock's structural gestures: changing a
- * heading's level, demoting it to prose, inserting a hard break, inserting a literal tab.
- * The component owns the wiring; these own the string math.
+ * Pure text and caret transforms for TextEditableBlock's structural gestures: changing a
+ * heading's level, demoting it to prose, inserting a hard break inside the text, inserting a
+ * literal tab. The component owns the wiring; these own the string math.
  */
 
-import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
+import { sameLineSuffixOf, withHardBreak, type ContentRange } from '../../../core/inline';
 import {
 	displayLength,
 	ownTrailingLineEnding,
-	trailingLineEnding,
 	trimTrailingLineEnding,
 	type LineEnding
 } from '../../../core/lines';
@@ -65,10 +64,8 @@ export function cycleHeading(
 	};
 }
 
-/**
- * Insert a GFM hard break (a backslash at end of line) at `offset`. At the content's end, the
- * line ending after the content stands in for the break's own until the next key adds the line.
- */
+/** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's;
+ *  at the end of the text's line the pending break writes it instead (`cursor/pending-break.svelte.ts`). */
 export function insertHardBreak(
 	raw: string,
 	offset: number,
@@ -76,57 +73,22 @@ export function insertHardBreak(
 	content: ContentRange
 ): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
-	const trailing = ownTrailingLineEnding(raw);
-	if (offset === content.end && content.end < display.length) {
-		return {
-			newRaw: raw.slice(0, content.end) + '\\' + raw.slice(content.end),
-			caretOffset: content.end + 1
-		};
-	}
-	const lineTail = sameLineSuffixOf(raw, content.end);
-	if (offset >= content.start && offset < content.end && lineTail) {
-		return breakBeforeLine(
-			display.slice(0, offset) + '\\' + lineTail,
-			display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
-		);
-	}
-	return breakBeforeLine(display.slice(0, offset) + '\\', display.slice(offset));
-
-	/** `head`, the break's line ending, then `rest` on the new line. */
-	function breakBeforeLine(head: string, rest: string): TextEditResult {
-		// The break carries the block's own ending, else the document's `ending`: CommonMark reads
-		// a backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
-		const breakEnding = trailingLineEnding(raw, ending);
-		const newDisplay = head + breakEnding + rest;
-		// With nothing after the break, the inserted ending is itself the trailing ending;
-		// reattaching the original would double it into a blank line and break list continuation.
-		const newRaw = rest === '' ? newDisplay : newDisplay + trailing;
-		return {
-			newRaw,
-			caretOffset: Math.min(head.length + breakEnding.length, displayLength(newRaw))
-		};
-	}
+	// Only a break inside the text has the text line's closing run to keep on that line.
+	const suffix =
+		offset >= content.start && offset < content.end
+			? { start: content.end, end: content.end + sameLineSuffixOf(raw, content.end).length }
+			: { start: offset, end: offset };
+	const broken = withHardBreak(display, offset, suffix, ending);
+	// Past a setext underline's end the inserted ending is the trailing one; a second would add a
+	// blank line.
+	const newRaw = offset >= display.length ? broken.text : broken.text + ownTrailingLineEnding(raw);
+	return { newRaw, caretOffset: Math.min(broken.lineStart, displayLength(newRaw)) };
 }
 
-/** The key typed after a hard break's backslash, opening the break's own line at `lineEnd` (past a
- *  heading's closing run). Works on the display text, without its trailing line ending. */
-export function openHardBreakLine(
+/** A literal tab typed at `offset` into the displayed text. */
+export function insertLiteralTab(
 	display: string,
-	lineEnd: number,
-	ending: LineEnding,
-	key: string
-): { display: string; caret: number } {
-	const line = ending + key;
-	return {
-		display: display.slice(0, lineEnd) + line + display.slice(lineEnd),
-		caret: lineEnd + line.length
-	};
-}
-
-/** Insert a literal tab character at `offset` within the display portion. */
-export function insertLiteralTab(raw: string, offset: number): TextEditResult {
-	const display = trimTrailingLineEnding(raw);
-	const trailing = ownTrailingLineEnding(raw);
-	const newDisplay = display.slice(0, offset) + '\t' + display.slice(offset);
-	return { newRaw: newDisplay + trailing, caretOffset: offset + 1 };
+	offset: number
+): { text: string; caretAfter: number } {
+	return { text: display.slice(0, offset) + '\t' + display.slice(offset), caretAfter: offset + 1 };
 }

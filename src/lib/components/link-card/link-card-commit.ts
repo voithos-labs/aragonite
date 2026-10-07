@@ -4,6 +4,7 @@
  * out of the component so the card stays a rendering shell.
  */
 
+import { tick } from 'svelte';
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
@@ -166,10 +167,13 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			measure,
 			untrackSetupMeasure: true
 		});
-		// An edit anywhere above the link shifts its y without touching the link itself.
-		const unsubscribe = deps.events.on('edit', measure);
+		// An edit anywhere above the link shifts its y without touching the link itself; an undo
+		// announces itself before its tree renders, so every edit is measured a tick later.
+		let wired = true;
+		const unsubscribe = deps.events.on('edit', () => void tick().then(() => wired && measure()));
 		window.addEventListener('resize', measure);
 		return () => {
+			wired = false;
 			unwireScroll();
 			unsubscribe();
 			window.removeEventListener('resize', measure);

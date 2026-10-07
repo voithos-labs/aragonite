@@ -9,6 +9,7 @@ import {
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 import type { PastedImage } from '../../editor-keys';
+import { createInsertionRecords } from '$lib/cursor/next-insertion';
 
 const imageFile = (name: string, type = 'image/png'): File =>
 	new File([new Uint8Array([137, 80, 78, 71])], name, { type });
@@ -47,7 +48,7 @@ const claimingCrossBlock = (log: string[]) =>
 function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()) {
 	const log: string[] = [];
 	const inserted: string[] = [];
-	const folds: (number | null)[] = [];
+	const targets: (number | null)[] = [];
 	const seated: number[] = [];
 	const errors: unknown[] = [];
 	const deps: ClipboardSurfaceDeps = {
@@ -64,20 +65,24 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		caret: {
 			getEl: () => state.el,
 			getCursorOffset: () => state.caret,
-			focus: (offset: number) => void seated.push(offset)
+			focus: (offset: number) => void seated.push(offset),
+			recordPreEditOffset: () => {},
+			getPreEditOffset: () => 0,
+			getSelection: () => (state.caret === null ? null : { start: state.caret, end: state.caret }),
+			holdInsertion: () => createInsertionRecords([]).hold({}, null)
 		},
 		events: {
 			emit: (name: string, payload: unknown) => void (name === 'error' && errors.push(payload))
 		} as never,
 		onPasteImage: undefined,
-		cutTail: () => {},
-		pasteTail: (text, foldedCaret) => {
+		rangeArm: { copy: () => null, remove: () => {} },
+		pasteTail: (text, target) => {
 			inserted.push(text);
-			folds.push(foldedCaret);
+			targets.push(target.range?.start ?? null);
 		},
 		...over
 	};
-	return { deps, log, inserted, folds, seated, errors };
+	return { deps, log, inserted, targets, seated, errors };
 }
 
 describe('image paste: the hook contract', () => {
@@ -198,19 +203,22 @@ describe('image paste: where the markdown lands', () => {
 	});
 
 	// Hiding a shown source leaves the caret on the widget's element edge, where it reads as
-	// null, so the caret the hide commits has to anchor the insertion.
-	it('after a reveal fold, the committed caret anchors the insertion', async () => {
-		const state: SurfaceState = { caret: null, el: document.createElement('div') };
+	// null, so the caret read as the paste arrived anchors the insertion.
+	it('after a reveal fold, the caret read before the hide anchors the insertion', async () => {
+		const state: SurfaceState = { caret: 3, el: document.createElement('div') };
 		const h = harness(
 			{
-				foldReveal: () => ({ caret: 3, settled: Promise.resolve() }),
+				foldReveal: () => {
+					state.caret = null;
+					return { caret: 3, settled: Promise.resolve() };
+				},
 				onPasteImage: async () => '![[a.png]]'
 			},
 			state
 		);
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
 		expect(h.seated).toEqual([3]);
-		expect(h.folds).toEqual([3]);
+		expect(h.targets).toEqual([3]);
 	});
 
 	it('declines and reports when the surface is gone before a slow hook resolves', async () => {

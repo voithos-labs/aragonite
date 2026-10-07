@@ -15,6 +15,7 @@ import { caretPointFor, type RemovalGesture } from './caret-target';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import {
 	blockNodeAt,
+	bodyUnder,
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw
@@ -34,6 +35,7 @@ import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { clearGridCells, keepsTableEdge, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, unjoinedRangeDelete } from './range-delete-chrome';
+import { removalLanding } from './removal-landing';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -67,13 +69,14 @@ export function rangeDelete(
 	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
 	// the rows, columns or table away, through the table's own structural commits.
 	if (coverage.grid) return clearGridCells(doc, coverage, coverage.grid, sharing, reading);
+	const landing = removalLanding(coverage, 'delete');
 	if (keepsTableEdge(coverage)) {
-		return tableAwareRangeDelete(doc, coverage, sharing, reading);
+		return tableAwareRangeDelete(doc, coverage, sharing, reading, landing);
 	}
 	// Nothing merges across a title-line container's edge, and a range that holds an edge's block
 	// whole has nothing there to merge.
 	if (!coverage.startEdge || !coverage.endEdge || involvesReservedChrome(doc, start, end)) {
-		return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
+		return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture, landing);
 	}
 	return joinedRangeDelete(doc, coverage, sharing, reading);
 }
@@ -87,7 +90,8 @@ export function removeHeldWhole(
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
+	const landing = removalLanding(coverage, 'remove-whole');
+	return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture, landing);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -148,7 +152,10 @@ function joinedRangeDelete(
 		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
-		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
+		if (parent) {
+			const body = bodyUnder(parent, documentLineEnding(doc));
+			settleSeparatorOnBlank(body, start.path[start.path.length - 1], sharing);
+		}
 		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 		const joinAt = { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
 		return { newDoc: doc, caret: () => joinAt };

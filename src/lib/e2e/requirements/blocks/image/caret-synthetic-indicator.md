@@ -10,6 +10,8 @@ Exactly one caret paints for one caret position. Where the cursor lands in a tex
 - The block's own caret goes transparent while the synthetic one is painted, and comes back when the snap clears
 - The block's caret goes dark from the pointer-down, not from the click: the pointer-down places the browser's caret before the click sets the synthetic one up, and at the element-level offset beside the widget Chromium paints it at the line box's height, a taller stroke for as long as the button is down, then the synthetic one (the flash a text-height widget like an emoji showed). A pointer-down that lands in a text node keeps the browser's caret
   - Miss-analysis: every indicator test read the paint once the click had completed, so the window between the pointer-down and the click, where the browser's caret is the only one on screen, was never observed
+- In live mode, an image inside a link or emphasis gets the same synthetic caret as a bare one when you click past it, and the browser's caret goes dark the same way. The click finds the image through its wrapper, so the paint has to as well
+  - Miss-analysis: every indicator test clicked past a bare image, so nothing saw the paint read only the block's top-level inlines while the click read nested ones too
 - Synthetic appears after Enter splits the paragraph and the user clicks an image-only block
 - The synthetic caret survives the browser dropping its range: no range at all is the state the indicator exists for, and the click's offset is still where typing goes
   - Miss-analysis: every indicator test read the paint while a range was live, so nothing said what the paint does once the browser holds no range, the one state the feature was built for

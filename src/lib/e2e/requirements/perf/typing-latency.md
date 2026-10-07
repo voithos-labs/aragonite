@@ -21,8 +21,7 @@ and the gated row for the same shape are not comparable numbers.
   `waitForTimeout`), reported as p50/p95
 - caret target: end of block 0, except shapes whose first block is a container
   (nested-containers, table-heavy). Those type into an appended plain
-  paragraph, since the caret helper cannot enter containers and table-cell
-  edits re-pad the table, which breaks the +1-length wait. The dominant
+  paragraph, since the caret helper cannot enter containers. The dominant
   per-keystroke cost (the inline sweep over the whole document) does not depend
   on where the caret is; the cost of rebuilding a block's ancestors is measured
   directly by the vitest bench.
@@ -127,7 +126,7 @@ what budget, is `perf-gate.md`.
 ## Bridge sanity
 
 - perf bridge round-trip: enabling instruments via `__test.perf`, typing one
-  character in a small document, and polling past the debounced input flush
+  character in a small document, and polling until the counter moves
   yields `inlineComputeCount >= 1`: the first end-to-end check that the edited
   block's inline recompute is recorded in the perf counters
 

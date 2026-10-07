@@ -12,7 +12,6 @@ import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { EditorPolicies, EditorServices } from '$lib/editor-keys';
 import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
@@ -94,8 +93,7 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 			policies,
 			services: {
 				decorations: noIslands,
-				selection,
-				widgetSelection: createWidgetSelectionState(selection)
+				selection
 			}
 		},
 		context: [[TABLE_CONTEXT_KEY, tableContext]]

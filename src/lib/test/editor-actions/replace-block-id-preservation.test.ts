@@ -4,9 +4,9 @@ import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/e
 import type { CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// The hand-built replacement containers have no rebuilt raw, which the dev-mode stale-raw
-// check reports.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The hand-built replacement containers have no rebuilt raw, which the dev-mode stale-raw and
+// read-back checks report.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'invariant:reads-back']));
 
 // ── Top-level replaceBlock preserves id ──────────────────────────────────────
 

@@ -14,12 +14,13 @@ import {
 	stripComments,
 	type SourceFile
 } from './scan-source';
+import { SOURCE } from './source-paths';
 
-const READERS_HOME = 'src/lib/tree-operations/node-primitives.ts';
-const CONTENT_WRITE = 'src/lib/tree-operations/content-write.ts';
+const READERS_HOME = SOURCE.nodePrimitives;
+const CONTENT_WRITE = SOURCE.contentWrite;
 
 /** The fence rule has one implementation, which only the kinds' write rules reach. */
-const FENCE_HOME = 'src/lib/schema/fenced-code-raw.ts';
+const FENCE_HOME = SOURCE.fenceRule;
 
 /** Every site sizing a fence run over a body, which is a wider set than the write rule. */
 const ESCALATION_SITES: Record<string, string> = {
@@ -76,8 +77,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
 	},
 	'src/lib/schema/child-spans.ts': {
-		count: 4,
-		why: 'the strip and concat container shapes re-emitting their own bytes from their children: the two span-seeding rebuilds, the whole-body fallback, and the one-region splice'
+		count: 5,
+		why: 'the strip and concat container shapes re-emitting their own bytes from their children: the two span-seeding rebuilds, the whole-body fallback, and the one-region splice; and a marker gaining its space in its own line'
 	},
 	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
 	'src/lib/editor-actions/plugin/directive-container.ts': {
@@ -121,15 +122,23 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'two cell clears; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
 	},
 	'src/lib/tree-operations/list/reconcile-task.ts': {
-		count: 2,
-		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
+		count: 3,
+		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph; and hands a to-do's re-read text back the blank lines its parse split off, before anything lands"
+	},
+	'src/lib/tree-operations/list/list-builders.ts': {
+		count: 3,
+		why: 'a new item, before any write installs it, moves the spaces its widened marker takes off its first block, moves its lines to the new column, or writes its opener line alone'
+	},
+	'src/lib/tree-operations/list/task-paragraph.ts': {
+		count: 1,
+		why: 'gives the spaces a list item’s marker line takes back to the freshly parsed first block that held them, before any write installs it'
 	},
 	'src/lib/tree-operations/open-tail.ts': {
 		count: 1,
 		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits, and an opaque container re-reads its metadata after the write; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
-		count: 6,
+		count: 7,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
 	},
 	'src/lib/testing/kind-conformance.ts': {

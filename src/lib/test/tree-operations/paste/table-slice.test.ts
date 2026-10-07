@@ -67,6 +67,18 @@ describe('sliceTableAtRow', () => {
 		expect(secondHalf!.raw).toContain('| :--- | ---: |');
 	});
 
+	// Miss-analysis: the fixture was already spelled the editor's way, so a half rebuilt with no
+	// bytes of its own wrote a plain delimiter row that matched the source anyway.
+	it.each([
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	])('keeps a tight table’s own spelling in both halves (%s)', (_name, eol) => {
+		const table = tableFrom(['|a|b|', '|-|:-|', '|1|2|', '|3|4|', ''].join(eol));
+		const { firstHalf, secondHalf } = sliceTableAtRow(table, 1, 'first');
+		expect(firstHalf!.raw).toBe(['|a|b|', '|-|:-|', '|1|2|', ''].join(eol));
+		expect(secondHalf!.raw).toBe(['|3|4|', '|-|:-|', ''].join(eol));
+	});
+
 	it('does not mutate the original table', () => {
 		const table = tableFrom(fixture);
 		const originalChildren = table.children;

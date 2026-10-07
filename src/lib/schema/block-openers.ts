@@ -53,6 +53,9 @@ export interface BlockOpener {
 	tryOpen(ctx: OpenContext): BlockOpenerResult | null;
 	/** Whether a line of this kind interrupts an open paragraph (GFM continuation rules); `false` = never. */
 	interruptsParagraph: ((lineText: string) => boolean) | false;
+	/** Given a block's own bytes: my reading of these bytes is not final, more lines could change it
+	 *  (a lone `$$` still awaiting its closer). Absent: no line below changes what this opener read. */
+	readingNotFinal?: (raw: string) => boolean;
 }
 
 type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
@@ -142,6 +145,12 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 		if (predicate(lineText)) return true;
 	}
 	return false;
+}
+
+/** Whether an opener in `grammar` says a block with these bytes may still read differently once
+ *  more lines follow it, which a one-line read of the block below can't settle. */
+export function blockReadingNotFinal(raw: string, grammar: GrammarView): boolean {
+	return grammar.orderedOpeners().some((opener) => opener.readingNotFinal?.(raw) === true);
 }
 
 /**

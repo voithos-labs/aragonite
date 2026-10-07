@@ -40,9 +40,9 @@ export interface RenderInlineOptions {
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 	/** The editor's grammar: a widget kind whose plugin it leaves out renders as its source. */
 	grammar: GrammarView;
-	/** The block's content end, where a lone backslash is a pending hard break, drawn as a hidden
-	 *  marker plus two `br` anchors. Only for a mode that hides markers. */
-	pendingBreakAt?: number;
+	/** The lines a pending hard break opened past the text (Shift+Enter at a block's end, which
+	 *  writes no byte until the next insertion); 0 or absent for none. */
+	pendingBreaks?: number;
 	/** Write each construct's raw range onto its marker spans as data attributes, for the
 	 *  preview-inline reveal. Off by default, so the DOM stays byte-identical elsewhere. */
 	tagConstructMarkers?: boolean;
@@ -57,16 +57,14 @@ function markerSpan(text: string): HTMLSpanElement {
 	return span;
 }
 
-/**
- * A hard break's marker, wrapped in the element the stylesheet draws a return glyph on where the
- * marker's bytes do not show: the wrapper holds no text, so every offset and copy reads the bytes.
- */
-function hardBreakMark(marker: HTMLSpanElement): HTMLSpanElement {
+/** A hard break's marker. Trailing spaces are blank even where markers paint, so they get a wrapper
+ *  source mode draws a return glyph on; it holds no text, so offsets and a copy read the bytes. */
+function hardBreakMarker(marker: string): HTMLSpanElement {
+	const span = markerSpan(marker);
+	if (!marker.startsWith(' ')) return span;
 	const mark = document.createElement('span');
 	mark.className = 'md-hard-break';
-	// Trailing spaces are blank even where they paint, so source mode draws the glyph for them too.
-	if (marker.textContent?.startsWith(' ')) mark.setAttribute('data-trailing-spaces', '');
-	mark.appendChild(marker);
+	mark.appendChild(span);
 	return mark;
 }
 
@@ -329,7 +327,7 @@ function renderNode(
 			// The marker is the break's first line; a node with no line ending is all marker.
 			const lineEndingStart = firstDisplayLine(breakRaw).text.length;
 			if (lineEndingStart > 0) {
-				container.appendChild(hardBreakMark(markerSpan(breakRaw.slice(0, lineEndingStart))));
+				container.appendChild(hardBreakMarker(breakRaw.slice(0, lineEndingStart)));
 			}
 			container.appendChild(document.createTextNode(breakRaw.slice(lineEndingStart)));
 			return null;
@@ -419,38 +417,21 @@ export function renderInlineNodes(
 		const child = renderNode(frame.nodes[frame.index++], raw, opts, frame.content);
 		if (child !== null) stack.push(child);
 	}
-	if (opts.pendingBreakAt !== undefined) {
-		paintPendingBreak(nodes, raw, opts.pendingBreakAt, root.content);
-	}
+	paintPendingBreak(opts.pendingBreaks ?? 0, root.content);
 	return root.content;
 }
 
-/** The first of a pending hard break's two anchors, where the new line starts. */
-export const PENDING_BREAK_ANCHOR = 'br[data-caret-anchor="break"]';
+/** The first thing a pending hard break draws, where a closing run on the text's line goes before. */
+export const PENDING_BREAK_START = 'br[data-caret-anchor="break"]';
 
-/** A `\` ending the block is a hard break the scanner reads as text until its next line exists;
- *  a hidden marker plus two `br` anchors show that line without adding text. */
-function paintPendingBreak(
-	nodes: InlineNode[],
-	raw: string,
-	contentEnd: number,
-	frag: DocumentFragment
-): void {
-	const last = nodes[nodes.length - 1];
-	if (!last || last.kind !== 'text' || raw[last.end - 1] !== '\\') return;
-	// Only the block's own structure may follow the backslash: its line ending, or an underline.
-	if (last.end !== contentEnd) return;
-	const tail = frag.lastChild;
-	if (!tail || tail.nodeType !== Node.TEXT_NODE || !tail.textContent?.endsWith('\\')) return;
-	if (tail.textContent.length === 1) tail.remove();
-	else tail.textContent = tail.textContent.slice(0, -1);
-	const marker = markerSpan('\\');
-	marker.classList.add('md-break-pending');
-	frag.appendChild(marker);
-	for (let i = 0; i < 2; i++) {
-		const anchor = document.createElement('br');
-		anchor.dataset.caretAnchor = 'break';
-		frag.appendChild(anchor);
+/** A `br` anchor for each line a pending break opened, then one more the caret sits before. None
+ *  holds text, so the DOM read and every offset skip them. */
+function paintPendingBreak(lines: number, frag: DocumentFragment): void {
+	if (lines === 0) return;
+	for (let i = 0; i <= lines; i++) {
+		const br = document.createElement('br');
+		br.dataset.caretAnchor = 'break';
+		frag.appendChild(br);
 	}
 }
 

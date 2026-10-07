@@ -7,6 +7,7 @@ import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 const BROKEN_CLOSER = '---\ntitle: x\n--\n';
 
@@ -15,7 +16,7 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');
 
-		updateNodeContent(doc, 1, FRONT_MATTER, defaultGrammarView);
+		updateNodeContent(doc, 1, FRONT_MATTER, defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => c.kind)).not.toContain(kind);
 	});
@@ -26,7 +27,7 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');
 
-		updateNodeContent(doc, 0, FRONT_MATTER, defaultGrammarView);
+		updateNodeContent(doc, 0, FRONT_MATTER, defaultGrammarView, createSharingState());
 
 		expect(doc.children.map((c) => c.kind)).not.toContain(kind);
 	});
@@ -39,8 +40,8 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 		const doc = parse(source);
 		expect(doc.children[0].kind).toBe(kind);
 
-		updateNodeContent(doc, 0, BROKEN_CLOSER, defaultGrammarView);
-		updateNodeContent(doc, 1, 'title: x\n---\n', defaultGrammarView);
+		updateNodeContent(doc, 0, BROKEN_CLOSER, defaultGrammarView, createSharingState());
+		updateNodeContent(doc, 1, 'title: x\n---\n', defaultGrammarView, createSharingState());
 
 		expect(serialize(doc)).toBe(source);
 		expect(doc.children.map((c) => c.kind)).toEqual([

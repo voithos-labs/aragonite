@@ -42,6 +42,11 @@ scenario checks against, since live paints no delimiter to assert against.
   cannot delete. Miss-analysis: every toggle scenario, here and in the unit
   suites, selected a bare word, so no case handed this code a slice Markdown
   refuses to wrap, and it verified nothing, so nothing could catch it
+- chords chained on one selection each read it the way the user sees it: bold, italic, bold,
+  italic over a plain word ends plain, and so does bold, strikethrough, bold, strikethrough; an
+  italic inside a bold run comes back off. Miss-analysis: every scenario pressed one chord, or
+  the same chord twice, so no case handed a chord the range a different one left behind, which
+  the DOM reads back past the hidden closers there
 
 ## User interactions
 

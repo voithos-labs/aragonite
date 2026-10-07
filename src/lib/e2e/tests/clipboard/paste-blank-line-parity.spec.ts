@@ -23,7 +23,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		const typedCount = await editor.getDomBlockCount();
 		expect(typedCount).toBe(3);
 		// The blocks the bytes reload as: the shape survives the round trip.
-		await editor.loadContent(await editor.bridge.getSource());
+		await editor.reloadContent();
 		expect(await editor.getDomBlockCount()).toBe(typedCount);
 	});
 

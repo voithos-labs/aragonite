@@ -1,14 +1,14 @@
 # Block: List, Backspace (Rule M1: merge non-first item)
 
-Backspace at offset 0 of a non-empty non-first item merges the current item's first-paragraph text into the deepest visible text above; the current item's remaining children keep their absolute list-nesting depth along the target's ancestry chain.
+Backspace at offset 0 of a non-empty non-first item merges the current item's first-paragraph text into the deepest visible text above. That's the only line it rewrites: the marker line goes, and every line under the item keeps its bytes, reading wherever a reload puts it.
 
 ## M1 merge
 
-- Backspace at start of non-empty non-first item: the current item's first-paragraph text is appended to the "deepest visible text above", the rightmost and deepest text-bearing paragraph reachable by descending into the preceding item's trailing nested lists. The current item's remaining children are placed at their original absolute list-nesting depth along the target's ancestry chain: listItem children go into the container at their original depth; non-listItem children (extra paragraphs) absorb into the target item's inner children. Ordered markers renumber. Cursor lands at the merge point (end of target's original text, before appended content).
+- Backspace at start of non-empty non-first item: the current item's first-paragraph text is appended to the "deepest visible text above", the rightmost and deepest text-bearing paragraph reachable by descending into the preceding item's trailing nested lists. The current item's other lines keep their indentation and their blank lines, so a sublist under it joins whichever list sits at that indent above, and a paragraph stays after it at its own indent. Ordered markers renumber. Cursor lands at the merge point (end of target's original text, before appended content).
 
 - Backspace with the caret at raw offset 0 dispatches M1 through the rendered list marker: the `contenteditable="false"` marker span translates the DOM offset to raw 0, so a two-item list merges byte-exactly (`- Item one` + `- Item two` → `- Item oneItem two`) with one surviving marker.
 
-### M1 worked examples (preserve absolute indent)
+### M1 worked examples (the lines under the item keep their bytes)
 
 | Input                                             | Backspace at | Result                                    | Rule applied                                                                    |
 | ------------------------------------------------- | ------------ | ----------------------------------------- | ------------------------------------------------------------------------------- |
@@ -19,9 +19,15 @@ Backspace at offset 0 of a non-empty non-first item merges the current item's fi
 | `- A`<br>`- B`<br>_blank line_<br>`  extra`       | start of B   | `- AB`<br>_blank line_<br>`  extra`       | extra paragraph absorbed into target item's children                            |
 | `- a`<br>`- b`<br>_blank line_<br>`      code`    | start of b   | `- ab`<br>_blank line_<br>`      code`    | the moved code block keeps its own blank line                                   |
 
-The last row is a regression (#555): the code block used to lose its blank line and fold into `ab` on reload. Miss-analysis: every moved child in these rows was a paragraph, the one kind the merge gave a separator, so no row moved a block that needed its own blank line kept.
+A sublist and then a paragraph under the merged item stay in that order:
+`- i0` / `  - i1` / `    - i2` / `  - i3` / `    - i4` / _blank line_ / `    p5`, Backspace at `i3`, gives
+`- i0` / `  - i1` / `    - i2i3` / `    - i4` / _blank line_ / `    p5`, reading i0, i1, i2i3, i4, p5.
+Miss-analysis: every row here gave the merged item one kind of child, so no row held a sublist
+followed by a paragraph, which the merge used to put above the sublist's items.
 
-The worked examples above are the ground truth for the expected reshuffling; see `src/lib/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
+The code-block row is a regression (#555): the code block used to lose its blank line and fold into `ab` on reload. Miss-analysis: every moved child in these rows was a paragraph, the one kind the merge gave a separator, so no row moved a block that needed its own blank line kept.
+
+The worked examples above are the ground truth for where the lines end up; see `src/lib/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
 
 ### Ordered list numbering on M1
 

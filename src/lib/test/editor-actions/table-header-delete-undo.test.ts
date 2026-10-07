@@ -6,10 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import {
-	performCrossBlockDelete,
-	type CrossBlockMutationContext
-} from '$lib/selection/cross-block/ops';
+import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { makeBlockListState } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
@@ -25,20 +23,12 @@ async function deleteHeaderBySelection(h: Harness): Promise<void> {
 		table,
 		makeBlockListState(() => h.deps.doc.children[0])
 	);
-	const ctx: CrossBlockMutationContext = {
-		selection: h.deps.selectionState,
-		getDoc: () => h.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: (path) => h.deps.caretLanding.mount(path),
-		controller: h.controller,
-		reading: fixtureReading()
-	};
 	const start: SelectionPoint = { path: [0], offset: 0, cellCoordinate: true };
 	const end: SelectionPoint = { path: [0], offset: 1, cellCoordinate: true };
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await performCrossBlockDelete(ctx, 'keyless', {
-		tableCoverageDelete: true,
-		skipCaretRestore: true
+	await replaceRange(rangeContext(h.deps, h.controller, fixtureReading()), {
+		kind: 'none',
+		gesture: 'Backspace'
 	});
 }
 

@@ -28,6 +28,8 @@ sits on the body's own line where a range through the body reaches it.
 - Delete at the body's end deletes nothing, and the blur commits nothing
 - Tab leaves the block, as it leaves a paragraph, since no built-in binds it and it is the
   browser's own focus step, and the blur it causes commits the whole draft
+- Ctrl+A inside the source, then Ctrl+C, copies the same bytes Ctrl+X cuts: the whole block,
+  hidden fence lines included, since the cut removes those too
 
 - Home then six Shift+ArrowRight out of a one-line block's body, then Backspace: the range is
   deleted, the text it reached is absorbed into the body, and the block is still math
@@ -44,3 +46,6 @@ sits on the body's own line where a range through the body reaches it.
   the fence out of reach. A range is the one gesture that leaves the block, and no scenario made
   one, so nothing asked what the block's own bytes look like after a tree operation truncated
   them.
+- Copy and cut in the source wrote two different strings (what the browser showed, and the
+  bytes), and no scenario compared them. They only differ in live mode, where the fence lines
+  are hidden.

@@ -32,7 +32,7 @@ function harness() {
 }
 
 describe('the commit sequence contains and attributes every throw site', () => {
-	it('reports a throwing afterTick without unwinding the committed tree', async () => {
+	it('reports a throwing landing without unwinding the committed tree', async () => {
 		const { deps, errors, controller, state } = harness();
 
 		await controller.commitMultiScope({
@@ -40,11 +40,12 @@ describe('the commit sequence contains and attributes every throw site', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			op: { kind: 'appendBlock', detail: { itemIndex: 0 }, eventPath: asDocPath([0]) },
 			mutate: ([scope]) => {
-				scope.children[0].raw = '- edited\n';
+				// A copy: the undo entry still holds the item itself.
+				scope.children[0] = { ...scope.children[0], raw: '- edited\n' };
 				return [{ op: 'noop' }];
 			},
-			afterTick: () => {
-				throw new Error('plugin afterTick blew up');
+			landing: () => {
+				throw new Error('plugin landing blew up');
 			}
 		});
 

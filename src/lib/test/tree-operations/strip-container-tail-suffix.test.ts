@@ -11,6 +11,7 @@ import { deleteNode, settleSeparator } from '$lib/tree-operations/settle';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last block
 // is non-blank, so once that block turns blank the fix-up makes the line a block.
@@ -37,7 +38,7 @@ function rebuild(chain: CstNode[]): void {
 	}
 }
 
-/** What `commitInput` sends for an emptied block: the line ending alone. */
+/** What typing sends for an emptied block: the line ending alone. */
 function empty(doc: Document, path: number[]): void {
 	const chain = containersAlong(doc, path);
 	const owner = chain[chain.length - 1];
@@ -51,7 +52,8 @@ function empty(doc: Document, path: number[]): void {
 		},
 		index,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	rebuild(chain);
 }
@@ -105,16 +107,11 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		const quote = doc.children[0];
 		const before = [...quote.children!];
 
-		const change = deleteNode(
-			{
-				children: quote.children!,
-				owner: quote,
-				lineEnding: documentLineEnding(doc)
-			},
-			2,
-			defaultGrammarView
-		);
-		settleSeparator(quote, before, change, defaultGrammarView);
+		const body = { children: quote.children!, owner: quote, lineEnding: documentLineEnding(doc) };
+		const sharing = createSharingState();
+
+		const change = deleteNode(body, 2, defaultGrammarView, sharing);
+		settleSeparator(body, before, change, defaultGrammarView, sharing);
 		rebuild([quote]);
 
 		expect(describeConvergence(doc)).toBeNull();

@@ -5,14 +5,21 @@
  */
 
 import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import { assertInvariant } from '../assert';
 import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
-import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
+import {
+	isGridDescriptor,
+	isGridKind,
+	tryGetBlockKindDescriptor,
+	type BlockKindDescriptor
+} from './block-kind-descriptor';
 import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
-import type { ChildRawChange } from './child-spans';
+import type { ChildRawChange, StripRebuild } from './child-spans';
 
 /**
  * Rebuild `raw` for every container along `path`, innermost first. The leaf at the end of `path`
@@ -49,18 +56,29 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 		);
 	}
 	const rawBefore = node.raw;
-	rebuild(node);
-	const reading = followBytes(node, rawBefore, grammar);
+	const whole = rebuild(node)?.rereads ?? false;
+	const reading = followBytes(node, rawBefore, grammar, { whole });
 	// No position to put a new node at, so the node takes its reading in place.
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
+}
+
+/** A container assembled from parts takes the metadata and children a reload of its rebuilt
+ *  bytes reads; false when they read as something other than one node of its kind. */
+export function adoptOwnReading(node: CstNode, grammar: GrammarView): boolean {
+	const reading = followBytes(node, node.raw, grammar, { whole: true });
+	if (reading.outcome === 'reread') takeReread(node, reading.node);
+	return reading.outcome !== 'diverged';
 }
 
 /**
  * The chain rebuild's step, which re-derives kind and metadata itself once it knows whether an
  * outer line moved; a rebuild outside the chain uses {@link rebuildContainerRaw}.
  */
-export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRawChange): void {
-	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed);
+export function rebuildContainerRawIfContainer(
+	node: CstNode,
+	changed?: ChildRawChange
+): StripRebuild | undefined {
+	return tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
 // ── Metadata that follows the bytes ──────────────────────────────────────────
@@ -200,6 +218,38 @@ function takeReread(node: CstNode, reread: CstNode): void {
 export function parseContainerRaw(raw: string, grammar: GrammarView): CstNode[] {
 	if (perfEnabled()) recordContainerKindReparse(raw.length);
 	return readBlocks(raw, { grammar, scope: 'fragment' }).children;
+}
+
+/** The index of the child holding a container's last line, or -1 when the container's own bytes
+ *  do; the kind's `lastLineChild` answers, else its contract's default. */
+export function childHoldingLastLine(node: NodeView): number {
+	const last = (node.children?.length ?? 0) - 1;
+	if (last < 0) return -1;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.lastLineChild) {
+		const holder = descriptor.lastLineChild(node);
+		if (Number.isInteger(holder) && holder >= -1 && holder <= last) return holder;
+		assertInvariant('last-line-child-range', () => ({
+			code: 'last-line-child-range',
+			message: `${node.kind}: lastLineChild answered ${holder} for ${last + 1} children`
+		}));
+		return -1;
+	}
+	if (descriptor?.containerContract === 'strip') return node.innerSuffix ? -1 : last;
+	// A row's cells sit inside its one line.
+	return isGridDescriptor(descriptor) && isGridKind(node.children![last].kind) ? last : -1;
+}
+
+/** The children that are lines of a container's body: a strip's children, a grid's rows, and
+ *  the blocks above a closing line of the container's own, below any title row. */
+export function lineChildren(node: NodeView): readonly NodeView[] {
+	const children = node.children ?? [];
+	if (children.length === 0) return children;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.containerContract === 'strip') return children;
+	if (isGridDescriptor(descriptor)) return isGridKind(children.at(-1)!.kind) ? children : [];
+	if (!descriptor?.bodyWrap?.beforeCloserLine) return [];
+	return descriptor.reservedChrome ? children.slice(1) : children;
 }
 
 export function firstLine(raw: string): string {

@@ -8,6 +8,8 @@
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './reactivity/child-list';
+import type { AnyCommandId } from './schema/command-id';
+import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -240,9 +242,10 @@ export interface BlockComponent {
 	 */
 	mountedRowWindow?(): { start: number; end: number };
 	/**
-	 * True when vertical movement should pass straight through: no text positions the caret
-	 * can sit at, only widgets with no column meaning. Decided from the CST, not from mounted
-	 * refs, so a container answers the same for a child that is not mounted.
+	 * True when the block holds no text position, only widgets with no column meaning, so
+	 * ArrowUp/Down treat it as one stop: the first press selects it whole, the next moves on.
+	 * Decided from the CST, not from mounted refs, so a container answers the same for a child
+	 * that is not mounted.
 	 */
 	isVerticallyTransparent?(): boolean;
 	/**
@@ -254,20 +257,30 @@ export interface BlockComponent {
 	/**
 	 * Run a named block-local command resolved from a keybinding. `arg` passes the binding's
 	 * fixed argument as `unknown`, so the handler must check its shape and ignore anything
-	 * unexpected. False lets the caller fall through to later keydown branches.
+	 * unexpected. `run` says whether a selection was removed first. False lets the caller fall
+	 * through to later keydown branches.
 	 */
-	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
+	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
+	/** What a plugin's block command runs against at this block, for a command the editor runs
+	 *  here itself (a key over a selection, after the selection's removal). */
+	getCommandContext?(): BlockCommandTarget;
 	/**
 	 * Whether the command's toggle reads on at this block's own caret or selection: the read
 	 * a toolbar paints a pressed state from. Absent, or an id with no toggle state, reads
 	 * inactive.
 	 */
-	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
+	isCommandActive?(id: AnyCommandId): boolean;
 	/**
 	 * Run `run` once this block's shown widget source, which lives in the DOM only, is written
 	 * back. A block that never shows one omits it; a command from outside the block waits on it.
 	 */
 	afterSourceCommit?(run: () => void): void;
+	/**
+	 * Remove this block's own selection, then call `run(true)` at the caret that's left, as one undo
+	 * entry: how a command that breaks the line replaces what's selected. With nothing selected,
+	 * return `run(false)`. A block that omits it runs every command at the caret.
+	 */
+	afterSelectionRemoved?(run: (removed: boolean) => boolean): boolean;
 	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
@@ -289,6 +302,13 @@ export interface BlockComponent {
 	 * Omitted by non-editable blocks.
 	 */
 	insertMarkdown?(md: string): boolean | Promise<boolean>;
+	/**
+	 * Type `text` at raw `offset` as a keystroke would: the write a typed character makes, with the
+	 * name a new block kind gets and the line an on-type completer finishes. The editor calls it
+	 * for a character typed over a range, once the range is removed. Resolves once it lands.
+	 * Omitted by non-editable blocks.
+	 */
+	typeText?(text: string, offset: number): Promise<boolean>;
 	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
@@ -328,24 +348,52 @@ export type ContainerBlockComponent = BlockComponent &
 		>
 	>;
 
-/**
- * What a mounted block component publishes through `bind:this`: a leaf publishes the object
- * itself, a container publishes it under the one `containerApi` export (Svelte 5 instance
- * exports are separate declarations with no spread, so re-exporting a dozen members by hand
- * drops one). The union is what enforces it: a container publishing only a leaf's members is
- * a type error where `defineBlockComponent` registers it.
- */
-export type BlockComponentExports =
-	BlockComponent | { readonly containerApi: ContainerBlockComponent };
+/** The optional `BlockComponent` members every editable surface publishes, a hand-built one and
+ *  the editable leaf alike: each is an entry point a route reaches only through the instance. */
+export const EDITABLE_SURFACE_MEMBERS = [
+	'insertMarkdown',
+	'typeText',
+	'afterSelectionRemoved'
+] as const satisfies readonly (keyof BlockComponent)[];
+
+/** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
+ *  so none drops out unseen, and a caller reaches each one without a guard. */
+export type EditableLeafBlockApi = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| (typeof EDITABLE_SURFACE_MEMBERS)[number]
+			| 'parkCaret'
+			| 'focusAtColumn'
+			| 'getSelectedText'
+			| 'setSelection'
+			| 'measurePartialRects'
+			| 'afterSourceCommit'
+			| 'getCommandContext'
+		>
+	>;
 
 /**
- * The `BlockComponent` behind a published instance: the one place that knows a container's
- * object hides under `containerApi`. Returns the object it was handed, never a wrapper,
+ * What a mounted block component publishes through `bind:this`: a hand-built leaf its members
+ * themselves, a component built on the editable leaf its `blockApi`, a container its
+ * `containerApi`. Svelte 5 instance exports have no spread, so the factories hand over one object
+ * rather than a dozen members to copy by hand. A component publishing none of the three, or a
+ * container publishing only a leaf's members, fails where `defineBlockComponent` registers it.
+ */
+export type BlockComponentExports =
+	| BlockComponent
+	| { readonly blockApi: EditableLeafBlockApi }
+	| { readonly containerApi: ContainerBlockComponent };
+
+/**
+ * The `BlockComponent` behind a published instance: the one place that knows a factory's object
+ * sits under `blockApi` or `containerApi`. Returns the object it was handed, never a wrapper,
  * because `publishRefSlot` compares identity and a new object would overwrite the stored one.
  */
 export function resolveBlockSurface(
 	exports: BlockComponentExports | undefined
 ): BlockComponent | undefined {
 	if (!exports) return undefined;
+	if ('blockApi' in exports) return exports.blockApi;
 	return 'containerApi' in exports ? exports.containerApi : exports;
 }

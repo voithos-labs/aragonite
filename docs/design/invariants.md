@@ -55,7 +55,7 @@ Everything rarer is glossed where it first shows up. The map:
 | Rung                | Means                                              | You'll find it in               |
 | ------------------- | -------------------------------------------------- | ------------------------------- |
 | **Unrepresentable** | The compiler rejects the violation. Nothing to run | Group 3                         |
-| **Guarded**         | A check fires at the seam, in dev or in CI         | Groups 1, 2, 4                  |
+| **Guarded**         | A check fires where it breaks, in dev or in CI     | Groups 1, 2, 4                  |
 | **Documented**      | Prose plus per-instance regression tests           | The `D` code (rare, on purpose) |
 
 Prose is the bottom rung, and it's the last resort. Whenever you touch a rule, ask whether it can
@@ -124,16 +124,17 @@ spec whose page emits a fire, is the **e2e invariant watcher** the entries below
 whose whole subject is a fire declares it by tag (`test.use({ expectInvariants: [tag] })`), and the
 declaration cuts both ways: the named fire must arrive, or the spec fails on that instead. No
 `invariant:` fire may be waived run-wide; a test that provokes one claims it locally, and
-`docs/contributing/warnings.md` § Claiming a fire in a unit test is the ladder.
+`docs/contributing/warnings.md` § Claiming a fire in a unit test lists the ways, narrowest first.
 
 ### Where the shape doesn't hold, and why
 
-A minority of runtime guards are inline closures at their own seam rather than shared predicates:
+A minority of runtime guards are inline closures where their machinery runs, not shared predicates:
 G1.15, the five commit-and-parse guards G1.19 through G1.23, the interaction halves of G1.26, and
 G1.39. What they check isn't a CST node's shape but a transient value the machinery builds
 mid-flight (a prepared commit scope, an unshare chain, an owned table view, an in-flight reveal, the
-paint an effect has just written). Those exist only mid-commit, mid-parse, mid-gesture or mid-render. There's no stable object to hand a pure predicate, and no way
-for a test to reconstruct the exact state on its own.
+paint an effect has just written). Those exist only mid-commit, mid-parse, mid-gesture or
+mid-render. There's no stable object to hand a pure predicate, and no way for a test to reconstruct
+the exact state on its own.
 
 So they're guarded through the machinery that produces them, or through the console channel above,
 which every e2e spec fails on (for G1.19 through G1.23 that channel is the whole net). G1.15's tests
@@ -151,27 +152,28 @@ machinery can, the guard lives where the machinery is.
 
 The catalog is a convention anyone extends, so here's the whole procedure:
 
-1. Ask which rung the contract can sit on. If a type can make the violation impossible, write the
-   type and claim a Group 3 number; the runtime check you didn't have to write is the best kind
-   (G1.3 died this way, happily).
-2. Otherwise pick the group by where the check can run: Group 1 if a runtime seam sees the
+1. Ask how high the contract can climb. If a type can make the violation impossible, write the type
+   and claim a Group 3 number; the runtime check you didn't have to write is the best kind (G1.3
+   died this way, happily).
+2. Otherwise pick the group by where the check can run: Group 1 if the running editor sees the
    violation, Group 2 if only a test can, Group 4 if the rule is a pattern in the source text. A
    Group 4 scan lands in `test/invariants/lint/`, or in `e2e/lint/` if it scans the e2e tree.
 3. Claim the next free number in that group. Numbers are never reused, so an old citation in git
-   history keeps meaning what it meant.
+   history keeps meaning what it meant. That's also why the tables have holes: changes built in
+   parallel claim their numbers up front, and a claim that never lands leaves its number unused.
 4. If a test can construct the subject, write the predicate in `src/lib/invariants/` (pure: node in,
    violation or null out, the `checkStaleRaw` shape above) and wire both consumers: the DEV
-   assertion at the breaking seam through `assertInvariant`, and a property or negative test in
-   `src/lib/test/invariants/` that imports the predicate directly. If only the machinery can
-   construct the subject, write the guard inline at its seam and let the e2e invariant watcher net
-   it.
+   assertion where the violation happens, through `assertInvariant`, and a property or negative test
+   in `src/lib/test/invariants/` that imports the predicate directly. If only the machinery can
+   construct the subject, write the guard inline where that machinery runs and let the e2e invariant
+   watcher net it.
 5. Add the row to the group's index table and the entry below it. The row is one line a person can
-   read cold; the entry carries the seam, the predicate, the tests, and whatever nuance will bite
-   the next person.
+   read cold; the entry carries where it runs, the predicate, the tests, and whatever nuance will
+   bite the next person.
 6. Cite the G-number from the guard and its tests, so a grep for the id lands here and at the code
    in one pass.
 
-Retiring one: G1.3 is the pattern. When a stronger rung makes a check redundant, delete the guard
+Retiring one: G1.3 is the pattern. When a stronger level makes a check redundant, delete the guard
 and its tests, and keep the number. The row stays, marked retired, saying what superseded it.
 
 ## Reading the catalog
@@ -185,18 +187,16 @@ generators fast-check draws from) in `src/lib/test/invariants/`, run by
 `src/`, `docs/` or `scripts/`. The catalog references files, never line numbers. Everything below
 has landed; nothing is aspirational.
 
-One standing rule about the predicate directory: the Group 2 predicates are test-only and never
-exported through `src/lib/index.ts`. The checkable rule underneath is the real one: **no
-`invariants/` module takes a runtime dependency on `selection/`**. (The barrel already reaches
-`selection/` transitively through the component tree, so "exporting them would add the edge" was
-never the reason; keeping the predicate directory off the selection model is.)
+One standing rule about the predicate directory: no `invariants/` module takes a runtime
+dependency on `selection/` (a type import is fine). The Group 2 predicates are test-only too, and
+never exported through `src/lib/index.ts`.
 
 Each group below is a short index table, then one prose entry per id. The row tells you whether you
 care, and the entry tells you everything the row compressed.
 
 ## Group 1: runtime checked
 
-Three families of seam run these checks:
+These checks run in three kinds of place:
 
 - **The commit primitive**: `invariants/install.ts :: assertCommittedNodes`, invoked from
   `editor-actions/commit/undo-controller.ts` after each commit's raw rebuild. Anything shaped like
@@ -208,59 +208,67 @@ Three families of seam run these checks:
   schedule. Later registrations are validated at the next mount or grammar read
   (`getOrderedOpeners`), never mid-registration-batch, so forward references inside one batch stay
   warn-free.
-- **Own seam**: the guard fires inside the machinery it protects. One deliberate exception: the
-  landable-caret guard (G1.33) fires at the editor root's focus seam, above every caret entry it
-  guards, which is what lets a consumer's own caret component inherit it.
+- **Its own machinery**: the guard fires inside the code it protects. One deliberate exception:
+  the caret-position guard (G1.33) fires in the editor root's focus handler
+  (`components/editor-root-focus.ts`), above every caret entry it guards, which is what lets a
+  consumer's own caret component inherit it.
 
-| ID    | What stays true                                                                     | Codes   |
-| ----- | ----------------------------------------------------------------------------------- | ------- |
-| G1.1  | A strip container's raw and metadata never go stale against its children and bytes  | A·P·N·D |
-| G1.2  | Every block kind has a descriptor and a component                                   | A·P     |
-| G1.3  | _Retired upward_: container-iff-rebuildRaw is now unrepresentable                   | T       |
-| G1.4  | No container publishes the undo-history context key                                 | A·L·N   |
-| G1.5  | Leaf fields on leaves, container fields on containers                               | A·P·N   |
-| G1.6  | `cloneMetadata` hands back a genuinely independent copy                             | A·P     |
-| G1.7  | Metadata writes that drive raw go through `updateBlockMetadata`                     | A·N     |
-| G1.8  | `getContentRange` is well-formed for every kind that has one                        | A·P·N   |
-| G1.9  | No mutation writes bytes through a node an undo entry shares                        | T·A·P·N |
-| G1.10 | Every opener's kind has a descriptor; opener priorities are unique                  | A·N     |
-| G1.11 | Every keymap chord is unique per kind and names a known command                     | A·N     |
-| G1.12 | An opaque container's raw still reparses to its live children and metadata          | A·N     |
-| G1.13 | An opaque `rebuildRaw` is deterministic over committed state                        | A·N     |
-| G1.14 | A container declaring `reservedChrome` holds its chrome leaf at child 0             | A·N     |
-| G1.15 | A plugin opener claims at least one line, and its raw matches the lines it consumed | A·N     |
-| G1.16 | Every coordinate a commit declares is document-absolute                             | A·N     |
-| G1.17 | An opener registered after the grammar was read warns                               | A·N     |
-| G1.18 | A container's `reservedChrome` names a fully registered chrome kind                 | A·N     |
-| G1.19 | A commit scope's declared path still resolves to its captured node                  | A       |
-| G1.20 | An unshared chain is as deep as the path it was asked for                           | A       |
-| G1.21 | A column edit's row scopes are the owned table's own children                       | A       |
-| G1.22 | Every index on an unshare path addresses a live child                               | A       |
-| G1.23 | Decoration sources never run mid-commit                                             | A       |
-| G1.24 | A kind's closure block agrees with the rest of its descriptor                       | A·N     |
-| G1.25 | Widget-pool acquires happen only inside an open render pass                         | A·N     |
-| G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation         | A·N     |
-| G1.27 | `compositionend` lands only inside a composition the surface saw start              | A·N     |
-| G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly     | A·N     |
-| G1.29 | A selection endpoint's offset means what its own block's coordinate space says      | A·N     |
-| G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
-| G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
-| G1.32 | _Retired upward_: a content-start Backspace with no range no longer compiles        | T       |
-| G1.33 | A block the caret is seated into paints at least one landable position              | A·N     |
-| G1.34 | _Retired_: a split's landing reads the index `splitNode` returned (G4.43)           | L       |
-| G1.35 | A slot that holds exactly one node never takes bytes that reparse to several        | A·N     |
-| G1.36 | A structural change fits the arrays it syncs; ids stay in lockstep with children    | A·N     |
-| G1.37 | A kind whose syntax its container owns registers no opener                          | A·N     |
-| G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
-| G1.39 | At most one block paints the editor's own caret at a time                           | A       |
-| G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
-| G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
-| G1.42 | A list item's checkbox, and a to-do's blocks, are what its reload reads             | A·N     |
-| G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
-| G1.44 | The document holds a block, and a commit leaves no container it touched empty       | A·N     |
-| G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
-| G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
-| G1.47 | A windowed child measures into its own block list                                   | A·N     |
+| ID    | What stays true                                                                            | Codes   |
+| ----- | ------------------------------------------------------------------------------------------ | ------- |
+| G1.1  | A strip container's raw and metadata never go stale against its children and bytes         | A·P·N·D |
+| G1.2  | Every block kind has a descriptor and a component                                          | A·P     |
+| G1.3  | _Retired upward_: container-iff-rebuildRaw is now unrepresentable                          | T       |
+| G1.4  | No container publishes the undo-history context key                                        | A·L·N   |
+| G1.5  | Leaf fields on leaves, container fields on containers                                      | A·P·N   |
+| G1.6  | `cloneMetadata` hands back a genuinely independent copy                                    | A·P     |
+| G1.7  | Metadata writes that drive raw go through `updateBlockMetadata`                            | A·N     |
+| G1.8  | `getContentRange` is well-formed for every kind that has one                               | A·P·N   |
+| G1.9  | No mutation writes bytes through a node an undo entry shares                               | T·A·P·N |
+| G1.10 | Every opener's kind has a descriptor; opener priorities are unique                         | A·N     |
+| G1.11 | Every keymap chord is unique per kind and names a known command                            | A·N     |
+| G1.12 | An opaque container's raw still reparses to its live children and metadata                 | A·N     |
+| G1.13 | An opaque `rebuildRaw` is deterministic over committed state                               | A·N     |
+| G1.14 | A container declaring `reservedChrome` holds its chrome leaf at child 0                    | A·N     |
+| G1.15 | A plugin opener claims at least one line, and its raw matches the lines it consumed        | A·N     |
+| G1.16 | Every coordinate a commit declares is document-absolute                                    | A·N     |
+| G1.17 | An opener registered after the grammar was read warns                                      | A·N     |
+| G1.18 | A container's `reservedChrome` names a fully registered chrome kind                        | A·N     |
+| G1.19 | A commit scope's declared path still resolves to its captured node                         | A       |
+| G1.20 | An unshared chain is as deep as the path it was asked for                                  | A       |
+| G1.21 | A column edit's row scopes are the owned table's own children                              | A       |
+| G1.22 | Every index on an unshare path addresses a live child                                      | A       |
+| G1.23 | Decoration sources never run mid-commit                                                    | A       |
+| G1.24 | A kind's closure block agrees with the rest of its descriptor                              | A·N     |
+| G1.25 | Widget-pool acquires happen only inside an open render pass                                | A·N     |
+| G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation                | A·N     |
+| G1.27 | `compositionend` lands only inside a composition the surface saw start                     | A·N     |
+| G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly            | A·N     |
+| G1.29 | A selection endpoint's offset means what its own block's coordinate space says             | A·N     |
+| G1.30 | Every registered kind declares a `mergeRole` from the known set                            | A·N     |
+| G1.31 | The inline-construct policy table is coherent and unambiguous                              | A·N     |
+| G1.32 | _Retired upward_: a content-start Backspace with no range no longer compiles               | T       |
+| G1.33 | A block the caret is seated into paints at least one landable position                     | A·N     |
+| G1.34 | _Retired_: a split's landing reads the index `splitNode` returned (G4.43)                  | L       |
+| G1.35 | A slot that holds exactly one node never takes bytes that reparse to several               | A·N     |
+| G1.36 | A structural change fits the arrays it syncs; ids stay in lockstep with children           | A·N     |
+| G1.37 | A kind whose syntax its container owns registers no opener                                 | A·N     |
+| G1.38 | A spliced container raw equals what a full rebuild would write                             | A·P·N   |
+| G1.39 | At most one block paints the editor's own caret at a time                                  | A       |
+| G1.40 | Every built-in kind declares its page role and its height estimate                         | A·N     |
+| G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own)        | A·P·N   |
+| G1.42 | A list item's checkbox and blocks are what its reload reads                                | A·N     |
+| G1.43 | Reading a commit's landing moves no caret                                                  | A·N     |
+| G1.44 | The document holds a block, and a commit leaves no container it touched empty              | A·N     |
+| G1.45 | A caret landing's focus scrolls nothing                                                    | A·N     |
+| G1.46 | A caret or range the editor puts down leaves no widget selected whole                      | A·N     |
+| G1.47 | A windowed child measures into its own block list                                          | A·N     |
+| G1.52 | The text `getSource()` serves for an unchanged content version is the document             | A·N     |
+| G1.53 | _Retired_: a stale write is refused quietly at the write gate, with nothing left to assert | none    |
+| G1.54 | A commit's mutation leaves the tree's own top-level array as it found it                   | A·N     |
+| G1.55 | A top-level container an edit rebuilt reads back, on its own, as the tree it holds         | A·N     |
+| G1.58 | An indent key over a range keeps every word it holds, in order                             | A·N     |
+| G1.61 | A list move keeps the order its text reads in                                              | A·P·N   |
+| G1.71 | A command key over a range runs in the kind of block whose keymap claimed it               | A·N     |
 
 ### The entries
 
@@ -329,9 +337,16 @@ public plugin surface hold bytes-readonly views (`core/node-views.ts`), so a rea
 is a compile error, and G4.13 guards the casts that would strip the view. The DEV check stays
 anyway, because runtime JS bypasses types. The copy-path-on-write behind all this follows the
 `$state` canonical-reference discipline (re-read a spliced copy through the tree before using it
-further); the header of `tree-operations/unshare.ts` owns the full statement. Predicate
-`checkSnapshotIntegrity` (`snapshot-integrity.ts`) · commit primitive (top undo entry) plus
-undo/redo restore (`editor-actions/commit/history.ts`) · `snapshot-integrity.test.ts`,
+further); the header of `tree-operations/unshare.ts` owns the full statement. The table's rebuild is
+the one container rebuild that writes its children's bytes, and it only rewrites a row whose cells
+stopped matching its bytes, or one an edit moved above another line, which takes an edit that
+already copied that row. So it copies no rows up front, and a keystroke in a big table copies just
+the row it's in. If some edit ever gets that wrong, `checkSnapshotIntegrity` catches it, since its
+digest hashes every node's bytes, not only the top-level ones: a rebuild after an undo reads a table
+row's padding or a quote's paragraph straight from the child. That walk costs a few times what a
+top-level digest would in dev, and production never runs it. Predicate `checkSnapshotIntegrity`
+(`snapshot-integrity.ts`) · commit primitive (top undo entry) plus undo/redo restore
+(`editor-actions/commit/history.ts`) · `snapshot-integrity.test.ts`,
 `test/undo/undo-restoration.property.test.ts`.
 
 The **commit-rollback companion** lives here too. Where G1.9 guards a mutation corrupting a _shared_
@@ -340,32 +355,34 @@ stacks byte-identical to their pre-commit state and mustn't publish a partial tr
 captures both stacks before its snapshot push (a commit that joins an open undo step pushes
 nothing, so it has none to capture) and, on throw, restores them via `UndoManager.restoreStacks` (a
 wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), emits
-`error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production. The
-two commit branches keep the tree intact differently:
+`error{origin:'commit'}` on the editor's events, then re-throws in DEV and swallows in production.
 
-- The **document branch** mutates a detached children copy and publishes it only on success, so a
-  throw leaves the live tree untouched.
-- The **container/multi-scope branch** mutates the live tree in place (its scope views are windows
-  onto live nodes), so `__commit` captures the top-level children array before the mutation and
-  swaps it back on throw. Copy-path-on-write guarantees the pre-mutation array still reaches an
-  intact tree at every depth, discarding every copy the mutation dirtied.
+Every commit keeps the tree intact the same way. It holds on to the top-level array it started from,
+and a throw puts that one back. A commit over the document hands its mutation a plain copy of that
+array, which goes live when the scope publishes; its container scopes copy their ancestors into the
+tree's own array first, so the copy holds them, and a throw puts back the slots they took. A commit
+over containers alone swaps a fresh array in before its mutation runs, since a container's copies
+land in the live tree (a scope view is a window onto live nodes). Copy-path-on-write means the old
+array still reaches an intact tree at every depth, so every copy the mutation dirtied goes out with
+the new one. That old array is the whole rollback of a commit over the document, so one saves no
+block's bytes, however long the document is.
 
-The array swap alone can't reach a container commit that joins an open undo step when its scope
-node was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the
-mutation's structural splice lands in place on a node the pre-mutation array still references.
-That's reachable through cross-block paste, whose delete and paste are two structural commits in one
-step. `__commit` closes it by also capturing each prepared scope's pre-mutate children/childIds
-arrays and reinstating them on throw (a document-scope commit was already recovered; there the
-mutated array is `deps.doc.children` itself).
+The array swap alone can't reach a container commit that joins an open undo step when its scope node
+was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the mutation's
+structural splice lands in place on a node the pre-mutation array still references. That's reachable
+through a paste or a character typed over a cross-block range, whose removal and insert are two
+structural commits in one step. The commit closes it by also capturing each prepared container
+scope's pre-mutate children/childIds arrays and reinstating them on throw.
 
-One residual is open by design. The frame's byte registers reach each prepared scope's spine and its
-direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so what
-stays uncovered is narrow: a write deeper than an owned node's direct children, node metadata, and
-`leadingTrivia` on a node the document branch already owns. For a scope already unshared earlier in
-the same undo unit, copy-path-on-write is a no-op, so such a write leaves those bytes changed after
-a throw rolls the structure back, and structure and bytes then disagree. It's out of scope for
-pre-publish corruption (the user mutation and the arity check both throw before any byte write) and
-only reachable via an internal malformed-change bug, which DEV re-throws. Covered by
+One residual is open by design. The frame's byte registers reach each container scope's spine and
+its direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so
+what stays uncovered is narrow: a write deeper than an owned node's direct children, metadata below
+them, and any byte write to a top-level block the undo step already owns (the document scope saves
+its array, not its blocks' bytes). For a scope already unshared earlier in the same undo unit,
+copy-path-on-write is a no-op, so such a write leaves those bytes changed after a throw rolls the
+structure back, and structure and bytes then disagree. It's out of scope for pre-publish corruption
+(the user mutation and the arity check both throw before any byte write) and only reachable via an
+internal malformed-change bug, which DEV re-throws. Covered by
 `test/editor-actions/commit/commit-rollback.test.ts` and `commit-rollback-bytes.test.ts`.
 
 **G1.10 · Opener-registry coherence.** Every opener's kind has a descriptor, and opener priorities
@@ -442,9 +459,9 @@ out-of-range index silently truncates the chain. Inline closure, watcher-netted.
 `tree-operations/unshare.ts :: ensureUnsharedPath`.
 
 **G1.23 · No decoration sources mid-commit.** `notifyEdit` and `runAll` assert that no commit is in
-progress, and a source handle's `invalidate()` waits and runs once, after the last one ends,
-because a decoration source running mid-commit would read a half-written tree. The commit helper
-opens and closes the commit scope in `invariants/commit-scope.ts`. Inline closure, watcher-netted. Seam
+progress, and a source handle's `invalidate()` waits and runs once, after the last one ends, because
+a decoration source running mid-commit would read a half-written tree. The commit helper opens and
+closes the commit scope in `invariants/commit-scope.ts`. Inline closure, watcher-netted. Seam
 `decorations/decoration-state.svelte.ts`.
 
 **G1.24 · Closure-block coherence.** A kind's required closure block (its written answer to every
@@ -581,33 +598,35 @@ that reparse to several. Every join reaches one: Backspace, Delete and the list-
 the joined text into the surviving block's leaf through `joinIntoLeaf`. A join whose bytes read as
 two blocks is refused there rather than truncated to the first (a line vanishes from the document)
 or written whole into the surviving slot (the tree stops agreeing with its own reload); the join
-returns null, the gesture changes nothing, and the caret moves across the boundary instead (GH #166). The question is asked at the WRITE,
-over the nodes going into the slot, so the guard answers for sink N+1: one that skips the refusal
-its siblings make, or splices a plural replacement where one node belongs. Arriving plural is legal;
-installing plural is the fire. Predicate `checkSingleNodeSink` (`single-node-sink.ts`) · seam
-`tree-operations/node-ops.ts :: mergedLeafFor` ·
-`test/tree-operations/merge-multi-block-refusal.test.ts`.
+returns null, the gesture changes nothing, and the caret moves across the boundary instead (GH
+#166). The question is asked at the WRITE, over the nodes going into the slot, so the guard answers
+for sink N+1: one that skips the refusal its siblings make, or splices a plural replacement where
+one node belongs. Arriving plural is legal; installing plural is the fire. Predicate
+`checkSingleNodeSink` (`single-node-sink.ts`) · seam `tree-operations/node-ops.ts :: mergedLeafFor`
+· `test/tree-operations/merge-multi-block-refusal.test.ts`.
 
 **G1.36 · Structural-descriptor coherence.** A `StructuralChange` (the record a mutation publishes
 so the id and ref arrays can follow a splice) must fit the array it syncs, no negative slot count
-and no window past the end, and every publish seam must leave one id per child.
-`Array.from({length: -1})` is `[]`, so a record derived from a LENGTH DIFF over a fixed window
+and no window past the end, and every place the commit publishes ids must leave one id per child.
+`Array.from({length: -1})` is `[]`, so a record derived from a length diff over a fixed window
 desyncs ids from children in silence the moment a splice moves slots the window never named. A
 settle folding a separator above a range delete is exactly that shape, and it shipped unobserved
 because nothing compared the published id array against the children. The producer half fires at the
-applicator, which every record crosses; the consumer half fires at the two commit publish seams,
-because a record can fit its own array while describing the wrong window. `childSpans` is the same
-shape of parallel array and gets the same reading, one span PAIR per child, over the nodes a commit
-touched: a rebuild seeding the wrong length, or a shape change that outlived its drop, is a
-stale-region splice waiting for the next keystroke. Below those same nodes, every container that
-keys its children by id is checked at every depth for one id per child, the check the e2e teardown
-and the test bridge run over the whole document. Predicates `checkStructuralDescriptor`, `checkIdsChildrenLockstep`,
-`checkChildSpansLockstep` (`structural-descriptor.ts`), `checkChildIdParity` (`child-id-parity.ts`) · seams
+applicator, which every record crosses; the consumer half fires where the commit publishes each
+scope's ids, because a record can fit its own array while describing the wrong window. `childSpans`
+is the same shape of parallel array and gets the same reading, one span pair per child, over the
+nodes a commit touched: a rebuild seeding the wrong length, or a shape change that outlived its
+drop, is a stale-region splice waiting for the next keystroke. Below those same nodes, every
+container that keys its children by id is checked at every depth for one id per child, the check the
+e2e teardown and the test bridge run over the whole document. Predicates
+`checkStructuralDescriptor`, `checkIdsChildrenLockstep`, `checkChildSpansLockstep`
+(`structural-descriptor.ts`), `checkChildIdParity` (`child-id-parity.ts`) · run at
 `tree-operations/structural-change.ts :: applyStructuralChangeToIdsRefs`, the commit primitive
 (`editor-actions/commit/undo-controller.ts`), and the per-commit node check
 (`invariants/install.ts :: assertCommittedNodes`) · `structural-descriptor.test.ts`,
 `test/schema/child-spans.test.ts`,
-`test/selection/cross-block/cross-block-delete-seam-fold.test.ts`, `test/invariants/child-id-parity.test.ts`.
+`test/selection/cross-block/cross-block-delete-seam-fold.test.ts`,
+`test/invariants/child-id-parity.test.ts`.
 
 **G1.37 · Descriptor-field coherence.** `contextDependentKind` (a kind with no opener of its own,
 whose container writes its syntax) beside a registered opener suppresses the reparse for a kind the
@@ -618,17 +637,19 @@ nothing fails until a gesture reaches the kind. G1.24 is the sibling over the cl
 one never reads them. Predicate `checkDescriptorFieldCoherence` (`registry.ts`) · bootstrap ·
 `descriptor-field-coherence.test.ts`, `test/schema/registration-checks.test.ts`.
 
-**G1.38 · Faithful container splices.** After every one-region splice, dev re-derives the whole
-container raw on a scratch node and refuses the splice on any difference: the node takes the full
-rebuild instead, and the guard names the kind. The region check inside the splice reads the NAMED
-child only, and the bytes a container holds beside it move for reasons no hint carries (a sibling
-separating line a settle retires, a wrap slot it borrows). Those seams retire the spans themselves
-(`schema/child-spans.ts`); this is the backstop under them, and the only guard that sees a stale
-container raw living BETWEEN commits, where G1.1 never runs. Dev pays one re-derive per spliced
-keystroke, which lands a hinted rebuild back at about the full one it replaced (1.9 ms against 1.7
-ms on the 1MB interior bench row); production pays nothing, and neither does an instrumented run.
-Predicate `schema/child-spans.ts :: spliceIsFaithful`, the one predicate living outside
-`invariants/` · seam: the splice path · `test/schema/child-spans-settle.test.ts`,
+**G1.38 · Faithful container splices** (`child-spans-faithful`). After every one-region splice, dev
+re-derives the whole container raw on a scratch node and refuses the splice on any difference: the
+node takes the full rebuild instead, and the guard names the kind. The full rebuild pairs its lines
+with the spliced bytes, so over a faithful splice it writes them back unchanged. The region check
+inside the splice reads the named child only, and the bytes a container holds beside it move for
+reasons no hint carries (a sibling separating line a settle retires, a wrap slot it borrows). The
+code that moves those bytes retires the spans itself (`schema/child-spans.ts`); this is the backstop
+under them, and the only guard that sees a stale container raw living between commits, where G1.1
+never runs. Dev pays one re-derive per spliced keystroke, which lands a hinted rebuild back at about
+the full one it replaced (1.9 ms against 1.7 ms on the 1MB interior bench row); production pays
+nothing, and neither does an instrumented run. Predicate
+`schema/child-spans.ts :: spliceIsFaithful`, the one predicate living outside `invariants/` · run on
+the splice path · `test/schema/child-spans.test.ts`, `test/schema/child-spans-settle.test.ts`,
 `child-spans.property.test.ts`.
 
 **G1.39 · One synthetic caret** (`snap-caret-unique`). Beside a non-editable inline widget the
@@ -652,35 +673,47 @@ bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 ending, and a structural edit leaves it the way it found it: a file with no final break still has
 none afterwards, unless its new last line is blank (then the line is nothing but its break, and
 dropping the break would drop the line). Blank means the line held by the block at the bottom of the
-last block, found by walking down its last children the way the release does, so the empty line
-Enter leaves inside a last quote counts and the quote's own trailing `>` doesn't; that walk is one
-predicate, `tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this
-check. The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
-before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
+last block, found by walking down the way `keepOpenTail` does (the step, below, that takes a final
+break back off), so the empty line Enter leaves inside a last quote counts and the quote's own
+trailing `>` doesn't; that walk is one predicate, `tree-operations/open-tail.ts ::
+holdsBlankLastLine`, shared by that step and this check. Which
+child holds a block's last line is a fact about its kind, so the kind's descriptor says it
+(`lastLineChild`; left out, a strip's last child unless an inner suffix ends the strip, in which
+case its own bytes do, and a grid's last row), and every walk asks
+`schema/container-raw.ts :: childHoldingLastLine`. A table holding only its header row answers
+"nobody", since its own delimiter line comes last. An answer past the children is a bug in the
+kind, so that reader warns (`last-line-child-range`) and counts it as "nobody". The commit owns
+the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines` before the separator
+fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
 rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
 first step itself for now, because it checks its own joins before the commit's fix-up runs; that
 call goes once the commit settles the move's joins.
 
 The check runs after every structural commit publishes and fails three shapes: an open file that
 gained a break on a line with text, a closed file that lost its break, and a line with no ending
-sitting right above the last line, at any level of the containers holding it. That last one is what
+sitting right above the last line, at any level of the containers holding it. When a container's
+own bytes hold its last line (a quote's closing `>`, a header-only table's delimiter, a directive's
+closing `:::`), the check reads the children right above that line too
+(`schema/container-raw.ts :: lineChildren`). That last shape is what
 an edit leaves when it puts a block after an open last line where the commit can't see it, and the
 two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` · run by
 both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 
-**G1.42 · A list item's checkbox says what its reload reads** (`task-marker-slot`). A to-do's
-checkbox is metadata on the list item, but a write only changes the block behind it, so the two can
-drift apart. A list item holds the checkbox a reload of its bytes gives it, and a to-do also holds
-the blocks the reload gives it (their kinds, compared as a whole list, so one line split into two
-paragraphs counts). `- [ ] # b` read by a plain parse (a heading behind a checkbox) fails, and so
-does a plain item whose text now opens with `[ ] `. A shape the parser loads passes by definition,
-`- [ ] |b|` over a delimiter row included (a to-do holding a table, #665). A plain item's own block
-drift isn't this check's (#668 widens it). Writes into an item's first slot keep all this through
-`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), but a
-route can still read its bytes with the wrong reader, so the commit checks the result too. Dev
-only: it reparses each touched node that holds a list item. Predicate
+**G1.42 · A list item's checkbox and blocks say what its reload reads** (`task-marker-slot`). A
+to-do's checkbox is metadata on the list item, but a write only changes the block behind it, so the
+two can drift apart. A list item holds the checkbox a reload of its bytes gives it, and the blocks
+too (their kinds, compared as a whole list, so one line split into two paragraphs counts).
+`- [ ] # b` read by a plain parse (a heading behind a checkbox) fails, so does a plain item whose
+text now opens with `[ ] `, and so does a plain item holding indented code its marker line reads as
+a paragraph. A shape the parser loads passes by definition, `- [ ] |b|` over a delimiter row
+included (a to-do holding a table, #665). An item holding no block at all is G1.44's. Writes into
+an item's first slot keep all this through
+`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), and a block
+replacing a to-do's text gives the box up only where the bare bullet still holds it
+(`landAtTaskStart`), but a route can still read its bytes with the wrong reader, so the commit
+checks the result too. Dev only: it reparses each touched node that holds a list item. Predicate
 `invariants/node-shape.ts :: checkTaskMarkerSlot` · the commit, over its touched nodes ·
 `test/invariants/task-marker-slot.test.ts`.
 
@@ -713,13 +746,13 @@ and a focus that moved it (one without `preventScroll`) fails here. Predicate
 `invariants/landing-focus-scroll.ts :: checkLandingFocusScrollsNothing` · run by
 `selection/caret-landing.ts` · `test/selection/caret-landing.test.ts`; G4.91 is the source half.
 
-**G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An image selected
-whole lives in the same selection state as the range and the gap caret, and the state's clears end
-it. So once a block's `focus`, a range put down inside one block (a first Mod+A, a block's
-`setSelection`) or a restore has placed its caret or range, no widget should still be selected:
-one that is would look selected while the keys go to the caret, and the browser's own caret would
-get dropped under it. In a dev build `placeCaret`, `selectInBlock` and `applySelectionToDom` check
-it inside their batch, before anyone hears about the placement. Predicate
+**G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An inline widget
+selected whole (an image, say) lives in the same selection state as the range and the gap caret,
+and the state's clears end it. So once a block's `focus`, a range put down inside one block (a
+first Mod+A, a block's `setSelection`) or a restore has placed its caret or range, no widget should
+still be selected: one that is would look selected while the keys go to the caret, and the
+browser's own caret would get dropped under it. In a dev build `placeCaret`, `selectInBlock` and
+`applySelectionToDom` check it inside their batch, before anyone hears about the placement. Predicate
 `invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
 `selection/caret-doors.ts` and `selection/native-bridge.ts` ·
 `test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
@@ -731,8 +764,85 @@ a list further up (say, a list item calling the hook after it provided its own i
 land its height in a table that doesn't index it, so the channel refuses a path that isn't one of
 its own children, and in a dev build says so. Predicate
 `invariants/measures-in-own-list.ts :: checkMeasuresInOwnList` · run by
-`reactivity/use-container-windowing.svelte.ts` · `test/reactivity/measured-child-routes.svelte.test.ts`;
-G4.97 is the source half.
+`reactivity/use-container-windowing.svelte.ts` ·
+`test/reactivity/measured-child-routes.svelte.test.ts`; G4.97 is the source half.
+
+**G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
+content version and hands back the same string until the version moves, and a `source` prop write
+is compared with that string. So it's only as fresh as the version: a write that changed bytes
+without bumping it (G4.52 is the scan for that) would have the editor report, and compare against,
+text it no longer holds. In a dev build the first `getSource()` read that reuses a version's text
+serializes the document again and says so if the two differ. It skips that while the perf
+instruments are armed, and the swap check reads the cache unchecked, since an echoing host reaches
+it on every keystroke. Predicate
+`invariants/current-source.ts :: checkCurrentSource` · run by
+`reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
+
+**G1.53 · Retired.** The rule was: a write made for a document a `source` swap replaced is
+refused, and a dev build says so (`stale-document-write`). The refusal stayed, in every build, in
+the write gate every write route asks (`editor-actions/commit/reading-write-gate.ts ::
+admitsWrite`), but it's quiet now. A draft drops itself at a swap, and a late write that still
+arrives (a paste whose clipboard read finished after the swap) is ordinary, not a bug, so there's
+nothing left for a dev check to warn about.
+
+**G1.54 · The tree's top-level array comes back untouched** (`top-level-untouched`). A commit with
+the document among its scopes hands its mutation a plain copy of the top-level array and installs
+that copy once it publishes, since splicing the tree's own array pays a tracked write for every
+block it shifts. A mutation that writes the tree instead (the live document rather than its scope
+view) has its splice thrown away at the publish, so in a dev build the commit compares the tree's
+array with what it held before the mutation ran, and fails here if it was replaced or written. It
+skips that while the perf instruments are armed. Predicate
+`invariants/top-level-untouched.ts :: checkTopLevelUntouched` · run by
+`editor-actions/commit/undo-controller.ts` · `test/invariants/top-level-untouched.test.ts`,
+`test/perf/top-level-splice-writes.test.ts`. **G1.55 · A rebuilt container reads back as itself**
+(`reads-back`). A container rebuild keeps the bytes of every line it can, so its bytes are only as
+right as its reading of each line. After a keystroke's rebuild and after every commit, dev parses
+each top-level container the edit wrote in, on its own, and compares that parse's shape (kinds,
+child counts, metadata) with the tree's. The edit hands over those containers itself: a keystroke
+names the top block it typed under, a commit the top block of each place it wrote. The check never
+searches the document for them, so a keystroke costs it the same in a 500 KB file as in a short one.
+A keystroke that dropped an indented list's leading spaces passed every byte check while the reload
+nested its second item; this is the check that sees it. It skips a container over 16K characters, so
+typing in a giant one costs nothing, and anything the perf instruments time. It also skips a
+container with no bytes at all, which can't read back as anything; that bound hides a bullet whose
+source a range delete emptied, an open defect. Predicate
+`invariants/reads-back.ts :: checkReadsBack` · run by `editor-actions/leaf-write.ts` and
+`editor-actions/commit/undo-controller.ts` · `test/invariants/reads-back.test.ts`.
+
+**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab,
+Shift+Tab or a rebound indent key over a range moves list items and shifts code lines (or does what
+a plugin kind registered), and nothing else. After each press, dev reads every leaf's text in
+document order, whitespace aside, across the top-level blocks the range spans, and compares it with
+what was there before the press. A leaf's text is what its kind calls text: its write rule's
+`text` reading when it has one (a code block's body, without the fence lines), else its content
+span. So a renumbered marker, an added tab, or a fence the write rule lengthened around a line that
+now reads as a closer all pass. A lost word fails, and so does one that now reads in a new place.
+The reading is `invariants/leaf-text.ts` :: `leafTexts`, shared with G1.61.
+Predicate `invariants/range-indent-keeps-text.ts :: checkIndentKeepsText` · run by
+`selection/cross-block/range-indent.ts` · `test/invariants/range-indent-keeps-text.test.ts`.
+
+**G1.61 · A list move keeps the order** (`list-move-keeps-order`). Tab's nest, every lift
+(Shift+Tab, Backspace at a sublist's start, Enter in an empty nested item, a range's Shift+Tab),
+Backspace's unwrap of a list's first item and its merge of a middle item, and Enter in an empty item
+of an outermost list move blocks between levels, never past each other. Each one reads the leaf text
+of the list it rewrites, in order and whitespace aside (read as G1.58 reads it), before and after the
+move, and dev warns when the two differ. A merge rewrites the two lines it joins (a live-mode join
+can drop markers), so its check reads the text before and after them. Predicate
+`invariants/list-move-keeps-order.ts :: checkListMoveKeepsOrder` · run by
+`tree-operations/list/item-moves.ts`, `tree-operations/list/item-partition.ts` (the unwrap and the
+Enter exit, G4.123) and `tree-operations/list/unwrap-merge.ts` (the merge) ·
+`test/invariants/list-move-keeps-order.test.ts`, and
+`test/blocks/list/indent-keeps-order.property.test.ts` presses the moves over loose, ordered, quoted
+and side-by-side lists.
+
+**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a
+range, a key is a command key when the keymap of the block the removal will leave the caret in binds
+it to a command that runs after the removal; that block is picked from the coverage before anything
+moves (`selection/removal-landing.ts` :: `removalLanding`), and the removal lands its caret by the
+same pick. After the removal, dev checks the command runs in a block of the kind the claim read. It
+compares kinds only, since a join can move the caret's offset. Predicate
+`invariants/command-key-landing.ts :: checkCommandLanding` · run by
+`selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 ## Group 2: property and regression tested
 
@@ -740,22 +850,24 @@ No runtime seam sees these; the test suite is the whole enforcement. Test files 
 `test/invariants/`, and the arbitraries they draw random documents from live in
 `test/invariants/arbitraries/`.
 
-| ID    | What stays true                                                             | Codes |
-| ----- | --------------------------------------------------------------------------- | ----- |
-| G2.1  | Any string parses without throwing and serializes back to itself            | P·N   |
-| G2.2  | The end-of-file edge states round-trip                                      | P·N   |
-| G2.3  | The inline parser holds against its conformance corpus                      | P     |
-| G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw          | P     |
-| G2.5  | The inline tree's offsets partition the block's raw                         | P·N   |
-| G2.6  | Serialization ignores metadata and editor-level fields                      | P     |
-| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it | P     |
-| G2.8  | Split and merge round-trip; ids, refs and children stay aligned             | P·N   |
-| G2.9  | Paste emits its op kind by strategy, never by target depth                  | P     |
-| G2.10 | Every keydown path hands its key to the caret memory's classifier           | P·A   |
-| G2.11 | The inline scan covers every byte with known construct kinds, tiled         | P     |
-| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend  | L     |
-| G2.13 | An edit leaves a tree whose serialization reparses to the same block shape  | P·N   |
-| G2.14 | A format toggle applies exactly where the active-read says it isn't applied | N     |
+| ID    | What stays true                                                              | Codes |
+| ----- | ---------------------------------------------------------------------------- | ----- |
+| G2.1  | Any string parses without throwing and serializes back to itself             | P·N   |
+| G2.2  | The end-of-file edge states round-trip                                       | P·N   |
+| G2.3  | The inline parser holds against its conformance corpus                       | P     |
+| G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw           | P     |
+| G2.5  | The inline tree's offsets partition the block's raw                          | P·N   |
+| G2.6  | Serialization ignores metadata and editor-level fields                       | P     |
+| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it  | P     |
+| G2.8  | Split and merge round-trip; ids, refs and children stay aligned              | P·N   |
+| G2.9  | Paste emits its op kind by strategy, never by target depth                   | P     |
+| G2.10 | Every keydown path hands its key to the caret memory's classifier            | P·A   |
+| G2.11 | The inline scan covers every byte with known construct kinds, tiled          | P     |
+| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend   | L     |
+| G2.13 | An edit leaves a tree whose serialization reparses to the same block shape   | P·N   |
+| G2.14 | A format toggle applies exactly where the active-read says it isn't applied  | N     |
+| G2.15 | A container rebuilt right after a parse writes back the bytes it read        | P·N   |
+| G2.16 | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
 
 ### The entries
 
@@ -778,10 +890,11 @@ jsdom. `textcontent-spine.property.test.ts`.
 **G2.6 · Serialization purity.** Serialization ignores metadata and editor-level fields.
 `serialization-purity.property.test.ts`.
 
-**G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly
-one subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's block, and the
-overlay's class for every block is the one that coverage gives it. `walkBetween` visits the blocks
-in order. `selection-partition.property.test.ts`.
+**G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly one
+subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's
+block, and the overlay's class for every block is the one that coverage gives it: a subtree the
+range covers end to end paints one box, an endpoint's block included, and nothing under a box
+paints. `walkBetween` visits the blocks in order. `selection-partition.property.test.ts`.
 
 **G2.8 · Structural alignment.** Split and merge round-trip, and the id, ref and children arrays
 stay aligned, in all scopes. `structural-id-ref-alignment.test.ts`.
@@ -802,27 +915,29 @@ gaps, and every node's kind is in the vocabulary: the built-in kinds plus those 
 declared, so the property also runs with the bundled plugins' inline kinds registered.
 `inline-total-coverage.property.test.ts`.
 
-**G2.12 · Caret placement ends the editor's selection.** A caret placement ends every selection the editor owns
-(a cross-block range, a gap caret, an image selected whole), unless it's an extend. The
-programmatic side is one route: `BlockComponent.focus` is built over each surface's park primitive
-and ends them itself, and the table in `test/selection/selection-claim-table.test.ts` runs every
-writer over each of the three. The scan carries the three parts that can't be
-routed: NATIVE caret placement (a click's own default moves the caret, so per-file pointer-entry
-declarations still apply), the park verb's caller allowlist (legitimacy is the caller's intent, and
-no position test separates the uses), and the park verb's presence on every LEAF that forwards a
-shared caret seam (the method is optional on the contract, so a missing forward type-checks).
-Containers left that class: each publishes its whole surface as one `containerApi` instance export,
-so the scan asserts that publication instead of a per-member pairing. Behavioral complement: the
-simulation's range-interrupt family drives the same precondition through real gestures.
-`lint/caret-gesture-range-reset.test.ts`, plus
+**G2.12 · Caret placement ends the editor's selection.** A caret placement ends every selection the
+editor owns (a cross-block range, a gap caret, an inline widget selected whole), unless it's an
+extend. The programmatic side is one route: `BlockComponent.focus` is built over each surface's park
+primitive and ends them itself, and the table in `test/selection/selection-claim-table.test.ts` runs
+every writer over each of the three. The scan carries the three parts that can't be routed: NATIVE
+caret placement (a click's own default moves the caret, so per-file pointer-entry declarations still
+apply), the park verb's caller allowlist (legitimacy is the caller's intent, and no position test
+separates the uses), and the park verb's presence on every LEAF that forwards a shared caret entry
+point (the method is optional on the contract, so a missing forward type-checks). Containers left
+that class: each publishes its whole surface as one `containerApi` instance export, so the scan
+asserts that publication instead of a per-member pairing. A leaf built on `createEditableLeaf` left
+it too, through its `blockApi`. Behavioral complement: the simulation's range-interrupt family
+drives the same precondition through real gestures. `lint/caret-gesture-range-reset.test.ts`, plus
 `src/lib/e2e/tests/simulation/range-interrupt-ops.spec.ts` (outside this group's root).
 
 **G2.13 · Shape fixed point.** An edit on a loaded document leaves a tree whose serialization
-reparses to the SAME block shape. It's the complement of G2.1, which a shape loss passes untouched
-(the bytes were exact and one block was gone). Two lanes of input, two suites: blank-line-separated
-documents under the split, delete and commit gestures, the surface the blank-line rule governs; and
-inline-source paragraphs under the live split, the differential that judges the rebalancer.
-`shape-fixed-point.property.test.ts`, `parse-convergence.test.ts`.
+reparses to the same block shape. It's the complement of G2.1, which a shape loss passes untouched
+(the bytes were exact and one block was gone). Two lanes of input, in one suite: blank-line-separated
+documents under the split, delete, merge, fill, empty, retype and update gestures, the surface the
+blank-line rule governs; and inline-source paragraphs under the live split, the differential that
+judges the rebalancer. The retype gesture holds the bytes too, as G2.16.
+`shape-fixed-point.property.test.ts`, with example cases of the convergence check in
+`parse-convergence.test.ts`.
 
 **G2.14 · Toggle and active-read equivalence.** Over a RANGE, the toggle and `isInlineFormatActive`
 agree: where the read says active the toggle unapplies, where it says inactive the toggle applies.
@@ -835,6 +950,26 @@ coverage in no mode: it fires only where the block's own parse holds the constru
 selection and no second run of that kind covers it, with a screen check where the delimiters don't
 paint. A collapsed caret is a different ladder entirely. `format-toggle-ladder.test.ts`.
 
+**G2.15 · A container rebuild keeps its bytes.** Rebuild every container of a freshly parsed
+document, innermost first, and you get the same bytes back, line endings included. That's what lets
+the first edit in a container change only the lines it edits. One generator spells tables every way
+GFM reads the same (tight, over-padded, `:--`, no edge pipes, escaped pipes, short rows, surplus
+cells, some inside a quote), and a second property writes one cell and checks that only that row's
+line moved and a reload reads the cells the tree holds. Another spells quotes and list items every
+way: `>` with or without its space, a tab, up to three spaces in front, indents in tabs or past the
+content column, separators bare or indented, lazy lines two deep, CRLF.
+`rebuild-keeps-bytes.property.test.ts`. The row
+writer reads a cell's text the way the row's reader does (`core/parsers/table-line.ts ::
+cellText`), so a space typed at a cell's edge is padding, written once. When it falls back to the
+plain spelling, a dev check (`table-row-reads-back`) fails if even that doesn't read back as the
+cells.
+
+**G2.16 · An edit moves only its own lines.** Writing a leaf the bytes it already holds leaves the
+document byte for byte as it was, and one letter typed through the keystroke's route changes one
+line of the document and leaves a tree that reloads as itself. Both draw the blank-separated
+corpus and the respelled quotes and lists, and a named row pins the retype of a tab-indented item
+holding a table. `shape-fixed-point.property.test.ts`.
+
 ## Group 3: compile time
 
 The top rung: the violation doesn't compile. Enforced by `npm run check`; there's no runtime seam.
@@ -843,7 +978,7 @@ Each entry says what the type retired, since that list is the receipts.
 | ID    | What no longer compiles                                                           | Codes |
 | ----- | --------------------------------------------------------------------------------- | ----- |
 | G3.1  | An untyped metadata access (`as` cast) on a block node                            | T     |
-| G3.2  | A component publishing anything but the two sanctioned export shapes              | T     |
+| G3.2  | A component publishing anything but the three allowed export shapes               | T     |
 | G3.3  | A cell selection point where a character point belongs, or the reverse            | T     |
 | G3.4  | A magic number standing in for "end of block"                                     | T     |
 | G3.5  | A container without a declared contract                                           | T     |
@@ -858,10 +993,11 @@ Each entry says what the type retired, since that list is the receipts.
 **G3.1 · Typed per-kind metadata.** `BlockMetadataByKind` plus `metadataOf<K>`. Retired: `as`
 metadata casts.
 
-**G3.2 · Sanctioned component exports.** `defineBlockComponent`, whose exports parameter is the two
-sanctioned publication shapes (`BlockComponentExports`): a leaf's own surface, or a container's
-single `containerApi`. Retired: `as unknown as` casts, and a container that publishes no surface at
-all.
+**G3.2 · Allowed component exports.** `defineBlockComponent`, whose exports parameter is the
+three allowed publication shapes (`BlockComponentExports`): a hand-built leaf's own members, a
+factory-built leaf's single `blockApi`, or a container's single `containerApi`. Retired: `as unknown
+as` casts, and a component that publishes nothing at all. A factory-built leaf that copies its
+members out flat still compiles, since the copy is a hand-built leaf's shape; G4.73 holds that.
 
 **G3.3 · Discriminated selection points.** `SelectionPoint` is a discriminated union
 (`CharSelectionPoint | CellSelectionPoint`) on `cellCoordinate`: a cell point needs the literal
@@ -934,105 +1070,120 @@ One caveat before the table: this is the catalogued set, not the whole of `test/
 scan guarding one seam's own local rule earns a file without earning a G-number, so read the
 directory as well as this table before assuming a rule is unguarded.
 
-| ID    | What stays true                                                                           | Codes   |
-| ----- | ----------------------------------------------------------------------------------------- | ------- |
-| G4.1  | `createBlockListState` takes getters, never values                                        | L       |
-| G4.2  | The render path computes inline content, never reads the cache                            | L       |
-| G4.3  | Every container passes the conformance kit, and its declarations resolve                  | harness |
-| G4.4  | No timing hacks for sequencing                                                            | L       |
-| G4.5  | No synthetic `KeyboardEvent` in editor runtime source                                     | L       |
-| G4.6  | Editor CSS and tokens live where the ownership rules say                                  | L       |
-| G4.7  | A render memo keys on every input its built DOM embeds                                    | D·N     |
-| G4.8  | Every documented chord resolves in the surface that dispatches it                         | L       |
-| G4.9  | Every published theme token is declared, with light and dark values                       | L       |
-| G4.10 | Every bundled plugin directory is exported, and the pack carries it                       | L       |
-| G4.11 | Exactly the sanctioned paste routes apply paste transforms                                | L       |
-| G4.12 | Caret-edge destructive keys route through the one edge-policy dispatch                    | L       |
-| G4.13 | No view-stripping cast outside `tree-operations/` and the commit ceremony                 | T·L     |
-| G4.14 | Every component prop reading the CST is typed as a readonly view                          | L       |
-| G4.15 | Coordinate brands are minted only at their home modules                                   | L       |
-| G4.16 | Bundled plugins import only the public authoring barrel                                   | L       |
-| G4.17 | No spec is collected by two Playwright projects                                           | L       |
-| G4.18 | The scan switch matches the trigger table; prefix handlers run from one site              | L       |
-| G4.19 | _Retired upward_: reading mode is refused at the commit, not per dispatch site            | L       |
-| G4.20 | A written line takes the document's ending; per-line work reads no `\r`                   | L·N     |
-| G4.21 | Image bytes are written only through the one seam module                                  | L       |
-| G4.22 | An e2e wait predicate must describe the post-operation shape                              | L       |
-| G4.23 | Every e2e spec pairs with a requirement file, and vice versa                              | L       |
-| G4.24 | A block's write rule runs in the content write, which maps the caret                      | T       |
-| G4.25 | No `import.meta` env read anywhere under `src/lib`                                        | L       |
-| G4.26 | Comment budget: two lines a block, five a header, no house words                          | L       |
-| G4.27 | Every `parse` call outside the parser declares its scope                                  | L       |
-| G4.28 | A leaf raw write outside the content write names the kind's rule                          | L       |
-| G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys              | L       |
-| G4.30 | Hidden-marker classification has one rule, applied in both spaces                         | L       |
-| G4.31 | The pending marks are spent only where typed or composed text is written                  | L       |
-| G4.32 | Every non-render inline read goes through `resolvedInlineContent`                         | L       |
-| G4.33 | Live-mode byte candidates verify against what actually paints                             | L       |
-| G4.34 | Link bytes are written only through the one seam module                                   | L       |
-| G4.35 | A construct stamps its markers exactly when its policy row says revealable                | L       |
-| G4.36 | A selection is written from raw offsets only in `widget-offset.ts`                        | L       |
-| G4.37 | Every surface rendering into a caret-walk container stamps content-empty                  | L       |
-| G4.38 | Every editable surface publishes `insertMarkdown`                                         | L       |
-| G4.39 | Every text-surface component publishes `runCommand`                                       | L       |
-| G4.40 | The three rewrite-claim lists are one set                                                 | N       |
-| G4.41 | No test file mocks `dev-warn` or spies `console.warn`                                     | L       |
-| G4.42 | No module writes a sibling's `leadingTrivia` by hand                                      | L       |
-| G4.43 | Every `splitNode` call reads the index the split returned                                 | L       |
-| G4.44 | Every prose surface resolves native ranged edits through the one resolver                 | L       |
-| G4.45 | Every bare tree-op caller is declared with the commit that settles its writes             | L       |
-| G4.46 | Every ancestry-rebuild caller states its fold-sink stance                                 | L       |
-| G4.47 | Every contenteditable read routes through the host-aware predicate                        | L       |
-| G4.48 | Wall-clock budgets outside the perf projects use the growth harness                       | L       |
-| G4.49 | E2E composition rides the shared IME driver                                               | L       |
-| G4.50 | Every block command id is classified for cross-block ranges                               | L       |
-| G4.51 | A typing-checkpoint push always arms the pause window                                     | L       |
-| G4.52 | The content version is announced at every place that writes document bytes                | L       |
-| G4.53 | The descriptor type and the published field table are one set                             | L       |
-| G4.54 | A published entry barrel is never imported by its own import closure                      | L       |
-| G4.55 | Docs name the package `@voithos-labs/aragonite`, never bare `aragonite`                   | L       |
-| G4.56 | Inline-tree and rendered-DOM walks are iterative, never recursive                         | L       |
-| G4.57 | The source-scan lexer agrees with TypeScript's                                            | L       |
-| G4.58 | One commit-message rule, enforced at the hook and in CI                                   | L       |
-| G4.59 | The VR tag catalog and the tags cited in source are one set                               | L       |
-| G4.60 | Every spread into a call's argument list declares what bounds its count                   | L       |
-| G4.61 | The commit scope is set in production, not behind a build flag                            | L       |
-| G4.62 | Code, grey, marker and faded-block text clear AA on the backgrounds under it              | L       |
-| G4.63 | The bundled plugins' own suites import only the published entry points                    | L       |
-| G4.64 | The tree-ops ladder has no upward import                                                  | L       |
-| G4.65 | Every prose surface hands typed delimiters to the one auto-pair arm                       | L       |
-| G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta                    | L       |
-| G4.67 | Every editor menu counts itself on `menuChange`                                           | L       |
-| G4.68 | Every plugin registry read outside its module passes the editor's grammar                 | L       |
-| G4.69 | Only entry points, kits and editor-free code read with the default grammar                | L       |
-| G4.70 | A decoration can't set a data attribute the editor uses on a block's own element          | L       |
-| G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                          | L       |
-| G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`                      | L       |
-| G4.73 | Every editable-leaf component publishes `afterSourceCommit`                               | L       |
-| G4.74 | Only the commit's open-tail steps write the document's last line ending                   | L       |
-| G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
-| G4.76 | Every join into a leaf, and every other text built from two sources, is declared          | L       |
-| G4.77 | Only three routes register on behalf of no plugin                                         | L       |
-| G4.78 | The editor's built-in bootstraps run only through `registerEditorBuiltIns`                | L       |
-| G4.79 | Whether a kind is a grid is asked through `isGridKind`, nowhere else                      | L       |
-| G4.80 | In `selection/`, only the range coverage and the caret walks ask if a container is closed | L       |
-| G4.81 | The cross-block table row snap runs in the range coverage and the stored pair only        | L       |
-| G4.82 | The task-marker rule runs in one wrapper, and its callers are declared                    | L       |
-| G4.83 | Every plain fragment read in the edit layers says why it needs no slot reader             | L       |
-| G4.84 | Where a leaf's bytes are stored is made in one place, from the tree                       | L       |
-| G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
-| G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
-| G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
-| G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
-| G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
-| G4.91 | A focus call that may scroll the editor says why                                          | L       |
-| G4.93 | A measure round keeps only the block `heldBlock` picks, level by level                    | L       |
-| G4.94 | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
-| G4.95 | What a range covers is decided in the range coverage only                                 | L       |
-| G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
-| G4.97 | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
-| G4.98 | Only layout state drops the measured heights or moves the width version                   | L       |
-| G4.99 | A windowed list's box is never shorter than its table while blocks mount                  | L       |
+| ID     | What stays true                                                                           | Codes   |
+| ------ | ----------------------------------------------------------------------------------------- | ------- |
+| G4.1   | `createBlockListState` takes getters, never values                                        | L       |
+| G4.2   | The render path computes inline content, never reads the cache                            | L       |
+| G4.3   | Every container passes the conformance kit, and its declarations resolve                  | harness |
+| G4.4   | No timing hacks for sequencing                                                            | L       |
+| G4.5   | No synthetic `KeyboardEvent` in editor runtime source                                     | L       |
+| G4.6   | Editor CSS and tokens live where the ownership rules say                                  | L       |
+| G4.7   | A render memo keys on every input its built DOM embeds                                    | D·N     |
+| G4.8   | Every documented chord resolves in the surface that dispatches it                         | L       |
+| G4.9   | Every published theme token is declared, with light and dark values                       | L       |
+| G4.10  | Every bundled plugin directory is exported, and the pack carries it                       | L       |
+| G4.11  | Exactly the sanctioned paste routes apply paste transforms                                | L       |
+| G4.12  | Caret-edge destructive keys route through the one edge-policy dispatch                    | L       |
+| G4.13  | No view-stripping cast outside `tree-operations/` and the commit ceremony                 | T·L     |
+| G4.14  | Every component prop reading the CST is typed as a readonly view                          | L       |
+| G4.15  | Coordinate brands are minted only at their home modules                                   | L       |
+| G4.16  | Bundled plugins import only the public authoring barrel                                   | L       |
+| G4.17  | No spec is collected by two Playwright projects                                           | L       |
+| G4.18  | The scan switch matches the trigger table; prefix handlers run from one site              | L       |
+| G4.19  | _Retired upward_: reading mode is refused at the commit, not per dispatch site            | L       |
+| G4.20  | A new line takes the document's ending; per-line work reads no `\r`                       | L·N     |
+| G4.21  | Image bytes are written only through the one seam module                                  | L       |
+| G4.22  | An e2e wait predicate must describe the post-operation shape                              | L       |
+| G4.23  | Every e2e spec pairs with a requirement file, and vice versa                              | L       |
+| G4.24  | A block's write rule runs in the content write, which maps the caret                      | T       |
+| G4.25  | No `import.meta` env read anywhere under `src/lib`                                        | L       |
+| G4.26  | Comment budget: two lines a block, five a header, no house words                          | L       |
+| G4.27  | Every `parse` call outside the parser declares its scope                                  | L       |
+| G4.28  | A leaf raw write outside the content write names the kind's rule                          | L       |
+| G4.29  | Every file claiming a hardcoded chord is manifested with its chords and keys              | L       |
+| G4.30  | Hidden-marker classification has one rule, applied in both spaces                         | L       |
+| G4.31  | The pending marks are spent only where typed or composed text is written                  | L       |
+| G4.32  | Every non-render inline read goes through `resolvedInlineContent`                         | L       |
+| G4.33  | Live-mode byte candidates verify against what actually paints                             | L       |
+| G4.34  | Link bytes are written only through the one seam module                                   | L       |
+| G4.35  | A construct stamps its markers exactly when its policy row says revealable                | L       |
+| G4.36  | A selection is written from raw offsets only in `widget-offset.ts`                        | L       |
+| G4.37  | Every surface rendering into a caret-walk container stamps content-empty                  | L       |
+| G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                       | L       |
+| G4.39  | Every text-surface component publishes `runCommand`                                       | L       |
+| G4.40  | The three rewrite-claim lists are one set                                                 | N       |
+| G4.41  | No test file mocks `dev-warn` or spies `console.warn`                                     | L       |
+| G4.42  | No module writes a sibling's `leadingTrivia` by hand                                      | L       |
+| G4.43  | Every `splitNode` call reads the index the split returned                                 | L       |
+| G4.44  | Every prose surface resolves native ranged edits through the one resolver                 | L       |
+| G4.45  | Every bare tree-op caller is declared with the commit that settles its writes             | L       |
+| G4.46  | Every ancestry-rebuild caller states its fold-sink stance                                 | L       |
+| G4.47  | Every contenteditable read routes through the host-aware predicate                        | L       |
+| G4.48  | Wall-clock budgets outside the perf projects use the growth harness                       | L       |
+| G4.49  | E2E composition rides the shared IME driver                                               | L       |
+| G4.50  | Every block command id is classified for cross-block ranges                               | L       |
+| G4.51  | A typing-checkpoint push always arms the pause window                                     | L       |
+| G4.52  | The content version is announced at every place that writes document bytes                | L       |
+| G4.53  | The descriptor type and the published field table are one set                             | L       |
+| G4.54  | A published entry barrel is never imported by its own import closure                      | L       |
+| G4.55  | Docs name the package `@voithos-labs/aragonite`, never bare `aragonite`                   | L       |
+| G4.56  | Inline-tree and rendered-DOM walks are iterative, never recursive                         | L       |
+| G4.57  | The source-scan lexer agrees with TypeScript's                                            | L       |
+| G4.58  | One commit-message rule, enforced at the hook and in CI                                   | L       |
+| G4.59  | The VR tag catalog and the tags cited in source are one set                               | L       |
+| G4.60  | Every spread into a call's argument list declares what bounds its count                   | L       |
+| G4.61  | The commit scope is set in production, not behind a build flag                            | L       |
+| G4.62  | Code, grey, marker and faded-block text clear AA on the backgrounds under it              | L       |
+| G4.63  | The bundled plugins' own suites import only the published entry points                    | L       |
+| G4.64  | The tree-ops ladder has no upward import                                                  | L       |
+| G4.65  | Every prose surface hands typed delimiters to the one auto-pair arm                       | L       |
+| G4.66  | A relative scroll is written through `scrollBy`, never read-plus-delta                    | L       |
+| G4.67  | Every editor menu counts itself on `menuChange` and hands the registry its close          | T·L     |
+| G4.68  | Every plugin registry read outside its module passes the editor's grammar                 | L       |
+| G4.69  | Only entry points, kits and editor-free code read with the default grammar                | L       |
+| G4.70  | A decoration can't set a data attribute the editor uses on a block's own element          | L       |
+| G4.71  | An emptiness test on text reads GFM's blank, not `String.trim()`                          | L       |
+| G4.72  | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`                      | L       |
+| G4.73  | A component built on the editable leaf exports `blockApi` and no block method of its own  | L       |
+| G4.74  | Only the commit's open-tail steps write the document's last line ending                   | L       |
+| G4.75  | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
+| G4.76  | Every join into a leaf, and every other text built from two sources, is declared          | L       |
+| G4.77  | Only three routes register on behalf of no plugin                                         | L       |
+| G4.78  | The editor's built-in bootstraps run only through `registerEditorBuiltIns`                | L       |
+| G4.79  | Whether a kind is a grid is asked through `isGridKind`, nowhere else                      | L       |
+| G4.80  | In `selection/`, only the range coverage and the caret walks ask if a container is closed | L       |
+| G4.81  | The cross-block table row snap runs in the range coverage and the stored pair only        | L       |
+| G4.82  | The task-marker rule runs in one wrapper, and its callers are declared                    | L       |
+| G4.83  | Every plain fragment read in the edit layers says why it needs no slot reader             | L       |
+| G4.84  | Where a leaf's bytes are stored is made in one place, from the tree                       | L       |
+| G4.85  | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
+| G4.86  | A list item's marker is read only where the list is built, drawn or dumped                | L       |
+| G4.87  | Only the scroll owner writes the editor's scroll position                                 | L       |
+| G4.89  | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
+| G4.90  | A paste inside one block cuts its selection through the range replace, with its text      | L       |
+| G4.91  | A focus call that may scroll the editor says why                                          | L       |
+| G4.93  | A measure round keeps only the block `heldBlock` picks, level by level                    | L       |
+| G4.94  | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
+| G4.95  | What a range covers is decided in the range coverage only                                 | L       |
+| G4.96  | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
+| G4.97  | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
+| G4.98  | Only layout state drops the measured heights or moves the width version                   | L       |
+| G4.99  | A windowed list's box is never shorter than its table while blocks mount                  | L       |
+| G4.100 | A block's own trailing line ending is added by the surface write and a few listed routes  | L       |
+| G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
+| G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
+| G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
+| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step   | L       |
+| G4.109 | A container built around another's children starts from that container's bytes            | L       |
+| G4.111 | A block's editable element writes its own text only through the surface write             | L       |
+| G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
+| G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
+| G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
+| G4.115 | A clipboard payload is written only by a copy                                             | L       |
+| G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
+| G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways     | L       |
+| G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
+| G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 
 ### The entries
 
@@ -1053,18 +1204,20 @@ containers).
 **G4.4 · No timing hacks.** No timing primitive is used for sequencing. The allowlist is short and
 closed, and anything else trips the scan: the rAF throttles in `selection/autoscroll.ts`
 (frame-paced autoscroll) and `selection/pointer-session.ts` (pointermove coalescing, the one home
-every drag lifecycle rides); the rAF fold in `components/blocks/editable-leaf.ts` (a revealed
-source folds after a range drag, whose blur arrives inside the frame that measured the range); the
-rAF placement in `components/drag-handle.ts` (the handle waits for its block to lay out); the rAF
-start of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is
-skipped and logged as a loop error); the `setTimeout` wall-clock undo debounce in
+every drag lifecycle rides); the rAF fold in `components/blocks/editable-leaf.ts` (a revealed source
+folds after a range drag, whose blur arrives inside the frame that measured the range); the rAF
+placement in `components/drag-handle.ts` (the handle waits for its block to lay out); the rAF start
+of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is skipped
+and logged as a loop error); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
-typing"); and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation
-budget, not an ordering primitive, since nothing awaits the timer). `lint/file-rules.test.ts`.
-The unit suites follow the same rule, held by a row of `lint/suite-file-rules.test.ts`. A test
-waits for the editor with `src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock
-timer with fake timers, or waits on real I/O with `vi.waitFor`. It doesn't flush a macrotask to
-wait, since that also runs whatever unrelated timer happens to be due.
+typing") and the occurrence plugin's own typing pause in
+`plugins/highlight-occurrences/highlight-occurrences-plugin.ts`, for the same reason; and the
+`setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation budget, not an ordering
+primitive, since nothing awaits the timer). `lint/file-rules.test.ts`. The unit suites follow the
+same rule, held by a row of `lint/suite-file-rules.test.ts`. A test waits for the editor with
+`src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock timer with fake timers, or
+waits on real I/O with `vi.waitFor`. It doesn't flush a macrotask to wait, since that also runs
+whatever unrelated timer happens to be due.
 
 **G4.5 · No synthetic keyboard events.** No synthetic `KeyboardEvent` in editor runtime source. The
 cross-block redispatch hack is retired and stays that way.
@@ -1123,9 +1276,12 @@ and required to reach a sanctioned route. `lint/manifest-rules.test.ts`.
 
 **G4.12 · Caret-edge destructive keys.** Every plain Backspace or Delete intercepted at a caret edge
 in a prose block routes through the one edge-policy dispatch, which resolves what sits at the edge
-(a CST widget, a decoration island, an ambient-prefix overlap) against declarative policies, and
-commits via `updateBlockContent`. The only carve-out is the selected-widget second-press delete. No
-other `blocks/text/` file intercepts a plain destructive key without being allowlisted.
+(a CST widget, a decoration's widget, an ambient-prefix overlap) against declarative policies, and
+commits through the block's one write to its own text (`surface-write.ts :: writeText`) or
+`updateBlockContent`. Two other files are declared interceptors: the selected-widget second-press
+delete, and the pending break's Backspace (`pending-break-keys.ts`), which takes back a line that
+was never written. No other `blocks/text/` file intercepts a plain destructive key without being
+allowlisted.
 `lint/manifest-rules.test.ts`.
 
 **G4.13 · The view-to-mutable boundary.** No `as CstNode` or `as Document` view-stripping cast
@@ -1147,8 +1303,8 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
 public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
-barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, the tree-operations layer
-rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
+barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers
+through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
 which skips strings, templates and comments, so an import quoted in an example is no edge.
 `lint/plugin-import-boundary.test.ts`.
 
@@ -1180,21 +1336,26 @@ mode from writing. Now every byte writer asks the reading-mode check itself
 anything, and the scan is gone. The G4.52 scan replaces it, holding each writer to asking that
 check.
 
-**G4.20 · One document line ending.** Every line the editor writes takes the document's line
+**G4.20 · One document line ending.** Every new line the editor writes takes the document's line
 ending, which is its first line break (`src/lib/core/lines.ts` :: `documentLineEnding`), and
-per-line work reads each line's text without its ending (`src/lib/core/lines.ts` ::
-`displayLines`). `trailingLineEnding(raw, fallback)` takes the ending for a block with none of its
-own as a required argument, so every call names one. Where a document is in reach (a commit's
-scope, a paste's context, a component, a write rule's or a context action's `ctx.lineEnding`), the
-call passes the document's ending. Where none is (a container's `rebuildRaw`, a join or reparse
-that only reads a children array), it passes the block's own first break, which in a one-ending
-document is the document's anyway, and falls back to LF only for a block with no line break at
-all. Three scan branches hold what the type can't see: no `split('\n')` over a block's bytes
-outside `core/lines.ts` (it would leave a CRLF line's `\r` on the text a line match reads); no
+per-line work reads each line's text without its ending (`src/lib/core/lines.ts` :: `displayLines`).
+`trailingLineEnding(raw, fallback)` takes the ending for a block with none of its own as a required
+argument, so every call names one. Where a document is in reach (a commit's scope, a paste's
+context, a line break typed into a block, a write rule's or a context action's `ctx.lineEnding`),
+the call passes the document's ending. A write to a block's own text doesn't pick one at all: it
+keeps the ending the block has, so a last line saved without one stays that way (G4.100). Where none
+is (a container's `rebuildRaw`, a join or reparse that only reads a children array), it passes the
+block's own first break, which in a one-ending document is the document's anyway, and falls back to
+LF only for a block with no line break at all. Three scan branches hold what the type can't see: no
+`split('\n')` (or `split(/\r?\n/)`) over a block's bytes outside `core/lines.ts` and three
+allowlisted readers (it would leave a CRLF line's `\r` on the text a line match reads); no
 `updateBlockContent` content argument ending in a newline literal; and no write to a node's `raw`
-creating one, with the legitimately literal writes allowlisted by reason and count. An outcome
-check runs each gesture over an LF fixture and its CRLF mirror, unterminated last lines included,
-and requires the two results to mirror each other. `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` (the outcome check).
+creating one, with the legitimately literal writes allowlisted by reason and count. An outcome check
+runs each gesture over an LF fixture and its CRLF mirror, unterminated last lines included, and
+requires the two results to mirror each other, and a mounted twin does the same for a line break
+typed or completed in a code block or a plugin's source, through the blocks' real handlers.
+`lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` and
+`crlf-typed-break-mirror.test.ts` (the outcome checks).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM
 serializer is named in code only inside the seam module, and exactly the documented write paths name
@@ -1326,8 +1487,8 @@ through the render path's own `renderedText`, and every file naming an inline ma
 is manifested with what it does with it: only the model decides which spans a marker-hiding mode
 DROPS; the rest create, identify or probe. The two registered slots have one reader each (the split
 rebalancer's is `node-ops.ts`, the join cleaner's is `leaf-range.ts`), so every destructive join
-crosses `cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private walk
-over the parse disagreeing with what paints. It counted an angle autolink's brackets as content
+crosses `cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private
+walk over the parse disagreeing with what paints. It counted an angle autolink's brackets as content
 once, and a resolved reference's label the next time. Each verification also states WHICH reading it
 takes: the block's own screen where the answer decides what a press may touch, or the content behind
 every marker family where it's a before/after conservation diff, since chrome folds the moment
@@ -1384,13 +1545,17 @@ would paint a marker-only block as an empty line nobody can reach. Both lists ar
 files naming a renderer that mounts nothing carry a per-file reason.
 `lint/manifest-rules.test.ts`.
 
-**G4.38 · Insertion surface parity.** Every component mounting an editable surface
-(`createEditableSurface`, `createEditableLeaf`) publishes `insertMarkdown` through the channel its
-own mount reads: an instance export, or the surface literal it hands `publishRefSlot` where nothing
-binds to the instance. The shared clipboard skeleton builds the method for all of them, but Svelte 5
-instance exports have no spread and `BlockComponent` declares the method optional, so the last hop
-is hand-written per component. Surface N+1 would compile clean and silently decline every
-`editor.insertMarkdown()` on its blocks. `lint/insert-door-surface-parity.test.ts`.
+**G4.38 · Editable surface parity.** Every component mounting the text surface
+(`createEditableSurface`) publishes each member of `src/lib/block-component.ts` ::
+`EDITABLE_SURFACE_MEMBERS` through the channel its own mount reads: an instance export, or the
+surface literal it hands `publishRefSlot` where nothing binds to the instance. The shared surface
+builds each one for all of them, but Svelte 5 instance exports have no spread and `BlockComponent`
+declares them optional, so the last hop is hand-written per component. Surface N+1 would compile
+clean and silently drop the route: every `editor.insertMarkdown()` declined, or a toolbar's Enter
+splitting beside a selection instead of replacing it. The scan covers the components building their
+own text surface; a leaf built on `createEditableLeaf` is G4.73's, which holds it to exporting the
+factory's `blockApi`, whose type requires the same list. Add a member to the tuple and both rules
+take it. `lint/insert-door-surface-parity.test.ts`.
 
 **G4.39 · Command surface parity.** Every component mounting the text surface
 (`createEditableSurface`) publishes `runCommand` as an instance export, since that's where the
@@ -1414,20 +1579,28 @@ G4.29 instead, whose manifest records the key literals that file compares.
 `test/selection/cross-block/rewrite-claim-parity.test.ts`.
 
 **G4.41 · Warn-gate bypasses.** No file under `src/lib` mocks `dev-warn` or spies `console.warn`. A
-mocked `devWarn` never reaches the structured sink, a console spy reads a channel a registered
-sink silences, and a spy that swallows the call takes Svelte's own runtime warnings off the gate
-as well (they reach it through `console.warn` and nowhere else), so the fail-on-warn unit gate
-goes blind for that whole file and every fire in it passes unnoticed. The one file whose subject IS a warning channel
-(`devWarn`'s console half) is named in the scan's allowlist with the reason.
+mocked `devWarn` never reaches the structured sink, a console spy reads a channel a registered sink
+silences, and a spy that swallows the call takes Svelte's own runtime warnings off the gate as well
+(they reach it through `console.warn` and nowhere else), so the fail-on-warn unit gate goes blind
+for that whole file and every fire in it passes unnoticed. The one file whose subject IS a warning
+channel (`devWarn`'s console half) is named in the scan's allowlist with the reason.
 `lint/suite-file-rules.test.ts`.
 
 **G4.42 · Separator-write sites.** No module writes a sibling's `leadingTrivia` by hand. A splice
-settles through the one route: `settleSeparator` at the commit ceremony, `spliceChildrenSettled`
-under the path-addressed entries. The exemptions are head normalizations inside built subtrees, the
-positional rotation in `reorder.ts`, and the three sites whose rule a splice window can't infer (the
-gap-caret insert (a gap caret: the caret parked between two blocks where neither surface can host
-one), the same-block range-delete write, the empty-marker sublist separator), each named with its
-reason. `lint/separator-write-doors.test.ts`.
+settles through the one route: `settleSeparator` in the commit steps, `spliceChildrenSettled` under
+the path-addressed entries. The scan's allowlist names each exemption with its reason: head
+normalizations inside built subtrees, the positional rotation in `reorder.ts`, the line a join, a
+content write or a chain rebuild carries in with a block (`node-ops.ts`, `content-write.ts`,
+`node-primitives.ts`, `chain-rebuild.ts`, and the item moves and dissolves under `list/`), the
+positional slots a paste replacement fills, and three sites whose rule a splice window can't infer
+(the gap-caret insert (a gap caret: the caret parked between two blocks where neither block can host
+one), the same-block range-delete write, the empty-marker sublist separator). Inside `settle.ts`
+itself, every write to an existing node's blank line goes through one of two writers,
+`writeSeparator` for a separator and `writeWrapSlot` for the line a fence line strips. Both drop the
+owner's child spans first, and the first copies the node out of the undo snapshot, so a new fix-up
+can't skip either. The fix-ups take a `BodyParent` (the children plus the container owning them),
+which a bare children array doesn't satisfy, so none of them can lose track of whose fence lines and
+title it's reading. `lint/separator-write-doors.test.ts`.
 
 **G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
 once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too.
@@ -1577,7 +1750,7 @@ and is out of scope; a rest parameter names one array and never grows a call, so
 `function` keyword before and the body or arrow after to tell the two apart. Hand enumeration is
 what this replaces: the fix that closed the first three sites missed a fourth in its own file. The
 key is the file plus its enclosing function, so a second spread added inside a declared function
-inherits that row's reason — the granularity a reviewer checks by hand.
+inherits that row's reason, which is the granularity a reviewer checks by hand.
 `lint/spread-call-census.test.ts`.
 **G4.61 · The production commit scope.** `invariants/commit-scope.ts` imports no build flag and
 writes its depth counter only at statement position, with nothing ahead of the write. It's a
@@ -1616,17 +1789,18 @@ door's name, and a dead entry fails too. The loose platform tests directly under
 
 **G4.64 · The tree-ops ladder.** The files `node-ops.ts` split into, plus the two it came to sit on
 (`node-primitives.ts`, `unshare.ts`, `settle.ts`, `content-write.ts`, `stored-as.ts`,
-`leaf-range.ts`, `node-ops.ts`, `chain-rebuild.ts`), import only downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
-kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
-behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
-hold the shape. `lint/tree-op-ladder.test.ts`.
+`leaf-range.ts`, `node-ops.ts`, `chain-rebuild.ts`), import only downward, in that order. The cycle
+the split broke (`unshare.ts` reading the seam absorb and the kind re-derive out of `node-ops.ts`,
+which read the copy-on-write door back) passed every behavioral test, and `svelte-check` reports
+nothing for an import cycle, so only a source scan can hold the shape.
+`lint/tree-op-ladder.test.ts`.
 
 **G4.65 · Delimiter auto-pair parity.** Every editable PROSE surface (G4.44's set) routes its
-`beforeinput` through `src/lib/components/blocks/text/delimiter-autopair.ts :: applyDelimiterAutoPair`,
-and no other file calls it. The arm decides what a typed delimiter writes (its twin, a step past
-the twin, the closer it completes) and which side the caret means afterwards; the two surfaces
-once carried a copy each, and a copy is the sibling that misses the next rule.
-`lint/file-rules.test.ts`.
+`beforeinput` through
+`src/lib/components/blocks/text/delimiter-autopair.ts :: applyDelimiterAutoPair`, and no other file
+calls it. The arm decides what a typed delimiter writes (its twin, a step past the twin, the closer
+it completes) and which side the caret means afterwards; the two surfaces once carried a copy each,
+and a copy is the sibling that misses the next rule. `lint/file-rules.test.ts`.
 
 **G4.66 · Relative scroll through one door.** A correction that moves the scrollport by a delta
 calls `Scrollport.scrollBy`, never `setScrollTop(scrollTop() + delta)`. The scroller snaps a
@@ -1635,14 +1809,21 @@ loses that fraction once per correction, and a mode flip corrects once per re-me
 (#315). `scrollBy` carries the refused fraction into the next call; the rule is a source scan
 because the lossy spelling type-checks. `lint/file-rules.test.ts`.
 
-**G4.67 · Menu presence census.** `menuChange` reads one count of open menus, and a menu joins it
-by attaching the count to its root element, so it reads open for exactly as long as it is mounted
-(#370). Every menu element (the shared menu class, or a menu, listbox or dialog role) carries
-the attach in its own opening tag or is listed with the reason it doesn't, so a second menu in a
-file that already counts one is still checked. The listed ones are the selection toolbar, which
-hides itself on the event, the list inside the counted language picker, the link card its host
-counts, and the mermaid focus view, which a plugin owns.
-`lint/menu-presence-census.test.ts`.
+**G4.67 · Menu presence census.** Every open menu is in one registry
+(`components/menu/menu-presence.svelte.ts`): a menu joins it by attaching
+`menuPresence.track(close)` to its root element, so `menuChange` reads it open for exactly as long
+as it's mounted (#370), and `closeAll`, which a document swap and a mode change call, can close it.
+The close is told which of the two it is, so a menu holding a draft (the image alt field) saves it
+on a mode change and drops it on a swap, whose new document is already in place. Every menu element
+(the shared menu class, or a menu, listbox or dialog role) carries that attach, with its close as
+the argument, in its own opening tag, or is listed with the reason it doesn't, so a second menu in a
+file that already counts one is still checked. The listed ones are the selection toolbar and its
+flyout, which hide themselves on the event, the list inside the counted language picker, the link
+card its host counts, and the mermaid focus view, which a plugin owns. A menu whose rows write also
+passes `{ edits: true }` (the census doesn't check that one). Each of those already refuses to open
+in reading mode, and the registry is the backstop: one that mounts there anyway closes at once and
+fires the dev warning `menu-opened-in-reading`. `lint/menu-presence-census.test.ts`,
+`components/menu-presence.test.ts`.
 
 **G4.68 · Registry reads take the editor's grammar.** The inline syntax, widget kind, directive
 and completer registries are process-wide, and the editor's grammar is what leaves out a plugin
@@ -1657,10 +1838,10 @@ brackets beside it (#443, #455). The inline read a plugin gets is built from the
 too, so a plugin walks reference links the way the editor draws them (#641).
 `lint/registry-view-reads.test.ts`.
 
-**G4.69 · The defaulted readers stay at the edge.** The published `parse` and `parseInline`, and
-the plugin barrel's `computeInlineContent`, read every installed plugin when no grammar is given.
-Code inside the library calls `readBlocks` and `readInline` instead, which require it, so no edit
-reads a syntax the editor switched off or an unlisted plugin's opener (#429). Only the public entry points,
+**G4.69 · The defaulted readers stay at the edge.** The published `parse` and `parseInline`, and the
+plugin barrel's `computeInlineContent`, read every installed plugin when no grammar is given. Code
+inside the library calls `readBlocks` and `readInline` instead, which require it, so no edit reads a
+syntax the editor switched off or an unlisted plugin's opener (#429). Only the public entry points,
 the test kits and the listed code that runs with no editor may import one of those readers.
 `lint/registry-view-reads.test.ts`.
 
@@ -1697,13 +1878,16 @@ isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX erro
 with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
 emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
 
-**G4.73 · Leaf source-commit parity.** Every component mounting an editable leaf
-(`createEditableLeaf`) publishes `afterSourceCommit` as an instance export. A render-primary leaf
-holds an open source's edit in the DOM until blur. A move chord gets the hook from the leaf itself,
-but a host's `editor.runCommand('block.moveDown')` reaches the component, so it waits on the export
-to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
-and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
-the plugin guide. `lint/file-rules.test.ts`.
+**G4.73 · A leaf component exports `blockApi`.** Every component calling `createEditableLeaf`, test
+fixtures included, exports `blockApi` and no `BlockComponent` member of its own. The factory's
+object carries every method it implements by type, but a flat copy out of it is still a valid
+`BlockComponent`, so it compiles while dropping what it skipped: without `afterSourceCommit` a
+host's `editor.runCommand('block.moveDown')` moves the block with its open source unwritten, and
+without `insertMarkdown` every `editor.insertMarkdown()` declines. The scan reads the member names
+off `BlockComponent`'s declaration, so a new member joins it. A type can take the rule over at
+registration: once containers publish through `blockApi` too, the plugin-facing registration can
+accept a `{ blockApi }` export alone, keeping the flat shape for the editor's own blocks, and this
+scan retires into it. `lint/leaf-block-api-export.test.ts`.
 
 **G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
 block's last line, down through every container holding that line, is private to
@@ -1747,9 +1931,9 @@ one source is a join, so its file names the cleanup or sits on a list of the one
 with its reason (a paste or a typed character inserts between one leaf's own halves).
 `lint/cross-node-join-doors.test.ts`.
 
-**G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore` runs
-registrations as if no plugin were installing, so what they make belongs to no plugin even when a
-plugin's setup reached them first. It has three callers:
+**G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore`
+runs registrations as if no plugin were installing, so what they make belongs to no plugin even when
+a plugin's setup reached them first. It has three callers:
 
 - `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, the editor's own bootstrap
   (built-in blocks, code languages, context-menu rows), which the reset keeps
@@ -1783,10 +1967,11 @@ search keyword that finds the table. `lint/file-rules.test.ts`.
 **G4.80 · One answer to what a range covers.** The delete, the copy, the format toggle and the
 overlay each read a `RangeCoverage` off a `CoveredRange`. Both are classes with a private field,
 built only by `selection/range-coverage.ts :: coverRange` and `rangeCoverage`, so a spread or an
-object literal doesn't compile and a cast fails lint. The scan covers the other way to grow a second answer, a reader asking a
-closed container itself: in `selection/` only `range-coverage.ts` calls `isCollapsedContainer`
-or `collapsedContainerHiding`, besides the caret walks in `path-lookup.ts` and `caret-target.ts`
-(they place a caret and read no range). `lint/file-rules.test.ts`, `eslint.config.js`.
+object literal doesn't compile and a cast fails lint. The scan covers the other way to grow a second
+answer, a reader asking a closed container itself: in `selection/` only `range-coverage.ts` calls
+`isCollapsedContainer` or `collapsedContainerHiding`, besides the caret walks in `path-lookup.ts`
+and `caret-target.ts` (they place a caret and read no range). `lint/file-rules.test.ts`,
+`eslint.config.js`.
 
 **G4.81 · One table row snap.** A cross-block range with a table endpoint takes that table's rows
 whole. `snapCrossBlockTableEndpoints` runs in `coverRange` for the delete, the copy and the
@@ -1798,39 +1983,45 @@ seed and the extension paths read.
 `tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. Every file that
 writes into a child slot, through that wrapper or in place (`writeOwnRaw`, `installOwnRaw`), is on
 one list with its role: the content write (its in-place rewrite for the cross-block format toggle
-included), the leaf join, the block replace and a range delete's survivor wrap their write, and the rest say why they need no
-wrapper (a table cell holds no list item; find and replace reparses a whole top-level block). A file listed as wrapping has
-to call the wrapper, so dropping it goes red too. `lint/leaf-write-doors.test.ts` (the G4.82 and
-G4.82b rows), with G1.42 as the runtime half.
+included), the leaf join, the block replace and a range delete's survivor wrap their write, and the
+rest say why they need no wrapper (a table cell holds no list item; find and replace reparses a
+whole top-level block). A file listed as wrapping has to call the wrapper, so dropping it goes red
+too. `lint/leaf-write-doors.test.ts` (the G4.82 and G4.82b rows), with G1.42 as the runtime half.
 
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
-reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`
-(after a task checkbox, the first line stays paragraph text). A caller that only knows a path or a
-slot gets the same reader from `slotReaderAt` or `childSlotAt`, and there's no plain reader to
-reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
-`editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
-front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
-`lint/manifest-rules.test.ts`.
+reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt` (in a
+list item's first slot, behind its whole marker line, checkbox included, every byte kept; text that
+doesn't start with whitespace reads the same either way, so only text that does pays for the marker
+line). A caller that only knows a path gets the same reader from `slotReaderAt` (or finds the slot
+with `childSlotAt` first), and there's no plain reader to reach for instead. A plain `readBlocks`
+left in `tree-operations/`, `selection/` or `editor-actions/` is mostly a probe that installs
+nothing, a read of whole bytes no checkbox stands in front of, or the paste's re-read of a clipboard
+block, which keeps the kind the clipboard gave it. The manifest lists each file with its reason (a
+few have reasons of their own), so a new one has to say why. `lint/manifest-rules.test.ts`.
 
-**G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs` (`src/lib/schema/stored-as.ts`)
-answers three things about a position: whether it stores a block or plain text (a table cell), the
-bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
-line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
-`storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
-reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
-it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
-`as StoredAs` cast to that file.
+**G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs`
+(`src/lib/schema/stored-as.ts`) answers four things about a position: whether it stores a block or
+plain text (a table cell), the bytes its write rules would keep, how a reload reads them there
+(behind a list item's marker line, say), and what a write installs there. It's a branded type, and
+only `tree-operations/stored-as.ts :: storedAsAt` and `storedAsIn` build one, from the tree
+(`storedAsIn` also names a slot no block holds yet, such as a split's second half). So a rewrite
+can't describe its own position, and nothing reads a candidate behind a hand-written copy of the
+container's marker, which drifts from the item it copies (a to-do's box, a marker a leading space
+widens). The one owner built by hand is Enter's new item, whose marker object is the one the item
+itself is built with, so the two can't drift. `lint/file-rules.test.ts` holds the `as StoredAs` cast
+to that file.
 
-**G4.85 · A removing rewrite reads through the store.** The join cleanup and the edge delete read
-every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their
-own, since a top-level fragment read forgets the container the bytes land in. The store is a
-required field on the join and the edge delete's query, and `lint/file-rules.test.ts` keeps
-`readBlocks` and `parse` out of every `.ts` module in `components/blocks/text/` and
-`core/inline/live-edit/`. The split's own candidate read in `live-split-rebalance.ts` is the one
-file it lists as an exception, with its reason. Which store a route hands over is checked too:
-`tree-operations/store-routes.test.ts` runs every place a store is made or fetched on bytes a lone
-top-level paragraph's store reads differently (`# y` after a to-do's box, `[ ] y` after a plain
-item's marker), and fails a store made anywhere no row runs through.
+**G4.85 · A removing rewrite reads through the store.** The store is G4.84's `StoredAs`, what a
+position says about the bytes stored there. The join cleanup and the edge delete read every
+candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their own,
+since a top-level fragment read forgets the container the bytes land in. The store is a required
+field on the join and the edge delete's query, and `lint/file-rules.test.ts` keeps `readBlocks` and
+`parse` out of every `.ts` module in `components/blocks/text/` and `core/inline/live-edit/`, the
+split rebalancer's included: it reads each half through the store where that half lands. Which store
+a route hands over is checked too: `test/tree-operations/store-routes.test.ts` runs every place a
+store is made or fetched on bytes a lone top-level paragraph's store reads differently (`# y` after
+a to-do's box, `[ ] y` after a plain item's marker), and fails a store made anywhere no row runs
+through.
 
 **G4.86 · The list marker has a short list of readers.** Reading a list item's marker off its
 metadata (or off a parse cast to carry one) is for the code that builds, renumbers, draws or
@@ -1871,21 +2062,19 @@ delete, which calls the cleanup itself and G4.76 declares, and typing after a cr
 `lint/file-rules.test.ts`.
 
 **G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing
-the same text over it writes, so every file that names the paste's range (`preDelete`) cuts it through
-`replaceRangeInLeaf` with the pasted text, or says why it doesn't: the surface contract declares
-it, the code block's selection just hands it on, and the code block's own paste stays a literal
-splice, since a fence body has no inline constructs to clean. `lint/file-rules.test.ts`.
+the same text over it writes, so every file that names the paste's range (`preDelete`) cuts it
+through `replaceRangeInLeaf` with the pasted text, or says why it doesn't: the surface contract
+declares it, the code block's selection just hands it on, and the code block's own paste stays a
+literal splice, since a fence body has no inline constructs to clean. `lint/file-rules.test.ts`.
 
-**G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen
-element into view on its own, a scroll writer G4.87 can't see. So a caret's focus passes
-`preventScroll`, and whatever moved the caret asks the scroll owner instead. The scan flags a
-`focus()` with no arguments, or with options that leave out `preventScroll`; a block component's
-`focus(offset)` takes a number and doesn't count. Every file it flags is declared with its reason,
-among them a click that reveals a widget's source, an arrow arriving on a gap caret, a menu or
-popout moving focus among its own controls, and `focusCollapsedCaret`, which the cross-block
-delete, typing and paste lean on until they land through the caret landing. The manifest is per
-file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
-the runtime half.
+**G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen element
+into view on its own, a scroll writer G4.87 can't see. So a caret's focus passes `preventScroll`,
+and whatever moved the caret asks the scroll owner instead. The scan flags a `focus()` with no
+arguments, or with options that leave out `preventScroll`; a block component's `focus(offset)` takes
+a number and doesn't count. Every file it flags is declared with its reason, among them a click that
+reveals a widget's source, an arrow arriving on a gap caret, a menu or popout moving focus among its
+own controls. The manifest is per file, so a new bare focus inside an already declared file passes.
+`lint/file-rules.test.ts`, with G1.45 as the runtime half.
 
 **G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
 round is decided once for the whole document, level by level through the block lists
@@ -1900,13 +2089,14 @@ tree's one pick and its one distance, and the header slot, which sits above ever
 moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
-image selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
+inline widget selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
 `selectWidgetWhole`), which clear the browser's own range in the same batch, and a selected widget
 is held only in `selection/selection-state.svelte.ts`, whose one private writer ends the range and
 the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or
 `.selectWidget(` call anywhere else fails, and so does a `$state` cell typed as a `WidgetTarget`
 outside the store, since a second store is how the image once stayed selected under an undo's
-caret. `lint/file-rules.test.ts`, with G1.46 as the runtime half.
+caret. Every reader of the selected widget asks the store too (`widget`, `widgetIn`, `widgetRange`).
+`lint/file-rules.test.ts`, with G1.46 as the runtime half.
 
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
@@ -1948,11 +2138,11 @@ still reaches the list a later chain rebuilds.
 
 **G4.97 · One way a child's height reaches its list.** A block, a list item and a table row each
 measure through `reactivity/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
-times a child is measured (the batch at mount, after an edit, on a resize), and the list writes
-the height in one private function, `applyMeasured`, which records it under the child's id and
-writes the table's entry only while the table still has the child at that index. No list reports
-its own height upward. The scan counts every table write, every cache write and every registration by file and
-function, so a second writer fails, and a manifest keeps the measure channel's key to the file
+times a child is measured (the batch at mount, after an edit, on a resize), and the list writes the
+height in one private function, `applyMeasured`, which records it under the child's id and writes
+the table's entry only while the table still has the child at that index. No list reports its own
+height upward. The scan counts every table write, every cache write and every registration by file
+and function, so a second writer fails, and a manifest keeps the measure channel's key to the file
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
 `test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
 trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
@@ -1971,14 +2161,184 @@ cast back to the one with the drop) outside layout state, and a width-version wr
 `test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
 to live included, and the three changes that keep the heights.
 
-**G4.99 · A windowed list keeps its table height while blocks mount.** When the window grows,
-Svelte mounts the new blocks one at a time, and a layout read between two of them sees a list
-short by the rest; at the end of the document the browser pulls the scroll up to fit and never
-gives it back. So every component that renders spacers calls
-`reactivity/use-window-floor.svelte.ts :: useWindowFloor` with the box around them, which holds
-that box at its table's whole height until the render ends. `lint/file-rules.test.ts` fails a
-component that renders spacers without it; `e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps
-that hit it, in both scroll modes and on the showcase (VR-16).
+**G4.99 · A windowed list keeps its table height while blocks mount.** When the window grows, Svelte
+mounts the new blocks one at a time, and a layout read between two of them sees a list short by the
+rest; at the end of the document the browser pulls the scroll up to fit and never gives it back. So
+every component that renders spacers calls `reactivity/use-window-floor.svelte.ts :: useWindowFloor`
+with the box around them, which holds that box at its table's whole height until the render ends.
+`lint/file-rules.test.ts` fails a component that renders spacers without it;
+`e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps that hit it, in both scroll modes
+and on the showcase (VR-16).
+
+**G4.100 · A block's own line ending.** When a block's editable element writes its own text, the
+bytes it hands the list are the new text plus the ending the block already had, and nothing else.
+So a document saved without a final line break keeps none, whichever block is last and whatever
+wrote it. That rule lives in `components/blocks/surface-write.ts` (`writeText`, and
+`withOwnEnding` for the routes not on it yet).
+
+New text is the other half. It takes the block's own ending, else the document's, and it picks
+that in two places today: a line break a block types or completes (a bare fence, a bare math
+source) reads the getter `editable-surface.ts :: lineEnding`, and the
+code block's dissolve action (`code-context-actions.ts :: run`) picks it for the prose it writes
+over the fence. #648 tracks giving those two one home. `lint/call-site-rules.test.ts` holds both
+halves under `components/blocks/`, allowlisted by function. It fails a call to
+`trailingLineEnding` or `ownTrailingLineEnding` outside the surface write and those two places,
+except the reads that write no ending and two routes still to move. And it fails a read of the
+getter anywhere but a typed or completed line break or a check that writes nothing, so `display +
+editableSurface.lineEnding()` inside a write of the block's own text goes red.
+
+**G4.101 · A typed write asks for itself.** The kind cue and the on-type completer answer typing,
+never a command, a paste or the editor's own repair. Only `surface-write.ts :: writeText` asks them,
+for a write with the `typed` intent, so a key the block writes itself (the auto-pair's partner, a
+byte placed beside a hidden run) gets both, and a command gets neither. `lint/file-rules.test.ts`
+fails an `afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere
+else, and `blocks/surface-write-intent.test.ts` runs a write of each intent and checks which ones
+ask.
+
+**G4.106 · A reload in a spec really reloads.** A `source` write equal to the text the editor holds
+is no change (G1.52 has the text it's compared with), so `loadContent(await getSource())` reparses
+nothing, and whatever the spec checks next passes against the document it never reloaded.
+`e2e/editor-page.ts :: reloadContent` loads a different document in between, then the original,
+and checks both writes really replaced the document. `lint/suite-file-rules.test.ts`
+fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under `src/lib/e2e/`.
+
+**G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
+and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for
+later, since a held one fires against whatever document is there by then (the write gate refuses a
+write made for a swapped-out document, `editor.md` § The commit primitive). The typing batch only
+groups undo steps and has no way to emit. `input` also promises the block kept its kind, which
+`components/link-reference-map.ts` relies on and can't check, so only the in-place write
+(`editor-actions/leaf-write.ts`), whose trial reparse saw no kind change, declares it.
+`lint/edit-emitters.test.ts` keys each `edit` emit on its function, so an emit anywhere else, a
+second one beside an allowed one, or a second `input` declaration fails it.
+
+**G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut, typing,
+an IME composition, paste and a command key over a cross-block range all go through
+`selection/cross-block/range-replace.ts :: replaceRange`, which picks the removal from what the
+range covers and keeps the gesture one undo entry with one caret landing. A route that called
+`rangeDelete`, `removeHeldWhole` or `commitGridLineDelete` itself, or opened its own `undoStep`
+under `selection/cross-block/`, would skip the pick, the entry or the landing, so the scan allows
+those calls in the range replace only (the range delete's own files aside). Tab and Shift+Tab remove
+nothing, so the range indent (`selection/cross-block/range-indent.ts`) opens its own step.
+`lint/file-rules.test.ts`.
+
+**G4.109 · A rebuilt container starts from its source's bytes.** A strip rebuild keeps a line by
+pairing it with the container's previous bytes, so a container built around children lifted out of
+another (the quote an alert leaves after a lift, a list item made from a template) starts with that
+container's `raw`. Built with an empty `raw`, its first rebuild respells every line.
+`lint/fresh-container-bytes.test.ts` fails an object literal holding both `raw: ''` and `children`
+under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of
+genuinely new containers, each with its reason.
+
+**G4.111 · One write for a block's own text.** When a block's editable element changes its own
+text, it calls `components/blocks/surface-write.ts :: writeText`, which gives undo the caret from
+before the key (not wherever the edit left it), keeps the block's line ending, and puts the caret
+back. A block that calls `updateBlockContent` itself has to pick its own undo caret, and
+that copy drifts. `lint/call-site-rules.test.ts` fails an `updateBlockContent` call, whatever
+it's called on, under `components/`, `selection/` or a plugin's own code (the bundled ones in
+`src/lib/plugins/`, the reference ones in `src/routes/test/plugins/`) outside the surface write,
+except the few commands, clipboard edits and an inline widget's shown source still to move, each
+listed by function.
+
+**G4.112 · An indent key over a range has one route.** Over a range Tab, Shift+Tab and any key bound
+to an indent command indent: every list item the range reaches into nests or lifts once, through
+`selection/cross-block/range-indent.ts :: indentRange`. Three rows hold it. The two item moves
+(`tree-operations/list/item-moves.ts :: nestListItem`, `liftNestedItem`) are called from a caret's
+own Tab in `editor-actions/list-context.ts` and from the range indent only, so a range's items can't
+move one way and a caret's another. A key resolves to a command only at a short list of declared
+places, and a container's chords go through
+`editor-actions/container-block-component.ts :: dispatchContainerChord`, which leaves a key a live
+range owns to the range; a list item running its own Tab there would move itself a second time. And
+a command insertion for the range replace is built in `selection/cross-block/keydown.ts` only, whose
+candidate test leaves Tab out, so no route removes a range for Tab. `lint/file-rules.test.ts`.
+
+**G4.113 · One reading of a math block's shape.** A `$$` source is an opener, a body and a
+closer, and the parser's line tests, the block's write rule and the painter that draws its source
+all read that split from `src/lib/plugins/latex/math-shape.ts`. A second copy drifts, and the
+one-line `$$x^2$$` with a line break in it is where copies disagree: the screen, the bytes and a
+reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$`
+anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `indexOf`,
+`lastIndexOf`, `includes` or equality against the fence, or a regex spelling it `\$\$`.
+
+**G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one
+box, paints its selected text, or paints nothing is decided by
+`src/lib/selection/primitives.ts` :: `classifyBlockForSelection` (and `blockPaintsWholeBox`, which
+asks it), from the one coverage. Whether the range spans blocks at all, so the space between them
+paints too, is `rangeSpansBlocks` in the same file; the classifier asks it, and so does the
+component that paints that space. A painter that read the coverage itself would keep its own idea
+of which block the range covers whole, and the end blocks would paint one shape while the blocks
+between paint another. One that compared the range's ends itself could paint the space beside a
+table's cell rectangle. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or
+an end table's cell run anywhere outside `src/lib/selection/`: a call to `rootHolding` or
+`coveredRootHolding`, a dotted read of `wholeRoots`, `coveredWhole`, `startEdge`, `endEdge`,
+`startCells` or `endCells`, or an object pattern naming one of those fields, whether it's
+destructured with `=` or typed as a `RangeCoverage` parameter. It fails a `pathsEqual` of a
+range's `start.path` and `end.path` too. A bracket read (`coverage['wholeRoots']`) gets past it.
+
+**G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy (its own
+range, a selected widget, a range across blocks, a cell rectangle riding the last) has one
+`ClipboardArm`, written where that selection lives: in each block's clipboard code, and in
+`selection/cross-block/clipboard.ts` for a range across blocks. Only the type, the cut step,
+`takeCopy` and the copy of what you see are shared (`components/blocks/clipboard-step.ts`). Its
+`copy` writes the payload and reads what its `remove` deletes. `runClipboardCut` runs that same copy
+before anything waits, then the removal, so a cut can't write different bytes from a copy, and a
+menu's Cut still lands (it's a scripted cut, and the browser closes its clipboard data the moment
+the event's handlers return). The type's shape holds most of it: there's no cut payload to write,
+and an `async` copy doesn't type-check. `lint/call-site-rules.test.ts` holds the rest. It fails a
+`.setData(` call in any production file outside those copy functions,
+`clipboard-step.ts :: writeShownSelection` and the menu's paste event, each listed by function.
+`writeShownSelection` copies what you see, the browser's own selection string. Three copies use it:
+reading mode, a copy no arm takes, and the code block, whose hidden fence lines shouldn't land on
+the clipboard.
+
+**G4.116 · The pending break hears a key first.** Shift+Enter at the end of a text block opens a
+line and writes nothing; Backspace and ArrowLeft take that line back and stop at the end of the
+text above (`components/blocks/text/pending-break-keys.ts`). The shared keymap has its own answer
+for ArrowLeft at the text's start, the move up to the block before, so in an empty paragraph it
+would leave with the line still open. The behavior rows in
+`e2e/tests/presentation/pending-break-keys.spec.ts` are the guard, and
+`lint/pending-break-key-order.test.ts` pins the order as well: it fails when
+`TextEditableBlock.svelte`'s keydown calls the shared keymap before it asks the pending break.
+
+**G4.122 · The directory import graph.** Every production import under `src/lib` goes into a graph
+whose nodes are the top-level directories, plus each root file (`assert.ts`, `index.ts`, ...) as a
+node of its own. A pair joined only by `import type` (or an `import('x')` written in a type) is kept
+apart from one where something loads at runtime, since a type-only edge just means a shared type
+sits too high. The scan holds that graph to the edges listed in
+`lint/directory-layering-baseline.ts`. A new edge fails and the red names the imports behind it; a
+listed edge that's gone fails until its line is deleted. What the scan can't do is refuse a line
+someone adds, so that's a reviewer's job, and in a slice that moves files the baseline's diff may
+only rename nodes along the move map: any other new line gets named in the slice's report with its
+imports (a slice: one batch of work landing together; the move map: its list of old and new paths).
+Counting runtime edges, two directory cycles are still in it, {`core`, `schema`, `cursor`,
+`invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
+`ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports from
+`editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up there is a
+cycle no behavior test notices. An import the scan can't resolve to a file fails too, so nothing
+drops out of the graph unseen. `lint/directory-layering.test.ts`.
+
+**G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a list's first
+item and Enter in an empty item of an outermost list both dissolve the item, and both split its
+children through `tree-operations/list/item-partition.ts` :: `dissolveItem`, which runs the split
+inside G1.61's check. A route with a split of its own can put the children in another order with no
+warning. Three rows in `lint/file-rules.test.ts` hold it. The splitter, `itemPiecesInOrder`, is
+called in that module only, and every call sits inside a `keepingListOrder(…)` call. And rebuilding
+the list around a dissolved item takes `tree-operations/list/list-builders.ts` ::
+`assembleListHalf`, which only `dissolveItem`'s module and the paste break-out call (a paste splits
+the list around what it pastes, and no item dissolves there), so a splitter under another name that
+rebuilds the list that way fails too.
+
+**G4.125 · One reading of a block's widgets.** The widgets a prose block draws include the ones a
+link or emphasis wraps (a picture inside a link, say), and those don't show up in the block's
+top-level inline list. `src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn` is the
+list with them in, and the click that snaps the caret to a widget's edge, the caret painted
+there, the arrow keys at a widget's edge and every reader of a selected widget all ask it. The
+edge readers in the same file (`findFirstEdgeWidget`, `findLastEdgeWidget`) answer a different
+question, what the block draws first or last, and walk into a wrapping construct only where the
+mode hides its markers. A reader that walked the inline list somewhere else could miss the
+wrapped one: a click arms an edge the paint can't find, and you're left with no caret you can
+see. `lint/file-rules.test.ts` fails an `isInlineWidget(` or `flattenInlineWidgets(` call under
+`components/` or `src/lib/plugins/` outside that file.
 
 ## Accessibility
 

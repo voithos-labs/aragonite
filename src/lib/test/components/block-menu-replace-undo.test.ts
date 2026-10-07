@@ -7,7 +7,6 @@ import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-roo
 import { serialize } from '$lib/core/serializer';
 import { replaceBlockRaw } from '$lib/editor-actions/block-edit-core';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import type { EditEvent } from '$lib/editor-events';
 import { registerBuiltinBlockContextActions } from '$lib/schema/context-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -58,6 +57,7 @@ async function typeThenRewrite() {
 		insertCatalogue: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
+		stamps: editor.deps.stamps,
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
@@ -81,13 +81,10 @@ describe('a block menu rewrite inside a typing burst', () => {
 		expect(serialize(editor.doc)).toBe(TYPED);
 	});
 
-	it('counts only the typed byte as input', async () => {
+	it('reports only the typed write as input', async () => {
 		const editor = await typeThenRewrite();
 		await vi.runAllTimersAsync();
 
-		const inputs = editor.edits.filter(
-			(e): e is Extract<EditEvent, { op: 'input' }> => e.op === 'input'
-		);
-		expect(inputs.map((e) => e.detail.byteLength)).toEqual([1]);
+		expect(editor.edits.filter((e) => e.op === 'input').map((e) => e.path)).toEqual([[0]]);
 	});
 });

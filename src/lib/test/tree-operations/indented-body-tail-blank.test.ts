@@ -10,6 +10,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A list item's or footnote's body ends where its indentation ends, so an emptied last block's
 // own line is written with the body's indent and reloads as the empty paragraph it is.
@@ -29,7 +30,7 @@ function containersAlong(doc: Document, path: number[]): CstNode[] {
 	return chain;
 }
 
-/** What `commitInput` sends for an emptied block, the line ending alone, then the rebuilds. */
+/** What typing sends for an emptied block, the line ending alone, then the rebuilds. */
 function empty(doc: Document, path: number[]): void {
 	const chain = containersAlong(doc, path);
 	const owner = chain[chain.length - 1];
@@ -43,7 +44,8 @@ function empty(doc: Document, path: number[]): void {
 		},
 		index,
 		text,
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
@@ -88,7 +90,10 @@ describe('blanking the last block of an indent-delimited body', () => {
 	])('indenting the blank line under %s takes it into the body', (_, source, typed) => {
 		const doc = parse(source);
 
-		settled(doc, () => updateNodeContent(doc, 1, typed, defaultGrammarView).change);
+		settled(
+			doc,
+			() => updateNodeContent(doc, 1, typed, defaultGrammarView, createSharingState()).change
+		);
 
 		expect(doc.children).toHaveLength(2);
 		expect(describeConvergence(doc)).toBeNull();

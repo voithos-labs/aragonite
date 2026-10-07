@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createDocumentSwap, initDocument } from '$lib/components/editor-root-document-swap';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { selectWidgetWhole } from '$lib/selection/caret-doors';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
@@ -30,6 +31,7 @@ describe('initDocument', () => {
 });
 
 describe('the swap commit sequence', () => {
+	/** An editor holding `held\n` until the first swap adopts a document. */
 	function harness() {
 		const order: string[] = [];
 		const step = (name: string) => () => void order.push(name);
@@ -39,6 +41,9 @@ describe('the swap commit sequence', () => {
 		const swaps: { generation: number; source: string }[] = [];
 		const swap = createDocumentSwap({
 			grammar: defaultGrammarView,
+			currentSource: () => (adopted ? serialize(adopted) : 'held\n'),
+			stamps: { retire: step('stamps') },
+			drafts: { closeAll: (cause) => void order.push(`drafts:${cause}`) },
 			flushDebouncedCheckpoint: step('flush'),
 			noteTreeSwap: step('landings'),
 			adoptDocument: (doc) => {
@@ -50,8 +55,7 @@ describe('the swap commit sequence', () => {
 			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },
 			caretMemory: { forget: step('caret') },
-			closeMenus: step('menus'),
-			widgetSelection: { clear: step('widget') },
+			menus: { closeAll: (cause) => void order.push(`menus:${cause}`) },
 			selection,
 			adoptLinkReferences: (resolver, signature) => {
 				links = { resolver, signature };
@@ -69,10 +73,12 @@ describe('the swap commit sequence', () => {
 		return { swap, selection, order, swaps, adopted: () => adopted, links: () => links };
 	}
 
-	it('runs every reset in order, the checkpoint flush first and the announcement last', () => {
+	it('runs every reset in order, the outgoing document retired first, the announcement last', () => {
 		const h = harness();
 		h.swap.swapTo('# B\n');
 		expect(h.order).toEqual([
+			'stamps',
+			'drafts:document-swap',
 			'flush',
 			'landings',
 			'adopt',
@@ -81,8 +87,7 @@ describe('the swap commit sequence', () => {
 			'heights',
 			'undo',
 			'caret',
-			'menus',
-			'widget',
+			'menus:document-swap',
 			'announce',
 			'links',
 			'sourceSwap'
@@ -98,6 +103,24 @@ describe('the swap commit sequence', () => {
 		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.links()!.resolver('x')?.url).toBe('https://x.example');
+	});
+
+	it('drops a selected widget in the same announcement', () => {
+		const h = harness();
+		selectWidgetWhole(h.selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+		h.order.length = 0;
+		h.swap.swapTo('# B\n');
+		expect(h.selection.widget).toBeNull();
+		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
+	});
+
+	it('runs no step for the text the editor already holds', () => {
+		const h = harness();
+		h.swap.swapTo('held\n');
+		h.swap.swapTo('a\n');
+		h.swap.swapTo('a\n');
+		expect(h.swap.generation()).toBe(1);
+		expect(h.order.filter((name) => name === 'flush')).toHaveLength(1);
 	});
 
 	it('counts whole-document replacements and announces each with the new document in place', () => {

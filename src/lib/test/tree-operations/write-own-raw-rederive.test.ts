@@ -7,6 +7,7 @@ import { documentLineEnding } from '../../core/lines';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // The in-place write re-derives kind and parse-owned metadata from its bytes whether or not its own
 // rule rewrote them, and the deep-leaf merge reparses what it absorbs.
@@ -37,7 +38,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('\n# h\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 
-		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
+		const result = mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading());
 
 		expect(result).not.toBeNull();
 		expect(doc.children).toHaveLength(1);
@@ -51,7 +52,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('one\n\ntwo\n');
 		const target = doc.children[0];
 
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
+		mergeIntoPrevDeepLeaf(doc, 1, createSharingState(), fixtureReading());
 
 		expect(doc.children[0]).toBe(target);
 		expect(doc.children[0].raw).toBe('onetwo\n');

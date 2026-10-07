@@ -8,10 +8,10 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// Hand-built list fixtures read as stale to the dev-mode stale-raw check, and a first half
-// that parses to several blocks is one of the split shapes under test.
-afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
+// A first half that parses to several blocks is one of the split shapes under test.
+afterEach(() => allowDevWarns(['tree-ops']));
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
@@ -53,11 +53,14 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 		expect(listState.innerBlockIds[0]).toBe('item-0');
 
+		// The new item's empty first line, then the blank line above `b`, which a reload reads as an
+		// empty paragraph of its own.
 		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
-		expect(newItem.children).toHaveLength(3);
+		expect(newItem.children!.map((c) => c.raw)).toEqual(['\n', '\n', 'b\n', 'c\n']);
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
+		expect(describeConvergence(deps.doc)).toBeNull();
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -109,8 +112,11 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(liveItem().children!.map((c) => c.raw)).toEqual(['x\n', '    a\n', '\n']);
 		expect(itemState.innerBlockIds).toHaveLength(3);
 
+		// The new item's first block sits on its marker line, where four spaces widen the marker.
+		expect(describeConvergence(deps.doc)).toBeNull();
 		const newItem = liveList().children![1];
-		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
+		expect(newItem.metadata).toMatchObject({ marker: '-     ' });
+		expect(newItem.children!.map((c) => [c.kind, c.raw])).toEqual([['paragraph', 'b\n']]);
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {
@@ -214,7 +220,7 @@ describe('list-context: insertItemAfter', () => {
 // ── marker normalization on indent / promote ────────────────────────────────
 
 // The same rule as a paste into a list: the destination list's marker wins over the moved
-// item's own, and the origin renumbers around the survivor it keeps.
+// item's own, and the siblings a lifted item takes along keep their own list's marker.
 describe('list-context: a moved item adopts its destination marker', () => {
 	it.each([
 		{
@@ -259,7 +265,7 @@ describe('list-context: a moved item adopts its destination marker', () => {
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
-		// A promote needs a survivor left behind to renumber within the sublist.
+		// A promote takes the sibling after it along, renumbered in a sublist of its own.
 		expect(sublist.children).toHaveLength(subIds.length);
 		registerBlockListState(sublist, makeBlockListState(liveSublist, subIds) as any);
 		// Mounted, as the item holding a mounted sublist is: a promote commits it as a scope.
@@ -271,7 +277,7 @@ describe('list-context: a moved item adopts its destination marker', () => {
 		else await listContext.promoteNestedItem(0, sublist, 0);
 
 		const destination = move === 'indent' ? liveSublist : liveList;
-		const origin = move === 'indent' ? liveList : liveSublist;
+		const origin = move === 'indent' ? liveList : () => liveList().children![1].children![1];
 		expect(markersOf(destination())).toEqual(destMarkers);
 		expect(destination().children![1].raw.startsWith(destMarkers[1])).toBe(true);
 		expect(markersOf(origin())).toEqual(originMarkers);

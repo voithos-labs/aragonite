@@ -256,7 +256,7 @@
 	class="md-menu table-action-menu"
 	role="menu"
 	aria-label={TABLE_ACTIONS}
-	{@attach menuPresence.track}
+	{@attach menuPresence.track(() => onclose(), { edits: true })}
 	tabindex="-1"
 	style:left="{left}px"
 	style:top="{top}px"
@@ -290,7 +290,7 @@
 						role="menu"
 						aria-label={item.label}
 						{@attach keepFlyoutOnScreen}
-						{@attach menuPresence.track}
+						{@attach menuPresence.track(() => (openGroup = null), { edits: true })}
 					>
 						{#each item.items as sub, j (j)}
 							{#if sub.kind === 'action' || sub.kind === 'clipboard'}

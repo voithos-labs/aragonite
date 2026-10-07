@@ -3,6 +3,10 @@
  * four leading spaces per line, preferring a tab.
  */
 
+import type { NodeView } from '../../../core/node-views';
+import { trimTrailingLineEnding } from '../../../core/lines';
+import { clampRangeToBody } from './code-fence-boundary';
+
 export interface Selection {
 	start: number;
 	end: number;
@@ -70,6 +74,30 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 			end: selection.end - removedTotal
 		}
 	};
+}
+
+/** Tab or Shift+Tab in the code block: the lines `range` touches, kept off the fence lines, shift one
+ *  step (a caret's Tab types one); null when nothing changes. Offsets are in the display text. */
+export function shiftCodeLines(
+	node: NodeView,
+	range: Selection,
+	direction: 'indent' | 'dedent'
+): IndentResult | null {
+	const text = trimTrailingLineEnding(node.raw);
+	const body = clampRangeToBody(node, range);
+	const result = direction === 'indent' ? indentLines(text, body) : dedentLines(text, body);
+	return result.text === text ? null : result;
+}
+
+/** The same over a range spanning blocks, which shifts only the body lines it covers: a range that
+ *  holds no body text types no tab. */
+export function shiftBodyLines(
+	node: NodeView,
+	range: Selection,
+	direction: 'indent' | 'dedent'
+): IndentResult | null {
+	const body = clampRangeToBody(node, range);
+	return body.start === body.end ? null : shiftCodeLines(node, body, direction);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

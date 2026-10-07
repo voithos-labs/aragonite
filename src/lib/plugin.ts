@@ -72,8 +72,8 @@ export type {
 } from './schema/block-kind-descriptor';
 // What `estimateHeight` reads besides the block: the width and the editor's type metrics.
 export type { HeightEstimateEnv } from './schema/height-estimates';
-// `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
-// re-emits that child's region alone. Ignoring it re-derives the whole raw, which is correct.
+// `rebuildRaw`'s optional second argument, the one child whose raw moved (ignoring it is correct);
+// a rebuild returns `{ rereads: true }` when its bytes must then be read whole.
 export type { ChildRawChange } from './schema/child-spans';
 // The closure block every registration must answer the cross-cutting systems with.
 // `simpleLeafClosure` and `containerClosure` fill in the fixed columns for a leaf and a container.
@@ -153,7 +153,16 @@ export type {
 	BlockActionContext,
 	BlockContextActionProvider
 } from './schema/context-actions';
-export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
+export type {
+	BlockCommandContext,
+	BlockCommandHandler,
+	BlockCommandOptions,
+	BlockCommandTarget,
+	CommandRun
+} from './schema/block-commands';
+// What a kind's own indent command does over a selection spanning blocks.
+export { registerRangeIndent } from './schema/range-indent-forms';
+export type { RangeLineShift } from './schema/range-indent-forms';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's `EditorContext`,
 // with the argument `runCommand(id, arg)` or the chord's binding carried.
@@ -270,6 +279,7 @@ export type {
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
+export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
 export type { RefSlots } from './reactivity/publish-ref.svelte';
 export type { ChildList } from './reactivity/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
@@ -294,7 +304,7 @@ export type {
 	EditableLeafSurfaceProps,
 	EditableLeafRenderProps
 } from './components/blocks/editable-leaf';
-export type { StickyColumnDirection } from './block-component';
+export type { EditableLeafBlockApi, StickyColumnDirection } from './block-component';
 
 // ── Directive authoring (pre-freeze) ─────────────────────────────────────────
 // `activateDirectives()` takes over `:::`; call it once at startup, before the editor
@@ -378,6 +388,7 @@ export type {
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
+	InlineMenuCommit,
 	InlineMenuRowProps
 } from './inline-menu/types';
 

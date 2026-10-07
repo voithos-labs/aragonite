@@ -1,16 +1,17 @@
 /**
- * Every menu the editor renders counts itself on `menuChange` by attaching the menu presence
- * count to its own root element (G4.67). Each menu element either carries the attach in its
- * opening tag or is listed below with the reason it does not, so a second menu added to a file
- * that already counts one cannot open without the host hearing it.
+ * Every menu the editor renders attaches `menuPresence.track(close)` to its own root element, so
+ * the host hears it on `menuChange` and `closeAll` can close it (G4.67). Each menu element either
+ * carries the attach in its opening tag or is listed below with the reason it does not.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, walkCode } from './scan-source';
+import { SOURCE_DIR } from './source-paths';
 
 /** A menu's root element: the shared menu class (its rows are `md-menu-item`) or a popup role. */
 const MENU_ELEMENT_RE = /class="md-menu["\s]|role="(?:menu|listbox|dialog)"/;
-const TRACK_RE = /\{@attach\s+menuPresence\.track\s*\}/;
+/** The attach with the menu's close as its argument. */
+const TRACK_RE = /\{@attach\s+menuPresence\.track\((?!\s*\))/;
 
 /** Menu elements that do not count themselves, by file: a text only that element's tag holds. */
 const NOT_COUNTED: Record<string, { tag: string; reason: string }[]> = {
@@ -72,12 +73,12 @@ function unexcused(relPath: string, code: string): string[] {
 		.map((tag) => `${relPath}: ${tag.replace(/\s+/g, ' ')}`);
 }
 
-describe('G4.67 every editor menu counts itself on menuChange', () => {
+describe('G4.67 every editor menu counts itself on menuChange and hands over its close', () => {
 	const sources = collectEditorSources().filter(
 		(file) =>
 			file.relPath.endsWith('.svelte') &&
-			(file.relPath.startsWith('src/lib/components/') ||
-				file.relPath.startsWith('src/lib/plugins/'))
+			(file.relPath.startsWith(SOURCE_DIR.components) ||
+				file.relPath.startsWith(SOURCE_DIR.plugins))
 	);
 
 	it('inspected the menu components', () => {
@@ -112,18 +113,23 @@ describe('G4.67 every editor menu counts itself on menuChange', () => {
 		expect(uncountedMenus('<div role="dialog">')).toHaveLength(1);
 		expect(uncountedMenus('<button class="md-menu-item">')).toEqual([]);
 		expect(uncountedMenus("<script>target.closest('.md-menu')</script>")).toEqual([]);
-		expect(uncountedMenus('<ul class="md-menu" {@attach menuPresence.track}>')).toEqual([]);
+		expect(uncountedMenus('<ul class="md-menu" {@attach menuPresence.track(close)}>')).toEqual([]);
+	});
+
+	it('a menu that attaches the count without its close is reported', () => {
+		expect(uncountedMenus('<ul class="md-menu" {@attach menuPresence.track}>')).toHaveLength(1);
+		expect(uncountedMenus('<ul class="md-menu" {@attach menuPresence.track( )}>')).toHaveLength(1);
 	});
 
 	it('the matcher reads a tag across lines and past a `>` inside braces', () => {
 		const tag =
-			'<div\n\tclass="md-menu x"\n\tonclick={() => a > b}\n\t{@attach menuPresence.track}\n>';
+			'<div\n\tclass="md-menu x"\n\tonclick={() => a > b}\n\t{@attach menuPresence.track(() => (open = false))}\n>';
 		expect(uncountedMenus(tag)).toEqual([]);
 	});
 
 	it('a second, uncounted menu in a file that counts one is still reported', () => {
 		const file = [
-			'<div class="md-menu first" role="menu" {@attach menuPresence.track}></div>',
+			'<div class="md-menu first" role="menu" {@attach menuPresence.track(close)}></div>',
 			'<div class="md-menu second" role="menu"></div>'
 		].join('\n');
 		expect(unexcused('src/lib/components/Fixture.svelte', file)).toEqual([

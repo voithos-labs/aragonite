@@ -1,6 +1,6 @@
 /**
  * A rectangle of a table's cells as clipboard text: a GFM table of its own, written by the table
- * rebuilder so its rows, padding and line ending are the ones the document's table has.
+ * rebuilder in the plain padded spelling, with the line ending the document's table has.
  */
 
 import type { CstNode, TableAlignment } from '../core/nodes';

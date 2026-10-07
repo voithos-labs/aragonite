@@ -8,7 +8,7 @@ The stages, in the order they fire:
 2. [Which block, and where in it](#2-which-block-and-where-in-it): a point becomes a block and an offset
 3. [The one way in](#3-the-one-way-in): the one place a caret gets written
 4. [The snap](#4-the-snap): fixing the browser's caret beside a widget
-5. [The next key, at an edge](#5-the-next-key-at-an-edge): the nine edge handlers, ranked
+5. [The next key, at an edge](#5-the-next-key-at-an-edge): the seven edge handlers, ranked
 6. [Which side of a hidden marker](#6-which-side-of-a-hidden-marker): where a typed byte goes when the markers paint nothing
 7. [Leaving the block](#7-leaving-the-block): the sticky column
 8. [The gap between blocks](#8-the-gap-between-blocks): a caret between two blocks, where neither can hold one
@@ -64,7 +64,7 @@ The probe, for the curious:
 
 `src/lib/selection/caret-doors.ts` :: `placeCaret`. Every caret the editor places (as opposed to the browser) goes through one of two verbs:
 
-- `focus` ends whatever the editor had selected (a live range, a gap caret, an image selected whole), then places the caret. It also announces where it put it, so a `selectionChange` subscriber hears the arrival before anything can be typed there (`editor.md` § 12).
+- `focus` ends whatever the editor had selected (a live range, a gap caret, a widget selected whole), then places the caret. It also announces where it put it, so a `selectionChange` subscriber hears the arrival before anything can be typed there (`editor.md` § 12).
 - `parkCaret` only places. It's reserved for the selection-extend paths, where the range has to stay live while an endpoint moves, and its callers are an allowlist.
 
 Most edits' carets come through here too. The commit hands its position to `src/lib/selection/caret-landing.ts`, which mounts the block, calls its `focus`, and scrolls it into view if it's off screen (a few routes still place their own, listed in `editor.md` § 11). A stored selection (undo, `setSelection`, a collapsing range) comes back through the same file's `restore`, at its exact bytes rather than through `focus`, and the moving end of a Shift+Arrow range through its `park`.
@@ -74,7 +74,7 @@ Below the verbs:
 - The placement itself is `src/lib/components/blocks/editable-surface.ts` :: `parkCaret`. It focuses the element without scrolling the page, runs the block's own landing rule if it has one (a code block keeps a caret arriving from outside off its fence lines), and resolves the `CURSOR_START` and `CURSOR_END` codes.
 - Then `src/lib/cursor/widget-offset.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit.
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `caret-doors.ts`, which ends what the editor had selected the way `focus` does.
-- The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an image selected whole. Each ends the others the way `focus` does, and a scan (G4.94) fails any other file that writes either.
+- The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a scan (G4.94) fails any other file that writes either.
 - A guard (G4.36) fails any native selection write outside `widget-offset.ts`, apart from a declared few files that select nodes they already hold. So a third way in fails a test rather than a user.
 
 ## 4. The snap
@@ -93,37 +93,39 @@ For the second, `src/lib/cursor/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` 
 | beside one                                                   | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
 | above or below one (the strip a box leaves around a picture) | the one on the side the click landed                                                                              |
 
+The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the block paints its own caret there and hides the browser's. The paint reads the same list, so a wrapped picture gets its caret too.
+
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second click of a double-click is a word selection, `src/lib/selection/multi-click.ts`, not a caret). The third click of a run belongs to the block's own selection, or to the widget when the editor already holds it selected whole; a source the first click showed is hidden there like any other, and the range the third click painted comes back over the rebuilt block.
 
-The same click also moves a caret that landed inside the container's marker prefix (the `- ` in front of a list item) back into the content. And while an image is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`editor.md` § 10).
+The same click also moves a caret that landed inside the container's marker prefix (the `- ` in front of a list item) back into the content. And while a widget is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`editor.md` § 10).
 
 That's the caret placed. Now the keyboard.
 
 ## 5. The next key, at an edge
 
-`src/lib/components/blocks/text/edge-policy-dispatch.ts` :: `createEdgePolicyDispatch`. A plain key (a character, Backspace, Delete) while the caret sits against something that isn't plain text: an atomic widget, a view-only decoration, the container's marker prefix, a marker run that paints nothing. Native contenteditable would mutate the bytes those stand for, so the dispatch decides who owns the key instead. It's a declared list of nine handlers in rank order, first claim wins, and a key nobody claims falls through to the keymap:
+`src/lib/components/blocks/text/edge-policy-dispatch.ts` :: `createEdgePolicyDispatch`. A plain key (a character, Backspace, Delete) while the caret sits against something that isn't plain text: an atomic widget, a view-only decoration, the container's marker prefix, a marker run that paints nothing. Native contenteditable would mutate the bytes those stand for, so the dispatch decides who owns the key instead. It's a declared list of seven handlers in rank order, and the first one to claim the key wins:
 
 1. a pending mark (a `Mod+B` with nothing selected promised that the next byte gets bold),
-2. a hard break at the end of a block,
-3. a key aimed at a widget (enter it, select it, or step over it, per the kind's policy),
-4. a reading-mode cut (nothing below runs, since reading writes no bytes),
-5. a decoration widget,
-6. the marker prefix,
-7. a delete beside an unpainted delimiter (takes content, never a marker),
-8. the space a container marker re-emits by itself,
-9. the hidden-marker side, which is stage 6.
+2. a key aimed at a widget (enter it, select it, or step over it, per the kind's policy),
+3. a reading-mode cut (nothing below runs, since reading writes no bytes),
+4. a decoration widget,
+5. the marker prefix,
+6. a delete beside an unpainted delimiter (takes content, never a marker),
+7. the space a container marker re-emits by itself.
 
-Each entry carries its reason in the file, and the order is the contract (G4.12), so a new family of key is a visible entry there, not an `if` somewhere else.
+A key nobody claims falls through to the keymap, and a byte it types is placed in stage 6. Each entry carries its reason in the file, and the order is the contract (G4.12), so a new family of key is a visible entry there, not an `if` somewhere else.
 
 ## 6. Which side of a hidden marker
 
-`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. This decides which one a typed byte goes to (the position the file calls a seat, in its symbol names). Three things get a say, in order:
+`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. The resolver decides which one a typed byte goes to (its symbols call that position a seat). It's asked by the write every insertion ends in (`src/lib/cursor/next-insertion.ts`), after the browser or the paste has put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way.
+
+First it tries the offset an arrow picked, if one did. Where the position offers more than one typing offset, a plain ArrowLeft or ArrowRight moves that choice instead of the caret (`src/lib/components/blocks/text/edge-step.ts`, asked before the arrow gets to move the caret, a table cell's hop to the next cell included), and the caret memory records the exact offset it picked. Past that, three things get a say, in order:
 
 1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on.
 2. **How the caret arrived.** On every keydown the caret memory records whether the caret stepped in from outside, was placed at an end, or just committed a byte (`src/lib/cursor/edge-affinity.ts` reads which from the key), and it forgets all that on any caret move that isn't a key. One exception: an edit that lands the caret at a block's start or end, rather than at a byte, counts as placed at an end. So Backspace on an empty list item under `- **a**` puts the next byte after the `**`, same as at the top level.
 3. **The renderer.** A candidate offset is accepted only if what shows on screen afterwards is exactly what showed before, plus the typed byte.
 
-If no candidate passes, it declines and the browser's own placement stands, which is the honest fallback, since that's where the byte was going anyway.
+If no candidate passes, it declines and the browser's own placement stands. That's the honest fallback, since it's where the byte was going anyway.
 
 ## 7. Leaving the block
 
@@ -153,7 +155,8 @@ A horizontal arrival at a block that starts or ends with a widget enters the wid
 
 Then the landing itself:
 
-- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines. (The scan stops a few lines past that edge once text has set it, widgets included, or once it has passed the last line of widgets in a block with no text, and it measures each widget once, not at every byte of its source.)
+- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines.
+  - The scan behind it (`src/lib/cursor/sticky-measure.ts` :: `findOffsetNearestX`) walks in from the edge you arrive at and measures each widget once, not at every byte of its source. Once text has fixed the edge line it stops a few lines past it, and a widget that far past stops it too. In a block made only of widgets it stops as soon as it's past the first line of them it meets.
 - Otherwise `focus` at the start or the end.
 - A numeric position passes through untouched, since a caller with a byte in hand (a split's second half) knows better than the classifier.
 

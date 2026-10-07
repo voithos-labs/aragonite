@@ -55,7 +55,7 @@ function deleteSubtreesIdentityGated(
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
 			deleteAtPath(doc, path, sharing, grammar);
-			cascadeCleanupEmptyAncestors(doc, path, sharing, grammar);
+			cascadeCleanupEmptyAncestors(doc, path, sharing, grammar, documentLineEnding(doc));
 		}
 	}
 }

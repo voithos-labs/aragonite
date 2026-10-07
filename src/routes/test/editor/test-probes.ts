@@ -481,6 +481,11 @@ export function installTestProbes({
 		// same endpoint variant it got, and the path-only form drops `cellCoordinate`.
 		getSelection: (): EditorSelection | null => editor.getSelection(),
 		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
+		// Through the editor's own block lookup, so a table cell, which has no path attribute, counts.
+		isBlockMounted: (path: number[]): boolean => {
+			const root = editorRoot();
+			return !!root && blockContentElAt(root, path) !== null;
+		},
 		// Spec setup's one caret placement: through `setSelection`, the call every real placement
 		// ends in, at a raw offset of the leaf a caret at `path` goes to. It clamps past the end.
 		placeCaret: (path: number[], position: 'start' | 'end' | number): Promise<boolean> => {

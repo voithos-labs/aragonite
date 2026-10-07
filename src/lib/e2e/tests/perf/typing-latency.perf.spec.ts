@@ -317,8 +317,8 @@ test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
-	// The inline recompute happens on the debounced input flush, about 250ms after the
-	// keystroke, so the wait on the source above returns well before it.
+	// The inline recompute runs on the render after the write, so the wait on the source above
+	// can return before it.
 	await page.waitForFunction(
 		() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 		null,

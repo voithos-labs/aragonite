@@ -9,6 +9,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /** Past V8's argument limit (~125k), so one spread would raise a RangeError. */
 const OVER_LIMIT = 200_000;
@@ -35,7 +36,8 @@ describe('a document-scaled splice', () => {
 			innerPrefix: '',
 			innerSuffix: ''
 		};
-		spliceChildrenSettled(container, 0, 1, clipboard(), defaultGrammarView);
+		const sharing = createSharingState();
+		spliceChildrenSettled(container, 0, 1, clipboard(), defaultGrammarView, sharing, '\n');
 		expect(container.children).toHaveLength(OVER_LIMIT);
 		expect(container.childIds).toHaveLength(OVER_LIMIT);
 	});

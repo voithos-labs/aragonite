@@ -78,11 +78,6 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'presentation/presentation-showcase.spec.ts',
 		reason: 'compound test: the mode toggle round-trip is one session over one mounted document'
-	},
-	{
-		spec: 'source-prop.spec.ts',
-		reason:
-			'three of six bullets name coverage owned elsewhere (init behavior, decorations/source-swap-epoch, search/source-swap-rescan)'
 	}
 ];
 

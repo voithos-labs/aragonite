@@ -51,6 +51,7 @@ export interface EditorError {
 // ── Map of event name → handler payload ─────────────────────────────────
 
 export interface EditorEventMap {
+	/** Fires at each write, as it lands: a structural edit, one keystroke, an undo or a redo. */
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
 	error: EditorError;

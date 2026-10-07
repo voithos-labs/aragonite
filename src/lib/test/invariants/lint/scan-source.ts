@@ -6,20 +6,21 @@
  * `scan-source.differential.test.ts` (G4.57), which holds it against TypeScript's own lexer.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { SOURCE_DIR } from './source-paths';
 
-export const EDITOR_SRC = path.resolve('src/lib');
+export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
 
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
-export const ROUTES_SRC = path.resolve('src/routes');
+export const ROUTES_SRC = path.resolve(SOURCE_DIR.routes);
 
 /** The library plus the reference plugins and the consumer example, which stand in for an outside
  *  author and must not model a violation. A library-only lint passes `EDITOR_SRC` and says why. */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
-	path.resolve('src/routes/test/plugins'),
-	path.resolve('examples/consumer/src')
+	path.resolve(SOURCE_DIR.referencePlugins),
+	path.resolve(SOURCE_DIR.consumerExample)
 ];
 
 export interface SourceFile {
@@ -96,15 +97,9 @@ export function collectEditorSources(
 		.map(readSource);
 }
 
-export function readEditorFile(relFromEditor: string): SourceFile {
-	return readSource(
-		path.relative(path.resolve('.'), path.join(EDITOR_SRC, relFromEditor)).split(path.sep).join('/')
-	);
-}
-
-/** The bundled plugins, by directory name under `src/lib/plugins`. */
+/** The bundled plugins, by directory name. */
 export function bundledPluginDirs(): string[] {
-	return readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
+	return readdirSync(path.resolve(SOURCE_DIR.plugins), { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => entry.name)
 		.sort();
@@ -706,12 +701,12 @@ export function rawAssignments(
 
 // ── Call arguments ───────────────────────────────────────────────────────────
 
-/**
- * A call to `name`. A spread (`...name(`) counts as one, since a result spread into an array is
- * still a call site; a property access (`x.name(`) does not.
- */
+// A call to `name`, a spread (`...name(`) included. A property access (`x.name(`) counts only when
+// `name` spells it (`x.name`) or starts with the dot (`.name`, the call on any receiver).
 function callSiteRegex(name: string): RegExp {
-	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
+	const literal = name.replace(/[.$]/g, '\\$&');
+	if (name.startsWith('.')) return new RegExp(`${literal}\\s*\\(`, 'g');
+	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${literal}\\s*\\(`, 'g');
 }
 
 export interface CallSite {
@@ -829,6 +824,8 @@ export function lastArgument(args: string): string {
 export interface ImportSpecifier {
 	specifier: string;
 	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
+	/** An `import type` or `export type` statement, or an `import()` in a type, which loads nothing. */
+	typeOnly: boolean;
 }
 
 /** Every module a file imports or re-exports from, read in code position only. A static,
@@ -856,19 +853,50 @@ function readImport(
 ): ImportSpecifier | null {
 	const next = skipSpaces(code, at + keyword.length);
 	if (keyword === 'import' && code[next] === '(') {
-		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic');
+		const typePosition = isTypePositionImport(code, at, next);
+		return stringSpecifier(code, skipSpaces(code, next + 1), 'dynamic', typePosition);
 	}
 	if (!startsLine(code, at)) return null;
+	// `import type from './x'` imports a default named `type`.
+	const typeOnly = /^type\s+(?!from\b)[{*\w$]/.test(code.slice(next, next + 40));
 	if (keyword === 'import') {
-		if (code[next] === "'" || code[next] === '"') return stringSpecifier(code, next, 'side-effect');
+		if (code[next] === "'" || code[next] === '"') {
+			return stringSpecifier(code, next, 'side-effect', false);
+		}
 	} else {
-		const clause = code.startsWith('type', next) ? skipSpaces(code, next + 4) : next;
+		const clause = typeOnly ? skipSpaces(code, next + 4) : next;
 		if (code[clause] !== '{' && code[clause] !== '*') return null;
 	}
 	const from = fromClauseEnd(code, next);
 	return from === null
 		? null
-		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport');
+		: stringSpecifier(code, from, keyword === 'import' ? 'static' : 'reexport', typeOnly);
+}
+
+/** `import('x').T` or `typeof import('x')` names a type: a promise has no member `T`, and nothing
+ *  takes the `typeof` of a promise at runtime. */
+function isTypePositionImport(code: string, at: number, open: number): boolean {
+	if (/\btypeof\s*$/.test(code.slice(Math.max(0, at - 20), at))) return true;
+	const call = /^\(\s*(['"])[^'"]*\1\s*\)\s*\.\s*([A-Za-z_$][\w$]*)/.exec(code.slice(open));
+	return call !== null && !['then', 'catch', 'finally'].includes(call[2]);
+}
+
+/** The file a library import names (through `$lib`, a relative path, an index file or a
+ *  `.svelte.ts` module), or null for a package import or a path with no file behind it. */
+export function resolveSpecifier(fromRelPath: string, specifier: string): string | null {
+	const bare = specifier.replace(/\?.*$/, '');
+	let base: string;
+	if (bare === '$lib') base = `${SOURCE_DIR.library}index`;
+	else if (bare.startsWith('$lib/')) base = `${SOURCE_DIR.library}${bare.slice('$lib/'.length)}`;
+	else if (bare.startsWith('.'))
+		base = path.posix.normalize(path.posix.join(path.posix.dirname(fromRelPath), bare));
+	else return null;
+
+	for (const candidate of [base, `${base}.ts`, `${base}.svelte`, `${base}/index.ts`]) {
+		const full = path.resolve(candidate);
+		if (existsSync(full) && statSync(full).isFile()) return candidate;
+	}
+	return null;
 }
 
 /** Just past the `from` that ends an import clause, or null where the statement has none. */
@@ -890,10 +918,11 @@ function fromClauseEnd(code: string, from: number): number | null {
 function stringSpecifier(
 	code: string,
 	at: number,
-	kind: ImportSpecifier['kind']
+	kind: ImportSpecifier['kind'],
+	typeOnly: boolean
 ): ImportSpecifier | null {
 	if (code[at] !== "'" && code[at] !== '"') return null;
-	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind };
+	return { specifier: code.slice(at + 1, skipString(code, at) - 1), kind, typeOnly };
 }
 
 function skipSpaces(code: string, at: number): number {

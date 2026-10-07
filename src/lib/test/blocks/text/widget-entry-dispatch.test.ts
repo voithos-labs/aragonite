@@ -7,7 +7,6 @@ import { recordingWrite } from '$lib/test/harness/editor-actions';
 import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
@@ -28,13 +27,13 @@ function mount(source: string, widgetKind: string) {
 	const widget = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState(createSelectionState());
+	const selection = createSelectionState();
 	const interaction = createWidgetInteraction(
 		widgetInteractionDeps(
 			{ node, el },
 			{
 				cursor: new Proxy({}, { get: () => () => {} }),
-				widgetSelection,
+				selection,
 				blockEdit: { updateBlockContent: recordingWrite() },
 				focusActions: new Proxy({}, { get: () => () => {} }),
 				setPendingCursor: () => {},
@@ -62,7 +61,7 @@ function mount(source: string, widgetKind: string) {
 		const sel = window.getSelection()!;
 		return domTextOffsetAtNode(el, sel.anchorNode!, sel.anchorOffset);
 	};
-	return { interaction, dispatch, widgetSelection, widget, commits, caretRaw };
+	return { interaction, dispatch, selection, widget, commits, caretRaw };
 }
 
 // ── Within-block: edge-policy dispatch ───────────────────────────────────────
@@ -79,7 +78,7 @@ describe('edge dispatch: reveal-capable kind opens the reveal', () => {
 			const offset = asRawOffset(offsetSide === 'end' ? b.widget.end : b.widget.start);
 			expect(b.dispatch.handleKeydown(key(keyName), offset)).toBe(true);
 			expect(b.interaction.isRevealing()).toBe(true);
-			expect(b.widgetSelection.getSelected()).toBeNull();
+			expect(b.selection.widget).toBeNull();
 		});
 	}
 
@@ -103,7 +102,7 @@ describe('edge dispatch: image kind keeps select-then-step', () => {
 		const b = mount('lead ![cat](x.png)\n', 'image');
 		expect(b.dispatch.handleKeydown(key('ArrowLeft'), asRawOffset(b.widget.end))).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
-		expect(b.widgetSelection.getSelected()).toMatchObject({
+		expect(b.selection.widget).toMatchObject({
 			sourceStart: b.widget.start,
 			preSelectOffset: b.widget.end
 		});
@@ -113,7 +112,7 @@ describe('edge dispatch: image kind keeps select-then-step', () => {
 		const b = mount('![cat](x.png) tail\n', 'image');
 		expect(b.dispatch.handleKeydown(key('ArrowRight'), asRawOffset(b.widget.start))).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
-		expect(b.widgetSelection.getSelected()).toMatchObject({
+		expect(b.selection.widget).toMatchObject({
 			sourceStart: b.widget.start,
 			preSelectOffset: b.widget.start
 		});
@@ -136,7 +135,7 @@ describe('edge dispatch: an atomic kind deletes whole on one press', () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
 		expect(b.dispatch.handleKeydown(key('Backspace'), asRawOffset(b.widget.end))).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
-		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.selection.widget).toBeNull();
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].after).toBe(b.widget.start);
 		expect(b.commits[0].raw).not.toContain('$x^2$');
@@ -165,7 +164,7 @@ describe('edge dispatch: entityReference steps over and deletes atomically', () 
 			// A false return leaves the arrow to contenteditable, which carries the caret
 			// across the contenteditable=false widget in one key.
 			expect(b.dispatch.handleKeydown(key(keyName), offset)).toBe(false);
-			expect(b.widgetSelection.getSelected()).toBeNull();
+			expect(b.selection.widget).toBeNull();
 			expect(b.commits).toHaveLength(0);
 		});
 	}
@@ -173,7 +172,7 @@ describe('edge dispatch: entityReference steps over and deletes atomically', () 
 	it('Backspace at the trailing edge removes the whole entity in one commit', () => {
 		const b = mount('a&copy;b', 'entityReference');
 		expect(b.dispatch.handleKeydown(key('Backspace'), asRawOffset(b.widget.end))).toBe(true);
-		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.selection.widget).toBeNull();
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).toBe('ab');
 		expect(b.commits[0].after).toBe(b.widget.start);
@@ -194,21 +193,21 @@ describe('enterEdgeWidget: cross-block landing dispatches on the same policy', (
 		const b = mount('tail $x^2$', MATH_INLINE);
 		expect(b.interaction.enterEdgeWidget('end')).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(true);
-		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.selection.widget).toBeNull();
 	});
 
 	it('a leading reveal-capable widget reveals instead of selecting', () => {
 		const b = mount('$x^2$ tail', MATH_INLINE);
 		expect(b.interaction.enterEdgeWidget('start')).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(true);
-		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.selection.widget).toBeNull();
 	});
 
 	it('a trailing image widget selects, not reveals', () => {
 		const b = mount('lead ![cat](x.png)\n', 'image');
 		expect(b.interaction.enterEdgeWidget('end')).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
-		expect(b.widgetSelection.getSelected()).toMatchObject({
+		expect(b.selection.widget).toMatchObject({
 			sourceStart: b.widget.start,
 			preSelectOffset: b.widget.end
 		});

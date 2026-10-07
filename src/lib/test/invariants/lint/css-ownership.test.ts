@@ -5,7 +5,8 @@
  * families (an off-family typo like `--text-muted` can never be declared).
  */
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, readEditorFile, readSource } from './scan-source';
+import { collectEditorSources, readSource } from './scan-source';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── Token families ────────────────────────────────────────────────────────────
 // Editor-owned tokens vs consumer-provided host-chrome tokens. Every var() read in the
@@ -17,13 +18,13 @@ const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 
 // Bundled plugins own private palettes, guarded by plugin-css-ownership.test.ts, so they skip
 // the family check here but not the fallback and declaration checks.
-const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib/plugins/');
+const isPluginSource = (relPath: string): boolean => relPath.startsWith(SOURCE_DIR.plugins);
 
 function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 	return [
 		...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
-		{ rel: 'styles/editor.css', text: readEditorFile('styles/editor.css').code },
-		{ rel: 'styles/editor-theme.css', text: readEditorFile('styles/editor-theme.css').code }
+		{ rel: SOURCE.editorCss, text: readSource(SOURCE.editorCss).code },
+		{ rel: SOURCE.themeTokens, text: readSource(SOURCE.themeTokens).code }
 	];
 }
 
@@ -32,7 +33,7 @@ function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 
 describe('G4.6 CSS ownership: editor-theme.css declares every editor-owned token read', () => {
 	it('every owned token read has a declaration', () => {
-		const theme = readEditorFile('styles/editor-theme.css').text;
+		const theme = readSource(SOURCE.themeTokens).text;
 		const haystack = editorCssSurfaces()
 			.map((f) => f.text)
 			.join('\n');
@@ -62,7 +63,7 @@ const EDITOR_MARKERS: RegExp[] = [
 ];
 
 describe('G4.6 CSS ownership: app.css holds no editor-owned rules', () => {
-	const appCss = readSource('src/app.css').code;
+	const appCss = readSource(SOURCE.appCss).code;
 	for (const re of EDITOR_MARKERS) {
 		it(`app.css contains no ${re}`, () => {
 			expect(appCss).not.toMatch(re);
@@ -132,7 +133,7 @@ const HOST_CHROME_TOKENS = [
 ];
 
 function themeRules(): Array<{ selector: string; body: string }> {
-	const css = readEditorFile('styles/editor-theme.css').code;
+	const css = readSource(SOURCE.themeTokens).code;
 	return [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(([, selector, body]) => ({
 		selector: selector.trim(),
 		body

@@ -8,9 +8,16 @@ The CST (concrete syntax tree: a parse tree that keeps every byte) is the data s
 serialize(parse(source)) === source     for all valid GFM
 ```
 
-Why a concrete tree rather than an abstract one is argued in the README's Lossless section; this doc is about the machine itself. The whole trick fits in one sentence: **every node keeps its own source text verbatim, markers included, in a field called `raw`**, and serializing is gluing the `raw` fields back together. Anything else a node knows (a heading's level, a fence's marker character) is extracted alongside `raw` as metadata and never takes part in serialization. So if the parser misreads something, the worst you get is bad styling, never a corrupted file.
+Why a concrete tree and not an abstract one is the README's Lossless section; this doc is about the machine itself. The whole trick fits in one sentence: **every node keeps its own source text, markers included, in a field called `raw`**, and serializing is gluing the `raw` fields back together. Anything else a node knows (a heading's level, a fence's marker character) is read out of `raw` into `metadata`, and serializing never looks at it.
 
-In here: the shape of the tree (§ 2), the parser that builds it (§ 3), the inline node model (§ 4), what GFM is covered (§ 5), pointers for extending the tree (§ 6), and, in the appendix, the architecture that was rejected and why.
+In here:
+
+1. the shape of the tree, and the one thing about it that surprises people (§ 2)
+2. the parser that builds it, including the blank-line rules everyone ends up asking about (§ 3)
+3. the inline nodes inside a paragraph or heading (§ 4)
+4. which GFM is covered, and where we knowingly disagree with the reference parser (§ 5)
+5. where to go to add a block kind (§ 6)
+6. and, in the appendix, the architecture we didn't build, and why
 
 ## 2. The shape of it
 
@@ -27,7 +34,7 @@ parse('# Title\n').children[0];
 // { kind: 'heading', leadingTrivia: '', raw: '# Title\n', metadata: { level: 1 } }
 ```
 
-Between those two fields, `Document.prefix`/`suffix`, and the containers' `innerPrefix`/`innerSuffix`, every whitespace character in the source belongs to exactly one node. The round trip is really just that accounting, kept as an invariant.
+Between those two fields, `Document.prefix`/`suffix`, and the containers' `innerPrefix`/`innerSuffix`, every whitespace character in the source belongs to exactly one node. The round trip is really just that bookkeeping, kept honest.
 
 ### The one thing that surprises people
 
@@ -57,17 +64,17 @@ flowchart LR
     C & D --> E["container node"]
 ```
 
-Serialization therefore **never recurses**. It concatenates the document's prefix, then each top-level child's `leadingTrivia + raw`, then the suffix, and stops (`core/serializer.ts` is a handful of lines; `editor.md` § 12 shows it). The subtree is already in there.
+So serialization **never recurses**. It writes the document's prefix, then each top-level child's `leadingTrivia + raw`, then the suffix, and stops; the subtree is already in there (`core/serializer.ts` is a handful of lines, and `editor.md` § 12 shows it).
 
-The flip side: an edit _inside_ a container means nothing until the container's `raw` is written back from its children. That's `rebuildRaw` on the container's descriptor (descriptor: the per-kind metadata record saying how a kind merges, edits, renders), dispatched up the whole chain of enclosing containers. Skip it and `raw` quietly disagrees with the children, and the document you save is the one you had before the edit. So, don't.
+The flip side: an edit _inside_ a container means nothing until the container's `raw` is written back from its children. That's `rebuildRaw`, on the container's descriptor (the per-kind record saying how a kind merges, edits and renders), run up the whole chain of enclosing containers. Skip it and `raw` quietly disagrees with the children, and the document you save is the one you had before the edit. So, don't.
 
-That dispatch is the price of the redundancy: a structural edit at depth d re-emits every enclosing container's bytes, roughly d/2 times over, while routine typing pays less, since a container that knows which child moved re-emits that child's region alone (`editor.md` § 9). The variable is bytes re-materialized, not depth: the cost is the sum over the levels, so it only turns superlinear when every level carries real bytes of its own, and real documents keep that term tiny, so a nested keystroke costs what any keystroke costs. The redundancy was weighed and kept; the measurements and the weighing are `performance.md` § Two architectural decisions, if you're curious.
+That rebuild is the price of the redundancy, and it's paid in bytes, not depth. A structural edit rewrites every enclosing container's bytes, which in a document nested d deep comes to roughly d/2 copies of the outermost one. Typing pays less: a container that knows which child changed rewrites only that child's stretch of its `raw` (`editor.md` § 9). Real documents don't stack megabytes at every level, so in practice a keystroke inside a list costs what a keystroke anywhere costs. The measurements, and why the redundancy was kept, are in `performance.md` § Two architectural decisions, if you're curious.
 
 ### Node shape
 
 All nodes are **mutable plain objects**. One type, `CstNode`, is used everywhere: the parser produces it, the editor mutates it in place, serialization reads it. There's no immutable-to-mutable conversion step and no class hierarchy.
 
-`CstNode` is a **discriminated union**: one branch per built-in block, with metadata typed to the kind (kind: the string on a node that says what block it is) and the container fields only on containers, plus one open `PluginBlockNode` branch whose branded-string `kind` keeps the plugin surface unbounded. `switch (node.kind)` narrows a built-in node to its branch and reads that kind's metadata with no cast. The branded branch blocks discrimination on the full union, though, so `isBuiltinBlockNode` is how you get in:
+A node's **kind** is the string on it that says what block it is (`'heading'`, `'blockquote'`). `CstNode` is a **discriminated union** over it: one branch per built-in kind, each with its own metadata type and with the container fields only on containers, plus one open `PluginBlockNode` branch whose `kind` is a branded string, so plugins can add as many kinds as they like. Inside the built-ins, `switch (node.kind)` narrows to a branch and reads its metadata with no cast. The branded branch stops TypeScript from narrowing the full union that way, though, so `isBuiltinBlockNode` is how you get in:
 
 ```ts
 const h = parse('## Title\n').children[0];
@@ -80,22 +87,22 @@ makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' });
 
 Two rules keep the union honest:
 
-- A block's type changing (paragraph to heading as you type `## `) never rewrites `kind` in place. The re-parse creates a fresh node and splices it into the slot (`editor.md` § 8), which is the one entry that lets the union hold everywhere.
-- Constructing a node from a runtime kind goes through `makeBlockNode`, the one allowed cast.
+- A block changing kind (paragraph to heading as you type `## `) never has `kind` rewritten in place. The re-parse makes a fresh node and puts it in the old one's slot (`editor.md` § 8), so no node ever carries one branch's kind with another branch's metadata.
+- Building a node from a kind only known at runtime goes through `makeBlockNode`, the one allowed cast.
 
 The fields, by category:
 
-| Field                  | On                                                            | Meaning                                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kind`                 | every node                                                    | `AnyBlockKind`: the built-in union plus branded plugin kinds. Every registry lookup keys off it.                                                                                                                           |
-| `raw`, `leadingTrivia` | every node                                                    | What serialization reads.                                                                                                                                                                                                  |
-| `metadata`             | most kinds                                                    | Derived from `raw`; never part of the round trip. Typed to the kind once `switch (node.kind)` narrows; `metadataOf` reads it without narrowing.                                                                            |
-| `children`             | containers                                                    | The decomposition of the inner content.                                                                                                                                                                                    |
-| `innerPrefix`          | containers whose body opens under an opener line of their own | The blank line the parse strips off between that opener line and the body (the `:::` / `<details>` family). A container with no such line (blockquote, list, list item) parses it empty, and G1.5 fails one that fills it. |
-| `innerSuffix`          | containers                                                    | Whitespace inside the container, after its last child.                                                                                                                                                                     |
-| `childIds`             | containers                                                    | Stable per-child IDs for keyed rendering (so Svelte reuses each child's component by ID, not by position). Carried on the node, so undo restores them with `children`.                                                     |
-| `childSpans`           | containers                                                    | Where each child's bytes sit inside the container's own `raw`, so rewriting one child re-emits one region. Derived; dropped whenever the children change shape.                                                            |
-| `ownerEpoch`           | every node                                                    | The structural-sharing mark: does a live undo snapshot still share this node? See `editor.md` § Undo / redo.                                                                                                               |
+| Field                  | On                                                            | Meaning                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`                 | every node                                                    | `AnyBlockKind`: the built-in union plus branded plugin kinds. Every registry lookup keys off it.                                                                                                                                                      |
+| `raw`, `leadingTrivia` | every node                                                    | What serialization reads.                                                                                                                                                                                                                             |
+| `metadata`             | most kinds                                                    | Derived from `raw`; never part of the round trip. Typed to the kind once `switch (node.kind)` narrows; `metadataOf` reads it without narrowing.                                                                                                       |
+| `children`             | containers                                                    | The decomposition of the inner content.                                                                                                                                                                                                               |
+| `innerPrefix`          | containers whose body opens under an opener line of their own | The blank line the parse strips off between that opener line and the body (the `:::` / `<details>` family). A container with no such line (blockquote, list, list item) parses it empty, and a dev check on the node's shape fails one that fills it. |
+| `innerSuffix`          | containers                                                    | Whitespace inside the container, after its last child.                                                                                                                                                                                                |
+| `childIds`             | containers                                                    | Stable per-child IDs for keyed rendering (so Svelte reuses each child's component by ID, not by position). Carried on the node, so undo restores them with `children`.                                                                                |
+| `childSpans`           | containers                                                    | Where each child's bytes sit inside the container's own `raw`, so rewriting one child re-emits one region. Derived; dropped whenever the children change shape.                                                                                       |
+| `ownerEpoch`           | every node                                                    | Whether an undo snapshot still shares this node, so a write copies it first. See `editor.md` § Undo / redo.                                                                                                                                           |
 
 `innerPrefix` is the one field you won't see on a built-in. With the bundled admonitions plugin installed:
 
@@ -111,9 +118,9 @@ parse(':::note My title\n\nbody\n:::\n').children[0];
 // }
 ```
 
-`childIds`, `childSpans` and `ownerEpoch` are editor bookkeeping, not facts about the source. They play no part in the round trip, and if all you do is parse, you can ignore them. The split even has a type: readers outside the mutation layers hold bytes-readonly node views (`core/node-views.ts`), which keep the serialized fields immutable while leaving the bookkeeping writable.
+`childIds`, `childSpans` and `ownerEpoch` are editor bookkeeping, not facts about the source. They play no part in the round trip, and if all you do is parse, you can ignore them. The split even has a type: code outside the tree-editing layers holds node views (`core/node-views.ts`) whose serialized fields are readonly while the bookkeeping stays writable.
 
-**Inline content is not a node field.** Prose kinds get an inline tree, but it's derived from `raw`, computed lazily on read, never stored on the node, never serialized. (Why so strict: a reactive cache field on the node once corrupted keyed rendering. `editor.md` § Reactive state plumbing carries the incident.)
+**Inline content is not a node field.** Prose kinds get an inline tree (§ 4), but it's computed from `raw` when something reads it, and never stored on the node. Why so strict? A cache field on the node once broke keyed rendering; `editor.md` § Reactive state plumbing has the story.
 
 ### The container contract
 
@@ -133,7 +140,7 @@ quote.raw; // '> a\n>\n> - one\n> - two\n'
 concatChildren(quote.children); // 'a\n\n- one\n- two\n', the raw with its `> ` stripped
 ```
 
-A strip container keeps its metadata on its first line, and nowhere else. A list item's `marker` is the bullet or number plus every space after it, so the spaces count toward the marker, not the paragraph, and the marker's width is the column its other lines are indented to:
+A strip container keeps its metadata on its first line, and nowhere else. A list item's `marker` is the bullet or number plus every space after it, so the spaces count toward the marker, not the paragraph, and the marker's width (plus any spaces in front of the marker) is the column its other lines are indented to:
 
 ```ts
 parse('-  b\n').children[0].children[0].metadata; // { marker: '-  ', taskItem: false, ... }
@@ -141,13 +148,29 @@ parse('- [ ]  b\n').children[0].children[0].metadata.taskMarker; // '[ ]  '
 parse('> > a\n').children[0].metadata; // { quoteDepth: 2 }
 ```
 
-An edit that leaves a space at an item's content start leaves exactly those bytes, so the editor reads them the way this parse does. How, and what it costs, is in `editor.md` § The container `raw` contract.
+An edit that leaves spaces between an item's marker and its text keeps exactly those bytes, so the item reads the same in the editor as it will after a reload. How, and what it costs, is in `editor.md` § The container `raw` contract.
 
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function splits a row into cells (`core/parsers/table.ts :: splitRowCells`) and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.
+- **Grid.** A cell has no line syntax of its own, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the table's `rebuildRaw` owns the pipes around them. One function reads a table line into cells and says where each one sits (`core/parsers/table-line.ts :: rowCellSpans`), and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`); a copied piece of a table is written by the second, and pasted GFM rows are split by the first.
 
-  GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
+  A rebuilt row is written into its own old bytes, touching as little as it can:
+  - a row whose cells all still match what its bytes read stays exactly as it was, line ending included
+  - a changed cell gets its new text inside its old padding. A space you type at a cell's edge is padding to GFM, so the row doesn't write it until a letter follows it
+  - adding or removing a column cuts out that one cell, or splices in a padded one, and leaves the others alone. When every column has the same alignment, a new delimiter cell can land at the end of the row instead of where the column went (it reads the same)
+  - the delimiter row follows the same rule, so a column whose alignment didn't change keeps its `:--`
+  - a cell ending in a backslash keeps a space before the next pipe, since `x\|` would escape it
+
+  Only a line with no bytes of its own (a new row), or one whose rewrite wouldn't read back as its cells (in the editor or in GFM), gets the plain spelling, `| a | b |`. And one exception: a row with no leading pipe whose first cell changes gets pipes too, since `# x` at the start of a line would open a heading, and the table's rebuild doesn't know the block grammar.
+
+  ```ts
+  const table = parse('|a|b|\n|-|:-|\n|1|  2  |\n').children[0];
+  table.children[1].children[1].raw = '2Q';
+  rebuildTableRaw(table);
+  table.raw; // '|a|b|\n|-|:-|\n|1|  2Q  |\n': that cell's text moved, nothing else did
+  ```
+
+  GFM (§ 4.10) ignores body cells past the header's width. So a wider row's children stop at the column count, and the cells past it live on the row as **surplus**: bytes the file holds that nothing renders.
 
   ```ts
   const table = parse('| a | b |\n| - | - |\n| 1 | 2 | 3 |\n').children[0];
@@ -156,11 +179,11 @@ Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaq
   table.children[1].metadata.surplusCells; // ['3']: the cells past it, as written
   ```
 
-  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes, the way a load-and-save does; the first edit only tidies their padding. A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
+  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes (padding too, unless the edit gives a pipe-less row its pipes). A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
-- **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild, or metadata a rebuild left behind its bytes.
+- **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the only way the container's bytes get rebuilt, and two dev-mode checks stand in for the equation. One runs the rebuild twice and compares the two outputs to each other (never to `raw`, which a faithful parse of unusual spelling may legally differ from). The other reparses `raw` to catch children changed without a rebuild, or metadata that no longer matches the bytes.
 
-Why a plugin author should care, rather than skim: get the contract wrong and the machinery will helpfully "fix" your container in ways that destroy it. An opaque container declared `'strip'` gets its chrome bytes checked against a decomposition that doesn't exist.
+Why a plugin author should care, rather than skim: get the contract wrong and the editor will helpfully "fix" your container in ways that destroy it. An opaque container declared `'strip'` gets its chrome bytes checked against a decomposition that doesn't exist.
 
 ### Why `unrecognized` exists but is never produced
 
@@ -177,7 +200,7 @@ Markdown has no malformed-input case that needs a tree-sitter-style error node. 
 
 ### Algorithm
 
-A single-pass, line-oriented scanner. It splits the source into lines and matches each against the registered block openers (opener: the part of the parser that recognizes the syntax a block starts with) in priority order. Kinds declare `{priority, tryOpen, interruptsParagraph}` on the opener registry (`schema/block-openers.ts`), and both the dispatch order _and_ the paragraph-interrupt continuation scan derive from those declarations, so a plugin opener is a first-class citizen of the same priority order rather than a special case bolted onto the end.
+A single-pass, line-oriented scanner. It splits the source into lines and offers each one to the registered block **openers** in priority order (an opener is the part of the parser that recognizes the syntax a block starts with). A kind registers its opener as `{priority, tryOpen, interruptsParagraph}` (`schema/block-openers.ts`), and both the order openers are tried in and the check for "does this line cut an open paragraph short" are built from those registrations. So a plugin's opener sits in the same priority order as the built-ins, not bolted on at the end.
 
 ```ts
 OPENER_PRIORITIES; // schema/opener-priorities.ts; lower dispatches first, ties break by kind name
@@ -192,7 +215,7 @@ The built-in priorities, in order, with the notes that matter:
 3. Thematic break (a `---` after paragraph text is consumed as a setext underline first; setext is the other heading style, text with `===` or `---` under it)
 4. Blockquote: strip and recurse
 5. List item: strip and recurse
-6. Indented code (can't interrupt a paragraph, since an open paragraph absorbs the indented line as lazy continuation first, the spec's term for a paragraph swallowing the next line as plain text; after any non-paragraph block it opens with no blank line needed)
+6. Indented code. It can't interrupt a paragraph, since an open paragraph takes the indented line first as lazy continuation (the spec's term for a paragraph swallowing the next line as plain text). After any other block it opens with no blank line needed
 7. HTML block
 8. Link reference definition
 9. Nothing claimed it: start a paragraph and consume continuation lines (this fallback also detects setext headings and tables)
@@ -205,11 +228,11 @@ parse('```\nx\n').children[0];
 //   metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: false } }
 ````
 
-The fence grammar lives in one file, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it. The parser finds a closer with `findFenceCloser` (via `core/parsers/fenced-code.ts :: scanFence`), and the code block's renderer and caret rules, plus the plugin kinds that hold their own fence (math, mermaid), read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that shape legal, one opener line and one closer line, through the code block's own typing and through every write from outside a block. Typing in a plugin's fence doesn't reach the rule yet (#593).
+The fence grammar lives in one file, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it. The parser finds a closer with `findFenceCloser` (via `core/parsers/fenced-code.ts :: scanFence`), and the code block's renderer and caret rules read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that shape legal, one opener line and one closer line, through every write into the block, typing included. The plugin kinds with a fence of their own (the math fence, mermaid) declare the same rule as their `rawWrite`, so a closer-shaped line typed into their body can't split them either.
 
 ### Blank lines
 
-The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included. Whitespace here means spaces and tabs (GFM § 2.1), so a line holding a non-breaking space is text, not a blank line.
+The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the **separator**, and it goes in the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included. Whitespace here means spaces and tabs (GFM § 2.1), so a line holding a non-breaking space is text, not a blank line.
 
 ```ts
 parse('a\n\n\n\nb\n').children;
@@ -221,7 +244,7 @@ parse('a\n\n\n\nb\n').children;
 // ]
 ```
 
-A document-leading run has nothing to separate from, so all of it materializes as blocks and `Document.prefix` stays empty; a lone trailing blank line is still `Document.suffix`:
+A run at the very top of the document has nothing to separate from, so all of it becomes blocks and `Document.prefix` stays empty. A lone trailing blank line is still `Document.suffix`:
 
 ```ts
 parse('\n# Title\n\n');
@@ -231,33 +254,53 @@ parse('\n# Title\n\n');
 // ] }
 ```
 
-That rule is what makes the tree's **shape** a fixed point of serialize-then-parse, not just its bytes. A blank line you typed on purpose is a block the moment you type it, and it reloads as the same block. Every construct that separates blocks (Enter's split, a block delete, a structural paste) derives its separator from the same rule, so no path can produce a blank line the reload reads differently.
+Why bother? Because it makes the tree's **shape** survive a save and reload, not just its bytes. A blank line you typed on purpose is a block the moment you type it, and it reloads as the same block. Every edit that separates blocks (Enter's split, a block delete, a structural paste) writes its separator by the same rule, so no edit can leave a blank line the reload reads differently.
 
-A blank block is therefore doing two jobs at once: it's a block, and it's the separating line of the block below it. The consequences, one at a time:
+That means a blank block does two jobs at once: it's a block, and it's the separating line of the block below it. What follows from that:
 
-- **The pair holds exactly ONE separator between them, and there are two byte-equivalent places to keep it.** A load puts it on the blank block's own trivia and leaves the follower none (that's the snippet above); an Enter split puts it on the follower's and leaves the blank block none. Either shape reloads to the same tree. Carrying both would reload as a second empty paragraph; carrying neither would swallow the block.
-- **When a blank block stops being a blank line, its slot and its follower each need a separator of their own**, because the one line was doing both jobs.
-- **When a block becomes blank, the run it joins gives the second one back.** The count is a property of the whole run, not of one pair: a run of blank blocks and the block below it hold exactly one separator between them.
-- A run at the document head, or at the head of a plain container's body, holds none, because it separates from nothing. A chrome or opener line above the body counts as a line, so under one the run keeps its separator.
+- **The two hold exactly one separator between them, and it can sit in either of two places.** A load puts it on the blank block's own `leadingTrivia` and gives the follower none (the snippet above); an Enter split puts it on the follower and gives the blank block none. Both serialize to the same bytes and reload to the same tree. Carrying it twice would reload as a second empty paragraph, and carrying it nowhere would swallow the blank block.
+- **When a blank block gets text, its slot and its follower each need a separator of their own**, since the one line was doing both jobs.
+- **When a block turns blank, the run it joins gives one separator back.** The count belongs to the whole run, not to one pair: a run of blank blocks and the block below it hold exactly one separator between them.
+- A run at the top of the document, or at the top of a plain container's body, holds none, because there's nothing above it to separate from. A title or fence line above a body counts as something, so under one the run keeps its separator.
 
-The last line is the one line allowed to have no line ending, and a file saved without a final break keeps it that way through any structural edit (typing and an inline paste still add one for now): the commit ends the lines of the blocks an edit places, then takes the break back off whatever block ends up last (`docs/design/editor.md` § The commit primitive). One exception, on purpose. When the new last line is blank (Enter at the very end, ArrowDown past the last block, an empty inserted paragraph, the empty line Enter leaves in a last quote or list item), it keeps its break, since a blank line is nothing but its break and dropping it would drop the block too.
+#### The last line
 
-`settle.ts` owns the primitives that settle this (to settle: re-derive the blank-line separators after a splice): clear a separator that went redundant, drop a doubled one, restore the slot's own at a fill, restore the follower's after the blank line it consumed, and settle the run a block joins by turning blank. Every splice that changes what precedes a block settles through them, and a primitive that derives its own trivia, like `splitNode`'s separator or `deleteNode`'s hand-down, still settles through them afterwards.
+The last line is the one line allowed to have no line ending, and a file saved without a final line break keeps it that way through any structural edit and through typing (an inline paste still adds one, for now). The commit ends the lines of every block an edit places, then takes the break back off whichever block ends up last (`docs/design/editor.md` § The commit primitive).
 
-Three separators have no splice to derive them from. The first is a list whose first item is empty, right under a paragraph. A content-less list marker can't interrupt a paragraph (GFM § 5.2, list items), so an item reading `- x` followed by an indented bare `- ` reloads as `x` with a `-` underline, which is a setext heading, and `para` over an emptied `- ` reloads the same way. The marker is the only evidence the item ever existed, and the merge that absorbs boundary lines has nothing to merge it into. Every path that reaches the shape (the Enter-then-Tab nesting move, emptying the first item, a replace or splice that lands such a list) writes a blank line above the list, which is why nesting an empty item leaves a loose list (loose: a list whose items render with paragraph spacing, because a blank line sits inside it).
+One exception, on purpose: when the new last line is blank, it keeps its break, since a blank line is nothing but its break and dropping it would drop the block too. That covers Enter at the very end, ArrowDown past the last block, an empty inserted paragraph, and the empty line Enter leaves in a last quote or list item.
 
-The second is a block an edit turns into text right under a table. A table takes any line below its rows that opens no other block as one more row (GFM example 201), reading the lines under it in the editor's grammar (a `$$` block with its closing line opens one, an indented line with indented code switched off opens none), so unwrapping a quote there, turning a heading into text, or deleting the block between would hand the text to the table. The merge that joins neighbours writes a blank line above the block instead: the edit made a paragraph, and the next key belongs in it.
+#### Where the separators get fixed up
 
-The third is the line between the two blocks a move leaves side by side. Where a blank line separated either of them from the moved block, the move writes one between them whenever the two, flush, would reload as something else: an HTML block reading every line below it as its text, a table or a rule under a paragraph read as its continuation or its setext underline, two quotes read as one. Two blocks flush against both sides of the moved block rejoin, which is what deleting that block would leave.
+`tree-operations/settle.ts` holds the helpers that re-derive separators after a splice:
 
-A container inherits all of this through strip-and-recurse. In a body that ends where its indentation ends (a list item, a footnote definition), a whitespace-only line indented to the body belongs to the body. So a rebuild indents a blank line that ends the body when it's a block's own line (an empty block, or the line a paragraph keeps after you erase an underline). A separator line stays bare, as the parser reads it. The exception is a container whose body sits between chrome lines of its own (`:::note` ... `:::`, `<summary>` ... `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. The kind declares the wrap it parses with and the separator settle reads that declaration, which makes this a property of the plugin API rather than a per-kind branch in the parser: inside a wrap, the line a settle frees above the body head belongs to the wrap, not to the run. A run that is the whole body sits against both chrome lines and has to give a line to each, since a reload strips both before it materializes any block.
+- clear a separator that became redundant
+- drop a doubled one
+- give a slot its own separator back when a blank block in it gets text
+- give the follower its separator back after a blank line took it
+- hand one back to the run when a block turns blank
 
-A body's indentation counts in columns, and a tab reaches the next multiple of four, as CommonMark expands it. The document keeps its tabs. Where a body's content column cuts through a tab, or leaves one off a multiple of four, the child holds those columns as spaces, so a child's bytes read on their own the way they read in the body. The first edit inside an item writes those spaces into the source, on every line of that item that holds them, nested lists included. Sibling items keep their tabs, and undo puts the edited item's tabs back.
+Every splice that changes what sits above a block goes through them. A primitive that writes its own trivia, like `splitNode`'s separator or `deleteNode` handing a deleted block's separator down, still runs them afterwards.
+
+Three separators have nothing to re-derive from, so the edits that need them write them on purpose:
+
+1. **A list whose first item is empty, right under a paragraph.** A list marker with nothing after it can't interrupt a paragraph (GFM § 5.2), so an item reading `- x` followed by an indented bare `- ` reloads as `x` with a `-` underline, which is a setext heading; `para` over an emptied `- ` reloads the same way. The marker is the only evidence the item ever existed, and there's no neighbouring line to merge it into. So every path that reaches that shape (the Enter-then-Tab nesting move, emptying the first item, a replace or splice that lands such a list) writes a blank line above the list. That's why nesting an empty item leaves a loose list (a list whose items render with paragraph spacing, because a blank line sits inside it).
+2. **A block an edit turns into text right under a table.** A table takes any line below it that opens no other block as one more row (GFM example 201). It decides that in the editor's grammar: a `$$` block with its closing line opens one, an indented line with indented code switched off opens none. So unwrapping a quote there, turning a heading into text, or deleting the block in between would hand the text to the table. Instead, the merge that joins the neighbours writes a blank line above the block: the edit made a paragraph, and your next key belongs in it.
+3. **The line between the two blocks a move leaves side by side.** If a blank line separated either of them from the block that moved, the move writes one between them whenever the two, flush, would reload as something else: an HTML block reading every line below it as its own, a table or a rule under a paragraph read as its continuation or its setext underline, two quotes read as one. Two blocks that were flush against both sides of the moved block end up flush against each other, same as deleting it would leave them.
+
+#### Inside containers
+
+A container inherits all of this through strip-and-recurse, with two wrinkles and a note on tabs.
+
+**A body that ends where its indentation ends** (a list item, a footnote definition) owns any whitespace-only line indented to the body. So when a rebuild writes a blank line at the end of the body, it indents it if it's a block's own line (an empty block, or the line a paragraph keeps after you erase its underline), and leaves it bare if it's a separator, the way the parser reads it. A blank line that was already there keeps its bytes, bare or indented, as long as the body still ends where the parser would end it.
+
+**A body between two lines of the container's own** (`:::note` ... `:::`, `<summary>` ... `</details>`) treats the blank line against either of those lines as a separator like any other: it lands in `innerPrefix` or `innerSuffix`, and the rest of the run becomes blocks. The kind declares the wrap it parses with (`bodyWrap`), and the separator helpers read that declaration, so this is part of the plugin API rather than a per-kind branch in the parser. Inside a wrap, a line the helpers free up above the body's first block belongs to the wrap, not to the run. And a run that is the whole body sits against both lines and has to give one to each, since a reload strips both before it turns any line into a block.
+
+**Tabs.** A body's indentation counts in columns, and a tab reaches the next multiple of four, as CommonMark expands it. The document keeps its tabs. Where a body's content column cuts through a tab, or leaves one off a multiple of four, the child holds those columns as spaces, so a child's bytes read on their own the way they read in the body. An edit doesn't touch those tabs: every line it didn't change keeps its bytes. A line you rewrite keeps its tab too when the tab still lands its text in the same place, and gets spaces only when the content column cut through it.
 
 ### Scope boundaries
 
 - **Inline parsing is separate.** The block parser doesn't parse inline syntax; the editor layer triggers it. See `inline-parsing.md`.
-- **No incremental parsing.** Full re-parse every time. It could be added later without architectural change, and the editor's re-parse unit is one block anyway, so nobody has needed it.
+- **No incremental parsing.** It's a full parse every time. It could be added without changing the architecture, but the editor only ever re-parses one block at a time anyway, so nobody has needed it.
 - **No error-recovery machinery.** There's nothing to recover _from_; the paragraph fallback absorbs anything (see above).
 
 ## 4. Inline nodes
@@ -343,11 +386,11 @@ parse('-\n').children.map((c) => c.kind); // ['paragraph']
 parse('- a\n\n- b\n').children.map((c) => c.kind); // ['list', 'list']
 ```
 
-The last one falls out of the design rather than being a preference: the blank-line rule above is universal, so a blank line between two top-level blocks is the follower's separator wherever it appears. Folding the two items into one loose list would put that separator inside a node whose reload splits it again, and the tree would stop being a fixed point of serialize-then-parse.
+The last one falls out of the design rather than being a preference: the blank-line rule above is universal, so a blank line between two top-level blocks is the follower's separator wherever it appears. Folding the two items into one loose list would put that separator inside a node whose reload splits it again, and the tree's shape would stop surviving a save and reload.
 
 ## 6. Extending the tree
 
-The tree itself doesn't care about kind strings: the parser, the serializer, and the node model treat a kind registered this morning like a built-in. A new block kind is three registrations, a block-kind descriptor (`registerBlockKind`), an opener (`registerBlockOpener`), and a component (`registerBlockComponent`); `design/plugin-contract.md` specifies the surface, and `contributing/adding-a-block.md` walks the steps. That's the whole section, the detail lives there.
+The tree itself doesn't care about kind strings: the parser, the serializer, and the node model treat a kind registered this morning like a built-in. A new block kind is three registrations: a descriptor (`registerBlockKind`), an opener (`registerBlockOpener`), and a component (`registerBlockComponent`). `docs/design/plugin-contract.md` specifies the API, and `docs/contributing/adding-a-block.md` walks the steps. That's the whole section; the detail lives there.
 
 ## Appendix: the architecture that was rejected
 
@@ -362,5 +405,5 @@ Why it was rejected, once the editing loop had matured enough to judge:
 - **Round-trip fidelity.** Phase 2's guarantee is trivial because serialization _is_ concatenation. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`, `- ` vs `* `), which turns the round trip from a property into an ongoing fight.
 - **Partial syntax while typing.** `**bold` mid-keystroke is just a string in raw-as-truth. In tree-as-truth it's an invalid tree state that every keystroke has to handle.
 - **Semantic editing already works.** Toggle bold = insert `**` around the selection in `raw`. Change heading level = swap the `# ` prefix. The editor already does this. No tree manipulation needed.
-- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2, hiding markers on unfocus, ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview, and fully live) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the flip arrived without it, which is about as strong a vindication as a call gets.
+- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2, hiding markers on unfocus, ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview, and fully live) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the flip arrived without it.
 - **Complexity cost.** Tree-DOM sync, fragile serialization, and a new bug class, in exchange for the above. The editors that went this way (ProseMirror, Slate) pay an enormous complexity tax for it, and they don't even have a byte-lossless round trip to protect.

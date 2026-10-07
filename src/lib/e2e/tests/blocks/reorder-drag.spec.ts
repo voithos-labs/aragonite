@@ -55,6 +55,23 @@ test.describe('drag to reorder', () => {
 		await editor.bridge.waitForSourceMatches(/C[\s\S]*A[\s\S]*B/);
 	});
 
+	// Miss-analysis: the handles-off row only counted the picture's handle and never dragged it,
+	// while the drag finds its block and every drop target by a class that followed the prop.
+	test('with blockDragHandles=false a picture still drags past a paragraph', async () => {
+		await editor.goto('?dragHandles=false');
+		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n\nplain\n');
+		const picture = editor.page.locator('.block-host[data-block-path="[0]"]');
+		await picture.hover();
+		const hb = await picture.locator(':scope > .block-drag-handle').boundingBox();
+		const db = await editor.page.locator('.block-host', { hasText: 'plain' }).last().boundingBox();
+		if (!hb || !db) throw new Error('missing bounding box');
+		await editor.page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(db.x + db.width / 2, db.y + db.height - 2, { steps: 14 });
+		await editor.page.mouse.up();
+		await editor.bridge.waitForSourceMatches(/^plain\n\n!\[cat/);
+	});
+
 	test('drag a list item within its list', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 		await dragHandle('.list-item-block', 'one', '.list-item-block', 'three', true);

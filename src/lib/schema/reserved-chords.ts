@@ -122,8 +122,14 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
+		keys: [],
+		note: 'Its modifier reads are on pointer events (Shift extends a selection instead of dragging a widget, and a click activates a widget), so it consumes no keystroke.'
+	},
+	{
+		file: 'components/blocks/text/home-key.ts',
+		chords: ['Shift+Home', 'Mod+Home'],
 		keys: ['Home'],
-		note: 'Bare Home only; the modifier reads are the guard that keeps Shift+Home native and the widget activation click, which consumes no keystroke.'
+		note: "Taken only behind a marker or a leading widget, on the first line: Shift+Home extends to the text's start, and Mod+Home goes there from any line."
 	},
 	{
 		file: 'components/blocks/text/click-snap-guard.ts',
@@ -142,6 +148,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [' ', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'],
 		note: 'The caret-edge policy runs on plain keys; the modifier read is its gate. The bare space is container marker completion, consumed rather than claimed as a chord.'
+	},
+	{
+		file: 'components/blocks/text/pending-break-keys.ts',
+		chords: [],
+		keys: ['ArrowLeft', 'Backspace', 'Delete'],
+		note: 'A plain Backspace or ArrowLeft ends the pending break and stops there; with a modifier the key ends it and runs as usual.'
 	},
 	{
 		file: 'components/blocks/text/widget-interaction.ts',
@@ -169,6 +181,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift locks the aspect ratio during a pointer drag.'
 	},
 	{
+		file: 'components/image/image-press.ts',
+		chords: [],
+		keys: [],
+		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
+	},
+	{
 		file: 'components/image/image-widget-editing.ts',
 		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowLeft', 'ArrowRight'],
@@ -181,10 +199,21 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
 	},
 	{
-		file: 'components/image/widget-selection-state.svelte.ts',
+		file: 'cursor/edge-affinity.ts',
 		chords: [],
-		keys: [],
-		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
+		keys: [
+			'ArrowDown',
+			'ArrowLeft',
+			'ArrowRight',
+			'ArrowUp',
+			'End',
+			'Home',
+			'PageDown',
+			'PageUp',
+			'Process',
+			'Unidentified'
+		],
+		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a hidden construct edge, so the modifier reads there are a refusal.'
 	},
 	{
 		file: 'cursor/caret-memory.ts',
@@ -258,7 +287,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Delete',
 			'E',
 			'End',
-			'Enter',
 			'Escape',
 			'Home',
 			'I',
@@ -271,7 +299,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'k',
 			'x'
 		],
-		note: 'Mod+0-6 routes to the merged command registry, where that binding lives. The rewrite chords are claimed over a cross-block range and handed to the cross-block dispatch: the four format toggles route to the cross-block handler, and the link card declines, since no single block can hold the link it would create. Falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes a branch of its own: unshifted Mod+X is the whole-block cut.'
+		note: 'Enter and Mod+0-6 are claimed over a range by what the keymap binds them to, not here. The rewrite chords are claimed over a cross-block range and handed to the cross-block dispatch: the four format toggles route to the cross-block handler, and the link card declines, since no single block can hold the link it would create. Falling through read the chord as text (or ran Ctrl+K as kill-line). Mod+Shift+X takes a branch of its own: unshifted Mod+X is the whole-block cut.'
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',

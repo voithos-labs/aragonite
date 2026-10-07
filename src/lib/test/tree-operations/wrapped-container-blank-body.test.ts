@@ -11,12 +11,13 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // Emptying every body block of a fenced container leaves a blank run that is the whole body, and
 // the reload strips a line into both `innerPrefix` and `innerSuffix`, so the run carries two lines.
 // Miss-analysis: GH #130, every fence-line case had prose on one side of the run.
 
-/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
+/** The emptied-block gesture through the container write: typing sends the ending alone. */
 function emptyBodyChild(container: CstNode, at: number): void {
 	updateNodeContent(
 		{
@@ -26,7 +27,8 @@ function emptyBodyChild(container: CstNode, at: number): void {
 		},
 		at,
 		trailingLineEnding(container.children![at].raw, '\n'),
-		defaultGrammarView
+		defaultGrammarView,
+		createSharingState()
 	);
 	rebuildAncestryRaw(container, [], fixtureGrammar);
 }

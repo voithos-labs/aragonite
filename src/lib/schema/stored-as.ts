@@ -18,5 +18,7 @@ export interface StoredAs {
 	/** Stored bytes read as a reload reads them at the position, or null where the reload would
 	 *  read the container around them differently. */
 	readSlot(stored: string): Document | null;
+	/** Bytes a write installs at the position, read as it installs them: every byte kept. */
+	readWritten(bytes: string): Document;
 	readonly [storedAsBrand]: true;
 }

@@ -16,6 +16,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { triviaRawOf } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing.
 // Paste parses the clipboard, so the parser's separator rule is the whole answer.
@@ -116,7 +117,7 @@ describe('pasting over a blank line settles the separators it consumed', () => {
 	// so the same paste strands the replacement head against the block above instead.
 	it('hands the replacement head the line a split-shaped blank slot was holding', async () => {
 		const split = parse('alpha\n\ndelta\n');
-		splitNode(split, 0, 5, undefined, fixtureReading());
+		splitNode(split, 0, 5, createSharingState(), fixtureReading());
 		expect(layout(split)).toEqual([
 			['', 'alpha\n'],
 			['', '\n'],

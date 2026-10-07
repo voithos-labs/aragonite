@@ -32,7 +32,8 @@ class TypedLine {
 			foldReveal: () => null,
 			setCaret: (offset) => (this.caret = offset),
 			seatOutside: () => {},
-			write: (next, _before, after) => {
+			hiddenRunAt: () => false,
+			write: (next, after) => {
 				this.text = next;
 				this.caret = after;
 			},

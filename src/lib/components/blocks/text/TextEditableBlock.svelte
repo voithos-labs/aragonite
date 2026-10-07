@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { getContext, tick, untrack } from 'svelte';
+	import { getContext, onDestroy, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
-	import { shownKind } from '../../../core/parsers/heading';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -18,15 +17,15 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind, structuralSuffix } from '../../../core/inline';
+	import {
+		getContentRange,
+		isProseKind,
+		sameLineSuffix,
+		structuralSuffix
+	} from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-	import { isInlineWidget } from '../../../core/inline/inline-widgets';
-	import {
-		documentLineEnding,
-		trimTrailingLineEnding,
-		trailingLineEnding
-	} from '../../../core/lines';
+	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatInElement } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -52,6 +51,10 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createEdgeStep } from './edge-step';
+	import { applyTypedInput, createTypedPlacement } from './edge-seat';
+	import { handlePendingBreakKey, type PendingBreakKeyDeps } from './pending-break-keys';
+	import { handleHomeKey, type HomeKeyDeps } from './home-key';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit } from './live-selection-edit';
@@ -60,31 +63,26 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
-	import { widgetElByStart } from './widget-adjacency';
-	import {
-		caretLandableBounds,
-		handleSharedKeydown,
-		handleSharedBeforeInput
-	} from '../../../selection/shared-keydown';
+	import { widgetElByStart, widgetsIn } from './widget-adjacency';
+	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		editableSurfaceAttributes,
 		createEditableSurface,
-		consumePendingRestore,
-		withKeydownVerdict
+		consumePendingRestore
 	} from '../editable-surface';
+	import { rangeWrite, withOwnEnding } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
-		landableStartAbutsIsland,
-		markerPrefixOf,
 		rawOffsetAt,
 		rawTextOfContent,
 		revealsNoMarkers,
-		screenVisibilityOf,
-		rawSelectionFocus
+		rawSelectionFocus,
+		caretOnPendingBreakLine
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
+	import type { CommandRun } from '../../../schema/block-commands';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
@@ -142,21 +140,16 @@
 		reading
 	} = wiring.deps;
 	const { grammar } = reading;
-	// A block with no line ending of its own is the document's last line; a write gives it the
-	// document's.
-	const documentEnding = () => documentLineEnding(getDoc());
-	const blockEnding = () => trailingLineEnding(node.raw, documentEnding());
 	// Made per gesture, never derived: a derived value would subscribe the block to the tree.
 	const storedAs = () => storedAsAt(getDoc(), myPath, reading);
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
 		autoPairs,
-		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
 		decorations: decorationEngine,
-		kindCue
+		drafts
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -227,47 +220,76 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
+	const edgeStep = createEdgeStep({
+		getEl: () => el ?? null,
+		getRaw: () => node.raw,
+		getInlines: () => resolvedInlineContent(node, reading),
+		// On the line a pending break opened, the caret is at no construct's edge.
+		getCaret: () =>
+			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
+		isReading: () => readOnly,
+		reading,
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
+	});
+	const typedPlacement = createTypedPlacement({
+		getEl: () => el ?? null,
+		getNode: () => node,
+		reading,
+		caretMemory,
+		heldSpace: () => editableSurface.heldSpace
+	});
+	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
+	let caretHasEntered = false;
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
 		isInputSuppressed: () => revealing,
 		backend: cursor,
+		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
 		},
-		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
+		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
+		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
+		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		commitInput: (text, preEdit, saved) => {
-			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
-			const before = shownKind(node);
-			const write = blockEdit.updateBlockContent(
-				index,
-				text + blockEnding(),
-				'authored',
-				preEdit,
-				saved
-			);
-			void kindCue.afterTypedWrite(write, myPath, before);
-			return write.admitted ? write.caret : null;
-		},
+		placeInsertion: typedPlacement.insertion,
 		inputPrelude: () => {
 			markKeystrokeStart();
 			armSnapTarget(null);
 		},
-		handleBeforeInput: onBeforeInput
+		handleKeydown: onKeyDown,
+		handleBeforeInput: onBeforeInput,
+		// After a shown source is written: until then the selected text lives in the DOM only.
+		removeSelection: (range) =>
+			new Promise((written) =>
+				afterSourceCommit(() =>
+					written(
+						writeText({
+							...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+							intent: 'command',
+							mode: 'authored',
+							source: 'selection-removal'
+						})
+					)
+				)
+			)
 	});
+	const { writeText, pendingBreak } = editableSurface;
+	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
 
 	const widgetInteraction = createWidgetInteraction({
-		getLineEnding: documentEnding,
 		storedAs,
 		get node() {
 			return node;
@@ -281,8 +303,9 @@
 		getEl: () => el ?? null,
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
-		widgetSelection,
+		selection,
 		blockEdit,
+		writeText,
 		focusActions,
 		setSnapTarget: (offset) => {
 			armSnapTarget(offset);
@@ -293,10 +316,12 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
+		drafts,
 		get reading() {
 			return reading;
 		}
 	});
+	onDestroy(widgetInteraction.dispose);
 
 	// After `widgetInteraction`, because a clipboard edit hides a shown source before it
 	// touches the CST.
@@ -320,7 +345,6 @@
 		pasteCoordinator,
 		activePlugins,
 		getDoc,
-		widgetSelection,
 		events: editorEvents,
 		onPasteImage,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
@@ -348,7 +372,6 @@
 	// Every caret-edge key goes through this one dispatch (G4.12); entering a widget stays in
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
-		getLineEnding: documentEnding,
 		get node() {
 			return node;
 		},
@@ -366,8 +389,8 @@
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
-		blockEdit,
-		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
+		writeText,
+		completeMarker: () => void blockEdit.completeMarker(index),
 		setSnapTarget: (offset) => {
 			armSnapTarget(offset);
 		},
@@ -375,10 +398,7 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		getEdgeAffinity: caretMemory.side,
-		noteOutside: caretMemory.noteExtreme,
-		pendingMarks: caretMemory.pendingMarks,
-		ownPairs
+		pendingMarks: caretMemory.pendingMarks
 	});
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
@@ -386,17 +406,16 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: caretMemory.side,
-		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, in the displayed bytes this
-		// returns (`commitInput` re-appends the trailing line ending).
+		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
+		// composition commit writes.
 		resolveRangeEdit: (range, typed) => {
 			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
 			if (edit.matchesBrowserEdit) return null;
-			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+			const { text, caretAfter } = rangeWrite(edit);
+			return { raw: text, caret: caretAfter };
 		}
 	});
 
@@ -414,6 +433,7 @@
 			return ambientPrefixText;
 		},
 		getDisplayText: () => getDisplayText(),
+		pendingBreakLines: () => pendingBreak.lines(),
 		resolveImageUrl,
 		resolveLinkUrl,
 		get imageLoadPolicy() {
@@ -446,6 +466,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const typeText = editableSurface.surface.typeText;
 
 	export function isVerticallyTransparent(): boolean {
 		return widgetInteraction.isVerticallyTransparent();
@@ -483,55 +504,56 @@
 		return demoteToParagraph(node.raw, getContentRange(node), offset);
 	}
 
+	/** At the end of the text's line the break waits for the next insertion to write it; anywhere
+	 *  else it writes its bytes now. */
+	function writeHardBreak(offset: number): void {
+		const content = getContentRange(node);
+		const lineEnd = content.end + sameLineSuffix(node).length;
+		const ending = editableSurface.lineEnding();
+		// A caret in front of a hidden closer at the end is at the end too: nothing paints past it.
+		const textEnd = Math.min(content.end, caretBounds().end);
+		if (offset >= textEnd && offset <= lineEnd) {
+			// Asked of the write gate, so no line opens where its insertion would be refused.
+			if (!controller.admitsGesture('hardBreak')) return;
+			// The insertion that writes the break starts its own undo entry.
+			controller.flushDebouncedCheckpoint();
+			pendingBreak.open({ textEnd: content.end, lineEnd, ending });
+			setPendingCursorOffset(lineEnd, 'hard-break');
+			return;
+		}
+		const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, ending, content);
+		const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset, caretOffset);
+		if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
+	}
+
+	type SplitCommand = { applies: () => boolean; perform: () => void };
+
 	/** Split so hiding a shown source fits between the halves: `applies` reads only the DOM, and
 	 *  `perform` reads `node.raw`, valid only after the source is hidden. */
 	function blockCommand(
 		id: CommandId,
 		arg: unknown,
 		offset: number,
-		selected: { start: number; end: number } | null
-	): { applies: () => boolean; perform: () => void } | null {
+		selected: { start: number; end: number } | null,
+		run: CommandRun
+	): SplitCommand | null {
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
-				return always(() => blockEdit.splitBlock(index, offset));
+				return always(() => blockEdit.splitBlock(index, offset, run));
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
-				return always(() => {
-					const { newRaw, caretOffset } = insertHardBreak(
-						node.raw,
-						offset,
-						documentEnding(),
-						getContentRange(node)
-					);
-					const write = blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						'authored',
-						offset,
-						caretOffset
-					);
-					if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
-				});
+				return always(() => writeHardBreak(offset));
 			case 'block.insertTab':
 				return {
 					// Inside a list item Tab is the list's indent, so decline and let it bubble.
 					applies: () => !listContext,
 					// A literal tab, because the browser default moves focus out of the editor.
+					// The key types its own character, so its write is typing's.
 					perform: () => {
-						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
-						// The key types its own character, so its kind change is named as typing's is.
-						const before = shownKind(node);
-						const write = blockEdit.updateBlockContent(
-							index,
-							newRaw,
-							'authored',
-							offset,
-							caretOffset
-						);
-						void kindCue.afterTypedWrite(write, myPath, before);
-						if (write.admitted) setPendingCursorOffset(write.caret, 'insert-tab');
+						const tabbed = insertLiteralTab(getDisplayText(), offset);
+						void writeText({ ...tabbed, intent: 'typed', mode: 'authored', source: 'insert-tab' });
 					}
 				};
 			case 'block.mergePrev':
@@ -601,14 +623,16 @@
 		}
 	}
 
-	export function runCommand(id: CommandId, arg?: unknown): boolean {
-		// Read live: a command dispatched from another block arrives with no input event here.
-		const offset = cursor.getRaw() ?? 0;
-		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
-		if (!command || !command.applies()) return false;
-		afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
-		return true;
-	}
+	export const runCommand = editableSurface.command(
+		(id: CommandId, arg?: unknown, run: CommandRun = { afterRemoval: false }): boolean => {
+			// Read live: a command dispatched from another block arrives with no input event here.
+			const offset = cursor.getRaw() ?? 0;
+			const command = blockCommand(id, arg, offset, cursor.getRawSelection(), run);
+			if (!command || !command.applies()) return false;
+			afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
+			return true;
+		}
+	);
 
 	// A shown source holds this block's edit in the DOM only, so a command waits for it to be
 	// written; the user's offset stays valid, since the written text is the DOM text.
@@ -664,7 +688,8 @@
 		insertMarkdown,
 		snapCaretToPoint,
 		runCommand,
-		afterSourceCommit
+		afterSourceCommit,
+		afterSelectionRemoved
 	} satisfies BlockComponent);
 
 	// ── Content sync ──────────────────────────────────────────────────────
@@ -703,7 +728,11 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			if (!composing) constructReveal.update(true);
+			// Both read the selection, which forces a layout: never in a block the caret has not
+			// been in, since a fling mounts many.
+			if (composing || !caretHasEntered) return;
+			constructReveal.update(true);
+			edgeStep.refresh();
 		});
 		markKeystrokeSettle();
 	});
@@ -755,8 +784,11 @@
 			clearSnapTargetIfMoved(root);
 			notePressSeat(root);
 			if (composing) return;
+			// The line goes once the caret leaves it, whatever moved the caret.
+			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
+			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -779,8 +811,7 @@
 		// paints one of its own under it, however the range was entered.
 		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of resolvedInlineContent(node, reading)) {
-			if (!isInlineWidget(inline, node.raw, grammar)) continue;
+		for (const inline of widgetsIn(node, reading)) {
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
@@ -836,8 +867,29 @@
 		compositionSeat.noteEnd();
 	}
 
+	// Built once, not per keydown: every typed character passes both key handlers.
+	const pendingBreakKeyDeps: PendingBreakKeyDeps = {
+		pendingBreak,
+		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
+		getDisplayText,
+		hasPendingMarks: () => caretMemory.pendingMarks.get() !== null,
+		opensBreak: (ev) => wiring.resolveChord(ev, node.kind) === 'block.hardBreak',
+		writeText,
+		requestCaret: (at) => setPendingCursorOffset(at, 'pending-break')
+	};
+	const homeKeyDeps: HomeKeyDeps = {
+		getEl: () => el ?? null,
+		caretBounds,
+		getFocusOffset: () => cursor.getFocusOffset(),
+		// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
+		focusContentStart: () => focus(CURSOR_START)
+	};
+
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || editableSurface.isDetached()) return;
+
+		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
+		if (handlePendingBreakKey(e, pendingBreakKeyDeps)) return;
 
 		// Shows markers only, before any default runs: fast arrows outrun the async
 		// `selectionchange` update, and a step against still-hidden markers skips their bytes.
@@ -862,24 +914,17 @@
 		// from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// The browser's Home lands before the marker span or past a leading widget. `CURSOR_START`
-		// rather than offset 0, so the clamp still applies.
-		if (
-			e.key === 'Home' &&
-			!e.shiftKey &&
-			el &&
-			(markerPrefixOf(el) !== null || landableStartAbutsIsland(el))
-		) {
-			e.preventDefault();
-			focus(CURSOR_START);
-			return;
-		}
+		if (handleHomeKey(e, homeKeyDeps)) return;
 
-		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
+		const target = {
+			kind: node.kind,
+			runCommand,
+			getPath: () => myPath,
+			afterSourceCommit,
+			afterSelectionRemoved
+		};
 		if (wiring.dispatchChord(e, target)) return;
 	}
-
-	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
 
 	/** A range edit in a mode that draws no delimiter goes through the join rules, since the browser
 	 *  would leave the crossed markers behind. Elsewhere the browser keeps its own edit. */
@@ -890,16 +935,13 @@
 			cursor,
 			storedAs(),
 			widgetInteraction.isRevealing,
-			(edit) => {
-				const write = blockEdit.updateBlockContent(
-					index,
-					edit.raw,
-					'authored',
-					edit.range.start,
-					edit.caret
-				);
-				if (write.admitted) setPendingCursorOffset(write.caret, 'live-selection-edit');
-			}
+			(edit) =>
+				void writeText({
+					...rangeWrite(edit),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'live-selection-edit'
+				})
 		);
 	}
 
@@ -910,29 +952,34 @@
 			text: () => (widgetInteraction.isRevealing() ? readRawText() : getDisplayText()),
 			content: () => getContentRange(node),
 			caret: () => cursor.getRaw(),
+			placeTyped: typedPlacement.offsetFor,
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			hiddenRunAt: edgeStep.hiddenRunAt,
 			completesLine: (caret) =>
-				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
+				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
 			ownPairs,
-			write: (text, caretBefore, caretAfter) => {
-				const raw = text + blockEnding();
-				const write = blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter);
-				if (write.admitted) setPendingCursorOffset(write.caret, 'delimiter-autopair');
-			}
+			write: (text, caretAfter) =>
+				void writeText({
+					text,
+					caretAfter,
+					intent: 'typed',
+					mode: 'authored',
+					source: 'delimiter-autopair',
+					inPlace: true
+				})
 		});
 	}
 
-	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		if (handleLiveSelectionEdit(e)) return;
-		if (handleDelimiterAutoPair(e)) return;
+	function onBeforeInput(e: InputEvent): void {
+		const typedSteps = { autoPair: handleDelimiterAutoPair, rangeEdit: handleLiveSelectionEdit };
+		if (applyTypedInput(e, typedSteps)) return;
 		// An `insertLineBreak` from a soft keyboard or IME got past `onKeyDown`: consume it, since
 		// Shift+Enter is what makes a hard break.
 		if (e.inputType === 'insertLineBreak') {
@@ -976,15 +1023,36 @@
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
 		// Save an edit to a shown source before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
+		pendingBreak.end();
 		armSnapTarget(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();
+		syncCaretChrome();
+	}
+
+	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
+	 *  window keeps the selection but fires no `selectionchange`. */
+	function syncCaretChrome(): void {
+		constructReveal.update();
+		edgeStep.sync();
+	}
+
+	function onFocus(): void {
+		caretHasEntered = true;
+		syncCaretChrome();
 	}
 
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
-		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 'literal', 0);
+		if (!demoted) return;
+		void writeText({
+			text: trimTrailingLineEnding(demoted.newRaw),
+			caretAfter: demoted.caretOffset,
+			intent: 'repair',
+			mode: 'literal',
+			source: 'demote-on-blur'
+		});
 	}
 
 	function onClick(e: MouseEvent): void {
@@ -1039,7 +1107,7 @@
 
 		const write = blockEdit.updateBlockContent(
 			index,
-			newDisplay + blockEnding(),
+			withOwnEnding(node, newDisplay),
 			'literal',
 			range.start,
 			newSelStart
@@ -1065,7 +1133,8 @@
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
-	onkeydown={onKeyDownTraced}
+	onkeydown={editableSurface.onKeyDown}
+	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
@@ -1073,6 +1142,7 @@
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}
+	onfocus={onFocus}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
@@ -1124,14 +1194,6 @@
 		opacity: var(--syntax-marker-dim, 0.65);
 		font-weight: normal;
 		font-style: normal;
-	}
-
-	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-code, ui-monospace, monospace);
-		font-size: 0.9em;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border-radius: 3px;
-		padding: 1px 4px;
 	}
 
 	.text-editable-block :global(.md-autolink) {

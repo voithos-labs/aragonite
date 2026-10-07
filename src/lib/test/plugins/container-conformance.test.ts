@@ -15,6 +15,11 @@ import { checkDeclarationSanity } from '$lib/testing/container-conformance';
 import { testClosure } from '$lib/test/support/closure';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { registerGithubAlert } from '$lib/plugins/admonitions/github-alert-kind';
+import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
+import { parse } from '$lib/core/parser';
+import { childHoldingLastLine } from '$lib/schema/container-raw';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 // The container conformance kit pointed at real plugin containers, the audience it is for.
 // Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
@@ -225,6 +230,41 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 			/declarations: callout declares container\.contentStartSpace/
 		);
 	});
+
+	// The title row sits on the opener line, so naming it walks the open last line into the wrong one.
+	it('fails declaration sanity when lastLineChild names a child above the last line', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { container: { lastLineChild: () => 0 } });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout names child 0 as holding its last line/
+		);
+	});
+
+	// A quote-shaped alert's last child holds its last line, so a -1 answer leaves that child's
+	// ending behind when the file loses its final line break.
+	it('fails declaration sanity when lastLineChild answers -1 for a child’s line', () => {
+		registerGithubAlert();
+		const alert = declaredPluginKind(GITHUB_ALERT);
+		augmentBlockKind(alert, { container: { lastLineChild: () => -1 } });
+
+		expect(() =>
+			checkDeclarationSanity(alert, {
+				...calloutProfile,
+				deepNesting: { source: '> [!NOTE]\n> a\n>\n> b\n', leafPath: [0, 1] }
+			})
+		).toThrow(/githubAlert answers that its own bytes hold its last line/);
+	});
+
+	it.each([7, -2, 0.5])(
+		'reads a lastLineChild answer of %s as the container’s own bytes, and warns',
+		(answer) => {
+			augmentBlockKind(CALLOUT_KIND(), { container: { lastLineChild: () => answer } });
+			const callout = parse(':::callout T\nbody\n:::\n').children[0];
+
+			expect(childHoldingLastLine(callout)).toBe(-1);
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:last-line-child-range']);
+		}
+	);
 
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(

@@ -26,6 +26,10 @@ import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
+import { checkReadsBack } from './reads-back';
+import { isDevChecks } from '../env';
+import { perfEnabled } from '../perf/instruments';
+import { checkTopLevelUntouched } from './top-level-untouched';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
  *  container's raw is that rebuild's output. */
@@ -74,9 +78,26 @@ export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 	assertInvariant('last-line-kept', () => checkLastLineKept(doc, wasOpen));
 }
 
+/** G1.55, after a keystroke's or a commit's rebuild: each top-level block in `tops`, the ones now
+ *  holding what the edit wrote, reads back as itself. Off under the perf instruments. */
+export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
+	if (!isDevChecks() || perfEnabled()) return;
+	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
 /** G1.44, after every structural commit publishes: `touched` is what the commit wrote. */
 export function assertKeepsABlock(doc: Document, touched: CstNode[]): void {
 	assertInvariant('keeps-a-block', () => checkKeepsABlock(doc, touched));
+}
+
+/** G1.54, when a commit's mutation returns: `tree` is the top-level array the commit started from,
+ *  `before` its blocks once the scopes were prepared. */
+export function assertTopLevelUntouched(
+	live: readonly CstNode[],
+	tree: readonly CstNode[],
+	before: readonly CstNode[]
+): void {
+	assertInvariant('top-level-untouched', () => checkTopLevelUntouched(live, tree, before));
 }
 
 /** G1.36, the reading half, run wherever ids are written to state: an id array that is too short

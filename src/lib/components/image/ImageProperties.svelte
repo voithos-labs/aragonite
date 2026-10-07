@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
-	import { pressLeavesImage } from './widget-selection-state.svelte';
+	import { pressLeavesImage } from './image-press';
 	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
@@ -422,8 +422,16 @@
 			<MenuIcon name="trash" />
 		</button>
 	{/if}
+	<!-- A mode change saves the draft, as every close but Escape does; a swap drops it, since the
+		new document is already in place. -->
 	{#if fieldOpen}
-		<label class="md-image-field" {@attach keepFieldOnScreen} {@attach menuPresence.track}>
+		<label
+			class="md-image-field"
+			{@attach keepFieldOnScreen}
+			{@attach menuPresence.track((cause) => closeField(cause === 'mode-change'), {
+				edits: true
+			})}
+		>
 			<span class="md-image-field-label">Alt</span>
 			<input
 				type="text"

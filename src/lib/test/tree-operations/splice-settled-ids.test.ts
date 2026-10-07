@@ -21,7 +21,7 @@ describe('a path splice whose settle folds', () => {
 		const sharing = createSharingState();
 		deleteAtPath(doc, [0, 1], sharing, defaultGrammarView);
 		// The function splices and fixes up; rebuilding the container's own bytes is its caller's job.
-		rebuildOwnedContainer(quote, sharing);
+		rebuildOwnedContainer(quote);
 
 		expect(serialize(doc)).toBe('> a\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();

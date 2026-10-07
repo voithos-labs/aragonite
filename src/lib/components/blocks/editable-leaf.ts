@@ -5,10 +5,10 @@
  * synchronously during initialisation; the contract is plugin-guide § The editable leaf.
  */
 
-import { getContext } from 'svelte';
+import { getContext, onDestroy } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions } from '../../action-contracts';
-import type { StickyColumnDirection } from '../../block-component';
+import type { EditableLeafBlockApi, StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
 	EDITOR_POLICIES_KEY,
@@ -24,16 +24,17 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
-	withKeydownVerdict,
 	type EditableSurfaceAttributes
 } from './editable-surface';
+import type { ClipboardCopy } from './clipboard-step';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {
 	CONTENT_EMPTY_ATTR,
 	chromeFreeText,
 	clampToLandableRaw,
-	holdsOnlyMarkerChrome
+	holdsOnlyMarkerChrome,
+	type RawRange
 } from '../../cursor/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
@@ -42,39 +43,49 @@ import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import {
-	documentLineEnding,
-	isBlankText,
-	trimTrailingLineEnding,
-	trailingLineEnding
-} from '../../core/lines';
+import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type BlockTargetContext } from '../../schema/block-commands';
+import { type BlockCommandTarget, type CommandRun } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
-import { componentPluginEditor } from '../../schema/block-component-registry';
+import {
+	componentPluginEditor,
+	componentPluginOptions
+} from '../../schema/block-component-registry';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
+import type { Draft } from '../../schema/drafts';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
 /**
- * What the host component passes in. A function-valued field is read on every use, so a
- * structural edit or an undo is seen rather than snapshotted; `mode` and `singleLine` are read
- * once, at the factory call.
+ * What the host component passes in. A function-valued field is read on every use, so an edit or
+ * an undo is seen rather than snapshotted; `mode` and `singleLine` are read once. A render-primary
+ * leaf owns its swap and passes both halves; a cast or JavaScript caller without them gets a throw.
  */
-export interface EditableLeafDeps {
+export type EditableLeafDeps = PlainLeafDeps | RenderPrimaryLeafDeps;
+
+interface PlainLeafDeps extends LeafDepsBase {
+	mode?: 'plain';
+	/** A plain leaf's source is always the editable view, so it has no swap to own. */
+	isRevealed?: never;
+	setRevealed?: never;
+}
+
+interface RenderPrimaryLeafDeps extends LeafDepsBase {
+	mode: 'render-primary';
+	/** The component owns the swap flag and both views. */
+	isRevealed(): boolean;
+	setRevealed(revealed: boolean): void;
+}
+
+interface LeafDepsBase {
 	getNode(): NodeView;
 	getIndex(): number;
 	getPath(): number[];
 	/** The source contenteditable; null while unmounted (render-primary's rendered view). */
 	getEl(): HTMLElement | null;
-	mode?: EditableLeafMode;
 	/** A kind whose bytes are one line: Enter splits the block rather than typing a newline. */
 	singleLine?: boolean;
-
-	/** render-primary only: the component owns the swap flag and both views. */
-	isRevealed?(): boolean;
-	setRevealed?(revealed: boolean): void;
 	/** The component's view-state hooks, handed to a block command as `ctx.hooks` and read at
 	 *  dispatch, so return live values. Typed `unknown`; the plugin casts it. */
 	commandHooks?: () => unknown;
@@ -84,9 +95,13 @@ export interface EditableLeafDeps {
 	/** The source text after each edit the leaf applies itself, for a live preview: the CST sees
 	 *  a render-primary edit only on blur, and a cancelled `beforeinput` fires no `input`. */
 	onSourceEdit?(text: string): void;
-	/** Completes a markers-only source (a `$$$$` with no body line) to one a caret can sit in,
-	 *  applied on show and after any edit that empties it; null leaves the bytes alone. */
-	completeBareSource?(text: string): { text: string; caret: number } | null;
+	/** The source as the kind keeps it, asked on show and after every edit, with the caret carried
+	 *  (a markers-only `$$$$` gains a body line); an added line takes `lineEnding`. Null keeps it. */
+	reshapeSource?(
+		text: string,
+		caret: number,
+		lineEnding: LineEnding
+	): { text: string; caret: number } | null;
 }
 
 /**
@@ -131,6 +146,10 @@ export interface EditableLeafRenderProps {
 }
 
 export interface EditableLeaf {
+	/** Everything the editor calls on this block, published as the component's one export:
+	 *  `export const blockApi = leaf.blockApi;`. */
+	readonly blockApi: EditableLeafBlockApi;
+
 	/** The block's source minus its trailing line ending, which is the editable text. */
 	readonly sourceText: string;
 
@@ -155,41 +174,25 @@ export interface EditableLeaf {
 	getTheme(): string;
 
 	/** This editor's options for the plugin owning this kind, so two editors can configure one
-	 *  kind differently. `unknown`, like `commandHooks`: the plugin narrows it. */
-	getOptions(): unknown;
+	 *  kind differently; the plugin's `defaults` when no editor is mounted. */
+	getOptions<Options>(): Options;
 	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
 	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
 	getEditor(): EditorContext | undefined;
 
-	// ── BlockComponent methods (do nothing while the source is hidden) ────────
-	focus(offset: number): void;
-	parkCaret(offset: number): void;
-	focusAtColumn(x: number, from: StickyColumnDirection): void;
-	getCursorOffset(): number | null;
-	getSelectedText(): string;
-	setSelection(start: number, end: number): void;
-	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
-
-	// ── Programmatic edits ─────────────────────────────────────────────────────
-	/** Insert Markdown at the caret as a paste would; export it as the component's
-	 *  `insertMarkdown`. Resolves once the paste lands, false when it declined. */
-	insertMarkdown(md: string): Promise<boolean>;
 	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
 	reveal(offset?: number): Promise<void>;
 	/** Commit edited source as one undo entry, fire and forget; the parse decides update / kind
 	 *  change / structural split. */
 	commitSource(edited: string): void;
-	/** Run `run` once a shown source is hidden and written, so a move from outside the block takes
-	 *  the edit along: publish it as the component's `afterSourceCommit`. */
-	afterSourceCommit(run: () => void): void;
 }
 
 /** What a plugin block command runs against on a leaf, read through `deps` at dispatch so a
  *  node swap is seen; the leaf's counterpart of `buildContainerKindTarget`. */
 export function buildLeafCommandContext(
-	deps: Pick<EditableLeafDeps, 'getNode' | 'getIndex' | 'commandHooks'>,
+	deps: Pick<LeafDepsBase, 'getNode' | 'getIndex' | 'commandHooks'>,
 	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
-): BlockTargetContext {
+): BlockCommandTarget {
 	return {
 		node: deps.getNode(),
 		updateMetadata: (patch) => void blockEdit.updateBlockMetadata(deps.getIndex(), patch),
@@ -200,11 +203,13 @@ export function buildLeafCommandContext(
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
 	const singleLine = deps.singleLine ?? false;
-	if (mode === 'render-primary' && (!deps.isRevealed || !deps.setRevealed)) {
-		throw new Error('createEditableLeaf: render-primary mode requires isRevealed + setRevealed');
+	if (
+		deps.mode === 'render-primary' &&
+		(typeof deps.isRevealed !== 'function' || typeof deps.setRevealed !== 'function')
+	) {
+		throw new Error('createEditableLeaf: render-primary mode requires isRevealed and setRevealed');
 	}
-	// Plain mode's source is always the editable view.
-	const isRevealed = mode === 'render-primary' ? deps.isRevealed! : () => true;
+	const isRevealed = deps.mode === 'render-primary' ? deps.isRevealed : () => true;
 
 	const wiring = wireSurfaceContexts();
 	const {
@@ -219,18 +224,25 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		commands
 	} = wiring.deps;
 	const { pluginEditor } = commands;
-	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { inlineMenuCombobox, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getEditor = (): EditorContext | undefined =>
 		componentPluginEditor(pluginEditor, deps.getNode().kind);
-	const getOptions = (): unknown => getEditor()?.options;
+	const getOptions = <Options>(): Options =>
+		componentPluginOptions(pluginEditor, deps.getNode().kind) as Options;
 	const isReading = () => getPresentationMode() === 'reading';
 
 	let composing = false;
 	let pendingCursor: number | null = null;
-	/** The bytes the open reveal was measured against; null while folded. */
-	let revealedBase: string | null = null;
+	/** The open reveal's edit, which writes only over the bytes it opened on; null while folded. */
+	let draft: Draft | null = null;
+	const endDraft = (): void => {
+		draft?.end();
+		draft = null;
+	};
+	// Unregistered only: a swap's teardown blur still has to find the draft it dropped.
+	onDestroy(() => draft?.end());
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
@@ -245,6 +257,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
 		isInputSuppressed: () => mode === 'render-primary',
 		backend,
+		getNode: deps.getNode,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
 		getComposing: () => composing,
@@ -253,24 +266,18 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
-		setPendingCursor: (offset) => {
-			if (mode === 'plain') pendingCursor = offset;
+		requestCaret: (at) => {
+			if (mode === 'plain') pendingCursor = at;
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
 		readText: () => plainTextOf(deps.getEl()),
-		commitInput: (text, preEdit, saved) => {
-			if (mode !== 'plain') return;
-			const write = blockEdit.updateBlockContent(
-				deps.getIndex(),
-				text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
-				'authored',
-				preEdit,
-				saved
-			);
-			return write.admitted ? write.caret : null;
-		},
-		handleBeforeInput: onBeforeInput
+		handleKeydown,
+		localHistory: (e) =>
+			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
+			stepSourceHistory(e, e.inputType === 'historyUndo'),
+		handleBeforeInput: onBeforeInput,
+		removeSelection: (range) => removeRange(range)
 	});
 
 	const surface = editableSurface.surface;
@@ -294,27 +301,39 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Called only when no source is showing, so it fires once per open.
 		showSource: () => {
 			traceRevealOpen('leaf');
-			revealedBase = sourceText();
+			draft?.end();
+			draft = drafts.open({
+				seed: sourceText(),
+				current: sourceText,
+				close: (cause) => {
+					if (cause === 'mode-change') void commitReveal(true);
+				}
+			});
 			clearSourceHistory();
 			deps.setRevealed?.(true);
 		},
 		showRendered: () => {
-			revealedBase = null;
+			endDraft();
 			clearSourceHistory();
 			deps.setRevealed?.(false);
 		}
 	});
 
-	// Every open goes through here, so a markers-only source is completed however it was opened.
+	// A line the kind adds takes the block's ending, else the document's.
+	function reshapeSource(text: string, caret: number) {
+		return deps.reshapeSource?.(text, caret, editableSurface.lineEnding()) ?? null;
+	}
+
+	// Every open goes through here, so the kind reshapes its source however it was opened.
 	async function revealSource(atSourceOffset = 0): Promise<void> {
 		await revealKernel.reveal(atSourceOffset);
 		const el = deps.getEl();
-		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
-		const completed = deps.completeBareSource(el.textContent ?? '');
-		if (!completed) return;
-		paintSource(el, completed.text);
-		deps.onSourceEdit?.(completed.text);
-		setCaret(completed.caret);
+		if (!el || !isRevealed() || isReading()) return;
+		const reshaped = reshapeSource(el.textContent ?? '', atSourceOffset);
+		if (!reshaped) return;
+		paintSource(el, reshaped.text);
+		deps.onSourceEdit?.(reshaped.text);
+		setCaret(reshaped.caret);
 	}
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
@@ -322,13 +341,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
 	function commitSource(edited: string): Promise<boolean> {
-		return blockEdit.updateBlockContent(
-			deps.getIndex(),
-			edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
-			'authored',
-			editableSurface.getPreEditOffset(),
-			edited.length
-		);
+		return editableSurface.writeText({
+			text: edited,
+			caretAfter: edited.length,
+			intent: 'command',
+			mode: 'authored',
+			source: 'source-commit'
+		});
 	}
 
 	// A blur during a cross-block range is a drag leaving this source; it hides a frame later, once
@@ -352,12 +371,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
-		const base = revealedBase;
-		revealedBase = null;
+		const open = draft;
+		endDraft();
 		deps.setRevealed!(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
-		// component's blur arrives, so write back only over the bytes the source opened on.
-		if (base !== null && base !== sourceText()) return;
+		// component's blur arrives, so the edit lands only where its draft still can.
+		if (open && !open.canWrite()) return;
 		if (edited === sourceText()) return;
 		await commitSource(edited);
 	}
@@ -418,8 +437,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (!el || !deps.renderSource || composing) return;
 		const offset = backend.getRaw();
-		paintSource(el, el.textContent ?? '');
-		if (offset !== null) setCaret(offset);
+		const text = el.textContent ?? '';
+		// A native edit (an IME commit) reaches the kind's reshape like the leaf's own edits do.
+		const reshaped = offset === null ? null : reshapeSource(text, offset);
+		paintSource(el, reshaped?.text ?? text);
+		if (offset !== null) setCaret(reshaped?.caret ?? offset);
 	}
 
 	function syncSource(): void {
@@ -462,6 +484,18 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		sourceRedo = [];
 	}
 
+	/** Undo or redo inside a shown painted source, while it has entries; false leaves the event to
+	 *  the document's history. */
+	function stepSourceHistory(e: Event, undo: boolean): boolean {
+		const el = deps.getEl();
+		if (!el || !deps.renderSource || !isRevealed()) return false;
+		const [from, to] = undo ? [sourceUndo, sourceRedo] : [sourceRedo, sourceUndo];
+		if (from.length === 0) return false;
+		e.preventDefault();
+		restoreSourceEntry(el, from, to);
+		return true;
+	}
+
 	function restoreSourceEntry(el: HTMLElement, from: SourceEntry[], to: SourceEntry[]): void {
 		const entry = from.pop();
 		if (!entry) return;
@@ -493,14 +527,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const keystroke = end - start <= 1 && insert.length <= 1 && insert !== '\n';
 		if (deps.renderSource) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
-		// Emptying the body leaves the same markers-only source a bare block arrives as, so this
-		// edit applies the same completion that showing the source does.
-		const completed = deps.completeBareSource?.(spliced) ?? null;
-		const next = completed?.text ?? spliced;
+		// Every edit gets the reshape showing the source does: an emptied body is the same bare
+		// source a new block arrives as.
+		const reshaped = reshapeSource(spliced, start + insert.length);
+		const next = reshaped?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
-		editableSurface.notePreEditOffset(start);
-		setCaret(completed?.caret ?? start + insert.length);
+		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();
@@ -508,8 +541,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
 
-	// The leaf's DOM text is its raw, so copy writes the visible selection and cut and paste
-	// splice verbatim; the commit's reparse splits the block where the grammar demands.
+	// The leaf's DOM text is its raw, so copy writes a slice of it, hidden fence lines included, and
+	// cut and paste splice verbatim; the commit's reparse splits the block where the grammar demands.
+	function copyRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
+		const el = deps.getEl();
+		const range = el ? backend.getRawSelection() : null;
+		if (!el || !range || range.start === range.end) return null;
+		e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(range.start, range.end));
+		return { held: range };
+	}
+
+	function removeRange(range: RawRange): void {
+		const el = deps.getEl();
+		if (el) spliceSourceText(el, range.start, range.end, '');
+	}
+
 	const clipboard = createClipboardHandlers({
 		caretMemory,
 		selection,
@@ -519,21 +565,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		cutTail: (e) => {
+		rangeArm: { copy: copyRange, remove: removeRange },
+		pasteTail: (pastedText, { range }) => {
 			const el = deps.getEl();
 			if (!el) return;
-			const sel = backend.getRawSelection();
-			if (!sel || sel.start === sel.end) return;
-			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
-			spliceSourceText(el, sel.start, sel.end, '');
-		},
-		pasteTail: (pastedText) => {
-			const el = deps.getEl();
-			if (!el) return;
-			const sel = backend.getRawSelection();
-			const start = sel ? sel.start : (backend.getRaw() ?? (el.textContent ?? '').length);
-			const end = sel ? sel.end : start;
-			spliceSourceText(el, start, end, pastedText);
+			const end = (el.textContent ?? '').length;
+			spliceSourceText(el, range?.start ?? end, range?.end ?? end, pastedText);
 		}
 	});
 
@@ -544,28 +581,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			kind: deps.getNode().kind,
 			getCommandContext,
 			getPath: deps.getPath,
-			afterSourceCommit
+			afterSourceCommit,
+			afterSelectionRemoved: editableSurface.afterSelectionRemoved
 		});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
 		if (composing || !el) return;
-		// Enter commits from here, with no input event to read the caret at.
-		editableSurface.notePreEditOffset(backend.getRaw() ?? 0);
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
 		if (deps.renderSource && isRevealed()) {
 			const command = wiring.resolveChord(e, deps.getNode().kind);
-			if (command === 'history.undo' && sourceUndo.length > 0) {
-				e.preventDefault();
-				restoreSourceEntry(el, sourceUndo, sourceRedo);
-				return;
-			}
-			if (command === 'history.redo' && sourceRedo.length > 0) {
-				e.preventDefault();
-				restoreSourceEntry(el, sourceRedo, sourceUndo);
-				return;
+			if (command === 'history.undo' || command === 'history.redo') {
+				if (stepSourceHistory(e, command === 'history.undo')) return;
 			}
 		}
 
@@ -581,7 +610,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				isBlankText(chromeFreeText(el))
 			) {
 				e.preventDefault();
-				revealedBase = null;
+				endDraft();
 				deps.setRevealed?.(false);
 				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;
@@ -593,22 +622,27 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		if (dispatchChord(e)) return;
 
-		// Enter types a literal newline in a multiline source; a single-line leaf has nowhere to put
-		// one, so Enter splits the block instead.
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (isReading()) return;
-			// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
-			const offset = backend.getRaw() ?? (el.textContent ?? '').length;
-			if (singleLine) {
-				// `commitReveal` decides whether the shown bytes may still be written, and the split
-				// reads `node.raw` after it.
-				await commitReveal();
-				await blockEdit.splitBlock(deps.getIndex(), offset);
-				return;
-			}
-			spliceSourceText(el, offset, offset, '\n');
+			// Enter isn't a command here, so it asks for a selection's removal itself.
+			editableSurface.afterSelectionRemoved((afterRemoval) => {
+				void breakLine(el, { afterRemoval });
+				return true;
+			});
 		}
+	}
+
+	/** Enter at the caret: a literal newline in a multi-line source, while a one-line leaf has
+	 *  nowhere to put one and splits the block instead. */
+	async function breakLine(el: HTMLElement, run: CommandRun): Promise<void> {
+		// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
+		const offset = backend.getRaw() ?? (el.textContent ?? '').length;
+		if (!singleLine) return spliceSourceText(el, offset, offset, editableSurface.lineEnding());
+		// `commitReveal` decides whether the shown bytes may still be written, and the split reads
+		// `node.raw` after it.
+		await commitReveal();
+		await blockEdit.splitBlock(deps.getIndex(), offset, run);
 	}
 
 	/** A painted source applies text edits itself: the browser's insert replaces a lone `\n` text
@@ -624,7 +658,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				break;
 			case 'insertLineBreak':
 			case 'insertParagraph':
-				insert = '\n';
+				insert = editableSurface.lineEnding();
 				break;
 			case 'deleteContentBackward':
 			case 'deleteContentForward':
@@ -701,7 +735,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
 		onbeforeinput: editableSurface.onBeforeInput,
-		onkeydown: withKeydownVerdict(handleKeydown),
+		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
 		onpaste: clipboard.onPaste,
@@ -734,22 +768,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		[parkKey]: parkAttachment
 	});
 
-	return {
-		get sourceText() {
-			return sourceText();
+	const blockApi = {
+		get editable() {
+			return tryGetBlockKindDescriptor(deps.getNode().kind)?.editable ?? true;
 		},
-		repaintSource,
-
-		get surfaceProps() {
-			return buildSurfaceProps();
-		},
-		renderProps,
-
-		getPresentationMode,
-		getTheme,
-		getOptions,
-		getEditor,
-
+		focusable: true,
 		focus,
 		parkCaret,
 		focusAtColumn,
@@ -765,14 +788,34 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			const box = getBlockElByPath(deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
-
 		insertMarkdown: clipboard.insertMarkdown,
+		typeText: surface.typeText,
+		afterSourceCommit,
+		afterSelectionRemoved: editableSurface.afterSelectionRemoved,
+		getCommandContext
+	} satisfies EditableLeafBlockApi;
+
+	return {
+		blockApi,
+		get sourceText() {
+			return sourceText();
+		},
+		repaintSource,
+
+		get surfaceProps() {
+			return buildSurfaceProps();
+		},
+		renderProps,
+
+		getPresentationMode,
+		getTheme,
+		getOptions,
+		getEditor,
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
 			return isReading() ? Promise.resolve() : revealSource(offset);
 		},
-		commitSource: (edited) => void commitSource(edited),
-		afterSourceCommit
+		commitSource: (edited) => void commitSource(edited)
 	};
 }

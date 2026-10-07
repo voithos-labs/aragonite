@@ -1,9 +1,9 @@
 # Feature: Table block, clipboard cut
 
-End-to-end coverage for `Ctrl+X` (Cut) starting inside a table cell.
-It mirrors the three branches of the cell's `onCopy` (intra-cell, intra-table
-multi-cell rectangle, and cross-block) and checks that the deletion side
-of Cut goes through the same paths as Backspace/Delete.
+End-to-end coverage for `Ctrl+X` (Cut) starting inside a table cell. It covers the three
+selections a cut there can hold (a range inside one cell, a rectangle of cells, and a range
+across blocks), each cut writing what a copy of it writes, and checks that the deletion side of
+Cut goes through the same paths as Backspace/Delete.
 
 ## Happy paths
 
@@ -23,6 +23,12 @@ of Cut goes through the same paths as Backspace/Delete.
   the focus reaches its tail).
 
 ## Edge cases
+
+- Cut over a whole row or a whole column removes it, the way Backspace does. Typing or pasting
+  over a whole row still clears its cells and puts the text in the first one, since a removed row
+  leaves nowhere to type.
+  - Miss-analysis: every rectangle cut in here held part of a row, so a whole row or column never
+    met the cut's own removal.
 
 - A single Ctrl+Z after any of the three Cut variants restores the
   document as it stood before the cut, in one undo entry.

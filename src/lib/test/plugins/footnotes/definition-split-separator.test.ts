@@ -8,6 +8,7 @@ import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definitio
 import { splitNode } from '$lib/tree-operations';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {
@@ -21,7 +22,7 @@ describe('footnote definition Enter at the end of the body', () => {
 			{ children: def.children!, owner: def, lineEnding: '\n' },
 			0,
 			'one'.length,
-			undefined,
+			createSharingState(),
 			fixtureReading()
 		);
 		def.children![1].raw = 'two\n';

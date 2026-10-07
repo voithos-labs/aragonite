@@ -5,7 +5,7 @@ import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
 import { createBlockKindRegistry } from './plugin-registry';
-import type { ChildRawChange } from './child-spans';
+import type { ChildRawChange, StripRebuild } from './child-spans';
 import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
@@ -91,6 +91,9 @@ export interface WriteContext {
 export interface WriteRule {
 	normalize(raw: string, ctx: WriteContext): string;
 	mapOffset(raw: string, offset: number, ctx: WriteContext): number;
+	/** The part of `raw` that is the block's text, leaving out structure this rule may rewrite (a
+	 *  fence's lines); absent, all of it. The editor's text checks read a block through it. */
+	text?(raw: string): string;
 }
 
 /**
@@ -165,16 +168,14 @@ export interface BlockKindDescriptor {
 	 * each marker's neighbouring blank line to `innerPrefix`/`innerSuffix`. Absent: body on line one.
 	 */
 	bodyWrap?: ContainerBodyWrap;
+	/** The child holding the container's last line, or -1 for its own bytes (a header-only table's
+	 *  delimiter). Absent: a strip's last child unless an inner suffix ends it, a grid's last row. */
+	lastLineChild?: (node: NodeView) => number;
 	/**
 	 * The kind has no opener of its own, so `parse(raw)` would not reproduce it: its container's
 	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
 	 */
 	contextDependentKind?: boolean;
-	/**
-	 * The kind can take the lines right below it as its own (a link definition's title, an HTML
-	 * block's body), so a write here or just below asks whether the two blocks now read as one.
-	 */
-	readsFollowingLines?: true;
 	/**
 	 * Make `raw` legal as this kind's own bytes (`schema/fenced-code-raw.ts` is the worked example).
 	 * `ctx.node` is the block as it stood before the write.
@@ -189,8 +190,8 @@ export interface BlockKindDescriptor {
 	containerPaste?: ContainerPaste;
 	unwrapRole?: UnwrapRole;
 	/**
-	 * Takes the first space typed at a child's content start while its marker lacks one. `rebuildRaw`
-	 * must restore the marker's trailing space, or the taken space never appears.
+	 * The first space typed at a child's content start, while its marker lacks one, is the marker's:
+	 * written into the marker's line at once, or by `rebuildRaw` when an empty line gains text.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */
@@ -205,10 +206,10 @@ export interface BlockKindDescriptor {
 	/** The registration's `contentStart.backspace`. */
 	contentStartBackspace?: ContentStart['backspace'];
 	/**
-	 * Recompute `raw` from children and metadata. `changed` names the one child whose raw moved, for
-	 * a rebuilder that rewrites only its region; ignoring it is always correct.
+	 * Recompute `raw` from children and metadata; `changed` names the one child whose raw moved
+	 * (ignoring it is correct). Return `{ rereads: true }` to have the new bytes read whole.
 	 */
-	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void;
+	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
 	/**
@@ -258,8 +259,8 @@ export const DESCRIPTOR_FIELDS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'contextDependentKind',
-	'readsFollowingLines',
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
@@ -307,8 +308,9 @@ export interface ContentStart {
  *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
 interface ContainerBase {
 	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void;
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	bodyWrap?: ContainerBodyWrap;
+	lastLineChild?: (node: NodeView) => number;
 	containerPaste?: ContainerPaste;
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
@@ -338,6 +340,7 @@ export const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',

@@ -17,7 +17,7 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
-	const actions: BlockEditActions = {
+	const actions: Omit<BlockEditActions, 'completeLineOnType'> = {
 		// ── Structural split / merge / delete (shared core) ───────────────────
 
 		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),
@@ -42,7 +42,9 @@ export function createBlockEditActions(
 		replaceBlock: async (blockIndex, replacement, focus, options) =>
 			(await core.replaceBlock(blockIndex, replacement, focus, options)) !== null,
 
-		updateBlockContent: contentUpdate(scope)
+		updateBlockContent: contentUpdate(scope),
+		// The document root has no container whose marker a block could finish.
+		completeMarker: async () => false
 	};
 
 	return withEnterCompletion(
