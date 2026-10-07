@@ -171,8 +171,7 @@ const DOC_BASELINE: Record<string, number> = {
 	'docs/contributing/anatomy-of-a-change.md': 2,
 	'docs/contributing/code-style.md': 4,
 	'docs/contributing/first-hour.md': 1,
-	'docs/contributing/rules.md': 2,
-	'docs/contributing/warnings.md': 1
+	'docs/contributing/rules.md': 2
 };
 
 /** The glossary defines the words, so it names every one of them. */
