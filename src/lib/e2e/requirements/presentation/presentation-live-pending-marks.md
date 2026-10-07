@@ -50,6 +50,9 @@ sequence.
   is on and leaves the widget whole: the dispatcher hands a plain key to the marks handler before
   the widget handler sees it, and the rewrite is checked against the render path, so a splice that
   would change painted text is declined
+  - Miss-analysis: these two rows opened the live URL and never checked the mode took. Source
+    mode writes the same bytes here, so they'd have passed with live mode off. `EditorPage.goto`
+    now checks the mode any URL names, for every spec.
 
 ## Edge cases
 

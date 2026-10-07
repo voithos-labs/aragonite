@@ -27,6 +27,13 @@ export class EditorPage {
 	async goto(query: '' | `?${string}` = '') {
 		await this.clipboard.install();
 		await gotoReady(this.page, `/test/editor${query}`);
+		// The route starts an unknown mode in source, where every marker paints and most live
+		// scenarios would pass without live mode, so the mode a query names is checked here.
+		const mode = new URLSearchParams(query).get('presentationMode');
+		if (mode === null) return;
+		const root = expect(this.editorContainer);
+		if (mode === 'source') await root.not.toHaveAttribute('data-presentation');
+		else await root.toHaveAttribute('data-presentation', mode);
 	}
 
 	async loadContent(md: string) {

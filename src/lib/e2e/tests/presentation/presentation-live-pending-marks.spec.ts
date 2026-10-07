@@ -386,9 +386,7 @@ test.describe('live mode: a pending mark beside an inline widget', () => {
 	const WIDGET_DOC = 'see &amp; now\n';
 
 	test('the byte lands before the widget, wrapped, and the entity survives', async ({ page }) => {
-		const ep = new EditorPage(page);
-		await ep.goto('?presentationMode=live');
-		await ep.loadContent(WIDGET_DOC);
+		const ep = await enterPresentationMode(page, 'live', WIDGET_DOC);
 		await ep.waitForRenderFlush();
 
 		await ep.focusBlock(0, 4);
@@ -401,9 +399,7 @@ test.describe('live mode: a pending mark beside an inline widget', () => {
 	});
 
 	test('the byte lands after the widget the same way', async ({ page }) => {
-		const ep = new EditorPage(page);
-		await ep.goto('?presentationMode=live');
-		await ep.loadContent(WIDGET_DOC);
+		const ep = await enterPresentationMode(page, 'live', WIDGET_DOC);
 		await ep.waitForRenderFlush();
 
 		// Stepped rather than placed directly: the widget is one atomic stop, so five keypresses

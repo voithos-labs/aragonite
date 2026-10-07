@@ -4,8 +4,6 @@ import { textRunCenter } from '../../text-runs';
 
 // Shared pointer and caret helpers for the presentation specs.
 
-// The attribute check makes the mode real: an unknown query value falls back to source, where
-// every marker is painted and a live scenario would pass without live.
 export async function enterPresentationMode(
 	page: Page,
 	mode: 'live' | 'preview-inline' | 'preview-block' | 'reading' | 'source',
@@ -14,8 +12,6 @@ export async function enterPresentationMode(
 	const ep = new EditorPage(page);
 	await ep.goto(`?presentationMode=${mode}`);
 	await ep.loadContent(doc);
-	if (mode === 'source') await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
-	else await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode);
 	return ep;
 }
 
