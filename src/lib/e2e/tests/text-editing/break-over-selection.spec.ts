@@ -42,7 +42,34 @@ for (const mode of ['source', 'live'] as const) {
 			});
 		}
 
-		test('one Ctrl+Z puts the selected text back', async ({ page }) => {
+		// The selection runs to the line's end, so the removal leaves the line empty.
+		for (const [where, doc, path, at, written] of [
+			['a list item', '- alpha\n\nnext\n', [0, 0, 0], 0, '- \n- \n\nnext\n'],
+			[
+				'a code block’s last line',
+				'```\nfoo\nbar\n```\n\nnext\n',
+				[0],
+				8,
+				'```\nfoo\n\n\n```\n\nnext\n'
+			]
+		] as const) {
+			test(`Enter over the whole of ${where} splits and stays in the block`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, mode, doc);
+				await ep.focusBlockAtPath([...path], at);
+				await page.keyboard.press('Shift+End');
+
+				await page.keyboard.press('Enter');
+
+				await ep.bridge.waitForSourceEquals(written);
+				expect((await ep.bridge.getSelection())?.focus.path).toEqual(
+					path.length > 1 ? [0, 1, 0] : [0]
+				);
+			});
+		}
+
+		test('one Ctrl+Z puts the selected text back, selected, and redo breaks it again', async ({
+			page
+		}) => {
 			const doc = 'alpha\n\nnext\n';
 			const ep = await enterPresentationMode(page, mode, doc);
 			await ep.focusBlockAtPath([0], 1);
@@ -51,9 +78,15 @@ for (const mode of ['source', 'live'] as const) {
 			await page.keyboard.press('Enter');
 			await ep.bridge.waitForSourceEquals('a\n\nha\n\nnext\n');
 
-			await page.keyboard.press('Control+z');
-
+			await ep.undo();
 			await ep.bridge.waitForSourceEquals(doc);
+			expect(await ep.bridge.getSelection()).toEqual({
+				anchor: { path: [0], offset: 1 },
+				focus: { path: [0], offset: 3 }
+			});
+
+			await ep.redo();
+			await ep.bridge.waitForSourceEquals('a\n\nha\n\nnext\n');
 		});
 
 		test('typing after Enter over a selection lands at the start of the new line', async ({
