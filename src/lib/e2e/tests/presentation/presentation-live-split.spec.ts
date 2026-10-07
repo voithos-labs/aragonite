@@ -113,11 +113,11 @@ test('live mode: a cut the construct cannot take hands it over whole', async ({ 
 		expect(await ep.bridge.getSource()).not.toContain('~~foo\n');
 
 		// Reload convergence: the bytes the split wrote come back as the same screen.
-		const written = await ep.bridge.getSource();
-		await nextRow(ep, written);
+		expect(await ep.parseConverged()).toBe(true);
+		await ep.reloadContent();
 		await ep.waitForRenderFlush();
-		expect(await ep.bridge.getSource()).toBe(written);
 		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(1))).toBe('');
 	});
 
 	// A construct with no children has no interior a cut can land in (`docs/design/live-mode.md`
