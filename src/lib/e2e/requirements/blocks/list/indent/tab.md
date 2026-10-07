@@ -4,8 +4,7 @@ How Tab changes a list item's nesting level, including ordered-list numbering wh
 
 ## Tab (indent / nest)
 
-- Tab on non-first item nests it under the previous sibling
-- Tab on first item does nothing (no previous sibling to nest under)
+- Tab on a non-first item nests it under the previous sibling, and on the first item it does nothing (no previous sibling to nest under): pinned in `src/lib/test/blocks/list/item-tab-keydown.test.ts`
 - Tab over a selection inside one item nests the item, as at a caret (over a selection in a plain
   paragraph Tab does nothing)
 - If the previous sibling ends with a nested list of the same type, the item is appended to it

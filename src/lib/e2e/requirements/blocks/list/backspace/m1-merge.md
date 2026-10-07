@@ -27,11 +27,11 @@ followed by a paragraph, which the merge used to put above the sublist's items.
 
 The code-block row is a regression (#555): the code block used to lose its blank line and fold into `ab` on reload. Miss-analysis: every moved child in these rows was a paragraph, the one kind the merge gave a separator, so no row moved a block that needed its own blank line kept.
 
-The worked examples above are the ground truth for where the lines end up; see `src/lib/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
+The worked examples above are the ground truth for where the lines end up. The browser drives the flat merge (with the caret landing at the merge point) and the code-block row; rows 2 to 5, the sublist-then-paragraph shape and the ordered renumber are pinned in `src/lib/test/tree-operations/merge-list-item.test.ts` and `src/lib/test/blocks/list/merge-keeps-lines.test.ts`.
 
 ### Ordered list numbering on M1
 
-- Deleting an item via M1 renumbers subsequent items
+- Deleting an item via M1 renumbers subsequent items (`merge-list-item.test.ts`)
 
 ## Opaque previous leaf: fall back to move-focus (no merge)
 

@@ -100,4 +100,21 @@ describe('lifting a nested item keeps the document in order', () => {
 
 		expect(mounted.source()).toBe('1. P A\n2. N A\n   1. N B\n   2. N C\n3. P B\n');
 	});
+
+	it('the only item of an ordered sublist leaves the parent list renumbered around it', async () => {
+		mounted = mountEditor({ source: '1. First\n   1. Nested\n2. Second\n' });
+		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
+
+		expect(mounted.source()).toBe('1. First\n2. Nested\n3. Second\n');
+	});
+
+	it('Shift+Tab in live mode carries the next item of a loose nested list', async () => {
+		mounted = mountEditor({
+			source: '- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n',
+			presentationMode: 'live'
+		});
+		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
+
+		expect(mounted.source()).toBe('- alpha\n- beta\n\n  - gamma\n\n- delta\n');
+	});
 });

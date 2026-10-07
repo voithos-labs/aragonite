@@ -29,12 +29,60 @@ const lineTopAfterCaret = (page: Page) =>
 		return range.getBoundingClientRect().top;
 	});
 
+// First-line steps run first, so a Home that always goes to the item's start fails at a later line.
+// Writing steps reload through a blank swap: the editor ignores a source equal to the last one given.
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`${mode}: Home in a list item`, () => {
-		test('on the line after a hard break lands at that line, and Backspace keeps the item', async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, mode, BROKEN);
+	test(`${mode}: Home in a list item goes to the start of its own line`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, BROKEN);
+
+		await test.step('Shift+Home on the first line selects from the text start, not the marker', async () => {
+			await clickWordSettled(ep, page, 'def');
+			await landAt(ep, page, 5);
+
+			await page.keyboard.press('Shift+Home');
+			await ep.waitForRenderFlush();
+			expect(await anchorOffset(ep)).toBe(5);
+			expect(await focusOffset(ep)).toBe(0);
+			expect(await selectedText(page)).toBe('abc d');
+		});
+
+		await test.step('Home on the first line still stops after the marker', async () => {
+			await clickWordSettled(ep, page, 'def');
+
+			await page.keyboard.press('Home');
+			await ep.waitForRenderFlush();
+			expect(await focusOffset(ep)).toBe(0);
+			await ep.typeText('X');
+			await ep.bridge.waitForSourceEquals('- Xabc def\\\n  e.g.\n');
+		});
+
+		await ep.loadContent('');
+		await ep.loadContent(BROKEN);
+
+		await test.step('Shift+Home on the line after a hard break selects that line', async () => {
+			await clickWordSettled(ep, page, 'e.g.');
+			await page.keyboard.press('End');
+
+			await page.keyboard.press('Shift+Home');
+			await ep.waitForRenderFlush();
+			expect(await anchorOffset(ep)).toBe(13);
+			expect(await focusOffset(ep)).toBe(SECOND_LINE);
+			expect(await selectedText(page)).toBe('e.g.');
+		});
+
+		await test.step('Shift+Home with a selection from the first line moves only its end', async () => {
+			await clickWordSettled(ep, page, 'def');
+			await landAt(ep, page, 5);
+			await page.keyboard.press('Shift+ArrowDown');
+			await page.keyboard.press('Shift+End');
+
+			await page.keyboard.press('Shift+Home');
+			await ep.waitForRenderFlush();
+			expect(await anchorOffset(ep)).toBe(5);
+			expect(await focusOffset(ep)).toBe(SECOND_LINE);
+		});
+
+		await test.step('Home on the line after a hard break lands at that line, and Backspace keeps the item', async () => {
 			await clickWordSettled(ep, page, 'e.g.');
 
 			await page.keyboard.press('Home');
@@ -47,68 +95,18 @@ for (const mode of ['source', 'live'] as const) {
 				mode === 'source' ? '- abc def\\e.g.\n' : '- abc defe.g.\n'
 			);
 		});
+	});
 
-		test('on a wrapped line lands at that line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, WRAPPING);
-			await clickWordSettled(ep, page, 'word39');
-			const top = await lineTopAfterCaret(page);
+	test(`${mode}: Home on a wrapped list line lands at that line`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, WRAPPING);
+		await clickWordSettled(ep, page, 'word39');
+		const top = await lineTopAfterCaret(page);
 
-			await page.keyboard.press('Home');
-			await ep.waitForRenderFlush();
-			const offset = await focusOffset(ep);
-			expect(offset).toBeGreaterThan(0);
-			expect(await lineTopAfterCaret(page)).toBe(top);
-			expect(WRAPPING.slice(2)[offset - 1]).toBe(' ');
-		});
-
-		test('Shift+Home on the line after a hard break selects that line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, BROKEN);
-			await clickWordSettled(ep, page, 'e.g.');
-			await page.keyboard.press('End');
-
-			await page.keyboard.press('Shift+Home');
-			await ep.waitForRenderFlush();
-			expect(await anchorOffset(ep)).toBe(13);
-			expect(await focusOffset(ep)).toBe(SECOND_LINE);
-			expect(await selectedText(page)).toBe('e.g.');
-		});
-
-		test('Shift+Home with a selection from the first line moves only its end', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, BROKEN);
-			await clickWordSettled(ep, page, 'def');
-			await landAt(ep, page, 5);
-			await page.keyboard.press('Shift+ArrowDown');
-			await page.keyboard.press('Shift+End');
-
-			await page.keyboard.press('Shift+Home');
-			await ep.waitForRenderFlush();
-			expect(await anchorOffset(ep)).toBe(5);
-			expect(await focusOffset(ep)).toBe(SECOND_LINE);
-		});
-
-		test('on the first line still stops after the marker', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, BROKEN);
-			await clickWordSettled(ep, page, 'def');
-
-			await page.keyboard.press('Home');
-			await ep.waitForRenderFlush();
-			expect(await focusOffset(ep)).toBe(0);
-			await ep.typeText('X');
-			await ep.bridge.waitForSourceEquals('- Xabc def\\\n  e.g.\n');
-		});
-
-		test('Shift+Home on the first line selects from the text start, not the marker', async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, mode, BROKEN);
-			await clickWordSettled(ep, page, 'def');
-			await landAt(ep, page, 5);
-
-			await page.keyboard.press('Shift+Home');
-			await ep.waitForRenderFlush();
-			expect(await anchorOffset(ep)).toBe(5);
-			expect(await focusOffset(ep)).toBe(0);
-			expect(await selectedText(page)).toBe('abc d');
-		});
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		const offset = await focusOffset(ep);
+		expect(offset).toBeGreaterThan(0);
+		expect(await lineTopAfterCaret(page)).toBe(top);
+		expect(WRAPPING.slice(2)[offset - 1]).toBe(' ');
 	});
 }

@@ -1,22 +1,13 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { enterPresentationMode } from '../../../presentation/helpers';
 
+// What the lifted item carries and how numbers settle are pinned in `lift-keeps-order.test.ts`;
+// these rows keep the caret, the marker and the emptied-parent cases.
 test.describe('list Shift+Tab', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-	});
-
-	test('Shift+Tab promotes nested item', async () => {
-		await editor.loadContent('- Item 1\n  - Nested\n- Item 2\n');
-		const nested = editor.page.locator(
-			'.list-item-content .list-block .list-item-block [contenteditable="true"]'
-		);
-		await nested.first().click();
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceContains('- Item 1\n- Nested\n- Item 2\n');
 	});
 
 	test('Shift+Tab on the one item of an item’s only list removes the emptied item', async () => {
@@ -31,72 +22,12 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceEquals('- xa\n');
 	});
 
-	test('Shift+Tab on a nested item takes the siblings after it along as its children', async () => {
-		await editor.loadContent('- alpha\n  - beta\n  - gamma\n- delta\n');
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n  - gamma\n- delta\n');
-	});
-
-	test('Backspace at the start of a nested item lifts it the same way', async () => {
-		await editor.loadContent('- alpha\n  - beta\n  - gamma\n- delta\n');
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('- alpha\n- beta\n  - gamma\n- delta\n');
-	});
-
-	test('Enter in an empty nested item lifts it the same way', async () => {
-		await editor.loadContent('- alpha\n  - beta\n  - \n  - gamma\n- delta\n');
-		await editor.focusBlockAtPath([0, 0, 1, 1, 0], 0);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n- \n  - gamma\n- delta\n');
-	});
-
-	// A loose nested list parses into one sublist per item, so `gamma` sits after `beta`'s sublist.
-	test('in live mode, Shift+Tab in a loose nested list keeps the order', async ({ page }) => {
-		const source = '- alpha\n\n  - beta\n\n  - gamma\n\n- delta\n';
-		const live = await enterPresentationMode(page, 'live', source);
-		await page.locator('[contenteditable="true"]', { hasText: 'beta' }).click();
-		await page.keyboard.press('Home');
-		await page.keyboard.press('Shift+Tab');
-		await live.bridge.waitForSourceEquals('- alpha\n- beta\n\n  - gamma\n\n- delta\n');
-	});
-
 	test('Shift+Tab on top-level item is no-op', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(0).click();
 		await editor.pressDeclined('Shift+Tab');
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
-	});
-
-	test('ordered: promoting only nested item renumbers parent list', async () => {
-		await editor.loadContent('1. First\n   1. Nested\n2. Second\n');
-		const nested = editor.page.locator('[contenteditable="true"]', { hasText: 'Nested' });
-		await nested.click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceMatches(/^2\. Nested$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^1\. First$/m);
-		expect(source).toMatch(/^3\. Second$/m);
-		expect(source).not.toMatch(/^\s+\d+\./m);
-	});
-
-	test('ordered: promoting first of two nested items renumbers both lists', async () => {
-		await editor.loadContent('1. P A\n   1. N A\n   2. N B\n2. P B\n');
-		const na = editor.page.locator('[contenteditable="true"]', { hasText: 'N A' });
-		await na.click();
-		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Shift+Tab');
-		await editor.bridge.waitForSourceMatches(/^2\. N A$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^1\. P A$/m);
-		expect(source).toMatch(/^\s+1\. N B$/m);
-		expect(source).not.toMatch(/^\s+2\. N B$/m);
-		expect(source).toMatch(/^3\. P B$/m);
 	});
 
 	test('ordered nested in unordered parent: promoted item takes unordered marker, nested remainder renumbers', async () => {
