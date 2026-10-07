@@ -50,7 +50,7 @@ Two kinds of comment earn their lines:
 - A **header** (the block at the top of a file, or above a module's contract) says what the thing is for, in one sentence a newcomer can read, and then at most the one thing a caller has to get right. Five lines, tops.
 - A **comment in a body** says why this line is the way it is, in one plain sentence: the non-obvious choice, the workaround, the thing left out on purpose. One or two lines.
 
-Neither says what the code does or how (names and types already do), and neither argues. The case for this reading over the other one was made in the review; the code keeps the conclusion. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
+Neither says what the code does or how (names and types already do), and neither argues for the choice over its alternatives. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
 
 The budget alone didn't stop the essays. The rules that do:
 
@@ -59,7 +59,7 @@ The budget alone didn't stop the essays. The rules that do:
 - **A code is not a reason.** `G1.28` and `VR-15` are catalogue numbers. Say what holds ("a `<br>` adds no text, so the offset walk stays exact") and put the number after it if you like.
 - **No shouting.** ON, CURRENT, OWN and BEFORE in capitals mean the sentence is carrying too much. Rewrite the sentence.
 
-Three before-and-afters, from the passes that rewrote the repo's comments:
+Three before-and-afters from this repo:
 
 ```ts
 // before: two private words per line, and "owes" doing the work of a sentence
@@ -122,38 +122,16 @@ Delete on sight:
 
 ### The gate
 
-The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget. A comment trailing code is its own block. That scan knows a header when it sees one: a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
+Two scans in the unit suite hold the budget, and each names the `path:line` or file it fails on:
 
-Every comment in the repo fits the budget now, so the scan is a hard line: one comment over it fails the suite and names its `path:line`. Tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) under a comment don't count as its lines. Here's the red, from a three-line comment I planted mid-file:
-
-```
-$ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
- FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its budget
-AssertionError: expected [ 'src/lib/zz-probe.ts:3' ] to deeply equal []
-```
-
-The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's what one planted `seam` gets you:
-
-```
-$ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
- FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 no house word in a comment > no comment under src/lib or src/routes holds a house word
-AssertionError: expected [ { …(2) } ] to deeply equal []
-+ Received
-+ [
-+   {
-+     "file": "src/lib/zz-probe-comment.ts",
-+     "hits": 1,
-+   },
-+ ]
-```
-
-The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each of those docs is pinned to a baseline that only goes down. Delete a few and the test fails until you lower that doc's baseline, a one-number edit in the same test file.
+- `src/lib/test/invariants/lint/comment-budget.test.ts` counts lines per comment block. A comment trailing code is its own block, and section dividers and tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) don't count as lines. A header, for the five-line budget, is a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, or a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`.
+- `src/lib/test/invariants/lint/comment-house-words.test.ts` holds the list of private words and fails a comment under `src/lib` or `src/routes`, or a requirement file's body text, that uses one. Headings, code spans and fenced samples don't count. Each design and contributing doc is held to a baseline there (zero for most) that only goes down: delete a few from a doc and lower its number in the same commit, or the test fails.
 
 ## Directories
 
 A directory reflects a decision, not an accident. Name the concept that lives there (`selection/`, `undo/`, `search/`), never the role (`utils/`, `helpers/`, `managers/`). A role name is a shelf rather than a boundary, and a shelf is where code goes when its author didn't know where else to put it. (A plural of the domain, like `core/parsers/`, is fine: it still says what's inside.) Beyond the names, what changes together lives together, and imports between directories should flow one way, volatile code depending on stable code and never the reverse.
 
-The tree isn't all the way there yet: `src/lib`'s top-level directories still hold two import cycles. G4.122 (`src/lib/test/invariants/lint/directory-layering.test.ts`) holds the graph to today's edges, listed in `directory-layering-baseline.ts`. An import that adds a new edge between two directories fails the suite and names the imports behind it, and an edge that's gone fails until you delete its line. Adding a line there is a reviewer's call, not yours alone.
+The tree isn't all the way there yet (`src/lib`'s top-level directories still hold two import cycles), so `src/lib/test/invariants/lint/directory-layering.test.ts` holds the graph to today's edges. An import that adds a new edge between two directories fails it, and adding that edge to its baseline is a reviewer's call, not yours alone.
 
 ## Formatting
 
@@ -169,37 +147,8 @@ npm run lint     # check
 `npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
 
 1. the Prettier check
-2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide (outside code) must name a heading its target doc still carries, slugged the way GitHub renders it
-3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk, and every `<doc>.md § Section name` pointer in the tree must still name a heading that doc carries
+2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide (`docs/guide/`) may not leave it, and an `#anchor` inside the guide must name a heading its target doc still has
+3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist, and every `<doc>.md § Section name` pointer must still name a heading that doc has
 4. ESLint
 
-A failure says which of the four fired, so read that instead of assuming it was formatting. It usually isn't. One of each, provoked on purpose so you know the shape:
-
-```
-$ npx prettier --check src/lib/zz-probe.ts
-Checking formatting...
-[warn] src/lib/zz-probe.ts
-[warn] Code style issues found in the above file. Run Prettier with --write to fix.
-```
-
-```
-$ node scripts/build-docs-pack.mjs
-docs-pack: dead pointers (every target must name a file the pack ships):
-  directives.md: nowhere.md
-```
-
-```
-$ node scripts/check-codebase-map.mjs
-codebase-map: unresolved references in docs/design, docs/contributing:
-  docs/contributing/warnings.md: src/lib/nope.ts …
-```
-
-(that last line goes on to say `no such file or directory`)
-
-```
-$ npx eslint src/lib/zz-probe.ts
-  1:8   error  'probe' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
-  2:43  error  'dead' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
-
-✖ 2 problems (2 errors, 0 warnings)
-```
+A failure says which of the four fired, so read that instead of assuming it was formatting. It usually isn't.
