@@ -1,19 +1,16 @@
 /**
- * Every editable block publishes `insertMarkdown` and `typeText` (G4.38). `BlockComponent` declares
- * both optional, so a block missing one compiles and quietly drops its route. A leaf built on
- * `createEditableLeaf` exports `blockApi` (G4.73), whose type requires both, so the scan reads the
+ * Every editable block publishes each of `EDITABLE_SURFACE_MEMBERS` (G4.38). `BlockComponent`
+ * declares them optional, so a block missing one compiles and quietly drops its route. A leaf built
+ * on `createEditableLeaf` exports `blockApi` (G4.73), whose type requires them, so the scan reads the
  * components that build their own text area, by whichever route each uses.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 import { SOURCE } from './source-paths';
+import { EDITABLE_SURFACE_MEMBERS } from '$lib/block-component';
 
 /** A component building its own editable element. */
 const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
-
-/** What every editable surface publishes: the API's insert, and the typing write a character
- *  typed over a range ends in. */
-const MEMBERS = ['insertMarkdown', 'typeText'] as const;
 
 /** The exported member: an instance export, not a mention. */
 const exportOf = (member: string) =>
@@ -65,7 +62,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 		expect(components.length).toBeGreaterThanOrEqual(3);
 	});
 
-	it.each(MEMBERS)('every editable-surface component publishes %s', (member) => {
+	it.each(EDITABLE_SURFACE_MEMBERS)('every editable-surface component publishes %s', (member) => {
 		const silent = components.filter((f) => !publishes(f.code, member)).map((f) => f.relPath);
 		expect(silent, rule(member)).toEqual([]);
 	});
@@ -75,7 +72,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 	it('the table cell is scanned through the literal its row actually mounts', () => {
 		const cell = components.find((f) => f.relPath === SOURCE.tableCell);
 		expect(cell, 'TableCellBlock left the editable-surface population').toBeDefined();
-		for (const member of MEMBERS) {
+		for (const member of EDITABLE_SURFACE_MEMBERS) {
 			expect(publishedSurfaceMembers(cell!.code)).toContain(member);
 			expect(
 				exportOf(member).test(cell!.code),

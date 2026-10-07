@@ -506,7 +506,8 @@
 			applyMenuClipboard,
 			snapCaretToPoint,
 			insertMarkdown: clipboard.insertMarkdown,
-			typeText: editableSurface.surface.typeText
+			typeText: editableSurface.surface.typeText,
+			afterSelectionRemoved: editableSurface.afterSelectionRemoved
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, el);
 	});

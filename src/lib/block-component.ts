@@ -347,21 +347,27 @@ export type ContainerBlockComponent = BlockComponent &
 		>
 	>;
 
+/** The optional `BlockComponent` members every editable surface publishes, a hand-built one and
+ *  the editable leaf alike: each is an entry point a route reaches only through the instance. */
+export const EDITABLE_SURFACE_MEMBERS = [
+	'insertMarkdown',
+	'typeText',
+	'afterSelectionRemoved'
+] as const satisfies readonly (keyof BlockComponent)[];
+
 /** A leaf's `blockApi`: every optional `BlockComponent` member the factory implements is required,
  *  so none drops out unseen, and a caller reaches each one without a guard. */
 export type EditableLeafBlockApi = BlockComponent &
 	Required<
 		Pick<
 			BlockComponent,
+			| (typeof EDITABLE_SURFACE_MEMBERS)[number]
 			| 'parkCaret'
 			| 'focusAtColumn'
 			| 'getSelectedText'
 			| 'setSelection'
 			| 'measurePartialRects'
-			| 'insertMarkdown'
-			| 'typeText'
 			| 'afterSourceCommit'
-			| 'afterSelectionRemoved'
 			| 'getCommandContext'
 		>
 	>;
