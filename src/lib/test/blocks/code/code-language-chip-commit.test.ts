@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { mountCode, type MountedCode } from './mount-code';
 import { dispatchKey } from '$lib/test/harness/settle';
+import { makeStubController } from '$lib/test/harness/editor-actions';
 
 // Trailing spaces the parser trims out of `meta.info` and keeps in the block's bytes.
 const PADDED = '```js  \nconst x = 1\n```\n';
@@ -90,5 +91,33 @@ describe('CodeBlock: bytes the chip’s info string cannot hold', () => {
 		pressEnter(field);
 
 		expect(commits()).toEqual([written]);
+	});
+});
+
+// Miss-analysis: a browser click between typing and the commit outruns the batching window by
+// itself, so no e2e undo row failed when the commit stopped being kept apart.
+describe('CodeBlock: the language chip’s undo entry', () => {
+	it('writes through the controller’s isolated entry, and only when it writes', () => {
+		const controller = makeStubController();
+		const writesInside: number[] = [];
+		vi.mocked(controller.isolateUndoEntry).mockImplementation((write) => {
+			const before = commits().length;
+			write();
+			writesInside.push(commits().length - before);
+		});
+		mounted = mountCode(PADDED, {
+			policies: { presentationMode: () => 'live' },
+			services: { controller }
+		});
+
+		pressEnter(openField());
+		expect(controller.isolateUndoEntry).not.toHaveBeenCalled();
+
+		const field = openField();
+		typeInto(field, 'ts');
+		pressEnter(field);
+
+		expect(writesInside).toEqual([1]);
+		expect(commits()).toHaveLength(1);
 	});
 });
