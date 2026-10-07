@@ -23,7 +23,7 @@ export interface WidgetAtCursor extends WidgetRange {
 export type CaretDirection = 'forward' | 'backward';
 
 /** Every widget `node` renders, nested ones included (a link or emphasis around an image hides it
- *  from the top-level inline list). Every reader of a block's widgets asks here. */
+ *  from the top-level inline list). Every reader of the widget at a byte asks here. */
 export function widgetsIn(node: NodeView, reading: InlineReading): InlineNode[] {
 	return flattenInlineWidgets(resolvedInlineContent(node, reading), node.raw, reading.grammar);
 }

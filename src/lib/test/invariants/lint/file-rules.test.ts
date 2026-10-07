@@ -2070,7 +2070,7 @@ const WIDGET_LIST_HOME = SOURCE.widgetAdjacency;
 const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
-	id: 'G4.125 a component lists a block’s widgets through `widgetsIn` only',
+	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
 	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
