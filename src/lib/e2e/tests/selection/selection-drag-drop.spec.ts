@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { blockCenter, pastLineEnd } from './multi-click-helpers';
-import { textRunCenter, textRunStart } from '../../text-runs';
+import { pointAtRaw, textRunCenter, textRunStart } from '../../text-runs';
 
 // Dragging a selection and dropping it (`requirements/selection/selection-drag-drop.md`). Drops
 // aim past a line's end or at its first glyph: the two points whose offset no font metric moves.
@@ -221,6 +221,25 @@ test.describe('dragging a selection', () => {
 		expect(await blockRaw(page, 0)).toBe('first line\nsecond line\n');
 		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(SOFT_BREAK_DOC);
 		await undoLeavesDocument(editor, SOFT_BREAK_DOC);
+	});
+
+	const LIVE_CODE_DOC = '```js\nconst x = 1\n```\n\nsecond para here\n';
+
+	test('a code block dragged whole in live mode cancels, its hidden fence lines kept', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('live');
+		await editor.loadContent(LIVE_CODE_DOC);
+		const at = await pointAtRaw(page, [0], 14);
+		await page.mouse.click(at.x, at.y, { clickCount: 3 });
+		// The triple-click's range takes both hidden fence lines, the shape the drop must not cut.
+		const dragged = await page.evaluate(() => window.getSelection()?.getRangeAt(0).toString());
+		expect(dragged).toBe('```js\nconst x = 1\n```');
+		await dragSelection(page, at, await textRunStart(page, 'second para'));
+		await editor.waitForNoSourceMutation();
+		expect(await blockRaw(page, 0)).toBe('```js\nconst x = 1\n```\n');
+		expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(LIVE_CODE_DOC);
+		await undoLeavesDocument(editor, LIVE_CODE_DOC);
 	});
 
 	const RULE_DOC = 'alpha beta gamma\n\n---\n\nsecond para here\n';
