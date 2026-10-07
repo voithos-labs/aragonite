@@ -25,6 +25,20 @@ const silenceBrokenImageFixture = {
 	}
 };
 
+// SvelteKit joins the dependency scan's entry globs with backslashes on Windows, which a glob reads
+// as escapes; the scan would match no file, and each package found mid-run reloads every page.
+const posixScanEntries = {
+	name: 'posix-scan-entries',
+	enforce: /** @type {const} */ ('post'),
+	/** @param {import('vite').UserConfig} config */
+	config(config) {
+		const entries = config.optimizeDeps?.entries;
+		if (config.optimizeDeps && entries !== undefined) {
+			config.optimizeDeps.entries = [entries].flat().map((entry) => entry.replaceAll('\\', '/'));
+		}
+	}
+};
+
 // A checkout on a Windows drive mounted into WSL (`/mnt/c/...`) gets no file-change events, so
 // `ARAGONITE_POLL=1 npm run dev` swaps in polling. It stays opt-in because polling walks the whole
 // tree each tick, which can starve the machine; anything bulky belongs in the ignore list below.
@@ -48,13 +62,13 @@ const nodeModulesTarget = (() => {
 const depsOutsideRoot = path.relative(process.cwd(), nodeModulesTarget).startsWith('..');
 
 export default defineConfig({
-	plugins: [silenceBrokenImageFixture, sveltekit()],
+	plugins: [silenceBrokenImageFixture, sveltekit(), posixScanEntries],
 	// Per checkout when the deps live outside it, or sibling worktrees' dev servers
 	// re-optimize one shared pre-bundle under each other and 500 every page.
 	...(depsOutsideRoot ? { cacheDir: '.svelte-kit/vite-cache' } : {}),
-	// The lazy engines pre-bundle at server start: discovered at first use, their chunks are
-	// re-optimized under a page that already imported them, and the import fails.
-	optimizeDeps: { include: ['mermaid', 'katex'] },
+	// Every package the app imports with `import()`, so it is bundled at startup even where the
+	// scan can't follow the import (`dev-prebundle.test.ts` holds this list to the source).
+	optimizeDeps: { include: ['mermaid'] },
 	server: {
 		port: 1420,
 		strictPort: true,
