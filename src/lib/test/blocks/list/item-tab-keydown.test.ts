@@ -57,6 +57,22 @@ describe('list item Tab dispatch', () => {
 		expect(mounted.source()).toBe('- alpha\n- beta\n');
 	});
 
+	// Miss-analysis: the single edit event of an unindent was only counted in a browser, so a second
+	// commit in the promote path passed every unit row.
+	it.each([
+		['Tab', '- alpha\n- beta\n', [0, 1, 0], TAB],
+		['Shift+Tab', '- alpha\n  - beta\n', [0, 0, 1, 0, 0], SHIFT_TAB]
+	] as const)('%s emits exactly one edit event', async (_, source, path, key) => {
+		mounted = mountEditor({ source });
+		const edits: string[] = [];
+		mounted.instance.getEvents().on('edit', (e) => edits.push(e.op));
+
+		await pressKeyAt(mounted, [...path], 0, key);
+
+		expect(mounted.source()).not.toBe(source);
+		expect(edits).toHaveLength(1);
+	});
+
 	// Miss-analysis: every override row drove a leaf block, so none saw the list item's own key
 	// handler, which resolves Tab against the overrides as the key travels up.
 	it.each([
