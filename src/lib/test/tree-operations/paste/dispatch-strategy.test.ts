@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { pickPasteStrategy, defaultInlineHook } from '../../../tree-operations/paste/dispatch';
 import { contentBlocks } from '../../../tree-operations/paste/strategy';

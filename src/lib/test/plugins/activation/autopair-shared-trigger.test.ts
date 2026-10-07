@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Miss-analysis: no case paired one trigger from two plugins under a grammar listing only one.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';

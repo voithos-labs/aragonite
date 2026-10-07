@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { findEnclosingListForPaste } from '$lib/tree-operations/paste/find-enclosing-list';

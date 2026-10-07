@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // The side of a hidden marker a cross-block move lands on.
 // Miss-analysis (GH #172): the affinity suite never asked what a moveFocus arrival answers.
 import { describe, it, expect, vi } from 'vitest';

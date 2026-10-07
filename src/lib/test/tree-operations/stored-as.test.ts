@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Where a leaf's bytes are stored: the kind and container write rules, and the slot reading a
 // reload gives them, a list item's marker line included.
 import { describe, expect, it } from 'vitest';

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parseFirstBlock } from '$lib/tree-operations/parse-block';
 import { defaultGrammarView } from '$lib/schema/block-openers';

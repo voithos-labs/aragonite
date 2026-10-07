@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // Miss-analysis: the built-in tests reached the editor's bootstraps outside any plugin, so a
 // kind-keyed built-in that a plugin's setup reached first answering to that plugin never showed.
 import { describe, expect, it } from 'vitest';

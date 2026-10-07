@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline } from '$lib';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';

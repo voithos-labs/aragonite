@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

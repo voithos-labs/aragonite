@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
 // boundary logic: which calls stay inside the container and which hand up to the parent.
 // An edge merge that stayed interior silently does nothing; an interior merge that went to

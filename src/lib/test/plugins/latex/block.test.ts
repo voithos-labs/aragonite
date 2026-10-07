@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
