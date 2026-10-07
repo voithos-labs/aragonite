@@ -6,7 +6,7 @@ import { attachErrorCollector } from './error-collector';
 import { Gestures } from './gestures';
 import { Recorder, runDirForSeed } from './recorder';
 import { availableRangeInterrupts } from './gestures/range-interrupt';
-import { planDetours, type RangeBuild, type RangeDestroy } from './detour-plan';
+import { planDetours, type RangeBuild, type RangeDestroy, type SessionDraws } from './detour-plan';
 import { SESSION_TYPO_RATE } from './typos';
 import type { NoteFixture } from './notes/types';
 import {
@@ -35,7 +35,11 @@ const EMPTY_BASELINE = '\n';
  * Loads the note's markdown first to get the end-state target (typing must match loading), then
  * clears the editor. `setSource` ignores an unchanged value, so each start step must be a change.
  */
-export async function runSession(page: Page, editor: EditorPage, opts: SessionOpts): Promise<void> {
+export async function runSession(
+	page: Page,
+	editor: EditorPage,
+	opts: SessionOpts
+): Promise<SessionDraws> {
 	const errors = attachErrorCollector(page);
 	await errors.start();
 
@@ -85,13 +89,14 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await recorder?.checkpoint('detour-done', 'jump-back');
 
 		ctx.label = 'cancelling-detours';
-		await runCancellingDetours(ctx, g, rng);
+		const draws = await runCancellingDetours(ctx, g, rng);
 
 		ctx.label = 'undo-redo-differential';
 		await runRevertingDifferential(ctx);
 
 		await assertCheckpoint(ctx, 'end-state');
 		await assertEndState(ctx, canonical);
+		return draws;
 	} finally {
 		await recorder?.finalize();
 	}
@@ -118,8 +123,9 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
  * Detours that make the session look human, each leaving the bytes as they were. The seed picks
  * which run (`detour-plan.ts`).
  */
-async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
-	for (const step of planDetours(rng)) {
+async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<SessionDraws> {
+	const draws: SessionDraws = { plan: planDetours(rng), interrupts: null, interrupt: null };
+	for (const step of draws.plan) {
 		if (step.kind === 'pause') await g.pause();
 		else if (step.kind === 'select-delete') await selectDeleteUndoDetour(ctx, g, step.chars);
 		else if (step.kind === 'copy-paste') await copyPasteUndoDetour(ctx, g);
@@ -127,11 +133,12 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 		else if (step.kind === 'mode-flip') await g.flipPresentationMode(step.mode);
 		else if (step.kind === 'cross-block') await crossBlockDestroyUndoDetour(ctx, g, step);
 		else if (step.kind === 'merge') await mergeUndoDetour(ctx, g);
-		else await rangeInterruptDetour(ctx, g, rng);
+		else await rangeInterruptDetour(ctx, g, rng, draws);
 	}
 
 	// Runs on every seed and draws nothing, so the picks above stay what each seed made them.
 	await nestedKindChangeUndoDetour(ctx, g);
+	return draws;
 }
 
 /**
@@ -155,10 +162,16 @@ async function nestedKindChangeUndoDetour(ctx: SimContext, g: Gestures): Promise
 /**
  * The seed picks from the interrupting gestures this document can reach.
  */
-async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
-	const available = await availableRangeInterrupts(ctx);
-	if (available.length === 0) return;
-	await g.rangeInterrupt(rng.pick(available));
+async function rangeInterruptDetour(
+	ctx: SimContext,
+	g: Gestures,
+	rng: Rng,
+	draws: SessionDraws
+): Promise<void> {
+	draws.interrupts = await availableRangeInterrupts(ctx);
+	if (draws.interrupts.length === 0) return;
+	draws.interrupt = rng.pick(draws.interrupts);
+	await g.rangeInterrupt(draws.interrupt);
 }
 
 /**

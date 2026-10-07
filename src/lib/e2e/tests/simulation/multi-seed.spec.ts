@@ -1,8 +1,8 @@
-import { test } from '../../fixtures';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
 import { MEETING_MINUTES_NOTE } from '../../simulation/notes/meeting-minutes-note';
-import { MULTI_SEEDS } from '../../simulation/multi-seeds';
+import { MULTI_SEEDS, replayDraws } from '../../simulation/multi-seeds';
 
 // One representative note across the seeds that together draw every detour (`multi-seeds.ts`).
 // Each must leave the bytes as they were and reach the same end state; a failure points at one
@@ -22,12 +22,15 @@ test.describe('note-taking simulation: multi-seed fuzz', () => {
 
 	for (const seed of MULTI_SEEDS) {
 		test(`seed ${seed} reaches the canonical end state`, async ({ page }) => {
-			await runSession(page, editor, {
+			const draws = await runSession(page, editor, {
 				seed,
 				note: MEETING_MINUTES_NOTE,
 				capture: false,
 				undoUnwind: seed === UNDO_UNWIND_SEED
 			});
+			// The coverage unit reasons about the replay, so the live session must draw the same:
+			// same plan, same interrupts on offer, same pick.
+			expect(draws).toEqual(await replayDraws(seed));
 		});
 	}
 });

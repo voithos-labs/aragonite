@@ -1,4 +1,5 @@
 import type { Rng } from './rng';
+import type { RangeInterruptGesture } from './gestures/range-interrupt';
 
 /**
  * Which cancelling detours a session runs after its build, drawn in the order they run. No
@@ -24,6 +25,14 @@ export type DetourStep =
 	| { kind: 'merge' }
 	// The gesture is picked when the step runs, from the ones the live document can reach.
 	| { kind: 'range-interrupt' };
+
+/** What a session drew after its build: the plan, and the range interrupts it offered and the
+ *  one it picked (both null when the plan has no range-interrupt step). */
+export interface SessionDraws {
+	plan: DetourStep[];
+	interrupts: readonly RangeInterruptGesture[] | null;
+	interrupt: RangeInterruptGesture | null;
+}
 
 export function planDetours(rng: Rng): DetourStep[] {
 	const steps: DetourStep[] = [];
