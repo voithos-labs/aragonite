@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { enterPresentationMode } from '../../presentation/helpers';
 
 const STANDALONE_IMAGE_DOC =
 	'before paragraph.\n\n![pic](/test-fixtures/sample.png)\n\nafter paragraph.\n';
@@ -89,4 +90,30 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		expect(src).not.toMatch(/!\[.*X.*\]/);
 		expect(src).not.toMatch(/X.*\(\/test-fixtures/);
 	});
+});
+
+test.describe('live mode: horizontal arrows onto a picture inside a link', () => {
+	// Live mode hides the link's markers, so the picture is the first and last thing its block draws.
+	for (const [key, from, at] of [
+		['ArrowRight', 0, 4],
+		['ArrowLeft', 2, 0]
+	] as const) {
+		test(`${key} selects the picture, and a key typed then replaces it`, async ({ page }) => {
+			const editor = await enterPresentationMode(
+				page,
+				'live',
+				'text\n\n[![cat|120x80](/test-fixtures/sample.png)](https://x)\n\nend\n'
+			);
+			await page.waitForFunction(
+				() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+			);
+			await editor.focusBlockAtPath([from], at);
+
+			await page.keyboard.press(key);
+			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+			await editor.typeText('Q');
+
+			await editor.bridge.waitForSourceEquals('text\n\n[Q](https://x)\n\nend\n');
+		});
+	}
 });

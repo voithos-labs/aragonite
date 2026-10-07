@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { activeBlockPath } from '../../plugins/helpers';
 import { waitForAllImagesLoaded } from './helpers';
+import { enterPresentationMode } from '../../presentation/helpers';
 
 // An image-only paragraph is a vertical stop because it can be entered as an object: one keypress
 // selects the image, the next moves on.
@@ -115,4 +116,26 @@ test.describe('vertical arrows inside a wrapped image-only paragraph', () => {
 		await editor.waitForRenderFlush();
 		expect(await activeBlockPath(page)).toEqual([1]);
 	});
+});
+
+// Live mode hides the link's markers, so the picture is the first and last thing its block draws.
+const LINKED_IMAGE_DOC = 'text\n\n[![cat|120x80](/test-fixtures/sample.png)](https://x)\n\nend\n';
+
+test.describe('live mode: vertical arrows onto a picture inside a link', () => {
+	for (const [key, from] of [
+		['ArrowDown', 0],
+		['ArrowUp', 2]
+	] as const) {
+		test(`${key} selects the picture, and a key typed then replaces it`, async ({ page }) => {
+			const editor = await enterPresentationMode(page, 'live', LINKED_IMAGE_DOC);
+			await waitForAllImagesLoaded(page);
+			await editor.focusBlockAtPath([from], from === 0 ? 4 : 0);
+
+			await page.keyboard.press(key);
+			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+			await editor.typeText('Q');
+
+			await editor.bridge.waitForSourceEquals('text\n\n[Q](https://x)\n\nend\n');
+		});
+	}
 });
