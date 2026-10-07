@@ -136,18 +136,20 @@ const NAMED_BY_A_LISTED_WORD = new Set([
 
 describe('G4.26 requirement files keep house words out of their body text', () => {
 	const files = collectFiles(REQUIREMENTS, { extensions: ['.md'] });
+	// Counted at collection, like the docs below: a 300-file scan can outlast a test's timeout under load.
+	const counted = files.map((f) => ({
+		file: f.slice(REQUIREMENTS.length),
+		hits: countHouseWordsInRequirement(readFileSync(f, 'utf8'))
+	}));
 
 	it('found the requirement files', () => {
 		expect(files.length).toBeGreaterThan(300);
 	});
 
 	it('no requirement file holds a house word outside its headings and code', () => {
-		const offenders = files
-			.map((f) => ({
-				file: f.slice(REQUIREMENTS.length),
-				hits: countHouseWordsInRequirement(readFileSync(f, 'utf8'))
-			}))
-			.filter((row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file));
+		const offenders = counted.filter(
+			(row) => row.hits > 0 && !NAMED_BY_A_LISTED_WORD.has(row.file)
+		);
 		expect(offenders).toEqual([]);
 	});
 
