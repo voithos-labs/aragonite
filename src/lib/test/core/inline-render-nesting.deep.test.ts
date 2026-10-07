@@ -11,11 +11,11 @@ import { renderOptions } from '../harness/fixture-grammar';
 const LEVELS = 2_400;
 
 describe('inline render at input-controlled nesting depth, on a small stack', () => {
+	// jsdom's insert bookkeeping grows faster than the depth, so the render takes seconds.
 	it('renders past the recursion ceiling with full byte coverage', () => {
 		const raw = '*'.repeat(2 * LEVELS) + 'a' + '*'.repeat(2 * LEVELS);
 		const frag = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 
 		expect(frag.textContent).toBe(raw);
-		// jsdom's insert bookkeeping grows faster than the depth, so the render takes seconds.
 	}, 60_000);
 });

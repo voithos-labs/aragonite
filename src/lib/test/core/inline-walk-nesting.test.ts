@@ -99,7 +99,7 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		expect(buildLinkReferenceMap(doc.children as CstNode[]).resolve('a')).toEqual({ url: '/u' });
 	});
 
-	// `renderedText` reads through `visibleRuns`, whose DOM walk a source scan keeps iterative.
+	// `renderedText` reads through `visibleRuns`, whose depth pin is `inline-walk-nesting.deep.test.ts`.
 	it('reads the visible text as the fold of its runs', () => {
 		const raw = '**ab**';
 		const { nodes } = nestedStrong(1, textLeaf);
