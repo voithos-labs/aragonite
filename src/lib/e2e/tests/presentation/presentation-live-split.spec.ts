@@ -114,7 +114,7 @@ test('live mode: a cut the construct cannot take hands it over whole', async ({ 
 
 		// Reload convergence: the bytes the split wrote come back as the same screen.
 		expect(await ep.parseConverged()).toBe(true);
-		await ep.reloadContent();
+		await ep.loadContent(await ep.bridge.getSource());
 		await ep.waitForRenderFlush();
 		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
 		expect(await textOutsideMarkers(ep.getBlock(1))).toBe('');

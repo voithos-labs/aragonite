@@ -16,10 +16,9 @@ export async function enterPresentationMode(
 }
 
 /** Loads `doc` for the next step of a test that walks several rows, as a fresh page would have it:
- *  nothing focused, and a new document, since the editor ignores a source equal to its own. */
+ *  nothing focused, so the caret isn't left in the swapped block, and a new document. */
 export async function nextRow(ep: EditorPage, doc: string): Promise<void> {
 	await ep.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-	await ep.loadContent('\n');
 	await ep.loadContent(doc);
 }
 
