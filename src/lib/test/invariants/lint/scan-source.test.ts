@@ -58,8 +58,9 @@ describe('repo-wide scan roots', () => {
 		expect(new Set(paths).size).toBe(paths.length);
 	});
 
+	const libraryOnly = collectEditorSources(EDITOR_SRC).map((f) => f.relPath);
+
 	it('an explicit root narrows the scan (the opt-out lints rely on this)', () => {
-		const libraryOnly = collectEditorSources(EDITOR_SRC).map((f) => f.relPath);
 		expect(libraryOnly.length).toBeLessThan(paths.length);
 		expect(libraryOnly.every((p) => p.startsWith(SOURCE_DIR.library))).toBe(true);
 	});
@@ -355,8 +356,9 @@ describe('literal values', () => {
 });
 
 describe('collectFiles', () => {
+	const lint = collectFiles(SOURCE_DIR.invariantTests, { extensions: ['.ts'], skip: ['lint'] });
+
 	it('lists matching files under a root as sorted repo paths, and never enters a skipped name', () => {
-		const lint = collectFiles(SOURCE_DIR.invariantTests, { extensions: ['.ts'], skip: ['lint'] });
 		expect(lint.length).toBeGreaterThan(0);
 		expect(lint).toEqual([...lint].sort());
 		expect(lint.every((f) => f.startsWith(SOURCE_DIR.invariantTests) && f.endsWith('.ts'))).toBe(

@@ -1501,13 +1501,13 @@ permitted to name `preDelete` at all are a closed allowlist, each with its reaso
 surface is the one splicer outside the seam. `lint/manifest-rules.test.ts`.
 
 **G4.34 · Link byte-write seam.** The image seam's twin (G4.21), over the construct whose
-destination the reader never sees: the GFM link serializer is named in code only inside
-`link-source-bytes.ts`, and exactly the documented write paths name `buildLinkEditBytes` and
-`buildLinkUnwrapBytes`. The serializer is module-private, so what the scan adds over the module
-boundary is the CALLER set; a second write path is the shape that shipped for images. The seam also
-verifies every candidate through the render path (G4.33): a destination that breaks its own
-construct surfaces as literal source, which no walk over the parse can see. A link claimed by an
-inline plugin kind is declined outright, there being no `rewriteLink` hook to re-serialize it.
+destination the reader never sees. The GFM link serializer is named in code only inside
+`link-source-bytes.ts` (`lint/file-rules.test.ts`, beside G4.74's walk), and a scan holds the files
+that name `buildLinkEditBytes` and `buildLinkUnwrapBytes` to the documented write paths (a second
+write path is the shape that shipped for images). The seam also verifies every candidate through the
+render path (G4.33): a destination that breaks its own construct surfaces as literal source, which
+no walk over the parse can see. A link claimed by an inline plugin kind is declined outright, there
+being no `rewriteLink` hook to re-serialize it.
 `lint/manifest-rules.test.ts`.
 
 **G4.35 · Stamp and revealable parity.** A construct whose marker spans carry a `data-construct-*`
@@ -1694,17 +1694,18 @@ records what shipped under the name of the day. `lint/doc-package-name.test.ts`.
 
 **G4.56 · Iterative walks.** No function under `core/inline/`, `cursor/`, `ambient/` or
 `components/blocks/text/` that reads a node's `children` or `childNodes` may sit on a call cycle,
-its own included. Inline nesting depth is input-controlled (`**` nests one construct per pair), so a
-per-level stack frame overflows and strands the block in the failed-block fallback, which can't
-heal. The renderer and the offset walk took explicit stacks for exactly that reason, and four walks
-one call later didn't, which voided the protection (#200). The scan reads brace-matched bodies
-through the literal-aware walk, so a `{` or a call inside a string can't move the boundary it reads;
-it resolves a call to EVERY declaration bearing that name and tracks reachability per declaration,
-so a file spelling two walkers alike can't hide the recursive one behind the iterative one, and a
-second assertion fails that repeated spelling outright, which is what makes the exception map's
-`path :: name` key address one walk. The map is EMPTY by design; an entry is a stated overflow. The
-join seam's `clipNodes` REBUILDS a tree rather than reading one and still routes through the same
-pre-order, since a construct the cut crosses hands its place to its own clipped children (#226).
+its own included, even a cycle through helpers that read neither. Inline nesting depth is
+input-controlled (`**` nests one construct per pair), so a per-level stack frame overflows and
+strands the block in the failed-block fallback, which can't heal. The renderer and the offset walk
+took explicit stacks for exactly that reason, and four walks one call later didn't, which voided
+the protection (#200). The scan reads brace-matched bodies through the literal-aware walk, so a `{`
+or a call inside a string can't move the boundary it reads; it resolves a call to EVERY declaration
+bearing that name and tracks reachability per declaration, so a file spelling two walkers alike
+can't hide the recursive one behind the iterative one, and a second assertion fails that repeated
+spelling outright, which is what makes the exception map's `path :: name` key address one walk. The
+map is EMPTY by design; an entry is a stated overflow. The join seam's `clipNodes` REBUILDS a tree
+rather than reading one and still routes through the same pre-order, since a construct the cut
+crosses hands its place to its own clipped children (#226).
 `lint/inline-walk-iterative.test.ts`.
 
 **G4.57 · The lexer differential.** The source-scan lexer is held against TypeScript's: every

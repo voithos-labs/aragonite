@@ -298,6 +298,16 @@ const holdsLiveRewrites = (file: SourceFile): boolean =>
 const LIST_MARKER_READ =
 	/\{\s*marker\?:\s*string\s*\}|'listItem'\)\??\.marker\b|\b\w*[mM]eta(?:data)?\??\.marker\b/;
 
+// ── G4.34 / G4.74 private writers ────────────────────────────────────────────
+
+/** Writers whose callers are their own module: unexported today, held here so one `export`
+ *  keyword can't hand them a second caller. */
+const PRIVATE_WRITER_HOMES: Record<string, string> = {
+	buildLinkSourceBytes: SOURCE.linkSourceBytes,
+	terminateLastLine: SOURCE.openTail,
+	releaseLastLine: SOURCE.openTail
+};
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 /** A file the G4.80 population holds, for its probes. */
@@ -888,21 +898,22 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.74 only the commit writes the open last line',
-		matches: /\b(?:terminateLastLine|releaseLastLine)\b/,
-		allowed: {
-			'src/lib/tree-operations/open-tail.ts':
-				'the walk down the last line, private to the two steps every structural commit runs'
-		},
+		id: 'G4.34 G4.74 the link serializer and the last-line walk are named only in their own files',
+		matches: (file) =>
+			Object.entries(PRIVATE_WRITER_HOMES).some(
+				([name, home]) => file.relPath !== home && new RegExp(`\\b${name}\\b`).test(file.code)
+			),
 		reason:
-			'the commit ends every placed line and gives the ending back to the last block; an edit that writes the tail itself is a second copy of that rule, and the next route will not carry it',
+			're-emitting a link’s fields as GFM replaces an author’s own syntax, and a route that ends the last line itself is a second copy of the commit’s rule: call the byte writer or let the commit end the line',
 		hits: [
-			'terminateLastLine(node, ending, sharing, grammar);',
-			'releaseLastLine(tail, sharing, grammar);'
+			at(SOURCE.nodePrimitives, 'releaseLastLine(tail, sharing, grammar);'),
+			at(SOURCE.openTail, 'buildLinkSourceBytes(fields);'),
+			'terminateLastLine(node, ending, sharing, grammar);'
 		],
 		misses: [
-			'endWindowLines(body, change, sharing, grammar);',
-			'text = terminateLine(text, ending);'
+			at(SOURCE.openTail, 'terminateLastLine(node, ending, sharing, grammar);'),
+			at(SOURCE.linkSourceBytes, 'return buildLinkSourceBytes(fields);'),
+			'endWindowLines(body, change, sharing, grammar);\ntext = terminateLine(text, ending);'
 		]
 	},
 	{

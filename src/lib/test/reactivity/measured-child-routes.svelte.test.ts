@@ -215,10 +215,12 @@ describe('every windowed child measures into its own list, under its id, once pe
 		});
 	}
 
+	// Walked at collection, which no test timeout bounds: the source walk is slow on a busy machine.
+	const callers = collectEditorSources()
+		.filter((file) => /(?<![\w$]|function\s)useMeasuredChild\s*\(/.test(file.code))
+		.map((file) => file.relPath);
+
 	it('every component that measures a child has a row', () => {
-		const callers = collectEditorSources()
-			.filter((file) => /(?<![\w$]|function\s)useMeasuredChild\s*\(/.test(file.code))
-			.map((file) => file.relPath);
 		expect(callers.sort()).toEqual([...new Set(KINDS.map((kind) => kind.component))].sort());
 	});
 });

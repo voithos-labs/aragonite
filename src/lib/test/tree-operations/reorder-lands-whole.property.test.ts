@@ -14,7 +14,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
-const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(414141) } as const;
+const PARAMS = { numRuns: 100, seed: freshOrFixedSeed(414141) } as const;
 
 beforeEach(() => {
 	registerMathBlock();

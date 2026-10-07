@@ -2,42 +2,15 @@ import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { FLANKING_CASES, INTRA_WORD_UNDERSCORE_CASES } from '../support/flanking-corpus';
+import { collectKind, hasKind, shapeOf } from '../core/inline/scan/scan-test-helpers';
 
 // Flanking-algorithm edges only (G2.3): basic emphasis, reference forms, and autolink
 // trimming are covered in test/core/inline/**. The §6.2 tables live in
 // test/support/flanking-corpus.ts, shared with scan/emphasis-flanking.test.ts, which
 // runs the same cases against the scanner rather than the full pipeline.
 
-function hasKind(nodes: InlineNode[], kind: InlineNode['kind']): boolean {
-	for (const n of nodes) {
-		if (n.kind === kind) return true;
-		if (n.children && hasKind(n.children, kind)) return true;
-	}
-	return false;
-}
-
-function collectKind(nodes: InlineNode[], kind: InlineNode['kind']): InlineNode[] {
-	const out: InlineNode[] = [];
-	for (const n of nodes) {
-		if (n.kind === kind) out.push(n);
-		if (n.children) out.push(...collectKind(n.children, kind));
-	}
-	return out;
-}
-
 function isAllPlainText(nodes: InlineNode[]): boolean {
 	return nodes.every((n) => n.kind === 'text');
-}
-
-/** Node tree rendered as an `<em>`/`<strong>`-tagged shape string for exact pins. */
-function shapeOf(nodes: InlineNode[], source: string): string {
-	return nodes
-		.map((n) => {
-			if (n.kind === 'emphasis') return `<em>${shapeOf(n.children ?? [], source)}</em>`;
-			if (n.kind === 'strong') return `<strong>${shapeOf(n.children ?? [], source)}</strong>`;
-			return source.slice(n.start, n.end);
-		})
-		.join('');
 }
 
 const sortedSpans = (nodes: InlineNode[], source: string): string[] =>

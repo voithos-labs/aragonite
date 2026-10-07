@@ -47,6 +47,7 @@ export const SOURCE = {
 	// ── Tree operations ─────────────────────────────────────────────────────
 	treeOperationsBarrel: 'src/lib/tree-operations/index.ts',
 	nodePrimitives: 'src/lib/tree-operations/node-primitives.ts',
+	openTail: 'src/lib/tree-operations/open-tail.ts',
 	unshare: 'src/lib/tree-operations/unshare.ts',
 	settle: 'src/lib/tree-operations/settle.ts',
 	contentWrite: 'src/lib/tree-operations/content-write.ts',
@@ -181,6 +182,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Tree operations ─────────────────────────────────────────────────────
 	treeOperationsBarrel: 'export { updateNodeContent, reclassifyContainer }',
 	nodePrimitives: 'export type BodyParent',
+	openTail: 'export function keepOpenTail',
 	unshare: 'export function walkUnsharing',
 	settle: 'export function clearRedundantSeparator',
 	contentWrite: 'export interface LegalWrite',

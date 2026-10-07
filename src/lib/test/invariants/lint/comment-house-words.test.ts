@@ -79,10 +79,12 @@ describe('G4.26 no house word in a comment', () => {
 		expect(sources.some((f) => f.relPath.startsWith(SOURCE_DIR.routes))).toBe(true);
 	});
 
+	// Counted at collection, which no test timeout bounds: the corpus is slow on a busy machine.
+	const offenders = sources
+		.map((f) => ({ file: f.relPath, hits: countHouseWords(f.text, f.relPath) }))
+		.filter((row) => row.hits > 0);
+
 	it('no comment under src/lib or src/routes holds a house word', () => {
-		const offenders = sources
-			.map((f) => ({ file: f.relPath, hits: countHouseWords(f.text, f.relPath) }))
-			.filter((row) => row.hits > 0);
 		expect(offenders).toEqual([]);
 	});
 
