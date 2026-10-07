@@ -42,7 +42,10 @@ describe('G4.126 the dev server pre-bundles every package before a page asks for
 			const found = await glob([entry, ...negations], { cwd: config.root, absolute: true });
 			if (found.length === 0) unmatched.push(entry);
 		}
-		expect(unmatched, 'scan entries that match no file').toEqual([]);
+		expect(
+			unmatched,
+			'scan entries that match no file, so the dev server finds every package mid-run and reloads open pages (on Windows, check they use forward slashes)'
+		).toEqual([]);
 		const scanned = await glob(entries, { cwd: config.root, absolute: true });
 		expect(scanned).toContain(toPosix(path.resolve(SOURCE.showcaseRoute)));
 	});
@@ -56,6 +59,9 @@ describe('G4.126 the dev server pre-bundles every package before a page asks for
 		expect(lazy.length, 'the scan found no lazy package import at all').toBeGreaterThan(0);
 		const included = new Set(clientDeps.include ?? []);
 		const missing = lazy.filter(({ specifier }) => !included.has(specifier));
-		expect(missing).toEqual([]);
+		expect(
+			missing,
+			'add these packages to optimizeDeps.include in vite.config.js, or the dev server finds them mid-run and reloads every open page'
+		).toEqual([]);
 	});
 });
