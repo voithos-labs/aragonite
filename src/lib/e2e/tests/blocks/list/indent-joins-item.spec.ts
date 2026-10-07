@@ -3,29 +3,16 @@ import { EditorPage } from '../../../editor-page';
 
 // Requirements: `e2e/requirements/blocks/list/indent-joins-item.md`.
 
-// Each row indents the paragraph under a list by its first line, typed or pasted, and a reload
-// reads the indented paragraph as the item's own, so the editor must hold it there too.
+// Each row indents the paragraph under a list by its first line; a reload reads it as the item's own,
+// so the editor must hold it there too. Other widths: `indent-write-settle.test.ts`.
 const INDENTS = [
-	{ shape: 'two typed spaces', doc: '- a\n\nzz\n', typed: '  ', after: '- a\n\n  zz\n' },
 	{ shape: 'two pasted spaces', doc: '- a\n\nzz\n', pasted: '  ', after: '- a\n\n  zz\n' },
 	{ shape: 'a pasted tab', doc: '- a\n\nzz\n', pasted: '\t', after: '- a\n\n\tzz\n' },
-	{
-		shape: 'three spaces under an ordered item',
-		doc: '1. a\n\nzz\n',
-		typed: '   ',
-		after: '1. a\n\n   zz\n'
-	},
 	{
 		shape: 'four spaces under a nested item',
 		doc: '- a\n  - b\n\nzz\n',
 		typed: '    ',
 		after: '- a\n  - b\n\n    zz\n'
-	},
-	{
-		shape: 'two spaces under the outer of two nested items',
-		doc: '- a\n  - b\n\nzz\n',
-		typed: '  ',
-		after: '- a\n  - b\n\n  zz\n'
 	}
 ];
 
@@ -52,6 +39,31 @@ test.describe('indenting a paragraph under a loose list item', () => {
 		});
 	}
 
+	test('typed spaces join the paragraph; the keys after them land inside the item', async ({
+		page
+	}) => {
+		await editor.loadContent('- a\n\nzz\n');
+		await editor.focusBlockAtPath([1], 0);
+
+		await test.step('two typed spaces join it', async () => {
+			await page.keyboard.type('  ');
+			await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\n  zz\n');
+			expect(await editor.parseConverged()).toBe(true);
+		});
+		await test.step('the next key lands before the text', async () => {
+			await page.keyboard.type('Q');
+			await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\n  Qzz\n');
+			expect(await editor.parseConverged()).toBe(true);
+			await page.keyboard.press('Backspace');
+			await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\n  zz\n');
+		});
+		await test.step('Backspace at the start of the joined paragraph joins the item text', async () => {
+			await page.keyboard.press('Backspace');
+			await expect.poll(() => editor.bridge.getSource()).toBe('- azz\n');
+			expect(await editor.parseConverged()).toBe(true);
+		});
+	});
+
 	test('one space too few keeps the paragraph its own', async ({ page }) => {
 		await editor.loadContent('1. a\n\nzz\n');
 		await editor.focusBlockAtPath([1], 0);
@@ -69,28 +81,6 @@ test.describe('indenting a paragraph under a loose list item', () => {
 		await page.keyboard.press('Backspace');
 
 		await expect.poll(() => editor.bridge.getSource()).toBe('1. a\n\n zz\n');
-		expect(await editor.parseConverged()).toBe(true);
-	});
-
-	test('Backspace at the start of the joined paragraph reloads as the tree holds', async ({
-		page
-	}) => {
-		await editor.loadContent('- a\n\nzz\n');
-		await editor.focusBlockAtPath([1], 0);
-		await page.keyboard.type('  ');
-		await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\n  zz\n');
-		await page.keyboard.press('Backspace');
-
-		await expect.poll(() => editor.bridge.getSource()).toBe('- azz\n');
-		expect(await editor.parseConverged()).toBe(true);
-	});
-
-	test('the key typed after the indent lands before the text', async ({ page }) => {
-		await editor.loadContent('- a\n\nzz\n');
-		await editor.focusBlockAtPath([1], 0);
-		await page.keyboard.type('  Q');
-
-		await expect.poll(() => editor.bridge.getSource()).toBe('- a\n\n  Qzz\n');
 		expect(await editor.parseConverged()).toBe(true);
 	});
 });

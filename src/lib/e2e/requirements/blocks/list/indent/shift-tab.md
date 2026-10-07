@@ -4,6 +4,8 @@ How Shift+Tab promotes a nested list item to the parent list level, including ma
 
 ## Shift+Tab (unindent / promote)
 
+What the lifted item carries, and the marker and number it ends with, are pinned in `src/lib/test/blocks/list/lift-keeps-order.test.ts`. The browser rows keep the caret and the emptied-parent cases.
+
 - Shift+Tab on a nested item promotes it to the parent list level
 - Shift+Tab on a top-level item does nothing
 - The promoted item is inserted after the parent item in the parent list
@@ -24,6 +26,8 @@ How Shift+Tab promotes a nested list item to the parent list level, including ma
   - Miss-analysis: every promote fixture gave the parent item a line of text above its sublist,
     so no test saw the item the removal left with nothing in it.
 - Focus follows the item through the container mutation, whether the nested list survives with siblings or is removed outright: typing straight after Shift+Tab lands at the start of the promoted item, never at the position it held before the move
+  - Miss-analysis: the several-items row checked the typed line with a regex that also matched it
+    still nested, so a Shift+Tab that did nothing passed.
 
 ### Ordered list numbering and marker style on Shift+Tab
 
