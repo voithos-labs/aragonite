@@ -44,11 +44,11 @@ describe('parrot caption', () => {
 	});
 
 	it.each([
-		['one space', '%%parrot party\n', 9],
-		['two spaces', '%%parrot  party\n', 10],
-		['a non-breaking space', '%%parrot\u00a0party\n', 8],
-		['no space', '%%parrotparty\n', 8]
-	])('a press on the caption start after %s reveals the source at %i', (_label, source, offset) => {
+		['one space', 9, '%%parrot party\n'],
+		['two spaces', 10, '%%parrot  party\n'],
+		['a non-breaking space', 8, '%%parrot\u00a0party\n'],
+		['no space', 8, '%%parrotparty\n']
+	])('a press on the caption start after %s reveals the source at %i', (_label, offset, source) => {
 		expect(offsetAtCaptionStart(source)).toBe(offset);
 	});
 });
