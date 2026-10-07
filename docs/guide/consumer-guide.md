@@ -868,7 +868,7 @@ Disabling `Tab` or `Enter` for `tableCell` likewise leaves the cell with no way 
 
 The Find / replace chords ignore `keybindings` and aren't rebindable today; `searchBar={false}` is the way to free them.
 
-**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
+**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 ### Which shortcuts the editor consumes
 
@@ -1071,7 +1071,7 @@ handle.invalidate(); // re-run provide now
 handle.dispose(); // gone
 ```
 
-Authoring semantics, the four decoration types, and the memoization recipe are in the [plugin guide](plugin-guide.md#decorations); everything there applies verbatim to a consumer-registered source.
+Authoring semantics, the four decoration types, and the memoization recipe are in the [plugin guide](plugin-guide/decorations.md#decorations); everything there applies verbatim to a consumer-registered source.
 
 ### Screen geometry
 

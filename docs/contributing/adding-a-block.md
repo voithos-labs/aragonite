@@ -122,7 +122,7 @@ What you have to declare:
 
 `estimateHeight` is the block's height guess until windowing (only mounting the blocks near the screen) gets to measure it. You prob don't need to write one. `src/lib/schema/height-estimates.ts` has one per common shape (wrapped prose, a single line, source lines, and `containerEstimate` for anything with children), so pick the closest.
 
-The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
+The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide/container-walkthrough.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
 
 - `simpleLeafClosure` (`schema/closure.ts`): a not-mergeable, source-editable leaf. Bakes the five cells such leaves always answer the same way, and still demands the four your component decides (`focus`, `searchPaint`, `undo`, `simOracle`).
 - `containerClosure` (`schema/closure.ts`): a container whose body is its children's bytes inside its own markers (the `'strip'` contract, below). Bakes the four structural cells and `roundTrip`, demands the rest.
@@ -211,7 +211,7 @@ BlockHost looks your component up by kind and hands every block the same props: 
 
 ### 3. The opener, if you need one
 
-A kind the block parser must recognize on a line registers an opener: `registerBlockOpener(kind, { priority, tryOpen, interruptsParagraph })` from `schema/block-openers.ts`, called from `core/parsers/built-in-openers.ts`. How an opener claims lines, interrupts paragraphs, and consumes multi-line constructs is the plugin guide's ["Teaching the parser"](../guide/plugin-guide.md#teaching-the-parser); the built-in wiring is what's here.
+A kind the block parser must recognize on a line registers an opener: `registerBlockOpener(kind, { priority, tryOpen, interruptsParagraph })` from `schema/block-openers.ts`, called from `core/parsers/built-in-openers.ts`. How an opener claims lines, interrupts paragraphs, and consumes multi-line constructs is the plugin guide's ["Teaching the parser"](../guide/plugin-guide/parser.md#teaching-the-parser); the built-in wiring is what's here.
 
 ```ts
 // core/parsers/built-in-openers.ts
