@@ -20,7 +20,7 @@ bridge is what each scenario checks against.
 
 - source mode keeps the truncation byte-literal, and an endpoint in the title row
   stays byte-literal even in live mode (both pinned by unit tests in
-  `chrome-aware-delete-live-seam.test.ts`)
+  `range-delete-truncation-cleanup.test.ts`)
 
 ## User interactions
 

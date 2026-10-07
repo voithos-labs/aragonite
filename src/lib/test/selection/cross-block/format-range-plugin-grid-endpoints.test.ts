@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // What the plan hands back for a range whose edge is a deep `[grid, row, col]` path: a character
 // offset into a cell the write grows, an endpoint space a table does not have. A text edge
 // follows its own rewrite, and a deep grid edge must too.

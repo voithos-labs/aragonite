@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // A grid whose covered cells outnumber what a call's argument list can hold. The span
 // decomposition must accumulate them, never spread them into one call: an argument list
 // past the JavaScript engine's limit raises "Maximum call stack size exceeded".

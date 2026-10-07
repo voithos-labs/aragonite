@@ -17,7 +17,7 @@ truncation takes the cleaner's unpaired-run half. Driven on `/test/editor` via
 ## Edge cases
 
 - source mode: the same gesture keeps the truncation byte-literal, delimiters
-  included (pinned by unit tests in `table-aware-delete-live-seam.test.ts`)
+  included (pinned by unit tests in `range-delete-truncation-cleanup.test.ts`)
 
 ## User interactions
 
