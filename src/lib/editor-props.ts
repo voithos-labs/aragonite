@@ -60,9 +60,9 @@ export interface EditorProps {
 	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
 	/** Faint text an empty block shows until something is typed, read live. A string shows only in
-	 *  an empty document, never in reading mode; a function is asked for each mounted empty block
-	 *  and returns the text or null. It is painted by CSS from `data-placeholder` and announced as
-	 *  `aria-placeholder`, so it never enters the document, the undo history or the caret. */
+	 *  an empty document, never in reading mode; a function is asked for each empty block on screen
+	 *  and returns the text or null. Painted in `--md-placeholder-color` and announced as
+	 *  `aria-placeholder`. */
 	placeholder?: string | ((block: PlaceholderBlock) => string | null);
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode

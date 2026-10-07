@@ -28,7 +28,7 @@ any violation outside the committed baseline allowlist fails the gate.
 
 - Every editable block carries its kind as its accessible name: a heading reads `Heading level N`, a paragraph `Paragraph` (inside a list item too), a code fence `Code block` plus its language, and a thematic break's focusable input `Divider`. The axe scans above fail on any textbox without a name.
 - The thematic break exposes one separator, the `<hr>`; its focusable wrapper carries no role, since a focusable separator is a slider to ARIA.
-- An empty block showing a hint (the `placeholder` prop) names it as `aria-placeholder` on its textbox, has no new violations, and drops the attribute once a letter is typed.
+- An empty block showing a hint (the `placeholder` prop) announces it as `aria-placeholder` on its textbox, has no new violations, and drops the attribute once a letter is typed.
 
 ## Miss-analysis
 

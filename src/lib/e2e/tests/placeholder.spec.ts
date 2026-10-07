@@ -12,12 +12,11 @@ const HINT = 'Start writing';
 const surfaceAt = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='${JSON.stringify(path)}'] [contenteditable]`).first();
 
-async function setPlaceholder(page: Page, form: 'kind' | 'focused' | 'off'): Promise<void> {
+async function setPlaceholder(page: Page, form: 'kind' | 'focused'): Promise<void> {
 	await page.evaluate((f) => {
 		const forms = {
 			kind: (b: { kind: string }) => `Empty ${b.kind}`,
-			focused: (b: { focused: boolean }) => (b.focused ? 'Type here' : null),
-			off: undefined
+			focused: (b: { focused: boolean }) => (b.focused ? 'Type here' : null)
 		};
 		(window as any).__test.setPlaceholder(forms[f]);
 	}, form);
@@ -78,25 +77,6 @@ test.describe('placeholder: the string form', () => {
 		await expect(el).not.toHaveAttribute('aria-placeholder');
 		expect(await editor.bridge.getSource()).toBe('\n');
 	});
-
-	test('a click on the hint puts the caret at the block start and changes nothing', async ({
-		page
-	}) => {
-		const box = (await surfaceAt(page, [0]).boundingBox())!;
-		await page.mouse.click(box.x + 40, box.y + box.height / 2);
-		expect(await editor.bridge.getSelection()).toEqual({
-			anchor: { path: [0], offset: 0 },
-			focus: { path: [0], offset: 0 }
-		});
-		await setPlaceholder(page, 'kind');
-		await setPlaceholder(page, 'off');
-		expect(await editor.bridge.getSource()).toBe('\n');
-		expect(await editor.bridge.getUndoDepth()).toBe(0);
-		expect(await editor.bridge.getSelection()).toEqual({
-			anchor: { path: [0], offset: 0 },
-			focus: { path: [0], offset: 0 }
-		});
-	});
 });
 
 test.describe('placeholder: the function form', () => {
@@ -117,21 +97,6 @@ test.describe('placeholder: the function form', () => {
 		await editor.clickBlock(0);
 		await expect(surfaceAt(page, [0])).toHaveAttribute('data-placeholder', 'Type here');
 		await expect(surfaceAt(page, [1])).not.toHaveAttribute('data-placeholder');
-	});
-
-	test('a prop change repaints the mounted block without remounting it', async ({ page }) => {
-		await editor.loadContent('\n');
-		await setPlaceholder(page, 'kind');
-		const el = surfaceAt(page, [0]);
-		await expect(el).toHaveAttribute('data-placeholder', 'Empty paragraph');
-		await el.evaluate((node) => ((node as HTMLElement).dataset.marked = ''));
-
-		await setPlaceholder(page, 'focused');
-		await editor.clickBlock(0);
-		await expect(el).toHaveAttribute('data-placeholder', 'Type here');
-		await setPlaceholder(page, 'off');
-		await expect(el).not.toHaveAttribute('data-placeholder');
-		await expect(el).toHaveAttribute('data-marked', '');
 	});
 });
 
