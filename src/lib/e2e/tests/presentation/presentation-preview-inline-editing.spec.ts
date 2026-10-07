@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
+import { clickModeToggle } from '../../mode-switch';
 
 // preview-inline is an editing mode: a construct showing its markers is ordinary source text,
 // so typing commits per keystroke and what is shown survives every rebuild. Rendering lives in
@@ -8,8 +9,6 @@ import type { Page } from '@playwright/test';
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-editing.md.
 
 const DOC = ['# Title', '', 'alpha **beta** gamma'].join('\n');
-
-const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
 
 // Steps the caret to a fixed raw offset with real keypresses, since a click cannot target
 // hidden marker bytes.
@@ -27,7 +26,7 @@ test.describe('preview-inline, editing stays live', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreviewInline(page);
+		await clickModeToggle(page, 'preview-inline');
 	});
 
 	test('typing inside a revealed construct commits per keystroke and round-trips', async ({
@@ -91,17 +90,17 @@ test.describe('preview-inline, editing stays live', () => {
 
 		// preview-block: the whole focused block shows its markers, through focus-keyed CSS with
 		// no per-construct attributes.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('preview-block'));
+		await ep.setPresentationMode('preview-block');
 		await ep.waitForRenderFlush();
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();
 
 		// Back to preview-inline: only the caret chain shows again.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('preview-inline'));
+		await ep.setPresentationMode('preview-inline');
 		await ep.waitForRenderFlush();
 		await expect(ep.getBlock(1).locator('[data-construct-start]').first()).toBeVisible();
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeHidden();
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
+		await ep.setPresentationMode('source');
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeVisible();
 		// A programmatic mode set, not a keystroke.
 		await ep.waitForNoSourceMutation();

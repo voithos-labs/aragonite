@@ -211,8 +211,7 @@ test('switching to reading mode leaves a focused header field focused', async ({
 	// Reading mode drops the editor's own caret; it has no business dropping the app's, which
 	// switching mode would do in the middle of an edit.
 	await page.locator('[data-testid="hero-title"]').click();
-	await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
-	await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+	await editor.setPresentationMode('reading');
 	expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))).toBe(
 		'hero-title'
 	);

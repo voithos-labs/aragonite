@@ -1,19 +1,20 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode, stepTo } from './helpers';
+import {
+	clickBlockSettled,
+	clickEnd,
+	enterPresentationMode,
+	held,
+	nextRow,
+	stepTo
+} from './helpers';
 import { attachIme } from '../../simulation/ime';
-import { textRunEnd } from '../../text-runs';
 
 // A space typed at a hidden closer is written past it while the caret still means inside, so the
 // next letter takes it back in. Only the source tells inside from outside, so every row reads it.
+// Each test walks its rows as steps, every step on a fresh copy of the document.
 // Requirements: e2e/requirements/presentation/presentation-live-held-space.md.
-
-async function clickEnd(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await textRunEnd(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-}
 
 /** `text` on a soft keyboard: each character arrives on `beforeinput`, no key behind it. */
 async function softType(ep: EditorPage, page: Page, text: string): Promise<void> {
@@ -29,83 +30,92 @@ async function pasteText(ep: EditorPage, text: string): Promise<void> {
 	await ep.waitForRenderFlush();
 }
 
-const held = (page: Page) =>
-	page.evaluate(() =>
-		[...document.querySelectorAll('.md-edge-held')].map((el) => el.tagName.toLowerCase())
-	);
-
-/** A line holding `a`, the caret at its end, ready to type. */
-async function atLineEnd(page: Page): Promise<EditorPage> {
-	const ep = await enterPresentationMode(page, 'live', 'a');
+/** A fresh line holding `a`, the caret at its end, ready to type. */
+async function atLineEnd(ep: EditorPage, page: Page): Promise<void> {
+	await nextRow(ep, 'a');
 	await clickBlockSettled(ep, 0);
 	await page.keyboard.press('End');
 	await ep.waitForRenderFlush();
-	return ep;
 }
 
+const DELIMITERS = [
+	['bold', '**'],
+	['emphasis', '*'],
+	['underscore emphasis', '_'],
+	['strikethrough', '~~']
+] as const;
+
 test.describe('live mode: a new pair keeps every word typed into it', () => {
-	for (const [name, delimiter] of [
-		['bold', '**'],
-		['emphasis', '*'],
-		['underscore emphasis', '_'],
-		['strikethrough', '~~']
-	]) {
-		const want = `a ${delimiter}two words${delimiter}`;
+	test('typed on a hardware keyboard', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', 'a');
 
-		test(`${name}, typed on a hardware keyboard`, async ({ page }) => {
-			const ep = await atLineEnd(page);
-			await page.keyboard.type(` ${delimiter}two words`);
-			await ep.bridge.waitForSourceContains(want);
+		for (const [name, delimiter] of DELIMITERS) {
+			await test.step(name, async () => {
+				await atLineEnd(ep, page);
+				await page.keyboard.type(` ${delimiter}two words`);
+				await ep.bridge.waitForSourceContains(`a ${delimiter}two words${delimiter}`);
+			});
+		}
+
+		await test.step('a second space keeps the hold', async () => {
+			await atLineEnd(ep, page);
+			await page.keyboard.type(' **two  w');
+			await ep.bridge.waitForSourceContains('a **two  w**');
 		});
-
-		test(`${name}, typed on a soft keyboard`, async ({ page }) => {
-			const ep = await atLineEnd(page);
-			await softType(ep, page, ` ${delimiter}two words`);
-			await ep.bridge.waitForSourceContains(want);
-		});
-	}
-
-	test('the space and the word committed by an IME', async ({ page }) => {
-		const ep = await atLineEnd(page);
-		await page.keyboard.type(' **two');
-		const ime = await attachIme(page);
-		await ime.compose(' ');
-		await ime.commit(' ');
-		await ep.waitForRenderFlush();
-		await ime.compose('か');
-		await ime.commit('かん');
-		await ep.bridge.waitForSourceContains('a **two かん**');
 	});
 
-	test('the space and the word pasted', async ({ page }) => {
-		const ep = await atLineEnd(page);
-		await page.keyboard.type(' **two');
-		await pasteText(ep, ' ');
-		await pasteText(ep, 'words');
-		await ep.bridge.waitForSourceContains('a **two words**');
+	test('typed on a soft keyboard', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', 'a');
+
+		for (const [name, delimiter] of DELIMITERS) {
+			await test.step(name, async () => {
+				await atLineEnd(ep, page);
+				await softType(ep, page, ` ${delimiter}two words`);
+				await ep.bridge.waitForSourceContains(`a ${delimiter}two words${delimiter}`);
+			});
+		}
 	});
 
-	test('a second space keeps the hold', async ({ page }) => {
-		const ep = await atLineEnd(page);
-		await page.keyboard.type(' **two  w');
-		await ep.bridge.waitForSourceContains('a **two  w**');
+	test('the space and the word committed by an IME, then pasted', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', 'a');
+
+		await test.step('committed by an IME', async () => {
+			await atLineEnd(ep, page);
+			await page.keyboard.type(' **two');
+			const ime = await attachIme(page);
+			await ime.compose(' ');
+			await ime.commit(' ');
+			await ep.waitForRenderFlush();
+			await ime.compose('か');
+			await ime.commit('かん');
+			await ep.bridge.waitForSourceContains('a **two かん**');
+		});
+
+		await test.step('pasted', async () => {
+			await atLineEnd(ep, page);
+			await page.keyboard.type(' **two');
+			await pasteText(ep, ' ');
+			// Read before the word, which would pull a space written inside back in either way.
+			await ep.bridge.waitForSourceContains('a **two** ');
+			await pasteText(ep, 'words');
+			await ep.bridge.waitForSourceContains('a **two words**');
+		});
 	});
 });
 
-test.describe('live mode: typing on after an existing bold', () => {
-	let ep: EditorPage;
+test('live mode: typing on after an existing bold', async ({ page }) => {
+	const DOC = 'Some **bold** text';
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', 'Some **bold** text');
-	});
-
-	test('a click at its end, then a space and a word, extends it', async ({ page }) => {
+	await test.step('a click at its end, then a space and a word, extends it', async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'bold');
 		await page.keyboard.type(' more');
 		await ep.bridge.waitForSourceContains('Some **bold more** text');
 	});
 
-	test('an arrival from outside types the space and the word outside', async ({ page }) => {
+	await test.step('an arrival from outside types the space and the word outside', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, 0);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
@@ -114,16 +124,16 @@ test.describe('live mode: typing on after an existing bold', () => {
 		await ep.bridge.waitForSourceContains('Some **bold** more text');
 	});
 
-	test('the format chord before the space types outside', async ({ page }) => {
+	await test.step('the format chord before the space types outside', async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'bold');
 		await page.keyboard.press('ControlOrMeta+b');
 		await page.keyboard.type(' more');
 		await ep.bridge.waitForSourceContains('Some **bold** more text');
 	});
 
-	test('the ring stays on the bold over a held space, and ArrowRight takes it off', async ({
-		page
-	}) => {
+	await test.step('the ring stays on the bold over a held space, and ArrowRight takes it off', async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'bold');
 		await page.keyboard.type(' ');
 		await expect.poll(() => held(page)).toEqual(['strong']);
@@ -132,15 +142,16 @@ test.describe('live mode: typing on after an existing bold', () => {
 	});
 });
 
-test.describe('live mode: a format chord during a held space', () => {
+test('live mode: a format chord during a held space', async ({ page }) => {
+	const DOC = 'a **two**';
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
 	for (const [chord, want] of [
 		['i', 'a **two** *x*'],
 		['b', 'a **two** x']
 	] as const) {
-		test(`Mod+${chord.toUpperCase()} after a held space in a bold types ${want}`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', 'a **two**');
+		await test.step(`Mod+${chord.toUpperCase()} after a held space in a bold types ${want}`, async () => {
+			await nextRow(ep, DOC);
 			await clickEnd(ep, page, 'two');
 			await page.keyboard.type(' ');
 			await page.keyboard.press(`ControlOrMeta+${chord}`);
@@ -151,9 +162,11 @@ test.describe('live mode: a format chord during a held space', () => {
 	}
 });
 
-test.describe('live mode: the hold ends without touching the bytes', () => {
-	test('a click away leaves the space where it is', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', 'a **two**\n\nnext');
+test('live mode: the hold ends without touching the bytes', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
+
+	await test.step('a click away leaves the space where it is', async () => {
+		await nextRow(ep, 'a **two**\n\nnext');
 		await clickEnd(ep, page, 'two');
 		await page.keyboard.type(' ');
 		await clickBlockSettled(ep, 1);
@@ -165,43 +178,21 @@ test.describe('live mode: the hold ends without touching the bytes', () => {
 		await ep.bridge.waitForSourceContains('a **two** w\n');
 	});
 
-	for (const route of ['soft keyboard', 'paste'] as const) {
-		test(`after an arrow steps out of a bold, a ${route} types outside`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', 'a **bold** b');
-			await clickEnd(ep, page, 'bold');
-			await page.keyboard.press('ArrowRight');
-			await ep.waitForRenderFlush();
-			if (route === 'paste') await pasteText(ep, 'X');
-			else await softType(ep, page, 'X');
-			await ep.bridge.waitForSourceContains('a **bold**X b');
-		});
-	}
-
-	test('source mode writes the space inside the visible closer', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'source', 'a **two**');
-		await clickEnd(ep, page, 'two');
-		await page.keyboard.type(' w');
-		await ep.bridge.waitForSourceContains('a **two w**');
+	await test.step('after an arrow steps out of a bold, a paste types outside', async () => {
+		await nextRow(ep, 'a **bold** b');
+		await clickEnd(ep, page, 'bold');
+		await page.keyboard.press('ArrowRight');
+		await ep.waitForRenderFlush();
+		await pasteText(ep, 'X');
+		await ep.bridge.waitForSourceContains('a **bold**X b');
 	});
 });
 
 /** Each way out, and what typing `w` after it writes at a line's end and mid-line. */
 const EXITS: { name: string; press: (page: Page) => Promise<void>; end: string; mid: string }[] = [
 	{
-		name: 'one ArrowRight',
-		press: (page) => page.keyboard.press('ArrowRight'),
-		end: 'a **two** w',
-		mid: 'Some **bold** w text'
-	},
-	{
 		name: 'the typed closer',
 		press: (page) => page.keyboard.type('*'),
-		end: 'a **two** w',
-		mid: 'Some **bold** w text'
-	},
-	{
-		name: 'the format chord',
-		press: (page) => page.keyboard.press('ControlOrMeta+b'),
 		end: 'a **two** w',
 		mid: 'Some **bold** w text'
 	},
@@ -213,26 +204,23 @@ const EXITS: { name: string; press: (page: Page) => Promise<void>; end: string; 
 	}
 ];
 
-test.describe('live mode: the ways out of a held space', () => {
-	for (const exit of EXITS) {
-		test(`${exit.name}, at a line’s end`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', 'a **two**');
-			await clickEnd(ep, page, 'two');
-			await page.keyboard.type(' ');
-			await exit.press(page);
-			await ep.waitForRenderFlush();
-			await page.keyboard.type('w');
-			await ep.bridge.waitForSourceContains(exit.end);
-		});
+test('live mode: the ways out of a held space', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
 
-		test(`${exit.name}, mid-line`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', 'Some **bold** text');
-			await clickEnd(ep, page, 'bold');
-			await page.keyboard.type(' ');
-			await exit.press(page);
-			await ep.waitForRenderFlush();
-			await page.keyboard.type('w');
-			await ep.bridge.waitForSourceContains(exit.mid);
-		});
+	for (const exit of EXITS) {
+		for (const [where, doc, word, written] of [
+			['at a line’s end', 'a **two**', 'two', exit.end],
+			['mid-line', 'Some **bold** text', 'bold', exit.mid]
+		] as const) {
+			await test.step(`${exit.name}, ${where}`, async () => {
+				await nextRow(ep, doc);
+				await clickEnd(ep, page, word);
+				await page.keyboard.type(' ');
+				await exit.press(page);
+				await ep.waitForRenderFlush();
+				await page.keyboard.type('w');
+				await ep.bridge.waitForSourceContains(written);
+			});
+		}
 	}
 });

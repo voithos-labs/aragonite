@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { gotoReady } from '../../goto-ready';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
+import { clickModeButton } from '../../mode-switch';
 
 // The `/changelog` route renders the repo's changelog, one release family per document, behind a
 // prepended `[[toc]]` inside a collapsed `<details>`, under all nine bundled plugins. The route has
@@ -130,12 +131,10 @@ test.describe('/changelog route', () => {
 		await expect(editor).toHaveAttribute('data-presentation', 'reading');
 		await expect(marker).toBeHidden();
 
-		await page.locator('.changelog-mode[data-mode="source"]').click();
-		await expect(editor).not.toHaveAttribute('data-presentation');
+		await clickModeButton(page, 'source');
 		await expect(marker).toBeVisible();
 
-		await page.locator('.changelog-mode[data-mode="reading"]').click();
-		await expect(editor).toHaveAttribute('data-presentation', 'reading');
+		await clickModeButton(page, 'reading');
 		await expect(marker).toBeHidden();
 	});
 

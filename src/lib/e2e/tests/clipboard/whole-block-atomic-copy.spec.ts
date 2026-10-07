@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
+import { clickModeToggle } from '../../mode-switch';
 
 // Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
 // (`requirements/clipboard/whole-block-atomic-copy.md`). Mod+C writes via
@@ -50,8 +51,7 @@ test.describe('whole-block atomic copy/cut: thematic break', () => {
 	});
 
 	test('reading mode: Mod+C copies; Mod+X copies but deletes nothing', async ({ page }) => {
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 		await breakBlock().click();
 		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 		const before = await editor.bridge.getSource();

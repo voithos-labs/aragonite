@@ -30,7 +30,7 @@ test.describe('a click on a painted glyph reports its raw offset', () => {
 	for (const { glyph, needle, path, offset, live } of CASES) {
 		test(`a click on ${glyph} reports offset ${offset}`, async ({ page }) => {
 			if (live) {
-				await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+				await editor.setPresentationMode('live');
 				await expect(page.locator("[data-block-path='[2]'] .md-marker").first()).toBeHidden();
 			}
 			const point = await textRunStart(page, needle, { path });

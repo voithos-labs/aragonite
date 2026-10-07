@@ -2,7 +2,6 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
-import { textRunEnd } from '../../text-runs';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
 // Shift+Enter at a block's end opens a line and writes nothing; whatever is inserted next writes
@@ -58,36 +57,6 @@ for (const mode of MODES) {
 
 			await expect.poll(() => ep.bridge.getSource()).toBe('abc def\\\n\\\nx\n');
 		});
-
-		test('a punctuation key starts the new line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, 'abc\n');
-			await openBreak(ep, page);
-
-			await ep.typeSlowly('-');
-
-			await expect.poll(() => ep.bridge.getSource()).toBe('abc\\\n-\n');
-		});
-
-		test('a paste starts the new line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, 'abc\n');
-			await ep.seedClipboard('x');
-			await openBreak(ep, page);
-
-			await ep.paste();
-
-			await expect.poll(() => ep.bridge.getSource()).toBe('abc\\\nx\n');
-		});
-
-		test('a composed run starts the new line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, 'abc\n');
-			await openBreak(ep, page);
-			const ime = await attachIme(page);
-
-			await ime.compose('か');
-			await ime.commit('か');
-
-			await expect.poll(() => ep.bridge.getSource()).toBe('abc\\\nか\n');
-		});
 	});
 
 	test.describe(`${mode} mode: a Shift+Enter nothing is typed after`, () => {
@@ -124,22 +93,6 @@ test.describe('live mode: a composed run after a hidden closer', () => {
 			await expect.poll(() => ep.bridge.getSource()).toBe(written);
 		});
 	}
-});
-
-test.describe('live mode: a paste after an edge step', () => {
-	test('lands on the side the step chose', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', 'a **bold** b\n');
-		await ep.seedClipboard('X');
-		const point = await textRunEnd(page, 'bold');
-		await page.mouse.click(point.x, point.y);
-		await ep.waitForRenderFlush();
-		await page.keyboard.press('ArrowRight');
-		await ep.waitForRenderFlush();
-
-		await ep.paste();
-
-		await expect.poll(() => ep.bridge.getSource()).toBe('a **bold**X b\n');
-	});
 });
 
 test.describe('live mode: a hard break at a block end, emptied again', () => {

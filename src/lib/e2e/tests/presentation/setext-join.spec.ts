@@ -1,11 +1,16 @@
 import { test, expect } from '../../fixtures';
-import { enterPresentationMode, clickBlockSettled, focusOffset, focusPath } from './helpers';
+import {
+	enterPresentationMode,
+	clickBlockSettled,
+	focusOffset,
+	focusPath,
+	nextRow
+} from './helpers';
 
 // Joining into a setext heading: the joined text lands on the title line and the underline stays
 // under it, in every mode. Where markers hide, the title's end is the block's end; where the
-// underline paints, the block ends past it. Next to a block that is not prose, Delete does what it
-// does at a paragraph's end there: the caret moves in and no byte changes.
-// Requirements: e2e/requirements/presentation/setext-join.md.
+// underline paints, the block ends past it. Each test walks its rows as steps, every step on a
+// fresh copy of the document. Requirements: e2e/requirements/presentation/setext-join.md.
 
 const DOC = 'Setext\n======\n\nnext\n';
 const JOINED = 'Setextnext\n======\n';
@@ -19,9 +24,11 @@ const expectSource = (ep: { bridge: { getSource(): Promise<string> } }, expected
 	expect.poll(() => ep.bridge.getSource(), { timeout: 5000 }).toBe(expected);
 
 for (const mode of ['source', 'live', 'preview-inline'] as const) {
-	test.describe(`${mode} mode: joining into a setext heading`, () => {
-		test('Delete at the block end joins the next block above the underline', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, DOC);
+	test(`${mode} mode: joining into a setext heading`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, DOC);
+
+		await test.step('Delete at the block end joins the next block above the underline', async () => {
+			await nextRow(ep, DOC);
 			await ep.focusBlockAtPath([0], blockEnd(mode));
 			await ep.waitForRenderFlush();
 
@@ -35,8 +42,8 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			await expectSource(ep, DOC);
 		});
 
-		test('Backspace at the start of the block below makes the same join', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, DOC);
+		await test.step('Backspace at the start of the block below makes the same join', async () => {
+			await nextRow(ep, DOC);
 			await clickBlockSettled(ep, 1);
 			await page.keyboard.press('Home');
 			await ep.waitForRenderFlush();
@@ -47,10 +54,8 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			expect(await focusOffset(ep)).toBe(6);
 		});
 
-		test('a range deleted from inside the title into the block below keeps the underline', async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, mode, DOC);
+		await test.step('a range deleted from inside the title into the block below keeps the underline', async () => {
+			await nextRow(ep, DOC);
 			await ep.focusBlockAtPath([0], 3);
 			await ep.shiftClickBlock([1], 2);
 			await ep.waitForRenderFlush();
@@ -60,8 +65,23 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
 		});
 
-		test('ArrowRight at the block end moves into the next block', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, DOC);
+		await test.step('a range ending inside a setext title takes its underline, and one undo puts both blocks back', async () => {
+			const doc = 'Setext\n======\n\nOther\n---\n';
+			await nextRow(ep, doc);
+			await ep.focusBlockAtPath([0], 3);
+			await ep.shiftClickBlock([1], 2);
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.press('Backspace');
+			await expectSource(ep, 'Sether\n======\n');
+			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
+
+			await ep.undo();
+			await expectSource(ep, doc);
+		});
+
+		await test.step('ArrowRight at the block end moves into the next block', async () => {
+			await nextRow(ep, DOC);
 			await ep.focusBlockAtPath([0], blockEnd(mode));
 			await ep.waitForRenderFlush();
 
@@ -73,50 +93,19 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 	});
 }
 
-for (const mode of ['source', 'live'] as const) {
-	test.describe(`${mode} mode: a range delete ending in a setext heading`, () => {
-		for (const [label, doc, endPath, joined, kind] of [
-			[
-				'from another setext title',
-				'Setext\n======\n\nOther\n---\n',
-				[1],
-				'Sether\n======\n',
-				'setextHeading'
-			],
-			['from a paragraph', 'Setext para\n\nOther\n---\n', [1], 'Sether\n', 'paragraph'],
-			[
-				'inside a quote',
-				'> Setext\n> ======\n>\n> Other\n> ---\n',
-				[0, 1],
-				'> Sether\n> ======\n',
-				'blockquote'
-			]
-		] as const) {
-			test(`${label}, the underline below goes with its block`, async ({ page }) => {
-				const ep = await enterPresentationMode(page, mode, doc);
-				await ep.focusBlockAtPath(endPath.length === 2 ? [0, 0] : [0], 3);
-				await ep.shiftClickBlock([...endPath], 2);
+test('live mode: Delete at a setext heading’s end before a block that is not prose', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
 
-				await page.keyboard.press('Backspace');
-				await expectSource(ep, joined);
-				expect(await ep.bridge.getBlockKind(0)).toBe(kind);
-
-				await ep.undo();
-				await expectSource(ep, doc);
-			});
-		}
-	});
-}
-
-test.describe('live mode: Delete at a setext heading’s end before a block that is not prose', () => {
 	for (const [label, next, landing] of [
 		['a list', '- item\n', { path: [1, 0, 0], offset: 0 }],
 		['a table', '| a |\n| - |\n| 1 |\n', { path: [1, 0, 0], offset: 0 }],
 		['a fenced code block', '```\ncode\n```\n', { path: [1], offset: 4 }]
 	] as const) {
-		test(`moves the caret into ${label} and changes no byte`, async ({ page }) => {
+		await test.step(`moves the caret into ${label} and changes no byte`, async () => {
 			const doc = 'Setext\n======\n\n' + next;
-			const ep = await enterPresentationMode(page, 'live', doc);
+			await nextRow(ep, doc);
 			await clickBlockSettled(ep, 0);
 			await page.keyboard.press('End');
 			await ep.waitForRenderFlush();

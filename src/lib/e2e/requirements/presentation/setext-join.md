@@ -12,7 +12,12 @@ no test asked what the join should write; Backspace from the block below and a r
 the title were never driven against a setext heading, and ArrowRight at the title end was only
 driven in live mode, the one mode whose caret bound read the screen. The range delete was then only
 driven into blocks with nothing past their text, so the underline of a heading it ended in was
-never asked about.
+never asked about. The edge case below drives one such range in the browser, and
+`src/lib/test/selection/range-delete-setext.test.ts` drives it in source and live mode from
+another title, from a paragraph and inside a quote.
+
+Miss-analysis (Delete at the title's end in live mode, from `presentation-live-demote.md`): the pin
+on this keypress encoded its refusal as the contract, so the join it declined was never specified.
 
 ## Happy paths
 
@@ -23,7 +28,7 @@ never asked about.
 ## Edge cases
 
 - a range deleted from inside the title into the block below keeps the underline under the joined text, and the heading stays a heading
-- a range that ends inside a setext title, in source and live mode, takes that title's underline with it: from another setext title the first underline alone stays (`Setext\n======\n\nOther\n---\n` becomes `Sether\n======\n`), from a paragraph the result is a paragraph, and inside a quote the same holds; one undo puts both blocks back
+- a range that ends inside a setext title takes that title's underline with it (`Setext\n======\n\nOther\n---\n` becomes `Sether\n======\n`), and one undo puts both blocks back
 - ArrowRight at the block's end moves the caret to the start of the next block in every mode
 - before a block that is not prose (a list, a table, a fenced code block), Delete at the title end does what it does at a paragraph's end there: the caret moves into that block and no byte changes
 

@@ -106,7 +106,7 @@ test.describe('cross-block selection overlay - a range from inside a GitHub aler
 		''
 	].join('\n');
 
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		test(`${mode}: paints one region, the blank lines and the alert's padding included`, async ({
 			page
 		}) => {
@@ -126,7 +126,7 @@ test.describe('cross-block selection overlay - a range from inside a GitHub aler
 
 // The alert's inset beside its body is part of every line between the range's first and last.
 test.describe('cross-block selection overlay - the lines between span the column', () => {
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		test(`${mode}: from mid-callout, its inset painted`, async ({ page }) => {
 			const editor = new PluginsPage(page);
 			await editor.gotoPlugins('admonitions');

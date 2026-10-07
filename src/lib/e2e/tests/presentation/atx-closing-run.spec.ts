@@ -1,9 +1,11 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { enterPresentationMode } from './helpers';
+import type { EditorPage } from '../../editor-page';
+import { enterPresentationMode, nextRow } from './helpers';
 
 // An ATX heading's closing `#` run is a marker after the text, and keys at the text's end keep it
-// there. Requirements: e2e/requirements/presentation/atx-closing-run.md.
+// there. Each test walks its rows as steps, every step on a fresh copy of its document.
+// Requirements: e2e/requirements/presentation/atx-closing-run.md.
 
 const DOC = '# Hi #\n\nnext\n';
 
@@ -35,25 +37,27 @@ test.describe('the closing run on screen', () => {
 	});
 });
 
-test.describe('live mode: keys at the end of the text', () => {
-	test('a typed key lands before the closing run', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+test('live mode: keys at the end of the text', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
+	await test.step('a typed key lands before the closing run', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await ep.typeSlowly('x');
 		await ep.bridge.waitForSourceEquals('# Hix #\n\nnext\n');
 	});
 
-	test('Backspace takes the last character and keeps the run', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('Backspace takes the last character and keeps the run', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceEquals('# H #\n\nnext\n');
 	});
 
-	test('a typed space stays text, and the next key follows it', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('a typed space stays text, and the next key follows it', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await ep.typeSlowly(' ');
@@ -62,8 +66,8 @@ test.describe('live mode: keys at the end of the text', () => {
 		await ep.bridge.waitForSourceEquals('# Hi x #\n\nnext\n');
 	});
 
-	test('a typed closing run turns back into text with the next key', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', '# Hi\n\nnext\n');
+	await test.step('a typed closing run turns back into text with the next key', async () => {
+		await nextRow(ep, '# Hi\n\nnext\n');
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await ep.typeSlowly(' #');
@@ -74,11 +78,11 @@ test.describe('live mode: keys at the end of the text', () => {
 });
 
 // The same gesture on the three heading shapes: the structure past the text goes with the text.
-test.describe('live mode: emptying the text', () => {
-	test('inside a list item, Backspace over the last character, then a key, writes the key as the heading text', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'live', '- # H #\n- b\n');
+test('live mode: emptying the text', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
+	await test.step('inside a list item, Backspace over the last character, then a key, writes the key as the heading text', async () => {
+		await nextRow(ep, '- # H #\n- b\n');
 		await ep.focusBlockAtPath([0, 0, 0], 1);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Backspace');
@@ -88,20 +92,16 @@ test.describe('live mode: emptying the text', () => {
 	});
 
 	// Focused and empty, the heading paints both markers, so End goes past the run as in source.
-	test('End in an empty heading with a closing run, then a key, writes past the run', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'live', '#  #\n\nnext\n');
+	await test.step('End in an empty heading with a closing run, then a key, writes past the run', async () => {
+		await nextRow(ep, '#  #\n\nnext\n');
 		await ep.focusBlockAtPath([0], 0);
 		await page.keyboard.press('End');
 		await ep.typeSlowly('k');
 		await ep.bridge.waitForSourceEquals('#  #k\n\nnext\n');
 	});
 
-	test('selecting the text and typing a space leaves a paragraph holding the space', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('selecting the text and typing a space leaves a paragraph holding the space', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Home');
@@ -111,10 +111,8 @@ test.describe('live mode: emptying the text', () => {
 	});
 
 	for (const source of ['# H\n\nnext\n', '# H #\n\nnext\n', 'H\n===\n\nnext\n']) {
-		test(`Backspace over the last character of ${JSON.stringify(source)} leaves an empty paragraph`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', source);
+		await test.step(`Backspace over the last character of ${JSON.stringify(source)} leaves an empty paragraph`, async () => {
+			await nextRow(ep, source);
 			await ep.focusBlockAtPath([0], 1);
 			await page.keyboard.press('End');
 			await page.keyboard.press('Backspace');
@@ -124,8 +122,8 @@ test.describe('live mode: emptying the text', () => {
 		});
 	}
 
-	test('selecting the text and pressing Backspace leaves an empty paragraph', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('selecting the text and pressing Backspace leaves an empty paragraph', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 3);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Home');
@@ -137,43 +135,54 @@ test.describe('live mode: emptying the text', () => {
 });
 
 // Where the run is on screen, an edit takes it only when the selection did.
-test.describe('shown closing run: a selection that leaves it keeps it', () => {
-	for (const [source, path, written] of [
-		[DOC, [0], 'x #\n\nnext\n'],
-		['- # Hi #\n- b\n', [0, 0, 0], '- x #\n- b\n']
-	] as const) {
-		test(`source mode: selecting "# Hi" of ${JSON.stringify(source)} and typing x keeps the run`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'source', source);
-			await ep.focusBlockAtPath([...path], 4);
-			await page.keyboard.press('Shift+Home');
-			await ep.typeSlowly('x');
-			await ep.bridge.waitForSourceEquals(written);
-		});
-	}
+async function selectPrefixAndBackspace(ep: EditorPage, page: Page): Promise<void> {
+	await ep.focusBlockAtPath([0], 0);
+	await page.keyboard.press('Shift+ArrowRight');
+	await page.keyboard.press('Shift+ArrowRight');
+	await page.keyboard.press('Backspace');
+	await ep.bridge.waitForSourceEquals('Hi #\n\nnext\n');
+}
 
-	for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+test.describe('shown closing run: a selection that leaves it keeps it', () => {
+	test('source mode', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'source', DOC);
+
+		for (const [source, path, written] of [
+			[DOC, [0], 'x #\n\nnext\n'],
+			['- # Hi #\n- b\n', [0, 0, 0], '- x #\n- b\n']
+		] as const) {
+			await test.step(`selecting "# Hi" of ${JSON.stringify(source)} and typing x keeps the run`, async () => {
+				await nextRow(ep, source);
+				await ep.focusBlockAtPath([...path], 4);
+				await page.keyboard.press('Shift+Home');
+				await ep.typeSlowly('x');
+				await ep.bridge.waitForSourceEquals(written);
+			});
+		}
+
+		await test.step('selecting the "# " and pressing Backspace keeps the run', async () => {
+			await nextRow(ep, DOC);
+			await selectPrefixAndBackspace(ep, page);
+		});
+	});
+
+	for (const mode of ['preview-block', 'preview-inline'] as const) {
 		test(`${mode}: selecting the "# " and pressing Backspace keeps the run`, async ({ page }) => {
 			const ep = await enterPresentationMode(page, mode, DOC);
-			await ep.focusBlockAtPath([0], 0);
-			await page.keyboard.press('Shift+ArrowRight');
-			await page.keyboard.press('Shift+ArrowRight');
-			await page.keyboard.press('Backspace');
-			await ep.bridge.waitForSourceEquals('Hi #\n\nnext\n');
+			await selectPrefixAndBackspace(ep, page);
 		});
 	}
 });
 
-test.describe('live mode: the closing run stays on the heading', () => {
+test('live mode: the closing run stays on the heading', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
 	for (const [source, written] of [
 		['# Hi\n\nnext\n', '# H\\\nwi\n\nnext\n'],
 		['# Hi #\n\nnext\n', '# H\\ #\nwi\n\nnext\n']
 	]) {
-		test(`Shift+Enter inside the text of ${JSON.stringify(source)}, then a key`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', source);
+		await test.step(`Shift+Enter inside the text of ${JSON.stringify(source)}, then a key`, async () => {
+			await nextRow(ep, source);
 			await ep.focusBlockAtPath([0], 3);
 			await page.keyboard.press('Shift+Enter');
 			await ep.typeSlowly('w');
@@ -187,10 +196,8 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		['Hi\n===\n\nnext\n', 'Hi\\\nw\n===\n\nnext\n'],
 		['Hi\n\nnext\n', 'Hi\\\nw\n\nnext\n']
 	]) {
-		test(`Shift+Enter at the end of the text of ${JSON.stringify(source)}, then a key`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', source);
+		await test.step(`Shift+Enter at the end of the text of ${JSON.stringify(source)}, then a key`, async () => {
+			await nextRow(ep, source);
 			await ep.focusBlockAtPath([0], 1);
 			await page.keyboard.press('End');
 			await page.keyboard.press('Shift+Enter');
@@ -200,10 +207,27 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		});
 	}
 
-	test('preview-block: Shift+Enter at the end of the text shows the run on the heading line, and a key starts the new line', async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'preview-block', DOC);
+	for (const [source, written] of [
+		['# Hi\n\nnext\n', '# Hi\n\nabc\n\ndef\n\nnext\n'],
+		['# Hi #\n\nnext\n', '# Hi #\n\nabc\n\ndef\n\nnext\n'],
+		['Hi\n===\n\nnext\n', 'Hi\n===\n\nabc\n\ndef\n\nnext\n']
+	]) {
+		await test.step(`pasting two paragraphs at the end of ${JSON.stringify(source)}`, async () => {
+			await nextRow(ep, source);
+			await ep.seedClipboard('abc\n\ndef');
+			await ep.focusBlockAtPath([0], 1);
+			await page.keyboard.press('End');
+			await ep.paste();
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+});
+
+test('preview-block: the closing run stays on the heading', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'preview-block', DOC);
+
+	await test.step('Shift+Enter at the end of the text shows the run on the heading line, and a key starts the new line', async () => {
+		await nextRow(ep, DOC);
 		await ep.focusBlockAtPath([0], 4);
 		await page.keyboard.press('Shift+Enter');
 		await expect.poll(() => caretStartsNewLine(page)).toBe(true);
@@ -213,27 +237,10 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		await ep.bridge.waitForSourceEquals('# Hi\\ #\nw\n\nnext\n');
 	});
 
-	test("preview-block: a key between the shown run's space and its # lands there", async ({
-		page
-	}) => {
-		const ep = await enterPresentationMode(page, 'preview-block', '# Hi\\ #\n\nnext\n');
+	await test.step("a key between the shown run's space and its # lands there", async () => {
+		await nextRow(ep, '# Hi\\ #\n\nnext\n');
 		await ep.focusBlockAtPath([0], 6);
 		await ep.typeSlowly('x');
 		await ep.bridge.waitForSourceEquals('# Hi\\ x#\n\nnext\n');
 	});
-
-	for (const [source, written] of [
-		['# Hi\n\nnext\n', '# Hi\n\nabc\n\ndef\n\nnext\n'],
-		['# Hi #\n\nnext\n', '# Hi #\n\nabc\n\ndef\n\nnext\n'],
-		['Hi\n===\n\nnext\n', 'Hi\n===\n\nabc\n\ndef\n\nnext\n']
-	]) {
-		test(`pasting two paragraphs at the end of ${JSON.stringify(source)}`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', source);
-			await ep.seedClipboard('abc\n\ndef');
-			await ep.focusBlockAtPath([0], 1);
-			await page.keyboard.press('End');
-			await ep.paste();
-			await ep.bridge.waitForSourceEquals(written);
-		});
-	}
 });

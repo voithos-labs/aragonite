@@ -6,13 +6,15 @@ import {
 	enterPresentationMode,
 	extendTo,
 	focusOffset,
-	focusPath
+	focusPath,
+	nextRow
 } from './helpers';
 import { textOutsideMarkers } from '../../text-runs';
 
 // A block that ends in a construct ends in a run live paints nothing for, so a cross-block
 // endpoint taken from the raw length sits past it. The paint, the collapse and the type-over
-// all have to answer for that.
+// all have to answer for that. Each test walks its rows as steps, every step on a fresh copy of
+// its document.
 // Requirements: e2e/requirements/presentation/presentation-live-cross-block-extend.md.
 
 const DOC = ['Alpha ends with **bold**', '', 'Beta plain line', '', '**Lead** closes here'].join(
@@ -49,14 +51,11 @@ async function endpointRects(
 	}, block);
 }
 
-test.describe('live mode, extending across a construct-ending block', () => {
-	let ep: EditorPage;
+test('live mode, extending across a construct-ending block', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', DOC);
-	});
-
-	test('the paint stays inside the block that ends in a hidden run', async ({ page }) => {
+	await test.step('the paint stays inside the block that ends in a hidden run', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, ENDS_BOLD);
 		await page.keyboard.press('Home');
 		// One character in, so the range covers the block only in part and measures its text.
@@ -75,7 +74,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 
 	// A selection may cover the run, because a delete that took the content and left the
 	// delimiters would strand them, so the extension's own endpoint is the block's raw end.
-	test('extending backward into it covers the whole block', async ({ page }) => {
+	await test.step('extending backward into it covers the whole block', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('Home');
 		await extendTo(ep, page, 'ArrowLeft', [ENDS_BOLD], RAW_END);
@@ -84,7 +84,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 
 	// ...but a caret may not: collapsing leaves one, so it lands on the last offset the block
 	// allows, which is where every other gesture leaves the caret at that edge.
-	test('collapsing that extension lands the caret at the content end', async ({ page }) => {
+	await test.step('collapsing that extension lands the caret at the content end', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('Home');
 		await extendTo(ep, page, 'ArrowLeft', [ENDS_BOLD], RAW_END);
@@ -98,7 +99,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 
 	// The arrival rule applied to a collapse: the caret got there by arrow, from outside, so the
 	// byte lands after the construct rather than extending it.
-	test('typing at the collapsed caret writes past the construct', async ({ page }) => {
+	await test.step('typing at the collapsed caret writes past the construct', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('Home');
 		await extendTo(ep, page, 'ArrowLeft', [ENDS_BOLD], RAW_END);
@@ -110,9 +112,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 		expect(await ep.bridge.getSource()).toContain('**bold**Z');
 	});
 
-	test('extending backward into a block that begins with a construct reaches its neighbour', async ({
-		page
-	}) => {
+	await test.step('extending backward into a block that begins with a construct reaches its neighbour', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, LEADS_BOLD);
 		await page.keyboard.press('Home');
 		// `**Lead** closes here`: the opening `**` is unpainted, so 2 is the first reachable offset.
@@ -121,7 +122,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 		expect(await focusPath(ep)).toEqual([PLAIN]);
 	});
 
-	test('typing over the extension leaves no delimiter on screen', async ({ page }) => {
+	await test.step('typing over the extension leaves no delimiter on screen', async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, ENDS_BOLD);
 		await page.keyboard.press('End');
 		await extendTo(ep, page, 'ArrowDown', [LEADS_BOLD], 0);
@@ -214,10 +216,12 @@ const COLLAPSE_ARMS: CollapseArm[] = [
 /** `Lead **bold**`: 13 raw bytes, the far side of the closing run. */
 const RAW_END_OF_LEAD = 13;
 
-test.describe('live mode: a collapse puts the caret outside, on both axes', () => {
+test('live mode: a collapse puts the caret outside, on both axes', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', MATRIX_DOC);
+
 	for (const arm of COLLAPSE_ARMS) {
-		test(`${arm.edge} + ${arm.key}: the byte lands outside the construct`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', MATRIX_DOC);
+		await test.step(`${arm.edge} + ${arm.key}: the byte lands outside the construct`, async () => {
+			await nextRow(ep, MATRIX_DOC);
 			await arm.extend(ep, page);
 
 			await page.keyboard.press(arm.key);
@@ -231,11 +235,13 @@ test.describe('live mode: a collapse puts the caret outside, on both axes', () =
 	}
 });
 
-test.describe('live mode, collapsing onto a leading construct', () => {
+test('live mode, collapsing onto a leading construct', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
+
 	// The prose counterpart of the cell case below: a collapse is not a step, so reading the
 	// arrow's direction gives the wrong side; the caret jumps to the range's edge.
-	test('the prose arrival types outside the construct the block opens with', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', '**bold** para\n\nAfter para\n');
+	await test.step('the prose arrival types outside the construct the block opens with', async () => {
+		await nextRow(ep, '**bold** para\n\nAfter para\n');
 		await clickBlockSettled(ep, 0);
 		await page.keyboard.press('Home');
 		await extendTo(ep, page, 'ArrowDown', [1], 0);
@@ -250,8 +256,8 @@ test.describe('live mode, collapsing onto a leading construct', () => {
 		expect(await ep.bridge.getSource()).toContain('Z**bold** para');
 	});
 
-	test('the cell arrival types outside the construct it opens with', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', CELL_DOC);
+	await test.step('the cell arrival types outside the construct it opens with', async () => {
+		await nextRow(ep, CELL_DOC);
 		await clickBlockSettled(ep, 1);
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Shift+ArrowLeft');
@@ -268,15 +274,15 @@ test.describe('live mode, collapsing onto a leading construct', () => {
 	});
 });
 
-test.describe('source mode: the endpoints are the raw ones', () => {
-	test('the collapse lands where the extension stopped', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'source', DOC);
-		await clickBlockSettled(ep, PLAIN);
-		await page.keyboard.press('Home');
-		await extendTo(ep, page, 'ArrowLeft', [ENDS_BOLD], RAW_END);
-		await page.keyboard.press('ArrowLeft');
-		await ep.waitForRenderFlush();
-		await ep.waitForCrossBlock(false);
-		expect(await focusOffset(ep)).toBe(RAW_END);
-	});
+test('source mode: the endpoints are the raw ones, so the collapse lands where the extension stopped', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'source', DOC);
+	await clickBlockSettled(ep, PLAIN);
+	await page.keyboard.press('Home');
+	await extendTo(ep, page, 'ArrowLeft', [ENDS_BOLD], RAW_END);
+	await page.keyboard.press('ArrowLeft');
+	await ep.waitForRenderFlush();
+	await ep.waitForCrossBlock(false);
+	expect(await focusOffset(ep)).toBe(RAW_END);
 });

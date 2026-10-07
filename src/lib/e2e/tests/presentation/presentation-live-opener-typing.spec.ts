@@ -1,11 +1,12 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode, extendTo, landAt } from './helpers';
+import { clickBlockSettled, enterPresentationMode, extendTo, landAt, nextRow } from './helpers';
 
 // A block whose only bytes are its own markers has no content to stand behind them, so they paint:
 // a caret can land on them and a typed byte goes after them. A destructive key at the block's own
-// structure follows the mode; one at an inline construct follows what is painted.
+// structure follows the mode; one at an inline construct follows what is painted. Each test walks
+// its rows as steps, every step on a fresh copy of its document.
 // Requirements: e2e/requirements/presentation/presentation-live-opener-typing.md.
 
 const OPENER = 0;
@@ -33,15 +34,14 @@ const WRAPPED_DOC = ['**[](u)**', '', 'para'].join('\n') + '\n';
 /** Between the outer pair and the inner one. */
 const INSIDE_PAIR = 2;
 
-/** An empty paragraph below an existing one, made by the gesture that makes it in real use. */
-async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Promise<EditorPage> {
-	const ep = await enterPresentationMode(page, mode, 'lorem\n');
+/** A fresh empty paragraph below an existing one, made by the gesture that makes it in real use. */
+async function emptyBlockBelow(ep: EditorPage, page: Page): Promise<void> {
+	await nextRow(ep, 'lorem\n');
 	await clickBlockSettled(ep, OPENER);
 	await page.keyboard.press('End');
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Enter');
 	await ep.bridge.waitForBlockCount(2);
-	return ep;
 }
 
 /** Wait for the typed bytes to land; where they landed is the assertion. */
@@ -58,50 +58,53 @@ const markerOf = (ep: EditorPage, index: number) =>
 	ep.getBlock(index).locator('.md-marker').first();
 
 test.describe('live mode: a typed block opener paints until it has content', () => {
-	test('typing `#` paints the marker the keystroke just created', async ({ page }) => {
-		const ep = await emptyBlockBelow(page, 'live');
+	test('a typed `#`', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '\n');
 
-		await typeSettled(ep, page, '#');
+		await test.step('typing `#` paints the marker the keystroke just created', async () => {
+			await emptyBlockBelow(ep, page);
 
-		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
-		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
-		// The h1 type waits for the space, since `#` also starts `#tag`, and a line jumping to h1 size
-		// for one keystroke reads as the editor fighting the tag.
-		await expect(ep.getBlock(TYPED)).toHaveClass(/paragraph-block/);
-	});
+			await typeSettled(ep, page, '#');
 
-	test('the next letter lands after the painted marker, not in front of it', async ({ page }) => {
-		const ep = await emptyBlockBelow(page, 'live');
-		await typeSettled(ep, page, '#');
+			expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
+			await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+			// The h1 type waits for the space, since `#` also starts `#tag`, and a line jumping to h1
+			// size for one keystroke reads as the editor fighting the tag.
+			await expect(ep.getBlock(TYPED)).toHaveClass(/paragraph-block/);
+		});
 
-		await typeSettled(ep, page, 'a');
+		await test.step('the next letter lands after the painted marker, not in front of it', async () => {
+			await emptyBlockBelow(ep, page);
+			await typeSettled(ep, page, '#');
 
-		await expect.poll(() => ep.bridge.getBlockKind(TYPED)).toBe('paragraph');
-		expect(await ep.bridge.getSource()).toContain('#a');
-	});
+			await typeSettled(ep, page, 'a');
 
-	test('a space keeps the heading painted; the first content character folds it', async ({
-		page
-	}) => {
-		const ep = await emptyBlockBelow(page, 'live');
-		await typeSettled(ep, page, '#');
+			await expect.poll(() => ep.bridge.getBlockKind(TYPED)).toBe('paragraph');
+			expect(await ep.bridge.getSource()).toContain('#a');
+		});
 
-		await typeSettled(ep, page, ' ');
-		expect(await ep.bridge.getSource()).toContain('# ');
-		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
-		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
-		await expect(ep.getBlock(TYPED)).toHaveClass(/heading-1/);
+		await test.step('a space keeps the heading painted; the first content character folds it', async () => {
+			await emptyBlockBelow(ep, page);
+			await typeSettled(ep, page, '#');
 
-		await typeSettled(ep, page, 'a');
-		expect(await ep.bridge.getSource()).toContain('# a');
-		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
-		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'none');
+			await typeSettled(ep, page, ' ');
+			expect(await ep.bridge.getSource()).toContain('# ');
+			expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
+			await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+			await expect(ep.getBlock(TYPED)).toHaveClass(/heading-1/);
+
+			await typeSettled(ep, page, 'a');
+			expect(await ep.bridge.getSource()).toContain('# a');
+			expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
+			await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'none');
+		});
 	});
 
 	test('three backticks paint their fence line, and the info string appends after it', async ({
 		page
 	}) => {
-		const ep = await emptyBlockBelow(page, 'live');
+		const ep = await enterPresentationMode(page, 'live', '\n');
+		await emptyBlockBelow(ep, page);
 
 		// Not `typeSettled`: the second backtick steps over the one auto-pairing added after the
 		// first, so that keystroke changes no byte to wait on.
@@ -122,59 +125,59 @@ test.describe('live mode: a typed block opener paints until it has content', () 
 		await ep.bridge.waitForSourceContains('```js\nX');
 	});
 
-	// The demote reads the first offset the caret can reach, so painting the markers turns this
-	// key into the marker-byte delete that source mode performs.
-	test('Backspace inside a painted `# ` takes the marker byte and does not demote', async ({
-		page
-	}) => {
-		const ep = await emptyBlockBelow(page, 'live');
-		await typeSettled(ep, page, '# ');
+	test('Backspace in a painted `# `', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '\n');
 
-		const before = await ep.bridge.getSource();
-		await page.keyboard.press('Backspace');
-		await ep.bridge.waitForSourceWith((source, previous) => source !== previous, before);
+		// The demote reads the first offset the caret can reach, so painting the markers turns this
+		// key into the marker-byte delete that source mode performs.
+		await test.step('inside it, Backspace takes the marker byte and does not demote', async () => {
+			await emptyBlockBelow(ep, page);
+			await typeSettled(ep, page, '# ');
 
-		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
-		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
-	});
+			const before = await ep.bridge.getSource();
+			await page.keyboard.press('Backspace');
+			await ep.bridge.waitForSourceWith((source, previous) => source !== previous, before);
 
-	// Raw 0 is reachable once the markers paint, and one Backspace there drops the construct rather
-	// than merging upward; live only, since source mode does nothing at raw 0.
-	test('Backspace at the start of a painted `# ` drops the construct in one press', async ({
-		page
-	}) => {
-		const ep = await emptyBlockBelow(page, 'live');
-		await typeSettled(ep, page, '# ');
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+			expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
+			await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
+		});
 
-		await page.keyboard.press('Backspace');
-		await ep.bridge.waitForSourceNotContains('#');
+		// Raw 0 is reachable once the markers paint, and one Backspace there drops the construct
+		// rather than merging upward; live only, since source mode does nothing at raw 0.
+		await test.step('at its start, Backspace drops the construct in one press', async () => {
+			await emptyBlockBelow(ep, page);
+			await typeSettled(ep, page, '# ');
+			await page.keyboard.press('Home');
+			await ep.waitForRenderFlush();
 
-		expect(await ep.bridge.getBlockKind(TYPED)).toBe('paragraph');
-		expect(await ep.bridge.getBlockCount()).toBe(2);
+			await page.keyboard.press('Backspace');
+			await ep.bridge.waitForSourceNotContains('#');
 
-		await ep.undo();
-		await ep.bridge.waitForSourceContains('# ');
+			expect(await ep.bridge.getBlockKind(TYPED)).toBe('paragraph');
+			expect(await ep.bridge.getBlockCount()).toBe(2);
+
+			await ep.undo();
+			await ep.bridge.waitForSourceContains('# ');
+		});
 	});
 });
 
 // A focused empty heading paints its markers, so a key typed on them lands where the caret is,
 // the way source mode writes it.
-test.describe('live mode: a key typed on a painted empty heading lands at the caret', () => {
-	for (const [source, path, keys, key, written] of [
+test('live mode: a key typed on a painted empty heading lands at the caret', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
+
+	for (const [source, path, pressed, key, written] of [
 		['# \n\nnext\n', [0], ['Home'], '#', '## \n\nnext\n'],
 		['> ## \n\nnext\n', [0, 0], ['Home'], '#', '> ### \n\nnext\n'],
 		['#  #\n\nnext\n', [0], ['Home'], '#', '##  #\n\nnext\n'],
 		['#\n\nnext\n', [0], ['Home'], 'a', 'a#\n\nnext\n'],
 		['# \n\nnext\n', [0], ['End', 'ArrowLeft'], 'x', '#x \n\nnext\n']
 	] as const) {
-		test(`${JSON.stringify(source)}, ${keys.join(' ')}, then ${JSON.stringify(key)}`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', source);
+		await test.step(`${JSON.stringify(source)}, ${pressed.join(' ')}, then ${JSON.stringify(key)}`, async () => {
+			await nextRow(ep, source);
 			await ep.focusBlockAtPath([...path], 0);
-			for (const k of keys) await page.keyboard.press(k);
+			for (const k of pressed) await page.keyboard.press(k);
 			await ep.waitForRenderFlush();
 			await page.keyboard.type(key);
 			await ep.bridge.waitForSourceEquals(written);
@@ -196,13 +199,7 @@ test.describe('loaded openers: the paint half needs no typing', () => {
 		await ep.clickBlock(OPENER);
 		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
 
-		// The empty fence stands first in its own document, where its collapsed box is what the
-		// pointer reaches: the side gutter mounts on hover, and the click completes the fence.
-		const fence = await enterPresentationMode(page, 'live', EMPTY_FENCE_FIRST);
-		await fence.getBlock(0).hover();
-		await fence.clickBlock(0);
-		await fence.bridge.waitForSourceContains('```\n\n```');
-		await expect(page.locator('.code-lang-picker input')).toBeVisible();
+		await completeEmptyFence(ep, page);
 	});
 
 	test('preview-inline paints the same chrome on the focused block only', async ({ page }) => {
@@ -212,12 +209,18 @@ test.describe('loaded openers: the paint half needs no typing', () => {
 		await ep.clickBlock(OPENER);
 		await expect(markerOf(ep, OPENER)).toHaveCSS('display', 'inline');
 
-		const fence = await enterPresentationMode(page, 'preview-inline', EMPTY_FENCE_FIRST);
-		await fence.getBlock(0).hover();
-		await fence.clickBlock(0);
-		await fence.bridge.waitForSourceContains('```\n\n```');
-		await expect(page.locator('.code-lang-picker input')).toBeVisible();
+		await completeEmptyFence(ep, page);
 	});
+
+	// The empty fence stands first in its own document, where its collapsed box is what the pointer
+	// reaches: the side gutter mounts on hover, and the click completes the fence.
+	async function completeEmptyFence(ep: EditorPage, page: Page): Promise<void> {
+		await nextRow(ep, EMPTY_FENCE_FIRST);
+		await ep.getBlock(0).hover();
+		await ep.clickBlock(0);
+		await ep.bridge.waitForSourceContains('```\n\n```');
+		await expect(page.locator('.code-lang-picker input')).toBeVisible();
+	}
 
 	// Reading takes no keystrokes, so it keeps the rendered document's silence.
 	test('reading mode paints neither', async ({ page }) => {
@@ -231,15 +234,15 @@ test.describe('loaded openers: the paint half needs no typing', () => {
 // Where every byte is on screen live must match source, compared on the whole source: `[](u`
 // sits inside `[](u)`, and only equality tells one byte gone from none.
 for (const mode of ['live', 'source'] as const) {
-	test.describe(`painted inline chrome: ${mode} takes what the reader aimed at`, () => {
-		let ep: EditorPage;
-
-		test.beforeEach(async ({ page }) => {
-			ep = await enterPresentationMode(page, mode, EMPTY_LINK);
+	test(`painted inline chrome: ${mode} takes what the reader aimed at`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, EMPTY_LINK);
+		const row = async () => {
+			await nextRow(ep, EMPTY_LINK);
 			await clickBlockSettled(ep, OPENER);
-		});
+		};
 
-		test('Backspace at the end takes one byte', async ({ page }) => {
+		await test.step('Backspace at the end takes one byte', async () => {
+			await row();
 			await page.keyboard.press('End');
 			await ep.waitForRenderFlush();
 
@@ -247,7 +250,8 @@ for (const mode of ['live', 'source'] as const) {
 			await expect.poll(() => ep.bridge.getSource()).toBe('[](u\n');
 		});
 
-		test('Delete at the start takes one byte', async ({ page }) => {
+		await test.step('Delete at the start takes one byte', async () => {
+			await row();
 			await page.keyboard.press('Home');
 			await ep.waitForRenderFlush();
 
@@ -255,7 +259,8 @@ for (const mode of ['live', 'source'] as const) {
 			await expect.poll(() => ep.bridge.getSource()).toBe('](u)\n');
 		});
 
-		test('a letter typed at the end appends', async ({ page }) => {
+		await test.step('a letter typed at the end appends', async () => {
+			await row();
 			await page.keyboard.press('End');
 			await ep.waitForRenderFlush();
 
@@ -263,7 +268,8 @@ for (const mode of ['live', 'source'] as const) {
 			await expect.poll(() => ep.bridge.getSource()).toBe('[](u)a\n');
 		});
 
-		test('a letter typed inside the chrome lands where the caret is', async ({ page }) => {
+		await test.step('a letter typed inside the chrome lands where the caret is', async () => {
+			await row();
 			await landAt(ep, page, MID_CHROME);
 
 			await page.keyboard.type('a');
@@ -276,23 +282,26 @@ for (const mode of ['live', 'source'] as const) {
 // its own check, so these check the outcomes: reading painted bytes as unseen moves one.
 const CARD = '[data-link-card]';
 
-test.describe('painted inline chrome: the live rewrites leave what the reader sees alone', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', PAINTED_LINK_DOC);
+test('painted inline chrome: the live rewrites leave what the reader sees alone', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'live', PAINTED_LINK_DOC);
+	const row = async () => {
+		await nextRow(ep, PAINTED_LINK_DOC);
 		await clickBlockSettled(ep, OPENER);
 		await landAt(ep, page, MID_CHROME);
-	});
+	};
 
-	test('Enter inside the chrome cuts the bytes literally', async ({ page }) => {
+	await test.step('Enter inside the chrome cuts the bytes literally', async () => {
+		await row();
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForBlockCount(3);
 
 		expect(await ep.bridge.getSource()).toBe('[]\n\n(u)\n\npara\n');
 	});
 
-	test('a pending bold mark writes no delimiter into the chrome', async ({ page }) => {
+	await test.step('a pending bold mark writes no delimiter into the chrome', async () => {
+		await row();
 		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 
@@ -300,7 +309,8 @@ test.describe('painted inline chrome: the live rewrites leave what the reader se
 		await expect.poll(() => ep.bridge.getSource()).toBe('[]x(u)\n\npara\n');
 	});
 
-	test('the card still rewrites the destination the chrome is showing', async ({ page }) => {
+	await test.step('the card still rewrites the destination the chrome is showing', async () => {
+		await row();
 		await page.keyboard.press('ControlOrMeta+k');
 		await expect(page.locator(`${CARD} input`)).toBeFocused();
 
@@ -314,16 +324,16 @@ test.describe('painted inline chrome: the live rewrites leave what the reader se
 
 // A construct wrapping empty markers paints its own delimiters too, so the two paths that
 // rewrite across a cut meet a painted pair where they usually meet a hidden one.
-test.describe('painted chrome inside a construct the cut leaves open', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', WRAPPED_DOC);
+test('painted chrome inside a construct the cut leaves open', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', WRAPPED_DOC);
+	const row = async () => {
+		await nextRow(ep, WRAPPED_DOC);
 		await clickBlockSettled(ep, OPENER);
 		await landAt(ep, page, INSIDE_PAIR);
-	});
+	};
 
-	test('a range delete into the block below leaves the painted pair standing', async ({ page }) => {
+	await test.step('a range delete into the block below leaves the painted pair standing', async () => {
+		await row();
 		await extendTo(ep, page, 'ArrowRight', [1], 0);
 
 		await page.keyboard.press('Delete');
@@ -332,7 +342,8 @@ test.describe('painted chrome inside a construct the cut leaves open', () => {
 		expect(await ep.bridge.getSource()).toBe('**para\n');
 	});
 
-	test('Enter cuts the bytes literally instead of carrying the opener across', async ({ page }) => {
+	await test.step('Enter cuts the bytes literally instead of carrying the opener across', async () => {
+		await row();
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForBlockCount(3);
 

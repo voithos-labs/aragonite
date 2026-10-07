@@ -17,10 +17,11 @@ an escape instead, or that a second Shift+Enter escaped the first one and sent t
 
 - `abc def`, End, Shift+Enter twice, then `x`: nothing is written until the `x`, which lands on the
   third line, `abc def\` / `\` / `x`. Source and live mode.
-- Shift+Enter at the end, then `-`: `abc\` / `-`. Punctuation is not an escape here. Source and
-  live mode.
-- Shift+Enter at the end, then Ctrl+V of `x`: `abc\` / `x`. Source and live mode.
-- Shift+Enter at the end, then an IME commit of `か`: `abc\` / `か`. Source and live mode.
+
+The other ways in write the break the same way: a punctuation key (`abc\` / `-`, not an escape), a
+paste and an IME commit, in source and live mode. Unit tests cover those, in
+`src/lib/test/blocks/text/pending-break-spend.test.ts`. The composed rows after a hidden closer,
+further down, still drive a real composition.
 
 ## Edge cases
 
@@ -31,8 +32,6 @@ an escape instead, or that a second Shift+Enter escaped the first one and sent t
   outside the construct. Miss-analysis: every composed row ran on a plain paragraph, where the
   composition lands on the right side of the text whether the line is drawn or not.
 - Caret keys on the open line have their own file, `pending-break-keys.md`.
-- live, `a **bold** b`, caret at the end of `bold`, ArrowRight (the edge step out of the bold),
-  then Ctrl+V of `X`: `a **bold**X b`. The paste lands on the side the step chose.
 - live, `abc def`, Shift+Enter at the end, `x`, Backspace: the line is emptied. The next Backspace
   deletes something rather than being swallowed (#690).
 

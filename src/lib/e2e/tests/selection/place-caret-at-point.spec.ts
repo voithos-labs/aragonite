@@ -87,7 +87,7 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 	// The tail is windowed out, so the landing mounts it first; the end it lands at is the outside
 	// of the hidden closer, as an End key there would be.
 	test('live mode: a point below a windowed-out tail lands after a closing marker', async () => {
-		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await editor.setPresentationMode('live');
 		const body = Array.from({ length: 200 }, (_, i) => `paragraph ${i}`).join('\n\n');
 		await editor.loadContent(`${body}\n\n**a**\n`);
 		await editor.waitForRenderFlush();

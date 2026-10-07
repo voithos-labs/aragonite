@@ -2,12 +2,11 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { focusOffset } from './helpers';
+import { clickModeToggle } from '../../mode-switch';
 
 // The caret-affinity rule: the caret is a raw offset, a shown construct's bytes are visible,
 // and typing lands at that offset, with no stored-marks machinery.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-affinity.md.
-
-const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
 
 // Step to a target raw offset with real keys, since a click cannot target hidden markers.
 // Asserts the exact landing so a skipped byte fails loudly rather than typing blind.
@@ -34,7 +33,7 @@ test.describe('preview-inline: caret affinity', () => {
 
 	async function load(doc: string, page: Page): Promise<void> {
 		await ep.loadContent(doc);
-		await togglePreviewInline(page);
+		await clickModeToggle(page, 'preview-inline');
 	}
 
 	test('adjacent constructs share a boundary: both reveal, typing inserts between them', async ({

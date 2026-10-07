@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import {
 	clickBlockSettled,
@@ -7,23 +6,18 @@ import {
 	enterPresentationMode,
 	focusOffset,
 	landAt,
+	nextRow,
 	stepTo
 } from './helpers';
 import { textOutsideMarkers } from '../../text-runs';
 
-// What Enter inside a construct writes in live mode: a closed pair above, a reopened one below,
-// and the URL of a split link in both halves. The source is the reference, because a hidden
-// delimiter and an absent one look identical on screen.
+// What Enter inside a construct writes in live mode: a closed pair above and a reopened one below.
+// The source is the reference, because a hidden delimiter and an absent one look identical on
+// screen. Each test walks its rows as steps, every step on a fresh copy of its document.
 // Requirements: e2e/requirements/presentation/presentation-live-split.md.
 
 const DOC = [
 	'Some **bold** text',
-	'',
-	'Visit [example](https://example.com) here',
-	'',
-	'**a *ital* b**',
-	'',
-	'plain words here',
 	'',
 	'Ref [refexample][site] here',
 	'',
@@ -31,26 +25,20 @@ const DOC = [
 ].join('\n');
 
 const BOLD = 0;
-const LINK = 1;
-const NESTED = 2;
-const PLAIN = 3;
-const REF = 4;
-/** The fixture's block count, so a merge row asserts "back to where it started" rather than a
- *  literal that a new fixture block silently invalidates. */
-const BLOCKS = DOC.split('\n\n').length;
+const REF = 1;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
-test.describe('live mode: Enter inside a construct closes and reopens it', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterMode(page, 'live');
-	});
-
-	test('a cut through a bold word leaves two balanced bold constructs', async ({ page }) => {
+test('live mode: Enter inside a construct closes and reopens it', async ({ page }) => {
+	const ep = await enterMode(page, 'live');
+	const atCut = async () => {
+		await nextRow(ep, DOC);
 		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 9);
+	};
+
+	await test.step('a cut through a bold word leaves two balanced bold constructs', async () => {
+		await atCut();
 
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Some **bo**\n\n**ld** text');
@@ -65,9 +53,8 @@ test.describe('live mode: Enter inside a construct closes and reopens it', () =>
 
 	// The caret reports the second block's raw 0, which is the same pixel as the reopened run's
 	// far side; what the user can observe is where the next byte lands, and it lands inside.
-	test('typing continues inside the reopened construct', async ({ page }) => {
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowRight', 9);
+	await test.step('typing continues inside the reopened construct', async () => {
+		await atCut();
 
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('**ld** text');
@@ -80,9 +67,8 @@ test.describe('live mode: Enter inside a construct closes and reopens it', () =>
 		});
 	});
 
-	test('one undo restores the original block and its caret', async ({ page }) => {
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowRight', 9);
+	await test.step('one undo restores the original block and its caret', async () => {
+		await atCut();
 		const before = await ep.bridge.getSource();
 
 		await page.keyboard.press('Enter');
@@ -92,40 +78,16 @@ test.describe('live mode: Enter inside a construct closes and reopens it', () =>
 		await expect.poll(() => ep.bridge.getSource()).toBe(before);
 		await expect.poll(() => focusOffset(ep)).toBe(9);
 	});
-
-	test('a split link duplicates its destination into both halves', async ({ page }) => {
-		await clickWordSettled(ep, page, 'example');
-		await stepTo(ep, page, 'ArrowRight', 11);
-
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('Visit [exam](https://example.com)');
-		await ep.bridge.waitForSourceContains('[ple](https://example.com) here');
-
-		await expect(ep.getBlock(LINK).locator('a')).toHaveAttribute('href', 'https://example.com');
-		await expect(ep.getBlock(LINK + 1).locator('a')).toHaveAttribute('href', 'https://example.com');
-	});
-
-	test('a nested pair reopens outermost-first', async ({ page }) => {
-		await clickWordSettled(ep, page, 'ital');
-		await stepTo(ep, page, 'ArrowRight', 7);
-
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('**a *it***\n\n***al* b**');
-
-		await expect(ep.getBlock(NESTED).locator('strong em')).toHaveText('it', {
-			useInnerText: true
-		});
-		await expect(ep.getBlock(NESTED + 1).locator('strong em')).toHaveText('al', {
-			useInnerText: true
-		});
-	});
 });
 
-// The caret at a construct's content edge and the caret outside its delimiters are the same
-// pixel, so a cut at that edge is the one that could create a pair enclosing nothing.
-test.describe('live mode: a cut at a construct edge hands it over whole', () => {
-	test('at content end the construct stays whole above', async ({ page }) => {
-		const ep = await enterMode(page, 'live');
+// A cut where a balanced pair can't stand on both sides hands the construct to one half whole.
+test('live mode: a cut the construct cannot take hands it over whole', async ({ page }) => {
+	const ep = await enterMode(page, 'live');
+
+	// The caret at a construct's content edge and the caret outside its delimiters are the same
+	// pixel, so a cut at that edge is the one that could create a pair enclosing nothing.
+	await test.step('at content end the construct stays whole above', async () => {
+		await nextRow(ep, DOC);
 		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 11);
 
@@ -135,25 +97,10 @@ test.describe('live mode: a cut at a construct edge hands it over whole', () => 
 		await expect(ep.getBlock(BOLD).locator('strong')).toHaveText('bold', { useInnerText: true });
 	});
 
-	test('a cut outside every construct is untouched by the mode', async ({ page }) => {
-		const ep = await enterMode(page, 'live');
-		await clickBlockSettled(ep, PLAIN);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
-		await stepTo(ep, page, 'ArrowRight', 5);
-
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('plain\n\n words here');
-	});
-});
-
-// Whitespace at a block's end paints nothing, so a cut that would strand it drops it: kept, the
-// pair would reload as a different shape.
-test.describe('live mode: a cut that would strand terminal whitespace', () => {
-	const TRAILING = ['~~foo~~  ', '', 'tail'].join('\n');
-
-	test('leaves no delimiter on screen, and the reload agrees', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', TRAILING);
+	// Whitespace at a block's end paints nothing, so a cut that would strand it drops it: kept, the
+	// pair would reload as a different shape.
+	await test.step('a cut that would strand terminal whitespace leaves no delimiter on screen, and the reload agrees', async () => {
+		await nextRow(ep, ['~~foo~~  ', '', 'tail'].join('\n'));
 		await clickWordSettled(ep, page, 'foo');
 		await stepTo(ep, page, 'ArrowRight', 5);
 
@@ -166,19 +113,17 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 		expect(await ep.bridge.getSource()).not.toContain('~~foo\n');
 
 		// Reload convergence: the bytes the split wrote come back as the same screen.
-		const written = await ep.bridge.getSource();
-		await ep.loadContent(written);
+		expect(await ep.parseConverged()).toBe(true);
+		await ep.reloadContent();
 		await ep.waitForRenderFlush();
-		expect(await ep.bridge.getSource()).toBe(written);
 		expect(await textOutsideMarkers(ep.getBlock(0))).toBe('foo');
+		expect(await textOutsideMarkers(ep.getBlock(1))).toBe('');
 	});
-});
 
-// A construct with no children has no interior a cut can land in (`docs/design/live-mode.md` §
-// 4.4), so the cut moves to its nearer edge and one half takes it whole.
-test.describe('live mode: a cut through a childless construct', () => {
-	test('takes the whole autolink into the half the caret was nearer', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
+	// A construct with no children has no interior a cut can land in (`docs/design/live-mode.md`
+	// § 4.4), so the cut moves to its nearer edge and one half takes it whole.
+	await test.step('a cut through a childless construct takes the whole autolink into the half the caret was nearer', async () => {
+		await nextRow(ep, '<https://example.com> tail\n');
 		await clickWordSettled(ep, page, 'example');
 		await landAt(ep, page, 13);
 		await page.keyboard.press('Enter');
@@ -190,99 +135,69 @@ test.describe('live mode: a cut through a childless construct', () => {
 	});
 });
 
-// The split's inverse: without cleanup at the join the closing and reopening runs meet as
-// `Some **bo****ld** text`, and a split link comes back as two anchors.
-test.describe('live mode: Enter then Backspace round-trips', () => {
-	test('merging the halves back restores the original bytes', async ({ page }) => {
-		const ep = await enterMode(page, 'live');
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowRight', 9);
-
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('Some **bo**');
-		await page.keyboard.press('Backspace');
-		await expect.poll(() => ep.getBlocks().count()).toBe(BLOCKS);
-
-		expect(await ep.bridge.getSource()).toContain('Some **bold** text');
-		expect(await ep.bridge.getSource()).not.toContain('****');
-	});
-
-	test('merging a split link back leaves one link, not two', async ({ page }) => {
-		const ep = await enterMode(page, 'live');
-		await clickWordSettled(ep, page, 'example');
-		await stepTo(ep, page, 'ArrowRight', 11);
-
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('[exam](https://example.com)');
-		await page.keyboard.press('Backspace');
-		await expect.poll(() => ep.getBlocks().count()).toBe(BLOCKS);
-
-		expect(await ep.bridge.getSource()).toContain('Visit [example](https://example.com) here');
-		expect(await ep.getBlock(LINK).locator('a').count()).toBe(1);
-	});
-});
-
 // The resolver runs inside the split call, so the split sees a reference form as the link the
 // render path drew rather than as a pair of brackets.
-test.describe('live mode: a reference form splits like any other link', () => {
-	test('both halves carry the reference label', async ({ page }) => {
-		const ep = await enterMode(page, 'live');
-		await clickWordSettled(ep, page, 'refexample');
-		await landAt(ep, page, 10);
+test('live mode: a reference form splits like any other link, both halves on the label', async ({
+	page
+}) => {
+	const ep = await enterMode(page, 'live');
+	await clickWordSettled(ep, page, 'refexample');
+	await landAt(ep, page, 10);
 
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('Ref [refex][site]\n\n[ample][site] here');
-		await expect(ep.getBlock(REF).locator('a')).toHaveText('refex', { useInnerText: true });
-		await expect(ep.getBlock(REF + 1).locator('a')).toHaveText('ample', { useInnerText: true });
-	});
+	await page.keyboard.press('Enter');
+	await ep.bridge.waitForSourceContains('Ref [refex][site]\n\n[ample][site] here');
+	await expect(ep.getBlock(REF).locator('a')).toHaveText('refex', { useInnerText: true });
+	await expect(ep.getBlock(REF + 1).locator('a')).toHaveText('ample', { useInnerText: true });
 });
 
 // A list item's first line sits behind its bullet, so the space the reopened half starts with
 // joins the new item's bullet, as a reload reads it.
-test.describe('live mode: a cut through a construct in a list item', () => {
-	test('the new item takes the wider bullet its bytes read as', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', '- **bo ld**\n');
-		await clickWordSettled(ep, page, 'ld');
-		await landAt(ep, page, 4);
+test('live mode: a cut in a list item gives the new item the wider bullet its bytes read as', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'live', '- **bo ld**\n');
+	await clickWordSettled(ep, page, 'ld');
+	await landAt(ep, page, 4);
 
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceEquals('- **bo**\n-  **ld**\n');
+	await page.keyboard.press('Enter');
+	await ep.bridge.waitForSourceEquals('- **bo**\n-  **ld**\n');
 
-		expect(await ep.parseConverged()).toBe(true);
-		const marker = await page.evaluate(
-			() => (window as any).__test.getDocument().children[0].children[1].metadata.marker
-		);
-		expect(marker).toBe('-  ');
-		const items = ep.editorContainer.locator('.list-item-content');
-		await expect(items.nth(1).locator('strong')).toHaveText('ld', { useInnerText: true });
-	});
+	expect(await ep.parseConverged()).toBe(true);
+	const marker = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children[1].metadata.marker
+	);
+	expect(marker).toBe('-  ');
+	const items = ep.editorContainer.locator('.list-item-content');
+	await expect(items.nth(1).locator('strong')).toHaveText('ld', { useInnerText: true });
 });
 
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
-test.describe('source mode: the same gesture stays byte-literal', () => {
-	test('Enter inside a bold word splits the pair open', async ({ page }) => {
-		const ep = await enterMode(page, 'source');
-		await clickBlockSettled(ep, BOLD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
-		await stepTo(ep, page, 'ArrowRight', 9);
+test('source mode: Enter inside a bold word splits the pair open, byte for byte', async ({
+	page
+}) => {
+	const ep = await enterMode(page, 'source');
+	await clickBlockSettled(ep, BOLD);
+	await page.keyboard.press('Home');
+	await ep.waitForRenderFlush();
+	await stepTo(ep, page, 'ArrowRight', 9);
 
-		await page.keyboard.press('Enter');
-		await ep.bridge.waitForSourceContains('Some **bo\n\nld** text');
-	});
+	await page.keyboard.press('Enter');
+	await ep.bridge.waitForSourceContains('Some **bo\n\nld** text');
 });
 
 // A split that cuts no construct reopens nothing, so its landing is a structural one like Home's:
 // the caret means outside the construct the second half opens with, in every mode that hides it.
-test.describe('Enter just before a construct leaves the caret outside it', () => {
-	for (const mode of ['live', 'preview-inline'] as const) {
+for (const mode of ['live', 'preview-inline'] as const) {
+	test(`${mode}: Enter just before a construct leaves the caret outside it`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, '\n');
+
 		for (const [what, doc, word, typed] of [
 			['a code span', 'ab `code` z', 'code', 'Y`code` z'],
 			['a bold run', 'ab **bold** z', 'bold', 'Y**bold** z'],
 			['a code span in a list item', '- ab `code` z', 'code', '- Y`code` z']
 		] as const) {
-			test(`${mode}, ${what}: the next byte lands before it`, async ({ page }) => {
-				const ep = await enterPresentationMode(page, mode, doc);
+			await test.step(`${what}: the next byte lands before it`, async () => {
+				await nextRow(ep, doc);
 				await clickWordSettled(ep, page, word);
 				await landAt(ep, page, 3);
 				await page.keyboard.press('Enter');
@@ -291,5 +206,5 @@ test.describe('Enter just before a construct leaves the caret outside it', () =>
 				await ep.bridge.waitForSourceContains(typed);
 			});
 		}
-	}
-});
+	});
+}

@@ -2,6 +2,7 @@ import { type Locator, type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { gotoReady } from '../../goto-ready';
 import { repeatedWordInParagraph } from '../../showcase-document';
+import { clickModeButton } from '../../mode-switch';
 
 // The `/` showcase as a page embedding the editor (requirements/plugins/showcase-occurrences.md):
 // the library gives `.decoration-overlay` geometry and leaves colour to the host, and only `/`
@@ -117,7 +118,7 @@ test.describe('/ showcase occurrence highlight', () => {
 	// highlight to paint; decorations/hloccur-memo covers that.
 	test('the marks paint the same with the markers hidden', async ({ page }) => {
 		await page.getByTestId('occurrences-toggle').click();
-		await page.locator('.showcase-mode[data-mode="live"]').click();
+		await clickModeButton(page, 'live');
 
 		await clickWord(page, WORD);
 

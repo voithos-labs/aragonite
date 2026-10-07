@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import { clickWordSettled, enterPresentationMode, landAt } from './helpers';
+import { clickModeToggle } from '../../mode-switch';
 
 // The caret half of the mode-switch rules: a mode change moves no byte, so the caret the user
 // had comes back on the other side, saved across reading mode, which has no caret.
@@ -28,8 +29,7 @@ test.describe('mode flips: the caret comes back', () => {
 		await clickWordSettled(ep, page, 'bold');
 		await landAt(ep, page, SEAT);
 
-		await page.getByTestId('live-toggle').click();
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'live');
 		await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
 		expect((await focusPoint(ep))?.path).toEqual(PROSE);
 
@@ -42,13 +42,11 @@ test.describe('mode flips: the caret comes back', () => {
 		await clickWordSettled(ep, page, 'bold');
 		await landAt(ep, page, SEAT);
 
-		await page.getByTestId('presentation-toggle').click();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getSelectionPaths()).toBeNull();
 
-		await page.getByTestId('presentation-toggle').click();
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'reading');
 		await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
 
 		await page.keyboard.type('X');
@@ -65,8 +63,7 @@ test.describe('mode flips: the caret comes back', () => {
 		await landAt(ep, page, SEAT);
 		expect((await focusPoint(ep))?.path).toEqual(CELL);
 
-		await page.getByTestId('live-toggle').click();
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'live');
 		await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
 		expect((await focusPoint(ep))?.path).toEqual(CELL);
 
@@ -75,13 +72,7 @@ test.describe('mode flips: the caret comes back', () => {
 	});
 
 	// Reading is covered by the test above; on the way in it has no caret to assert.
-	const EDITABLE_RUNGS = [
-		['preview-block', 'preview-block-toggle'],
-		['preview-inline', 'preview-inline-toggle'],
-		['live', 'live-toggle']
-	] as const;
-
-	for (const [mode, testid] of EDITABLE_RUNGS) {
+	for (const mode of ['preview-block', 'preview-inline', 'live'] as const) {
 		test(`a source caret survives the ${mode} round trip, re-placed on both flips`, async ({
 			page
 		}) => {
@@ -89,12 +80,10 @@ test.describe('mode flips: the caret comes back', () => {
 			await clickWordSettled(ep, page, 'bold');
 			await landAt(ep, page, SEAT);
 
-			await page.getByTestId(testid).click();
-			await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode);
+			await clickModeToggle(page, mode);
 			await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
 
-			await page.getByTestId(testid).click();
-			await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+			await clickModeToggle(page, mode);
 			await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
 			expect((await focusPoint(ep))?.path).toEqual(PROSE);
 		});
