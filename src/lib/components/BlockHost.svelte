@@ -164,7 +164,7 @@
 <div
 	class={[
 		'block-host',
-		{ 'reorder-host': reorderable && dragHandles, 'handle-host': showsHandle },
+		{ 'reorder-host': reorderable, 'handle-host': showsHandle },
 		...blockDecorations.classes
 	]}
 	data-block-path={JSON.stringify(myPath)}
