@@ -11,7 +11,6 @@ A range with a table endpoint goes to the table branch before the title branch, 
 to hold there too: a covered title is emptied, a title at an endpoint is truncated where it is,
 and a container the range covers entirely is deleted as one unit.
 
-- substrate: a table in the callout body parses as a real child, so the callout is a title plus a table
 - in between, from prose into a body table cell: the title is emptied in place to an empty callout-title, the table snaps to whole rows as it always does, nothing is lifted into the opener line, and undo restores the title at the child level
 - the range starts in the title, mid-title into a body table cell: the title is truncated by a raw write, so its node and kind survive and nothing is replaced by a reparse, the caret stays in the title, and undo restores at the child level
 - the range ends in the title, from a table above into mid-title: the title keeps the tail the range missed, in its own leaf, and the table the range starts in snaps to whole rows

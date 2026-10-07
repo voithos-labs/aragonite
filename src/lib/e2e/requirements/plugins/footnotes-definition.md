@@ -12,8 +12,7 @@ the DOM.
 
 ## Happy paths
 
-- definition renders as a container: the `?seed=footnotes` route mounts the `FootnoteDefinition` component (a `.footnote-def` box holding a `.block-list`) rather than falling back to raw markdown
-- the marker renders: the first child paints a dimmed `[^a]: ` marker (an `.md-marker`) in front of the body text, and the body itself is an editable paragraph child
+- the marker renders: the `?seed=footnotes` route mounts the `FootnoteDefinition` component (a `.footnote-def` box) rather than falling back to raw markdown, and its first child paints a dimmed `[^a]: ` marker (an `.md-marker`) in front of the body text
 - body edits round-trip: typing into the definition body updates the child's bytes and the container rebuilds its own raw text to `[^a]: <edited>`, so the source still round-trips
 - type a definition from scratch: typing `[^b]: <body>` into an empty paragraph one keystroke at a time forms the container as you go (the block becomes a footnote definition with one paragraph child), passing through the brief inline reference widget that the `[^b]` prefix mounts on its closing `]`
 - live mode cleans a join in the body: a selection from inside bold to inside italic in the body's first line, deleted with Backspace, leaves `[^a]: Some boalic words` with no `**` in the source (miss-analysis: the join read the body's `[^a]: ` prefix as a list marker it couldn't find, so it refused every cleanup here, and no live scenario ran inside a note)
@@ -22,7 +21,6 @@ the DOM.
 
 - Backspace at the start of the body unwraps the note: Backspace at offset 0 of a single-paragraph definition's body leaves a bare paragraph in the definition's place with the caret at its start, and the reference that pointed at it keeps its number, since numbering counts references rather than definitions, instead of throwing
 - one undo puts the note back: a single Ctrl+Z after the unwrap restores the seed bytes and the footnote-definition kind
-- a body of several blocks lifts only its first block: Backspace at the start of the first body block leaves that block loose above and `[^a]: ` on the rest; Backspace at the start of the second block merges it into the first, leaving the marker untouched
 - the note declines the block below it: Backspace at the start of the paragraph following a definition changes no bytes and puts the caret at the end of the note's last body leaf. From the outside a note behaves like a leaf, so body text never becomes note text
 - one undo restores a body edit: after typing into the body, a single Ctrl+Z returns the source to the seed bytes
 

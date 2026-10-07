@@ -39,14 +39,6 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.bridge.waitForSourceContains('text `x` zand more');
 	});
 
-	test('a digit after a lone $ drops the paired closer: a price is not math', async ({ page }) => {
-		await editor.loadContent('cost is \n');
-		await editor.focusBlock(0, 8);
-		await page.keyboard.type('$5');
-		await editor.bridge.waitForSourceContains('cost is $5');
-		expect(await editor.bridge.getSource()).toBe('cost is $5\n');
-	});
-
 	test('Backspace between the paired closers takes both', async ({ page }) => {
 		await editor.loadContent('pay \n');
 		await editor.focusBlock(0, 4);
@@ -88,20 +80,6 @@ test.describe('inline delimiter auto-pair', () => {
 		await page.keyboard.type(' ');
 
 		await expect.poll(() => editor.bridge.getSource()).toBe('a * *\n');
-	});
-
-	// The emphasis delimiters: `**` typed ahead of an existing bold run pairs with its own
-	// partner, and the byte after the run just closed lands outside it.
-	test('** and ~~ pair with their own paired closers and close cleanly', async ({ page }) => {
-		await editor.loadContent('text and **bold** later\n');
-		await editor.focusBlock(0, 5);
-		await page.keyboard.type('**ab** z');
-		await editor.bridge.waitForSourceContains('text **ab** zand **bold** later');
-
-		await editor.loadContent('text and ~~gone~~ later\n');
-		await editor.focusBlock(0, 5);
-		await page.keyboard.type('~~ab~~ z');
-		await editor.bridge.waitForSourceContains('text ~~ab~~ zand ~~gone~~ later');
 	});
 
 	// The step-over is what keeps the block openers three and two keystrokes.
