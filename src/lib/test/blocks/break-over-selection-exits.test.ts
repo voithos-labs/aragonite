@@ -87,6 +87,32 @@ describe('Enter at a caret on an empty line still leaves the block', () => {
 	});
 });
 
+// Miss-analysis: the exit rows covered the lines a removal empties, so none asked about a line it
+// leaves reading as something Enter completes (a table's header row).
+describe.each(MODES)('%s mode: Enter over a selection never completes a line', (mode) => {
+	it('the selection after a table header row goes, and the line splits', async () => {
+		const editor = mountEditor({ source: '| a | b |xyz\n\nnext\n', presentationMode: mode });
+		await settleEditor();
+		selectRange(surfaceAt(editor, [0]), 9, 12);
+
+		await pressKey(surfaceAt(editor, [0]), { key: 'Enter' });
+		await settleEditor();
+
+		expect(editor.source()).toBe('| a | b |\n\n\nnext\n');
+	});
+
+	it('Enter at the end of the same row still builds the table', async () => {
+		const editor = mountEditor({ source: '| a | b |\n\nnext\n', presentationMode: mode });
+		await settleEditor();
+		placeCaret(surfaceAt(editor, [0]), 9);
+
+		await pressKey(surfaceAt(editor, [0]), { key: 'Enter' });
+		await settleEditor();
+
+		expect(editor.source()).toContain('| --- | --- |');
+	});
+});
+
 // The range's own route: a key over a range spanning blocks removes it, then runs the command.
 describe('Enter over a range spanning blocks that empties a line', () => {
 	it.each([
