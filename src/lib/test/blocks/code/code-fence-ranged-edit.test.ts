@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The fence check through the mounted block's real beforeinput, cut and compositionstart
-// listeners with a live DOM selection: where the mode hides the fence lines, the block prevents
-// the browser's gesture and commits the clamped text; where it paints them, it does not. The
-// pure clamp is in `code-fence-boundary.test.ts`.
+// The fence check through the mounted block's real listeners with a live DOM selection, in live
+// mode, which hides the fence lines: the range it reads, the text it inserts, a collapsed caret on
+// a fence line and where a refused gesture leaves the caret. The span each write route takes over
+// a range is in `code-fence-edit-span.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
@@ -68,33 +68,6 @@ afterEach(async () => {
 });
 
 describe('CodeBlock: fence-crossing ranged edits', () => {
-	it('claims a delete whose selection runs into the closer and commits the clamped text', async () => {
-		select(12, 20);
-		const e = beforeInput('deleteContentBackward');
-		await settleEditor();
-
-		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe('```js\nconst \n```');
-	});
-
-	it('claims a forward delete the same way: direction picks no different bytes', async () => {
-		select(12, 20);
-		const e = beforeInput('deleteContentForward');
-		await settleEditor();
-
-		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe('```js\nconst \n```');
-	});
-
-	it('claims a type-over and writes the typed character into the body', async () => {
-		select(12, 20);
-		const e = beforeInput('insertText', 'Z');
-		await settleEditor();
-
-		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe('```js\nconst Z\n```');
-	});
-
 	// A replacement carries its payload on the `dataTransfer`, which is never read here: a
 	// payload it did not read cannot go through the paste transforms (G4.11), so it is refused.
 	it('refuses a replacement rather than re-siting a payload it never read', async () => {
@@ -128,21 +101,6 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\n  const \n  \n```');
 	});
 
-	it('prevents a fence-only delete without spending a commit', async () => {
-		for (const [start, end] of [
-			[17, 18], // the body's own line ending
-			[18, 21], // the closer text: structure, not content
-			[0, 3] // the opener's marker run
-		]) {
-			select(start, end);
-			const e = beforeInput('deleteContentBackward');
-			await settleEditor();
-
-			expect(e.defaultPrevented).toBe(true);
-			expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
-		}
-	});
-
 	// Parser-verified: one typed character inside the closer run leaves an unclosed
 	// fence that swallows every following block.
 	it('prevents a collapsed-caret insertion inside the closer run', async () => {
@@ -152,20 +110,6 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
-	});
-
-	// Chromium's own replace of a range can take the hidden opener with it, so the block writes
-	// even a type-over that stays inside one region.
-	it.each([
-		['a character over the info string', 3, 5, 'p', '```p\nconst x = 1\n```'],
-		['an emoji over body text', 6, 11, '😀', '```js\n😀 x = 1\n```']
-	])('writes %s itself', async (_name, start, end, data, text) => {
-		select(start, end);
-		const e = beforeInput('insertText', data);
-		await settleEditor();
-
-		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe(text);
 	});
 
 	// The pending edit's target range covers a structural line ending. Chromium reports it
@@ -211,14 +155,6 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		foreign.remove();
 	});
 
-	it('cut deletes only the body part of a fence-crossing selection', async () => {
-		select(12, 20);
-		mounted.el.dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
-		await settleEditor();
-
-		expect(committedText()).toBe('```js\nconst \n```');
-	});
-
 	// Enter is a command, so the dispatch removes the selection first through the block's fenced
 	// removal; the bytes the newline then writes are pinned in `break-over-selection.test.ts`.
 	it('Enter over a fence-crossing selection first removes only the body part', async () => {
@@ -252,19 +188,6 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// beforeinput's insertCompositionText is not cancelable, so the check cannot stop an IME;
-	// the block deletes the body part of the selection before the composition takes over.
-	it.each([
-		['a fence-crossing selection', 12, 20, '```js\nconst \n```'],
-		['a body-only selection', 6, 12, '```js\nx = 1\n```']
-	])('compositionstart over %s deletes its body part first', async (_name, start, end, text) => {
-		select(start, end);
-		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-		await settleEditor();
-
-		expect(committedText()).toBe(text);
-	});
-
 	it('compositionstart over fence structure alone collapses onto the body and writes nothing', () => {
 		select(18, 21);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
@@ -276,18 +199,17 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 
 // Miss-analysis: no fence-edit test put an edit on a fence line the mode paints.
 describe('CodeBlock: a fence line the mode paints takes the edit', () => {
-	it.each(['source', 'preview-block'] as const)(
-		'leaves a delete into the closer to the browser (%s)',
-		async (mode) => {
-			await mounted.dispose();
-			mounted = mountCode(SOURCE, { policies: { presentationMode: () => mode } });
-			select(12, 20);
-			const e = beforeInput('deleteContentBackward');
-			await settleEditor();
+	// Source mode is in `code-fence-edit-span.test.ts`; preview-block paints the focused block's
+	// markers too, so its fence lines show.
+	it('leaves a delete into the closer to the browser in preview-block', async () => {
+		await mounted.dispose();
+		mounted = mountCode(SOURCE, { policies: { presentationMode: () => 'preview-block' } });
+		select(12, 20);
+		const e = beforeInput('deleteContentBackward');
+		await settleEditor();
 
-			expect(e.defaultPrevented).toBe(false);
-		}
-	);
+		expect(e.defaultPrevented).toBe(false);
+	});
 });
 
 // Live mode is the one editable mode that hides the fence lines, and no pointer or arrow puts a
@@ -323,32 +245,12 @@ describe('CodeBlock: a gesture confined to a hidden fence line does nothing', ()
 
 	it.each([
 		['with the caret inside the closer run', 19, 19],
-		['with the caret inside the opener run', 1, 1],
-		['over a closer-only selection', 18, 21]
+		['with the caret inside the opener run', 1, 1]
 	])('a paste %s commits nothing', async (_label, start, end) => {
 		select(start, end);
 		clipboardEvent('paste', 'Y');
 		await settleEditor();
 
 		expect(commits()).toBe(0);
-	});
-
-	it('a cut of a closer-only selection commits nothing', async () => {
-		select(18, 21);
-		clipboardEvent('cut');
-		await settleEditor();
-
-		expect(commits()).toBe(0);
-	});
-
-	// Chromium, deleting the last character it paints on a line, also takes the hidden fence line
-	// beside it, so a delete inside the body is applied by the block rather than the browser.
-	it('a delete inside the body is taken and applied to the body alone', async () => {
-		select(10, 12);
-		const e = beforeInput('deleteContentBackward');
-		await settleEditor();
-
-		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe('```js\nconsx = 1\n```');
 	});
 });

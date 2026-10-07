@@ -2103,6 +2103,57 @@ const WIDGET_LIST: FileRule = {
 	]
 };
 
+// ── G4.130 one span for every ranged write to a code block ──────────────────
+
+const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
+const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
+
+const CODE_EDIT_SPAN: FileRule[] = [
+	{
+		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: /(?<![\w.])(?<!function\s+)clampRangeToBody\s*\(/,
+		allowed: {
+			[EDIT_SPAN_HOME]: '`editSpan` and the caret clamp',
+			[`${SOURCE_DIR.codeBlock}code-indent.ts`]:
+				'an indent keeps every fence line unindented in every mode, a line rule rather than an edit span'
+		},
+		reaches: [EDIT_SPAN_HOME],
+		reason:
+			'a route that clamps its own range keeps its own copy of the span a code block edit rewrites, and the copies drift: ask `editSpan`',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const span = clampRangeToBody(node, range);'),
+			at(`${SOURCE_DIR.selection}x.ts`, 'return clampRangeToBody (node, { start, end });')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, "import { clampRangeToBody } from './code-fence-boundary';"),
+			at(ROGUE_CODE_WRITE, 'export function clampRangeToBody(node, range) {}')
+		]
+	},
+	{
+		id: 'G4.130 a code block write never branches on whether its fence lines show',
+		population: under(SOURCE_DIR.codeBlock),
+		matches:
+			/\b(?:fenceLines\w*|paintsFocusedMarkers\([^()]*\)|hidesDelimitersAtCaret\([^()]*\))\s*(?:\?(?![?.:])|&&)/,
+		reaches: [SOURCE.codeBlockComponent, EDIT_SPAN_HOME],
+		reason:
+			'whether the fence lines show decides the span a code block edit rewrites, and a route that branches on it picks that span by hand: pass the flag to `editSpan`',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const sel = fenceLinesShown ? range : clamp(range);'),
+			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && refused(range)) return;'),
+			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
+			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode) && crosses) return;')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'if (composing || !el || fenceLinesShown) return false;'),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesShown = $derived(paintsFocusedMarkers(mode));'),
+			at(`${SOURCE_DIR.textBlock}x.ts`, 'const span = paintsFocusedMarkers(mode) ? range : body;')
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
@@ -2112,7 +2163,8 @@ describeFileRules(
 		MATH_SHAPE,
 		RANGE_PAINT,
 		PIECES_UNDER_ORDER_CHECK,
-		WIDGET_LIST
+		WIDGET_LIST,
+		...CODE_EDIT_SPAN
 	],
 	SOURCES
 );

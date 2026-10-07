@@ -1185,6 +1185,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.123 | A dissolving list item's children are split only inside the list order check              | L       |
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
+| G4.130 | A code block edit over a range takes its span from `editSpan` only                        | L       |
 
 ### The entries
 
@@ -2351,6 +2352,20 @@ backslashes on Windows, and a glob reads a backslash as an escape, so `vite.conf
 `optimizeDeps.include` as well, so it doesn't rest on the scan following a lazy import.
 `lint/dev-prebundle.test.ts` resolves the dev config and fails when a scan glob matches no route
 file, or when a bare-package `import()` under `src/lib` or `src/routes` is missing from the list.
+
+**G4.130 · One span for every write over a code block range.** Where the mode shows a code
+block's fence lines, an edit over a range rewrites the range. Where it hides them, it rewrites the
+range's part inside the body (the info string counts as content too), and a range on fence
+structure alone writes nothing. `src/lib/components/blocks/code/code-fence-boundary.ts` ::
+`editSpan` answers that, and every route that writes over a range in the block asks it: the
+browser's delete and type-over, an IME composition, a typed bracket's wrap, cut, paste, and the
+removal before a command over the selection. A selection drag never gets there, since a range from
+the body onto a hidden fence line carries that line's ending and the drop declines line breaks.
+Two rows in `lint/file-rules.test.ts` keep it there: `clampRangeToBody(` is called only in that
+module and in `code-indent.ts` (an indent leaves every fence line alone in every mode, a line rule
+rather than a span), and no file in the code block's folder branches on whether the fence lines
+show (`fenceLinesShown ?`, `paintsFocusedMarkers(…) &&`).
+`test/blocks/code/code-fence-edit-span.test.ts` runs each route over the same ranges in both modes.
 
 ## Accessibility
 

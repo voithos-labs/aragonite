@@ -27,6 +27,7 @@ interface Shape {
 
 const SHAPES: Shape[] = [
 	{ name: 'inside the body', range: [7, 12], hidden: [7, 12] },
+	{ name: 'over the info string', range: [3, 5], hidden: [3, 5] },
 	{ name: 'from the opener into the body', range: [2, 10], hidden: [6, 10] },
 	{ name: 'from the body into the closer', range: [12, 20], hidden: [12, 17] },
 	{ name: 'over the whole block', range: [0, 21], hidden: [6, 17] },
@@ -179,7 +180,11 @@ describe.each(MODES)('code block write routes, fence lines $label', ({ mode, sho
 			if (shown && route.browserWhereShown) {
 				expect(e?.defaultPrevented).toBe(false);
 				expect(firstWrite()).toBeNull();
-			} else if (span === null) {
+				return;
+			}
+			// The block writes or refuses the gesture itself, so the browser's own edit must not run.
+			if (e?.cancelable) expect(e.defaultPrevented).toBe(true);
+			if (span === null) {
 				expect(firstWrite()).toBeNull();
 			} else {
 				const [start, end] = span;
