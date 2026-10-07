@@ -2,11 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionAnnouncer } from '$lib/selection/selection-announcer';
 import type { EditorSelection } from '$lib/selection/primitives';
-
-const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
-});
+import { caretAt } from '$lib/test/harness/editor-selection';
 
 function harness(script: (EditorSelection | null)[]) {
 	const sent: (EditorSelection | null)[] = [];

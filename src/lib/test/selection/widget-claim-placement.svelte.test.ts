@@ -11,7 +11,8 @@ import {
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import { dispatchKey } from '$lib/test/harness/settle';
-import { caretAt, mountImageSelected } from './image-selected-harness';
+import { mountImageSelected } from './image-selected-harness';
+import { caretAt } from '$lib/test/harness/editor-selection';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

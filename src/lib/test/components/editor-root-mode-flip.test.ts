@@ -7,14 +7,10 @@ import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp'
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { EditorSelection } from '$lib/selection/primitives';
 import { settleEditor } from '$lib/test/harness/settle';
+import { caretAt } from '$lib/test/harness/editor-selection';
 
 afterEach(() => {
 	document.body.replaceChildren();
-});
-
-const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
 });
 
 // Miss-analysis: every mode-change test drove a mounted editor, never which mode captured.

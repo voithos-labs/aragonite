@@ -11,8 +11,8 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	placeCaret,
-	surfaceAt
+	surfaceAt,
+	typeInto
 } from '../harness/mount-editor.svelte';
 
 const ruleBox = definePlugin({
@@ -31,12 +31,6 @@ beforeEach(() => {
 	installPlugins([ruleBox]);
 });
 afterEach(destroyMountedEditors);
-
-function typeInto(el: HTMLElement, text: string): void {
-	el.textContent = text;
-	placeCaret(el, text.length);
-	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-}
 
 describe('a keystroke an on-type completer answers', () => {
 	it('forms the structure, with the caret where the completion put it', async () => {

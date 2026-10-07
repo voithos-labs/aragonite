@@ -8,10 +8,10 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	placeCaret,
 	pressKeyAt,
 	selectRange,
 	surfaceAt,
+	typeInto,
 	type MountedEditor
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
@@ -34,12 +34,6 @@ afterEach(async () => {
 	await destroyMountedEditors();
 	document.body.innerHTML = '';
 });
-
-function typeInto(el: HTMLElement, text: string): void {
-	el.textContent = text;
-	placeCaret(el, text.length);
-	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-}
 
 describe('a keystroke on the unterminated last block', () => {
 	it.each([

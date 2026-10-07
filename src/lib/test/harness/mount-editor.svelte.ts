@@ -7,6 +7,7 @@ import { mount, unmount, flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import Editor from '$lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '$lib/editor-props';
+import type { PresentationMode } from '$lib/presentation-mode';
 import { placeCaretAtRaw, selectRawRange } from '$lib/cursor/widget-offset';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
@@ -80,6 +81,21 @@ export function typeInFirstBlock(target: HTMLElement, text: string): void {
 	if (!el) throw new Error('no prose block is mounted');
 	el.textContent = text;
 	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+}
+
+/** Leave `el` holding `text` with the caret at its end, as a browser edit does, then send `input`. */
+export function typeInto(el: HTMLElement, text: string): void {
+	el.textContent = text;
+	placeCaret(el, text.length);
+	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+}
+
+/** `source` mounted in `mode`, with the caret at `at` in its first block. */
+export function mountWithCaret(source: string, at: number, mode: PresentationMode = 'live') {
+	const editor = mountEditor({ source, presentationMode: mode });
+	const el = surfaceAt(editor, [0]);
+	placeCaret(el, at);
+	return { editor, el };
 }
 
 /** The BlockHost at `path`, addressed the way the CST addresses it. */
