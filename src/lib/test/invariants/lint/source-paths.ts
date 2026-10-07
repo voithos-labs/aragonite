@@ -130,7 +130,10 @@ export const SOURCE = {
 	calloutReferenceKind: 'src/routes/test/plugins/callout/callout-kind.ts',
 	memoReferenceBlock: 'src/routes/test/plugins/memo/MemoBlock.svelte',
 	consumerPluginProbe: 'examples/consumer/src/plugin-probe.ts',
-	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte'
+	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte',
+
+	// ── Build config ────────────────────────────────────────────────────────
+	viteConfig: 'vite.config.js'
 } as const;
 
 /** Text each file must hold, so an entry pointed at the wrong real file fails too. */
@@ -258,7 +261,10 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	calloutReferenceKind: 'export const CALLOUT',
 	memoReferenceBlock: 'class="memo-block"',
 	consumerPluginProbe: 'export const _probe',
-	consumerQuickstartRoute: "const source = '# Hello\\n';"
+	consumerQuickstartRoute: "const source = '# Hello\\n';",
+
+	// ── Build config ────────────────────────────────────────────────────────
+	viteConfig: 'optimizeDeps:'
 };
 
 /** The directories the scans walk or bind by prefix. */
