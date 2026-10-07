@@ -8,7 +8,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { SOURCE_DIR } from './source-paths';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
 
@@ -103,6 +103,14 @@ export function bundledPluginDirs(): string[] {
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => entry.name)
 		.sort();
+}
+
+/** The plugin guide's pages: its entry page, then every page in the folder beside it. */
+export function pluginGuidePages(): string[] {
+	return [
+		SOURCE.pluginGuide,
+		...collectFiles(SOURCE_DIR.pluginGuidePages, { extensions: ['.md'] })
+	];
 }
 
 // ── Literal-aware walk ───────────────────────────────────────────────────────

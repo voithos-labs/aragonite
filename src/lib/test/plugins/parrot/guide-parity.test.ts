@@ -2,21 +2,29 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { pluginGuidePages } from '../../invariants/lint/scan-source';
 
 /**
- * The shipped parrot is `docs/guide/plugin-guide.md`'s quickstart compiled with two adaptations,
- * derived from the docs so either side drifting fails here rather than in a reader's editor.
+ * The shipped parrot is the plugin guide's quickstart compiled with two adaptations, derived
+ * from the docs so either side drifting fails here rather than in a reader's editor.
  */
 
 const PLUGIN_DIR = 'src/lib/plugins/parrot';
-const GUIDE = 'docs/guide/plugin-guide.md';
-const FRAMES_DOC = 'docs/guide/plugin-guide/parrot-frames.md';
 
 const PLUGIN_MARKER = '// parrot-plugin.ts';
 const COMPONENT_MARKER = '<!-- ParrotBlock.svelte -->';
 const FRAMES_MARKER = '// The canonical ten, via terminal-parrot (MIT).';
 
 const read = (rel: string) => readFileSync(path.resolve(rel), 'utf8');
+
+/** The one guide page holding `markerLine`, so a section can move between the guide's pages. */
+function pageHolding(markerLine: string): string {
+	const holders = pluginGuidePages()
+		.map(read)
+		.filter((page) => page.split('\n').includes(markerLine));
+	expect(holders, `guide pages holding: ${markerLine}`).toHaveLength(1);
+	return holders[0];
+}
 
 // ── The extractor ────────────────────────────────────────────────────────────
 
@@ -53,6 +61,8 @@ function fenceBodyAround(markdown: string, markerLine: string): string {
 	return lines.slice(open + 1, close).join('\n') + '\n';
 }
 
+const fenceIn = (markerLine: string) => fenceBodyAround(pageHolding(markerLine), markerLine);
+
 function spanBetween(lines: string[], startLine: string, endLine: string) {
 	const start = lines.indexOf(startLine);
 	expect(start, `no line ${JSON.stringify(startLine)}`).toBeGreaterThan(-1);
@@ -81,8 +91,8 @@ function nestOneLevel(block: string[]): string[] {
 const toLibImport = (code: string) =>
 	code.replaceAll("'@voithos-labs/aragonite/plugin'", "'$lib/plugin'");
 
-function derivePluginModule(guide: string): string {
-	return toLibImport(fenceBodyAround(guide, PLUGIN_MARKER));
+function derivePluginModule(): string {
+	return toLibImport(fenceIn(PLUGIN_MARKER));
 }
 
 /**
@@ -92,9 +102,9 @@ function derivePluginModule(guide: string): string {
 const SAMPLE_COMMENT =
 	'\t// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;';
 
-function deriveComponent(guide: string, framesDoc: string): string {
-	const component = toLibImport(fenceBodyAround(guide, COMPONENT_MARKER)).split('\n');
-	const frames = fenceBodyAround(framesDoc, FRAMES_MARKER).split('\n');
+function deriveComponent(): string {
+	const component = toLibImport(fenceIn(COMPONENT_MARKER)).split('\n');
+	const frames = fenceIn(FRAMES_MARKER).split('\n');
 
 	const canonical = spanBetween(frames, FRAMES_MARKER, '];');
 	const sample = spanBetween(component, SAMPLE_COMMENT, '\t];');
@@ -108,15 +118,12 @@ function deriveComponent(guide: string, framesDoc: string): string {
 // ── The drift gate ───────────────────────────────────────────────────────────
 
 describe('the bundled parrot is the plugin guide, compiled', () => {
-	const guide = read(GUIDE);
-	const framesDoc = read(FRAMES_DOC);
-
 	it('matches the guide fence byte for byte, barrel import aside', () => {
-		expect(read(`${PLUGIN_DIR}/parrot-plugin.ts`)).toBe(derivePluginModule(guide));
+		expect(read(`${PLUGIN_DIR}/parrot-plugin.ts`)).toBe(derivePluginModule());
 	});
 
 	it('matches the component fence byte for byte, with the canonical ten spliced in', () => {
-		expect(read(`${PLUGIN_DIR}/ParrotBlock.svelte`)).toBe(deriveComponent(guide, framesDoc));
+		expect(read(`${PLUGIN_DIR}/ParrotBlock.svelte`)).toBe(deriveComponent());
 	});
 });
 
@@ -125,29 +132,26 @@ describe('the bundled parrot is the plugin guide, compiled', () => {
 // be wrong in the file and in the derivation at once.
 
 describe('the derivation performs both adaptations', () => {
-	const guide = read(GUIDE);
-	const framesDoc = read(FRAMES_DOC);
-
 	it('rewrites the published specifier to the in-repo barrel', () => {
-		const derived = derivePluginModule(guide);
-		expect(fenceBodyAround(guide, PLUGIN_MARKER)).toContain("'@voithos-labs/aragonite/plugin'");
+		const derived = derivePluginModule();
+		expect(fenceIn(PLUGIN_MARKER)).toContain("'@voithos-labs/aragonite/plugin'");
 		expect(derived).toContain("from '$lib/plugin'");
 		expect(derived).not.toContain('@voithos-labs/aragonite');
 	});
 
 	it('splices ten frames where the guide shows two', () => {
-		expect(fenceBodyAround(guide, COMPONENT_MARKER).match(/String\.raw`/g)).toHaveLength(2);
-		expect(deriveComponent(guide, framesDoc).match(/String\.raw`/g)).toHaveLength(10);
+		expect(fenceIn(COMPONENT_MARKER).match(/String\.raw`/g)).toHaveLength(2);
+		expect(deriveComponent().match(/String\.raw`/g)).toHaveLength(10);
 	});
 
 	it("swaps the two-frame comment for the frames doc's own", () => {
-		const derived = deriveComponent(guide, framesDoc);
+		const derived = deriveComponent();
 		expect(derived).not.toContain('Frames 0 and 5');
 		expect(derived).toContain(`\t${FRAMES_MARKER}\n\tconst FRAMES = [`);
 	});
 
 	it('nests the array one level without touching a byte of the art', () => {
-		const derived = deriveComponent(guide, framesDoc);
+		const derived = deriveComponent();
 		expect(derived).toContain('\tconst FRAMES = [\n\t\tString.raw`\n');
 		// A frame's last art row and its closing delimiter, both at column 0 in the frames
 		// doc: one leading tab here would paint a stray column down the whole bird.
