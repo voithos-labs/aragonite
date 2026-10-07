@@ -66,21 +66,14 @@ a trigger in a cell, so the rule held only for a selection covering whole cells.
 
 - `/something`, then Escape, then typing ` more` leaves `/something more` in the line with the
   caret after it.
-- Escape on a showing list closes it without moving the caret or touching the bytes, and typing
-  on does not reopen it, even where the longer query would match a row.
-- `/zzz` lists nothing, so Enter is the document's: it splits the line like plain text.
+
+Escape on a showing list, and a query that lists nothing, hand the keys back the same way for
+every source; `inline-menu.md` holds those cases.
 
 ## A waiting run across a source swap
 
-A host row's `run` that waits (a picker, a fetch) belongs to the note it was picked in. The seed's
-`Held embed` and `Held heading` rows wait until the spec releases them. Miss-analysis: every row
-that ran a host function ran it at once, in the note it was picked in.
-
-- `Held embed`, then the host loads another note and a caret lands in it, then the release: the
-  note is untouched and no `edit` fires
-- `Held heading`, the same: the command it runs after its wait changes nothing in the new note
-- `Held embed`, the host loads another note and inserts into it itself, then the release: the
-  host's insert lands and the embed doesn't
+A host row's `run` gets the same context as any source's `onCommit`, so a run that waits past a
+`source` swap is the held commit in `inline-menu-held-commit.md`.
 
 ## Error cases
 
