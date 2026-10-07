@@ -16,6 +16,7 @@ import {
 	enclosingFunction,
 	fileClasses,
 	importSpecifiers,
+	isAliasSpelling,
 	isLibrarySpecifier,
 	isProseSurface,
 	LEXICAL_CLASSES,
@@ -202,6 +203,16 @@ describe('the #lib alias', () => {
 		for (const other of ['svelte', './x', '#other/x', '$app/paths']) {
 			expect(aliasPath(other), other).toBeNull();
 		}
+		for (const refused of [
+			'#lib/',
+			'#lib/../package.json',
+			'#lib/./x.js',
+			'#lib/node_modules/x.js'
+		]) {
+			expect(aliasPath(refused), refused).toBeNull();
+			expect(isAliasSpelling(refused), refused).toBe(true);
+		}
+		expect(['#fff', '#libx', 'svelte'].map(isAliasSpelling)).toEqual([false, false, false]);
 		expect(aliasSpecifier(SOURCE.publicBarrel)).toBe('#lib');
 		expect(aliasSpecifier(SOURCE.layoutState)).toBe('#lib/reactivity/layout-state.svelte.js');
 		expect(aliasSpecifier(SOURCE_DIR.testSupport)).toBe('#lib/test/support/');
@@ -226,6 +237,7 @@ describe('the #lib alias', () => {
 		expect(nodes.test("from '../core/nodes';")).toBe(true);
 		expect(nodes.test("from '#lib/core/nodes.js';")).toBe(true);
 		expect(nodes.test("from '#lib/core/nodes-extra.js';")).toBe(false);
+		expect(nodes.test("from '../score/nodes';")).toBe(false);
 	});
 });
 

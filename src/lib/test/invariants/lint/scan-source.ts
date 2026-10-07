@@ -8,8 +8,8 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { aliasPath } from '../../../../../scripts/lib-alias.mjs';
-export { aliasPath, aliasSpecifier } from '../../../../../scripts/lib-alias.mjs';
+import { aliasPath, isAliasSpelling, publishedEntries } from '../../../../../scripts/lib-alias.mjs';
+export { aliasPath, aliasSpecifier, isAliasSpelling } from '../../../../../scripts/lib-alias.mjs';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
@@ -894,7 +894,7 @@ function isTypePositionImport(code: string, at: number, open: number): boolean {
 /** Whether an import names library source, through the `#lib` alias or a relative path, rather
  *  than a package. */
 export function isLibrarySpecifier(specifier: string): boolean {
-	return specifier.startsWith('.') || aliasPath(specifier) !== null;
+	return specifier.startsWith('.') || isAliasSpelling(specifier);
 }
 
 /** The file a library import names (through `#lib`, a relative path, an index file or a
@@ -920,25 +920,18 @@ export function resolveSpecifier(fromRelPath: string, specifier: string): string
 	return null;
 }
 
-/** Regex source for a quoted import specifier ending in `modulePath`, written relative or through
- *  `#lib` with its `.js`, so a path-keyed rule sees both spellings. */
+/** Regex source for a quoted import specifier whose last path segments are `modulePath`, written
+ *  relative or through `#lib` with its `.js`, so a path-keyed rule sees both spellings. */
 export function quotedSpecifierEnding(modulePath: string): string {
 	const literal = modulePath.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-	return `['"\`][^'"\`]*${literal}(?:\\.js)?['"\`]`;
+	return `['"\`](?:[^'"\`]*/)?${literal}(?:\\.js)?['"\`]`;
 }
 
 /** The source file of every entry point package.json `exports` publishes, so a new subpath falls
  *  under each rule keyed on the published entry points unasked. */
 export function publishedEntrySources(): Set<string> {
-	const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8'));
-	const out = new Set<string>();
-	for (const target of Object.values(pkg.exports ?? {})) {
-		const file = typeof target === 'string' ? target : (target as Record<string, string>).default;
-		const entry = /^\.\/dist\/(.+)\.js$/.exec(file ?? '')?.[1];
-		const source = `${SOURCE_DIR.library}${entry}.ts`;
-		if (entry !== undefined && existsSync(path.resolve(source))) out.add(source);
-	}
-	return out;
+	const sources = [...publishedEntries().keys()].map((built) => built.replace(/\.js$/, '.ts'));
+	return new Set(sources.filter((source) => existsSync(path.resolve(source))));
 }
 
 /** Just past the `from` that ends an import clause, or null where the statement has none. */

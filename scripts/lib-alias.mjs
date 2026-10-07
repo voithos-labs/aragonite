@@ -1,6 +1,6 @@
-// How a source file names library code through the `#lib` alias package.json `imports` declares.
-// The source scans and the consumer plugin sync read specifiers through here, so the alias is
-// spelled in package.json alone.
+// How code names the library: the `#lib` alias package.json `imports` declares for source files,
+// and the entry points its `exports` publishes. The source scans and the consumer plugin sync read
+// both through here, so each is spelled in package.json alone.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,30 +8,53 @@ import { fileURLToPath } from 'node:url';
 // A path, not a URL: under a jsdom test the global URL is jsdom's, which `fs` refuses.
 const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '../package.json');
 
+const PACKAGE = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'));
 /** @type {Record<string, string>} */
-const IMPORTS = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')).imports ?? {};
+const IMPORTS = PACKAGE.imports ?? {};
 
 const repoPath = (/** @type {string} */ target) => target.replace(/^\.\//, '');
 
+/** Node refuses a `*` match with a `.`, `..` or `node_modules` path segment. */
+const isValidMatch = (/** @type {string} */ middle) =>
+	middle.split(/[/\\]/).every((part) => !['.', '..', 'node_modules'].includes(part.toLowerCase()));
+
 /**
- * The repo path a `#` specifier names as written, read the way Node reads package.json `imports`
- * (`#lib/core/parser.js` names `src/lib/core/parser.js`), or null for any other specifier.
+ * Whether a specifier is spelled with a package.json `imports` key, whether or not it maps to a
+ * file (`#lib/x.js` is, `#fff` isn't).
+ * @param {string} specifier
+ * @returns {boolean}
+ */
+export function isAliasSpelling(specifier) {
+	return Object.keys(IMPORTS).some((key) =>
+		key.includes('*') ? specifier.startsWith(key.split('*')[0]) : specifier === key
+	);
+}
+
+/**
+ * The repo path a `#` specifier names as written, following Node's `imports` resolution
+ * (`#lib/core/parser.js` names `src/lib/core/parser.js`), or null where Node would resolve none.
  * @param {string} specifier
  * @returns {string | null}
  */
 export function aliasPath(specifier) {
 	if (!specifier.startsWith('#')) return null;
-	if (specifier in IMPORTS) return repoPath(IMPORTS[specifier]);
-	let match = null;
+	if (!specifier.includes('*') && Object.hasOwn(IMPORTS, specifier)) {
+		return repoPath(IMPORTS[specifier]);
+	}
+	let best = null;
 	for (const [key, target] of Object.entries(IMPORTS)) {
 		const [prefix, suffix] = key.split('*');
-		if (suffix === undefined || specifier.length < key.length - 1) continue;
+		if (suffix === undefined || specifier.length < key.length) continue;
 		if (!specifier.startsWith(prefix) || !specifier.endsWith(suffix)) continue;
-		if (match !== null && match.prefix.length >= prefix.length) continue;
-		const middle = specifier.slice(prefix.length, specifier.length - suffix.length);
-		match = { prefix, path: repoPath(target.replace('*', middle)) };
+		const longer =
+			best === null ||
+			prefix.length > best.prefix.length ||
+			(prefix.length === best.prefix.length && key.length > best.key.length);
+		if (longer) best = { key, prefix, suffix, target };
 	}
-	return match?.path ?? null;
+	if (best === null) return null;
+	const middle = specifier.slice(best.prefix.length, specifier.length - best.suffix.length);
+	return isValidMatch(middle) ? repoPath(best.target.replace('*', middle)) : null;
 }
 
 /**
@@ -51,4 +74,19 @@ export function aliasSpecifier(relPath) {
 		return key.replace('*', written.slice(prefix.length, written.length - suffix.length));
 	}
 	throw new Error(`no package.json imports entry covers ${relPath}`);
+}
+
+/**
+ * Each published entry point, from package.json `exports`: the library path it is built from, as an
+ * import names it, mapped to the package specifier a consumer imports it by
+ * (`src/lib/plugin.js` to `@voithos-labs/aragonite/plugin`).
+ * @returns {Map<string, string>}
+ */
+export function publishedEntries() {
+	const out = new Map();
+	for (const [subpath, target] of Object.entries(PACKAGE.exports ?? {})) {
+		const built = typeof target === 'object' ? /^\.\/dist\/(.+\.js)$/.exec(target.default) : null;
+		if (built !== null) out.set(`src/lib/${built[1]}`, `${PACKAGE.name}${subpath.slice(1)}`);
+	}
+	return out;
 }

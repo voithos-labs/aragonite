@@ -1,6 +1,8 @@
 {
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
+		// svelte-package copies an import specifier into dist verbatim, and dist holds no `.ts` file.
+		"allowImportingTsExtensions": false,
 		"sourceMap": true,
 		"strict": true
 	},

@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aliasPath } from './lib-alias.mjs';
+import { aliasPath, isAliasSpelling, publishedEntries } from './lib-alias.mjs';
 
 // Anchor at the repo root, not the cwd, so the consumer's own pre-hooks can run
 // this from examples/consumer as well as CI/the smoke running it from the root.
@@ -20,18 +20,7 @@ const MANIFEST = {
 // Quote-agnostic on purpose: the gate must not depend on Prettier to be correct.
 const ALIAS_SPECIFIER = /(['"`])(#[^'"`\s]*)\1/g;
 
-const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-
-/** The package specifier for a library path a published entry point ships, or null. */
-function publishedSpecifier(/** @type {string} */ libraryPath) {
-	const target = libraryPath.replace(/^src\/lib\//, './dist/');
-	for (const [subpath, entry] of Object.entries(pkg.exports)) {
-		if (typeof entry === 'object' && entry.default === target) {
-			return `${pkg.name}${subpath.slice(1)}`;
-		}
-	}
-	return null;
-}
+const PUBLISHED = publishedEntries();
 
 const rewritten = [];
 const offenders = [];
@@ -40,11 +29,10 @@ for (const [plugin, files] of Object.entries(MANIFEST)) {
 		const text = readFileSync(join(SRC, plugin, file), 'utf8').replace(
 			ALIAS_SPECIFIER,
 			(match, quote, specifier) => {
-				const libraryPath = aliasPath(specifier);
-				if (libraryPath === null) return match;
-				const published = publishedSpecifier(libraryPath);
-				if (published === null) offenders.push(`${plugin}/${file}: ${specifier}`);
-				return published === null ? match : `${quote}${published}${quote}`;
+				if (!isAliasSpelling(specifier)) return match;
+				const published = PUBLISHED.get(aliasPath(specifier) ?? '');
+				if (published === undefined) offenders.push(`${plugin}/${file}: ${specifier}`);
+				return published === undefined ? match : `${quote}${published}${quote}`;
 			}
 		);
 		rewritten.push({ plugin, file, text });

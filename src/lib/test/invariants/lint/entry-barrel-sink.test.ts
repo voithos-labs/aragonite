@@ -8,9 +8,11 @@ import {
 	collectEditorSources,
 	EDITOR_SRC,
 	publishedEntrySources,
-	resolveSpecifier
+	resolveSpecifier,
+	sourceFile,
+	type SourceFile
 } from './scan-source';
-import { SOURCE } from './source-paths';
+import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // Type-only edges erase before bundling, so they cannot put a barrel in a chunk cycle.
 const VALUE_REEXPORT = /^\s*(?:import|export)\s+(?!type\b)[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
@@ -18,9 +20,11 @@ const VALUE_REEXPORT = /^\s*(?:import|export)\s+(?!type\b)[\s\S]*?\bfrom\s*['"](
 // ── The module graph ─────────────────────────────────────────────────────────
 
 // Library-scoped, not repo-wide: only the library holds modules a published entry can reach.
-function buildGraph(): Map<string, string[]> {
+function buildGraph(
+	sources: SourceFile[] = collectEditorSources(EDITOR_SRC)
+): Map<string, string[]> {
 	const graph = new Map<string, string[]>();
-	for (const file of collectEditorSources(EDITOR_SRC)) {
+	for (const file of sources) {
 		const targets: string[] = [];
 		const re = new RegExp(VALUE_REEXPORT.source, VALUE_REEXPORT.flags);
 		let match: RegExpExecArray | null;
@@ -82,6 +86,12 @@ describe('entry-barrel sink: classifier non-vacuity', () => {
 			['b.svelte', [entry]]
 		]);
 		expect(backEdgesInto(graph, entry)).toEqual([`b.svelte → ${entry}`]);
+	});
+
+	it('reads a back edge spelled through the #lib alias', () => {
+		const probe = `${SOURCE_DIR.library}core/probe.ts`;
+		const graph = buildGraph([sourceFile(probe, "export { x } from '#lib/plugin.js';\n")]);
+		expect(graph.get(probe)).toEqual([entry]);
 	});
 
 	it('passes a cycle that does not close on the entry', () => {

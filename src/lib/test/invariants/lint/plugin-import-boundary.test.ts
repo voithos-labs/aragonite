@@ -6,7 +6,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { aliasPath, collectEditorSources, importSpecifiers, resolveSpecifier } from './scan-source';
+import {
+	collectEditorSources,
+	importSpecifiers,
+	isAliasSpelling,
+	resolveSpecifier
+} from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const PLUGIN_ROOT = SOURCE_DIR.plugins;
@@ -25,7 +30,7 @@ function pluginOf(relPath: string): { name: string; dir: string } | null {
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
-	if (aliasPath(specifier) !== null) {
+	if (isAliasSpelling(specifier)) {
 		return resolveSpecifier(relPath, specifier) === SOURCE.pluginBarrel;
 	}
 	if (specifier === 'svelte' || specifier.startsWith('svelte/')) return true;

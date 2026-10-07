@@ -11,6 +11,7 @@ import {
 	bundledPluginDirs,
 	collectEditorSources,
 	importSpecifiers,
+	isAliasSpelling,
 	publishedEntrySources,
 	resolveSpecifier
 } from './scan-source';
@@ -287,8 +288,9 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
 		return !resolved.startsWith(SOURCE_DIR.library) || resolved.startsWith(SOURCE_DIR.unitTests);
 	}
+	if (!isAliasSpelling(specifier)) return true;
 	const target = aliasPath(specifier);
-	if (target === null) return true;
+	if (target === null) return false;
 	if (PUBLISHED_ENTRIES.has(resolveSpecifier(relPath, specifier) ?? '')) return true;
 	if (target.startsWith(SOURCE_DIR.testSupport) || target.startsWith(SOURCE_DIR.testHarness)) {
 		return true;
