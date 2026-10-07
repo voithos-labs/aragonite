@@ -18,6 +18,7 @@ import {
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	runPluginCommand,
+	warnSelectionKept,
 	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	AFTER_SELECTION_REMOVAL_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
@@ -288,7 +289,16 @@ function runBlockLocalCommand(
 	run: CommandRun
 ): boolean {
 	const target = 'target' in resolved ? resolved.target : null;
-	if (!target?.afterSelectionRemoved || !commandOverSelection(target.kind, id, ctx.activation)) {
+	// Under a range spanning blocks the range owns the selection; the block holds none of its own.
+	if (
+		!target ||
+		ctx.isCrossBlockRange() ||
+		!commandOverSelection(target.kind, id, ctx.activation)
+	) {
+		return runAtCaret(resolved, id, arg, path, ctx, run);
+	}
+	if (!target.afterSelectionRemoved) {
+		warnSelectionKept(target.kind, id);
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	// Resolved again after the removal, so a plugin's handler reads the block it left.

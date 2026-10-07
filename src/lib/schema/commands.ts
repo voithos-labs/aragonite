@@ -225,9 +225,25 @@ export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath):
 	devWarn('commands', `command "${id}" reached no handler on the ${path} path; key is dead`);
 }
 
-/** Test-only. Clears the dead-key warn memo so each test sees a first-time warn. */
+const warnedSelectionKept = new Set<string>();
+
+/** Dev-warn once per (kind, id) that a command asking for a selection's removal reached a block that
+ *  can't remove one while a selection is live, so the command runs beside the selection. */
+export function warnSelectionKept(kind: AnyBlockKind, id: AnyCommandId): void {
+	if (globalThis.getSelection?.()?.isCollapsed !== false) return;
+	const key = `${kind} ${id}`;
+	if (warnedSelectionKept.has(key)) return;
+	warnedSelectionKept.add(key);
+	devWarn(
+		'commands',
+		`command "${id}" asks for a selection's removal, but a ${kind} block has no afterSelectionRemoved; it runs beside the selection`
+	);
+}
+
+/** Test-only. Clears the warn memos so each test sees a first-time warn. */
 function __resetCommandWarningsForTests(): void {
 	warnedDeadKeys.clear();
+	warnedSelectionKept.clear();
 }
 enrollTestReset(__resetCommandWarningsForTests);
 

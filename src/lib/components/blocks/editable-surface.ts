@@ -21,7 +21,7 @@ import {
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
 import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
-import { emitClipboardError, type EditorEvents } from '../../editor-events';
+import { emitClipboardError, emitCommandError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
 import type { NodeView } from '../../core/node-views';
 import { blockAccessibleName } from '../../a11y-strings';
@@ -574,12 +574,21 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const remove = deps.removeSelection;
 		if (!range || range.start === range.end || !remove) return run(false);
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
-		void deps.controller.undoStep(seed, async () => {
-			await remove(range);
-			// The command reads the caret the removal's render puts back.
-			await tick();
-			if (!isDetached()) run(true);
-		});
+		void deps.controller
+			.undoStep(seed, async () => {
+				await remove(range);
+				// The command reads the caret the removal's render puts back.
+				await tick();
+				if (!isDetached()) run(true);
+			})
+			// Nothing awaits the key's step, so a throw in it reaches the host as a command's would.
+			.catch((error: unknown) =>
+				emitCommandError(deps.events, {
+					kind: deps.getNode().kind,
+					command: 'selection-removal',
+					error
+				})
+			);
 		return true;
 	}
 
