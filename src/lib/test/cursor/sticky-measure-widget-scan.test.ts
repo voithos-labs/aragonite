@@ -17,9 +17,8 @@ let textLine = 2;
 const WIDGET_WIDTH = 20;
 const LINE_HEIGHT = 20;
 const SOURCE_LENGTH = 5;
-/** Every walk offset on one full line, a widget's edges and the offsets inside its source, and
- *  the next widget's, whose probe ends the walk. */
-const ONE_LINE_OF_PROBES = (PER_LINE + 1) * SOURCE_LENGTH;
+/** One probe per widget edge on a full line, and the next line's first, which ends the walk. */
+const ONE_LINE_OF_PROBES = PER_LINE + 2;
 
 function widgetBox(index: number): DOMRect {
 	const line = Math.floor(index / perLine);
@@ -113,6 +112,8 @@ describe('a vertical arrival into a paragraph made only of widgets', () => {
 	// The column sits on the fourth widget's right edge, which is the fourth widget's end offset.
 	const column = asEditorX(4 * WIDGET_WIDTH);
 
+	// Miss-analysis: the two one-line bounds allowed five probes a widget, so a walk that never
+	// stopped early, or never skipped a widget's inside, still passed.
 	it('from above, probes the first line alone and lands on it', () => {
 		const landed = findOffsetNearestX(block, column, 'above', asDomTextOffset(0));
 		expect(landed).toBe(4 * SOURCE_LENGTH);

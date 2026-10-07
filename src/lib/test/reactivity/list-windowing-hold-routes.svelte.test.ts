@@ -160,15 +160,19 @@ const ROUTES: Route[] = [
 			flushSync();
 		}
 	},
+	// Miss-analysis: the row moved b7 with a removal and an insertion, so the count changed in
+	// between and a rebuild that watched only the count still ran.
 	{
 		name: 'a same-length reorder',
 		change(f) {
-			// b7 moves up above the caret's block, so the count stays and b5 slides down a block.
-			const [child] = f.children.splice(7, 1);
-			const [id] = f.ids.splice(7, 1);
+			// b7 moves up above the caret's block in one splice per list, so the count never changes
+			// and b5 slides down a block.
+			const from = f.ids.indexOf('b7');
 			const at = f.ids.indexOf(CHANGED);
-			f.children.splice(at, 0, child);
-			f.ids.splice(at, 0, id);
+			const moveUp = <T>(list: T[]) =>
+				list.splice(at, from + 1 - at, list[from], ...list.slice(at, from));
+			moveUp(f.children);
+			moveUp(f.ids);
 			flushSync();
 		}
 	},
