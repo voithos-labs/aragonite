@@ -9,8 +9,7 @@ body child really does unmount. These checks read behavior: the tree read by pat
 
 ## Happy paths
 
-- details renders as a component: the `?seed=details` route mounts the `DetailsBlock` (toggle plus summary), not the raw-markdown fallback
-- toggle collapses: clicking the disclosure toggle on an open details flips the opener bytes `<details open>` to `<details>`, sets `aria-expanded` to false, and unmounts every body child, leaving only the summary's block host
+- toggle collapses: clicking the disclosure toggle the `DetailsBlock` component draws (not the raw-markdown fallback) on an open details flips the opener bytes `<details open>` to `<details>`, sets `aria-expanded` to false, and unmounts every body child, leaving only the summary's block host
 - toggle expands: clicking again flips `<details>` back to `<details open>` and remounts the body
 - summary edits round-trip: typing into the summary updates the `<summary>…</summary>` bytes and the child keeps its kind
 - Enter descends: Enter at the end of an open details' summary moves focus into the first body child, the behavior every reserved title row inherits, and splits nothing
@@ -18,8 +17,7 @@ body child really does unmount. These checks read behavior: the tree read by pat
 ## Edge cases
 
 - one undo restores both bytes and mount state: after a collapse toggle, a single Ctrl+Z flips the bytes back to `<details open>` and remounts the body
-- caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle's commit lands it there
-- that landing happens once: focus moves exactly one time after the click, and a typed `x` opens the summary text
+- caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle's commit lands it there. Focus moves exactly once after the click, and a typed `x` opens the summary text
 - a caret put back into a closed body: with the details last and closed, select-all twice covers
   its hidden body, and ArrowRight collapses the range to its end, inside that body. The caret lands
   at the end of the title row instead and the details stays closed, so a typed `x` follows `Sum`

@@ -22,7 +22,8 @@ list's own items rather than the document's.
 
 - The diagram's Edit button: the scroll container ends at its new bottom and the source card is
   fully in view
-- A double click on the diagram: the same
+- A double click on the diagram: the same. It opens the source through the Edit button's own
+  path, so it runs on the showcase only
 - Collapsing an open details block with its toggle: the same
 - The Edit button on a diagram in the last item of a long list: the same, in both scroll modes
 - The first two on the showcase itself, which is where this was reported
@@ -35,6 +36,10 @@ list's own items rather than the document's.
 
 ## Miss-analysis
 
+- 2026-09 (#325): every mermaid spec loaded a three-block document that fits in the viewport, so
+  no test ever opened a source under a scroll container with somewhere to fall. The general gap
+  is that a render-primary block's view swap was only ever driven with the scroll position out
+  of play, so the layout in between the mount and the final height was invisible to the suite.
 - 2026-09: the one test of this (`mermaid-source-scroll.md`) used forty short paragraphs, under
   the size where windowing turns on, so no swap was ever driven at the end of a windowed
   document. The same gap hid the details collapse, which no test drove at the end at all

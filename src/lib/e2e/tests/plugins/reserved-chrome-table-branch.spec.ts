@@ -44,16 +44,6 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	}
 
-	test('Gate 6 substrate: a table parses as a real callout body child', async ({ page }) => {
-		await editor.loadContent(TBL_FIXTURE);
-		const callout = await readCallout(page, 1);
-		expect(callout.kind).toBe('callout');
-		expect(callout.childKinds).toEqual(['callout-title', 'table']);
-		expect(callout.childTexts[0]).toBe('Title');
-		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
 	test('Gate 6a: prose above → into a body table cell; the title clears, never node-deletes', async ({
 		page
 	}) => {

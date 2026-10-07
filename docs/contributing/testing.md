@@ -403,10 +403,10 @@ same document. What each fixture is for:
 - `tags/`: tags inside the text on a bare `#` trigger, registered value for value the way
   limestone (the app aragonite was extracted from) registers them, so these specs hold what that
   app gets. Seed `tags`.
-- `inline-menu/`: menus under the caret for the inline-menu specs: a document picker on `[[`, a
-  mention menu on `@` whose commit waits until the spec releases it, and slash rows that wait the
-  same way. Seed `inline-menu` installs them with the demo tag menu, so all four triggers have to
-  stay out of each other's way.
+- `inline-menu/`: menus under the caret for the inline-menu specs: a document picker on `[[`, and
+  a mention menu on `@` whose commit waits until the spec releases it. Seed `inline-menu` installs
+  them with the demo tag menu and the bundled slash list, so all four triggers have to stay out of
+  each other's way.
 - `hloccur-scan/`: the bundled highlight-occurrences plugin configured with an `onScan` counter
   on `window`, so its spec can count how often it rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section

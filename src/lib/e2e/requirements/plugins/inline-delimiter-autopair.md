@@ -25,17 +25,11 @@ backtick does this on its own; a plugin trigger opts in with `autoPair: true` on
   after a word byte (`2*3`, `snake_case`).
 - `~` pairs only as a double run: a single tilde is nothing in GFM, so `~5 minutes` has to stay
   prose, and `~|` plus `~` gives `~~|~~`.
-- Typing the closing delimiter inside a closing run steps over it byte by byte, and the byte
-  after the run lands outside the construct (a run that is not painted moves the caret's side,
-  not the caret).
 
 ## The empty pair
 
-- A first body byte that makes the pair no construct at all drops the second delimiter: `$5` is
-  a price and `$ ` a shell prompt, so neither keeps a stray `$` after it. A backtick keeps its
-  pair for any byte, since `` `1` `` is code.
-- Backspace between the two takes both.
-- Only a pair the auto-pair wrote is dropped this way. `$$b` typed after `pay ` steps over the
+- Backspace between the two delimiters of an empty pair takes both.
+- Only a pair the auto-pair wrote is its own to take back. `$$b` typed after `pay ` steps over the
   partner and then types `b`, so a space typed between the two dollars afterwards writes
   `pay $ $b` (regression: `pay $ b`, one dollar gone).
 - Any other write that takes the pair apart makes it the user's for good. `*` after `a ` writes

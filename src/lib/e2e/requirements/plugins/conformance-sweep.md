@@ -14,6 +14,7 @@ time. It is not a behavioral suite: the per-kind specs still own the depth.
 ## Focus walk
 
 - implemented: with the caret in the paragraph above, ArrowDown enters the kind's block (or, for a container, its child subtree) and carries on out to the paragraph below; a marker typed in the block it stops in appears there, so the block can be walked through and traps no caret.
+- focused as one unit (`blockFocus: 'whole-block'`): the press that enters the block leaves DOM focus on its hidden editing host, the element typed input and IME composition arrive at, not on the drawing the block declares. Miss-analysis: the walk only asked whether focus sat somewhere in the block's subtree, so a kind whose arrival stopped on its drawing passed while typing there went nowhere.
 - not supported (transparent or non-focusable): the walk reaches the paragraph below without the block ever taking focus, so it is skipped rather than trapping. (No enrolled kind declares this today; the branch is there for a future kind.)
 - the same walk runs a second time under `live`, the mode that hides markers: the outcome per kind is identical, and what this pass adds is the shared fixture's watch for `[invariant:…]` console messages, since a kind that renders nothing but markers gets a caret put in it and a byte typed with the dev-mode check G1.33 watching. The mode is read from the editor's `data-presentation` attribute before the loop, because a mode that never applied would repeat the source pass under a live-sounding name.
 

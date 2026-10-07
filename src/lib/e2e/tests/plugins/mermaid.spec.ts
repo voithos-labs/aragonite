@@ -96,16 +96,6 @@ test.describe('mermaid reference plugin', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	test('edit → Ctrl+Enter commits the new code byte-exactly into the fence', async ({ page }) => {
-		await editor.editFirstDiagram(EDITED_CODE);
-		await page.keyboard.press('ControlOrMeta+Enter');
-
-		await editor.bridge.waitForSourceContains(EDITED_CODE);
-		expect(await editor.bridge.getSource()).toBe(EDITED_SEED);
-		await expect(editor.textarea).toHaveCount(0);
-		expect(await roundTripStable(editor.page)).toBe(true);
-	});
-
 	test('one undo after a commit restores the previous source byte-exactly', async () => {
 		await editor.editFirstDiagram(EDITED_CODE);
 		await editor.page.keyboard.press('ControlOrMeta+Enter');
@@ -177,14 +167,6 @@ test.describe('mermaid reference plugin', () => {
 		expect(await editor.getBlockText(5)).toBe('After ok');
 	});
 
-	test('focus view opens via the button and Escape closes it', async ({ page }) => {
-		await editor.clickToolbar('mermaid-focus');
-		await expect(editor.overlay).toHaveCount(1);
-
-		await page.keyboard.press('Escape');
-		await expect(editor.overlay).toHaveCount(0);
-	});
-
 	test('Mod+M on the focused diagram viewport opens the focus view', async ({ page }) => {
 		await editor.firstViewport.click();
 		await page.keyboard.press('ControlOrMeta+m');
@@ -218,6 +200,7 @@ test.describe('mermaid reference plugin', () => {
 		await editor.editFirstDiagram(EDITED_CODE);
 		await page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
+		await expect(editor.textarea).toHaveCount(0);
 
 		await editor.clickToolbar('mermaid-focus');
 		await expect(editor.overlay).toHaveCount(1);

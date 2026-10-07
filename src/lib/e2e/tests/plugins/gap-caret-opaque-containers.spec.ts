@@ -28,16 +28,6 @@ test.describe('gap caret between opaque containers', () => {
 		await editor.gotoPlugins();
 	});
 
-	test('the fixtures are the block sequences the boundaries assume', async () => {
-		await editor.loadContent(TWO_CALLOUTS);
-		expect(await editor.bridge.getBlockKind(0)).toBe('admonition');
-		expect(await editor.bridge.getBlockKind(1)).toBe('admonition');
-
-		await editor.loadContent(DETAILS_THEN_CALLOUT);
-		expect(await editor.bridge.getBlockKind(0)).toBe('details');
-		expect(await editor.bridge.getBlockKind(1)).toBe('admonition');
-	});
-
 	test('ArrowDown out of the first callout puts the caret, typing creates between the two', async () => {
 		await editor.loadContent(TWO_CALLOUTS);
 		await editor.focusBlockAtPath([0, 1], 5);

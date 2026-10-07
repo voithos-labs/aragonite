@@ -13,10 +13,6 @@ selection read by path through `window.__test`, not visuals.
 - collapsed caret: collapsing the cross-block selection puts the caret in the title, and a typed character appears there (`activeBlockPath === [1, 0]`)
 - undo restores: after a title edit, Ctrl+Z takes the source back and returns the caret to the title leaf
 
-## Substrate
-
-- the seed parses as a real container: the title is a reserved `callout-title` leaf at child 0, the callout round-trips byte for byte, and no error is captured
-
 ## User interactions
 
 - Shift+End, Shift+ArrowDown, a pointer drag, ArrowRight and Ctrl+Z are real gestures; the assertions read the tree and the selection by path, never the shape of the DOM

@@ -34,24 +34,64 @@ test.describe('the plugins prop is the enablement set', () => {
 		await gotoReady(page, '/test/plugins/activation');
 	});
 
-	test('the listing editor renders the plugin component and its decorations', async ({ page }) => {
-		const pane = page.getByTestId('editor-listing');
-		await expect(pane.locator('[data-block-kind="parrot"] .parrot-block')).toBeVisible();
-		await expect(pane.locator('[data-block-kind="parrot"] .raw-block')).toHaveCount(0);
-		await expect(pane.locator('[data-block-kind="heading"] .badge-h')).toHaveCount(1);
+	// Both editors only load here and nothing writes, so the rows share one page.
+	test('the listing editor resolves what it lists, and both trees reload as themselves', async ({
+		page
+	}) => {
+		await test.step('the listing editor renders the plugin component and its decorations', async () => {
+			const pane = page.getByTestId('editor-listing');
+			await expect(pane.locator('[data-block-kind="parrot"] .parrot-block')).toBeVisible();
+			await expect(pane.locator('[data-block-kind="parrot"] .raw-block')).toHaveCount(0);
+			await expect(pane.locator('[data-block-kind="heading"] .badge-h')).toHaveCount(1);
+		});
+
+		await test.step('both trees reload as themselves in their own grammar', async () => {
+			expect(await convergedIn(page, 'listing')).toBe(true);
+			expect(await convergedIn(page, 'notListing')).toBe(true);
+		});
+
+		await test.step('built-ins are untouched: both editors render their heading and body', async () => {
+			for (const testId of ['editor-listing', 'editor-not-listing']) {
+				const pane = page.getByTestId(testId);
+				await expect(pane.locator('[data-block-kind="heading"]')).toHaveCount(1);
+				await expect(pane.locator('[data-block-kind="paragraph"]').last()).toHaveText('Body');
+			}
+		});
 	});
 
-	test('reads the unlisted syntax as the prose it is', async ({ page }) => {
-		const pane = page.getByTestId('editor-not-listing');
-		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
-		await expect(pane.locator('[data-block-kind="paragraph"]').first()).toHaveText(
-			/%%parrot party responsibly/
-		);
-	});
+	// Inline syntax, widgets and directive names reach only the editor that lists the plugin.
+	test('the editor that did not list a plugin reads its syntax as prose', async ({ page }) => {
+		await test.step('reads the unlisted syntax as the prose it is', async () => {
+			const pane = page.getByTestId('editor-not-listing');
+			await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+			await expect(pane.locator('[data-block-kind="paragraph"]').first()).toHaveText(
+				/%%parrot party responsibly/
+			);
+		});
 
-	test('both trees reload as themselves in their own grammar', async ({ page }) => {
-		expect(await convergedIn(page, 'listing')).toBe(true);
-		expect(await convergedIn(page, 'notListing')).toBe(true);
+		await test.step('an unlisted inline plugin leaves its shortcode as text', async () => {
+			const listed = page.getByTestId('editor-listing').locator('[data-block-kind="heading"]');
+			const unlisted = page
+				.getByTestId('editor-not-listing')
+				.locator('[data-block-kind="heading"]');
+			await expect(listed.locator('.md-emoji-widget')).toHaveCount(1);
+			await expect(unlisted.locator('.md-emoji-widget')).toHaveCount(0);
+			await expect(unlisted).toHaveText(/Heading :smile:/);
+		});
+
+		await test.step('an unlisted directive name reads as the generic directive', async () => {
+			const listed = page.getByTestId('editor-listing');
+			const unlisted = page.getByTestId('editor-not-listing');
+			await expect(listed.locator('[data-block-kind="admonition"]')).toHaveCount(1);
+			await expect(unlisted.locator('[data-block-kind="admonition"]')).toHaveCount(0);
+			await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
+		});
+
+		// The unlisted editor hands the badge plugin no context, so its decoration source never
+		// registers here; `plugin-editor-context.test.ts` pins that the hook itself never runs.
+		await test.step('attaches no decoration source from a plugin it did not list', async () => {
+			await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);
+		});
 	});
 
 	test('Enter before the unlisted fence leaves it prose that reloads as itself', async ({
@@ -66,23 +106,6 @@ test.describe('the plugins prop is the enablement set', () => {
 		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(5);
 		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
 		expect(await convergedIn(page, 'notListing')).toBe(true);
-	});
-
-	// Inline syntax, widgets and directive names reach only the editor that lists the plugin.
-	test('an unlisted inline plugin leaves its shortcode as text', async ({ page }) => {
-		const listed = page.getByTestId('editor-listing').locator('[data-block-kind="heading"]');
-		const unlisted = page.getByTestId('editor-not-listing').locator('[data-block-kind="heading"]');
-		await expect(listed.locator('.md-emoji-widget')).toHaveCount(1);
-		await expect(unlisted.locator('.md-emoji-widget')).toHaveCount(0);
-		await expect(unlisted).toHaveText(/Heading :smile:/);
-	});
-
-	test('an unlisted directive name reads as the generic directive', async ({ page }) => {
-		const listed = page.getByTestId('editor-listing');
-		const unlisted = page.getByTestId('editor-not-listing');
-		await expect(listed.locator('[data-block-kind="admonition"]')).toHaveCount(1);
-		await expect(unlisted.locator('[data-block-kind="admonition"]')).toHaveCount(0);
-		await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
 	});
 
 	test('bold over dollars the editor draws as text wraps them in one run', async ({ page }) => {
@@ -108,19 +131,6 @@ test.describe('the plugins prop is the enablement set', () => {
 
 		await expect(box).toContainText('Z');
 		expect(await convergedIn(page, 'notListing')).toBe(true);
-	});
-
-	// The badge comes from an onEditor hook, so its absence means the hook never ran here.
-	test('attaches no decoration source from a plugin it did not list', async ({ page }) => {
-		await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);
-	});
-
-	test('built-ins are untouched: both editors render their heading and body', async ({ page }) => {
-		for (const testId of ['editor-listing', 'editor-not-listing']) {
-			const pane = page.getByTestId(testId);
-			await expect(pane.locator('[data-block-kind="heading"]')).toHaveCount(1);
-			await expect(pane.locator('[data-block-kind="paragraph"]').last()).toHaveText('Body');
-		}
 	});
 });
 

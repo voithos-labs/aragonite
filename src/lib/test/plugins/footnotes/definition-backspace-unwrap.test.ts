@@ -4,12 +4,14 @@
 // is still a definition rather than the blockquote a quote lift leaves.
 // Miss-analysis: no test asserted what Backspace did, only that the bytes stayed unchanged.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import type { Document } from '$lib/plugin';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
-let mounted: ReturnType<typeof mountEditor>;
+type Seam = { getDocument(): Document };
+let mounted: ReturnType<typeof mountEditor<Seam>>;
 
 afterEach(async () => {
 	if (mounted) await mounted.destroy();
@@ -17,8 +19,8 @@ afterEach(async () => {
 
 const BACKSPACE = { key: 'Backspace' };
 
-function editor(source: string): ReturnType<typeof mountEditor> {
-	mounted = mountEditor({ source, plugins: [footnotesPlugin()] });
+function editor(source: string): ReturnType<typeof mountEditor<Seam>> {
+	mounted = mountEditor<Seam>({ source, plugins: [footnotesPlugin()] });
 	return mounted;
 }
 
@@ -37,6 +39,8 @@ describe('footnote definition Backspace unwrap', () => {
 		await pressKeyAt(mounted, [0, 0], 0, BACKSPACE);
 
 		expect(mounted.source()).toBe('First.\n\n[^a]: Second.\n');
+		// The live tree, not a reload of the bytes: what the lift left behind is still a definition.
+		expect(mounted.instance.__test.getDocument().children[1].kind).toBe('footnote-def');
 	});
 
 	it('merges a second body block into the first instead of unwrapping', async () => {

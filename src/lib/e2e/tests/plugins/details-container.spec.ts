@@ -26,18 +26,6 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.gotoDetails();
 	});
 
-	test('substrate: ?seed=details mounts the DetailsBlock component, not a raw fallback', async ({
-		page
-	}) => {
-		const d = await readDetails(page, 0);
-		expect(d.kind).toBe('details');
-		expect(d.childKinds).toEqual(['details-summary', 'paragraph']);
-		await expect(page.locator('.details-block')).toBeVisible();
-		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'true');
-		expect(await editor.bridge.getSource()).toBe(OPEN);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
 	test('toggle round-trips the opener bytes and the body mount state', async ({ page }) => {
 		await editor.loadContent(OPEN);
 		expect(await bodyHostCount(page)).toBe(2); // summary + body
@@ -70,19 +58,6 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.bridge.waitForSourceContains('<details open>');
 		expect(await bodyHostCount(page)).toBe(2);
 		expect(await editor.bridge.getSource()).toBe(OPEN);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
-	test('collapsing with the caret in the body lands the caret on the summary', async ({ page }) => {
-		await editor.loadContent(OPEN);
-		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
-		expect(await activeBlockPath(page)).toEqual([0, 1]);
-
-		// The mouse toggle keeps the body caret, since mousedown's default is suppressed, and the
-		// clamp then unmounts that block, so the toggle's commit puts the caret on the summary.
-		await editor.page.locator('.details-toggle').click();
-		await editor.bridge.waitForSourceContains('<details>\n');
-		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

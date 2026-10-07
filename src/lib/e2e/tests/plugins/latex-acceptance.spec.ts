@@ -208,17 +208,19 @@ test.describe('latex acceptance axes', () => {
 		expect(Number(after[1].count)).toBeGreaterThan(Number(before[1].count));
 	});
 
-	// A7: every multiline environment renders KaTeX with no error node. Table-driven, so a gap in
-	// any one environment fails only its own row.
-	for (const [name, inner] of A7_ENVIRONMENTS) {
-		test(`A7: ${name} renders as display math`, async () => {
-			await editor.loadContent(`$$\n${inner}\n$$\n`);
-			await expect(editor.blockRender).toHaveCount(1);
-			await expect(editor.blockRender.locator('.katex')).toHaveCount(1);
-			await expect(editor.page.locator('.math-error')).toHaveCount(0);
-			await expect(editor.page.locator('.katex-error')).toHaveCount(0);
-		});
-	}
+	// A7: every multiline environment renders KaTeX with no error node, one step per environment so
+	// a failure names it. Each fixture differs, so every load really swaps the document.
+	test('A7: every multiline environment renders as display math', async () => {
+		for (const [name, inner] of A7_ENVIRONMENTS) {
+			await test.step(name, async () => {
+				await editor.loadContent(`$$\n${inner}\n$$\n`);
+				await expect(editor.blockRender).toHaveCount(1);
+				await expect(editor.blockRender.locator('.katex')).toHaveCount(1);
+				await expect(editor.page.locator('.math-error')).toHaveCount(0);
+				await expect(editor.page.locator('.katex-error')).toHaveCount(0);
+			});
+		}
+	});
 
 	// A5: invalid math renders a readable inline message through the live widget path, never KaTeX's
 	// raw `.katex-error` strip.

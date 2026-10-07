@@ -192,7 +192,9 @@ async function swapAtTheEnd(
 test.describe('a view swap at the end of a windowed document keeps the reader at the end', () => {
 	for (const scrollMode of ['self', 'host'] as const) {
 		const portSelector = scrollMode === 'host' ? '.plugins-harness' : '.editor';
-		for (const swap of [EDIT_BUTTON, DIAGRAM_DOUBLE_CLICK, DETAILS_COLLAPSE, EDIT_IN_LONG_LIST]) {
+		// The double click opens the source through the Edit button's own path, so it runs once,
+		// on the showcase below.
+		for (const swap of [EDIT_BUTTON, DETAILS_COLLAPSE, EDIT_IN_LONG_LIST]) {
 			test(`${swap.name}, ${scrollMode} scroll`, async ({ page }) => {
 				const editor = new MermaidPage(page);
 				await gotoReady(page, `/test/plugins?seed=mermaid&scroll=${scrollMode}`);

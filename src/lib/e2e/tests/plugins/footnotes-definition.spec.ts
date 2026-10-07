@@ -19,17 +19,6 @@ test.describe('plugin container: footnote definition', () => {
 		await editor.gotoPlugins('footnotes');
 	});
 
-	test('substrate: mounts the FootnoteDefinition container with a paragraph body', async ({
-		page
-	}) => {
-		const def = await readContainer(page, 1);
-		expect(def.kind).toBe('footnote-def');
-		expect(def.childKinds).toEqual(['paragraph']);
-		await expect(page.locator('.footnote-def')).toBeVisible();
-		expect(await editor.bridge.getSource()).toBe(SEED);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
 	test('renders the [^a]: marker as a dimmed ambient prefix before the body', async ({ page }) => {
 		// The definition's only marker is its leading prefix, since the body text holds no inline
 		// syntax, so the block reads "[^a]: The note body." with that marker dimmed.
@@ -91,30 +80,6 @@ test.describe('plugin container: footnote definition', () => {
 		await editor.bridge.waitForSourceContains('[^a]: The note body.\n');
 		expect(await editor.bridge.getSource()).toBe(SEED);
 		expect((await readContainer(page, 1)).kind).toBe('footnote-def');
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
-	test('a Backspace in the second body block merges it into the first', async ({ page }) => {
-		await editor.loadContent('[^a]: First.\n\n    Second.\n');
-		await editor.focusBlockAtPath([0, 1], 0);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('First.Second.');
-
-		// The marker stays: only a Backspace in the first body block reaches the unwrap.
-		expect(await editor.bridge.getSource()).toBe('[^a]: First.Second.\n');
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
-	test('the first of two body blocks lifts out and the marker keeps the rest', async ({ page }) => {
-		await editor.loadContent('[^a]: First.\n\n    Second.\n');
-		await editor.focusBlockAtPath([0, 0], 0);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('First.\n\n[^a]: Second.\n');
-
-		expect(await editor.bridge.getSource()).toBe('First.\n\n[^a]: Second.\n');
-		const def = await readContainer(page, 1);
-		expect(def.kind).toBe('footnote-def');
-		expect(def.childTexts).toEqual(['Second.']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

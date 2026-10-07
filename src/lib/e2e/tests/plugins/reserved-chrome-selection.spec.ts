@@ -22,21 +22,6 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await editor.gotoPlugins();
 	});
 
-	test('substrate: the title parses as a reserved child-0 callout-title leaf', async ({ page }) => {
-		await editor.loadContent(FIXTURE);
-		const callout = await readCallout(page, 1);
-		expect(callout.kind).toBe('callout');
-		expect(callout.rootCount).toBe(2);
-		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Title', 'Body']);
-		// This container has no line prefix: its raw holds the title in the opener line and the
-		// document still round-trips, since serialization reads that raw.
-		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(FIXTURE);
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
 	// ── Part 1: the selection behaves like any other ─────────────────────────
 
 	test('Gate 1: keyboard Shift+ArrowDown paints one span from the paragraph into the title', async ({

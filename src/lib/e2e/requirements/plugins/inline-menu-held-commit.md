@@ -20,7 +20,8 @@ inserts a card below.
 
 - Pick, then the host loads another note before the commit is released: the release writes
   nothing into the new note and fires no `edit`. Miss-analysis: every held-commit row released
-  the commit into the note it was picked in.
+  the commit into the note it was picked in. The slash list's host rows had the same hole: every
+  row that ran a host function ran it at once, in the note it was picked in.
 - Pick, the host loads another note and writes into it itself, then the commit is released: the
   host's write lands, and the pick's card doesn't
 - Pick, switch to live mode while the commit waits, release it: a mode change replaces no
