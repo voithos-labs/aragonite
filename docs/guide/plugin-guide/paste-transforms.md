@@ -14,7 +14,7 @@ registerPasteTransform({
 registerPasteTransform({ name: 'shout', transform: () => null }); // throws: "shout" is already registered
 ```
 
-Two habits keep a transform sound:
+Three habits keep a transform sound:
 
 - **Decline cheaply, then convert precisely.** Probe the text for your marker first and return `null` when it's absent. The pipeline runs on every paste, so a fast reject keeps the common case free.
 - **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only the blocks it means to leaves the fence alone.
