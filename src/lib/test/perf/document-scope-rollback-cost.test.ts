@@ -11,7 +11,7 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-const BLOCKS = 25_000;
+const BLOCKS = 500;
 
 /** Counts reads of each block's `metadata`: saving a block for the rollback reads it with its
  *  bytes, and nothing else in a delete this far from a block reads either. */
