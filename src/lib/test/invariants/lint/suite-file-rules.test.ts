@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	balancedBlock,
+	callsAnywhere,
 	callsTo,
 	collectEditorSources,
 	EDITOR_SRC,
@@ -162,13 +163,16 @@ function describeArguments(code: string): string[] {
 	});
 }
 
-/** What a file runs as it loads: its top level, and each describe callback's own statements. */
-function loadTimeCode(code: string): string[] {
-	const bare = literalSpans(code).reduce(
+const blankLiterals = (code: string): string =>
+	literalSpans(code).reduce(
 		(text, span) =>
 			text.slice(0, span.start) + ' '.repeat(span.end - span.start) + text.slice(span.end),
 		code
 	);
+
+/** What a file runs as it loads: its top level, and each describe callback's own statements. */
+function loadTimeCode(code: string): string[] {
+	const bare = blankLiterals(code);
 	const bodies = describeArguments(bare).flatMap((args) => {
 		const open = /=>\s*\{/.exec(args);
 		const body = open && balancedBlock(args, open.index + open[0].length);
@@ -184,6 +188,16 @@ function loadTimeRegistration(code: string): boolean {
 	);
 }
 const hookCall = (hook: string, body: string) => `${hook}(() => ${body});`;
+
+const TREE_WALKERS = ['collectEditorSources', 'collectFiles'];
+
+/** Whether a test's own callback walks a source tree. */
+const walksInsideATest = (code: string): boolean =>
+	['it', 'test'].some((name) =>
+		callsTo(blankLiterals(code), name).some((args) =>
+			TREE_WALKERS.some((walker) => callsAnywhere(args, walker))
+		)
+	);
 
 const SUITE_DIRS = [SOURCE_DIR.unitTests, SOURCE_DIR.e2e];
 const PERF_DIRS = [SOURCE_DIR.unitPerfTests, SOURCE_DIR.e2ePerfTests];
@@ -298,6 +312,34 @@ const RULES: FileRule[] = [
 			at('src/lib/test/c.test.ts', 'const c = fileClasses(file);'),
 			at('src/lib/test/d.test.ts', `${lexCall('lexical', 'f.text, languageOf(f.relPath)')};`),
 			at('src/lib/test/e.test.ts', `const c = ${lexCall('lexical', "snippet, 'script'")};`)
+		]
+	},
+	{
+		id: 'a suite walks a source tree at collection, never inside a test',
+		population: under(...SUITE_DIRS),
+		matches: (file) => walksInsideATest(file.code),
+		reason:
+			'a test’s callback runs under its timeout, and a tree walk takes seconds on a busy machine: walk at collection (the describe body), and keep the test to its assertions',
+		hits: [
+			at(
+				`${LINT_DIRS[0]}a.test.ts`,
+				`it('reads', () => {\n\tconst f = ${TREE_WALKERS[1]}(dir);\n});`
+			),
+			at(
+				'src/lib/test/b.test.ts',
+				`test('reads', () => expect(${TREE_WALKERS[0]}()).toEqual([]));`
+			),
+			at(`${LINT_DIRS[1]}c.test.ts`, `it('reads', () => [...${TREE_WALKERS[0]}(dir)], 30_000);`)
+		],
+		misses: [
+			at(
+				`${LINT_DIRS[0]}c.test.ts`,
+				`describe('d', () => {\n\tconst f = ${TREE_WALKERS[0]}();\n\tit('reads', () => expect(f).toEqual([]));\n});`
+			),
+			at(
+				`${LINT_DIRS[0]}e.test.ts`,
+				`it('names it', () => expect(${quoted("'", TREE_WALKERS[1] + '(x)')}).toBe(''));`
+			)
 		]
 	},
 	{

@@ -47,12 +47,14 @@ describe('G4.126 the dev server pre-bundles every package before a page asks for
 		expect(scanned).toContain(toPosix(path.resolve(SOURCE.showcaseRoute)));
 	});
 
+	// Read at collection, which no test timeout bounds: the app walk takes seconds on a busy machine.
+	const lazy = appSources().flatMap((file) =>
+		importSpecifiers(file.code)
+			.filter((spec) => spec.kind === 'dynamic' && !spec.typeOnly && isPackage(spec.specifier))
+			.map((spec) => ({ file: file.relPath, specifier: spec.specifier }))
+	);
+
 	it('every package the app imports lazily is in optimizeDeps.include', () => {
-		const lazy = appSources().flatMap((file) =>
-			importSpecifiers(file.code)
-				.filter((spec) => spec.kind === 'dynamic' && !spec.typeOnly && isPackage(spec.specifier))
-				.map((spec) => ({ file: file.relPath, specifier: spec.specifier }))
-		);
 		expect(lazy.length, 'the scan found no lazy package import at all').toBeGreaterThan(0);
 		const included = new Set(clientDeps.include ?? []);
 		const missing = lazy.filter(({ specifier }) => !included.has(specifier));

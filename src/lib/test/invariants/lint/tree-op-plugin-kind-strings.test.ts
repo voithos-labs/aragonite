@@ -78,6 +78,8 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 	const pluginSources = collectEditorSources(PLUGIN_SRC);
 	const dispatchSources = DISPATCH_SRCS.flatMap((dir) => collectEditorSources(dir));
 	const forbidden = pluginBlockKindLiterals(pluginSources);
+	const layerSizes = DISPATCH_SRCS.map((dir) => collectEditorSources(dir).length);
+	const found = violations(dispatchSources, forbidden);
 
 	it('derived a non-trivial forbidden set including the known instance', () => {
 		expect(forbidden.size).toBeGreaterThan(3);
@@ -89,13 +91,12 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 
 	it('scanned real dispatch sources across all covered layers', () => {
 		expect(dispatchSources.length).toBeGreaterThan(0);
-		for (const dir of DISPATCH_SRCS) {
-			expect(collectEditorSources(dir).length).toBeGreaterThan(0);
+		for (const [index, size] of layerSizes.entries()) {
+			expect(size, DISPATCH_SRCS[index]).toBeGreaterThan(0);
 		}
 	});
 
 	it('no dispatch-layer source names a plugin block kind', () => {
-		const found = violations(dispatchSources, forbidden);
 		expect(
 			found,
 			`plugin kind name(s) in a core dispatch layer: route the dispatch through a descriptor capability: ${found
