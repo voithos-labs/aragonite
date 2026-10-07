@@ -461,6 +461,7 @@ async function runCommandAt(
 			getPath: () => path,
 			afterSourceCommit: target.afterSourceCommit
 		},
-		ctx.commands
+		ctx.commands,
+		{ afterRemoval: true }
 	);
 }

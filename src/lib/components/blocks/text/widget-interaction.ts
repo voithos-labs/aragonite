@@ -12,9 +12,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import { selectWidgetWhole } from '../../../selection/caret-doors';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
-	flattenInlineWidgets,
 	getInlineWidgetEditing,
 	isCharacterLikeWidget,
 	isWidgetActivationClick
@@ -49,7 +47,8 @@ import {
 	rawHasNoTextBefore,
 	rawHasNoTextAfter,
 	widgetElByStart,
-	widgetNodeIn
+	widgetNodeIn,
+	widgetsIn
 } from './widget-adjacency';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
@@ -224,20 +223,10 @@ export async function replaceSelectedWidget(
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
 	const isReading = () => deps.reading.mode() === 'reading';
 
-	// Resolver-aware so widget detection matches the render path's view; a mismatch
-	// around reference-style image widgets breaks cursor and clipboard offsets.
-	function inlinesOf(node: NodeView): InlineNode[] {
-		return resolvedInlineContent(node, deps.reading);
-	}
-
 	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, deps.reading.grammar);
 	const characterLike = (kind: AnyInlineKind) => isCharacterLikeWidget(kind, deps.reading.grammar);
 
-	/** Every widget in this block, nested ones included: a construct wrapping a widget (emphasis
-	 *  around a formula, a link around an image) hides it from the top-level inline list. */
-	function widgetsOf(): InlineNode[] {
-		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw, deps.reading.grammar);
-	}
+	const widgetsOf = (): InlineNode[] => widgetsIn(deps.node, deps.reading);
 
 	// ── Editing a widget's source ──────────────────────────────────────────────
 	// The source edit lives only in the DOM and is written on commit, so it lands as one undo entry.
@@ -829,12 +818,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	function enterEdgeWidget(side: 'start' | 'end'): boolean {
-		const inlines = inlinesOf(deps.node);
-		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
-				? findFirstEdgeWidget(inlines, deps.node.raw, deps.reading.grammar)
-				: findLastEdgeWidget(inlines, deps.node.raw, deps.reading.grammar);
+				? findFirstEdgeWidget(deps.node, deps.reading)
+				: findLastEdgeWidget(deps.node, deps.reading);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent keys route to this block's handler.
 		deps.getEl()?.focus();

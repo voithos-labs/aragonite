@@ -1232,8 +1232,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/tree-operations/structural-suffix.ts': "a split's two halves, which remove nothing",
 			'src/lib/components/blocks/text/construct-edge-delete.ts':
 				'the edge delete, which reads its own candidate back where it is stored',
-			'src/lib/components/blocks/text/text-keydown.ts':
-				'a hard break or a tab inserted, which deletes nothing',
+			'src/lib/components/blocks/text/text-keydown.ts': 'a tab inserted, which deletes nothing',
 			'src/lib/components/blocks/text/pending-break-keys.ts':
 				'a key typed on the line a pending break opened, which deletes nothing',
 			'src/lib/components/blocks/text/edge-seat.ts':
@@ -1252,6 +1251,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'text typed at an offset once a range is gone, which deletes nothing',
 			'src/lib/components/image/image-widget-editing.ts':
 				'an image replaced by its own edited bytes, one whole construct for another',
+			'src/lib/core/inline/index.ts': 'a hard break inserted, which deletes nothing',
 			'src/lib/core/inline/format-toggle.ts':
 				'the format toggle writes delimiters and checks its candidate against the screen',
 			'src/lib/core/inline/link-source-bytes.ts':
@@ -2064,9 +2064,45 @@ const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	]
 };
 
+// ── G4.125 one list of the widgets a block renders ─────────────────────────
+
+const WIDGET_LIST_HOME = SOURCE.widgetAdjacency;
+const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
+
+const WIDGET_LIST: FileRule = {
+	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
+	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
+	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
+	allowed: {
+		[WIDGET_LIST_HOME]:
+			'`widgetsIn` itself, and the edge finders, which read the top-level list on purpose'
+	},
+	reaches: [WIDGET_LIST_HOME],
+	reason:
+		'a reader that walks the inline list itself can miss a widget a link or emphasis wraps, so a click arms one widget and the paint looks for another: ask `widgetsIn`',
+	hits: [
+		at(ROGUE_WIDGET_READER, 'if (!isInlineWidget(inline, node.raw, grammar)) continue;'),
+		at(ROGUE_WIDGET_READER, 'const all = flattenInlineWidgets(inlines, raw, grammar);'),
+		at(`${SOURCE_DIR.plugins}x/x.ts`, 'return isInlineWidget (node, raw, grammar);')
+	],
+	misses: [
+		at(ROGUE_WIDGET_READER, 'for (const inline of widgetsIn(node, reading)) {'),
+		at(ROGUE_WIDGET_READER, 'const nested = isInlineWidgetKind(kind);'),
+		at(`${SOURCE_DIR.inline}transparency.ts`, 'if (isInlineWidget(inline, node.raw, grammar)) {')
+	]
+};
+
 const SOURCES = collectEditorSources();
 describeFileRules(
-	[...RULES, ...LEAF_RANGE_RULES, REF_FOCUS, MATH_SHAPE, RANGE_PAINT, PIECES_UNDER_ORDER_CHECK],
+	[
+		...RULES,
+		...LEAF_RANGE_RULES,
+		REF_FOCUS,
+		MATH_SHAPE,
+		RANGE_PAINT,
+		PIECES_UNDER_ORDER_CHECK,
+		WIDGET_LIST
+	],
 	SOURCES
 );
 describeManifests(ITEM_PIECES, SOURCES);

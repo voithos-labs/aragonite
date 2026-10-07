@@ -24,7 +24,7 @@
 		consumePendingRestore,
 		editableSurfaceAttributes
 	} from '../editable-surface';
-	import type { ClipboardCopy } from '../clipboard-step';
+	import { writeShownSelection, type ClipboardCopy } from '../clipboard-step';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
@@ -59,6 +59,7 @@
 	import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 	import type { WriteIntent } from '../surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
+	import type { CommandRun } from '../../../schema/block-commands';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
@@ -119,8 +120,10 @@
 		getTextLen: () => plainTextOf(el).length,
 		readText: () => plainTextOf(el),
 		handleKeydown: onKeyDown,
-		handleBeforeInput: onBeforeInput
+		handleBeforeInput: onBeforeInput,
+		removeSelection: (range) => removeRange(range, 'selection-removal') ?? undefined
 	});
+	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -363,13 +366,8 @@
 		// Gated on !composing so an IME emitting it mid-composition does not sync.
 		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
-			const result = computeCodeEnter({
-				display: getDisplayText(),
-				selection: enterSpliceSpan(currentRange()),
-				mode: 'soft',
-				ending: editableSurface.lineEnding()
-			});
-			void writeCode(result.newText, result.newCursor, 'soft-break');
+			// Input, not a command, so it asks for the selection's removal itself.
+			editableSurface.afterSelectionRemoved(() => writeLineBreak('soft'));
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -421,14 +419,6 @@
 	}
 
 	// ── Fence-crossing edits ──────────────────────────────────────────────────
-
-	/** Where an Enter or soft break splices: a caret clamps out of the fence lines, and a
-	 *  selection is replaced on its body span like every other ranged edit here. */
-	function enterSpliceSpan(range: RawRange): RawRange {
-		if (range.start !== range.end) return fenceEditSpan(node, range);
-		const at = clampEnterOffsetToBody(node, range.start);
-		return { start: at, end: at };
-	}
 
 	/** The one check for every browser edit that rewrites a range here. With the fence lines
 	 *  hidden, one that crosses a fence line moves onto the body instead of splicing it away. */
@@ -523,35 +513,38 @@
 
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand, getPath: () => myPath })) return;
+		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSelectionRemoved };
+		if (wiring.dispatchChord(e, target)) return;
 	}
 
 	// ── Commands ────────────────────────────────────────────────────────
 
-	export const runCommand = editableSurface.command((id: CommandId): boolean => {
-		switch (id) {
-			case 'format.toggleStrong':
-			case 'format.toggleEmphasis':
-			case 'format.toggleStrikethrough':
-			case 'format.toggleCode':
-			case 'link.openCard':
-				return true; // code blocks carry no inline constructs; swallow to stop the browser default
-			case 'code.newline':
-				return codeNewline();
-			case 'code.indent':
-				shiftSelection('indent');
-				return true;
-			case 'code.dedent':
-				shiftSelection('dedent');
-				return true;
-			case 'code.backspace':
-				return codeBackspace();
-			case 'code.delete':
-				return codeDelete();
-			default:
-				return false;
+	export const runCommand = editableSurface.command(
+		(id: CommandId, _arg?: unknown, run: CommandRun = { afterRemoval: false }): boolean => {
+			switch (id) {
+				case 'format.toggleStrong':
+				case 'format.toggleEmphasis':
+				case 'format.toggleStrikethrough':
+				case 'format.toggleCode':
+				case 'link.openCard':
+					return true; // code blocks carry no inline constructs; swallow to stop the browser default
+				case 'code.newline':
+					return codeNewline(run);
+				case 'code.indent':
+					shiftSelection('indent');
+					return true;
+				case 'code.dedent':
+					shiftSelection('dedent');
+					return true;
+				case 'code.backspace':
+					return codeBackspace();
+				case 'code.delete':
+					return codeDelete();
+				default:
+					return false;
+			}
 		}
-	});
+	);
 
 	function codeBackspace(): boolean {
 		if (!el || backend.getRawSelection() !== null) return false;
@@ -597,27 +590,34 @@
 
 	// The browser's insertParagraph adds <div>/<br> elements that don't affect
 	// textContent, so the CST never sees the edit; Enter goes through the CST instead.
-	function codeNewline(): boolean {
+	function codeNewline(run: CommandRun): boolean {
 		if (!el) return false;
+		// The completion and the exits answer Enter on an empty line, and a removal's empty line
+		// isn't one: a break over a selection only breaks.
+		if (!run.afterRemoval && (completeBareFence() || exitFence())) return true;
+		return writeLineBreak('normal');
+	}
+
+	function completeBareFence(): boolean {
+		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
+		// where it happens there; the marker-hiding modes did it as the caret arrived.
+		const completion = bareFenceCompletion();
+		if (!completion) return false;
+		void writeCode(completion.text, completion.caretAfter, 'complete-fence');
+		if (infoString === '' && !readOnly && !languageOffered) {
+			languageOffered = true;
+			void tick().then(() => {
+				autoOpenLanguage = true;
+			});
+		}
+		return true;
+	}
+
+	function exitFence(): boolean {
 		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
-
-		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
-		// where it happens there; the marker-hiding modes did it as the caret arrived.
-		const completion = bareFenceCompletion();
-		if (completion) {
-			void writeCode(completion.text, completion.caretAfter, 'complete-fence');
-			if (infoString === '' && !readOnly && !languageOffered) {
-				languageOffered = true;
-				void tick().then(() => {
-					autoOpenLanguage = true;
-				});
-			}
-			return true;
-		}
-
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
 			closeUnclosedFenceAndDescend(exit.newText, offset);
@@ -628,28 +628,27 @@
 			exitDownward();
 			return true;
 		}
+		return false;
+	}
 
-		const span = enterSpliceSpan(currentRange());
-
-		// Electric indent: between an empty bracket pair, expand into three lines with an
-		// extra indent on the middle. Quote pairs stay inline; a selection is replaced.
+	/** A line break at the caret, clamped out of the fence lines. A selection is already gone: the
+	 *  command dispatch removes it for Enter, and the soft break asks for its removal. */
+	function writeLineBreak(mode: 'normal' | 'soft'): boolean {
+		const text = getDisplayText();
+		const at = clampEnterOffsetToBody(node, backend.getRaw() ?? 0);
 		const ending = editableSurface.lineEnding();
-		if (span.start === span.end && isBetweenEmptyBracketPair(text, span.start)) {
-			const at = span.start;
+		// Electric indent: between an empty bracket pair, expand into three lines with an
+		// extra indent on the middle. Quote pairs stay inline.
+		if (mode === 'normal' && isBetweenEmptyBracketPair(text, at)) {
 			const indent = getLineLeadingWhitespace(text, at);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
 			const newText = text.slice(0, at) + ending + inner + ending + indent + text.slice(at);
 			void writeCode(newText, at + ending.length + inner.length, 'enter');
 			return true;
 		}
-
-		const enter = computeCodeEnter({
-			display: text,
-			selection: span,
-			mode: 'normal',
-			ending
-		});
-		void writeCode(enter.newText, enter.newCursor, 'enter');
+		const selection = { start: at, end: at };
+		const enter = computeCodeEnter({ display: text, selection, mode, ending });
+		void writeCode(enter.newText, enter.newCursor, mode === 'normal' ? 'enter' : 'soft-break');
 		return true;
 	}
 
@@ -692,7 +691,8 @@
 		getCursorOffset,
 		focusAtColumn,
 		insertMarkdown,
-		runCommand
+		runCommand,
+		afterSelectionRemoved
 	} satisfies BlockComponent);
 
 	function currentRange(): { start: number; end: number } {
@@ -725,15 +725,15 @@
 	function copySelection(e: ClipboardEvent): ClipboardCopy<RawRange> {
 		const range = el ? backend.getRawSelection() : null;
 		if (!range) return null;
-		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+		writeShownSelection(e);
 		return { held: range };
 	}
 
-	function removeSelection(range: RawRange): void {
+	function removeRange(range: RawRange, source: string): ContentWrite | null {
 		const edit = fenceLinesEditable
 			? computeRangedEdit(getDisplayText(), range, '')
 			: computeFenceRangedEdit(node, range, '');
-		if (edit) void writeCode(edit.newText, edit.newCursor, 'cut', 'command');
+		return edit && writeCode(edit.newText, edit.newCursor, source, 'command');
 	}
 
 	const clipboard = createClipboardHandlers({
@@ -745,7 +745,7 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		rangeArm: { copy: copySelection, remove: removeSelection },
+		rangeArm: { copy: copySelection, remove: (range: RawRange) => void removeRange(range, 'cut') },
 		pasteTail: async (pastedText, { range }) => {
 			if (!el) return;
 			// Where the fence lines are hidden, paste refuses where typing refuses: a target confined

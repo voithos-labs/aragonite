@@ -93,6 +93,8 @@ For the second, `src/lib/cursor/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` 
 | beside one                                                   | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
 | above or below one (the strip a box leaves around a picture) | the one on the side the click landed                                                                              |
 
+The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the block paints its own caret there and hides the browser's. The paint reads the same list, so a wrapped picture gets its caret too.
+
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second click of a double-click is a word selection, `src/lib/selection/multi-click.ts`, not a caret). The third click of a run belongs to the block's own selection, or to the widget when the editor already holds it selected whole; a source the first click showed is hidden there like any other, and the range the third click painted comes back over the rebuilt block.
 
 The same click also moves a caret that landed inside the container's marker prefix (the `- ` in front of a list item) back into the content. And while a widget is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`editor.md` § 10).

@@ -5,6 +5,7 @@
  * offsets; state that changes is passed as functions, never as captured values.
  */
 
+import { tick } from 'svelte';
 import type {
 	BlockEditActions,
 	ContentWrite,
@@ -20,7 +21,7 @@ import {
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
 import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
-import { emitClipboardError, type EditorEvents } from '../../editor-events';
+import { emitClipboardError, emitCommandError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
 import type { NodeView } from '../../core/node-views';
 import { blockAccessibleName } from '../../a11y-strings';
@@ -31,6 +32,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../selection/caret-doors';
+import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { SurfaceBackend } from '../../cursor/surface-backend';
 import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
@@ -53,7 +55,12 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
-import { runClipboardCut, takeCopy, type ClipboardArm } from './clipboard-step';
+import {
+	runClipboardCut,
+	takeCopy,
+	writeShownSelection,
+	type ClipboardArm
+} from './clipboard-step';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
@@ -210,6 +217,9 @@ export interface EditableSurfaceDeps {
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
+	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
+	 *  bytes land. Omitted where no line break or command removes a selection first. */
+	removeSelection?: (range: RawRange) => PromiseLike<unknown> | void;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -237,6 +247,9 @@ export interface EditableSurface {
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
+	/** Removes the selection through `removeSelection`, then runs `run` at the caret it leaves: a
+	 *  command target's `afterSelectionRemoved`, and how a line break typed as input replaces one. */
+	afterSelectionRemoved(run: (removed: boolean) => boolean): boolean;
 	/** Bound to the element's `keydown`. */
 	onKeyDown: (e: KeyboardEvent) => void;
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
@@ -556,6 +569,29 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// `bind:this` teardown nulls the reference a resuming handler still holds.
 	const isDetached = (): boolean => deps.getEl()?.isConnected !== true;
 
+	function afterSelectionRemoved(run: (removed: boolean) => boolean): boolean {
+		const range = deps.backend.getRawSelection();
+		const remove = deps.removeSelection;
+		if (!range || range.start === range.end || !remove) return run(false);
+		const seed = deleteSnapshot(deps.getMyPath(), range.start);
+		void deps.controller
+			.undoStep(seed, async () => {
+				await remove(range);
+				// The command reads the caret the removal's render puts back.
+				await tick();
+				if (!isDetached()) run(true);
+			})
+			// Nothing awaits the key's step, so a throw in it reaches the host as a command's would.
+			.catch((error: unknown) =>
+				emitCommandError(deps.events, {
+					kind: deps.getNode().kind,
+					command: 'selection-removal',
+					error
+				})
+			);
+		return true;
+	}
+
 	return {
 		crossBlock,
 		sharedCtx,
@@ -567,6 +603,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
 		command,
+		afterSelectionRemoved,
 		onKeyDown,
 		onBeforeInput,
 		onInput,
@@ -665,16 +702,11 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		crossBlock: deps.crossBlock
 	});
 
-	// Reading mode copies what the user sees, which is the browser's selection string with the
-	// CSS-hidden markers dropped, not a slice of the raw; so does a copy no `ClipboardArm` takes.
-	const writeVisibleSelection = (e: ClipboardEvent): void => {
-		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-	};
-
 	function onCopy(e: ClipboardEvent): void {
 		deps.caretMemory.forget();
 		e.preventDefault();
-		if (deps.isReadOnly() || takeCopy(e, arms) === null) writeVisibleSelection(e);
+		// Reading mode, and a copy no `ClipboardArm` takes, copy what the user sees.
+		if (deps.isReadOnly() || takeCopy(e, arms) === null) writeShownSelection(e);
 	}
 
 	function onCut(e: ClipboardEvent): Promise<void> {

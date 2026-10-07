@@ -5,7 +5,7 @@
 
 import { callArguments, collectEditorSources } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
-import { notUnder, type Probe } from './file-rule';
+import { notUnder, under, type Probe } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── G4.1 createBlockListState ────────────────────────────────────────────────
@@ -98,9 +98,14 @@ const RULES: CallSiteRule[] = [
 	},
 	{
 		id: 'G4.111 an editable element writes its own text through the surface write',
+		// A bundled or reference plugin's block component is an editable element too.
 		population: (file) =>
-			[SOURCE_DIR.components, SOURCE_DIR.selection].some((dir) => file.relPath.startsWith(dir)) &&
-			file.relPath !== SOURCE.surfaceWrite,
+			under(
+				SOURCE_DIR.components,
+				SOURCE_DIR.selection,
+				SOURCE_DIR.plugins,
+				SOURCE_DIR.referencePlugins
+			)(file) && file.relPath !== SOURCE.surfaceWrite,
 		calls: ['.updateBlockContent'],
 		holds: () => false,
 		allowed: {
@@ -125,7 +130,15 @@ const RULES: CallSiteRule[] = [
 			'`surface-write.ts :: writeText` records the caret from before the gesture as undo’s, keeps the block’s line ending and puts the caret back; a direct write picks its own undo caret',
 		hits: [
 			at(ROGUE_BLOCK, 'void blockEdit.updateBlockContent(index, raw, mode, after, after);'),
-			at(ROGUE_BLOCK, 'void wiring.deps.blockEdit.updateBlockContent(index, raw, mode, 0, 0);')
+			at(ROGUE_BLOCK, 'void wiring.deps.blockEdit.updateBlockContent(index, raw, mode, 0, 0);'),
+			at(
+				`${SOURCE_DIR.plugins}x/XBlock.svelte`,
+				'void blockEdit.updateBlockContent(index, raw, mode, 0, 0);'
+			),
+			at(
+				`${SOURCE_DIR.referencePlugins}x/XBlock.svelte`,
+				'void blockEdit.updateBlockContent(index, raw, mode, 0, 0);'
+			)
 		],
 		misses: [
 			at(
@@ -140,16 +153,14 @@ const RULES: CallSiteRule[] = [
 		calls: ['.setData'],
 		holds: () => false,
 		allowed: {
-			'src/lib/components/blocks/editable-surface.ts :: writeVisibleSelection':
-				'the visible-selection copy: reading mode, and a copy no `ClipboardArm` takes',
+			'src/lib/components/blocks/clipboard-step.ts :: writeShownSelection':
+				'the copy of what the user sees: reading mode, a copy no `ClipboardArm` takes, and the code block',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
 				'the text block’s copy of a selected widget',
 			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
 				'the text block’s copy of its own range',
 			'src/lib/components/blocks/table/TableCellBlock.svelte :: copyCellRange':
 				'the cell’s copy of its own range',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: copySelection':
-				'the code block’s copy of its own range',
 			'src/lib/components/blocks/editable-leaf.ts :: copyRange':
 				'a plugin leaf’s copy of its own range',
 			'src/lib/selection/cross-block/clipboard.ts :: copyCrossBlock':
@@ -175,10 +186,8 @@ const RULES: CallSiteRule[] = [
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],
 		holds: () => false,
 		allowed: {
-			'src/lib/components/blocks/code/CodeBlock.svelte :: codeNewline':
-				'Enter types a new line, and an electric indent two',
-			'src/lib/components/blocks/code/CodeBlock.svelte :: onBeforeInput':
-				'a soft break (Shift+Enter, or a line break with no key) types a new line',
+			'src/lib/components/blocks/code/CodeBlock.svelte :: writeLineBreak':
+				'Enter or a soft break (Shift+Enter, or a line break with no key) types a new line, and an electric indent two',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: rangedEditInsertion':
 				'the line break a key types over a selection',
 			'src/lib/components/blocks/code/CodeBlock.svelte :: bareFenceCompletion':
@@ -189,7 +198,7 @@ const RULES: CallSiteRule[] = [
 				'Enter past an unclosed fence adds the closing line and the paragraph below',
 			'src/lib/components/blocks/text/TextEditableBlock.svelte :: writeHardBreak':
 				'Shift+Enter types a new line',
-			'src/lib/components/blocks/editable-leaf.ts :: handleKeydown':
+			'src/lib/components/blocks/editable-leaf.ts :: breakLine':
 				'Enter in a multi-line plugin source types a new line',
 			'src/lib/components/blocks/editable-leaf.ts :: onBeforeInput':
 				'a line break with no key in a painted plugin source types a new line',

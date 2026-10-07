@@ -231,7 +231,14 @@
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		placeInsertion: typedPlacement.insertion,
 		handleKeydown: onKeyDown,
-		handleBeforeInput: onBeforeInput
+		handleBeforeInput: onBeforeInput,
+		removeSelection: (range) =>
+			writeText({
+				...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+				intent: 'command',
+				mode: 'authored',
+				source: 'selection-removal'
+			})
 	});
 	const { writeText } = editableSurface;
 
@@ -499,7 +506,8 @@
 			applyMenuClipboard,
 			snapCaretToPoint,
 			insertMarkdown: clipboard.insertMarkdown,
-			typeText: editableSurface.surface.typeText
+			typeText: editableSurface.surface.typeText,
+			afterSelectionRemoved: editableSurface.afterSelectionRemoved
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, el);
 	});
@@ -805,18 +813,24 @@
 			// the offset they splice must be measured against.
 			const fold = widgetInteraction.foldRevealBeforeMutation();
 			if (fold) await fold.settled;
-			const offset = cursor.getRaw() ?? 0;
-			const text = readCellText();
-			const inserted = '<br>';
-			void writeText({
-				text: text.slice(0, offset) + inserted + text.slice(offset),
-				caretAfter: offset + inserted.length,
-				intent: 'typed',
-				mode: 'authored',
-				source: 'cell-line-break'
-			});
+			// A line break arrives as input, not as a command, so it asks for the removal itself.
+			editableSurface.afterSelectionRemoved(writeLineBreak);
 			return;
 		}
+	}
+
+	function writeLineBreak(): boolean {
+		const offset = cursor.getRaw() ?? 0;
+		const text = readCellText();
+		const inserted = '<br>';
+		void writeText({
+			text: text.slice(0, offset) + inserted + text.slice(offset),
+			caretAfter: offset + inserted.length,
+			intent: 'typed',
+			mode: 'authored',
+			source: 'cell-line-break'
+		});
+		return true;
 	}
 
 	function onPointerDown(e: PointerEvent): void {

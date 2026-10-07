@@ -1,7 +1,7 @@
 /**
- * The cut every block and the editor root share. Each kind of selection a surface can copy is one
- * `ClipboardArm`, written where that selection lives; `runClipboardCut` writes its copy's payload
- * before anything awaits, then deletes what that copy read.
+ * The copy and cut every block and the editor root share. Each kind of selection a surface can
+ * copy is one `ClipboardArm`, written where that selection lives; `runClipboardCut` writes its
+ * copy's payload before anything awaits, then deletes what that copy read.
  */
 
 /**
@@ -43,4 +43,10 @@ export async function runClipboardCut(
 	if (taken === null) return;
 	await hideSource?.()?.settled;
 	await taken.arm.remove(taken.held);
+}
+
+/** Writes the browser's selection string, which leaves out what CSS hides: the payload of a copy
+ *  that takes what the user sees rather than the raw bytes. */
+export function writeShownSelection(e: ClipboardEvent): void {
+	e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 }

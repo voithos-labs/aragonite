@@ -25,7 +25,6 @@
 	} from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatInElement } from '../../../cursor/point-offset';
@@ -64,7 +63,7 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
-	import { widgetElByStart } from './widget-adjacency';
+	import { widgetElByStart, widgetsIn } from './widget-adjacency';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		editableSurfaceAttributes,
@@ -83,6 +82,7 @@
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
+	import type { CommandRun } from '../../../schema/block-commands';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
@@ -267,9 +267,24 @@
 			armSnapTarget(null);
 		},
 		handleKeydown: onKeyDown,
-		handleBeforeInput: onBeforeInput
+		handleBeforeInput: onBeforeInput,
+		// After a shown source is written: until then the selected text lives in the DOM only.
+		removeSelection: (range) =>
+			new Promise((written) =>
+				afterSourceCommit(() =>
+					written(
+						writeText({
+							...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+							intent: 'command',
+							mode: 'authored',
+							source: 'selection-removal'
+						})
+					)
+				)
+			)
 	});
 	const { writeText, pendingBreak } = editableSurface;
+	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -519,12 +534,13 @@
 		id: CommandId,
 		arg: unknown,
 		offset: number,
-		selected: { start: number; end: number } | null
+		selected: { start: number; end: number } | null,
+		run: CommandRun
 	): SplitCommand | null {
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
-				return always(() => blockEdit.splitBlock(index, offset));
+				return always(() => blockEdit.splitBlock(index, offset, run));
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
@@ -607,14 +623,16 @@
 		}
 	}
 
-	export const runCommand = editableSurface.command((id: CommandId, arg?: unknown): boolean => {
-		// Read live: a command dispatched from another block arrives with no input event here.
-		const offset = cursor.getRaw() ?? 0;
-		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
-		if (!command || !command.applies()) return false;
-		afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
-		return true;
-	});
+	export const runCommand = editableSurface.command(
+		(id: CommandId, arg?: unknown, run: CommandRun = { afterRemoval: false }): boolean => {
+			// Read live: a command dispatched from another block arrives with no input event here.
+			const offset = cursor.getRaw() ?? 0;
+			const command = blockCommand(id, arg, offset, cursor.getRawSelection(), run);
+			if (!command || !command.applies()) return false;
+			afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
+			return true;
+		}
+	);
 
 	// A shown source holds this block's edit in the DOM only, so a command waits for it to be
 	// written; the user's offset stays valid, since the written text is the DOM text.
@@ -670,7 +688,8 @@
 		insertMarkdown,
 		snapCaretToPoint,
 		runCommand,
-		afterSourceCommit
+		afterSourceCommit,
+		afterSelectionRemoved
 	} satisfies BlockComponent);
 
 	// ── Content sync ──────────────────────────────────────────────────────
@@ -792,8 +811,7 @@
 		// paints one of its own under it, however the range was entered.
 		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of resolvedInlineContent(node, reading)) {
-			if (!isInlineWidget(inline, node.raw, grammar)) continue;
+		for (const inline of widgetsIn(node, reading)) {
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
@@ -898,7 +916,13 @@
 
 		if (handleHomeKey(e, homeKeyDeps)) return;
 
-		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
+		const target = {
+			kind: node.kind,
+			runCommand,
+			getPath: () => myPath,
+			afterSourceCommit,
+			afterSelectionRemoved
+		};
 		if (wiring.dispatchChord(e, target)) return;
 	}
 

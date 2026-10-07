@@ -27,7 +27,7 @@ describe('cross-block keydown: command candidates', () => {
 
 		expect(event.defaultPrevented).toBe(true);
 		expect(env.source()).toBe('ata\n\ngamma\n');
-		expect(runCommand).toHaveBeenCalledWith('block.split', undefined);
+		expect(runCommand).toHaveBeenCalledWith('block.split', undefined, { afterRemoval: true });
 	});
 
 	it('dispatches at the reveal of the post-delete caret, not the pre-delete start', async () => {
@@ -47,7 +47,7 @@ describe('cross-block keydown: command candidates', () => {
 
 		await env.keydown.handleKeyDown(press('1', { ctrlKey: true }));
 
-		expect(runCommand).toHaveBeenCalledWith('heading.cycle', 1);
+		expect(runCommand).toHaveBeenCalledWith('heading.cycle', 1, { afterRemoval: true });
 	});
 
 	// Reading mode: consumed (the range must not reach a per-block handler) but neither half

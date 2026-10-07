@@ -18,6 +18,7 @@ import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
 import type { RemovalGesture } from './selection/caret-target';
+import type { CommandRun } from './schema/block-commands';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -88,7 +89,8 @@ export interface BlockCaret {
 /** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
  *  that writes nothing resolves false. */
 export interface BlockEditActions {
-	splitBlock(blockIndex: number, offset: number): Promise<boolean>;
+	/** A split after a selection's removal (`run.afterRemoval`) never takes an empty line's exit. */
+	splitBlock(blockIndex: number, offset: number, run?: CommandRun): Promise<boolean>;
 	/**
 	 * Focus the block after `blockIndex` in this list, creating an empty paragraph when it is
 	 * the last child. If the next block is not mounted the caret stays put, key consumed.

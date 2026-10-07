@@ -3,7 +3,6 @@ import { describe, expect, it, vi, type Mocked } from 'vitest';
 import type { ListContext } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
-import { getInlineContent } from '$lib/core/inline/inline-cache';
 import { isVerticallyTransparentNode } from '$lib/core/inline/transparency';
 import { createContainerExitOverrides } from '$lib/editor-actions/container-exit-overrides';
 import { createListItemOverrides } from '$lib/editor-actions/list-overrides';
@@ -41,7 +40,7 @@ describe('Enter at the end of a block holding a non-breaking space', () => {
 
 		expect(parentBlockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(parentBlockEdit.splitBlock).not.toHaveBeenCalled();
-		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(last, 1);
+		expect(defaults.blockEdit.splitBlock).toHaveBeenCalledWith(last, 1, undefined);
 	});
 
 	it('starts the next list item instead of leaving the list', async () => {
@@ -95,14 +94,9 @@ describe('a non-breaking space counts as content to', () => {
 
 	it('the widget edge reads', () => {
 		const raw = `${NBSP}![a](u)${NBSP}`;
-		const inlines = getInlineContent(
-			{ kind: 'paragraph', leadingTrivia: '', raw },
-			undefined,
-			'',
-			defaultGrammarView
-		);
-		expect(findFirstEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
-		expect(findLastEdgeWidget(inlines, raw, defaultGrammarView)).toBeNull();
+		const node = { kind: 'paragraph', leadingTrivia: '', raw } as CstNode;
+		expect(findFirstEdgeWidget(node, fixtureReading())).toBeNull();
+		expect(findLastEdgeWidget(node, fixtureReading())).toBeNull();
 		expect(rawHasNoTextBefore(raw, 1)).toBe(false);
 		expect(rawHasNoTextAfter(raw, raw.length - 1)).toBe(false);
 		expect(rawHasNoTextBefore(' \t', 2)).toBe(true);

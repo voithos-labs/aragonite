@@ -213,6 +213,16 @@ const backspaceAfterX = (m: Mounted) => () => {
 		new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
 	);
 };
+const enterOverX = (m: Mounted) => () => {
+	select(m.el, X.start, X.end);
+	m.el.dispatchEvent(
+		new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+	);
+};
+const lineBreakOverX = (m: Mounted) => () => {
+	select(m.el, X.start, X.end);
+	beforeInput(m.el, 'insertLineBreak');
+};
 const typeAt = (m: Mounted, caret: number, typed: string) => () => {
 	select(m.el, caret);
 	beforeInput(m.el, 'insertText', typed);
@@ -507,6 +517,23 @@ const FAMILIES: Family[] = [
 				run: () =>
 					typedAtWidget({ source: '- **x** ] y\n', leaf: [0, 0, 0] }, { start: 2, end: 5 }, '['),
 				want: ['**[ ] y\n']
+			}
+		]
+	},
+	{
+		// The removal is the first write; the break after it runs at the caret the removal left.
+		name: 'a line break over a selection',
+		stores: {
+			'components/blocks/text/TextEditableBlock.svelte': 1,
+			'components/blocks/table/TableCellBlock.svelte': 1
+		},
+		rows: [
+			{ shape: 'a to-do', run: () => withText(TODO, enterOverX), want: ['# y\n'] },
+			{ shape: 'a plain item', run: () => withText(ITEM, enterOverX), want: ['****[ ] y\n'] },
+			{
+				shape: 'a table cell',
+				run: async () => (await withCell('**x**# y', lineBreakOverX)).slice(0, 1),
+				want: ['# y']
 			}
 		]
 	},

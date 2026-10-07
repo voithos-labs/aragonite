@@ -50,9 +50,11 @@ describe('dispatchKeyCommand', () => {
 				]
 			});
 			expect(dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
-			expect(runCommand).toHaveBeenCalledWith('format.toggleStrong', undefined);
+			expect(runCommand).toHaveBeenCalledWith('format.toggleStrong', undefined, {
+				afterRemoval: false
+			});
 			expect(dispatchKeyCommand('Mod+3', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
-			expect(runCommand).toHaveBeenLastCalledWith('heading.cycle', 3);
+			expect(runCommand).toHaveBeenLastCalledWith('heading.cycle', 3, { afterRemoval: false });
 		} finally {
 			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}

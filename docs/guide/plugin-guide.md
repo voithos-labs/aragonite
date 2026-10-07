@@ -1708,6 +1708,18 @@ const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
 
 The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
 
+**Over a selection inside your block**, your command runs at the caret with the selection still there, which is right for most commands (a toggle reads the selection, it doesn't want it gone). A command that breaks the line wants what Enter does: pass `overSelection: 'afterRemoval'` too, and the selected text goes first, then your handler runs at the caret it left, with `ctx.node` already holding the shorter text. The removal and whatever your handler writes before it returns undo as one step (a write after an `await` lands in a step of its own).
+
+Two things are different once a removal came first. `ctx.afterRemoval` is `true`, so if your command has an "Enter on an empty line" branch of its own (leaving the block, say), skip it then: the line is empty because the selection went, not because the user left it empty. That's how the built-in Enter keeps a whole-item selection inside its list. And the key is taken once the removal runs, whatever your handler returns: `false` can't hand it on to the browser or another binding, since the selection is already gone.
+
+```ts
+const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
+	overRange: 'afterRemoval',
+	overSelection: 'afterRemoval'
+});
+// in '~ roses', select 'se' and press Enter: '~ ros' is left, then splitVerse runs between 'ro' and 's'
+```
+
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
 **`registerRangeIndent(kind, command, shift)`**

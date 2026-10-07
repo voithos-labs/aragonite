@@ -219,16 +219,17 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
-	// Enter never reaches beforeinput, since the keymap takes it at keydown, so its
-	// splice carries the same span rule rather than inheriting the check.
-	it('Enter over a fence-crossing selection replaces only the body part', async () => {
+	// Enter is a command, so the dispatch removes the selection first through the block's fenced
+	// removal; the bytes the newline then writes are pinned in `break-over-selection.test.ts`.
+	it('Enter over a fence-crossing selection first removes only the body part', async () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
 		);
 		await settleEditor();
 
-		expect(committedText()).toBe('```js\nconst \n\n```');
+		const [removal] = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
+		expect(removal[1]).toBe('```js\nconst \n```\n');
 	});
 
 	// Focus must leave a caret that can type: the cross-container merge fallback moves
