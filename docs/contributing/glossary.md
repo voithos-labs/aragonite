@@ -1,8 +1,8 @@
 # Glossary
 
-Every word this repo coined or bent, one line each, alphabetical. A newcomer's first week here used to go to learning the language before the code, which is a stupid way to spend a week, so the language is now on one page.
+Every word this repo coined or bent, one line each, alphabetical, so a newcomer doesn't spend their first week learning the language before the code.
 
-Two ways to read it. A word in a comment or a doc doesn't parse: find it here, done. You're about to write one: the third column says what to write instead. Most of these words are on their way out of the comments (the rule is in [`code-style.md`](code-style.md) § Comments), and a word that only survives because a symbol carries it (`HeightOracle` is a type's name) stays glossed in three words or fewer at its first use in a file, in backticks. The plain phrase is never wrong.
+Two ways to read it. A word in a comment or a doc doesn't parse: find it here, done. You're about to write one: the third column says what to write instead (the rule is in [`code-style.md`](code-style.md) § Comments). A word that only survives because a symbol carries it (`HeightOracle` is a type's name) gets glossed in three words or fewer at its first use in a file. The plain phrase is never wrong.
 
 | Word                   | What it means                                                                                                                                                                                                               | In new writing                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
